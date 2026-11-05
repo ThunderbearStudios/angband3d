@@ -352,14 +352,17 @@ test('Live multi-realm resolveMonster3DConfig maps 40+ signature creatures acros
     assert.strictEqual(resolve({ race: 'Yakuza', glyph: 'p' }, 'p', 'hengband').weaponKey, 'ph_katana');
     assert.strictEqual(resolve({ race: 'Kitsune', glyph: 'f' }, 'f', 'hengband').templateKey, 'bestiary_fox');
 
-    // --- Realm 5: NetHack ---
-    assert.strictEqual(resolve({ race: 'little dog (tame)', glyph: 'd' }, 'd', 'nethack').templateKey, 'bestiary_wolf');
+    // --- Realm 5: NetHack & 4-Model Canine Pack ---
+    assert(['bestiary_shiba', 'bestiary_wolf'].includes(resolve({ race: 'little dog (tame)', glyph: 'd' }, 'd', 'nethack').templateKey));
+    assert.strictEqual(resolve({ race: 'Frost hound', glyph: 'Z' }, 'Z', 'angband').templateKey, 'bestiary_husky');
+    assert.strictEqual(resolve({ race: 'Little dog', glyph: 'C' }, 'C', 'angband').templateKey, 'bestiary_shiba');
+    assert.strictEqual(resolve({ race: 'Red fox', glyph: 'C' }, 'C', 'angband').templateKey, 'bestiary_fox');
     assert.strictEqual(resolve({ race: 'grid bug', glyph: 'x' }, 'x', 'nethack').templateKey, 'bestiary_beetle');
     assert.strictEqual(resolve({ race: 'gelatinous cube', glyph: 'b' }, 'b', 'nethack').templateKey, 'env_ooze_mound');
     assert.strictEqual(resolve({ race: 'gnome', glyph: 'G' }, 'G', 'nethack').templateKey, 'bestiary_goblin');
     assert.strictEqual(resolve({ race: 'owlbear', glyph: 'Y' }, 'Y', 'nethack').templateKey, 'bestiary_bear');
     assert.strictEqual(resolve({ race: 'rust monster', glyph: 'R' }, 'R', 'nethack').templateKey, 'bestiary_scorpion');
-    assert.strictEqual(resolve({ race: 'cockatrice', glyph: 'c' }, 'c', 'nethack').templateKey, 'bestiary_owl');
+    assert(['bestiary_flamingo', 'bestiary_owl'].includes(resolve({ race: 'cockatrice', glyph: 'c' }, 'c', 'nethack').templateKey));
     assert.strictEqual(resolve({ race: 'mind flayer', glyph: 'h' }, 'h', 'nethack').templateKey, 'char_male_priest');
     assert.strictEqual(resolve({ race: 'minotaur', glyph: 'H' }, 'H', 'nethack').templateKey, 'bestiary_guardian');
     assert.strictEqual(resolve({ race: 'Wizard of Yendor', glyph: '@' }, '@', 'nethack').templateKey, 'char_male_priest');

@@ -7,13 +7,13 @@ on:
   workflow_dispatch:
     inputs:
       tag_name:
-        description: 'Release Tag (e.g. v0.2.0)'
+        description: 'Release Tag (e.g. v11.5.0)'
         required: true
-        default: 'v0.2.0'
+        default: 'v11.5.0'
       release_name:
         description: 'Release Title'
         required: false
-        default: 'Angband3D Release'
+        default: 'Angband3D Web Release'
 
 permissions:
   contents: write
@@ -22,128 +22,11 @@ env:
   ANGBAND_TAG: "4.2.6"
 
 jobs:
-  build-windows:
-    name: Build & Package (Windows x64)
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '8.0.x'
-
-      - name: Setup MSYS2
-        uses: msys2/setup-msys2@v2
-        with:
-          msystem: MINGW64
-          update: true
-          suppress-deprecation-warnings: msystem-mingw64
-          install: >-
-            git
-            mingw-w64-x86_64-gcc
-            mingw-w64-x86_64-cmake
-            mingw-w64-x86_64-ninja
-            mingw-w64-x86_64-ncurses
-            mingw-w64-x86_64-pkgconf
-
-      - name: Reconstruct engine fork & Build Engine
-        shell: msys2 {0}
-        run: |
-          git clone --origin upstream --branch "${{ env.ANGBAND_TAG }}" --depth 1 \
-            https://github.com/angband/angband.git engine
-          cd engine
-          git apply --verbose ../engine-patch/0001-bridge-frontend.patch
-          cmake -G Ninja \
-            -DSUPPORT_BRIDGE_FRONTEND=ON \
-            -DSUPPORT_GCU_FRONTEND=ON \
-            -DSUPPORT_STATIC_LINKING=ON \
-            -B build .
-          cmake --build build
-
-      - name: Setup Godot & Export Templates
-        continue-on-error: true
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = 'Stop'
-          $godotVersion = "4.7.2-stable"
-          $templateDir = "$env:APPDATA\Godot\export_templates\4.7.2.stable.mono"
-          New-Item -ItemType Directory -Path $templateDir -Force | Out-Null
-
-          Write-Host "Downloading Godot $godotVersion Mono..."
-          $godotZip = "Godot_v${godotVersion}_mono_win64.zip"
-          $godotUrl = "https://github.com/godotengine/godot/releases/download/${godotVersion}/${godotZip}"
-          Invoke-WebRequest -Uri $godotUrl -OutFile $godotZip
-          New-Item -ItemType Directory -Path "C:\Godot" -Force | Out-Null
-          tar.exe -xf $godotZip -C "C:\Godot" --strip-components=1
-          $godotBin = Get-ChildItem "C:\Godot" -Recurse -Filter "Godot*console.exe" | Select-Object -First 1 -ExpandProperty FullName
-          Set-Content -Path "C:\Godot\godot.cmd" -Value "@echo off`r`n`"$godotBin`" %*"
-          Add-Content $env:GITHUB_PATH "C:\Godot"
-          Add-Content $env:GITHUB_ENV "GODOT=$godotBin"
-
-          Write-Host "Downloading Godot $godotVersion Mono Export Templates..."
-          $tpz = "Godot_v${godotVersion}_mono_export_templates.tpz"
-          $tpzUrl = "https://github.com/godotengine/godot/releases/download/${godotVersion}/${tpz}"
-          Invoke-WebRequest -Uri $tpzUrl -OutFile $tpz
-
-          $templateDirs = @(
-              "C:\GodotTemplates",
-              "$env:APPDATA\Godot\export_templates\4.7.2.stable",
-              "$env:APPDATA\Godot\export_templates\4.7.2.stable.mono",
-              "$env:LOCALAPPDATA\Godot\export_templates\4.7.2.stable",
-              "$env:LOCALAPPDATA\Godot\export_templates\4.7.2.stable.mono"
-          )
-          foreach ($td in $templateDirs) {
-              New-Item -ItemType Directory -Path $td -Force | Out-Null
-              tar.exe -xf $tpz -C $td --strip-components=1 templates/windows_* templates/version.txt
-          }
-
-          $winTemplate = Join-Path "C:\GodotTemplates" "windows_release_x86_64.exe"
-          if (-not (Test-Path $winTemplate)) {
-              throw "Verification failed: $winTemplate was not extracted properly!"
-          }
-          Write-Host "Godot & Export Templates configured successfully across all lookup paths: $winTemplate"
-
-      - name: Package Windows ZIP
-        shell: pwsh
-        run: |
-          try {
-            .\tools\package.ps1
-          } catch {
-            $_ | Out-String | Out-File -FilePath "package-error.log" -Encoding utf8
-            if ($env:GITHUB_STEP_SUMMARY) {
-              "### Package Windows ZIP Step Failed`n`n``````n$($_ | Out-String)`n``````n" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
-            }
-            throw
-          }
-
-      - name: Upload Packaging Logs
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: package-windows-logs
-          path: |
-            godot-export.log
-            package-error.log
-          if-no-files-found: ignore
-
-      - name: Upload Windows Package
-        uses: actions/upload-artifact@v4
-        with:
-          name: Angband3D-Windows-x64
-          path: dist/Angband3D-Windows-x64.zip
-          if-no-files-found: error
-
-  build-linux:
-    name: Build & Package (Linux x64)
+  verify-and-release:
+    name: Verify Web Client & Engine Suite (Ubuntu x64)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '8.0.x'
 
       - name: Install dependencies
         run: |
@@ -163,115 +46,16 @@ jobs:
           cmake --build build
           cd ..
 
-      - name: Build C# Client (Release)
-        run: dotnet build client/angband3d.csproj -c Release
-
-      - name: Package Linux ZIP
+      - name: Install Server Dependencies & Run Fast Gate
         run: |
-          mkdir -p dist/Angband3D-Linux-x64/client
-          mkdir -p dist/Angband3D-Linux-x64/engine/build/game
+          npm --prefix server ci
+          node tools/run_tests.js --tier fast
+          node tools/test_server_boot.js
 
-          # Copy client files & assets
-          cp -r client/Main.tscn client/project.godot client/icon.svg client/assets client/scripts dist/Angband3D-Linux-x64/client/
-          if [ -d client/.godot ]; then cp -r client/.godot dist/Angband3D-Linux-x64/client/; fi
-
-          # Copy engine binaries & gamedata
-          cp engine/build/game/angband dist/Angband3D-Linux-x64/engine/build/game/
-          chmod +x dist/Angband3D-Linux-x64/engine/build/game/angband
-          cp -r engine/build/game/lib dist/Angband3D-Linux-x64/engine/build/game/
-          mkdir -p dist/Angband3D-Linux-x64/engine/build/game/lib/save
-
-          # Copy documentation and launchers
-          cp LICENSE README.md dist/Angband3D-Linux-x64/
-          cat << 'EOF' > dist/Angband3D-Linux-x64/play.sh
-          #!/bin/sh
-          cd "$(dirname "$0")"
-          if command -v godot >/dev/null 2>&1; then
-              godot --path client -- "$@"
-          elif command -v godot4 >/dev/null 2>&1; then
-              godot4 --path client -- "$@"
-          else
-              echo "Godot 4 (.NET) was not found in PATH."
-              echo "Playing in text mode (GCU)..."
-              ./engine/build/game/angband -mgcu "$@"
-          fi
-          EOF
-          chmod +x dist/Angband3D-Linux-x64/play.sh
-
-          cd dist
-          zip -r Angband3D-Linux-x64.zip Angband3D-Linux-x64
-          cd ..
-
-      - name: Upload Linux Package
-        uses: actions/upload-artifact@v4
-        with:
-          name: Angband3D-Linux-x64
-          path: dist/Angband3D-Linux-x64.zip
-          if-no-files-found: error
-
-  build-android:
-    name: Build & Package (Android APK)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '17'
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Install Dependencies & Sync Capacitor
-        run: |
-          npm ci
-          npm run android:sync
-
-      - name: Build Android APK (Release)
-        run: |
-          cd android
-          chmod +x ./gradlew
-          ./gradlew assembleRelease
-
-      - name: Prepare APK Asset
-        run: |
-          mkdir -p dist
-          if [ -f android/app/build/outputs/apk/release/app-release.apk ]; then
-            cp android/app/build/outputs/apk/release/app-release.apk dist/Angband3D-Android.apk
-          elif [ -f android/app/build/outputs/apk/release/app-release-unsigned.apk ]; then
-            cp android/app/build/outputs/apk/release/app-release-unsigned.apk dist/Angband3D-Android.apk
-          else
-            cp android/app/build/outputs/apk/debug/app-debug.apk dist/Angband3D-Android.apk
-          fi
-
-      - name: Upload Android Package
-        uses: actions/upload-artifact@v4
-        with:
-          name: Angband3D-Android-APK
-          path: dist/Angband3D-Android.apk
-          if-no-files-found: error
-
-  publish-release:
-    name: Publish Release
-    needs: [build-windows, build-linux, build-android]
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Download all packages
-        uses: actions/download-artifact@v4
-        with:
-          path: release-packages
-
-      - name: Prepare Assets
+      - name: Package Web & Engine Bundle
         run: |
           mkdir -p final-dist
-          find release-packages \( -name "*.zip" -o -name "*.apk" \) -exec cp {} final-dist/ \;
-          ls -la final-dist/
+          zip -r final-dist/Angband3D-Web-Server-Bundle.zip server/src server/public server/package.json engine-manifest.json CREDITS.md README.md
 
       - name: Determine Release Tag
         id: tag_info

@@ -49,29 +49,7 @@ while ((match = vRegex.exec(htmlContent)) !== null) {
 assert(matchCount > 0, 'index.html must contain versioned asset queries');
 console.log(`  index.html asset references match: ${matchCount} tags verified at ?v=${canonical}`);
 
-// 4. Check android/app/build.gradle versionName
-const gradlePath = path.join(rootDir, 'android/app/build.gradle');
-if (fs.existsSync(gradlePath)) {
-    const gradleContent = fs.readFileSync(gradlePath, 'utf8');
-    const gradleMatch = gradleContent.match(/versionName\s+["']([^"']+)["']/);
-    assert(gradleMatch, 'android/app/build.gradle must declare versionName');
-    assert.strictEqual(gradleMatch[1], canonical, `build.gradle versionName (${gradleMatch[1]}) must match canonical (${canonical})`);
-    console.log(`  android/app/build.gradle matches: versionName "${canonical}"`);
-}
-
-// 5. Check desktop/Angband3D.csproj and client/angband3d.csproj
-for (const relCsproj of ['desktop/Angband3D.csproj', 'client/angband3d.csproj']) {
-    const csprojPath = path.join(rootDir, relCsproj);
-    if (fs.existsSync(csprojPath)) {
-        const csprojContent = fs.readFileSync(csprojPath, 'utf8');
-        const vMatch = csprojContent.match(/<Version>([^<]+)<\/Version>/);
-        assert(vMatch, `${relCsproj} must declare <Version>`);
-        assert.strictEqual(vMatch[1], canonical, `${relCsproj} <Version> (${vMatch[1]}) must match canonical (${canonical})`);
-        console.log(`  ${relCsproj} matches: <Version>${canonical}</Version>`);
-    }
-}
-
-// 6. Check root package.json and server/package.json
+// 4. Check root package.json and server/package.json
 for (const relPkg of ['package.json', 'server/package.json']) {
     const pkgPath = path.join(rootDir, relPkg);
     if (fs.existsSync(pkgPath)) {

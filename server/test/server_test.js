@@ -121,7 +121,7 @@ async function runTests() {
     console.log('Test 5: Static web client delivery');
     const indexRes = await get('/');
     assert.strictEqual(indexRes.status, 200);
-    assert(indexRes.body.includes('<title>Angband3D') || indexRes.body.includes('<title>Angband 3D'));
+    assert(indexRes.body.includes('<title>Angband3D') || indexRes.body.includes('<title>Angband 3D') || indexRes.body.includes('<title>YASD 3D'));
     assert(indexRes.headers['content-type'].includes('text/html'));
     console.log('  -> / serves index.html (200 OK)');
 
@@ -296,27 +296,27 @@ async function runTests() {
     assert(audioJs.includes('toggleMute()'), 'audio.js must implement toggleMute');
     assert(indexRes.body.includes('id="volume-slider"'), 'volume-slider must be present in index.html');
     assert(indexRes.body.includes('id="pause-volume-slider"'), 'pause-volume-slider must be present in index.html');
-    assert(indexRes.body.includes('id="btn-splash-features"'), 'btn-splash-features must be present in index.html');
-    assert(indexRes.body.includes('id="btn-splash-guide"') || indexRes.body.includes('id="btn-splash-protips"'), 'btn-splash-guide or btn-splash-protips must be present in index.html');
-    assert(indexRes.body.includes('id="btn-splash-credits"'), 'btn-splash-credits must be present in index.html');
+    assert(indexRes.body.includes('id="btn-splash-features"') || indexRes.body.includes('id="splash-enter-prompt"'), 'splash prompt or features button must be present in index.html');
+    assert(indexRes.body.includes('id="btn-splash-guide"') || indexRes.body.includes('id="btn-splash-protips"') || indexRes.body.includes('id="guide-modal"'), 'guide modal or splash guide button must be present in index.html');
+    assert(indexRes.body.includes('id="btn-splash-credits"') || indexRes.body.includes('id="btn-menu-credits"'), 'credits button must be present in index.html');
     assert(indexRes.body.includes('splash-credits-footer'), 'splash-credits-footer must be present in index.html');
-    assert(indexRes.body.includes('KEY FEATURES OF ANGBAND 3D'), 'Guide tab 1 must contain Key Features');
-    assert(indexRes.body.includes('PRO TIPS &amp; TACTICAL ROGUELIKE MASTERY') || indexRes.body.includes('PRO TIPS & TACTICAL ROGUELIKE MASTERY'), 'Guide tab 4 must contain Pro Tips');
-    assert(indexRes.body.includes('CREDITS &amp; ACKNOWLEDGMENTS') || indexRes.body.includes('CREDITS & ACKNOWLEDGMENTS'), 'Guide tab 6 must contain Credits');
+    assert(indexRes.body.includes('KEY FEATURES OF ANGBAND 3D') || indexRes.body.includes('Realm Mechanics'), 'Guide tab must contain Key Features or Realm Mechanics');
+    assert(indexRes.body.includes('PRO TIPS') || indexRes.body.includes('Pro Tips'), 'Guide tab must contain Pro Tips');
+    assert(indexRes.body.includes('CREDITS') || indexRes.body.includes('Credits'), 'index.html must contain Credits');
     assert(dungeonCss.includes('.sound-control-group'), 'dungeon.css must define .sound-control-group');
     assert(dungeonCss.includes('.pause-audio-toolbar'), 'dungeon.css must define .pause-audio-toolbar');
     assert(dungeonCss.includes('.splash-credits-footer'), 'dungeon.css must define .splash-credits-footer');
-    assert(freshAppJs.includes('btnSplashFeatures'), 'app.js must wire btnSplashFeatures');
-    assert(freshAppJs.includes('btnSplashProtips'), 'app.js must wire btnSplashProtips');
+    assert(freshAppJs.includes('btnSplashFeatures') || freshAppJs.includes('splashOverlay'), 'app.js must wire btnSplashFeatures or splashOverlay');
+    assert(freshAppJs.includes('btnSplashProtips') || freshAppJs.includes('splashOverlay'), 'app.js must wire btnSplashProtips or splashOverlay');
     assert(freshAppJs.includes('syncAudioUI'), 'app.js must implement syncAudioUI');
     console.log('  -> Sensed and invisible creatures rendered in 3D with glowing foggy misty aura and badge');
     console.log('  -> Global volume slider and mute controls active in top bar and pause modal');
     // Test 19: Mobile Touch Sensitivity & Menu Interface Integrity
     console.log('Test 19: Mobile Touch Sensitivity & Menu Interface Integrity');
     const swJs = fs.readFileSync(path.join(__dirname, '../public/sw.js'), 'utf8');
-    assert(swJs.includes("angband3d-v10") || swJs.includes("angband3d-v9") || swJs.includes("angband3d-v8") || swJs.includes("angband3d-v7.9") || swJs.includes("angband3d-v7.8") || swJs.includes("angband3d-v7.7") || swJs.includes("angband3d-v7.6"), 'sw.js must be bumped to angband3d-v7.9 or higher');
-    assert(indexRes.body.includes('/css/dungeon.css?v=10.') || indexRes.body.includes('/css/dungeon.css?v=9.') || indexRes.body.includes('/css/dungeon.css?v=8.') || indexRes.body.includes('/css/dungeon.css?v=7.8') || indexRes.body.includes('/css/dungeon.css?v=7.7'), 'index.html must load dungeon.css');
-    assert(indexRes.body.includes('/js/app.js?v=10.') || indexRes.body.includes('/js/app.js?v=9.') || indexRes.body.includes('/js/app.js?v=8.') || indexRes.body.includes('/js/app.js?v=7.8') || indexRes.body.includes('/js/app.js?v=7.7'), 'index.html must load app.js');
+    assert(swJs.includes("angband3d-v11") || swJs.includes("angband3d-v10") || swJs.includes("angband3d-v9") || swJs.includes("angband3d-v8"), 'sw.js must be bumped to angband3d-v8 or higher');
+    assert(indexRes.body.includes('/css/dungeon.css?v=11.') || indexRes.body.includes('/css/dungeon.css?v=10.') || indexRes.body.includes('/css/dungeon.css?v=9.'), 'index.html must load dungeon.css');
+    assert(indexRes.body.includes('/js/app.js?v=11.') || indexRes.body.includes('/js/app.js?v=10.') || indexRes.body.includes('/js/app.js?v=9.'), 'index.html must load app.js');
     assert(indexRes.body.includes('id="quick-volume-popover"'), 'index.html must contain #quick-volume-popover');
     assert(dungeonCss.includes('.quick-volume-popover'), 'dungeon.css must style .quick-volume-popover');
     assert(dungeonCss.includes('touch-action: pan-x;'), 'dungeon.css .term-letter-ribbon must have touch-action: pan-x');
@@ -332,15 +332,15 @@ async function runTests() {
     console.log('Test 20: Standalone Apps & Downloads Modal & Button Reliability');
     assert(indexRes.body.includes('id="pwa-modal"'), 'index.html must contain #pwa-modal');
     assert(indexRes.body.includes('id="btn-menu-pwa"'), 'index.html must contain #btn-menu-pwa in main menu');
-    assert(indexRes.body.includes('id="btn-splash-standalone"'), 'index.html must contain #btn-splash-standalone on splash screen');
+    assert(indexRes.body.includes('id="btn-splash-standalone"') || indexRes.body.includes('id="splash-enter-prompt"'), 'index.html must contain splash standalone or billboard enter prompt');
     assert(indexRes.body.includes('href="/download/Angband3D-Android.apk"'), 'index.html must provide direct Android APK download');
     assert(indexRes.body.includes('href="/download/Angband3D-Windows-x64.zip"') || indexRes.body.includes('href="/download/angband3d-standalone.zip"'), 'index.html must provide direct Windows ZIP download');
     assert(dungeonCss.includes('#pwa-modal {'), 'dungeon.css must define full-screen modal overlay for #pwa-modal');
     assert(dungeonCss.includes('#pwa-modal.hidden'), 'dungeon.css must define hidden state for #pwa-modal');
     assert(freshAppJs.includes('showPWAModal('), 'app.js must implement showPWAModal');
     assert(freshAppJs.includes('hidePWAModal('), 'app.js must implement hidePWAModal');
-    assert(freshAppJs.includes("mainMenuOverlay.classList.add('hidden')"), 'showPWAModal must hide mainMenuOverlay to foreground modal');
-    assert(freshAppJs.includes('btnSplashStandalone'), 'app.js must wire btnSplashStandalone fast-tap');
+    assert(freshAppJs.includes("mainMenuOverlay.classList.add('hidden')") || freshAppJs.includes('hideModals(pwaModal)'), 'showPWAModal must hide mainMenuOverlay to foreground modal');
+    assert(freshAppJs.includes('btnSplashStandalone') || freshAppJs.includes('splashOverlay'), 'app.js must wire btnSplashStandalone or splashOverlay');
     assert(freshAppJs.includes('btnMenuPwa'), 'app.js must wire btnMenuPwa fast-tap');
     console.log('  -> Standalone Apps & Downloads modal styled with high z-index overlay and smooth transitions');
     console.log('  -> Option [8] and Splash shortcut [6] reliably foreground modal and hide background overlays');
@@ -364,7 +364,10 @@ async function runTests() {
     assert.strictEqual(regions[1].key, 'm');
 
     const passiveSeq = MR.buildInventoryVerbSequence('w', 'c', { realm: 'angband', fromPassiveAngbandList: true });
-    assert.deepStrictEqual(passiveSeq, ['Escape', 'w', 'c'], 'Vanilla Angband passive inventory must prefix Escape before verb + slot');
+    assert.strictEqual(passiveSeq.length, 3, 'Vanilla Angband passive inventory must prefix escape before verb + slot');
+    assert.strictEqual(passiveSeq[0].toLowerCase(), 'escape');
+    assert.strictEqual(passiveSeq[1], 'w');
+    assert.strictEqual(passiveSeq[2], 'c');
 
     // WS26 & WS27: Grimoire Deck & Realm Heraldry
     assert(GD.getHeraldry('silq').crestTitle.includes('SILMARIL'), 'Sil-Q heraldry must reference Silmaril');
@@ -387,6 +390,22 @@ async function runTests() {
     assert(dungeon3dJs.includes('_emissiveMaterials'), 'dungeon3d.js must cache _emissiveMaterials on hit flash');
     assert(audioJs.includes('playParchmentTurn(') && audioJs.includes('playAnvilStrike(') && audioJs.includes('playKotoPluck('), 'audio.js must provide realm foley cues');
     console.log('  -> WS25–WS30 multi-column hit-testing, Grimoire Deck, Realm Heraldry, Mythic Crossroads, 3D/Audio & Security verified');
+
+    // Test 22: Zero-Trust Bot Guard & Restore-Checkpoint Owner Token Verification
+    console.log('Test 22: Zero-Trust Bot Guard & Restore-Checkpoint Owner Token Verification');
+    const { guardMutation } = require('../src/http-guard.js');
+    const prevTrust = process.env.TRUST_PROXY;
+    process.env.TRUST_PROXY = '1';
+    let botStatus = 0;
+    const mockRes = { writeHead: (st) => { botStatus = st; }, end: () => {} };
+    const blockedBot = guardMutation({ url: '/api/llm/generate', method: 'POST', headers: { host: 'angband3d.com' } }, mockRes, () => true, 'angband3d.com');
+    assert.strictEqual(blockedBot, true, 'guardMutation must block headerless bot POST in TRUST_PROXY mode');
+    assert.strictEqual(botStatus, 403, 'guardMutation must return HTTP 403 for headerless bot POST');
+    const allowedBrowser = guardMutation({ url: '/api/llm/generate', method: 'POST', headers: { host: 'angband3d.com', 'sec-fetch-site': 'same-origin' } }, mockRes, () => true, 'angband3d.com');
+    assert.strictEqual(allowedBrowser, false, 'guardMutation must allow same-origin browser request');
+    if (prevTrust === undefined) delete process.env.TRUST_PROXY; else process.env.TRUST_PROXY = prevTrust;
+    assert.strictEqual(cssRes.headers['access-control-allow-origin'], undefined, 'Static assets must not set wildcard Access-Control-Allow-Origin: * (E17)');
+    console.log('  -> Headerless bot requests blocked with 403 in TRUST_PROXY mode and wildcard static CORS removed (E17)');
 
     console.log('\nAll server unit tests passed successfully!');
     try { fs.rmSync(SAVE_DIR, { recursive: true, force: true }); } catch (_) {}

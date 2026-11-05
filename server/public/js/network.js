@@ -186,11 +186,12 @@ class GameNetwork {
             }
         }
 
+        let wsProtocols = undefined;
         try {
             const targetSlot = effectiveSave || this.currentChar || 'Adventurer';
             const ownerToken = localStorage.getItem(`angband3d_owner_${targetSlot}`) || localStorage.getItem(`angband3d_owner_${this.currentChar}`);
-            if (ownerToken) {
-                wsUrl += `&owner=${encodeURIComponent(ownerToken)}`;
+            if (ownerToken && /^[a-zA-Z0-9_.-]+$/.test(ownerToken)) {
+                wsProtocols = ['angband3d', `owner.${ownerToken}`];
             }
         } catch (_) {}
 
@@ -210,7 +211,7 @@ class GameNetwork {
             }
         } catch (_) {}
 
-        this.ws = new WebSocket(wsUrl);
+        this.ws = wsProtocols ? new WebSocket(wsUrl, wsProtocols) : new WebSocket(wsUrl);
 
         this.ws.onopen = () => {
             this.connected = true;

@@ -9101,8 +9101,12 @@ html.device-desktop #btn-action-more.is-needed { display: none !important; }
     }
 }
 
-.reticle-target-card,
-#reticle-target-card { display: none !important; }
+.reticle-target-card.hidden,
+#reticle-target-card.hidden { display: none !important; }
+.reticle-target-card:not(.hidden) { pointer-events: auto !important; }
+.target-act-pill { background: rgba(24, 18, 10, 0.92); color: #f5d77f; border: 1px solid rgba(212, 175, 55, 0.55); border-radius: 3px; padding: 2px 6px; font-size: 9.5px; font-weight: 600; cursor: pointer; }
+.target-act-pill:hover { background: rgba(62, 46, 16, 0.96); border-color: #ffd700; }
+.target-dist-chip { color: #cbd5e1; font-size: 9.5px; font-weight: 600; margin-right: 2px; align-self: center; }
 
 .wasd-hud-btn.wasd-active,
 .cmd-wasd-pill.wasd-active {

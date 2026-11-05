@@ -54,12 +54,12 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Fira+Code:wght@400;600&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet" crossorigin="anonymous">
     <link rel="manifest" href="/manifest.json">
-    <link rel="preload" as="image" href="/assets/yasd3d_logo_fast.jpg?v=11.4.5" fetchpriority="high">
+    <link rel="preload" as="image" href="/assets/yasd3d_logo_fast.jpg?v=11.5.0" fetchpriority="high">
     <link rel="apple-touch-icon" href="/assets/yasd3d_logo.png">
     <link rel="icon" type="image/png" href="/assets/yasd3d_logo.png">
-    <link rel="stylesheet" href="/css/dungeon.css?v=11.4.5">
-    <link rel="stylesheet" href="css/hud-skin.css?v=11.4.5">
-    <link rel="stylesheet" href="/css/chronicle.css?v=11.4.5">
+    <link rel="stylesheet" href="/css/dungeon.css?v=11.5.0">
+    <link rel="stylesheet" href="css/hud-skin.css?v=11.5.0">
+    <link rel="stylesheet" href="/css/chronicle.css?v=11.5.0">
 </head>
 <body>
     <div id="app-container">
@@ -161,6 +161,15 @@
                         <button id="btn-term-escape" class="btn-gold-outline" title="Press Escape to cancel or go back">Back (Esc)</button>
                         <button id="btn-term-exit-menu" class="btn-gold-outline" style="display: none;" title="Exit to Main Menu">✕ Main Menu</button>
                     </div>
+                </div>
+                <!-- Chargen Archetype & Preset Helper Pill Bar (Displayed during Character Creation) -->
+                <div id="terminal-birth-helper-bar" class="terminal-birth-helper-bar" style="display: none; align-items: center; flex-wrap: wrap; gap: 6px; padding: 6px 12px; background: rgba(14, 18, 28, 0.94); border-bottom: 1px solid rgba(212, 175, 55, 0.35);">
+                    <span style="font-size: 0.74rem; color: #e6c67c; font-weight: 700; letter-spacing: 0.5px; margin-right: 4px;">⚡ BUILD PRESETS:</span>
+                    <button type="button" id="btn-birth-helper-random" class="btn-gold-outline" style="padding: 3px 9px; font-size: 0.74rem;" title="Pick a random choice on the current menu screen [*]">🎲 Randomize Choice</button>
+                    <button type="button" id="btn-birth-helper-melee" class="btn-gold-outline" style="padding: 3px 9px; font-size: 0.74rem;" title="Auto-build a Balanced Melee / Warrior Hero">⚔️ Melee Preset</button>
+                    <button type="button" id="btn-birth-helper-ranged" class="btn-gold-outline" style="padding: 3px 9px; font-size: 0.74rem;" title="Auto-build an Agile Ranged / Stealth Hero">🏹 Ranged/Stealth</button>
+                    <button type="button" id="btn-birth-helper-magic" class="btn-gold-outline" style="padding: 3px 9px; font-size: 0.74rem;" title="Auto-build an Arcane Magic / Song / Smith Hero">🔮 Magic/Song</button>
+                    <button type="button" id="btn-birth-helper-fast" class="btn-gold" style="padding: 3px 10px; font-size: 0.74rem;" title="Generate a complete varied hero and enter the 3D realm immediately!">⚡ Fast Start 3D</button>
                 </div>
                 <div id="grimoire-deck-container" class="grimoire-deck-container" style="display: none;" aria-live="polite"></div>
                 <div id="terminal-viewport" class="terminal-viewport">
@@ -339,6 +348,25 @@
                             </div>
                         </div>
                         <input type="range" id="popover-music-slider" class="volume-range-slider touch-slider" min="0" max="100" value="85" step="1" title="Adjust Music Volume" aria-label="Music Volume">
+                        <div class="popover-jukebox-controls" style="display:flex; flex-direction:column; gap:5px; margin-top:6px; padding-top:6px; border-top:1px solid rgba(212,175,55,0.2);">
+                            <div style="display:flex; align-items:center; justify-content:space-between; gap:6px;">
+                                <span id="popover-music-now-playing" style="font-size:0.71rem; color:#e6c67c; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1;" title="Currently Playing Track">🎶 Auto (Contextual Director)</span>
+                                <div style="display:flex; align-items:center; gap:3px; flex-shrink:0;">
+                                    <button type="button" id="btn-music-prev" class="popover-mute-toggle" style="padding:2px 6px; font-size:0.7rem;" title="Previous Track">⏮</button>
+                                    <button type="button" id="btn-music-playpause" class="popover-mute-toggle" style="padding:2px 6px; font-size:0.7rem;" title="Play / Pause Music">⏯</button>
+                                    <button type="button" id="btn-music-next" class="popover-mute-toggle" style="padding:2px 6px; font-size:0.7rem;" title="Next Track">⏭</button>
+                                    <button type="button" id="btn-music-shuffle" class="popover-mute-toggle" style="padding:2px 6px; font-size:0.7rem;" title="Toggle Shuffle All 48 Tracks">🔀</button>
+                                </div>
+                            </div>
+                            <select id="popover-music-track-select" aria-label="Select Background Music Mode or Track" style="width:100%; background:#10141d; color:#e2e8f0; border:1px solid rgba(212,175,55,0.4); border-radius:4px; padding:3px 6px; font-size:0.73rem; cursor:pointer;">
+                                <option value="auto">🎭 Auto (Contextual Realm Director)</option>
+                                <option value="theme_full">⚔️ YASD Theme Song (Full Track)</option>
+                                <option value="shuffle">🔀 Shuffle All Soundtrack (48 Tracks)</option>
+                                <option value="playlist:town">🏰 Playlist: Peaceful Town &amp; Outposts</option>
+                                <option value="playlist:dungeon">🕯️ Playlist: Dungeon Delving</option>
+                                <option value="playlist:boss">🔥 Playlist: Boss &amp; High Danger</option>
+                            </select>
+                        </div>
                     </div>
                     <div class="popover-channel-row">
                         <div class="popover-channel-header">
@@ -657,7 +685,7 @@
                 <div class="splash-ornament-corner bottom-right"></div>
 
                 <div class="splash-logo-wrap protected-crest" oncontextmenu="return false;">
-                    <img src="/assets/yasd3d_logo_fast.jpg?v=11.4.5" alt="Yet Another Stupid Death Official Crest — yasd3d.com • Thunderbear Studios" class="splash-logo splash-logo-main" width="520" height="520" fetchpriority="high" decoding="async" draggable="false">
+                    <img src="/assets/yasd3d_logo_fast.jpg?v=11.5.0" alt="Yet Another Stupid Death Official Crest — yasd3d.com • Thunderbear Studios" class="splash-logo splash-logo-main" width="520" height="520" fetchpriority="high" decoding="async" draggable="false">
                 </div>
 
                 <div class="splash-subtitle">
@@ -671,7 +699,7 @@
 
                 <div class="splash-credits-footer">
                     <a href="https://thunderbearstudios.dev" target="_blank" rel="noopener noreferrer" class="splash-studio-signature" title="Thunderbear Studios™ — Official Studio Portal (thunderbearstudios.dev)">
-                        <img src="/assets/thunderbear_logo.png?v=11.4.5" alt="Thunderbear Studios Official Emblem" class="splash-studio-badge" width="28" height="36" draggable="false">
+                        <img src="/assets/thunderbear_logo.png?v=11.5.0" alt="Thunderbear Studios Official Emblem" class="splash-studio-badge" width="28" height="36" draggable="false">
                         <span class="splash-studio-detail">
                             <strong>Thunderbear Studios&trade;</strong>
                             <small>&copy; 2026 Thunderbear Studios &bull; All Rights Reserved</small>
@@ -691,13 +719,13 @@
 
                 <div class="main-menu-header">
                     <div class="main-menu-crest-bar">
-                        <img src="/assets/yasd3d_logo_fast.jpg?v=11.4.5" alt="YASD 3D Emblem" class="main-menu-logo-primary" width="56" height="56" decoding="async" draggable="false">
+                        <img src="/assets/yasd3d_logo_fast.jpg?v=11.5.0" alt="YASD 3D Emblem" class="main-menu-logo-primary" width="56" height="56" decoding="async" draggable="false">
                         <div class="main-menu-title-group">
                             <h2 class="main-menu-title" id="main-menu-title">⚔ YASD 3D • YENDOR ENGINE ⚔</h2>
                             <div class="main-menu-subtitle" id="main-menu-subtitle">The Classic Tolkien Descent • Old British Scholar</div>
                         </div>
                         <a href="https://thunderbearstudios.dev" target="_blank" rel="noopener noreferrer" class="main-menu-studio-link" title="Thunderbear Studios™">
-                            <img src="/assets/thunderbear_logo.png?v=11.4.5" alt="Thunderbear Studios" class="main-menu-logo-secondary" width="28" height="36" draggable="false">
+                            <img src="/assets/thunderbear_logo.png?v=11.5.0" alt="Thunderbear Studios" class="main-menu-logo-secondary" width="28" height="36" draggable="false">
                         </a>
                     </div>
                     <div class="main-menu-realm-strip" id="main-menu-realm-strip">
@@ -991,7 +1019,7 @@
             </div>
         </div>
 
-        <!-- Standalone Editions & PWA Installation Modal -->
+        <!-- Progressive Web App (PWA) Installation & Save Portability Modal -->
         <div id="pwa-modal" class="hidden">
             <div class="load-card pwa-card" style="max-width: 620px;">
                 <button id="btn-pwa-header-close" class="btn-guide-close" title="Close [Esc]" style="position: absolute; top: 14px; right: 16px; font-size: 18px; color: #ffd700; background: none; border: none; cursor: pointer; z-index: 5;">✕</button>
@@ -1001,8 +1029,8 @@
                 <div class="main-menu-ornament-corner bottom-right"></div>
 
                 <div class="main-menu-header">
-                    <h2 class="main-menu-title" id="pwa-modal-title">⚔ STANDALONE CLIENTS &amp; DOWNLOADS ⚔</h2>
-                    <div class="main-menu-subtitle" id="pwa-modal-subtitle">Play offline on any device with universal .sav save portability</div>
+                    <h2 class="main-menu-title" id="pwa-modal-title">⚔ INSTALL WEB APP (PWA) &amp; SAVE PORTABILITY ⚔</h2>
+                    <div class="main-menu-subtitle" id="pwa-modal-subtitle">Full-screen browser app experience with universal .sav character portability</div>
                 </div>
 
                 <div class="pwa-body" id="pwa-modal-body" style="padding: 16px 20px; font-family: var(--font-body); font-size: 14px; line-height: 1.6; color: #cbd5e1;">
@@ -1011,56 +1039,22 @@
                         <span id="pwa-status-text" style="color: #e2e8f0; margin-left: 6px;">Web Client (Connected to Cloud Realm)</span>
                     </div>
                     <div id="pwa-instructions-text">
-                        <!-- Universal Save Portability Banner -->
                         <div class="pwa-universal-save-banner" style="background: rgba(20, 28, 48, 0.75); border: 1px solid rgba(255, 215, 0, 0.45); border-radius: 8px; padding: 12px 14px; margin-bottom: 14px; box-shadow: 0 2px 12px rgba(0,0,0,0.5);">
                             <div style="color: #ffd700; font-weight: 700; font-size: 13.5px; margin-bottom: 4px; display: flex; align-items: center; gap: 6px;">
                                 <span>💾</span> Universal Save Game Portability
                             </div>
                             <div style="color: #cbd5e1; font-size: 12px; line-height: 1.45;">
-                                Your character save files (<code>.sav</code>) use authentic binary <code>SaveVNLA</code> formatting and are <strong>100% universal across Web, Desktop PC, and Android</strong>! Export your hero from the web pause menu (<kbd>Esc</kbd>), dive on your phone during your commute, or back up your saves anytime.
+                                Your character save files (<code>.sav</code>) are portable across every desktop, tablet, and mobile browser! Export your hero from the web pause menu (<kbd>Esc</kbd>) or Load Game archive anytime to back up or transfer your chronicle.
                             </div>
                         </div>
-
-                        <p style="margin-bottom: 12px;">Angband 3D supports full standalone play across all devices, with 100% offline functionality and universal <code>.sav</code> save portability.</p>
-
-                        <!-- Android APK Option -->
-                        <div style="background: rgba(10, 16, 28, 0.7); border: 1px solid rgba(212, 175, 55, 0.35); border-radius: 8px; padding: 12px 14px; margin-bottom: 12px;">
-                            <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
-                                <div>
-                                    <strong style="color: #ffd700; font-family: var(--font-title); font-size: 15px;">📱 Native Android Standalone App (.APK)</strong>
-                                    <div style="color: #94a3b8; font-size: 12px;">100% offline standalone Android package for phones &amp; tablets. Zero cloud dependency.</div>
-                                </div>
-                                <a id="btn-pwa-apk-download" href="/download/Angband3D-Android.apk" download="Angband3D-Android.apk" class="btn-gold" style="text-decoration: none; padding: 8px 16px; display: inline-flex; align-items: center; gap: 6px;">📥 Download APK</a>
-                            </div>
-                            <div style="margin-top: 8px; font-size: 11.5px; color: #94a3b8; line-height: 1.4; border-top: 1px dashed rgba(212, 175, 55, 0.2); padding-top: 6px;">
-                                <span style="color: #ffd700;">💡 Installation Tip:</span> Target SDK 34 (Android 14+). If Play Protect prompts during sideloading, tap <strong>More details ∨ → Install anyway</strong>. 100% free &amp; open-source with zero ads or tracking.
-                            </div>
-                        </div>
-
-                        <!-- Windows PC Desktop Option -->
-                        <div style="background: rgba(10, 16, 28, 0.7); border: 1px solid rgba(212, 175, 55, 0.35); border-radius: 8px; padding: 12px 14px; margin-bottom: 12px;">
-                            <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
-                                <div>
-                                    <strong style="color: #ffd700; font-family: var(--font-title); font-size: 15px;">💻 Windows PC Desktop Edition (.ZIP)</strong>
-                                    <div style="color: #94a3b8; font-size: 12px;">Official 60 FPS Godot 4 3D client for Windows PC with authentic C engine stdio.</div>
-                                </div>
-                                <a id="btn-windows-download" href="/download/Angband3D-Windows-x64.zip" download="Angband3D-Windows-x64.zip" class="btn-gold" style="text-decoration: none; padding: 8px 16px; display: inline-flex; align-items: center; gap: 6px;">📥 Download (.zip)</a>
-                            </div>
-                        </div>
-
-                        <!-- Browser PWA Option -->
                         <div style="background: rgba(10, 16, 28, 0.5); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; padding: 12px 14px; margin-bottom: 12px;">
-                            <strong style="color: #e2e8f0; font-family: var(--font-title); font-size: 14px;">📲 Install Web App (PWA)</strong>
-                            <div style="color: #94a3b8; font-size: 12px; margin-top: 4px; margin-bottom: 6px;">Run full-screen directly from your browser home screen or desktop:</div>
+                            <strong style="color: #e2e8f0; font-family: var(--font-title); font-size: 14px;">📲 Install Progressive Web App (PWA)</strong>
+                            <div style="color: #94a3b8; font-size: 12px; margin-top: 4px; margin-bottom: 6px;">Run full-screen directly from your home screen or desktop dock with zero browser chrome:</div>
                             <ul style="padding-left: 18px; margin: 0; font-size: 12px; color: #94a3b8; display: flex; flex-direction: column; gap: 4px;">
                                 <li>• <strong>Desktop Chrome / Edge</strong>: Click the install icon (⊕) in the browser address bar.</li>
                                 <li>• <strong>iOS / iPadOS Safari</strong>: Tap Share (<span style="font-size: 14px;">⎋</span>) → <strong>Add to Home Screen</strong> (➕).</li>
                                 <li>• <strong>Android Chrome</strong>: Tap menu (⋮) → <strong>Install app</strong>.</li>
                             </ul>
-                        </div>
-
-                        <div style="text-align: center; margin-top: 8px;">
-                            <a href="https://github.com/ThunderbearStudios/angband3d/releases" target="_blank" rel="noopener noreferrer" style="color: #ffd700; font-size: 12px; text-decoration: underline; font-family: var(--font-title);">🔗 View All Releases &amp; Packages on GitHub ↗</a>
                         </div>
                     </div>
                 </div>
@@ -1339,43 +1333,43 @@
     <script defer src="/js/vendor/GLTFLoader.js"></script>
 
     <!-- Client Subsystems -->
-    <script defer src="/js/safe-html.js?v=11.4.5"></script>
-    <script defer src="/js/realm-cartridge.js?v=11.4.5"></script>
-    <script defer src="/js/screen-modal-coordinator.js?v=11.4.5"></script>
-    <script defer src="/js/dungeon3d-lightmap.js?v=11.4.5"></script>
-    <script defer src="/js/dungeon3d-model-governor.js?v=11.4.5"></script>
-    <script defer src="/js/screen-context.js?v=11.4.5"></script>
-    <script defer src="/js/menu-router.js?v=11.4.5"></script>
-    <script defer src="/js/grimoire-deck.js?v=11.4.5"></script>
-    <script defer src="/js/quick-actions.js?v=11.4.5"></script>
-    <script defer src="/js/device.js?v=11.4.5"></script>
-    <script defer src="/js/action-catalog.js?v=11.4.5"></script>
-    <script defer src="/js/realm-keys.js?v=11.4.5"></script>
-    <script defer src="/js/command-dispatcher.js?v=11.4.5"></script>
-    <script defer src="/js/command-palette.js?v=11.4.5"></script>
-    <script defer src="/js/prompt-mirror.js?v=11.4.5"></script>
-    <script defer src="/js/item-sheet.js?v=11.4.5"></script>
-    <script defer src="/js/entity-menu.js?v=11.4.5"></script>
-    <script defer src="/js/gamepad.js?v=11.4.5"></script>
-    <script defer src="/js/radial-menu.js?v=11.4.5"></script>
-    <script defer src="/js/mobile-overlay.js?v=11.4.5"></script>
-    <script defer src="/js/audio.js?v=11.4.5"></script>
-    <script defer src="/js/terminal.js?v=11.4.5"></script>
-    <script defer src="/js/dungeon3d.js?v=11.4.5"></script>
-    <script defer src="/js/hud.js?v=11.4.5"></script>
-    <script defer src="/js/network.js?v=11.4.5"></script>
-    <script defer src="/js/local_bridge.js?v=11.4.5"></script>
-    <script defer src="/js/input.js?v=11.4.5"></script>
-    <script defer src="/js/demo-player.js?v=11.4.5"></script>
+    <script defer src="/js/safe-html.js?v=11.5.0"></script>
+    <script defer src="/js/realm-cartridge.js?v=11.5.0"></script>
+    <script defer src="/js/screen-modal-coordinator.js?v=11.5.0"></script>
+    <script defer src="/js/dungeon3d-lightmap.js?v=11.5.0"></script>
+    <script defer src="/js/dungeon3d-model-governor.js?v=11.5.0"></script>
+    <script defer src="/js/screen-context.js?v=11.5.0"></script>
+    <script defer src="/js/menu-router.js?v=11.5.0"></script>
+    <script defer src="/js/grimoire-deck.js?v=11.5.0"></script>
+    <script defer src="/js/quick-actions.js?v=11.5.0"></script>
+    <script defer src="/js/device.js?v=11.5.0"></script>
+    <script defer src="/js/action-catalog.js?v=11.5.0"></script>
+    <script defer src="/js/realm-keys.js?v=11.5.0"></script>
+    <script defer src="/js/command-dispatcher.js?v=11.5.0"></script>
+    <script defer src="/js/command-palette.js?v=11.5.0"></script>
+    <script defer src="/js/prompt-mirror.js?v=11.5.0"></script>
+    <script defer src="/js/item-sheet.js?v=11.5.0"></script>
+    <script defer src="/js/entity-menu.js?v=11.5.0"></script>
+    <script defer src="/js/gamepad.js?v=11.5.0"></script>
+    <script defer src="/js/radial-menu.js?v=11.5.0"></script>
+    <script defer src="/js/mobile-overlay.js?v=11.5.0"></script>
+    <script defer src="/js/audio.js?v=11.5.0"></script>
+    <script defer src="/js/terminal.js?v=11.5.0"></script>
+    <script defer src="/js/dungeon3d.js?v=11.5.0"></script>
+    <script defer src="/js/hud.js?v=11.5.0"></script>
+    <script defer src="/js/network.js?v=11.5.0"></script>
+    <script defer src="/js/local_bridge.js?v=11.5.0"></script>
+    <script defer src="/js/input.js?v=11.5.0"></script>
+    <script defer src="/js/demo-player.js?v=11.5.0"></script>
     <!-- Living Chronicle & Voiced Lorekeeper Modules -->
-    <script defer src="/js/chronicle/chronicle-store.js?v=11.4.5"></script>
-    <script defer src="/js/chronicle/chronicle-grounder.js?v=11.4.5"></script>
-    <script defer src="/js/chronicle/chronicle-filter.js?v=11.4.5"></script>
-    <script defer src="/js/chronicle/chronicle-story-weaver.js?v=11.4.5"></script>
-    <script defer src="/js/chronicle/chronicle-audio.js?v=11.4.5"></script>
-    <script defer src="/js/chronicle/chronicle-llm.js?v=11.4.5"></script>
-    <script defer src="/js/chronicle/chronicle-manager.js?v=11.4.5"></script>
-    <script defer src="/js/app.js?v=11.4.5"></script>
-    <script defer src="/js/boot.js?v=11.4.5"></script>
+    <script defer src="/js/chronicle/chronicle-store.js?v=11.5.0"></script>
+    <script defer src="/js/chronicle/chronicle-grounder.js?v=11.5.0"></script>
+    <script defer src="/js/chronicle/chronicle-filter.js?v=11.5.0"></script>
+    <script defer src="/js/chronicle/chronicle-story-weaver.js?v=11.5.0"></script>
+    <script defer src="/js/chronicle/chronicle-audio.js?v=11.5.0"></script>
+    <script defer src="/js/chronicle/chronicle-llm.js?v=11.5.0"></script>
+    <script defer src="/js/chronicle/chronicle-manager.js?v=11.5.0"></script>
+    <script defer src="/js/app.js?v=11.5.0"></script>
+    <script defer src="/js/boot.js?v=11.5.0"></script>
 </body>
 </html>

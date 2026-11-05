@@ -80,6 +80,13 @@ ENV LC_ALL=C.UTF-8
 
 WORKDIR /app
 
+# Setup cloud server daemon dependencies FIRST for fast layer caching
+COPY server/package*.json /app/server/
+WORKDIR /app/server
+RUN npm ci --omit=dev
+
+WORKDIR /app
+
 # Copy compiled Vanilla engine and game library
 COPY --from=engine-builder /src/engine/build/game/angband /app/engine/angband
 COPY --from=engine-builder /src/engine/build/game/lib /app/engine/lib
@@ -95,11 +102,7 @@ COPY --from=engine-builder /src/variants/silq-src/build/silq /app/variants/silq/
 COPY variants/hengband/lib /app/variants/hengband/lib
 COPY --from=engine-builder /src/variants/hengband-src/src/hengband-bridge /app/variants/hengband/bin/hengband
 
-# Setup cloud server daemon
-COPY server/package*.json /app/server/
-WORKDIR /app/server
-RUN npm ci --omit=dev
-
+# Copy server & web assets last (fastest invalidation layer)
 COPY server/src/ /app/server/src/
 COPY server/public/ /app/public/
 COPY variants/nethack/ /app/variants/nethack/
@@ -126,11 +129,8 @@ RUN mkdir -p /data/save /app/dist /app/public \
              /app/variants/hengband/bin/hengband-en
 
 VOLUME /data/save
+WORKDIR /app/server
 
-# Production environment configuration (per G-D / WS8):
-# - TRUST_PROXY=1: Enables parsing of X-Forwarded-For headers behind Cloud Run GFE for accurate rate-limiting
-# - ALLOWED_ORIGINS: Comma-separated allowed origins (defaults to same-origin if unset)
-# - ENABLE_RECORDING_UPLOAD: Must NEVER be enabled in production (default 0 / disabled)
 ENV PORT=8080
 ENV ENGINE_EXE=/app/engine/angband
 ENV SAVE_DIR=/data/save
@@ -144,4 +144,3 @@ EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||8080)+'/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 
 CMD ["node", "src/server.js"]
-

@@ -1357,7 +1357,14 @@ class NetHackEngine {
             return;
         }
         if (pendingVerb === 'untrap') {
-            this.addMessage('You carefully inspect and disarm the adjacent flagstones.', 10);
+            if (cell && (cell.feat === FEAT.TRAP || cell.glyph === '^')) {
+                cell.feat = FEAT.FLOOR;
+                cell.glyph = '.';
+                cell.attr = 1;
+                this.addMessage('You disarm the trap and salvage a handful of iron spikes!', 10);
+            } else {
+                this.addMessage('You carefully inspect and disarm the adjacent flagstones.', 10);
+            }
             this.advanceWorldTurn();
             return;
         }
@@ -1443,14 +1450,32 @@ class NetHackEngine {
             return;
         }
         if (cmd.includes('loot')) {
+            const chestIdx = this.state.objects.findIndex(o => o.x === p.x && o.y === p.y && /chest|box|sack|bag/i.test(o.name || ''));
             const g = 25 + this.rand(55);
             p.gold += g;
-            this.addMessage(`You carefully search the flagstones and uncover ${g} goldorkmids ($).`, 14);
+            if (chestIdx >= 0) {
+                const chest = this.state.objects.splice(chestIdx, 1)[0];
+                this.addMessage(`You unlock and loot the ${chest.name}, claiming ${g} zorkmids ($)!`, 14);
+            } else {
+                this.addMessage(`You carefully search the flagstones and uncover ${g} zorkmids ($).`, 14);
+            }
             this.advanceWorldTurn();
             return;
         }
         if (cmd.includes('untrap')) {
-            this.addMessage('You check and disarm the surrounding stonework.', 10);
+            let disarmed = false;
+            for (let oy = -1; oy <= 1; oy++) {
+                for (let ox = -1; ox <= 1; ox++) {
+                    const c = this.state.map[p.y + oy] && this.state.map[p.y + oy][p.x + ox];
+                    if (c && (c.feat === FEAT.TRAP || c.glyph === '^')) {
+                        c.feat = FEAT.FLOOR;
+                        c.glyph = '.';
+                        c.attr = 1;
+                        disarmed = true;
+                    }
+                }
+            }
+            this.addMessage(disarmed ? 'You disarm the nearby dungeon trap!' : 'You check and disarm the surrounding stonework.', 10);
             this.advanceWorldTurn();
             return;
         }
@@ -1580,13 +1605,30 @@ class NetHackEngine {
     attackMonster(mon) {
         const p = this.state.player;
         const w = p.inventory.find(it => it.equipped === 'weapon');
-        const baseDmg = w ? (w.name === 'Excalibur' ? 14 : 8) + (w.bonus || 0) : 4;
+        let baseDmg = 4;
+        if (w) {
+            const dm = String(w.dmg || '1d6').match(/(\d+)d(\d+)/i);
+            const diceAvg = dm ? (parseInt(dm[1], 10) * (parseInt(dm[2], 10) + 1)) / 2 : 6;
+            baseDmg = Math.round(diceAvg) + (w.name === 'Excalibur' ? 8 : 3) + (w.bonus || 0);
+        }
         const dmg = Math.max(2, baseDmg + this.rand(6));
         mon.asleep = false;
         mon.hp -= dmg;
         this.addMessage(`You hit the ${mon.race} with your ${w ? w.name : 'fists'}! (${dmg} dmg)`, 10);
         if (mon.hp <= 0) {
             this.handleMonsterDefeat(mon);
+            return;
+        }
+        const rLower = String(mon.race || '').toLowerCase();
+        if (rLower.includes('floating eye') && !p.blind) {
+            p.paralyzed = 2;
+            this.addMessage("You are frozen by the floating eye's gaze!", 11);
+        } else if (rLower.includes('jelly') && mon.hp > 6 && this.state.monsters.length < 18) {
+            const half = Math.max(3, Math.floor(mon.hp / 2));
+            mon.hp = half;
+            const maxId = this.state.monsters.reduce((acc, m) => Math.max(acc, m.id || 0), 0);
+            this.state.monsters.push(Object.assign({}, mon, { id: maxId + 1, hp: half, x: Math.min(MAP_W - 2, mon.x + 1) }));
+            this.addMessage(`The ${mon.race} divides in two from your blow!`, 11);
         }
     }
 
@@ -1654,6 +1696,13 @@ class NetHackEngine {
             }
             const dist = Math.hypot(p.x - mon.x, p.y - mon.y);
             if (dist <= 1.5) {
+                const rLower = String(mon.race || '').toLowerCase();
+                const wornArmor = p.inventory.find(it => it.equipped === 'armor');
+                if ((rLower.includes('rust monster') || rLower.includes('acid blob')) && wornArmor && !/leather|robe|cloak|dragon/i.test(wornArmor.name || '')) {
+                    wornArmor.bonus = Math.max(-3, (wornArmor.bonus || 0) - 1);
+                    this.recalcPlayerAc();
+                    this.addMessage(`The ${mon.race}'s touch corrodes your ${wornArmor.name}!`, 12);
+                }
                 const dmg = Math.max(1, (mon.dmg || 4) - Math.max(0, Math.floor((10 - p.ac) / 2)));
                 p.hp -= dmg;
                 this.addMessage(`The ${mon.race} hits you! (-${dmg} HP)`, 4);

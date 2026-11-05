@@ -47,6 +47,7 @@ variants/**/msvc2022
 variants/**/msvc2022/**
 variants/**/bin/*.exe
 variants/**/bin/*.pdb
+variants/**/lib/xtra/music/**
 
 # Allow server files needed by Dockerfile
 !server

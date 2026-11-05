@@ -1,22 +1,19 @@
-# Angband 3D
+# Angband 3D / YASD 3D
 
-> **Four Legendary Roguelike Engines. One Living 3D World. Over Three Decades of Tactical History Preserved Through High-Performance Engine Decoupling.**
+> **Eight Legendary Roguelike Realms. One Living 3D World. Over Four Decades of Tactical History Preserved Through High-Performance Engine Decoupling.**
 
 [![Play Online in Browser](https://img.shields.io/badge/⚔_Play_Online-angband3d.com-gold?style=for-the-badge&logo=googlechrome)](https://angband3d.com)
 [![License: GPL v2](https://img.shields.io/badge/License-GPL_v2-blue.svg)](LICENSE)
-[![Engines: 4 Authoritative Realms](https://img.shields.io/badge/Engines-Vanilla_•_Sil--Q_•_FCB_•_Hengband-darkgreen.svg)](#-four-legendary-realms-one-unified-experience)
-[![Web Client: Three.js PBR](https://img.shields.io/badge/Web_Client-Three.js_WebGL_PBR-orange.svg)](server/public)
-[![Desktop Client: Godot 4 C#](https://img.shields.io/badge/Desktop_Client-Godot_4.3+_.NET_8-blueviolet.svg)](https://godotengine.org/)
-[![Mobile: Android Standalone APK](https://img.shields.io/badge/Mobile-Android_SDK_34_APK-green.svg)](#-play-instantly-cross-platform-matrix)
-[![Tests: 30/30 Fast + 11/11 Smoke + 4/4 E2E](https://img.shields.io/badge/Automated_Gates-45%2F45_Passing-brightgreen.svg)](tools)
+[![Engines: 8 Authoritative Realms](https://img.shields.io/badge/Engines-Angband_•_Sil--Q_•_FCB_•_Hengband_•_NetHack_•_DCSS_•_Brogue_•_Rogue-darkgreen.svg)](#-eight-legendary-realms-one-unified-experience)
+[![Web Client: Three.js PBR](https://img.shields.io/badge/Web_Client-Three.js_WebGL_PBR_&_PWA-orange.svg)](server/public)
+[![Audio: 48-Track Jukebox & Foley](https://img.shields.io/badge/Audio-48--Track_Jukebox_&_101_Foley_SFX-blueviolet.svg)](server/public/assets/audio)
+[![Tests: 29/29 Fast + 11/11 Smoke + 4/4 E2E](https://img.shields.io/badge/Automated_Gates-44%2F44_Passing-brightgreen.svg)](tools)
 
 ---
 
-> ### 🌟 Official Live Links & Instant Play (`v11.1.1`)
-> - ⚔ **Play Now in Browser**: **[https://angband3d.com](https://angband3d.com)** *(Instant 60 FPS 3D roguelike, zero install across Desktop, iOS & Android)*
-> - 💻 **Standalone Windows PC**: **[Download Angband3D-Windows-x64.zip](https://github.com/ThunderbearStudios/angband3d/releases/latest/download/Angband3D-Windows-x64.zip)** *(144+ FPS native offline play powered by Godot 4 C#)*
-> - 📱 **Standalone Android App**: **[Download Angband3D-Android.apk](https://github.com/ThunderbearStudios/angband3d/releases/latest/download/Angband3D-Android.apk)** *(Offline mobile play with tactile split-thumb D-pad)*
-> - 📖 **System Architecture & Wire Protocol**: **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** *(C99 bridge specification, 60 FPS dirty-state gating & automated test matrix)*
+> ### 🌟 Official Live Links & Instant Play (`v11.5.0`)
+> - ⚔ **Play Now in Browser**: **[https://angband3d.com](https://angband3d.com)** *(Instant 60 FPS 3D roguelike across Desktop, iOS & Android — zero install or 1-click PWA install)*
+> - 📖 **System Architecture & Wire Protocol**: **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** *(C99 & Universal Cartridge bridge specification, 60 FPS dirty-state gating & automated test matrix)*
 > - 🏛 **Official Studio & Architecture Overview**: **[https://thunderbearstudios.dev](https://thunderbearstudios.dev)** *(Thunderbear Studios frameworks & Cloud Run proving ground)*
 
 ---
@@ -27,42 +24,25 @@ Classic turn-based roguelikes represent some of the most mathematically deep, ta
 
 **Angband 3D solves this problem permanently through architectural decoupling.** 
 
-Rather than rewriting the game, Angband 3D runs **four authoritative, unmodified C/C++ roguelike engines** in headless bridge mode. Every combat roll, saving throw, item generation curve, stealth check, and monster AI pathfinding decision runs bit-for-bit canonical upstream C code. Frontends—whether our responsive Three.js WebGL client, native Godot 4 C# engine, or standalone Android APK—act purely as reactive presentation layers.
+Rather than rewriting the game, Angband 3D runs **eight authoritative roguelike realms** (`Vanilla Angband 4.2.6`, `Sil-Q 1.5.0`, `FrogComposBand 7.1.1`, `Hengband 3.0.1`, `NetHack 3.6.7`, `Dungeon Crawl Stone Soup`, `Brogue CE`, and `Classic Rogue 5.4`) through a unified headless JSON wire protocol (`main-bridge.c` and `UniversalCartridge`). Every combat roll, saving throw, item generation curve, hunger clock tick, stealth check, and monster AI decision runs authoritative backend rules, while our responsive Three.js WebGL / PWA client acts purely as a high-craft 60 FPS presentation layer.
 
-The result is a breathtaking first-person dungeon crawl with real-time camera look, procedural lighting, Gothic dark-fantasy crimson life and sapphire mana orbs, 3D armored gauntlet viewmodels, a 58-model rigged 3D bestiary, and voiced narrative sagas, built upon a foundation of absolute mathematical rigor.
+The result is a breathtaking first-person dungeon crawl with real-time camera look, 8-realm PBR biomes, dual-scrolling water and magma shaders, a 65+ model rigged 3D bestiary (including a 4-model canine pack with breath-element emissive veins), an interactive 48-track Jukebox & Contextual Music Director, intelligent 1-click character generation presets, and voiced narrative sagas.
 
 ---
 
 ## 🎮 Playability Features That Redefine the Dungeon Crawl
 
-### 1. 🌌 Four Legendary Realms, One Unified Experience
-Choose your destiny across four masterworks of the open-source roguelike genre, switchable in one click from the title screen:
-
-```
-                                    +-----------------------------------------+
-                                    |        ANG BAND 3D MULTI-REALM          |
-                                    +-----------------------------------------+
-                                                         |
-         +-----------------------+-----------------------+-----------------------+-----------------------+
-         |                       |                       |                       |                       |
-         v                       v                       v                       v
-+-----------------+     +-----------------+     +-----------------+     +-----------------+
-| Vanilla Angband |     |      Sil-Q      |     | FrogComposBand  |     |    Hengband     |
-|     (v4.2.6)    |     |     (v1.5.0)    |     |     (v7.1.1)    |     |     (v3.0.1)    |
-+-----------------+     +-----------------+     +-----------------+     +-----------------+
-| • 100 Dungeon   |     | • First Age     |     | • Sprawling     |     | • Japanese Chaos|
-|   Levels        |     |   Beleriand     |     |   Multiverse    |     |   Lore & Classes|
-| • Overthrow     |     | • Zero Mana/Shop|     | • Overworld     |     | • Live Bilingual|
-|   Morgoth       |     | • Song & Stealth|     |   Wilderness    |     |   JP ↔ EN Toggle|
-| • Vault Raiding |     | • Forge Crafting|     | • Monster Races |     | • Feudal Eastern|
-| • Artifacts     |     | • Cut Silmaril  |     | • Chasm Abysses |     |   Archetypes    |
-+-----------------+     +-----------------+     +-----------------+     +-----------------+
-```
+### 1. 🌌 Eight Legendary Realms, One Unified Experience
+Choose your destiny across eight masterworks of the open-source roguelike genre, switchable in one click from the title screen:
 
 * **Vanilla Angband 4.2.6 (The Classical Descent)**: The definitive Middle-earth dungeon crawl. 100 sprawling dungeon levels, hundreds of unique artifacts, deadly breath weapons, and the ultimate descent to confront and defeat Morgoth, Lord of Darkness.
-* **Sil-Q 1.5.0 (The First Age Tactical Masterpiece)**: Set in the ancient fortress of Angband during the First Age. Featuring Sil-Q's legendary Song system, 0 mana potions, 0 magic shops, positional melee combat, assassination from the shadows, masterwork smithing at subterranean forges, and the daring quest to carve a Silmaril from the Iron Crown.
+* **Sil-Q 1.5.0 (The First Age Tactical Masterpiece)**: Set in the ancient fortress of Angband during the First Age. Featuring Sil-Q's legendary Song system, 0 mana potions, 0 magic shops, positional melee combat, masterwork smithing at subterranean Anvil Forges (`0`), and the daring quest to carve a Silmaril from the Iron Crown.
 * **FrogComposBand 7.1.1 (The Sprawling Multiverse)**: An expansive sandbox featuring a massive overworld wilderness, multiple towns, deep bottomless pit chasms (`#`), and hundreds of playable races and classes—from Dragons and Ringwraiths to Time Mages and Beholder monks.
-* **Hengband 3.0.1 (Eastern Chaos & Bilingual Brilliance)**: The revered Japanese variant blending Eastern folklore with chaotic high-fantasy roguelike mechanics. Features real-time line-level Japanese ↔ English bilingual translation (`heng-translate.js`), allowing you to toggle languages on the fly without restarting.
+* **Hengband 3.0.1 (Eastern Chaos & Bilingual Brilliance)**: The revered Japanese variant blending Eastern folklore with chaotic high-fantasy roguelike mechanics. Features real-time line-level Japanese ↔ English bilingual translation (`heng-translate.js`).
+* **NetHack 3.6.7 (The Mazes of Menace)**: Descend toward Gehennom to retrieve the Amulet of Yendor (`"`). Features altars (`_`), magic fountains (`{`), boulders (`` ` ``), alignment prayer (`#pray`), engravings, and iconic perils like Cockatrices, Floating Eyes, Mind Flayers, and Rust Monsters.
+* **Dungeon Crawl Stone Soup (The Orb of Zot)**: Tactical dungeon crawl with species/background selection, Ecumenical Temple altars (`_`), god piety & invocation (`p`), Spellcasting/Evocations, and multi-headed Hydras, Sigmund, and Oklob Plants.
+* **Brogue CE (The Amulet of Yendor)**: Deeply tactical, level-less design where power flows from **Scrolls of Enchantment** that upgrade your equipped weapons, armor, staves, and rings alongside caustic gas/water traps and Goblin Totems.
+* **Classic Rogue 5.4 (The Original 1980 Legend)**: Faithful recreation of the original 26-level descent for the Amulet of Yendor with strict food-ration nutrition, gold collection (`*`), and classic A–Z monsters from Aquators (`A`) to Jabberwocks (`J`).
 
 ---
 
@@ -202,19 +182,18 @@ Capture your legend in living ink:
 
 ---
 
-## 📱 Play Instantly: Cross-Platform Matrix
+## 📱 Play Instantly: Universal Web & PWA Experience
 
-| Feature / Client | Web Client (`angband3d.com`) | Native Desktop (Godot 4 C#) | Android Standalone APK | Desktop WebView2 (.NET 8) |
-|---|---|---|---|---|
-| **Direct Access** | **[Play in Browser](https://angband3d.com)** | **[Download .zip](https://github.com/ThunderbearStudios/angband3d/releases/latest/download/Angband3D-Windows-x64.zip)** | **[Download .apk](https://github.com/ThunderbearStudios/angband3d/releases/latest/download/Angband3D-Android.apk)** | **[Build from Source](desktop)** |
-| **Target Platform** | Any Web Browser (PC, Mac, Mobile) | Windows x64 PC | Android 14+ Phones & Tablets | Windows x64 PC |
-| **Graphics Pipeline** | Three.js WebGL / PBR Shading | Godot 4.3+ .NET 8 (Vulkan / D3D12) | WebGL / Capacitor Accelerated | Edge Chromium Engine |
-| **Target Framerate** | 60 FPS VSync | **144+ FPS Unlocked** | 60 FPS Battery-Optimized | 60 FPS VSync |
-| **Offline Playability** | Offline via PWA / Local Worker | **100% Offline Standalone** | **100% Offline Standalone** | **100% Offline Standalone** |
-| **Authoritative Engines**| 4 Realms (Vanilla, Sil-Q, FCB, Heng) | 4 Realms via local `stdio` | 4 Realms via local binaries | 4 Realms via local process |
-| **Universal Movable HUD**| ✅ Full Touch & Mouse Drag | ✅ Contextual HUD | ✅ Responsive Split-Thumb | ✅ Full Mouse Drag |
-| **Savegame Portability** | ✅ 1-Click Export/Import | ✅ Native File Disk | ✅ 1-Click Export/Import | ✅ Native File Disk |
-| **Voiced Living Chronicle**| ✅ **Full Gemini Neural Suite** | ➖ Offline Engine Purity | ➖ Offline Engine Purity | ✅ Full Gemini Neural Suite |
+| Feature / Capability | Desktop Web (`angband3d.com`) | Mobile & Tablet Web / PWA | Local Self-Hosted (`docker` / `npm start`) |
+|---|---|---|---|
+| **Direct Access** | **[Play in Browser](https://angband3d.com)** | **[Open on iOS / Android](https://angband3d.com)** | **`http://localhost:8080`** |
+| **Target Platform** | Chrome, Edge, Firefox, Safari (PC, Mac, Linux) | iOS Safari & Android Chrome (Full-Screen PWA) | Windows, macOS, Linux, Docker / Cloud Run |
+| **Graphics Pipeline** | Three.js WebGL / 8-Realm PBR Biomes | Three.js WebGL / Adaptive DPR | Three.js WebGL / 8-Realm PBR Biomes |
+| **Target Framerate** | 60 FPS VSync (`_lastSig` Dirty-Gated) | 60 FPS Battery-Optimized | 60 FPS VSync |
+| **Authoritative Realms**| All 8 Realms (Angband, Sil-Q, FCB, Heng, NetHack, DCSS, Brogue, Rogue) | All 8 Realms | All 8 Realms |
+| **Audio & Music** | 48-Track Jukebox + Contextual Director + 101 Foley SFX | 48-Track Jukebox + Touch-Unlocked WebAudio | 48-Track Jukebox + 101 Foley SFX |
+| **Savegame Portability** | ✅ Cloud Sync + 1-Click `.sav` Export/Import | ✅ Cloud Sync + 1-Click `.sav` Export/Import | ✅ Local Disk + `.sav` Export/Import |
+| **Voiced Living Chronicle**| ✅ **Full Gemini Neural Suite & Sketches** | ✅ **Full Gemini Neural Suite & Sketches** | ✅ **Full Gemini Neural Suite & Sketches** |
 
 ---
 

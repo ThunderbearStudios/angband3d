@@ -1381,6 +1381,7 @@ class WebHUD {
         this.renderCompass(yaw);
         if (this.lastFrame && this.lastFrame.map && this.lastFrame.player) {
             this.renderMinimap(this.lastFrame.map, this.lastFrame.player, this.lastFrame.monsters || [], yaw);
+            this.updateReticleTargetCard(this.lastFrame);
         }
     }
 
@@ -1396,9 +1397,7 @@ class WebHUD {
         const sectorNames = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
         const sectorArrows = ['▲', '↗', '►', '↘', '▼', '↙', '◄', '↖'];
         const sectorKanji = ['北', '北東', '東', '南東', '南', '南西', '西', '北西'];
-        const dirName = sectorNames[sector] || 'N';
-        const dirArrow = sectorArrows[sector] || '▲';
-        const dirKanji = sectorKanji[sector] || '北';
+        const dirName = sectorNames[sector] || 'N', dirArrow = sectorArrows[sector] || '▲', dirKanji = sectorKanji[sector] || '北';
         if (realm === 'hengband' && lang === 'jp') {
             this.footerFacing.textContent = `🧭 ${dirKanji}`;
             this.footerFacing.title = `視線方向: ${dirKanji} (${dirArrow})`;
@@ -1414,17 +1413,14 @@ class WebHUD {
     applyHudScale(scale) {
         const clamped = Math.max(0.85, Math.min(1.3, Number(scale) || 1));
         this._hudScale = clamped;
-        if (typeof document !== 'undefined' && document.documentElement) {
-            document.documentElement.style.setProperty('--hud-scale', String(clamped));
-        }
+        if (typeof document !== 'undefined' && document.documentElement) document.documentElement.style.setProperty('--hud-scale', String(clamped));
         try { localStorage.setItem('angband3d_hud_scale', String(clamped)); } catch (_) {}
         return clamped;
     }
 
     cycleImmersionMode() {
         const modes = ['full', 'minimal', 'cinematic'];
-        const cur = this._immersionMode || 'full';
-        const next = modes[(modes.indexOf(cur) + 1) % modes.length];
+        const next = modes[(modes.indexOf(this._immersionMode || 'full') + 1) % modes.length];
         this._immersionMode = next;
         if (typeof document !== 'undefined' && document.body) {
             document.body.classList.toggle('hud-immersion-minimal', next === 'minimal');
@@ -1446,11 +1442,38 @@ class WebHUD {
 
     updateTargetInspector(player, realm, frameOpt) {
         const rawReticleCard = this.reticleTargetCard || document.getElementById('reticle-target-card');
-        if (rawReticleCard) { rawReticleCard.style.display = 'none'; rawReticleCard.classList.add('hidden'); }
-
+        if (rawReticleCard && !rawReticleCard._boundTargetActs) {
+            rawReticleCard._boundTargetActs = true;
+            rawReticleCard.addEventListener('click', (e) => {
+                const btn = e.target && e.target.closest ? e.target.closest('[data-target-act]') : null;
+                if (!btn) return;
+                e.stopPropagation();
+                const act = btn.getAttribute('data-target-act');
+                const inp = window.__app && window.__app.input;
+                if (act === 'attack' && inp) inp.executeSmartAction('attack');
+                else if (act === 'shoot' && inp) inp.executeSmartAction('shoot');
+                else if (act === 'cast') document.getElementById('btn-cast')?.click();
+                else if (act === 'inspect' && this._currentTargetMonster && window.chronicleManager?.interactWithCreature) {
+                    window.chronicleManager.interactWithCreature(this._currentTargetMonster, { mode: 'popover' });
+                }
+            });
+        }
         const frame = frameOpt || this.lastFrame;
         const pl = player || (frame ? frame.player : null);
         let t = (pl && pl.target && pl.target.name) ? pl.target : ((frame && frame.target && frame.target.name) ? frame.target : null);
+        if (!t && frame && Array.isArray(frame.monsters) && pl && pl.x !== undefined && pl.y !== undefined) {
+            const inp = window.__app && window.__app.input;
+            let fwd = { dx: 0, dy: -1 };
+            const facing = window.__app && window.__app.dungeon ? window.__app.dungeon.facing : undefined;
+            if (typeof facing === 'number' && facing >= 0 && facing <= 7) {
+                fwd = [{ dx: 0, dy: -1 }, { dx: 1, dy: -1 }, { dx: 1, dy: 0 }, { dx: 1, dy: 1 }, { dx: 0, dy: 1 }, { dx: -1, dy: 1 }, { dx: -1, dy: 0 }, { dx: -1, dy: -1 }][facing] || fwd;
+            } else if (inp && typeof inp.getFacingForward === 'function') {
+                fwd = inp.getFacingForward().fwd;
+            }
+            const ray = (inp && typeof inp.raycastTargetAhead === 'function') ? inp.raycastTargetAhead(frame, pl.x, pl.y, fwd) : null;
+            if (ray && ray.type === 'monster' && ray.data) t = ray.data;
+        }
+        this._currentTargetMonster = t || null;
         const hasTarget = !!(t && t.name);
         const isVisible = hasTarget && (t.visible !== false);
         const esc = typeof escapeHtml === 'function' ? escapeHtml : (s) => String(s).replace(/[&<>'"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[c]));
@@ -1458,11 +1481,13 @@ class WebHUD {
         if (hasTarget && isVisible) {
             let tName = t.name;
             const lang = window.__langMode || 'en';
-            if (realm === 'hengband' && typeof window.getLocalizedMonsterName === 'function') {
-                tName = window.getLocalizedMonsterName(tName, 'hengband', lang);
+            if (realm === 'hengband' && typeof window.getLocalizedMonsterName === 'function') tName = window.getLocalizedMonsterName(tName, 'hengband', lang);
+            const pct = Math.max(0, Math.min(100, Math.round(t.hp_pct !== undefined ? t.hp_pct : (t.pct !== undefined ? t.pct : ((t.hp !== undefined && t.hp_max > 0) ? (t.hp / t.hp_max) * 100 : 100)))));
+            let portraitHtml = '';
+            if (typeof window.getShockboltSpriteCss === 'function') {
+                const iconStyle = window.getShockboltSpriteCss('monster', t.name, t.glyph || null, 36);
+                if (iconStyle) portraitHtml = '<span class="sb-sprite-icon hud-target-portrait" style="' + iconStyle + '"></span> ';
             }
-            const pct = Math.max(0, Math.min(100, Math.round(t.hp_pct !== undefined ? t.hp_pct : (t.pct !== undefined ? t.pct : 100))));
-
             if (this.footerTarget) {
                 this.footerTarget.style.display = 'inline-flex';
                 this.footerTarget.style.maxWidth = '190px';
@@ -1472,118 +1497,77 @@ class WebHUD {
                 const targetSig = `${realm}:${tName}:${t.glyph || ''}:${pct}`;
                 if (this._lastFooterTargetSig !== targetSig) {
                     this._lastFooterTargetSig = targetSig;
-                    let portraitHtml = '';
-                    if (typeof window.getShockboltSpriteCss === 'function') {
-                        const iconStyle = window.getShockboltSpriteCss('monster', t.name, t.glyph || null, 36);
-                        if (iconStyle) {
-                            portraitHtml = '<span class="sb-sprite-icon hud-target-portrait" style="' + iconStyle + '"></span> ';
-                        }
-                    }
                     this.footerTarget.innerHTML = portraitHtml + '⚔ ' + esc(tName) + ' (' + pct + '%)';
                 }
             }
-        } else {
-            if (this.footerTarget) {
-                this.footerTarget.style.display = 'none';
-                this._lastFooterTargetSig = '';
+            if (rawReticleCard) {
+                rawReticleCard.classList.remove('hidden');
+                rawReticleCard.style.display = 'block';
+                const isUniq = Boolean(t.unique || t.boss || /^the\s+/i.test(t.name || ''));
+                const isSleep = Boolean(t.asleep || t.sleep || /asleep|sleeping/i.test(t.status || ''));
+                const isFlee = Boolean(t.fleeing || t.afraid || t.fear || /flee|afraid|fear/i.test(t.status || ''));
+                const dist = (pl && pl.x !== undefined && t.x !== undefined) ? Math.max(Math.abs(t.x - pl.x), Math.abs(t.y - pl.y)) : 1;
+                const nameEl = document.getElementById('target-card-name');
+                if (nameEl) nameEl.textContent = `${tName}${t.glyph ? ` ('${t.glyph}')` : ''}`;
+                const tierEl = document.getElementById('target-card-tier');
+                if (tierEl) {
+                    tierEl.textContent = isUniq ? '👑 UNIQUE' : (isSleep ? '💤 ASLEEP' : (isFlee ? '💨 FLEEING' : '⚔ HOSTILE'));
+                    tierEl.className = 'target-card-tier' + (isUniq ? ' badge-unique' : '');
+                }
+                const hpFillEl = document.getElementById('target-card-hp-fill');
+                if (hpFillEl) hpFillEl.style.width = `${pct}%`;
+                const affEl = document.getElementById('target-card-affinities');
+                if (affEl) {
+                    if (!affEl._distChip) {
+                        affEl.textContent = '';
+                        const chip = document.createElement('span'); chip.className = 'target-dist-chip';
+                        const mkBtn = (act, txt) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'target-act-pill'; b.dataset.targetAct = act; b.textContent = txt; return b; };
+                        const pBtn = mkBtn('attack', '⚔ Attack [Space]');
+                        affEl.append(chip, pBtn, mkBtn('cast', '✨ Cast'), mkBtn('inspect', '🔍 Inspect'));
+                        affEl._distChip = chip; affEl._pBtn = pBtn;
+                    }
+                    affEl._distChip.textContent = `📏 ${dist}sq • ${pct}% HP`;
+                    affEl._pBtn.dataset.targetAct = dist <= 1 ? 'attack' : 'shoot';
+                    affEl._pBtn.textContent = dist <= 1 ? '⚔ Attack [Space]' : '🏹 Shoot [f]';
+                }
             }
+        } else {
+            if (this.footerTarget) { this.footerTarget.style.display = 'none'; this._lastFooterTargetSig = ''; }
+            if (rawReticleCard) { rawReticleCard.style.display = 'none'; rawReticleCard.classList.add('hidden'); }
         }
     }
 
     renderCompass(yaw) {
         if (!this.compassCtx || !this.compassCanvas) return;
-        const ctx = this.compassCtx;
-        const w = this.compassCanvas.width;
-        const h = this.compassCanvas.height;
-        const cx = w / 2;
-        const cy = h / 2;
-        const radius = Math.min(cx, cy) - 2.5;
-
+        const ctx = this.compassCtx, w = this.compassCanvas.width, h = this.compassCanvas.height;
+        const cx = w / 2, cy = h / 2, radius = Math.min(cx, cy) - 2.5;
         ctx.clearRect(0, 0, w, h);
-
-        // Compass background circular bezel (Overlay.cs:1757-1758)
         ctx.fillStyle = 'rgba(12, 14, 20, 0.90)';
-        ctx.beginPath();
-        ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-        ctx.fill();
+        ctx.beginPath(); ctx.arc(cx, cy, radius, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = 'rgba(180, 150, 60, 0.75)'; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.arc(cx, cy, radius, 0, Math.PI * 2); ctx.stroke();
 
-        ctx.strokeStyle = 'rgba(180, 150, 60, 0.75)';
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-        ctx.stroke();
-
-        // Continuous needle direction vector
-        // In 2D: X is right, Y is down; North is (0, -1).
         const dirVec = { x: Math.sin(yaw), y: -Math.cos(yaw) };
         const sideVec = { x: -dirVec.y * 3.5, y: dirVec.x * 3.5 };
-
         const tip = { x: cx + dirVec.x * (radius - 2.5), y: cy + dirVec.y * (radius - 2.5) };
         const baseCenter = { x: cx - dirVec.x * (radius - 4.5), y: cy - dirVec.y * (radius - 4.5) };
         const leftCorner = { x: cx + sideVec.x, y: cy + sideVec.y };
         const rightCorner = { x: cx - sideVec.x, y: cy - sideVec.y };
 
-        // North / Forward pointer (red/ruby, Overlay.cs:1779-1780)
-        ctx.fillStyle = '#f03838';
-        ctx.beginPath();
-        ctx.moveTo(tip.x, tip.y);
-        ctx.lineTo(leftCorner.x, leftCorner.y);
-        ctx.lineTo(cx, cy);
-        ctx.closePath();
-        ctx.fill();
+        ctx.fillStyle = '#f03838'; ctx.beginPath(); ctx.moveTo(tip.x, tip.y); ctx.lineTo(leftCorner.x, leftCorner.y); ctx.lineTo(cx, cy); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#b81c1c'; ctx.beginPath(); ctx.moveTo(tip.x, tip.y); ctx.lineTo(cx, cy); ctx.lineTo(rightCorner.x, rightCorner.y); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#9aa6c0'; ctx.beginPath(); ctx.moveTo(baseCenter.x, baseCenter.y); ctx.lineTo(leftCorner.x, leftCorner.y); ctx.lineTo(cx, cy); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#738099'; ctx.beginPath(); ctx.moveTo(baseCenter.x, baseCenter.y); ctx.lineTo(cx, cy); ctx.lineTo(rightCorner.x, rightCorner.y); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#ffd700'; ctx.beginPath(); ctx.moveTo(cx, cy - radius + 1); ctx.lineTo(cx - 3, cy - radius + 6); ctx.lineTo(cx + 3, cy - radius + 6); ctx.closePath(); ctx.fill();
+        ctx.beginPath(); ctx.arc(cx, cy, 2.2, 0, Math.PI * 2); ctx.fill();
 
-        ctx.fillStyle = '#b81c1c';
-        ctx.beginPath();
-        ctx.moveTo(tip.x, tip.y);
-        ctx.lineTo(cx, cy);
-        ctx.lineTo(rightCorner.x, rightCorner.y);
-        ctx.closePath();
-        ctx.fill();
-
-        // South / Backward pointer (silver/steel, Overlay.cs:1783-1784)
-        ctx.fillStyle = '#9aa6c0';
-        ctx.beginPath();
-        ctx.moveTo(baseCenter.x, baseCenter.y);
-        ctx.lineTo(leftCorner.x, leftCorner.y);
-        ctx.lineTo(cx, cy);
-        ctx.closePath();
-        ctx.fill();
-
-        ctx.fillStyle = '#738099';
-        ctx.beginPath();
-        ctx.moveTo(baseCenter.x, baseCenter.y);
-        ctx.lineTo(cx, cy);
-        ctx.lineTo(rightCorner.x, rightCorner.y);
-        ctx.closePath();
-        ctx.fill();
-
-        // Fixed north marker notch on compass bezel
-        ctx.fillStyle = '#ffd700';
-        ctx.beginPath();
-        ctx.moveTo(cx, cy - radius + 1);
-        ctx.lineTo(cx - 3, cy - radius + 6);
-        ctx.lineTo(cx + 3, cy - radius + 6);
-        ctx.closePath();
-        ctx.fill();
-
-        // Center golden jewel rivet
-        ctx.fillStyle = '#ffd700';
-        ctx.beginPath();
-        ctx.arc(cx, cy, 2.2, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Update compass facing label if present
         if (this.compassLabel) {
             const normYaw = (yaw % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI);
             const sector = Math.round(normYaw / (Math.PI / 4)) % 8;
-            const names = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
-            this.compassLabel.textContent = names[sector] || 'N';
+            this.compassLabel.textContent = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'][sector] || 'N';
         }
     }
 
-    /* -------------------------------------------------------------
-     * Minimap Radar Rendering (Zoom, Direction Cone & Tiles)
-     * ------------------------------------------------------------- */
     updateMinimap(frame) {
         const eff = frame || this.lastFrame;
         if (!eff || !eff.map || !eff.player) return;
@@ -1592,232 +1576,134 @@ class WebHUD {
 
     showToast(msg) {
         if (!msg) return;
-        if (typeof window !== 'undefined' && window.__app && typeof window.__app.showToast === 'function') {
-            window.__app.showToast(msg);
-        } else if (typeof window !== 'undefined' && window.__app && typeof window.__app.showRealmToast === 'function') {
-            window.__app.showRealmToast(msg);
-        }
+        if (typeof window !== 'undefined' && window.__app && typeof window.__app.showToast === 'function') window.__app.showToast(msg);
+        else if (typeof window !== 'undefined' && window.__app && typeof window.__app.showRealmToast === 'function') window.__app.showRealmToast(msg);
         this.addMessage(msg, '#ffd166');
     }
 
     renderMinimap(map, player, monsters, continuousYaw) {
         if (!this.minimapCtx || !this.minimapCanvas || !map || !player) return;
-        const ctx = this.minimapCtx;
-        const w = this.minimapCanvas.width;
-        const h = this.minimapCanvas.height;
-
+        const ctx = this.minimapCtx, w = this.minimapCanvas.width, h = this.minimapCanvas.height;
         const yaw = continuousYaw !== undefined ? continuousYaw : this.currentCameraYaw;
-
-        // Dynamic cell size with minimap zoom (Matches Overlay.cs:1434)
-        const baseCellSize = 12;
-        const cellSize = Math.max(4, Math.min(48, Math.round(baseCellSize * this.minimapZoom)));
-
-        const cols = Math.floor(w / cellSize);
-        const lines = Math.floor(h / cellSize);
-
-        const px = player.x;
-        const py = player.y;
-
-        // Use continuous player coordinates when stepping/animating for butter-smooth 60fps tracking
+        const cellSize = Math.max(4, Math.min(48, Math.round(12 * this.minimapZoom)));
+        const cols = Math.floor(w / cellSize), lines = Math.floor(h / cellSize);
+        const px = player.x, py = player.y;
         const drawPx = (typeof this.continuousX === 'number' && !isNaN(this.continuousX)) ? this.continuousX : px;
         const drawPy = (typeof this.continuousY === 'number' && !isNaN(this.continuousY)) ? this.continuousY : py;
-
         const ox = Math.max(0, Math.min(map.w - cols, Math.floor(drawPx) - Math.floor(cols / 2)));
         const oy = Math.max(0, Math.min(map.h - lines, Math.floor(drawPy) - Math.floor(lines / 2)));
-        this._minimapOx = ox;
-        this._minimapOy = oy;
-        this._minimapCellSize = cellSize;
+        this._minimapOx = ox; this._minimapOy = oy; this._minimapCellSize = cellSize;
+        const cx = (drawPx - ox) * cellSize + cellSize / 2, cy = (drawPy - oy) * cellSize + cellSize / 2;
+        const dir = { x: Math.sin(yaw), y: -Math.cos(yaw) }, side = { x: -dir.y, y: dir.x };
 
-        const cx = (drawPx - ox) * cellSize + cellSize / 2;
-        const cy = (drawPy - oy) * cellSize + cellSize / 2;
-
-        // Direction vector from continuous camera yaw
-        const dir = { x: Math.sin(yaw), y: -Math.cos(yaw) };
-        const side = { x: -dir.y, y: dir.x };
-
-        // 1. Offscreen Tile Cache Generation: Re-rasterize ASCII glyphs when map sequence, viewport scroll, or zoom changes
         const frameSeq = (this.lastFrame && this.lastFrame.seq !== undefined) ? this.lastFrame.seq : 0;
         const cacheKey = `${frameSeq}_${ox}_${oy}_${this.minimapZoom}_${w}_${h}`;
         if (cacheKey !== this.minimapTileCacheKey || this.minimapTileCanvas.width !== w || this.minimapTileCanvas.height !== h) {
-            this.minimapTileCanvas.width = w;
-            this.minimapTileCanvas.height = h;
-            this.minimapTileCacheKey = cacheKey;
-
+            this.minimapTileCanvas.width = w; this.minimapTileCanvas.height = h; this.minimapTileCacheKey = cacheKey;
             const tCtx = this.minimapTileCtx;
-            tCtx.fillStyle = '#060910';
-            tCtx.fillRect(0, 0, w, h);
-
-            function darkenColor(hex, factor = 0.45) {
+            tCtx.fillStyle = '#060910'; tCtx.fillRect(0, 0, w, h);
+            const darkenColor = (hex, factor = 0.45) => {
                 if (!hex || hex[0] !== '#') return hex;
-                const r = Math.round(parseInt(hex.slice(1, 3), 16) * factor);
-                const g = Math.round(parseInt(hex.slice(3, 5), 16) * factor);
-                const b = Math.round(parseInt(hex.slice(5, 7), 16) * factor);
+                const r = Math.round(parseInt(hex.slice(1, 3), 16) * factor), g = Math.round(parseInt(hex.slice(3, 5), 16) * factor), b = Math.round(parseInt(hex.slice(5, 7), 16) * factor);
                 return `rgba(${r}, ${g}, ${b}, 0.70)`;
-            }
-
+            };
             if (cellSize > 6) {
                 tCtx.font = `bold ${Math.max(8, Math.floor(cellSize * 1.02))}px monospace`;
-                tCtx.textAlign = 'center';
-                tCtx.textBaseline = 'middle';
+                tCtx.textAlign = 'center'; tCtx.textBaseline = 'middle';
             }
-
             for (let rowIdx = 0; rowIdx < lines && (oy + rowIdx) < map.h; rowIdx++) {
-                const my = oy + rowIdx;
-                const row = map.rows[my];
+                const my = oy + rowIdx, row = map.rows[my];
                 if (!row || !row.g) continue;
-
                 for (let colIdx = 0; colIdx < cols && (ox + colIdx) < map.w; colIdx++) {
                     const mx = ox + colIdx;
                     if (mx >= row.g.length) continue;
-
                     const ch = row.g[mx];
                     if (ch === ' ') continue;
-
                     const flag = (row.l && mx < row.l.length) ? (parseInt(row.l[mx], 16) || 0) : 0;
-                    if ((flag & 0x3) === 0) continue; // Fog of war: not known and not in view
-
-                    const inView = (flag & 0x2) !== 0;
-                    const sx = colIdx * cellSize;
-                    const sy = rowIdx * cellSize;
-
-                    if (inView) {
-                        const isFloor = ch === '.' || ch === '+' || ch === '\'';
-                        tCtx.fillStyle = isFloor ? 'rgba(36, 41, 56, 0.45)' : 'rgba(26, 30, 42, 0.35)';
-                    } else {
-                        tCtx.fillStyle = 'rgba(8, 10, 15, 0.65)';
-                    }
+                    if ((flag & 0x3) === 0) continue;
+                    const inView = (flag & 0x2) !== 0, sx = colIdx * cellSize, sy = rowIdx * cellSize;
+                    const isFloor = ch === '.' || ch === ',' || ch === '\'';
+                    tCtx.fillStyle = inView ? (isFloor ? 'rgba(36, 41, 56, 0.45)' : 'rgba(26, 30, 42, 0.35)') : 'rgba(8, 10, 15, 0.65)';
                     tCtx.fillRect(sx, sy, cellSize, cellSize);
 
                     const attrIdx = mx * 2;
                     const attrVal = (row.a && attrIdx + 1 < row.a.length) ? parseInt(row.a.substring(attrIdx, attrIdx + 2), 16) : 1;
                     let colour = window.getAngbandColorString ? window.getAngbandColorString(attrVal) : '#ffffff';
-                    if (!inView) {
-                        colour = darkenColor(colour, 0.45);
-                    }
-
-                    tCtx.fillStyle = colour;
-                    if (cellSize <= 6) {
+                    if (!inView) colour = darkenColor(colour, 0.45);
+                    const isLandmark = ch === '<' || ch === '>' || ch === '0' || ch === '_' || ch === '{' || (ch >= '1' && ch <= '8');
+                    if (isLandmark) {
+                        const bCol = ch === '<' ? '#00f0ff' : (ch === '>' ? '#ffd700' : (ch === '0' ? '#ff8c00' : (ch === '_' ? '#ffe066' : (ch === '{' ? '#38bdf8' : '#fbbf24'))));
+                        tCtx.fillStyle = '#05070c'; tCtx.fillRect(sx - 1, sy - 1, cellSize + 2, cellSize + 2);
+                        tCtx.fillStyle = bCol;
+                        if (cellSize <= 6) tCtx.fillRect(sx, sy, cellSize, cellSize);
+                        else tCtx.fillText(ch, sx + cellSize / 2, sy + cellSize / 2);
+                    } else if (cellSize <= 6) {
+                        tCtx.fillStyle = isFloor ? (inView ? 'rgba(148, 163, 184, 0.25)' : 'rgba(71, 85, 105, 0.18)') : colour;
                         tCtx.fillRect(sx, sy, cellSize, cellSize);
                     } else {
+                        tCtx.fillStyle = colour;
                         tCtx.fillText(ch, sx + cellSize / 2, sy + cellSize / 2);
                     }
                 }
             }
         }
 
-        // Fast GPU blit of cached minimap tiles
         ctx.clearRect(0, 0, w, h);
         ctx.drawImage(this.minimapTileCanvas, 0, 0);
 
-        // 2. Draw Translucent Golden Vision Cone (Matches Godot Overlay.cs:1148-1165, 1449-1459)
-        const coneDist = Math.max(16, Math.min(85, cellSize * 4.4));
-        const coneSpread = coneDist * 0.65;
+        const coneDist = Math.max(16, Math.min(85, cellSize * 4.4)), coneSpread = coneDist * 0.65;
         const leftTip = { x: cx + dir.x * coneDist + side.x * coneSpread, y: cy + dir.y * coneDist + side.y * coneSpread };
         const rightTip = { x: cx + dir.x * coneDist - side.x * coneSpread, y: cy + dir.y * coneDist - side.y * coneSpread };
-
         ctx.fillStyle = 'rgba(255, 215, 0, 0.18)';
-        ctx.beginPath();
-        ctx.moveTo(cx, cy);
-        ctx.lineTo(leftTip.x, leftTip.y);
-        ctx.lineTo(rightTip.x, rightTip.y);
-        ctx.closePath();
-        ctx.fill();
-
-        ctx.strokeStyle = 'rgba(255, 220, 100, 0.50)';
-        ctx.lineWidth = 1.0;
-        ctx.beginPath();
-        ctx.moveTo(cx, cy);
-        ctx.lineTo(leftTip.x, leftTip.y);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(cx, cy);
-        ctx.lineTo(rightTip.x, rightTip.y);
-        ctx.stroke();
-
+        ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(leftTip.x, leftTip.y); ctx.lineTo(rightTip.x, rightTip.y); ctx.closePath(); ctx.fill();
+        ctx.strokeStyle = 'rgba(255, 220, 100, 0.50)'; ctx.lineWidth = 1.0;
+        ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(leftTip.x, leftTip.y); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(rightTip.x, rightTip.y); ctx.stroke();
         const baseAngle = Math.atan2(dir.y, dir.x);
-        ctx.beginPath();
-        ctx.arc(cx, cy, coneDist, baseAngle - 0.58, baseAngle + 0.58);
-        ctx.stroke();
+        ctx.beginPath(); ctx.arc(cx, cy, coneDist, baseAngle - 0.58, baseAngle + 0.58); ctx.stroke();
 
-        // 2b. Minimap A* Auto-Navigation Trail & Destination Beacon (WS32)
-        const activeNav = (window.__app && window.__app.input && window.__app.input._autoNav && window.__app.input._autoNav.active)
-            ? window.__app.input._autoNav
-            : null;
+        const activeNav = (window.__app && window.__app.input && window.__app.input._autoNav && window.__app.input._autoNav.active) ? window.__app.input._autoNav : null;
         if (activeNav && Array.isArray(activeNav.path) && activeNav.path.length > 0) {
             ctx.save();
             ctx.strokeStyle = 'rgba(255, 215, 64, 0.88)';
             ctx.lineWidth = Math.max(1.5, cellSize * 0.22);
             ctx.setLineDash([Math.max(2, cellSize * 0.35), Math.max(2, cellSize * 0.25)]);
-            ctx.beginPath();
-            ctx.moveTo(cx, cy);
-            for (const step of activeNav.path) {
-                const sx = (step.x - ox + 0.5) * cellSize;
-                const sy = (step.y - oy + 0.5) * cellSize;
-                ctx.lineTo(sx, sy);
-            }
-            ctx.stroke();
-            ctx.setLineDash([]);
-
-            const gx = (activeNav.goalX - ox + 0.5) * cellSize;
-            const gy = (activeNav.goalY - oy + 0.5) * cellSize;
-            const r = Math.max(3.5, cellSize * 0.45);
+            ctx.beginPath(); ctx.moveTo(cx, cy);
+            for (const step of activeNav.path) ctx.lineTo((step.x - ox + 0.5) * cellSize, (step.y - oy + 0.5) * cellSize);
+            ctx.stroke(); ctx.setLineDash([]);
+            const gx = (activeNav.goalX - ox + 0.5) * cellSize, gy = (activeNav.goalY - oy + 0.5) * cellSize, r = Math.max(3.5, cellSize * 0.45);
             ctx.fillStyle = '#ffe066';
-            ctx.beginPath();
-            ctx.moveTo(gx, gy - r);
-            ctx.lineTo(gx + r, gy);
-            ctx.lineTo(gx, gy + r);
-            ctx.lineTo(gx - r, gy);
-            ctx.closePath();
-            ctx.fill();
+            ctx.beginPath(); ctx.moveTo(gx, gy - r); ctx.lineTo(gx + r, gy); ctx.lineTo(gx, gy + r); ctx.lineTo(gx - r, gy); ctx.closePath(); ctx.fill();
             ctx.restore();
         } else if (!activeNav && this._hoverMinimapPath && this._hoverMinimapPath.length > 0) {
-            // Minimap Hover Route Preview (WS34)
             ctx.save();
             ctx.strokeStyle = 'rgba(255, 215, 64, 0.55)';
             ctx.lineWidth = Math.max(1.5, cellSize * 0.22);
             ctx.setLineDash([Math.max(2, cellSize * 0.35), Math.max(2, cellSize * 0.25)]);
-            ctx.beginPath();
-            ctx.moveTo(cx, cy);
-            for (const step of this._hoverMinimapPath) {
-                const sx = (step.x - ox + 0.5) * cellSize;
-                const sy = (step.y - oy + 0.5) * cellSize;
-                ctx.lineTo(sx, sy);
-            }
-            ctx.stroke();
-            ctx.setLineDash([]);
-
+            ctx.beginPath(); ctx.moveTo(cx, cy);
+            for (const step of this._hoverMinimapPath) ctx.lineTo((step.x - ox + 0.5) * cellSize, (step.y - oy + 0.5) * cellSize);
+            ctx.stroke(); ctx.setLineDash([]);
             const lastStep = this._hoverMinimapPath[this._hoverMinimapPath.length - 1];
-            const gx = (lastStep.x - ox + 0.5) * cellSize;
-            const gy = (lastStep.y - oy + 0.5) * cellSize;
-            const r = Math.max(3.5, cellSize * 0.45);
+            const gx = (lastStep.x - ox + 0.5) * cellSize, gy = (lastStep.y - oy + 0.5) * cellSize, r = Math.max(3.5, cellSize * 0.45);
             ctx.fillStyle = 'rgba(255, 224, 102, 0.70)';
-            ctx.beginPath();
-            ctx.moveTo(gx, gy - r);
-            ctx.lineTo(gx + r, gy);
-            ctx.lineTo(gx, gy + r);
-            ctx.lineTo(gx - r, gy);
-            ctx.closePath();
-            ctx.fill();
+            ctx.beginPath(); ctx.moveTo(gx, gy - r); ctx.lineTo(gx + r, gy); ctx.lineTo(gx, gy + r); ctx.lineTo(gx - r, gy); ctx.closePath(); ctx.fill();
             ctx.restore();
         }
 
-        // 3. Monsters on Minimap
         monsters.forEach(m => {
-            const colIdx = m.x - ox;
-            const rowIdx = m.y - oy;
+            const colIdx = m.x - ox, rowIdx = m.y - oy;
             if (colIdx >= 0 && colIdx < cols && rowIdx >= 0 && rowIdx < lines) {
-                const sx = colIdx * cellSize;
-                const sy = rowIdx * cellSize;
-                ctx.fillStyle = 'rgba(230, 40, 40, 0.45)';
-                ctx.fillRect(sx, sy, cellSize, cellSize);
+                const sx = colIdx * cellSize, sy = rowIdx * cellSize;
+                const isUniq = Boolean(m.unique || m.boss || /^the\s+/i.test(m.name || ''));
+                ctx.fillStyle = isUniq ? 'rgba(255, 215, 0, 0.65)' : 'rgba(230, 40, 40, 0.45)';
+                ctx.fillRect(sx - (isUniq ? 1 : 0), sy - (isUniq ? 1 : 0), cellSize + (isUniq ? 2 : 0), cellSize + (isUniq ? 2 : 0));
                 const mCol = (window.getAngbandColorString && m.attr !== undefined) ? window.getAngbandColorString(m.attr) : '#ff4444';
                 ctx.fillStyle = mCol;
                 if (cellSize <= 6) {
                     ctx.fillRect(sx + 1, sy + 1, Math.max(2, cellSize - 2), Math.max(2, cellSize - 2));
                 } else {
                     ctx.font = `bold ${Math.max(8, Math.floor(cellSize * 1.02))}px monospace`;
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'middle';
+                    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
                     ctx.fillText(m.glyph || 'm', sx + cellSize / 2, sy + cellSize / 2);
                 }
             }

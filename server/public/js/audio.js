@@ -107,8 +107,20 @@ class SoundEngine {
             } catch (_) {}
         }
 
-        // Theme Music Dual-Deck Crossfade Engine (0:00 -> 1:05s seamless menu loop, full track once on death)
-        this._themeMode = 'none'; // 'none' | 'menu' | 'death'
+        // Theme Music Dual-Deck Crossfade & 48-Track Contextual Jukebox Engine
+        this._themeMode = 'none'; // 'none' | 'menu' | 'death' | 'jukebox'
+        this.musicMode = 'auto'; // 'auto' | 'theme_full' | 'shuffle' | 'playlist:town' | 'playlist:dungeon' | 'playlist:boss' | trackId
+        this.musicShuffle = false;
+        this._currentMusicTrackId = 'yasd_theme';
+        this._contextualMood = '';
+        if (typeof window !== 'undefined') {
+            try {
+                const savedMode = window.localStorage && localStorage.getItem('angband3d_music_mode');
+                if (savedMode) this.musicMode = savedMode;
+                const savedShuf = window.localStorage && localStorage.getItem('angband3d_music_shuffle');
+                if (savedShuf === 'true') this.musicShuffle = true;
+            } catch (_) {}
+        }
         this._themeDeckA = null;
         this._themeDeckB = null;
         this._activeThemeDeck = null;
@@ -402,6 +414,9 @@ class SoundEngine {
         if (active) {
             try {
                 active.pause();
+                if (!String(active.src || '').includes('yasd_theme.mp3')) {
+                    active.src = '/assets/audio/yasd_theme.mp3';
+                }
                 active.currentTime = 0;
                 active.loop = false;
                 active.muted = false;
@@ -421,6 +436,253 @@ class SoundEngine {
                     }
                 }
             } catch (_) {}
+        }
+    }
+
+    getMusicCatalog() {
+        if (this._musicCatalog) return this._musicCatalog;
+        const m = (id, title, cat, file) => ({ id, title, category: cat, src: file.startsWith('/') ? file : `/assets/audio/music/${file}` });
+        this._musicCatalog = [
+            m('yasd_theme', 'YASD 3D Official Theme', 'theme', '/assets/audio/yasd_theme.mp3'),
+            m('town_cloudancer', 'Town: Cloudancer (Peaceful Hub)', 'town', 'Cloudancer.mp3'),
+            m('town_snowland', 'Town: Snowland Loop (Outpost)', 'town', 'SnowlandLoop.mp3'),
+            m('town_theme', 'Town: Classic Town Theme', 'town', 'TownTheme.mp3'),
+            m('town_no_place', 'Town: No More Magic (Sanctuary)', 'town', 'No More Magic.mp3'),
+            m('town_pleasant', 'Town: Pleasant Creek (Shire & Bree)', 'town', 'Pleasant Creek Loop.mp3'),
+            m('town_sorrow', 'Town: Sorrow & Solace', 'town', 'Sorrow.mp3'),
+            m('wilderness_day', 'Wilderness: Worldmap Overland', 'town', 'Worldmap Theme.mp3'),
+            m('wilderness_night', 'Wilderness: Dark Ambient Night', 'town', 'ambient_dark.mp3'),
+            m('store_tavern', 'Shop & Tavern: The Bard\'s Tale', 'town', 'bards_tale.mp3'),
+            m('store_carol', 'Shop & Forge: Carol of the Anvil', 'town', 'carol.mp3'),
+            m('store_black', 'Black Market: Strange Meadow', 'town', 'Strange_Meadow.mp3'),
+            m('arena_fanfare', 'Arena: Gladiators\' Fanfare', 'quest', 'The_Gladiators_Fanfare.mp3'),
+            m('dungeon_low_1', 'Shallow Halls: Determined Ascent', 'dungeon_low', 'Determined_Ascent.mp3'),
+            m('dungeon_low_2', 'Shallow Halls: Frozen Wastes', 'dungeon_low', 'Frozen_Wastes.mp3'),
+            m('dungeon_low_3', 'Shallow Halls: Restless Spirit', 'dungeon_low', 'The_Restless_Spirit.mp3'),
+            m('dungeon_low_feel1', 'Dungeon Feeling: Dark Cavern', 'dungeon_low', 'Dark Cavern_0.mp3'),
+            m('dungeon_low_feel2', 'Dungeon Feeling: Dark Ambience', 'dungeon_low', 'Dark_Ambience.mp3'),
+            m('dungeon_med_1', 'Mid Depths: Darkness Must Fall', 'dungeon_med', 'Darkness_Must_Fall.mp3'),
+            m('dungeon_med_2', 'Mid Depths: Lost Forever', 'dungeon_med', 'Lost_Forever.mp3'),
+            m('dungeon_med_3', 'Mid Depths: Unholy Serenade', 'dungeon_med', 'Unholy_Serenade.mp3'),
+            m('dungeon_med_feel1', 'Vault Feeling: Beyond The End', 'dungeon_med', 'Beyond_The_End.mp3'),
+            m('dungeon_med_feel2', 'Vault Feeling: Cave of Return', 'dungeon_med', 'Cave_of_No_Return.mp3'),
+            m('dungeon_high_1', 'Deep Abyss: Demon Trench', 'dungeon_high', 'Demon_Trench.mp3'),
+            m('dungeon_high_2', 'Deep Abyss: Halls of Despair', 'dungeon_high', 'Halls_of_Despair.mp3'),
+            m('dungeon_high_3', 'Deep Abyss: The Dark Amulet', 'dungeon_high', 'The_Dark_Amulet.mp3'),
+            m('dungeon_high_feel1', 'Abyssal Feeling: Deep Tunnels', 'dungeon_high', 'Deep_Tunnels.mp3'),
+            m('dungeon_high_feel2', 'Abyssal Feeling: Factory of Chaos', 'dungeon_high', 'Factory_of_Chaos.mp3'),
+            m('dungeon_special', 'Special Level: Through the Woods', 'dungeon_med', 'Going_Through_The_Woods.mp3'),
+            m('quest_1', 'Quest Citadel: Battle Theme A', 'quest', 'battleThemeA.mp3'),
+            m('quest_2', 'Quest Citadel: Heroic Demise', 'quest', 'Heroic Demise (Updated Version).mp3'),
+            m('quest_3', 'Quest Citadel: Winds of Stories', 'quest', 'Winds Of Stories.mp3'),
+            m('quest_clear', 'Quest Cleared: Orchestral Fanfare', 'victory', 'orchestral_mission_accomplished.mp3'),
+            m('boss_1', 'Unique Foe: Battle in the Winter', 'boss', 'Battle in the winter.mp3'),
+            m('boss_2', 'Unique Foe: Persecution & Pursuit', 'boss', 'Persecution.mp3'),
+            m('boss_3', 'Unique Foe: Vengeful Spirit', 'boss', 'Vengeful_Spirit.mp3'),
+            m('boss_special', 'Arch-Vile Boss: Hero Immortal', 'boss', 'Hero Immortal.mp3'),
+            m('boss_final', 'Final Boss: Ambush in the Pit', 'boss', 'ambush.mp3'),
+            m('victory_royal', 'Victory: Orchestral Royal Theme', 'victory', 'Orchestral_Royal_Theme.mp3'),
+            m('victory_celeb', 'Ascension: Celebration in Peace', 'victory', 'Celebration_in_Peace.mp3'),
+            m('death_wind', 'Fallen Hero: Sad Crying Wind', 'death', 'sad_crying_wind.mp3'),
+            m('extra_arabesque', 'Realm Suite: Arabesque', 'dungeon_med', 'Arabesque.mp3'),
+            m('extra_battle_rain', 'Realm Suite: Battle in the Rain', 'boss', 'Battle_in_the_Rain.mp3'),
+            m('extra_cursed', 'Realm Suite: The Cursed Hero', 'dungeon_high', 'The_Cursed_Hero.mp3'),
+            m('extra_mysterious', 'Realm Suite: Mysterious Forest', 'dungeon_low', 'The_Mysterious_Forest.mp3'),
+            m('extra_sins', 'Realm Suite: Sins of the Fathers', 'dungeon_high', 'Sins_of_the_Fathers.mp3'),
+            m('extra_journey', 'Realm Suite: A New Journey', 'town', 'A_New_Journey.mp3'),
+            m('extra_hope', 'Realm Suite: Glimmer of Hope', 'town', 'A_Glimmer_of_Hope.mp3')
+        ];
+        return this._musicCatalog;
+    }
+
+    getMusicState() {
+        const cat = this.getMusicCatalog();
+        const cur = cat.find(t => t.id === this._currentMusicTrackId) || cat[0];
+        const deck = this._activeThemeDeck;
+        return {
+            mode: this.musicMode || 'auto',
+            shuffle: Boolean(this.musicShuffle),
+            trackId: cur.id,
+            trackTitle: cur.title,
+            playing: Boolean(this.enabled && this.musicEnabled && deck && !deck.paused),
+            mood: this._contextualMood || 'menu'
+        };
+    }
+
+    playMusicTrack(trackId, loop = true) {
+        const cat = this.getMusicCatalog();
+        const entry = cat.find(t => t.id === trackId) || cat[0];
+        this._initThemeDecks();
+        this._currentMusicTrackId = entry.id;
+        this._themeMode = (entry.id === 'yasd_theme' && this.musicMode === 'auto' && this._contextualMood === 'menu') ? 'menu' : 'jukebox';
+        this._themeCrossfading = false;
+        if (this._standbyThemeDeck) {
+            try { this._standbyThemeDeck.pause(); this._standbyThemeDeck.volume = 0; } catch (_) {}
+        }
+        const active = this._activeThemeDeck;
+        if (!active) return entry;
+        try {
+            const wantSrc = entry.src;
+            if (!String(active.src || '').endsWith(encodeURI(wantSrc)) && !String(active.src || '').endsWith(wantSrc)) {
+                active.pause();
+                active.src = wantSrc;
+                active.currentTime = 0;
+            }
+            active.loop = Boolean(loop && !this.musicShuffle && !String(this.musicMode || '').startsWith('playlist:') && this.musicMode !== 'shuffle');
+            active.muted = false;
+            active.volume = this._getThemeTargetVolume();
+            active.onended = () => {
+                if (this.musicShuffle || this.musicMode === 'shuffle' || String(this.musicMode || '').startsWith('playlist:') || this.musicMode === 'auto') {
+                    this.nextMusicTrack(true);
+                }
+            };
+            if (this.enabled && this.musicEnabled) {
+                const p = active.play();
+                if (p && typeof p.then === 'function') {
+                    p.then(() => {
+                        this._themeActuallyPlaying = true;
+                        if (typeof window !== 'undefined' && typeof window.__syncAudioUI === 'function') window.__syncAudioUI();
+                    }).catch(() => { this._themeActuallyPlaying = false; });
+                }
+            }
+        } catch (_) {}
+        if (typeof window !== 'undefined' && typeof window.__syncAudioUI === 'function') window.__syncAudioUI();
+        return entry;
+    }
+
+    setMusicMode(modeOrTrackId) {
+        this.musicMode = modeOrTrackId || 'auto';
+        if (typeof window !== 'undefined') {
+            try { if (window.localStorage) localStorage.setItem('angband3d_music_mode', this.musicMode); } catch (_) {}
+        }
+        if (this.musicMode === 'theme_full') {
+            this.musicShuffle = false;
+            this.playMusicTrack('yasd_theme', true);
+        } else if (this.musicMode === 'shuffle') {
+            this.musicShuffle = true;
+            this.nextMusicTrack();
+        } else if (this.musicMode.startsWith('playlist:')) {
+            this.nextMusicTrack();
+        } else if (this.musicMode === 'auto') {
+            if (typeof window !== 'undefined' && window.__lastFrame && window.__lastFrame.phase === 'play') {
+                this._contextualMood = '';
+                this.updateContextualMusic(window.__lastFrame, window.activeRealm || 'angband');
+            } else {
+                this._contextualMood = 'menu';
+                this.startMenuMusic();
+            }
+        } else {
+            this.playMusicTrack(this.musicMode, true);
+        }
+        return this.getMusicState();
+    }
+
+    nextMusicTrack(fromAutoAdvance = false) {
+        const cat = this.getMusicCatalog();
+        let pool = cat;
+        if (this.musicMode === 'playlist:town') pool = cat.filter(t => t.category === 'town');
+        else if (this.musicMode === 'playlist:dungeon') pool = cat.filter(t => t.category.startsWith('dungeon_'));
+        else if (this.musicMode === 'playlist:boss') pool = cat.filter(t => t.category === 'boss' || t.category === 'quest');
+        else if (this.musicMode === 'auto' && fromAutoAdvance && this._contextualMood) {
+            pool = cat.filter(t => t.category === this._contextualMood);
+            if (!pool.length) pool = cat;
+        }
+        if (this.musicShuffle || this.musicMode === 'shuffle' || (this.musicMode === 'auto' && fromAutoAdvance)) {
+            const others = pool.filter(t => t.id !== this._currentMusicTrackId);
+            const pick = (others.length ? others : pool)[Math.floor(Math.random() * (others.length || pool.length))];
+            return this.playMusicTrack(pick.id, false);
+        }
+        const idx = Math.max(0, pool.findIndex(t => t.id === this._currentMusicTrackId));
+        const next = pool[(idx + 1) % pool.length] || pool[0];
+        if (this.musicMode !== 'auto' && !this.musicMode.startsWith('playlist:')) this.musicMode = next.id;
+        return this.playMusicTrack(next.id, true);
+    }
+
+    prevMusicTrack() {
+        const cat = this.getMusicCatalog();
+        const idx = Math.max(0, cat.findIndex(t => t.id === this._currentMusicTrackId));
+        const prev = cat[(idx - 1 + cat.length) % cat.length] || cat[0];
+        if (this.musicMode !== 'auto' && !this.musicMode.startsWith('playlist:') && this.musicMode !== 'shuffle') this.musicMode = prev.id;
+        return this.playMusicTrack(prev.id, true);
+    }
+
+    toggleMusicPlayPause() {
+        this._initThemeDecks();
+        const active = this._activeThemeDeck;
+        if (!active) return false;
+        if (!this.musicEnabled) {
+            this.setMusicMute(false);
+            this.playMusicTrack(this._currentMusicTrackId || 'yasd_theme', true);
+            return true;
+        }
+        if (active.paused) {
+            this.playMusicTrack(this._currentMusicTrackId || 'yasd_theme', true);
+            return true;
+        }
+        try { active.pause(); this._themeActuallyPlaying = false; } catch (_) {}
+        if (typeof window !== 'undefined' && typeof window.__syncAudioUI === 'function') window.__syncAudioUI();
+        return false;
+    }
+
+    toggleMusicShuffle() {
+        this.musicShuffle = !this.musicShuffle;
+        if (typeof window !== 'undefined') {
+            try { if (window.localStorage) localStorage.setItem('angband3d_music_shuffle', String(this.musicShuffle)); } catch (_) {}
+        }
+        if (this.musicShuffle && this.musicMode === 'auto') {
+            this.setMusicMode('shuffle');
+        }
+        if (typeof window !== 'undefined' && typeof window.__syncAudioUI === 'function') window.__syncAudioUI();
+        return this.musicShuffle;
+    }
+
+    updateContextualMusic(frame, activeRealm = 'angband') {
+        if (!frame || !frame.player) return;
+        if (this.musicMode && this.musicMode !== 'auto') return;
+        const p = frame.player;
+        if (p.dead) {
+            if (this._contextualMood !== 'death') {
+                this._contextualMood = 'death';
+                this.playDeathTheme();
+            }
+            return;
+        }
+        if (p.winner || p.total_winner) {
+            if (this._contextualMood !== 'victory') {
+                this._contextualMood = 'victory';
+                this.playMusicTrack('victory_royal', true);
+            }
+            return;
+        }
+        const mons = Array.isArray(frame.monsters) ? frame.monsters : [];
+        const hasBoss = mons.some(m => m && !m.isPet && !m.peaceful && (m.unique || m.isBoss || /morgoth|sauron|oberon|serpent of chaos|yendor|arch-lich|tiamat|glaurung|gothmog|carcharoth/i.test(m.name || m.race || '')));
+        const depth = Number(p.depth || 0);
+        const r = String(activeRealm || frame.realm || 'angband').toLowerCase();
+        let nextMood = 'dungeon_low';
+        let defaultTrack = 'dungeon_low_1';
+        if (hasBoss) {
+            nextMood = 'boss';
+            defaultTrack = /morgoth|serpent|yendor/i.test(mons.map(m => m.name || m.race || '').join(' ')) ? 'boss_final' : 'boss_special';
+        } else if (depth === 0) {
+            nextMood = 'town';
+            defaultTrack = r === 'hengband' ? 'town_snowland' : (r === 'frogcomposband' ? 'wilderness_day' : 'town_cloudancer');
+        } else {
+            const deepThresh = (r === 'silq') ? 14 : ((r === 'brogue' || r === 'rogue' || r === 'dcss' || r === 'nethack') ? 16 : 45);
+            const midThresh = (r === 'silq') ? 7 : ((r === 'brogue' || r === 'rogue' || r === 'dcss' || r === 'nethack') ? 7 : 18);
+            if (depth >= deepThresh) {
+                nextMood = 'dungeon_high';
+                defaultTrack = r === 'silq' ? 'dungeon_high_3' : 'dungeon_high_1';
+            } else if (depth >= midThresh) {
+                nextMood = 'dungeon_med';
+                defaultTrack = r === 'brogue' ? 'extra_mysterious' : 'dungeon_med_1';
+            } else {
+                nextMood = 'dungeon_low';
+                defaultTrack = r === 'silq' ? 'dungeon_low_3' : (r === 'nethack' ? 'extra_arabesque' : 'dungeon_low_1');
+            }
+        }
+        if (this._contextualMood !== nextMood || this._themeMode === 'none' || this._themeMode === 'menu') {
+            this._contextualMood = nextMood;
+            this.playMusicTrack(defaultTrack, false);
         }
     }
 
@@ -678,39 +940,40 @@ class SoundEngine {
             slash: ['sword_1.ogg', 'axe_hit.ogg', 'blade_slice_1.ogg', 'blade_slice_2.ogg', 'chop.ogg'],
             bludgeon: ['mace_hit.ogg', 'flail_hit.ogg', 'impact_metal_heavy_1.ogg', 'impact_wood_heavy_1.ogg'],
             pierce: ['spear_hit.ogg', 'sword_1.ogg', 'blade_slice_2.ogg'],
-            crit: ['axe_hit.ogg', 'mace_hit.ogg', 'impact_metal_heavy_1.ogg', 'impact_plate_heavy_1.ogg'],
-            shieldBlock: ['impact_plate_heavy_1.ogg', 'impact_plate_heavy_2.ogg', 'impact_metal_heavy_1.ogg', 'impact_metal_heavy_2.ogg'],
-            armorDeflect: ['impact_plate_med_1.ogg', 'impact_metal_heavy_2.ogg'],
+            crit: ['axe_hit.ogg', 'mace_hit.ogg', 'impact_metal_heavy_1.ogg', 'impact_plate_heavy_1.ogg', 'critical.wav'],
+            shieldBlock: ['impact_plate_heavy_1.ogg', 'impact_plate_heavy_2.ogg', 'impact_metal_heavy_1.ogg', 'impact_metal_heavy_2.ogg', 'reflect.wav'],
+            armorDeflect: ['impact_plate_med_1.ogg', 'impact_metal_heavy_2.ogg', 'clunk.wav'],
             bow_loose: ['bow_fire.ogg', 'crossbow_fire.ogg', 'bow_miss.ogg'],
-            bow_impact: ['spear_hit.ogg', 'impact_wood_heavy_1.ogg', 'impact_wood_heavy_2.ogg'],
+            bow_impact: ['spear_hit.ogg', 'impact_wood_heavy_1.ogg', 'impact_wood_heavy_2.ogg', 'thump.wav'],
             digging: ['impact_mining_1.ogg', 'impact_mining_2.ogg', 'impact_mining_3.ogg'],
-            wallBump: ['impact_wood_heavy_2.ogg', 'step_stone_1.ogg'],
-            doorOpen: ['door_open_1.ogg', 'creak_1.ogg'],
-            doorClose: ['door_close_1.ogg', 'metal_latch.ogg'],
+            wallBump: ['impact_wood_heavy_2.ogg', 'step_stone_1.ogg', 'thump.wav'],
+            doorOpen: ['door_open_1.ogg', 'creak_1.ogg', 'opendoor.wav'],
+            doorClose: ['door_close_1.ogg', 'metal_latch.ogg', 'shutdoor.wav'],
             doorBreak: ['impact_wood_heavy_1.ogg', 'cave_in.ogg'],
             chestOpen: ['open_chest.wav', 'metal_latch.ogg'],
             itemPickup: ['cloth_1.ogg', 'cloth_2.ogg'],
             itemDrop: ['step_wood_1.ogg', 'cloth_2.ogg'],
-            goldPickup: ['gold_pickup.ogg', 'coins_1.ogg', 'coins_2.ogg'],
+            goldPickup: ['gold_pickup.ogg', 'coins_1.ogg', 'coins_2.ogg', 'money.wav', 'buy.wav', 'sell.wav'],
             equipWeapon: ['blade_draw_1.ogg', 'blade_draw_2.ogg'],
             equipArmor: ['impact_plate_med_1.ogg', 'cloth_1.ogg'],
-            quaff: ['potion_drink.ogg'],
+            quaff: ['potion_drink.ogg', 'quaff.wav'],
+            eat: ['eat1.wav', 'eat2.wav', 'hungry1.wav'],
             potionThrow: ['miss_1.ogg', 'miss_2.ogg'],
             potionShatter: ['impact_glass_1.ogg', 'impact_glass_2.ogg'],
-            scroll: ['book_flip_1.ogg', 'book_flip_2.ogg'],
-            heal: ['potion_drink.ogg'],
+            scroll: ['book_flip_1.ogg', 'book_flip_2.ogg', 'scroll.wav'],
+            heal: ['potion_drink.ogg', 'quaff.wav'],
             prayer: ['book_flip_1.ogg', 'book_flip_2.ogg'],
             staff: ['magic_faerie.ogg', 'magic_missile_1.ogg'],
-            levelUp: ['fanfare_short.wav', 'magic_holy_2.ogg'],
+            levelUp: ['fanfare_short.wav', 'magic_holy_2.ogg', 'level.wav'],
             teleport: ['magic_faerie.ogg', 'magic_missile_2.ogg'],
             spell_fire: ['flame_big.ogg', 'explosion.ogg'],
             spell_cold: ['petrified.ogg', 'impact_glass_1.ogg'],
             spell_lightning: ['lightning_bolt.ogg'],
             spell_acid: ['water_blast.wav', 'poison_spell.ogg'],
-            spell_poison: ['poison_spell.ogg'],
-            spell_magic: ['magic_missile_1.ogg', 'magic_missile_2.ogg', 'magic_faerie.ogg'],
-            spell_dark: ['magic_dark_big.ogg', 'impact_bell_1.ogg'],
-            breath: ['flame_big.ogg', 'drake_hit_1.ogg', 'explosion.ogg'],
+            spell_poison: ['poison_spell.ogg', 'vomit.wav'],
+            spell_magic: ['magic_missile_1.ogg', 'magic_missile_2.ogg', 'magic_faerie.ogg', 'hallu.wav'],
+            spell_dark: ['magic_dark_big.ogg', 'impact_bell_1.ogg', 'moan.wav'],
+            breath: ['flame_big.ogg', 'drake_hit_1.ogg', 'explosion.ogg', 'breath.wav'],
             monster_orc: ['impact_plate_med_1.ogg', 'impact_wood_heavy_1.ogg'],
             monster_orc_die: ['impact_plate_heavy_1.ogg', 'impact_wood_heavy_2.ogg'],
             monster_troll: ['impact_wood_heavy_1.ogg', 'impact_metal_heavy_1.ogg'],

@@ -166,7 +166,7 @@ const TTS_VOICE_MAP = {
     jenny: 'en-US-JennyNeural',           // Clear, melodic, evocative female adventurer (Female)
     aria: 'en-US-AriaNeural',             // Intense, dramatic witch / dark cultist / harpy (Female)
     steffan: 'en-US-SteffanNeural',       // Cunning, raspy alley cutthroat (Male)
-    brian: 'en-US-BrianNeural',           // Stalwart town guard / watchman (Male)
+    andrew: 'en-US-AndrewNeural',         // Stalwart town guard / watchman (Male)
     eric: 'en-US-EricNeural',             // Crisp, authoritative battlefield commander (Male)
 
     // Contextual Role Mappings with Gender Awareness
@@ -1084,8 +1084,39 @@ EXTRA_ALLOWED_ORIGINS.some = function(fn) {
     }
     return false;
 };
+const ALLOWED_RUN_APP_RE = /^angband3d(?:-[a-z0-9-]+)?\.run\.app$/i;
+function isAllowedForwardedHost(firstFwdHost) {
+    return EXTRA_ALLOWED_ORIGINS.some(o => o.endsWith('://' + firstFwdHost)) || ALLOWED_RUN_APP_RE.test(firstFwdHost);
+}
+function extractWsOwnerToken(request, urlObj) {
+    if (request && request.headers) {
+        if (request.headers['x-owner-token']) return String(request.headers['x-owner-token']).trim();
+        if (request.headers['authorization']) return String(request.headers['authorization']).replace(/^Bearer\s+/i, '').trim();
+        const protoHdr = String(request.headers['sec-websocket-protocol'] || '');
+        for (const part of protoHdr.split(',')) {
+            const trimmed = part.trim();
+            if (trimmed.startsWith('owner.')) return trimmed.slice(6).trim();
+        }
+    }
+    return (urlObj && urlObj.searchParams && urlObj.searchParams.get('owner')) || '';
+}
 function isAllowedOrigin(origin, host, req) {
-    if (!origin) return true;
+    if (!origin) {
+        const sfs = req && req.headers && req.headers['sec-fetch-site'];
+        if (sfs === 'same-origin' || sfs === 'same-site') return true;
+        if (sfs && sfs !== 'none') return false;
+        const isProd = process.env.TRUST_PROXY === '1' || Boolean(process.env.K_SERVICE);
+        if (isProd && req && !isLoopbackRequest(req)) {
+            const referer = req.headers && req.headers.referer;
+            if (referer) {
+                try {
+                    return isAllowedOrigin(new URL(referer).origin, host, req);
+                } catch (_) {}
+            }
+            return false;
+        }
+        return true;
+    }
     try {
         const originHost = new URL(origin).host;
         if (host && (originHost === host || originHost === host.split(':')[0])) return true;
@@ -1095,7 +1126,7 @@ function isAllowedOrigin(origin, host, req) {
                 if (fwdHost) {
                     const firstFwd = fwdHost.split(',')[0].trim();
                     const firstFwdHost = firstFwd.split(':')[0].toLowerCase();
-                    if (EXTRA_ALLOWED_ORIGINS.some(o => o.endsWith('://' + firstFwdHost)) || firstFwdHost.endsWith('.run.app')) {
+                    if (isAllowedForwardedHost(firstFwdHost)) {
                         if (originHost === firstFwd || originHost === firstFwdHost) return true;
                     }
                 }
@@ -1115,7 +1146,7 @@ function verifyBrowserOrigin(req) {
     if (process.env.TRUST_PROXY === '1' && req.headers && req.headers['x-forwarded-host']) {
         const firstFwd = req.headers['x-forwarded-host'].split(',')[0].trim();
         const firstFwdHost = firstFwd.split(':')[0].toLowerCase();
-        if (EXTRA_ALLOWED_ORIGINS.some(o => o.endsWith('://' + firstFwdHost)) || firstFwdHost.endsWith('.run.app')) {
+        if (isAllowedForwardedHost(firstFwdHost)) {
             fwdHost = firstFwd;
         }
     }
@@ -1138,7 +1169,7 @@ const server = http.createServer((req, res) => {
     if (process.env.TRUST_PROXY === '1' && req.headers['x-forwarded-host']) {
         const firstFwd = req.headers['x-forwarded-host'].split(',')[0].trim();
         const firstFwdHost = firstFwd.split(':')[0].toLowerCase();
-        if (EXTRA_ALLOWED_ORIGINS.some(o => o.endsWith('://' + firstFwdHost)) || firstFwdHost.endsWith('.run.app')) {
+        if (isAllowedForwardedHost(firstFwdHost)) {
             fwdHost = firstFwd;
         }
     }
@@ -1582,9 +1613,6 @@ const server = http.createServer((req, res) => {
                 };
             } else {
                 generationConfig.temperature = 0.7;
-                if (model.includes('gemini-2.5-flash') && generationConfig.maxOutputTokens <= 512) {
-                    generationConfig.thinkingConfig = { thinkingBudget: 0 };
-                }
             }
 
             const payload = {
@@ -1773,14 +1801,17 @@ const server = http.createServer((req, res) => {
 
             const cacheKey = crypto.createHash('sha256').update(realm + ':' + prompt).digest('hex');
             if (sketchCache.has(cacheKey)) {
+                const cachedImg = sketchCache.get(cacheKey);
+                sketchCache.delete(cacheKey);
+                sketchCache.set(cacheKey, cachedImg);
                 res.writeHead(200, {
                     'Content-Type': 'application/json',
                     'Cache-Control': 'no-cache, no-store, must-revalidate'
                 });
                 res.end(JSON.stringify({
                     ok: true,
-                    imageUrl: sketchCache.get(cacheKey),
-                    model: 'gemini-3.1-flash-image',
+                    imageUrl: cachedImg,
+                    model: 'gemini-nano-banana-2.1',
                     cached: true
                 }));
                 return;
@@ -1796,7 +1827,7 @@ const server = http.createServer((req, res) => {
                 return;
             }
 
-            const sketchModels = ['gemini-2.5-flash-image', 'gemini-3.1-flash-image'];
+            const sketchModels = ['gemini-2.5-flash-image', 'gemini-3.1-flash-image', 'gemini-nano-banana-2.1'];
             const payload = {
                 contents: [{ role: 'user', parts: [{ text: prompt }] }],
                 generationConfig: { responseModalities: ["TEXT", "IMAGE"] }
@@ -1833,7 +1864,7 @@ const server = http.createServer((req, res) => {
                                 sketchCache.delete(oldestKey);
                             }
                             sketchCache.set(cacheKey, imageUrl);
-                            const usedModel = usedVertex ? 'gemini-2.5-flash-image' : (sketchModels[modelIdx] || sketchModels[0]);
+                            const usedModel = usedVertex ? 'gemini-nano-banana-2.1' : (sketchModels[modelIdx] || sketchModels[0]);
                             res.end(JSON.stringify({ ok: true, imageUrl, model: usedModel }));
                         } else if (!usedVertex && modelIdx + 1 < sketchModels.length) {
                             return sendSketchViaAiStudio(modelIdx + 1);
@@ -1857,7 +1888,7 @@ const server = http.createServer((req, res) => {
                         }
                         return;
                     }
-                    const vUrl = `https://aiplatform.googleapis.com/v1beta1/projects/${encodeURIComponent(projectId)}/locations/global/publishers/google/models/gemini-2.5-flash-image:generateContent`;
+                    const vUrl = `https://aiplatform.googleapis.com/v1beta1/projects/${encodeURIComponent(projectId)}/locations/global/publishers/google/models/gemini-nano-banana-2.1:generateContent`;
                     const vReq = https.request(vUrl, {
                         method: 'POST',
                         agent: geminiHttpsAgent,
@@ -2324,6 +2355,12 @@ const server = http.createServer((req, res) => {
 
     // REST: Restore Lazarus Living Checkpoint Save after death (all 8 realms)
     if (pathname === '/api/saves/restore-checkpoint' && req.method === 'POST') {
+        const wait = uploadLimiter(clientIp(req));
+        if (wait > 0) {
+            res.writeHead(429, { 'Content-Type': 'application/json', 'Retry-After': wait });
+            res.end(JSON.stringify({ ok: false, error: 'Rate limit exceeded' }));
+            return;
+        }
         const queryRealm = (urlObj.searchParams.get('realm') || req.headers['x-realm'] || 'angband').toLowerCase().trim();
         const charName = urlObj.searchParams.get('char') || req.headers['x-character-name'] || 'Adventurer';
         if (!isValidRealm(queryRealm)) {
@@ -2332,6 +2369,17 @@ const server = http.createServer((req, res) => {
             return;
         }
         const saveDirs = getSaveDirsForRealm(queryRealm);
+        const cleanChar = String(charName).replace(/[^a-zA-Z0-9_.-]/g, '').replace(/\.sav$/i, '');
+        const reqToken = req.headers['x-owner-token'] || '';
+        for (const sDir of saveDirs) {
+            for (const cand of [path.join(sDir, cleanChar), path.join(sDir, cleanChar + '.sav')]) {
+                if (fs.existsSync(cand) && !verifyOwnerToken(cand, reqToken)) {
+                    res.writeHead(403, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ ok: false, error: 'Forbidden: invalid owner token for existing character' }));
+                    return;
+                }
+            }
+        }
         const restored = restoreLivingCheckpoint(saveDirs, charName);
         invalidateSavesCache();
         res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -2792,9 +2840,6 @@ const server = http.createServer((req, res) => {
                 'Referrer-Policy': 'strict-origin-when-cross-origin',
                 'X-Frame-Options': 'SAMEORIGIN',
             };
-            if (ext !== '.html') {
-                headers['Access-Control-Allow-Origin'] = '*';
-            }
 
             // Handle Conditional ETag Revalidation (HTTP 304 Not Modified)
             // (Strictly bypass 304 for HTML shell, sw.js, and version.json to ensure immediate live updates)
@@ -2870,6 +2915,8 @@ const server = http.createServer((req, res) => {
                 const cacheKey = `${filePath}:${stat.mtimeMs}`;
                 const cached = staticGzipCache.get(cacheKey);
                 if (cached) {
+                    staticGzipCache.delete(cacheKey);
+                    staticGzipCache.set(cacheKey, cached);
                     headers['Content-Length'] = cached.length;
                     res.writeHead(200, headers);
                     res.end(cached);
@@ -2971,7 +3018,7 @@ server.on('upgrade', (request, socket, head) => {
     if (process.env.TRUST_PROXY === '1' && request.headers['x-forwarded-host']) {
         const firstFwd = request.headers['x-forwarded-host'].split(',')[0].trim();
         const firstFwdHost = firstFwd.split(':')[0].toLowerCase();
-        if (EXTRA_ALLOWED_ORIGINS.some(o => o.endsWith('://' + firstFwdHost)) || firstFwdHost.endsWith('.run.app')) {
+        if (isAllowedForwardedHost(firstFwdHost)) {
             fwdHost = firstFwd;
         }
     }
@@ -3407,7 +3454,7 @@ async function spawnGameSession(ws, request) {
     let savePath = path.join(engineInfo.saveDir || SAVE_DIR, targetSlot);
 
     let ownerToken = undefined;
-    const reqToken = (request && request.headers && (request.headers['x-owner-token'] || (request.headers['authorization'] || '').replace(/^Bearer\s+/i, ''))) || urlObj.searchParams.get('owner') || '';
+    const reqToken = extractWsOwnerToken(request, urlObj);
 
     // If we're creating a new character over an existing one, check ownership.
     // If no explicit save file was targeted (e.g. random hero name collision or default 'Adventurer'),
@@ -3720,7 +3767,7 @@ wss.on('connection', (ws, request) => {
     const rawSave = urlObj.searchParams.get('save') || null;
     const rawSession = urlObj.searchParams.get('session') || null;
     const isNew = urlObj.searchParams.get('new') === '1' || urlObj.searchParams.get('reroll') === '1';
-    const reqToken = (request && request.headers && (request.headers['x-owner-token'] || (request.headers['authorization'] || '').replace(/^Bearer\s+/i, ''))) || urlObj.searchParams.get('owner') || '';
+    const reqToken = extractWsOwnerToken(request, urlObj);
 
     const rawRealm = urlObj.searchParams.get('realm') || 'angband';
     const realm = rawRealm.replace(/[^a-zA-Z0-9_-]/g, '') || 'angband';

@@ -574,7 +574,7 @@ class ChronicleGrounder {
         },
         spellcaster: {
             male: {
-                edge: ['en-US-ChristopherNeural', 'en-GB-RyanNeural', 'en-US-BrianNeural'],
+                edge: ['en-US-ChristopherNeural', 'en-GB-RyanNeural', 'en-US-AndrewNeural'],
                 gemini: ['Gacrux', 'Sulafat']
             },
             female: {
@@ -604,7 +604,7 @@ class ChronicleGrounder {
         },
         dwarf: {
             male: {
-                edge: ['en-US-RogerNeural', 'en-US-BrianNeural', 'en-IE-ConnorNeural'],
+                edge: ['en-US-RogerNeural', 'en-US-AndrewNeural', 'en-IE-ConnorNeural'],
                 gemini: ['Algenib', 'Gacrux', 'Orus']
             },
             female: {
@@ -655,7 +655,7 @@ class ChronicleGrounder {
         mortal: {
             elder: {
                 male: {
-                    edge: ['en-US-BrianNeural', 'en-US-RogerNeural', 'en-AU-WilliamMultilingualNeural'],
+                    edge: ['en-US-AndrewNeural', 'en-US-RogerNeural', 'en-AU-WilliamMultilingualNeural'],
                     gemini: ['Gacrux', 'Sulafat']
                 },
                 female: {
@@ -665,7 +665,7 @@ class ChronicleGrounder {
             },
             veteran: {
                 male: {
-                    edge: ['en-US-EricNeural', 'en-US-SteffanNeural', 'en-US-BrianNeural'],
+                    edge: ['en-US-EricNeural', 'en-US-SteffanNeural', 'en-US-AndrewNeural'],
                     gemini: ['Orus', 'Algenib']
                 },
                 female: {

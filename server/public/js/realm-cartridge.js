@@ -1393,6 +1393,64 @@
         return cards.join('');
     }
 
+    function createRandomBirthPlanner(realmId, rngOrPreset) {
+        const r = String(realmId || 'angband').toLowerCase();
+        const isPreset = typeof rngOrPreset === 'string' && ['melee', 'ranged', 'magic', 'stealth'].includes(rngOrPreset);
+        const rng = typeof rngOrPreset === 'function' ? rngOrPreset : () => Math.random();
+        const archetypes = ['melee', 'ranged', 'magic', 'stealth'];
+        const archetype = isPreset ? rngOrPreset : archetypes[Math.floor(rng() * archetypes.length) % archetypes.length];
+
+        const realmPoolByArchetype = {
+            melee: ['a', 'f', 'g', 'j'],
+            ranged: ['c', 'f', 'a', 'e'],
+            magic: ['b', 'c', 'd', 'e', 'g'],
+            stealth: ['e', 'f', 'b', 'c']
+        };
+        const rPool = realmPoolByArchetype[archetype] || ['a', 'b', 'c', 'd', 'e', 'f', 'g'];
+        const magicRealmKey = rPool[Math.floor(rng() * rPool.length) % rPool.length];
+
+        const persLetters = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k'];
+        const p1Idx = Math.floor(rng() * persLetters.length) % persLetters.length;
+        const p2Idx = (p1Idx + 1 + (Math.floor(rng() * (persLetters.length - 1)) % (persLetters.length - 1))) % persLetters.length;
+        const fcbPersonalityKeys = [persLetters[p1Idx], persLetters[p2Idx]];
+
+        const roleByArchetype = {
+            nethack: { melee: 'a', ranged: 'd', magic: 'b', stealth: 'f' },
+            dcss: { melee: 'a', ranged: 'c', magic: 'b', stealth: 'd' },
+            brogue: { melee: 'a', ranged: 'b', magic: 'c', stealth: 'd' },
+            rogue: { melee: 'a', ranged: 'b', magic: 'c', stealth: 'b' }
+        };
+        const cartridgeRoleKey = (roleByArchetype[r] && roleByArchetype[r][archetype]) || '*';
+
+        // Coherent Sil-Q 30-point stat allocations (Str, Dex, Con, Gra)
+        const silqStatsByArchetype = {
+            melee: ['6', '6', '6', '2', '6', '6', '6', '2', '6', '6', '6', 'enter'],
+            ranged: ['6', '6', '2', '6', '6', '6', '6', '2', '6', '6', '2', '6', 'enter'],
+            magic: ['6', '2', '6', '6', '2', '6', '6', '2', '6', '6', '6', '6', 'enter'],
+            stealth: ['6', '2', '6', '6', '6', '6', '2', '6', '6', '2', '6', '6', 'enter']
+        };
+        const silqStatSequence = silqStatsByArchetype[archetype] || silqStatsByArchetype.melee;
+
+        // Coherent Sil-Q starting skill allocations (Melee, Archery, Evasion, Stealth, Perception, Will, Smithing, Song)
+        const silqSkillsByArchetype = {
+            melee: ['6', '6', '6', '6', '2', '2', '6', '6', '6', '2', '2', '2', '6', '6', 'enter'],
+            ranged: ['6', '6', '2', '6', '6', '6', '6', '2', '6', '6', '6', '2', '2', '6', '6', 'enter'],
+            magic: ['6', '2', '2', '6', '6', '2', '2', '6', '6', '2', '6', '6', '6', '2', '6', '6', '6', 'enter'],
+            stealth: ['6', '6', '2', '2', '6', '6', '6', '2', '6', '6', '6', '6', '2', '6', '6', 'enter']
+        };
+        const silqSkillSequence = silqSkillsByArchetype[archetype] || silqSkillsByArchetype.melee;
+
+        return {
+            realmId: r,
+            archetype,
+            magicRealmKey,
+            fcbPersonalityKeys,
+            cartridgeRoleKey,
+            silqStatSequence,
+            silqSkillSequence
+        };
+    }
+
     return {
         CARTRIDGE_SCHEMA_VERSION,
         SUPPORTED_TRANSPORTS,
@@ -1423,6 +1481,7 @@
         registerCartridge,
         loadExternalCartridgeJSON,
         formatDeathModalSummary,
-        buildDeathStatsHtml
+        buildDeathStatsHtml,
+        createRandomBirthPlanner
     };
 });

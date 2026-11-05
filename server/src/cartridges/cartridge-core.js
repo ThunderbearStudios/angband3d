@@ -274,6 +274,22 @@ class UniversalCartridgeEngine {
         });
         const w = p.inventory.find(it => it.equipped === 'weapon');
         p.weaponName = w ? w.name : 'bare hands';
+        this.recalcPlayerDefenses();
+    }
+
+    recalcPlayerDefenses() {
+        const p = this.state && this.state.player;
+        if (!p || !Array.isArray(p.inventory)) return;
+        const body = p.inventory.find(it => it.equipped === 'body' || it.equipped === 'armor');
+        const ring = p.inventory.find(it => it.equipped === 'ring' && /protection|armor|defense/i.test(it.name || ''));
+        const armorBase = body ? Number(body.ac != null ? body.ac : 4) : 0;
+        const armorBonus = (body ? Number(body.bonus || 0) : 0) + (ring ? Number(ring.bonus || 1) : 0);
+        if (this.realm === 'rogue') {
+            p.ac = body ? Math.max(-10, (body.ac != null ? body.ac : 7) - armorBonus) : 10;
+        } else {
+            p.ac = Math.max(0, (body ? (armorBase + armorBonus) : 2) + Math.floor(((p.dex || 12) - 10) / 3));
+        }
+        p.ev = Math.max(4, 10 + Math.floor(((p.dex || 12) - 10) / 2) - (body && (body.weight || 0) >= 250 ? 2 : 0));
     }
 
     generateLevel(depth) {
@@ -1133,9 +1149,13 @@ class UniversalCartridgeEngine {
         if (verb === 'read' || (verb === 'use' && item.kind === 'scroll')) {
             if (item.enchantGain) {
                 p.enchantments = (p.enchantments || 0) + 1;
-                const eq = p.inventory.find(i => i.equipped === 'weapon') || p.inventory.find(i => i.equipped === 'body') || item;
+                const eq = p.inventory.find(i => i.equipped === 'weapon')
+                    || p.inventory.find(i => i.equipped === 'body' || i.equipped === 'armor')
+                    || p.inventory.find(i => i.kind === 'staff' || i.kind === 'wand' || i.kind === 'ring')
+                    || item;
                 eq.bonus = (eq.bonus || 0) + 1;
-                if (eq.equipped === 'body') p.ac = (this.realm === 'rogue' ? p.ac - 1 : p.ac + 2);
+                if (typeof eq.charges === 'number') eq.charges += 1;
+                this.recalcPlayerDefenses();
                 this.addMessage(`Glowing runes of enchantment infuse your ${eq.name} (+${eq.bonus})!`, 14);
             } else {
                 for (let y = 0; y < MAP_H; y++) {
@@ -1160,7 +1180,9 @@ class UniversalCartridgeEngine {
             return;
         }
         if (verb === 'wield') {
-            item.equipped = item.kind === 'armor' ? 'body' : 'weapon';
+            const slot = item.kind === 'armor' ? 'body' : (item.kind === 'ring' ? 'ring' : (item.kind === 'amulet' ? 'amulet' : 'weapon'));
+            p.inventory.forEach(it => { if (it.equipped === slot) it.equipped = null; });
+            item.equipped = slot;
             this.reindexInventory();
             this.addMessage(`You equip the ${formatItemDesc(item)}.`, 11);
             this.advanceTurn();
@@ -1282,11 +1304,35 @@ class UniversalCartridgeEngine {
             const strBonus = Math.max(0, Math.floor((p.str - 12) / 2));
             const wep = p.inventory.find(i => i.equipped === 'weapon');
             const wepBonus = wep ? (wep.bonus || 1) * 2 : 0;
-            const dmg = Math.max(2, 4 + this.rand(6) + strBonus + wepBonus);
+            let baseRoll = 4 + this.rand(6);
+            if (wep && wep.dmg) {
+                const dm = String(wep.dmg).match(/(\d+)d(\d+)/i);
+                if (dm) {
+                    const nd = parseInt(dm[1], 10) || 1;
+                    const sd = parseInt(dm[2], 10) || 6;
+                    baseRoll = 0;
+                    for (let d = 0; d < nd; d++) baseRoll += 1 + this.rand(sd);
+                }
+            }
+            const dmg = Math.max(2, baseRoll + strBonus + wepBonus);
             mon.hp -= dmg;
             this.addMessage(`You strike the ${mon.race} with your ${p.weaponName}! (${dmg} dmg)`, 11);
             if (mon.hp <= 0) {
                 this.handleMonsterKilled(mon);
+                this.advanceTurn();
+                return;
+            }
+            const mLower = String(mon.race || '').toLowerCase();
+            if (mLower.includes('hydra') && wep && /sword|axe|blade|dagger|halberd/i.test(wep.name || '') && !/flam|fire/i.test(wep.name || '')) {
+                mon.hp = Math.min((mon.hp_max || 30) + 12, mon.hp + 6);
+                mon.dmg = (mon.dmg || 8) + 2;
+                this.addMessage(`Your edged ${wep.name} severs a head — two more grow back in its place!`, 12);
+            } else if (mLower.includes('jelly') && mon.hp > 6 && this.state.monsters.length < 18) {
+                const half = Math.max(3, Math.floor(mon.hp / 2));
+                mon.hp = half;
+                const maxId = this.state.monsters.reduce((acc, m) => Math.max(acc, m.id || 0), 0);
+                this.state.monsters.push({ ...mon, id: maxId + 1, hp: half, hp_max: half, x: Math.min(MAP_W - 2, mon.x + 1) });
+                this.addMessage(`The ${mon.race} splits in two under your blow!`, 11);
             }
             this.advanceTurn();
             return;
@@ -1402,7 +1448,33 @@ class UniversalCartridgeEngine {
 
             const dist = Math.hypot(p.x - mon.x, p.y - mon.y);
             if (dist <= 1.5) {
-                const dmg = Math.max(1, (mon.dmg || 4) - this.rand(2));
+                const mLower = String(mon.race || '').toLowerCase();
+                const wornBody = p.inventory.find(it => it.equipped === 'body' || it.equipped === 'armor');
+                if ((mLower.includes('aquator') || mLower.includes('acid') || mLower.includes('rust')) && wornBody && !/leather|robe|cloak/i.test(wornBody.name || '')) {
+                    wornBody.bonus = Math.max(-3, (wornBody.bonus || 0) - 1);
+                    this.recalcPlayerDefenses();
+                    this.addMessage(`The ${mon.race}'s corrosive touch rusts your ${wornBody.name}!`, 12);
+                    if (mLower.includes('aquator')) continue;
+                }
+                if (mLower.includes('leprechaun') && p.gold > 0) {
+                    const stolen = Math.min(p.gold, 5 + this.rand(25));
+                    p.gold -= stolen;
+                    this.state.monsters = this.state.monsters.filter(m => m.id !== mon.id);
+                    this.addMessage(`The ${mon.race} snatches ${stolen} gold pieces from your purse and vanishes in a flash!`, 14);
+                    continue;
+                }
+                if (mLower.includes('nymph')) {
+                    const packItem = p.inventory.find(it => !it.equipped && it.kind !== 'food');
+                    if (packItem) {
+                        packItem.count = (packItem.count || 1) - 1;
+                        this.reindexInventory();
+                        this.state.monsters = this.state.monsters.filter(m => m.id !== mon.id);
+                        this.addMessage(`The ${mon.race} charms you, steals your ${packItem.name}, and teleports away!`, 13);
+                        continue;
+                    }
+                }
+                const acMitigation = this.realm === 'rogue' ? Math.max(0, Math.floor((10 - (p.ac ?? 7)) / 3)) : Math.max(0, Math.floor((p.ac || 2) / 4));
+                const dmg = Math.max(1, (mon.dmg || 4) - acMitigation - this.rand(2));
                 p.hp -= dmg;
                 const isProperName = Boolean(mon.isBoss || /^[A-Z]/.test(mon.race || ''));
                 const subjName = isProperName ? mon.race : `The ${mon.race}`;
@@ -1638,6 +1710,9 @@ class UniversalCartridgeEngine {
         const statuses = [];
         if (p.poisoned > 0) statuses.push({ name: 'Poisoned', attr: 4, val: p.poisoned });
         if (p.speedBoost > 0) statuses.push({ name: 'Fast', attr: 10, val: p.speedBoost });
+        if (p.nutrition != null && p.nutrition < 50) statuses.push({ name: 'Starving', attr: 4, val: 3 });
+        else if (p.nutrition != null && p.nutrition < 150) statuses.push({ name: 'Weak', attr: 12, val: 2 });
+        else if (p.nutrition != null && p.nutrition < 300) statuses.push({ name: 'Hungry', attr: 14, val: 1 });
         if (p.hasAmulet) statuses.push({ name: this.spec.goalBadge || 'Amulet', attr: 14, val: 1 });
         if (this.realm === 'dcss' && p.deity) {
             statuses.push({ name: `${p.deity} (${'★'.repeat(Math.max(1, p.piety || 1))})`, attr: 14, val: p.piety || 1 });

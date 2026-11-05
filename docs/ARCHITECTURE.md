@@ -27,16 +27,15 @@ engine/                      Vanilla Angband 4.2.6 C engine + bridge
 variants/silq-src/           Sil-Q 1.5.0 C engine + bridge
 variants/frogcomposband-src/ FrogComposBand 7.1.1 C engine + bridge
 variants/hengband-src/       Hengband 3.0.1 C++ engine + bridge
+variants/nethack/bin/        NetHack 3.6.7 headless JSON bridge cartridge
+server/src/cartridges/       UniversalCartridge runtime (NetHack, DCSS, Brogue CE, Rogue 5.4)
 server/src/                  Cloud session multiplexer, rate limiting, and AI proxy (/api/tts, /api/llm)
-server/public/               Three.js WebGL client (PBR shaders, Movable HUD, Living Chronicle, CRT canvas)
-client/                      Native Godot 4.3+ .NET 8 C# client (Vulkan / D3D12)
-desktop/                     Standalone Windows .NET 8 WebView2 wrapper
-android/                     Capacitor Android mobile client (Target SDK 34)
-tools/                       Tiered test runner (fast/e2e/cdp), C smoke tests, asset sync, and CI gates
+server/public/               Three.js WebGL / PWA client (PBR biomes, 48-track Jukebox, Movable HUD, Living Chronicle)
+tools/                       Tiered test runner (fast/e2e/cdp), C smoke tests, LOC/version gates
 docs/                        Protocol specification, architecture, and playability guides
 ```
 
-All 4 authoritative engines maintain rebasability: upstream C/C++ game balance, formulas, content, and RNG are preserved intact, while presentation is decoupled through headless JSON bridge frontends.
+All 8 authoritative realms (`angband`, `silq`, `frogcomposband`, `hengband`, `nethack`, `dcss`, `brogue`, `rogue`) emit the unified dual-stream JSON wire protocol over `stdio`, decoupling backend simulation rules and RNG from the 60 FPS Three.js WebGL presentation layer.
 
 ## Keeping the fork rebasable
 

@@ -361,9 +361,12 @@ window.addEventListener('DOMContentLoaded', () => {
 
     let quickBirthActive = false;
     let quickBirthStep = 0;
+    let quickBirthArchetype = null;
+    let quickBirthPlanner = null;
     let birthConfirming = false;
     let lastBirthConfirmSig = '';
     let silqStatAllocated = false;
+    let silqSkillAllocated = false;
     let silqNameSent = false;
     let fcbRaceDone = false;
     let fcbClassDone = false;
@@ -372,9 +375,12 @@ window.addEventListener('DOMContentLoaded', () => {
     const cancelQuickBirth = () => {
         quickBirthActive = false;
         quickBirthStep = 0;
+        quickBirthArchetype = null;
+        quickBirthPlanner = null;
         birthConfirming = false;
         lastBirthConfirmSig = '';
         silqStatAllocated = false;
+        silqSkillAllocated = false;
         silqNameSent = false;
         fcbRaceDone = false;
         fcbClassDone = false;
@@ -518,10 +524,20 @@ window.addEventListener('DOMContentLoaded', () => {
             network.sendKey('enter');
             return;
         }
-        // 5. Hengband Realm Selection (for spellcasting classes) -> select first realm 'a'
+        if (!quickBirthPlanner && window.RealmCartridge && typeof window.RealmCartridge.createRandomBirthPlanner === 'function') {
+            quickBirthPlanner = window.RealmCartridge.createRandomBirthPlanner(activeRealm, quickBirthArchetype);
+        }
+        const planner = quickBirthPlanner || {
+            magicRealmKey: ['a', 'b', 'c', 'd', 'e', 'f'][Math.floor(Math.random() * 6)],
+            fcbPersonalityKeys: ['a', 'c'],
+            cartridgeRoleKey: '*',
+            silqStatSequence: ['6', '6', '2', '6', '6', '2', '6', '6', '2', '6', '8', '6', 'enter'],
+            silqSkillSequence: ['6', '6', '6', '2', '2', '6', '6', '2', '2', '6', '6', 'enter']
+        };
+        // 5. Hengband Realm Selection (for spellcasting classes) -> select varied realm from planner
         if (screenText.includes('choose a realm') || screenText.includes('choose realm') || screenText.includes('realm 1:') ||
             screenText.includes('魔法領域') || screenText.includes('領域を選んで')) {
-            network.sendKey('a');
+            network.sendKey(planner.magicRealmKey || 'a');
             return;
         }
         // 6. FrogComposBand Mode Selection: 'n' is Normal Mode (never 'b' Beginner which forces pre-rolled Hobbit Rogue)
@@ -554,7 +570,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 return;
             }
             if (screenText.includes('choose a realm') || screenText.includes('choose realm') || screenText.includes('realm 1:')) {
-                network.sendKey('a');
+                network.sendKey(planner.magicRealmKey || 'a');
                 return;
             }
         }
@@ -578,33 +594,33 @@ window.addEventListener('DOMContentLoaded', () => {
             screenText.includes('choose your race') || screenText.includes('choose your class') ||
             screenText.includes('choose house') || screenText.includes('choose a house') ||
             screenText.includes('choose your role') || screenText.includes('choose your adventurer')) {
-            network.sendKey('*');
+            const isCartridgeRoleMenu = screenText.includes('choose your adventurer') || screenText.includes('choose your role');
+            network.sendKey((isCartridgeRoleMenu && quickBirthArchetype && planner.cartridgeRoleKey) ? planner.cartridgeRoleKey : '*');
             return;
         }
         // 8b. FrogComposBand Split Personality Selection (choose 2 or more, ENTER to accept)
         if (screenText.includes('toggle personalities') || screenText.includes('choose 2 or more')) {
-            network.sendKey('a');
-            network.sendKey('b');
+            const pKeys = Array.isArray(planner.fcbPersonalityKeys) ? planner.fcbPersonalityKeys : ['a', 'd'];
+            pKeys.forEach(pk => network.sendKey(pk));
             network.sendKey('enter');
             return;
         }
         // 9. Sil-Q Skills & Stats Allocation
         if (screenText.includes('allocate points to skills') || screenText.includes('skill increases') || screenText.includes('accept skills')) {
-            network.sendKey('enter');
+            if (!silqSkillAllocated && Array.isArray(planner.silqSkillSequence)) {
+                silqSkillAllocated = true;
+                planner.silqSkillSequence.forEach(k => network.sendKey(k));
+            } else {
+                network.sendKey('enter');
+            }
             return;
         }
         if (screenText.includes('allocate points to stats') || screenText.includes('accept stats')) {
             if (silqStatAllocated) return;
             silqStatAllocated = true;
-            const archetype = Math.floor(Math.random() * 4);
-            let seq = ['6', '6', '2', '6', '6', '2', '6', '6', '2', '6', '8', '6', 'enter'];
-            if (archetype === 0) {
-                seq = ['6', '6', '6', '2', '6', '6', '2', '6', '6', '2', '6', 'enter'];
-            } else if (archetype === 1) {
-                seq = ['6', '6', '2', '6', '6', '6', '2', '6', '6', '2', '6', 'enter'];
-            } else if (archetype === 3) {
-                seq = ['6', '2', '6', '6', '2', '6', '6', '2', '6', '6', '6', 'enter'];
-            }
+            const seq = Array.isArray(planner.silqStatSequence)
+                ? planner.silqStatSequence
+                : ['6', '6', '2', '6', '6', '2', '6', '6', '2', '6', '8', '6', 'enter'];
             seq.forEach(k => network.sendKey(k));
             return;
         }
@@ -715,17 +731,43 @@ window.addEventListener('DOMContentLoaded', () => {
 
     // Terminal Toolbar action buttons
     const quickBirthBtn = document.getElementById('btn-quick-birth');
+    const launchBirthPreset = (preset) => {
+        if (audio) audio.unlock();
+        if (currentPhase === 'play') { startNewRandomHero(); return; }
+        cancelQuickBirth();
+        quickBirthArchetype = preset || null;
+        quickBirthPlanner = null;
+        quickBirthActive = true;
+        quickBirthStep = 0;
+        if (lastFrame) stepQuickBirth(lastFrame);
+        else network.sendKey('enter');
+    };
     if (quickBirthBtn) {
-        quickBirthBtn.addEventListener('click', () => {
-            if (audio) audio.unlock();
-            if (currentPhase === 'play') { startNewRandomHero(); return; }
-            cancelQuickBirth();
-            quickBirthActive = true;
-            quickBirthStep = 0;
-            if (lastFrame) stepQuickBirth(lastFrame);
-            else network.sendKey('enter');
+        quickBirthBtn.addEventListener('click', () => launchBirthPreset(null));
+    }
+    const birthHelperRandom = document.getElementById('btn-birth-helper-random');
+    if (birthHelperRandom) {
+        birthHelperRandom.addEventListener('click', () => {
+            if (audio) { audio.unlock(); if (typeof audio.playMenuSelect === 'function') audio.playMenuSelect(); }
+            const curRealm = (typeof getActiveRealm === 'function') ? getActiveRealm() : activeRealm;
+            const planner = (window.RealmCartridge && typeof window.RealmCartridge.createRandomBirthPlanner === 'function')
+                ? window.RealmCartridge.createRandomBirthPlanner(curRealm, Math.random)
+                : null;
+            const screenText = (lastFrame && lastFrame.term && lastFrame.term.rows)
+                ? lastFrame.term.rows.map(r => r.g || '').join('\n').toLowerCase()
+                : '';
+            const key = planner ? planner.nextKey(screenText, lastFrame, 0) : '*';
+            network.sendKey(key || '*');
         });
     }
+    const birthHelperMelee = document.getElementById('btn-birth-helper-melee');
+    if (birthHelperMelee) birthHelperMelee.addEventListener('click', () => launchBirthPreset('melee'));
+    const birthHelperRanged = document.getElementById('btn-birth-helper-ranged');
+    if (birthHelperRanged) birthHelperRanged.addEventListener('click', () => launchBirthPreset('ranged'));
+    const birthHelperMagic = document.getElementById('btn-birth-helper-magic');
+    if (birthHelperMagic) birthHelperMagic.addEventListener('click', () => launchBirthPreset('magic'));
+    const birthHelperFast = document.getElementById('btn-birth-helper-fast');
+    if (birthHelperFast) birthHelperFast.addEventListener('click', () => launchBirthPreset(null));
     const termRerollBtn = document.getElementById('btn-term-reroll');
     if (termRerollBtn) termRerollBtn.addEventListener('click', (e) => { if (e) { e.preventDefault(); e.stopPropagation(); } if (audio) audio.unlock(); rerollHero(); });
     const termCustomBtn = document.getElementById('btn-term-custom');
@@ -2808,7 +2850,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 <div class="guide-ref-grid">${refCards}</div>
                 <div class="guide-callout" style="margin-top: 16px;">
                     <strong>⚔️ YASD 3D / Angband 3D Multi-Realm Engine</strong><br>
-                    Created by <strong>Brian (ThunderBear Studios — <a href="https://thunderbearstudios.dev" target="_blank" rel="noopener noreferrer" style="color:var(--yasd-gold-accent);">thunderbearstudios.dev</a>)</strong>.<br>
+                    Created by <strong>Thunderbear Studios (<a href="https://thunderbearstudios.dev" target="_blank" rel="noopener noreferrer" style="color:var(--yasd-gold-accent);">thunderbearstudios.dev</a>)</strong>.<br>
                     Powered by authentic upstream open-source roguelike engines: NetHack 3.6.7, Dungeon Crawl Stone Soup 0.31, Vanilla Angband 4.2.6, Brogue CE 1.13, Classic Rogue 5.4.4, Sil-Q 1.5.0, FrogComposband 7.1, and Hengband 3.0.1.26.
                 </div>
             `;
@@ -3350,7 +3392,12 @@ window.addEventListener('DOMContentLoaded', () => {
             } else {
                 // Lazarus Checkpoint Restore: restore pre-death .living.sav before listing saves
                 try {
-                    await fetch(`/api/saves/restore-checkpoint?realm=${encodeURIComponent(realmParam)}&char=${encodeURIComponent(currentChar)}`, { method: 'POST' });
+                    const cleanSlot = String(currentChar || 'Adventurer').replace(/[^a-zA-Z0-9_.-]/g, '');
+                    const ownerTok = localStorage.getItem(`angband3d_owner_${cleanSlot}`) || localStorage.getItem(`angband3d_owner_${currentChar}`) || '';
+                    await fetch(`/api/saves/restore-checkpoint?realm=${encodeURIComponent(realmParam)}&char=${encodeURIComponent(currentChar)}`, {
+                        method: 'POST',
+                        headers: ownerTok ? { 'X-Owner-Token': ownerTok } : {}
+                    });
                 } catch (_) {}
                 const res = await fetch(`/api/saves?realm=${encodeURIComponent(realmParam)}`);
                 if (res.ok) {
@@ -3782,8 +3829,101 @@ window.addEventListener('DOMContentLoaded', () => {
         }
         setVal('global-music-slider', musicPct);
         setTxt('global-music-label', effMusicMuted ? '0%' : `${musicPct}%`);
+        if (audio && typeof audio.getMusicState === 'function') {
+            const mState = audio.getMusicState();
+            const npEl = document.getElementById('popover-music-now-playing');
+            if (npEl) {
+                const modeBadge = mState.mode === 'auto' ? 'Auto' : (mState.mode === 'shuffle' ? 'Shuffle' : 'Track');
+                npEl.textContent = effMusicMuted ? '🔇 Music Muted' : `🎶 ${modeBadge}: ${mState.trackTitle || 'YASD Theme Song'}`;
+            }
+            const playBtn = document.getElementById('btn-music-playpause');
+            if (playBtn) playBtn.textContent = (mState.playing && !effMusicMuted) ? '⏸' : '▶';
+            const shufBtn = document.getElementById('btn-music-shuffle');
+            if (shufBtn) shufBtn.classList.toggle('active', Boolean(mState.shuffle));
+            const selEl = document.getElementById('popover-music-track-select');
+            if (selEl) {
+                if (!selEl.dataset.populated && typeof audio.getMusicCatalog === 'function') {
+                    const cat = audio.getMusicCatalog();
+                    const optGroup = document.createElement('optgroup');
+                    optGroup.label = `All Realm Tracks (${cat.length})`;
+                    cat.forEach((tr) => {
+                        const opt = document.createElement('option');
+                        opt.value = tr.id;
+                        opt.textContent = `${tr.title} [${tr.mood}]`;
+                        optGroup.appendChild(opt);
+                    });
+                    selEl.appendChild(optGroup);
+                    selEl.dataset.populated = '1';
+                }
+                const targetVal = mState.mode === 'track' ? mState.trackId : mState.mode;
+                if (targetVal && selEl.value !== targetVal) selEl.value = targetVal;
+            }
+        }
     }
     window.__syncAudioUI = syncAudioUI;
+
+    // Background Music Jukebox Controls (#quick-volume-popover)
+    const btnMusicPrev = document.getElementById('btn-music-prev');
+    if (btnMusicPrev) {
+        bindFastTap(btnMusicPrev, () => {
+            if (audio && typeof audio.prevMusicTrack === 'function') {
+                audio.unlock(true);
+                audio.prevMusicTrack();
+                syncAudioUI();
+                showQuickVolumePopover();
+            }
+        });
+    }
+    const btnMusicPlayPause = document.getElementById('btn-music-playpause');
+    if (btnMusicPlayPause) {
+        bindFastTap(btnMusicPlayPause, () => {
+            if (audio && typeof audio.toggleMusicPlayPause === 'function') {
+                audio.unlock(true);
+                audio.toggleMusicPlayPause();
+                syncAudioUI();
+                showQuickVolumePopover();
+            }
+        });
+    }
+    const btnMusicNext = document.getElementById('btn-music-next');
+    if (btnMusicNext) {
+        bindFastTap(btnMusicNext, () => {
+            if (audio && typeof audio.nextMusicTrack === 'function') {
+                audio.unlock(true);
+                audio.nextMusicTrack();
+                syncAudioUI();
+                showQuickVolumePopover();
+            }
+        });
+    }
+    const btnMusicShuffle = document.getElementById('btn-music-shuffle');
+    if (btnMusicShuffle) {
+        bindFastTap(btnMusicShuffle, () => {
+            if (audio && typeof audio.toggleMusicShuffle === 'function') {
+                audio.unlock(true);
+                audio.toggleMusicShuffle();
+                syncAudioUI();
+                showQuickVolumePopover();
+            }
+        });
+    }
+    const musicTrackSelect = document.getElementById('popover-music-track-select');
+    if (musicTrackSelect) {
+        ['click', 'mousedown', 'touchstart'].forEach((ev) => musicTrackSelect.addEventListener(ev, (e) => {
+            e.stopPropagation();
+            clearTimeout(popoverDismissTimer);
+        }, { passive: true }));
+        musicTrackSelect.addEventListener('change', (e) => {
+            e.stopPropagation();
+            if (audio && typeof audio.setMusicMode === 'function') {
+                audio.unlock(true);
+                if (audio.isMusicMuted && audio.isMusicMuted()) audio.setMusicMute(false);
+                audio.setMusicMode(musicTrackSelect.value);
+                syncAudioUI();
+                showQuickVolumePopover();
+            }
+        });
+    }
 
     // Audio Configuration Popover Drawer Lifecycle
     let popoverDismissTimer = null;
@@ -4925,6 +5065,8 @@ window.addEventListener('DOMContentLoaded', () => {
         if (termDpad) termDpad.style.display = 'none';
         if (birthNameBar) birthNameBar.style.display = 'none';
         if (termLetterRibbon) termLetterRibbon.style.display = 'none';
+        const birthHelperBar = document.getElementById('terminal-birth-helper-bar');
+        if (birthHelperBar) birthHelperBar.style.display = !inPlay ? 'flex' : 'none';
         if (!inPlay) {
             if (termExitMenuBtn) {
                 termExitMenuBtn.style.display = 'inline-flex';
@@ -6214,9 +6356,14 @@ window.addEventListener('DOMContentLoaded', () => {
                 const firstPlayTransition = !hasEnteredPlay;
                 hasEnteredPlay = true;
                 quickBirthActive = false;
-                // Stop menu/character-creation loop once full gameplay begins outside of character creation!
-                if (!birthReviewActive && !birthConfirming && audio && audio._themeMode === 'menu' && typeof audio.stopThemeMusic === 'function') {
-                    audio.stopThemeMusic(0.9);
+                // Transition from menu loop into contextual realm/biome music (or honor explicit user Jukebox selection)
+                if (!birthReviewActive && !birthConfirming && audio) {
+                    if (typeof audio.updateContextualMusic === 'function') {
+                        audio.updateContextualMusic(frame, activeRealm);
+                        syncAudioUI();
+                    } else if (audio._themeMode === 'menu' && typeof audio.stopThemeMusic === 'function') {
+                        audio.stopThemeMusic(0.9);
+                    }
                 }
                 const curDepth = typeof frame.player.depth === 'number' ? frame.player.depth : 0;
                 const depthChanged = lastSnapshotDepth !== null && curDepth !== lastSnapshotDepth;

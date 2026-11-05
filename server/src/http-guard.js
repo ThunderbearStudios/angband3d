@@ -33,6 +33,21 @@ function guardMutation(req, res, isAllowedOrigin, host) {
         return true;
     }
 
+    if (!reqOrigin && secFetchSite !== 'same-origin' && secFetchSite !== 'same-site') {
+        if (process.env.TRUST_PROXY === '1' || Boolean(process.env.K_SERVICE)) {
+            const referer = req.headers && req.headers.referer;
+            if (referer) {
+                try {
+                    const refOrigin = new URL(referer).origin;
+                    if (isAllowedOrigin(refOrigin, effectiveHost, req)) return false;
+                } catch (_) {}
+            }
+            res.writeHead(403, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Origin or Sec-Fetch-Site required' }));
+            return true;
+        }
+    }
+
     return false;
 }
 

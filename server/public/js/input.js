@@ -713,6 +713,13 @@ class InputController {
             }
         }
 
+        const btnStairEl = document.getElementById('btn-stair');
+        if (btnStairEl && standingStair) {
+            const isUp = currentFeat === 5 || curTileGlyph === '<';
+            btnStairEl.dataset.key = isUp ? '<' : '>';
+            btnStairEl.textContent = isUp ? '⬆ Ascend [<]' : '⬇ Descend [>]';
+        }
+
         const rules = {
             'btn-attack': { show: adjHostiles > 0 && (!heroActive || heroAction.id !== 'attack'), suggest: adjHostiles > 0, reason: isJp ? '隣接する敵を攻撃！' : 'Adjacent enemy in melee range!' },
             'btn-fire': { show: (!hasInvTelemetry || (hasBowEquipped && hasAmmo)) && (!heroActive || heroAction.id !== 'shoot'), suggest: hasBowEquipped && hasAmmo && rangedHostilesInLOS > 0 && adjHostiles === 0 && !isDisablingStatus, reason: isJp ? '射程内に敵 — 射撃推奨' : 'Enemy in range — Shoot!' },
@@ -727,7 +734,7 @@ class InputController {
             'btn-read': { show: r !== 'silq' && (!hasInvTelemetry || scrollCount > 0), suggest: scrollCount > 0 && !isDisablingStatus && ((hpPct < 35 && hostileMonsters.length > 0) || adjHostiles >= 2), reason: isJp ? '危険 — 巻物で脱出・対処！' : 'Danger — Read Scroll!' },
             'btn-door': { show: adjClosedDoors > 0 && (!heroActive || heroAction.id !== 'open-door'), suggest: adjClosedDoors > 0 && adjHostiles === 0, reason: isJp ? '隣接する扉を開ける' : 'Open adjacent closed door' },
             'btn-pickup': { show: standingOnItem && (!heroActive || heroAction.id !== 'pickup'), suggest: standingOnItem, reason: isJp ? '足元のアイテムを拾う' : 'Item underfoot — Pick up!' },
-            'btn-stair': { show: standingStair && (!heroActive || (heroAction.id !== 'stair-down' && heroAction.id !== 'stair-up')), suggest: standingStair && adjHostiles === 0, reason: isJp ? '階段・入口を使用' : 'Use stairs / entrance underfoot' },
+            'btn-stair': { show: standingStair && (!heroActive || (heroAction.id !== 'descend' && heroAction.id !== 'ascend')), suggest: standingStair && adjHostiles === 0, reason: isJp ? '階段・入口を使用' : 'Use stairs / entrance underfoot' },
             'btn-rest': { show: !hasInvTelemetry || ((hpPct < 100 || (maxSp > 0 && spPct < 100) || hasBadStatus) && adjHostiles === 0), suggest: (hpPct < 75 || (maxSp > 0 && spPct < 45) || hasBadStatus) && hostileMonsters.length === 0, reason: isJp ? '周囲安全 — 休憩して回復' : 'Area clear — Rest to recover HP/Mana' },
             'btn-inventory': { show: !hasInvTelemetry || inv.length > 0 || eq.length > 0, suggest: false },
             'btn-equipment': { show: !hasInvTelemetry || eq.length > 0, suggest: false },
@@ -2740,6 +2747,10 @@ class InputController {
 
         if (typeof this.updateContextButtons === 'function') {
             this.updateContextButtons(frame);
+        }
+        const hudRef = this.hud || (this.app && this.app.hud) || (window.__app && window.__app.hud);
+        if (hudRef && typeof hudRef.updateReticleTargetCard === 'function') {
+            hudRef.updateReticleTargetCard(frame);
         }
 
         const reticle = document.getElementById('diegetic-reticle');

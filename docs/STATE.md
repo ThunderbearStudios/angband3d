@@ -1,36 +1,33 @@
 # Execution State (Read First, Update Last)
 
 ## Active Task
-**WS48 — `v11.3.5` YASD 3D Showcase Splash, Cross-Realm Procedural Birth & YASD Death Sketch/Modal Overhaul — COMPLETE**
+**WS50 — `v11.5.0` 8-Realm Mastery, 3D Bestiary & Canine Overhaul, 48-Track Jukebox & Contextual Music Director, Chargen Helper & Zero-Memorization HUD — COMPLETE**
 
-- **Checklist** (one commit per card, red test first):
-  - [x] `M1–M4` Zero-Flicker Overlay Memoization, Action Bar Stability & In-Place HUD Reconciliation (`v11.1.1`).
-  - [x] `v11.3.3–v11.3.4` Official YASD 3D Splash Billboard (`yasd3d_logo.png`), Realm Popularity Strip (`NetHack • DCSS • Angband • Brogue • Rogue • Sil-Q • FrogComposBand • Hengband`), and Cross-Realm Procedural Dungeon & Birth Audit.
-  - [x] `v11.3.5` YASD Death Modal & On-Demand Sketch Overhaul (`chronicle-manager.js`, `hud.js`, `terminal.js`, `server.js`, `cartridge-core.js`, `nethack-bridge.js`, `realm-cartridge.js`, `dungeon.css`, `index.html`):
-    - Responsive `#death-terminal-canvas` scaling inside `.death-tombstone-split` (eliminating `1120px` overflow scrollbars that hid `#death-sketch-wrap`).
-    - Guarded `renderDeathSketchIntoModal` with `_lastDeathSketchSig` so subsequent frames while dead do not overwrite Gemini illustrations or trip rate limits.
-    - Unwrapped stat objects (`{ use, cur, val, top, max }`) across all 8 realms (zero `[object Object]` badges) and fixed unique boss kill grammar (`Killed by Sigmund`, not `Killed by a Sigmund`).
-    - Overhauled `renderMasterworkCanvasSketch` death mode to render a chiseled tombstone memorial + slayer silhouette, styled `#chronicle-sketch-modal` lightbox, and cached AI Studio `429` cooldown (`_aiStudioDepletedUntil`) for instant Vertex AI `gemini-2.5-flash-image` routing.
+- **Checklist** (`v11.5.0` 8-Pillar Overhaul):
+  - [x] **Pillar 1 & 2 (Web-Only Focus, Green CI & 10x Faster Cloud Build)**: Retired `.apk` / `.exe` / Godot C# CI jobs; deleted `7.05 GB` local build/music bloat; added `.dockerignore`, optimized `.gcloudignore` and multi-stage `server/Dockerfile`.
+  - [x] **Pillar 3 (Intelligent, Varied & Obvious 8-Realm Chargen)**: Added `RealmCartridge.createRandomBirthPlanner(realmId, rngOrPreset)` (`random`, `melee`, `ranged`, `magic`) with point-buy allocation (`Sil-Q`, `FCB`, `Hengband`, `Angband`), `stepQuickBirth()`, and `#terminal-birth-helper-bar`.
+  - [x] **Pillar 4 (Authentic 8-Realm Mechanics, Equipment AC/EV & Hunger Clock)**: Dynamic equipment AC/EV/weapon-dice combat math, nutrition decay + HUD status badges (`Hungry`, `Weak`, `Starving`), Brogue Scroll of Enchantment item upgrades, and signature monster traits (`cartridge-core.js`, `nethack-bridge.js`).
+  - [x] **Pillar 5 (High-Craft 3D Bestiary, 4-Model Canine Pack & 8-Realm PBR Biomes)**: Promoted 33 stranded models/textures; preserved multi-material arrays on multi-slot GLBs; added `_enhanceCreatureStandardMaterial()` and 4-model canine resolver (`Husky.glb`, `ShibaInu.glb`, `Fox.glb`, `Wolf.glb`) with breath-element emissive veins; fixed `g === '\\'` shovel overwrite; disambiguated `feat 7..14` & `feat 4`; added Sil-Q Forge (`feat 60`), randomized mountain peaks (`feat 30`), and dual-scrolling water/lava UVs.
+  - [x] **Pillar 6 (Zero-Memorization HUD, Restored Target Card & Minimap Beacons)**: Restored `#reticle-target-card` with 1-click contextual actions (`⚔ Attack`, `🏹 Shoot`, `✨ Cast`, `🔍 Inspect`) and status badges (`👑 UNIQUE`, `💤 ASLEEP`, `💨 FLEEING`); added Minimap landmark beacons (`<`, `>`, `0` Forge, `_` Altar, `{` Fountain, `1`–`8` Stores, Unique/Boss crowns) and realm-adaptive `#btn-stair`.
+  - [x] **Pillar 7 (48-Track Jukebox, Contextual Music Director & 101-File Foley)**: Promoted 48 MP3/OGG tracks + 23 WAV SFX; added in-menu Jukebox inside `#quick-volume-popover`, `updateContextualMusic(frame, activeRealm)`, and 8 realm SFX methods (`audio.js`, `app.js`, `dungeon3d.js`).
+  - [x] **Pillar 8 (`PUB-PII-01` Anonymity & Documentation Sync)**: Scrubbed personal name references across code/tests and updated `README.md`, `AGENTS.md`, `docs/STATE.md`, `CHANGELOG.md`, and `docs/ARCHITECTURE.md` to `v11.5.0`.
 
 ## Completed Workstreams
 | WS | Scope | Status |
 | :--- | :--- | :--- |
-| WS0–WS21 | Harness, ScreenContext, MenuRouter, RealmKeys, HengTranslate, 8-Pillar 3D, Foley | `[x]` |
-| WS22–WS36 | Mastery, Grimoire, Viewport, LOS, Vitals, Classic Terminal (`v10.2.0`) | `[x]` |
-| WS37–WS42 | Popover, Chronicle, Minimap, Zero-Parse Relay, Command Unification (`v10.8.3`) | `[x]` |
-| WS43–WS46 | Showcase Overhaul, Classic Terminal Menu, Dark-Fantasy Action Architecture (`v11.1.0`) | `[x]` |
-| WS47 | Zero-Flicker Menu/HUD/Action-Bar Stabilization (`M1–M6`) & `v11.1.1` Packaging | `[x]` |
+| WS0–WS36 | Harness, ScreenContext, MenuRouter, RealmKeys, 8-Pillar 3D, Foley, Grimoire (`v10.2.0`) | `[x]` |
+| WS37–WS47 | Popover, Chronicle, Minimap, Command Unification, Zero-Flicker HUD (`v11.1.1`) | `[x]` |
+| WS48–WS50 | 8-Realm Cartridges, YASD Death Sketch, 3D Bestiary/Canine Overhaul, Jukebox, Chargen & HUD (`v11.5.0`) | `[x]` |
 
-## Mandatory Verification Gate
+## Mandatory Verification Gate (Web-Only Focus)
 Fresh server (`L13`): `Get-NetTCPConnection -LocalPort 8080 -State Listen | % { Stop-Process -Id $_.OwningProcess -Force }`; `cd server; node src/server.js`.
-1. `node --check server/src/server.js` 2. `node tools/run_tests.js --tier fast` → `30/30` 3. `python tools/smoke_test.py` → `11/11` 4. `dotnet build client/angband3d.csproj` → `0/0` 5. `server/public` change → `node tools/bump_version.js <v>` + `npm run android:sync`.
+1. `node --check server/src/server.js` 2. `node tools/run_tests.js --tier fast` → `29/29` 3. `python tools/smoke_test.py` → `11/11` 4. `node tools/check_loc_budget.js && node tools/check_version_sync.js` 5. `server/public` change → `node tools/bump_version.js <v>`.
 
 ## Known Upstream Issues (not regressions)
 K1 FCB welcome `-more-` opens terminal · K2 Heng JP binary, client `lang` translates · K3 FCB/Heng boot `{"t":"error"}` · K4 Chrome profiles in `os.tmpdir()` · K5 restart server before CDP suite · K6 Vanilla direction prompt via row-0 match.
 
 ## In-Flight (Uncommitted) Files Inventory
-- None (ready for `v11.1.1` release commit and tag).
+- None (ready for `v11.5.0` release commit and Cloud Run deploy).
 
 ## Last Gate Results
-- **WS46 (`v11.1.0`, 2026-10-26)**: fast `30/30` · rev6 exemplar `7/7` · e2e `4/4` · live CDP 4-realm matrix `PASS` · smoke `11/11` · dotnet `0/0`.
-- **WS47 (`v11.1.1`, 2026-10-26)**: fast `30/30` · rev5/6 exemplar `8/8` (`M1–M6` 5-turn DOM identity `clearCount === 1`) · desktop & Godot C# build `0/0` · `Angband3D-Windows-x64.zip` packaged.
+- **WS50 (`v11.5.0`, 2026-11-05)**: fast `29/29` · universal cartridge `9/9` · smoke `11/11` · LOC budget `PASS` · version sync `PASS` (`11.5.0`).

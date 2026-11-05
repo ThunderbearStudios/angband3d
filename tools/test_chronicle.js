@@ -548,7 +548,7 @@ async function runTest() {
     const veteranVoice = ChronicleGrounder.pickCreatureVoice({ name: 'Veteran swordsman', id: 202 }, 'veteran');
     const idiotVoice = ChronicleGrounder.pickCreatureVoice({ name: 'Blubbering idiot', id: 303 }, 'idiot');
     const femalePool = ['Maisie', 'Emily', 'Jenny', 'Aria', 'Sonia', 'Clara', 'Libby', 'Natasha', 'Despina', 'Aoede', 'Kore', 'Leda', 'Sadaltager'];
-    const malePool = ['Brian', 'Eric', 'Christopher', 'Roger', 'Guy', 'Connor', 'Thomas', 'William', 'Liam', 'Orus', 'Algenib', 'Gacrux', 'Sulafat', 'Puck', 'Zephyr', 'Charon', 'Fenrir'];
+    const malePool = ['Andrew', 'Eric', 'Christopher', 'Roger', 'Guy', 'Connor', 'Thomas', 'William', 'Liam', 'Orus', 'Algenib', 'Gacrux', 'Sulafat', 'Puck', 'Zephyr', 'Charon', 'Fenrir'];
 
     if (!witchVoice || !femalePool.some(v => witchVoice.includes(v))) {
         throw new Error(`Unexpected witch voice (expected female pool): ${witchVoice}`);
@@ -841,7 +841,7 @@ async function runTest() {
     if (mockQuickSelect.value !== 'en-US-RogerNeural') {
         throw new Error(`Expected selectQuickVoice to sync to en-US-RogerNeural, got: ${mockQuickSelect.value}`);
     }
-    console.log('  ✓ Aged & Venerable voices (Roger, Brian, William, Clara, Steffan) and Quick Selector sync verified.');
+    console.log('  ✓ Aged & Venerable voices (Roger, Andrew, William, Clara, Steffan) and Quick Selector sync verified.');
 
     // 19. Test API Key Auto-Save, Paste, and LLM Test Connection
     console.log('[Chronicle Test] Testing API Key Auto-save and LLM Test Connection...');
