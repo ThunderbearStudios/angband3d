@@ -83,6 +83,7 @@ WORKDIR /app
 # Copy compiled Vanilla engine and game library
 COPY --from=engine-builder /src/engine/build/game/angband /app/engine/angband
 COPY --from=engine-builder /src/engine/build/game/lib /app/engine/lib
+COPY --from=engine-builder /src/engine/docs /app/engine/docs
 
 # Copy compiled multi-realm variant engines and libraries
 COPY variants/frogcomposband/lib /app/variants/frogcomposband/lib

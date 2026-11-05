@@ -1416,11 +1416,34 @@ class UniversalCartridgeEngine {
                     rows.push({ g: pad80(`    ${it.letter}) ${formatItemDesc(it)}`), a: attr80('01') });
                 });
             } else {
+                rows.push({ g: pad80(`  === ${(this.spec.title || this.realm).toUpperCase()} — IN-GAME COMMAND & SURVIVAL HELP ===`), a: attr80('0b') });
+                rows.push({ g: pad80(`  Goal: ${this.spec.lore || 'Descend, survive, and claim the realm artifact.'}`), a: attr80('0e') });
                 rows.push({ g: pad80('  Movement: Arrow Keys / WASD / Vi-keys (hjklyubn) / Click Minimap'), a: attr80('01') });
                 rows.push({ g: pad80('  [i] Inventory   [e] Equipment   [g/,] Pick Up   [>/<] Stairs'), a: attr80('01') });
                 rows.push({ g: pad80('  [q] Quaff       [r] Read        [w/W] Equip     [T] Take Off'), a: attr80('01') });
                 rows.push({ g: pad80('  [f/t] Fire/Throw [a/z/V] Use/Zap [o/c] Door     [s/.] Search/Rest'), a: attr80('01') });
-                rows.push({ g: pad80('  [Space] Smart Action            [Alt+E] Auto-Explore'), a: attr80('0b') });
+                rows.push({ g: pad80('  [C/@] Character [~/\\] Knowledge  [I/x] Examine  [d] Drop Item'), a: attr80('01') });
+                if (this.realm === 'dcss') {
+                    rows.push({ g: pad80('  --- DCSS SPECIFIC COMMANDS & PANTHEON ---'), a: attr80('0b') });
+                    rows.push({ g: pad80('  [m] Skill Training Menu    [M] Spell Library   [a] Invoke Deity Power'), a: attr80('0e') });
+                    rows.push({ g: pad80('  [o] Auto-Explore Floor     [5] Rest to Full    [Tab] Auto-Fight'), a: attr80('01') });
+                    rows.push({ g: pad80('  Branches: D:1-3 -> Temple(D:4) -> Lair(5-7) -> Orc(8-9) -> Vaults -> Zot:15'), a: attr80('0a') });
+                    rows.push({ g: pad80('  Tip: Collect 3 Runes of Zot, worship at Altars (_), and claim the Orb of Zot!'), a: attr80('01') });
+                } else if (this.realm === 'brogue') {
+                    rows.push({ g: pad80('  --- BROGUE SPECIFIC COMMANDS & CAVERN RULES ---'), a: attr80('0b') });
+                    rows.push({ g: pad80('  [e] Auto-Explore Cavern    [z] Rest Until Healed  [a] Apply Any Item'), a: attr80('0e') });
+                    rows.push({ g: pad80('  Progression: Zero XP grind! Power comes from Potions of Strength & Life'), a: attr80('0a') });
+                    rows.push({ g: pad80('  and Scrolls of Enchantment. Free chained Allies (m, O, d, N) to fight with you!'), a: attr80('01') });
+                    rows.push({ g: pad80('  Goal: Retrieve the Amulet of Yendor on D:26 (plus Lumenstones for mastery).'), a: attr80('01') });
+                } else if (this.realm === 'rogue') {
+                    rows.push({ g: pad80('  --- CLASSIC 1980 ROGUE 5.4 SURVIVAL RULES ---'), a: attr80('0b') });
+                    rows.push({ g: pad80('  [e] Eat Food Ration  [s] Search Secret Doors (3x at dead ends!)  [t] Throw Bow'), a: attr80('0e') });
+                    rows.push({ g: pad80('  Aquator Hazard (A): Rusts metallic armor by -1 AC! Remove armor [T] first.'), a: attr80('0c') });
+                    rows.push({ g: pad80('  Scare Monster Trick: DROP [d] Scroll of Scare Monster and stand on it!'), a: attr80('0a') });
+                    rows.push({ g: pad80('  Goal: Descend to Level 26, grab the Amulet of Yendor (,), and climb [<] to L1.'), a: attr80('01') });
+                }
+                rows.push({ g: pad80('  --------------------------------------------------------------------------'), a: attr80('02') });
+                rows.push({ g: pad80('  Click [? HELP] on the HUD or press [Ctrl+K] for full Realm Manuals & Spoilers.'), a: attr80('0b') });
             }
             while (rows.length < TERM_H) rows.push({ g: pad80(''), a: attr80('01') });
             return rows;

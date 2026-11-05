@@ -107,7 +107,7 @@
         messages: Object.freeze({ angband: 'C-p', silq: 'C-p', frogcomposband: 'C-p', hengband: 'C-p' }),
         save: Object.freeze({ angband: 'C-s', silq: 'C-s', frogcomposband: 'C-s', hengband: 'C-s' }),
         options: Object.freeze({ angband: '=', silq: 'O', frogcomposband: '=', hengband: '=' }),
-        help: Object.freeze({ angband: '?', silq: '?', frogcomposband: '?', hengband: '?' })
+        help: Object.freeze({ nethack: '?', dcss: '?', angband: '?', brogue: '?', rogue: '?', silq: '?', frogcomposband: '?', hengband: '?' })
     });
     function resolveTargetKey(realm, target) {
         const r = (realm || 'angband').toLowerCase();

@@ -1762,10 +1762,18 @@ class NetHackEngine {
                     rows.push({ g: pad80(`    ${it.letter}) ${formatItemDesc(it)} [${it.buc || 'uncursed'}]`), a: attr80('01') });
                 });
             } else {
-                rows.push({ g: pad80('  NetHack 3.6.7 Commands:'), a: attr80('0b') });
+                rows.push({ g: pad80('  === NETHACK 3.6.7 — IN-GAME COMMAND & SURVIVAL REFERENCE ==='), a: attr80('0b') });
                 rows.push({ g: pad80('  [i] Inventory  [e] Equipment  [,] Pick Up   [e/E] Eat   [q] Quaff   [r] Read'), a: attr80('01') });
                 rows.push({ g: pad80('  [w] Wield      [W] Wear       [T] Take Off  [P] Put On  [R] Remove  [z] Zap'), a: attr80('01') });
-                rows.push({ g: pad80('  [Z] Cast Spell [a] Apply Tool [t/f] Throw   [o/c] Door  [p/#] Pray & Rituals'), a: attr80('01') });
+                rows.push({ g: pad80('  [Z] Cast Spell [a] Apply Tool [t/f] Throw   [o/c] Door  [s] Search  [.] Wait'), a: attr80('01') });
+                rows.push({ g: pad80('  --- EXTENDED (#) COMMANDS ---'), a: attr80('0e') });
+                rows.push({ g: pad80('  [#pray] Pray to Deity      [#offer] Sacrifice Corpse on Altar'), a: attr80('01') });
+                rows.push({ g: pad80('  [#dip]  Dip in Potion/Ftn  [#chat]  Talk to Priest/Shopkeeper/Oracle'), a: attr80('01') });
+                rows.push({ g: pad80('  [#loot] Loot Chest/Box     [#untrap] Disarm Trap   [#force] Force Lock'), a: attr80('01') });
+                rows.push({ g: pad80('  --- ESSENTIAL SURVIVAL RULES ---'), a: attr80('0a') });
+                rows.push({ g: pad80('  • BUC Testing: Drop unknown items on Altars (_) or let your Pet test for curses!'), a: attr80('01') });
+                rows.push({ g: pad80('  • Corpses: Eat Floating Eye for Telepathy; NEVER touch Cockatrices barehanded!'), a: attr80('01') });
+                rows.push({ g: pad80('  • Click [? HELP] on the HUD for the full NetHack 3.6.7 Guidebook & Spoilers.'), a: attr80('0b') });
             }
             while (rows.length < TERM_H) rows.push({ g: pad80(''), a: attr80('01') });
             return rows;

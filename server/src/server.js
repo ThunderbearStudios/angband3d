@@ -1429,6 +1429,60 @@ const server = http.createServer((req, res) => {
         return;
     }
 
+    // REST: Per-Realm Official Help Files & Manuals (/api/help?realm=<realm>[&file=<name>])
+    if (pathname === '/api/help' && (req.method === 'GET' || req.method === 'HEAD')) {
+        const { listHelpFiles, readHelpFile } = require('./realm-help-files');
+        const rawRealm = String(urlObj.searchParams.get('realm') || 'angband').toLowerCase();
+        const realm = isValidRealm(rawRealm) ? rawRealm : 'angband';
+        const fileParam = urlObj.searchParams.get('file');
+        if (!fileParam) {
+            const files = listHelpFiles(realm);
+            res.writeHead(200, {
+                'Content-Type': 'application/json; charset=utf-8',
+                'Cache-Control': 'public, max-age=300'
+            });
+            res.end(JSON.stringify({ status: 'ok', realm, files }));
+            return;
+        }
+        const entry = readHelpFile(realm, fileParam);
+        if (!entry) {
+            res.writeHead(404, { 'Content-Type': 'application/json; charset=utf-8' });
+            res.end(JSON.stringify({ error: 'Help file not found for realm.' }));
+            return;
+        }
+        if (entry.isBinary) {
+            res.writeHead(200, {
+                'Content-Type': entry.contentType,
+                'Content-Length': entry.buffer.length,
+                'Content-Disposition': `inline; filename="${entry.name.replace(/"/g, '')}"`,
+                'Cache-Control': 'public, max-age=3600'
+            });
+            res.end(req.method === 'HEAD' ? undefined : entry.buffer);
+            return;
+        }
+        if (urlObj.searchParams.get('raw') === '1') {
+            res.writeHead(200, {
+                'Content-Type': entry.contentType,
+                'Content-Length': entry.buffer.length,
+                'Cache-Control': 'public, max-age=3600'
+            });
+            res.end(req.method === 'HEAD' ? undefined : entry.buffer);
+            return;
+        }
+        res.writeHead(200, {
+            'Content-Type': 'application/json; charset=utf-8',
+            'Cache-Control': 'public, max-age=3600'
+        });
+        res.end(JSON.stringify({
+            status: 'ok',
+            realm,
+            name: entry.name,
+            label: entry.label,
+            content: entry.text
+        }));
+        return;
+    }
+
     // REST: Server Capacity & Telemetry Status
     if (pathname === '/api/status' && req.method === 'GET') {
         const appVersion = CACHED_APP_VERSION;

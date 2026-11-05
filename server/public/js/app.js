@@ -2661,10 +2661,15 @@ window.addEventListener('DOMContentLoaded', () => {
                 <p class="guide-lead">${g.victoryGoal}</p>
                 <h4 style="margin-top: 14px; color: var(--yasd-text-heading); font-family: 'Cinzel', serif;">🗺️ Dungeon Progression & Key Branches</h4>
                 <div class="guide-card-grid">${branchHtml}</div>
-                <div class="guide-callout" style="margin-top:12px;">
-                    <strong>🎙️ Living Chronicle & Lorekeeper (${escapeHtml(realmMeta.voiceAccent)}):</strong> Open the <strong>📖 Tome</strong> on the top bar at any time during play to ask the Lorekeeper realm-specific survival questions, generate a dark-fantasy sketch of your current scene, or review your narrated adventure log.
+                <div class="guide-callout" style="margin-top:12px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+                    <div><strong>🎙️ Living Chronicle &amp; Official Help Files (${escapeHtml(realmMeta.voiceAccent)}):</strong> Open the <strong>📖 Tome</strong> on the top bar to ask the Lorekeeper survival questions, or browse all bundled upstream <strong>${escapeHtml(realmMeta.shortName)} Help Files &amp; Manuals</strong> in Tab 7.</div>
+                    <button type="button" class="btn-gold-outline" id="btn-guide-jump-helpfiles" style="font-size:0.76rem; padding:5px 12px; white-space:nowrap;">📜 Browse ${escapeHtml(realmMeta.shortName)} Help Files →</button>
                 </div>
             `;
+            const jumpBtn = document.getElementById('btn-guide-jump-helpfiles');
+            if (jumpBtn) {
+                jumpBtn.onclick = () => switchGuideTab(6);
+            }
         }
 
         // Tab 1: Core Realm Mechanics
@@ -2762,7 +2767,7 @@ window.addEventListener('DOMContentLoaded', () => {
             `;
         }
 
-        // Tab 6: Official References & Credits
+        // Tab 6: Official Bundled Help Files Reader & External References
         const tab6 = document.getElementById('guide-tab-6');
         if (tab6) {
             const refCards = g.refs.map((r) => `
@@ -2773,8 +2778,17 @@ window.addEventListener('DOMContentLoaded', () => {
                 </a>
             `).join('');
             tab6.innerHTML = `
-                <h3>Official ${escapeHtml(realmMeta.shortName)} Wikis, Manuals & Strategy Spoilers</h3>
-                <p class="guide-lead">Click any official reference below to open the canonical wiki, manual, or spoiler database for <strong>${escapeHtml(realmMeta.name)}</strong> in a new browser tab:</p>
+                <h3>📜 Bundled ${escapeHtml(realmMeta.shortName)} Help Files &amp; Official Manuals</h3>
+                <p class="guide-lead">Select any bundled help file, manual, or bestiary below to read it directly inside the game, or filter lines by keyword:</p>
+                <div class="guide-helpfile-toolbar" style="display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:8px;">
+                    <select id="guide-helpfile-select" aria-label="Select Realm Help File" style="flex:1 1 260px; min-width:200px; background:#14171d; color:var(--yasd-text-heading); border:1px solid var(--yasd-border-control); border-radius:4px; padding:6px 10px; font-size:0.82rem; font-weight:600;"></select>
+                    <input type="search" id="guide-helpfile-filter" placeholder="Filter lines in help file (e.g., dragon, pray, speed)..." aria-label="Filter help file lines" style="flex:1 1 200px; background:#101318; color:var(--yasd-text-prose); border:1px solid var(--yasd-border-iron); border-radius:4px; padding:6px 10px; font-size:0.8rem;" />
+                    <a id="guide-helpfile-raw-link" href="#" target="_blank" rel="noopener noreferrer" class="btn-gold-outline" style="font-size:0.75rem; padding:6px 10px; text-decoration:none; white-space:nowrap;">↗ Open Raw / PDF</a>
+                    <button type="button" id="btn-guide-native-term-help" class="btn-gold-outline" style="font-size:0.75rem; padding:6px 10px; white-space:nowrap;" title="Send '?' to the active game engine in Classic Terminal view">[?] Engine Terminal Help</button>
+                </div>
+                <div id="guide-helpfile-pills" style="display:flex; flex-wrap:wrap; gap:5px; margin-bottom:8px;"></div>
+                <pre id="guide-helpfile-viewer" style="background:#0d0f13; color:#d5dae3; border:1px solid var(--yasd-border-iron); border-radius:6px; padding:12px 14px; font-family:'JetBrains Mono','Fira Code',Consolas,monospace; font-size:0.76rem; line-height:1.48; max-height:310px; overflow:auto; white-space:pre-wrap; word-break:break-word; margin:0 0 16px 0; box-shadow:inset 0 2px 10px rgba(0,0,0,0.7);">Loading ${escapeHtml(realmMeta.shortName)} help files...</pre>
+                <h3 style="margin-top: 8px;">🌐 External ${escapeHtml(realmMeta.shortName)} Wikis &amp; Strategy Spoilers</h3>
                 <div class="guide-ref-grid">${refCards}</div>
                 <div class="guide-callout" style="margin-top: 16px;">
                     <strong>⚔️ YASD 3D / Angband 3D Multi-Realm Engine</strong><br>
@@ -2782,6 +2796,120 @@ window.addEventListener('DOMContentLoaded', () => {
                     Powered by authentic upstream open-source roguelike engines: NetHack 3.6.7, Dungeon Crawl Stone Soup 0.31, Vanilla Angband 4.2.6, Brogue CE 1.13, Classic Rogue 5.4.4, Sil-Q 1.5.0, FrogComposband 7.1, and Hengband 3.0.1.26.
                 </div>
             `;
+
+            const selectEl = document.getElementById('guide-helpfile-select');
+            const filterEl = document.getElementById('guide-helpfile-filter');
+            const viewerEl = document.getElementById('guide-helpfile-viewer');
+            const rawLinkEl = document.getElementById('guide-helpfile-raw-link');
+            const pillsEl = document.getElementById('guide-helpfile-pills');
+            const termHelpBtn = document.getElementById('btn-guide-native-term-help');
+            let currentRawContent = '';
+
+            if (termHelpBtn) {
+                termHelpBtn.onclick = () => {
+                    hideGuide();
+                    if (appState === 'game' && network) {
+                        if (input && !input.terminalMode) {
+                            toggleTerminalView();
+                        }
+                        network.sendKey('?');
+                    }
+                };
+            }
+
+            const renderFilteredText = () => {
+                if (!viewerEl) return;
+                const q = (filterEl && filterEl.value ? filterEl.value.trim().toLowerCase() : '');
+                if (!q) {
+                    viewerEl.textContent = currentRawContent;
+                    return;
+                }
+                const lines = currentRawContent.split(/\r?\n/);
+                const matched = [];
+                for (let i = 0; i < lines.length; i++) {
+                    if (lines[i].toLowerCase().includes(q)) {
+                        const start = Math.max(0, i - 1);
+                        const end = Math.min(lines.length - 1, i + 2);
+                        matched.push(`--- [Line ${i + 1}] ---`);
+                        for (let j = start; j <= end; j++) matched.push(lines[j]);
+                        i = end;
+                    }
+                }
+                viewerEl.textContent = matched.length > 0
+                    ? matched.join('\n')
+                    : `No lines matching "${filterEl.value}" in this help file. Try another file from the dropdown above.`;
+            };
+
+            if (filterEl) {
+                filterEl.addEventListener('input', renderFilteredText);
+            }
+
+            const loadSingleHelpFile = async (fileName, fileType) => {
+                if (!viewerEl || !fileName) return;
+                const rawUrl = `/api/help?realm=${encodeURIComponent(key)}&file=${encodeURIComponent(fileName)}&raw=1`;
+                if (rawLinkEl) rawLinkEl.href = rawUrl;
+                if (pillsEl) {
+                    pillsEl.querySelectorAll('button[data-help-file]').forEach((b) => {
+                        const active = b.getAttribute('data-help-file') === fileName;
+                        b.classList.toggle('active', active);
+                    });
+                }
+                if (fileType === 'pdf' || fileName.toLowerCase().endsWith('.pdf')) {
+                    currentRawContent = `[PDF Manual: ${fileName}]\n\nClick "↗ Open Raw / PDF" above (or click the link below) to view the full illustrated PDF manual in a browser tab:\n${window.location.origin}${rawUrl}`;
+                    viewerEl.innerHTML = `<div style="padding:10px;"><strong>📕 Illustrated PDF Manual (${escapeHtml(fileName)})</strong><br><br><a href="${escapeHtml(rawUrl)}" target="_blank" rel="noopener noreferrer" class="btn-gold" style="display:inline-block; padding:8px 16px; text-decoration:none; border-radius:4px;">↗ Open ${escapeHtml(fileName)} in New Tab</a></div>`;
+                    return;
+                }
+                viewerEl.textContent = `Loading ${fileName}...`;
+                try {
+                    const r = await fetch(`/api/help?realm=${encodeURIComponent(key)}&file=${encodeURIComponent(fileName)}`);
+                    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+                    const data = await r.json();
+                    currentRawContent = data.content || '';
+                    renderFilteredText();
+                    viewerEl.scrollTop = 0;
+                } catch (err) {
+                    viewerEl.textContent = `Unable to load help file (${fileName}): ${err.message}`;
+                }
+            };
+
+            fetch(`/api/help?realm=${encodeURIComponent(key)}`)
+                .then((r) => r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`)))
+                .then((data) => {
+                    if (guideActiveRealm !== key) return;
+                    const files = Array.isArray(data.files) ? data.files : [];
+                    if (!selectEl || files.length === 0) {
+                        if (viewerEl) viewerEl.textContent = 'No bundled help files found for this realm.';
+                        return;
+                    }
+                    selectEl.innerHTML = files.map((f) =>
+                        `<option value="${escapeHtml(f.name)}" data-type="${escapeHtml(f.type || 'text')}">${escapeHtml(f.label || f.name)}</option>`
+                    ).join('');
+                    if (pillsEl) {
+                        const topFiles = files.slice(0, 8);
+                        pillsEl.innerHTML = topFiles.map((f) =>
+                            `<button type="button" class="guide-realm-pill" data-help-file="${escapeHtml(f.name)}" data-help-type="${escapeHtml(f.type || 'text')}" style="font-size:0.71rem; padding:3px 8px;">${escapeHtml(f.label || f.name)}</button>`
+                        ).join('');
+                        pillsEl.querySelectorAll('button[data-help-file]').forEach((btn) => {
+                            btn.addEventListener('click', () => {
+                                const fn = btn.getAttribute('data-help-file');
+                                const ft = btn.getAttribute('data-help-type') || 'text';
+                                if (selectEl) selectEl.value = fn;
+                                loadSingleHelpFile(fn, ft);
+                            });
+                        });
+                    }
+                    selectEl.onchange = () => {
+                        const opt = selectEl.options[selectEl.selectedIndex];
+                        const ft = opt ? (opt.getAttribute('data-type') || 'text') : 'text';
+                        loadSingleHelpFile(selectEl.value, ft);
+                    };
+                    const firstText = files.find((f) => f.type !== 'pdf') || files[0];
+                    selectEl.value = firstText.name;
+                    loadSingleHelpFile(firstText.name, firstText.type);
+                })
+                .catch((err) => {
+                    if (viewerEl) viewerEl.textContent = `Could not fetch help file list: ${err.message}`;
+                });
         }
 
         // Ensure realm pill click listeners are bound once
