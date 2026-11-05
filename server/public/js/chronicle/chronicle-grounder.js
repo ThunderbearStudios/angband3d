@@ -61,6 +61,24 @@ class ChronicleGrounder {
             name: 'The Chronicles of the Mazes of Menace',
             badge: 'Oracle of Delphi',
             style: 'Atmospheric mythic chronicler of the Dungeons of Doom, noting sacred high altars, beatitude, faithful companions, and the quest for the Amulet of Yendor.'
+        },
+        zot: {
+            id: 'zot',
+            name: 'The Ecumenical Annals of Zot',
+            badge: 'Herald of Zot',
+            style: 'Tactical, sharp, and pantheon-aware chronicler of the Dungeon, Lair, Vaults, and the quest for the Runes and Orb of Zot.'
+        },
+        bioluminescent: {
+            id: 'bioluminescent',
+            name: 'The Codex of the Deep Caverns',
+            badge: 'Keeper of the Caverns',
+            style: 'Vivid, atmospheric chronicler of subterranean gases, glowing fungal vaults, Scrolls of Enchantment, liberated allies, and Lumenstones.'
+        },
+        original1980: {
+            id: 'original1980',
+            name: 'The 1980 Dungeons of Doom Grimoire',
+            badge: '1980 Dungeon Master',
+            style: 'Classic 1980s tabletop Dungeon Master gravitas, tracking dwindling food rations, A-to-Z monsters, and the Level 26 Amulet of Yendor.'
         }
     };
 
@@ -70,6 +88,9 @@ class ChronicleGrounder {
             case 'hengband': return 'easternmythos';
             case 'silq': return 'beleriand';
             case 'nethack': return 'delphic';
+            case 'dcss': return 'zot';
+            case 'brogue': return 'bioluminescent';
+            case 'rogue': return 'original1980';
             case 'angband':
             default:
                 return this.getTraditionForRace(race);
@@ -82,6 +103,9 @@ class ChronicleGrounder {
             case 'hengband': return 'Miyamoto Musashi';
             case 'frogcomposband': return 'Corwin of Amber';
             case 'nethack': return 'The Oracle of Delphi';
+            case 'dcss': return 'The Archivist of Zot';
+            case 'brogue': return 'The Warden of the Caverns';
+            case 'rogue': return 'The Master of the Dungeons of Doom';
             case 'angband':
             default:
                 return 'Master Elrond';
@@ -94,6 +118,9 @@ class ChronicleGrounder {
             case 'hengband': return 'Kensei of the Two Heavens & Chronicler of Bushido';
             case 'frogcomposband': return 'Prince of Amber & Master of the Pattern';
             case 'nethack': return 'Seer of the Mazes of Menace & Chronicler of Yendor';
+            case 'dcss': return 'High Archivist of the Ecumenical Temple & Keeper of the Runes';
+            case 'brogue': return 'Keeper of the Bioluminescent Vaults & Lumenstone Sage';
+            case 'rogue': return '1980 Dungeon Master of the Original Dungeons of Doom';
             case 'angband':
             default:
                 return 'Master of Rivendell & Chronicler of the Elder Days';
@@ -118,7 +145,7 @@ class ChronicleGrounder {
                 return {
                     realm: 'nethack',
                     chronicler: 'Master Chronicler of the Mazes of Menace and Keeper of the Delphic Scrolls',
-                    lorekeeperName: 'The Chronicler of Yendor',
+                    lorekeeperName: 'The Oracle of Delphi',
                     lorekeeperTitle: 'Seer of the Mazes of Menace & Chronicler of Yendor',
                     setting: 'The Dungeons of Doom, the Gnomish Mines, Sokoban, and Gehennom, in the sacred quest to wrest the Amulet of Yendor for the high gods',
                     traditionKey: 'delphic',
@@ -126,6 +153,48 @@ class ChronicleGrounder {
                     dialogueStyle: 'Classic dungeon fantasy gravity with wry observational wit, reverent of high altars, beatitude, and mortal peril',
                     voice: 'en-GB-RyanNeural',
                     recommendedVoice: 'en-GB-RyanNeural',
+                    geminiVoice: 'Enceladus'
+                };
+            case 'dcss':
+                return {
+                    realm: 'dcss',
+                    chronicler: 'High Archivist of the Ecumenical Temple and Herald of Zot',
+                    lorekeeperName: 'The Archivist of Zot',
+                    lorekeeperTitle: 'High Archivist of the Ecumenical Temple & Keeper of the Runes',
+                    setting: 'The Dungeon of Zot, the Lair of Beasts, the Orcish Mines, the Vaults, and the Depths, seeking three Runes of Zot and the Orb of Zot',
+                    traditionKey: 'zot',
+                    style: 'Tactical, sharp, and pantheon-aware chronicler of the Dungeon, Lair, Vaults, and the quest for the Runes and Orb of Zot',
+                    dialogueStyle: 'Crisp tactical fantasy counsel, mindful of divine piety, branch danger, and skill mastery',
+                    voice: 'en-GB-RyanNeural',
+                    recommendedVoice: 'en-GB-RyanNeural',
+                    geminiVoice: 'Enceladus'
+                };
+            case 'brogue':
+                return {
+                    realm: 'brogue',
+                    chronicler: 'The Warden of the Bioluminescent Caverns and Keeper of the Lumenstones',
+                    lorekeeperName: 'The Warden of the Caverns',
+                    lorekeeperTitle: 'Keeper of the Bioluminescent Vaults & Lumenstone Sage',
+                    setting: 'The 26 bioluminescent depths of the Dungeons of Doom and the deeper Lumenstone abyss (Depths 27–40)',
+                    traditionKey: 'bioluminescent',
+                    style: 'Vivid, atmospheric chronicler of subterranean gases, glowing fungal vaults, Scrolls of Enchantment, liberated allies, and Lumenstones',
+                    dialogueStyle: 'Measured, observant cavern sage focused on item synergy, terrain traps, and tactical positioning',
+                    voice: 'en-GB-RyanNeural',
+                    recommendedVoice: 'en-GB-RyanNeural',
+                    geminiVoice: 'Enceladus'
+                };
+            case 'rogue':
+                return {
+                    realm: 'rogue',
+                    chronicler: 'The Master of the Original 1980 Dungeons of Doom',
+                    lorekeeperName: 'The Master of the Dungeons of Doom',
+                    lorekeeperTitle: '1980 Dungeon Master of the Original Dungeons of Doom',
+                    setting: 'The 26 classic flagstone floors of the 1980 Dungeons of Doom, facing the original A–Z monsters to claim the Amulet of Yendor',
+                    traditionKey: 'original1980',
+                    style: 'Classic 1980s tabletop Dungeon Master gravitas, tracking dwindling food rations, A-to-Z monsters, and the Level 26 Amulet of Yendor',
+                    dialogueStyle: 'Vintage 1980s Dungeon Master tone, direct, atmospheric, and watchful of the food clock and rust monsters',
+                    voice: 'en-GB-ThomasNeural',
+                    recommendedVoice: 'en-GB-ThomasNeural',
                     geminiVoice: 'Enceladus'
                 };
             case 'silq':
@@ -2758,6 +2827,49 @@ class ChronicleGrounder {
             return `宮本武蔵が授ける、${pName}よ。迷宮にて生き延びる要諦は、狭い一マスの通路に敵を誘い込み、常に退路と光源、そして帰還の巻物を絶やさぬことにある。心を静め、一太刀に魂を込めよ。`;
         }
 
+        // 0. REALM-SPECIFIC MECHANIC QUERIES (NetHack, DCSS, Brogue, Rogue)
+        if (rk === 'nethack') {
+            if (q.includes('altar') || q.includes('buc') || q.includes('bless') || q.includes('curse') || q.includes('beatitude')) {
+                return `In NetHack, every item is Blessed, Uncursed, or Cursed (BUC). Drop unknown gear onto a co-aligned High Altar ('d') to reveal its beatitude instantly, or let your pet walk over items—pets refuse to step on cursed objects unless forced!`;
+            }
+            if (q.includes('elbereth') || q.includes('engrave') || q.includes('scare')) {
+                return `Engraving 'Elbereth' upon the floor ('E', then '-' for fingers or a wand of fire/digging for permanent runes) causes most monsters to flee in terror! Stand squarely on the Elbereth tile and never attack from it, or you will smudge the dust.`;
+            }
+            if (q.includes('corpse') || q.includes('intrinsic') || q.includes('floating eye') || q.includes('eat')) {
+                return `Eat fresh corpses ('e') to gain permanent intrinsics: Floating Eyes grant Telepathy (kill them at range first!), Fire/Frost Beetles or Giants grant Fire/Cold/Strength, and Poisonous foes grant Poison Resistance. Never eat rotten corpses or Kobolds!`;
+            }
+            if (q.includes('pray') || q.includes('god') || q.includes('water') || q.includes('dip')) {
+                return `Invoke '#pray' only in mortal peril (Weak/Fainting from hunger, <15% HP, or lethal trouble) and wait at least 1,000 turns between prayers! Praying while standing on a co-aligned altar blesses water into Holy Water, and '#dip'ping a long sword at XL5+ in a fountain can forge Excalibur!`;
+            }
+        } else if (rk === 'dcss') {
+            if (q.includes('god') || q.includes('altar') || q.includes('piety') || q.includes('religion') || q.includes('ecumenical')) {
+                return `In DCSS, claim a deity early at an altar or in the Ecumenical Temple (D:4–D:7)! Press '^' to inspect your God's powers and wrath, and 'a' to invoke divine abilities. Trog, Okawaru, and Vehumet are powerhouse choices for early survival.`;
+            }
+            if (q.includes('skill') || q.includes('train') || q.includes('xp')) {
+                return `Press 'm' to open the DCSS Skill Training menu! Switch to Manual training ('/') and focus on 1–2 skills at a time: train your primary weapon to Mindelay first, backed by Fighting and Dodging/Armour.`;
+            }
+            if (q.includes('rune') || q.includes('branch') || q.includes('lair') || q.includes('zot') || q.includes('win') || q.includes('goal')) {
+                return `To win DCSS, follow the golden branch order: Dungeon (D:1–11) -> Lair (L:1–5) -> Orcish Mines (1–2) -> Dungeon (D:12–15) -> Two Lair Branches (Swamp/Shoals/Snake/Spider) for 2 Runes -> Vaults (V:1–4) -> Depths (U:1–4) -> 3rd Rune -> Realm of Zot (Z:1–5) for the Orb of Zot!`;
+            }
+        } else if (rk === 'brogue') {
+            if (q.includes('enchant') || q.includes('build') || q.includes('level') || q.includes('xp') || q.includes('scroll')) {
+                return `Brogue has zero XP levels! Your entire character build comes from Scrolls of Enchantment ('r') and Potions of Strength/Life ('q'). Save your Enchantment scrolls in early depths until you discover a worthy runic weapon, heavy armor, powerful staff, or charm in a vault!`;
+            }
+            if (q.includes('ally') || q.includes('captive') || q.includes('cage') || q.includes('vault')) {
+                return `Chained monsters in Brogue become loyal AI companions when you step on their cage release plate! In Treasure Vaults, you may take 1 item—and you can always return later to swap it for another item in the same vault as your build takes shape.`;
+            }
+            if (q.includes('lumenstone') || q.includes('amulet') || q.includes('win') || q.includes('goal')) {
+                return `Descend to Depth 26 of Brogue to claim the Amulet of Yendor and ascend to D1 for victory—or dive into the lethal Depths 27–40 to harvest up to 25 glowing Lumenstones for grandmaster mastery!`;
+            }
+        } else if (rk === 'rogue') {
+            if (q.includes('rust') || q.includes('aquator') || q.includes('armor')) {
+                return `Beware Aquators ('A') in Classic Rogue! Their touch never deals HP damage, but permanently rusts metal armor. Wear Leather Armor (which is immune to rust) or press 'T' to take off your enchanted plate mail before fighting an Aquator!`;
+            }
+            if (q.includes('scare') || q.includes('scroll')) {
+                return `In Classic Rogue 5.4, NEVER read ('r') a Scroll of Scare Monster! Instead, DROP ('d') it onto the floor and stand on top of it—no monster in the Dungeons of Doom can attack you while you stand on a Scroll of Scare Monster!`;
+            }
+        }
+
         // 1. POTIONS & HEALING
         if (q.includes('potion') || q.includes('quaff') || q.includes('heal') || q.includes('drink') || q.includes('cure')) {
             if (rk === 'silq') {
@@ -2873,21 +2985,41 @@ class ChronicleGrounder {
         }
 
         // 16. OBJECTIVES & DEFEAT
-        if (q.includes('morgoth') || q.includes('goal') || q.includes('objective') || q.includes('win') || q.includes('boss')) {
+        if (q.includes('morgoth') || q.includes('goal') || q.includes('objective') || q.includes('win') || q.includes('boss') || q.includes('amulet') || q.includes('yendor') || q.includes('orb')) {
+            if (rk === 'nethack') {
+                return `In NetHack, descend through the Dungeons of Doom, claim the Bell of Opening, Candelabrum of Invocation, and Book of the Dead, wrest the Amulet of Yendor from the High Priest of Moloch in Gehennom, and ascend through the Elemental Planes to offer the Amulet on your co-aligned High Altar on the Astral Plane!`;
+            }
+            if (rk === 'dcss') {
+                return `In Dungeon Crawl Stone Soup, collect at least 3 Runes of Zot from the dungeon branches, enter the Realm of Zot (Z:1–5), seize the Orb of Zot on Zot:5, and survive the demonic Orb Run all the way back to the D:1 entrance!`;
+            }
+            if (rk === 'brogue') {
+                return `In Brogue CE, descend 26 depths to retrieve the Amulet of Yendor (and optionally harvest Lumenstones on Depths 27–40), then ascend alive out of Depth 1!`;
+            }
+            if (rk === 'rogue') {
+                return `In Classic Rogue 5.4, survive all 26 floors of the Dungeons of Doom against the original A–Z monsters, pick up the Amulet of Yendor on Level 26, and climb all the way back to the surface!`;
+            }
             if (rk === 'silq') {
                 return `In Sil-Q, descend 20 levels (-250ft to -1000ft) beneath Thangorodrim. You do not seek to slay Morgoth—no mortal can! Your quest is to wrest a burning Silmaril from his Iron Crown with the Knife Angrist and escape into the starlight of Beleriand!`;
             }
             if (rk === 'frogcomposband') {
-                return `In FrogComposBand, brave the endless wilderness, evolve your chosen monster race or master your class, conquer unique multiversal lords, and plunge to the final depth to challenge the dread sovereign!`;
+                return `In FrogComposBand, brave the endless wilderness, evolve your chosen monster race or master your class, conquer unique multiversal lords, and plunge to DL99–100 to defeat Oberon and the Serpent of Chaos!`;
             }
             if (rk === 'hengband') {
-                return `In Hengband, master Bushido or the arcane arts, fulfill daily bounties at the Kagura shrine, defeat the legendary warlords and yokai of the realm, and banish the ultimate shadow beneath Angband!`;
+                return `In Hengband, master Bushido or the arcane arts, fulfill castle quests and bounties, defeat Oberon on DL99, and vanquish the Serpent of Chaos (Jörmungandr) on DL100!`;
             }
             return `Descend 100 deep levels beneath the Iron Mountains. Slay Sauron the Sorcerer on Level 99, then vanquish the Dark Vala Morgoth Bauglir on Level 100 to claim victory for Middle-earth!`;
         }
 
         // General in-character survival counsel attuned to realm
-        if (rk === 'silq') {
+        if (rk === 'nethack') {
+            return `The Oracle of Delphi counsels you, ${pName}. In the Mazes of Menace, test unknown gear on altars or via your pet, engrave 'Elbereth' when cornered, eat fresh corpses for elemental resistances, and save your prayers for mortal peril.`;
+        } else if (rk === 'dcss') {
+            return `The Archivist of Zot counsels you, ${pName}. Train your primary offensive skill to mindelay first ('m'), claim a deity early in the Ecumenical Temple, retreat upstairs before your HP drops below 40%, and never fight multiple uniques in open space.`;
+        } else if (rk === 'brogue') {
+            return `The Warden of the Caverns counsels you, ${pName}. Save your Scrolls of Enchantment until you discover a defining vault weapon, staff, or charm, use terrain gases and chasms against foes, and test unknown potions safely on cleared floors.`;
+        } else if (rk === 'rogue') {
+            return `The Master of the Dungeons of Doom counsels you, ${pName}. Watch your food clock closely, remove metal armor before fighting Aquators, fight in 1-tile doorways, and drop Scrolls of Scare Monster on the floor rather than reading them!`;
+        } else if (rk === 'silq') {
             return `Daeron of Doriath speaks, ${pName}. In the shadowed halls beneath Thangorodrim, subtlety is your greatest shield. Master the songs of weaving, husband your light, forge arms at the secret anvils, and remember that combat here is measured in wound thresholds rather than vast pools of health.`;
         } else if (rk === 'hengband') {
             return `Miyamoto Musashi counsels you, ${pName}. In this realm of Bushido and Eastern Mythos, keep your blade keen, your spirit tranquil, and let your Ki flow into every decisive strike. Never let your guard slip before the demons of the dark!`;

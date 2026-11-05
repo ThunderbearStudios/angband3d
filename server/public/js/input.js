@@ -2275,14 +2275,14 @@ class InputController {
         if (guideHudBtn) {
             guideHudBtn.addEventListener('click', (ev) => {
                 if (ev && ev.target && typeof ev.target.blur === 'function') ev.target.blur();
-                if (window.__app && window.__app.showGuide) window.__app.showGuide(1, 'game');
+                if (window.__app && window.__app.showGuide) window.__app.showGuide(0, 'game');
             });
         }
         const quickHelpBtn = document.getElementById('btn-quick-help');
         if (quickHelpBtn) {
             quickHelpBtn.addEventListener('click', (ev) => {
                 if (ev && ev.target && typeof ev.target.blur === 'function') ev.target.blur();
-                if (window.__app && window.__app.showGuide) window.__app.showGuide(1, 'game');
+                if (window.__app && window.__app.showGuide) window.__app.showGuide(0, 'game');
             });
         }
 

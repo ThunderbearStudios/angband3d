@@ -1501,28 +1501,142 @@ window.addEventListener('DOMContentLoaded', () => {
     const queueLoreText = document.getElementById('queue-lore-text');
     const btnQueueCancel = document.getElementById('btn-queue-cancel');
 
-    // Rotating Angband Lore & Tactical Tips for Queue Screen
-    const QUEUE_TIPS = [
-        "Corridor Funneling: Never fight multiple monsters in open rooms where they can surround you! Retreat into a 1-tile corridor so foes engage you one by one.",
-        "Speed is King: Speed is multiplicative in Angband. Boots, rings, and potions of speed allow you to take multiple actions for every single monster turn.",
-        "Emergency Escapes: Always keep at least 5 Scrolls of Phase Door and 3 Scrolls of Teleportation in your pack. Fleeing when low on health is essential.",
-        "Light is Life: Subterranean corridors are pitch black. Unlit tiles prevent you from spotting approaching threats. Keep extra torches and oil stocked.",
-        "Stairs & Safe Retreat: If a dungeon floor feels too dangerous, ascend back up the staircase immediately to reset the floor and regroup in Town.",
-        "Instant Camera Turning: In Angband 3D, turning your camera left or right costs 0 game turns, so you can freely scout around corners without danger."
-    ];
+    // Rotating Realm-Specific Lore & Tactical Tips for Queue Screen
+    const REALM_QUEUE_TIPS = {
+        nethack: [
+            "BUC Beatitude: Every item is Blessed, Uncursed, or Cursed. Drop items on a co-aligned High Altar or let your pet walk over them before equipping!",
+            "Engrave Elbereth: Press [E] and write 'Elbereth' in the dust (or burn it with a wand of fire/digging) to make most adjacent monsters flee.",
+            "Corpse Intrinsics: Eat fresh Floating Eye corpses [e] for Telepathy, and Fire/Frost/Poison creatures to gain permanent elemental resistances.",
+            "Sacred Prayer: Invoke [#pray] only in mortal peril (<15% HP, Weak/Fainting from hunger, or petrification) and wait 1,000+ turns between prayers.",
+            "Excalibur & Dipping: Lawful heroes at XL5+ can [#dip] a long sword into fountains for a chance to draw the artifact blade Excalibur!"
+        ],
+        dcss: [
+            "Manual Skill Focus: Press [m] and switch to Manual training [/]. Focus on your primary weapon skill to Mindelay first, backed by Fighting.",
+            "Ecumenical Pantheon: Claim a God early in the Ecumenical Temple (D:4–D:7)! Press [^] to inspect piety and [a] to invoke divine abilities.",
+            "Golden Branch Order: Dungeon (D:1–11) -> Lair (L:1–5) -> Orc (1–2) -> Dungeon (D:12–15) -> Two Lair Rune Branches -> Vaults (V:1–4) -> Depths -> Zot!",
+            "Three-Staircase Rule: Every DCSS floor has 3 up and 3 down staircases. Pull dangerous packs upstairs so only adjacent monsters follow you!",
+            "Auto-Explore & Tab Discipline: Press [o] to auto-explore, but stop pressing [Tab] the moment a unique monster or pack enters line of sight."
+        ],
+        angband: [
+            "Corridor Funneling: Never fight multiple monsters in open rooms where they can surround you! Retreat into a 1-tile corridor so foes engage you one by one.",
+            "Speed is King: Speed is multiplicative in Angband. At +10 speed you take two actions for every single normal monster turn.",
+            "Emergency Escapes: Always keep at least 5 Scrolls of Phase Door and 3 Scrolls of Teleportation in your pack. Fleeing at 30% HP is essential.",
+            "Word of Recall Timing: Scrolls of Word of Recall take 15–25 turns to activate. Read [r] it while still healthy in a safe corridor!",
+            "Base 5 Resistances: Cover Acid, Electricity, Fire, Cold, and Poison resistance plus Free Action before diving past Depth 30 (1500ft)."
+        ],
+        brogue: [
+            "Zero XP Levels: Brogue has no experience levels! Your entire build is shaped by Scrolls of Enchantment [r] and Potions of Strength/Life [q].",
+            "Treasure Vault Swapping: You may take 1 item from each Treasure Vault—and you can return to that vault anytime later to swap it for another item!",
+            "Trial Identification: Carry unknown potions and scrolls until your pack is full, then test-use them on a cleared floor near water and outside gas.",
+            "Captive Allies: Step on pressure plates to free chained monsters—they become loyal companions that fight alongside you through the depths.",
+            "Gas & Terrain Warfare: Lure monsters into paralytic or confusion gas traps, or ignite bog gas with a Staff of Firebolt for massive explosions!"
+        ],
+        rogue: [
+            "The 1980 Food Clock: Hunger is relentless in Classic Rogue. Search [s] quickly, don't linger on cleared floors, and watch ring hunger drain!",
+            "Aquator Rust Defense: Aquators ('A') never deal HP damage, but rust metal armor! Wear Leather Armor or unequip [T] metal mail before fighting them.",
+            "Scroll of Scare Monster Trick: NEVER read [r] a Scroll of Scare Monster! Drop [d] it on the floor and stand on it—no monster can attack you there.",
+            "26 Floors to Yendor: Descend to Level 26, claim the Amulet of Yendor, and fight your way back up to Level 1 to win.",
+            "Doorway Bottlenecks: Fight Centaurs, Trolls, and Griffins in 1-tile room doorways so you are never flanked in open chambers."
+        ],
+        silq: [
+            "The Silmaril Heist: Descend to 1,000ft, slay Carcharoth, wrest the Knife Angrist, cut a Silmaril from Morgoth's Crown, and escape to the surface!",
+            "Stealth & Song: There are no spellbooks or shops in Sil-Q. Press [s] to weave Songs of Power and [Tab] to invest XP into your 8 Skill Trees.",
+            "Subterranean Forges: Press [0] when standing on an ancient Forge to craft custom weapons, armor, and rings using your Smithing skill.",
+            "Remove vs Read: In Sil-Q, [w] wields/wears equipment and [r] REMOVES equipment! Use [u] to use staves and [p] to blow horns.",
+            "Wound Thresholds & Grace: Protection armor rolls XdY damage reduction every hit, while Grace (GRA) fuels your Songs, Will, and Smithing."
+        ],
+        frogcomposband: [
+            "Overland Wilderness: Press [O] or [<] at town borders to enter the Overland Map and travel between Outpost, Morivant, Angwil, Telmora, and 15+ dungeons!",
+            "Monster Races & Evolution: Play as a Dragon, Beholder, Lich, or Ring! Monster races evolve into stronger forms at experience level thresholds.",
+            "Quests & Bounties: Press [Q] to check active Castle Quests, wilderness lairs, and monster bounties for guaranteed artifact rewards.",
+            "Racial & Class Powers: Press [U] to invoke innate racial powers, Chaos Patron gifts, Warlock pacts, or Duelist techniques.",
+            "Endgame Lords: Prepare Free Action, Confusion/Blindness resistance, and +20 Speed before facing Oberon (DL99) and the Serpent of Chaos (DL100)."
+        ],
+        hengband: [
+            "Ten Magic Realms: Casters choose up to two realms (Life, Sorcery, Nature, Chaos, Death, Trump, Arcane, Craft, Daemon, Crusade). Press [m] to cast.",
+            "Bushido & Ninjutsu: Press [U] to switch Samurai stances, weave Ninja Kawarimi/techniques, or channel Mindcrafter Psi and Mirror-Master arts.",
+            "Four Towns & Arena: Press [O] on the surface to travel between Outpost, Telmora, Morivant, and Zul, or challenge the Monster Arena for prizes!",
+            "Bilingual & Kanji Mode: Press [Alt+L] at any time to switch seamlessly between English, Bilingual (EN/漢), and pure Japanese Kanji.",
+            "Serpent of Chaos: Fulfill Royal Quests [Q], defeat Oberon at DL99, and vanquish Jörmungandr, the Serpent of Chaos, at DL100!"
+        ]
+    };
+    const REALM_CHRONICLE_CHIPS = {
+        nethack: [
+            { label: '🏺 Altars & BUC', query: 'How do altars and BUC beatitude work in NetHack?' },
+            { label: '✨ Elbereth', query: 'How do I engrave Elbereth in NetHack?' },
+            { label: '🍖 Corpses', query: 'Which corpses give resistances and telepathy in NetHack?' },
+            { label: '🙏 Praying', query: 'When is it safe to pray or dip in NetHack?' },
+            { label: '🏆 Ascension', query: 'What is the full path to win and ascend in NetHack?' }
+        ],
+        dcss: [
+            { label: '🙏 Gods & Altars', query: 'How do gods, altars, and piety work in DCSS?' },
+            { label: '📈 Skill Training', query: 'How should I train skills in DCSS?' },
+            { label: '🗺️ Branch Order', query: 'What is the recommended branch and rune order in DCSS?' },
+            { label: '🔮 Runes & Zot', query: 'How do I get 3 Runes and the Orb of Zot?' },
+            { label: '💻 Terminal', query: 'How does the classic terminal view work?' }
+        ],
+        angband: [
+            { label: '🧪 Quaff & Heal', query: 'How do I quaff potions and heal?' },
+            { label: '🏪 Town Shops', query: 'How do shops and the Home work in town?' },
+            { label: '⚡ Speed & Escapes', query: 'Why are speed and phase door scrolls so important?' },
+            { label: '🛡️ Resistances', query: 'Which resistances do I need before deep levels?' },
+            { label: '🏆 Morgoth', query: 'How do I prepare for Sauron and Morgoth?' }
+        ],
+        brogue: [
+            { label: '📜 Enchantment', query: 'How do Scrolls of Enchantment and builds work in Brogue?' },
+            { label: '🏛️ Vaults', query: 'How do Treasure Vaults and item swapping work in Brogue?' },
+            { label: '🐒 Captive Allies', query: 'How do captive monster allies work in Brogue?' },
+            { label: '💎 Lumenstones', query: 'How do I get the Amulet and Lumenstones in Brogue?' },
+            { label: '💻 Terminal', query: 'How does the classic terminal view work?' }
+        ],
+        rogue: [
+            { label: '🍖 Food Clock', query: 'How do I manage food and hunger in Classic Rogue?' },
+            { label: '🛡️ Aquator Rust', query: 'How do I protect my armor from Aquators in Rogue?' },
+            { label: '📜 Scare Monster', query: 'How does the Scroll of Scare Monster trick work in Rogue?' },
+            { label: '🏆 Level 26 Amulet', query: 'How do I retrieve the Amulet of Yendor on Level 26?' },
+            { label: '💻 Terminal', query: 'How does the classic terminal view work?' }
+        ],
+        silq: [
+            { label: '🎵 Songs of Power', query: 'How do Songs of Power work in Sil-Q?' },
+            { label: '⚒️ Smithing', query: 'How do Forges and Smithing work in Sil-Q?' },
+            { label: '🌳 Skill Trees', query: 'How do the 8 Skill Trees and attributes work in Sil-Q?' },
+            { label: '💎 Silmaril Heist', query: 'How do I cut a Silmaril from Morgoth in Sil-Q?' },
+            { label: '🗡️ Wield & Remove', query: 'How do I equip and remove gear in Sil-Q?' }
+        ],
+        frogcomposband: [
+            { label: '🗺️ Wilderness', query: 'How does the overland wilderness map work in FrogComposBand?' },
+            { label: '🐉 Monster Races', query: 'How do playable monster races and evolution work?' },
+            { label: '🔮 Powers [U]', query: 'How do racial and class powers work in FrogComposBand?' },
+            { label: '📜 Quests [Q]', query: 'How do quests and bounties work in FrogComposBand?' },
+            { label: '🏆 Serpent of Chaos', query: 'How do I defeat Oberon and the Serpent of Chaos?' }
+        ],
+        hengband: [
+            { label: '⚔️ Bushido & Powers', query: 'How do Samurai stances, Ninjutsu, and class powers work in Hengband?' },
+            { label: '📖 Magic Realms', query: 'How do the 10 magic realms work in Hengband?' },
+            { label: '🗺️ Towns & Quests', query: 'How do overland towns and quests work in Hengband?' },
+            { label: '🌐 Kanji / EN', query: 'How do I toggle English and Japanese Kanji mode?' },
+            { label: '🏆 Serpent of Chaos', query: 'How do I defeat Oberon and the Serpent of Chaos in Hengband?' }
+        ]
+    };
     let queueTipIndex = 0;
     let queueTipTimer = null;
 
+    function getActiveQueueTips() {
+        return REALM_QUEUE_TIPS[activeRealm] || REALM_QUEUE_TIPS.angband;
+    }
+
     function startQueueTipRotation() {
         if (queueTipTimer) clearInterval(queueTipTimer);
-        queueTipIndex = Math.floor(Math.random() * QUEUE_TIPS.length);
-        if (queueLoreText) queueLoreText.textContent = QUEUE_TIPS[queueTipIndex];
+        const tips = getActiveQueueTips();
+        queueTipIndex = Math.floor(Math.random() * tips.length);
+        if (queueLoreText) queueLoreText.textContent = tips[queueTipIndex];
         queueTipTimer = setInterval(() => {
-            queueTipIndex = (queueTipIndex + 1) % QUEUE_TIPS.length;
+            const curTips = getActiveQueueTips();
+            queueTipIndex = (queueTipIndex + 1) % curTips.length;
             if (queueLoreText) {
                 queueLoreText.style.opacity = '0';
                 setTimeout(() => {
-                    queueLoreText.textContent = QUEUE_TIPS[queueTipIndex];
+                    queueLoreText.textContent = curTips[queueTipIndex];
                     queueLoreText.style.opacity = '1';
                 }, 300);
             }
@@ -1597,7 +1711,10 @@ window.addEventListener('DOMContentLoaded', () => {
         hideModals(splashOverlay);
         if (splashOverlay) splashOverlay.classList.remove('hidden');
         if (input) input.setTerminalMode(false);
-        if (audio) audio.playMenuNav();
+        if (audio) {
+            audio.playMenuNav();
+            if (typeof audio.startMenuMusic === 'function') audio.startMenuMusic();
+        }
         renderMenuBackdropDiorama();
     }
 
@@ -1607,7 +1724,10 @@ window.addEventListener('DOMContentLoaded', () => {
         hideModals(mainMenuOverlay);
         if (mainMenuOverlay) mainMenuOverlay.classList.remove('hidden');
         if (input) input.setTerminalMode(false);
-        if (audio) audio.playMenuOpen();
+        if (audio) {
+            audio.playMenuOpen();
+            if (typeof audio.startMenuMusic === 'function') audio.startMenuMusic();
+        }
         if (window.MenuRouter && typeof window.MenuRouter.clearPending === 'function') {
             window.MenuRouter.clearPending();
         }
@@ -2125,6 +2245,560 @@ window.addEventListener('DOMContentLoaded', () => {
         if (action) action();
     }
 
+    // =========================================================================
+    // 8-Realm Dynamic Survival Guide, Mechanics, Keybinds & Official References
+    // =========================================================================
+    let guideActiveRealm = activeRealm || 'angband';
+
+    const REALM_SURVIVAL_GUIDES = {
+        nethack: {
+            title: 'NetHack 3.6.7 — The Mazes of Menace',
+            subtitle: '50+ Levels • Sokoban, The Gnomish Mines, Vlad\'s Tower, Gehennom & The Astral Plane',
+            victoryGoal: 'Descend through the Dungeons of Doom and Gehennom, slay the <strong>Wizard of Yendor (Rodney)</strong>, perform the Invocation Ritual on the vibrating square, retrieve the genuine <strong>Amulet of Yendor</strong> from the Moloch Sanctum, and ascend through the Elemental & Astral Planes to offer the Amulet on your co-aligned High Altar.',
+            branches: [
+                { name: 'Dungeons of Doom (DL 1–29)', desc: 'Main trunk featuring Oracle (DL 5–9), Sokoban above it, Big Room, Medusa\'s Island, and The Castle (Wand of Wishing).' },
+                { name: 'The Gnomish Mines (DL 2–4 fork)', desc: 'Dark caverns leading to Minetown (guaranteed temple & shops) and Mine\'s End (guaranteed luckstone).' },
+                { name: 'Quest Branch (DL 11–16 portal)', desc: 'Role-specific trials unlocked at Experience Level 14; grants your role\'s Quest Artifact and the Bell of Opening.' },
+                { name: 'Gehennom & Sanctum (DL 25–50+)', desc: 'Demon princes, Vlad\'s Tower (Candelabrum of Invocation), Wizard\'s Tower (Book of the Dead), and Moloch\'s Sanctum.' }
+            ],
+            mechanics: [
+                { icon: '⚖️', title: 'BUC Status (Blessed / Uncursed / Cursed)', desc: 'Every item has a BUC state. <strong>Cursed gear welds to your body!</strong> Drop unidentified items onto any temple altar or let your pet walk over them (pets avoid cursed items) before equipping.' },
+                { icon: '🍖', title: 'Corpse Intrinsics & Dangerous Bites', desc: 'Press <kbd>e</kbd> to eat fresh corpses for permanent intrinsics (Floating Eye = Telepathy, Fire Ant = Fire Resistance). <strong>Never eat Kobolds, Medusa, Green Slimes, or Cockatrices</strong> (instant illness or petrification).' },
+                { icon: '✒️', title: 'Elbereth & Prayer Cooldowns', desc: 'Engrave (<kbd>E</kbd>) <code>Elbereth</code> on the floor with fingers, weapons, or a wand of fire/lightning to scare off most melee monsters. Pray (<kbd>#pray</kbd>) in emergencies (Weak from hunger or < 15% HP), then wait 800+ turns.' },
+                { icon: '🪨', title: 'Cockatrice Petrification Hazard', desc: 'Touching a cockatrice or chickatrice corpse <strong>without gloves</strong> turns you to stone instantly. Wearing gloves lets you wield (<kbd>w</kbd>) a cockatrice corpse as a petrifying weapon!' }
+            ],
+            commands: [
+                ['#chat / #pray / #offer', 'Extended Command (#): talk to shopkeepers/priests, pray to your deity, or sacrifice corpses on an altar'],
+                ['e / q / r', 'Eat food or fresh monster corpse / Quaff potion / Read scroll or spellbook'],
+                ['w / W / T', 'Wield weapon / Wear armor / Take off armor'],
+                ['P / R', 'Put on ring, amulet, blindfold, or towel / Remove accessory'],
+                ['z / Z / a', 'Zap a wand / Cast a memorized spell / Apply tool (stethoscope, key, unicorn horn, lamp)'],
+                ['E / s / :', 'Engrave on floor (Elbereth or wand test) / Search adjacent tiles for hidden doors & traps / Look at floor'],
+                ['o / c / k', 'Open door / Close door / Kick door or chest (Ctrl+D also kicks)'],
+                ['d / D / ,', 'Drop single item / Drop multiple items by category / Pick up item on floor']
+            ],
+            tips: [
+                { title: 'Altars & Pet BUC Testing', body: 'Your starting dog, cat, or pony will reluctantly step on cursed items or avoid them completely. Drop unknown armor/weapons on the floor and watch your pet before putting them on.' },
+                { title: 'Shopkeepers & Price ID', body: 'Never pick up items inside a shop unless you can pay, and leave your pick-axe or mattock outside—shopkeepers become hostile if you bring digging tools inside!' },
+                { title: 'Unicorn Horn = Cure-All', body: 'Slaying a white, gray, or black unicorn yields a Unicorn Horn. Applying (<kbd>a</kbd>) an uncursed or blessed unicorn horn cures blindness, confusion, sickness, hallucination, and drained stats.' },
+                { title: 'Reflection & Magic Resistance', body: 'Before descending past Medusa and The Castle, secure both <strong>Reflection</strong> (Silver Dragon Scale Mail, Shield of Reflection, or Amulet of Reflection) and <strong>Magic Resistance</strong> (Gray Dragon Scale Mail or Cloak of Magic Resistance).' }
+            ],
+            statsAndMagic: {
+                title: 'Attributes, Alignment, Armor Class & Spellcasting',
+                summary: 'In NetHack, <strong>lower Armor Class (AC) is better</strong>—you start at AC 10 and aim for negative AC (-10 to -40). Alignment (Lawful, Neutral, Chaotic) dictates your deity, artifact reactions, and Quest eligibility.',
+                items: [
+                    ['STR (Strength, up to 18/**)', 'Melee to-hit, damage bonus, and carrying capacity before becoming Burdened/Stressed.'],
+                    ['DEX / CON / INT / WIS / CHA', 'DEX governs dodging & lockpicking; CON governs HP regen; INT/WIS govern arcane vs clerical spell failure; CHA lowers shop prices.'],
+                    ['Spell Memory & Armor Penalty', 'Reading a spellbook (<kbd>r</kbd>) teaches a spell for ~20,000 turns. Wearing metallic body armor or shields massively increases spell failure unless you are an experienced Valkyrie/Priest with Robe support.'],
+                    ['#enhance Weapon & Spell Skills', 'When <code>#enhance</code> lights up, open it to advance weapon & spell schools from Unskilled → Basic → Skilled → Expert.']
+                ]
+            },
+            refs: [
+                { name: 'NetHackWiki (Official Encyclopedia)', url: 'https://nethackwiki.com/wiki/Main_Page', desc: 'Complete database of every monster, intrinsic, wand engraving ID, Sokoban map, and ascension kit checklist.' },
+                { name: 'NetHack 3.6.7 Official Guidebook', url: 'https://www.nethack.org/v367/Guidebook.html', desc: 'The canonical DevTeam manual covering commands, symbols, options, and game rules.' },
+                { name: 'NetHack Strategy & Price ID Tables', url: 'https://nethackwiki.com/wiki/Price_identification', desc: 'Identify scrolls, potions, rings, and wands safely in Minetown shops before testing them.' }
+            ]
+        },
+        dcss: {
+            title: 'Dungeon Crawl Stone Soup 0.31 — The Orb of Zot',
+            subtitle: '27+ Branching Floors • Lair, Orcish Mines, Vaults, Pandemonium, Hell & The Realm of Zot',
+            victoryGoal: 'Explore the Dungeon and its branches, collect at least <strong>3 Runes of Zot</strong> (up to 15 Runes for an extended endgame across Pandemonium, Hell, and Tomb), enter the <strong>Realm of Zot (D:15)</strong>, seize the <strong>Orb of Zot</strong> on Zot:5, and fight your way back out to D:1.',
+            branches: [
+                { name: 'Dungeon (D:1–D:15) & Ecumenical Temple', desc: 'Find the Ecumenical Temple (D:4–D:7) early to worship one of 25+ Gods (Okawaru, Trog, Vehumet, Gozag, Ashenzari).' },
+                { name: 'Lair of Beasts (Lair:1–5) & Orcish Mines (Orc:1–2)', desc: 'Always clear Lair and Orc before pushing deep into D:12–15. Lair holds entrances to the S-Branches.' },
+                { name: 'S-Branches (Swamp, Shoals, Snake Pit, Spider Nest)', desc: 'Two spawn per run inside Lair. Clear both through floor 4 to earn your first <strong>2 Runes of Zot</strong>.' },
+                { name: 'Vaults (V:1–5), Depths (U:1–4) & Zot (Zot:1–5)', desc: 'Earn your 3rd Rune in Vaults:5, Slime Pits, or Abyss, clear Depths, then breach Zot:5 for the Orb!' }
+            ],
+            mechanics: [
+                { icon: '🗺️', title: 'Auto-Explore (o) & Auto-Fight (Tab)', desc: 'DCSS is designed around tactical positioning rather than tedious walking. Press <kbd>o</kbd> to auto-explore until danger appears, and <kbd>5</kbd> to rest to full HP/MP.' },
+                { icon: '⛩️', title: 'Pantheon of Gods & Piety (* to ******)', desc: 'Gods define your run. Press <kbd>a</kbd> to invoke divine abilities (Trog\'s Berserk/Brothers in Arms, Okawaru\'s Heroism/Finesse, Gozag\'s Potion Petition) BEFORE your HP drops below 40%!' },
+                { icon: '📈', title: 'Skill Training Menu (m)', desc: 'Press <kbd>m</kbd> to open the Skill screen. Focus XP on 1–2 primary offense skills (e.g., Axes, Long Blades, or Conjurations) until Mindelay, then train <strong>Fighting, Dodging, Armour, and Invocations</strong>.' },
+                { icon: '🪜', title: 'Three-Staircase Geometry & Pillar Dancing', desc: 'Every floor has 3 up-stairs and 3 down-stairs. Never fight packs in the open—lure 1–2 enemies up a staircase or into a 1-tile corridor.' }
+            ],
+            commands: [
+                ['o / 5 / Tab', 'Auto-explore current floor / Rest until HP & MP are full / Auto-fight nearest threat'],
+                ['m / A / ^', 'Open Skill Training menu / View Mutations & Innate Abilities / View worshipped God & Piety powers'],
+                ['a / z / Z', 'Use Divine, Evocable, or Species Ability / Cast spell / Force-cast spell'],
+                ['M / I', 'Memorize a spell from your spell Library / Inspect known spells'],
+                ['w / W / T', 'Wield weapon / Wear armor / Take off armor'],
+                ['P / R / =', 'Put on ring or amulet / Remove jewelry / Reassign inventory/spell hotkeys'],
+                ['f / Q / v', 'Fire ranged weapon or throw javelin/boomerang / Quiver action / Evoke wand or misc device'],
+                ['Ctrl+F / X', 'Search all discovered items across the entire dungeon / Level map overview & branch travel (G)']
+            ],
+            tips: [
+                { title: 'Standard 3-Rune Branch Order', body: 'Follow the proven survival route: <strong>D:1–10 → Lair:1–5 → Orc:1–2 → D:11–15 → S-Branch #1 (1–4) → S-Branch #2 (1–4) → Vaults:1–4 → Depths:1–4 → Vaults:5 (3rd Rune) → Zot:1–5</strong>.' },
+                { title: 'Identify Consumables Early', body: 'Read scrolls of Identify on stacks of 3+ potions (Curing, Haste, Might, Heal Wounds) and read unknown stack scrolls on cleared floors after Lair.' },
+                { title: 'Never Fight Hydras with Edged Blades', body: 'Cutting a Hydra in Lair with an un-flaming Long Blade or Axe severs heads and makes it grow TWO back! Use blunt weapons, wands, ranged weapons, or a Flaming brand.' },
+                { title: 'Check Monster Spells (x then v)', body: 'Before engaging unique monsters (Sigmund, Grinder, Mara, Boris, Ancient Liches), inspect them to see their max hit damage and hex/torment/banishment spells.' }
+            ],
+            statsAndMagic: {
+                title: 'AC / EV / SH Defenses, Skills & Spell Hungerless Casting',
+                summary: 'DCSS uses three defensive pillars: <strong>AC</strong> (Armour Class — reduces damage taken), <strong>EV</strong> (Evasion — dodges attacks completely), and <strong>SH</strong> (Shield — blocks melee and projectile attacks).',
+                items: [
+                    ['STR / INT / DEX', 'STR reduces heavy armor encumberance (aim for STR >= Armor Encumbrance Rating + 2); INT boosts spell power & success; DEX boosts EV, SH, and blades/ranged accuracy.'],
+                    ['Weapon Mindelay', 'Each weapon reaches its fastest attack speed (usually 0.7 aut) at a specific skill level (e.g., Broad Axe at 18 Axes, Demon Blade at 14 Long Blades). Stop training weapon skill once you hit Mindelay!'],
+                    ['Spellcasting & Schools', 'Spells in DCSS require MP and spell levels from the Spellcasting skill. Train the specific schools (e.g., Fire Magic + Conjurations) to reduce failure rate below 5%.'],
+                    ['Willpower (Will+) & Resistances (rF, rC, rPois, rElec, rN)', 'Before Vaults and Zot, stack at least <code>Will+++</code> to avoid paralysis/banishment and <code>rF++</code> against Orbs of Fire on Zot:5!']
+                ]
+            },
+            refs: [
+                { name: 'CrawlWiki (Official DCSS Wiki)', url: 'http://crawl.chaosforge.org/Crawl_Wiki', desc: 'Complete guides for every Species, Background, God, Branch, Monster, and 3-to-15 Rune strategy.' },
+                { name: 'Ultraviolent4\'s DCSS Guide', url: 'http://www.ultraviolent4.com/guide.html', desc: 'The gold-standard tactical manual for skilling, branch order, god choice, and Zot:5 positioning.' },
+                { name: 'DCSS Official In-Game Manual', url: 'https://github.com/crawl/crawl/blob/master/crawl-ref/docs/crawl_manual.rst', desc: 'Upstream reference documentation for DCSS mechanics, combat formulas, and keybindings.' }
+            ]
+        },
+        angband: {
+            title: 'Vanilla Angband 4.2.6 — The Pits of Morgoth',
+            subtitle: '100 Dungeon Depths (5,000 ft) • Town Outpost, Vaults, Greater Pits, Sauron (DL 99) & Morgoth (DL 100)',
+            victoryGoal: 'Build up your hero using the persistent Town shops and Home storage, descend through 100 dungeon levels, defeat <strong>Sauron, the Sorcerer</strong> at 4,950 ft (DL 99), and slay <strong>Morgoth, Lord of Darkness</strong> at 5,000 ft (DL 100).',
+            branches: [
+                { name: 'The Town (DL 0)', desc: 'Safe hub with 7 shops (General Store, Armory, Weapon Smiths, Temple, Alchemy, Magic Shop, Black Market) plus your Home (8) for storing endgame gear.' },
+                { name: 'Early Depths (DL 1–25 / 50–1,250 ft)', desc: 'Gather gold, secure Free Action + See Invisible, and buy Phase Door, Teleportation, and Cure Critical Wounds.' },
+                { name: 'Mid Depths & Stat Gain (DL 26–60 / 1,300–3,000 ft)', desc: 'Farm stat potions (Strength, Constitution, Speed) until CON and primary stats are maxed; secure all 4 Base Resistances.' },
+                { name: 'Deep Vaults & The Throne Room (DL 61–100)', desc: 'Greater Vaults, Wyrms, Ringwraiths, Sauron on DL 99, and Morgoth on DL 100.' }
+            ],
+            mechanics: [
+                { icon: '🏰', title: 'Non-Persistent Dungeon Levels', desc: 'Leaving a dungeon floor via stairs or Word of Recall <strong>permanently regenerates the floor</strong>. Never hoard loot on the dungeon floor—store keepers in your Town Home (Store 8)!' },
+                { icon: '🛡️', title: 'The Four Base Resistances & Free Action', desc: 'By DL 20 (1,000 ft), you MUST have <strong>Free Action</strong> (or a Carrion Crawler / Ghoul will paralyze-lock and kill you). By DL 30, secure Resist Acid, Elec, Fire, and Cold.' },
+                { icon: '📜', title: 'Word of Recall & Escape Stack', desc: 'Always carry 3+ Scrolls of Word of Recall (<kbd>r</kbd>). Reading one starts a 15–25 turn countdown before teleporting you between the Dungeon and Town—never wait until you are at 10% HP to read it!' },
+                { icon: '⚡', title: 'The Speed System (+10 to +30+)', desc: 'Speed is the most important late-game stat in Angband. At normal speed (+0), deep uniques move 2–3 times for every 1 action you take. Never dive past DL 50 without permanent Speed items and Potions of Speed.' }
+            ],
+            commands: [
+                ['m / b / G', 'Cast spell or prayer / Browse spellbook / Study & learn new spells when "Study" indicator glows'],
+                ['w / t / d', 'Wield or equip item / Take off equipped gear / Drop item'],
+                ['q / r / E', 'Quaff potion / Read scroll / Eat food or mushroom'],
+                ['u / z / a', 'Use staff / Zap rod / Aim wand'],
+                ['f / v / h', 'Fire ammo with launcher / Throw item / Fire default ammo at nearest target'],
+                ['< / > / R', 'Ascend up staircase / Descend down staircase / Rest (press & for full HP/MP rest)'],
+                ['o / c / T', 'Open door or chest / Close door / Tunnel through rubble or granite/quartz seams'],
+                ['C / I / ~', 'Character Sheet (Resistances & Modifiers) / Inspect item lore / Knowledge Menu (Uniques, Artifacts, Monsters)']
+            ],
+            tips: [
+                { title: 'Town Starter Checklist', body: 'Before stepping onto the down staircase (<kbd>&gt;</kbd>), buy Scrolls of Phase Door (Alchemy Shop 5) and Potions of Cure Light/Serious Wounds (Temple 4).' },
+                { title: 'Anti-Summoning Corridors', body: 'Never fight Summoners (Lich, Nazgul, Sauron, Morgoth) in open rooms. Fight inside 1-tile corridors or rubble/granite tunnels so summoned hounds and dragons cannot surround you.' },
+                { title: 'Detect Monsters & Traps', body: 'Use Rods/Staves/Spells of Detect Monsters, Detect Traps, and Magic Mapping whenever entering a new depth. Level Feelings ("You feel a nervous feeling...") warn you of deadly Uniques or Vaults.' },
+                { title: 'High Resistances (Poison, Chaos, Nether, Nexus, Confusion, Blindness)', body: 'Past DL 45, Ancient Multi-Hued Dragons and Dracolisks breathe Poison (up to 800 damage unresisted) and Confusion/Chaos. Check your Resistance grid (<kbd>C</kbd>) before engaging!' }
+            ],
+            statsAndMagic: {
+                title: 'Six Core Attributes, Blows/Round, Saving Throw & Magic Realms',
+                summary: 'Angband characters scale through equipment bonuses, Stat Potions (which permanently raise stats up to 18/100 base), and 9 distinct Classes across Arcane (Mage, Necromancer, Rogue, Ranger) and Divine/Nature (Priest, Paladin, Druid, Blackguard) magic.',
+                items: [
+                    ['STR & DEX → Blows per Round', 'Increasing STR and DEX with a lighter weapon unlocks extra melee attacks per turn (from 1.0 up to 5.0–6.0 blows/round), multiplying your DPS.'],
+                    ['CON → Hitpoint Multiplier', 'High CON exponentially increases HP at higher character levels—drinking Potions of Constitution between DL 30–40 is essential.'],
+                    ['Saving Throw & Stealth', 'Keep your Saving Throw near 95–100% to shrug off monster Hold/Mind Blast/Blindness curses; high Stealth lets you walk past sleeping packs of hounds.'],
+                    ['Rods, Wands & Staves (Device Skill)', 'Even Warriors rely on magical devices (Rods of Teleport Other, Illumination, Detection, Healing). High Device skill reduces activation failure.' ]
+                ]
+            },
+            refs: [
+                { name: 'Official Angband 4.2 Manual (ReadTheDocs)', url: 'https://angband.readthedocs.io/en/latest/', desc: 'Complete upstream documentation for Angband 4.2 classes, birth options, dungeon feelings, and combat mechanics.' },
+                { name: 'rephial.org (Official Angband Portal & Ladder)', url: 'https://rephial.org/', desc: 'Home of Vanilla Angband, winning character dumps, and strategy forums.' },
+                { name: 'Angband Resistances & Survival Checklist', url: 'https://angband.readthedocs.io/en/latest/dungeon.html', desc: 'Depth-by-depth resistance milestones, vault layouts, and monster breath damage caps.' }
+            ]
+        },
+        brogue: {
+            title: 'Brogue CE 1.13 — The Dungeons of Doom & Lumenstones',
+            subtitle: '40 Classless Depths • Vaults, Captive Allies, Caustic Gas, Lava Bridges & The Amulet of Yendor',
+            victoryGoal: 'Descend to <strong>Depth 26</strong> to retrieve the <strong>Amulet of Yendor</strong> and return to Depth 1 for a Standard Victory—or dive into the brutal <strong>Depths 27–40</strong> to harvest up to 25 <strong>Lumenstones</strong> for a Mastery Victory.',
+            branches: [
+                { name: 'Early Cavern Depths (D:1–D:6)', desc: 'Identify potions and scrolls safely, rescue captive Monkey/Goblin allies, and loot early Key Vaults.' },
+                { name: 'Mid Depths (D:7–D:15)', desc: 'Ogres, Wraiths, Centaurs, Dar Blademasters, Pixies, and Underworms. Commit your Scrolls of Enchantment to a core build!' },
+                { name: 'Deep Threats (D:16–D:26)', desc: 'Furies, Tentacle Horrors, Liches, Golems, and Dragons! Grab the Amulet of Yendor on D:26 (where the Warden of Yendor begins hunting you).' },
+                { name: 'Lumenstone Mastery Depths (D:27–D:40)', desc: 'Three Lumenstones spawn per floor (D:26–40), each reducing your field of vision unless offset by a Clairvoyance/Telepathy build.' }
+            ],
+            mechanics: [
+                { icon: '✨', title: 'Classless Progression via Scrolls of Enchantment', desc: 'There are <strong>NO XP levels or classes in Brogue</strong>! Your character grows SOLELY through <strong>Potions of Strength</strong>, <strong>Potions of Life</strong>, and <strong>Scrolls of Enchantment</strong> (which boost weapons, armor, rings, staves, and charms).' },
+                { icon: '🗝️', title: 'Interactive Key Vaults & Free Item Swapping', desc: 'Locked vaults let you take ONE item before the other cages lock—<strong>until you return the item!</strong> You can take a vault weapon/ring, test it for several floors to discover its runic/enchantment level, and return it to swap for another item!' },
+                { icon: '🔥', title: 'Environmental Terrain Physics (Gas, Fire, Water, Chasms)', desc: 'Throw Potions of Paralysis or Confusion into crowds, ignite Swamp Gas with a Firebolt staff or Incendiary Dart, lure Eels onto dry land, and knock non-flying monsters into Lava or Chasms.' },
+                { icon: '🐒', title: 'Captive Allies & Empowerment', desc: 'Free chained allies (Ogres, Naga, Troll, Priestess, Dar, Dragon). Using a Wand of Empowerment on an ally lets it learn monster abilities (healing, vampirism, blinking, fire immunity) from fallen foes!' }
+            ],
+            commands: [
+                ['e / z / <Space>', 'Auto-explore current depth / Rest until healed / Wait 1 turn'],
+                ['i / a / r / q', 'Open Inventory / Apply (use) any inventory item / Read scroll / Quaff potion'],
+                ['w / W / R', 'Equip weapon, armor, or ring / Remove equipped item'],
+                ['t / f', 'Throw weapon, dart, or harmful potion / Fire ranged dart or staff'],
+                ['s / > / <', 'Search adjacent tiles for hidden traps & doors / Descend stairs / Ascend stairs'],
+                ['x / D', 'Examine visible monsters, terrain gases, and items / Discoveries table (identified potions, scrolls, rings)'],
+                ['c / A', 'Call (label) an unidentified item / Toggle Autopilot mode']
+            ],
+            tips: [
+                { title: 'How to Safe-Test Potions & Scrolls', body: 'Once your pack is full around D:3–D:4, stand next to water (to extinguish Creeping Fire), away from items on the floor (so Incineration doesn\'t burn scrolls), and near stairs—then test Potions first (Strength & Life are always positive) followed by Scrolls.' },
+                { title: 'Strength Requirement Penalties', body: 'Every point of Strength below a weapon or armor\'s requirement imposes a harsh -2.5 level penalty to accuracy and defense. Each Scroll of Enchantment used on heavy gear both adds +1 AND lowers its Strength requirement by 1!' },
+                { title: 'Sneak Attacks & Shadow Sight', body: 'Every tile shows your stealth range as a dark shadow ring. Striking an unaware (wandering or sleeping) monster guarantees a <strong>3x damage Sneak Attack</strong> with 100% accuracy (6x with a Dagger)!' },
+                { title: 'Dealing with Corrosive Acid Mounds & Jellies', body: 'Never hit an Acid Mound or Acid Turret with your primary enchanted weapon or wearing your best armor—strip your armor (<kbd>R</kbd>) and throw darts or punch it barehanded so your gear never corrodes!' }
+            ],
+            statsAndMagic: {
+                title: 'Strength, Nutrition Clock, Staves, Charms & Rings',
+                summary: 'Brogue replaces mana points with self-recharging <strong>Staves</strong> (e.g., Lightning [4/4], Blinking [3/3], Obstruction, Conjuration) and cooldown-based <strong>Charms</strong> (Teleportation, Health, Negation, Haste, Protection).',
+                items: [
+                    ['Strength (Starts at 12)', 'Every Potion of Strength raises your Strength by +1, letting you equip heavier weapons (BroadSword, War Axe, War Hammer) and heavy Plate/Splint armor.'],
+                    ['Potions of Life', 'Permanently increases your maximum HP by ~25%, heals you to full, and cures poison/hallucination/weakness immediately.'],
+                    ['Rings (Regeneration, Wisdom, Clairvoyance, Reaping, Stealth)', 'Enchanting a Ring of Regeneration to +8..+12 heals you faster than most monsters can hurt you; Ring of Wisdom recharges staves every few turns.'],
+                    ['Runic Weapons & Armor', 'Unidentified weapons/armor can hold rare Runic powers (Quietus instant-kill, Paralysis, Multiplicity, Immunity, Absorption, Respiration, Reflection).']
+                ]
+            },
+            refs: [
+                { name: 'Brogue Wiki (Fandom Complete Guide)', url: 'https://brogue.fandom.com/wiki/Brogue_Wiki', desc: 'Complete database of Staves, Charms, Runic weapons/armor, monster stats, and Lumenstone builds.' },
+                { name: 'Brogue Community Edition (GitHub)', url: 'https://github.com/tmewett/BrogueCE', desc: 'Official Brogue CE 1.13 release notes, mechanics documentation, and seed sharing.' }
+            ]
+        },
+        rogue: {
+            title: 'Classic Rogue 5.4.4 — The Original 1980 Amulet of Yendor',
+            subtitle: '26 Classic Depths (A to Z) • Hunger Clock, Aquators, Leprechauns, Jabberwocks & Dragons',
+            victoryGoal: 'Survive the tight <strong>Food Rations clock</strong> across 26 increasingly deadly levels (where monsters from A to Z unlock progressively), claim the <strong>Amulet of Yendor</strong> on or below Level 26, and climb all the way back to Level 1 to see the light of day.',
+            branches: [
+                { name: 'Upper Caves (Levels 1–7)', desc: 'Bats, Emu, Hobgoblins, Ice Monsters, Rattlesnakes, and Orcs. Explore fast, find stairs, and conserve Food Rations.' },
+                { name: 'Middle Dungeon (Levels 8–16)', desc: 'Centaur, Leprechauns (steal gold), Nymphs (steal magic items), Quaggas, Rust Monsters (Aquators), and Trolls.' },
+                { name: 'The Deep Dark (Levels 17–25)', desc: 'Umber Hulks (confuse on sight), Vampires (drain max HP/STR), Wraiths (drain XP levels), Xorns, and Purple Worms.' },
+                { name: 'Amulet Depths & Ascent (Level 26+ → Level 1)', desc: 'Dragons (breath flame) and Jabberwocks! Once you touch the Amulet of Yendor, stairs can go UP (<), allowing your escape.' }
+            ],
+            mechanics: [
+                { icon: '🍞', title: 'The Relentless Hunger Clock', desc: 'Classic Rogue has NO town and NO shops—only the Food Rations you find on the floor. Do not linger on cleared floors; rings consume extra food every turn while worn!' },
+                { icon: '💧', title: 'Aquators (A) & Armor Rusting', desc: 'Starting around Level 9, <strong>Aquators (A)</strong> do zero HP damage—instead, every hit permanently lowers your Armor Class by 1 unless you wear Leather Armor, hold a Ring of Maintain Armor, or remove your armor before fighting them!' },
+                { icon: '📜', title: 'The Scroll of Scare Monster Trick', desc: 'In Rogue 5.4, reading a Scroll of Scare Monster is wasted—instead, <strong>DROP (<kbd>d</kbd>) the Scroll of Scare Monster on the floor and stand on it!</strong> No monster in the game can attack you while you stand on it (just don\'t pick it up twice, or it turns to dust).' },
+                { icon: '🏹', title: 'Ranged Bow & Thrown Weapon Tactics', desc: 'Soften Rattlesnakes (which drain Strength), Aquators, Centaurs, and Dragons from across the room with your Short Bow (<kbd>t</kbd> to throw/fire arrows) or Wands before they reach melee range.' }
+            ],
+            commands: [
+                ['s / . / > / <', 'Search adjacent walls for secret doors & traps (press s 2–3 times at dead-end corridors!) / Rest 1 turn / Go down stairs / Go up stairs (with Amulet)'],
+                ['e / q / r', 'Eat Food Ration or slime-mold / Quaff potion / Read scroll'],
+                ['w / W / T', 'Wield weapon / Wear armor / Take off armor (crucial before fighting Aquators!)'],
+                ['P / R', 'Put on ring (left or right hand) / Remove ring (saves food when exploring)'],
+                ['z / t / d', 'Zap wand or staff in a direction / Throw arrow, dart, or dagger / Drop item on floor'],
+                ['i / D / c', 'Inventory list / Discoveries (list all identified Potions, Scrolls, Rings, Staves) / Call (name) an item'],
+                ['^ / /', 'Identify adjacent trap type / Identify what a map symbol represents']
+            ],
+            tips: [
+                { title: 'Save Enchant Armor for Plate or Banded Mail', body: 'You start in Ring Mail (AC 7). Try to hold onto your Scrolls of Enchant Armor until you find Splint Mail (AC 4) or Plate Mail (AC 3), or until a Scroll of Protect Armor makes your suit rust-proof.' },
+                { title: 'Take Off Rings Between Fights', body: 'Most Rings (Regeneration, Slow Digestion is the exception!) burn 1–2 extra food units per turn. Put rings on (<kbd>P</kbd>) for tough rooms and remove them (<kbd>R</kbd>) while walking.' },
+                { title: 'Leprechauns (L) & Nymphs (N)', body: 'Drop a pile of gold or use ranged arrows/wands against Leprechauns; before fighting a Nymph adjacent to you, keep your best magic items safe or kill her from range so she doesn\'t steal from your pack and teleport away.' },
+                { title: 'Save Wands of Cancellation / Slow Monster for Deep Threats', body: 'A Wand of Cancellation strips special powers from Vampires (no drain), Wraiths (no XP drain), Umber Hulks (no gaze confusion), and Dragons (no fire breath)!' }
+            ],
+            statsAndMagic: {
+                title: 'Strength (16/16), Armor Class, Rings & Staves',
+                summary: 'Classic Rogue has two core combat stats: <strong>Strength</strong> (displayed as Current/Max, e.g., <code>16(16)</code>) and <strong>Armor Class</strong> (displayed as AC or Defense rating). Potions of Restore Strength recover all drained STR back to your max.',
+                items: [
+                    ['Strength & Rattlesnake Poison', 'Rattlesnakes (R) drain Strength unless you wear a Ring of Sustain Strength. Drinking a Potion of Gain Strength at full STR raises both Current and Max STR!'],
+                    ['Ring of Slow Digestion', 'The single most valuable item in Rogue—virtually eliminates hunger, letting you farm XP and heal to full on every floor.'],
+                    ['Ring of Regeneration & Maintain Armor', 'Regeneration heals 1 HP per turn (at higher food cost); Maintain Armor makes your armor immune to Aquator rust.'],
+                    ['Wands & Staves', 'Lightning, Fire, Cold (bounces off walls—never zap straight at a wall!), Polymorph, Teleport Away, Drain Life, and Cancellation.']
+                ]
+            },
+            refs: [
+                { name: 'A Guide to the Dungeons of Doom (Original 1980 Manual)', url: 'https://bsd.org/rogue.html', desc: 'Michael Toy & Kenneth Arnold\'s original UNIX manual for Rogue.' },
+                { name: 'Rogue 5.4 Monster & Item Spoiler Reference', url: 'https://strategywiki.org/wiki/Rogue/Monsters', desc: 'Complete table of A–Z monsters, level spawn ranges, XP values, and special attacks.' }
+            ]
+        },
+        silq: {
+            title: 'Sil-Q 1.5.0 — The Fortress of Angband (First Age)',
+            subtitle: '20 Dense Tactical Depths (50 ft to 1,000 ft) • Stealth, Song, Forging, Morgoth\'s Iron Crown & Silmarils',
+            victoryGoal: 'Infiltrate Morgoth\'s fortress of Angband down to <strong>1,000 ft (Depth 20)</strong>, prise at least <strong>one Silmaril</strong> from Morgoth\'s Iron Crown using an edged weapon, and escape all the way back to the Gates of Angband at 0 ft while the dungeon collapses in pursuit.',
+            branches: [
+                { name: 'Upper Guardrooms (50 ft – 350 ft)', desc: 'Orc patrols, Wargs, Spiders, and Forges. Invest XP into Melee/Evasion/Stealth and craft custom gear at glowing Forges.' },
+                { name: 'Deep Halls of Angband (400 ft – 950 ft)', desc: 'Trolls, Rauko (Balrogs), Dragons, Werewolves, and Silent Watchers. Forced descent applies—you cannot endlessly stair-scum!' },
+                { name: 'The Throne Room of Morgoth (1,000 ft)', desc: 'Morgoth the Bauglir sits upon his throne surrounded by Dragons and Balrogs. Wait for an opening or put him to sleep/terror, then cut a Silmaril free!' },
+                { name: 'The Ascent Under Pursuit (950 ft → Gates)', desc: 'Once a Silmaril is taken, the fortress shakes and enemies hunt you relentlessly until you breach the surface gates.' }
+            ],
+            mechanics: [
+                { icon: '🎲', title: 'Transparent Opposed d20 + d4 Combat Rolls', desc: 'No black-box RNG: Melee Accuracy vs Evasion rolls <code>1d20 + Melee</code> vs <code>1d20 + Evasion</code>. Exceeding defense by +10/+15/+20 adds Critical Hit damage dice! Heavy armor provides <code>XdY</code> Protection dice that absorb damage directly.' },
+                { icon: '🛠️', title: 'Skill Trees & Ability Unlocks (Tab / @)', desc: 'Spend XP directly at any time to raise 8 Skills (<strong>Melee, Archery, Evasion, Stealth, Perception, Will, Smithing, Song</strong>) and unlock active/passive tactical Abilities (Charge, Flanking, Finesse, Sprint,keen Senses, Song of Slaying/Silence).' },
+                { icon: '⚒️', title: 'Anvil Forging System (0)', desc: 'When you find an enchanted Forge in the dungeon, stand on it and press <kbd>0</kbd> to smith custom weapons, armor, or rings tailored to your exact build.' },
+                { icon: '🤫', title: 'Alertness States (Unwary → Alerted)', desc: 'Monsters are Sleeping, Unwary, or Alerted. High Stealth + Song of Silence lets you slip past entire patrols or score devastating Assassination/Cruel Blow strikes.' }
+            ],
+            commands: [
+                ['Tab / @ / C', 'Open Character, Skill & Ability Investment Screen (spend XP directly!)'],
+                ['a / m / 0', 'Use Active Ability or Sing a Song of Power / Forge custom equipment on an Anvil'],
+                ['w / t / x', 'Wield or wear item / Take off item / Swap between primary and secondary weapon sets (e.g., Blade <-> Bow)'],
+                ['f / v', 'Fire bow with arrows / Throw spear or dagger'],
+                ['q / r / E / u', 'Quaff potion / Read scroll (or play trumpet) / Eat food / Use staff'],
+                ['s / z / Space', 'Search / Rest / Stealth-rest in place'],
+                ['> / <', 'Descend stairs / Ascend stairs (note: stairs collapse or push you deeper until you hold a Silmaril!)'],
+                ['l / I / ~', 'Look at monsters (shows exact Alertness state & combat stats) / Inspect item / Lore & Knowledge menu']
+            ],
+            tips: [
+                { title: 'Spend XP Early & Unlock Key Abilities', body: 'Unspent XP sits idle! Open your Skill & Ability screen (<kbd>Tab</kbd> or <kbd>@</kbd>) frequently. Early game winners include <strong>Dodging / Flanking</strong> (Evasion), <strong>Power / Finesse</strong> (Melee), and <strong>Listen</strong> (Perception — detects monsters through walls!).' },
+                { title: 'Weight & Critical Hit Thresholds', body: 'With 1-handed blades, each +7/+8/+9 margin by which your attack roll beats monster Evasion adds +1 damage die. With 2-handed Greatswords/Bastard Swords, that threshold drops to every +6/+7!' },
+                { title: 'Prising a Silmaril at 1,000 ft', body: 'You do NOT have to kill Morgoth (though doing so is legendary)—when adjacent to Morgoth (especially if he is sleeping or distracted) with an edged weapon, attacking him gives the option to prise a Silmaril from his Iron Crown.' },
+                { title: 'Beware of Rauko & Shadow Spiders', body: 'Shadow Spiders drain Strength and poison rapidly; Rauko (Balrogs) wield fiery whips that pull you across rooms—keep Free Action and Fire Resistance ready.' }
+            ],
+            statsAndMagic: {
+                title: 'Four Attributes (STR, DEX, CON, GRA) & Eight Skill Trees',
+                summary: 'Sil-Q replaces traditional spellbooks with <strong>Grace (GRA)</strong>-powered <strong>Songs of Power</strong> (Elbereth, Slaying, Silence, Trees, Staying, Lorien, Este, Mastery) and <strong>Smithing</strong>.',
+                items: [
+                    ['STR (Strength) & DEX (Dexterity)', 'STR adds +1 damage side per point (up to weapon weight cap); DEX adds +1 directly to Melee, Archery, Evasion, and Stealth!'],
+                    ['CON (Constitution) & GRA (Grace)', 'CON determines your HP pool and poison/stunning recovery; GRA powers Song, Smithing, Willpower, and Perception.'],
+                    ['Protection [d4..2d8] vs Evasion [+X]', 'Light armor maximizes Evasion [+X] to avoid hits; heavy mail maximizes Protection [XdY] dice to reduce incoming physical damage to zero.'],
+                    ['Voice & Stamina', 'Singing Songs drains Voice (MP), which regenerates when you stop singing or drink Miruvor.' ]
+                ]
+            },
+            refs: [
+                { name: 'Sil-Q 1.5 Official Manual (PDF / GitHub)', url: 'https://github.com/sil-q/sil-q/blob/master/doc/Manual.pdf', desc: 'One of the finest roguelike manuals ever written—explains combat rolls, forging formulas, and First Age lore.' },
+                { name: 'Sil-Q GitHub Repository & Ability Reference', url: 'https://github.com/sil-q/sil-q', desc: 'Complete release notes, skill tree tables, and forging recipes for Sil-Q 1.5.0.' }
+            ]
+        },
+        frogcomposband: {
+            title: 'FrogComposband 7.1.liquorice — The Multi-Dungeon Overworld',
+            subtitle: 'Overworld Wilderness • 18+ Distinct Dungeons, Quests, 40+ Monster Races & The Serpent of Chaos',
+            victoryGoal: 'Explore the vast Overworld wilderness, complete Town Quests and conquer multi-themed dungeons (Camelot, Icky Cave, Orc Cave, Labyrinth, Dragon\'s Lair, Mount Olympus), defeat Oberon at Angband DL 99, and slay the <strong>Serpent of Chaos</strong> at Angband DL 100.',
+            branches: [
+                { name: 'Outpost Town & Overworld Wilderness (<)', desc: 'Complete the Thieves Quest in Outpost early to earn your first Home. Press <kbd>&lt;</kbd> on the surface to enter Overworld Fast-Travel mode between towns and dungeons!' },
+                { name: 'Beginner Dungeons (Icky Cave, Yeek Cave, Orc Cave, Camelot)', desc: 'Start here (DL 1–25) instead of diving straight into Angband! Each dungeon boss drops guaranteed artifacts and unlocks Recall points.' },
+                { name: 'Mid-Game Dungeons (Labyrinth, Morivant, Lonely Mountain, Castle)', desc: 'Farm experience, Chaos Patron rewards, and resistance gear across specialized monster ecosystems (DL 25–60).' },
+                { name: 'Angband & Mount Olympus (DL 60–100)', desc: 'Final confrontation against Oberon, King of Amber (DL 99) and the Serpent of Chaos (DL 100).' }
+            ],
+            mechanics: [
+                { icon: '🌍', title: 'Overworld Wilderness Map (< on Surface)', desc: 'FrogComposband has a full multi-town wilderness! Press <kbd>&lt;</kbd> while on any surface tile to zoom out into the Overworld map and travel rapidly between Telmora, Morivant, Angwil, Zul, and 18+ dungeons.' },
+                { icon: '🐉', title: 'Playable Monster Races & Evolutionary Forms', desc: 'In addition to Humans and Elves, you can play as a Dragon, Beholder, Ring, Hound, Vortex, Lich, or Spider—each evolving into stronger monster forms at key XP milestones with custom equipment slots!' },
+                { icon: '🎭', title: 'Personality Traits & Chaos Patrons', desc: 'Every character chooses a Personality (Mighty, Shrewd, Patient, Lucky, Munchkin) that modifies all stats and skills, plus optional Chaos Patrons or Demigod parentage.' },
+                { icon: '⚔️', title: 'Town Quests & Recall Networks', desc: 'Visit the Town Hall / Castle in each town to accept fixed-level Quests. Keep a Scroll/Rod of Word of Recall to warp directly between unlocked towns and your deepest floor in each dungeon.' }
+            ],
+            commands: [
+                ['< (on surface)', 'Enter Overworld Wilderness Fast-Travel Map (press > to drop back down into local terrain or a dungeon entrance)'],
+                ['m / b / G', 'Cast spell, class power, or monster breath / Browse spellbook / Study new spells'],
+                ['U / p', 'Use Racial/Class/Mutation power / Mindcraft or pets command menu'],
+                ['w / t / d / k', 'Equip item / Take off item / Drop item / Destroy or auto-destroy junk'],
+                ['q / r / E', 'Quaff potion / Read scroll / Eat food'],
+                ['u / z / a', 'Use staff / Zap rod / Aim wand (note: Devices use an inventory slot system or Device pack depending on class)'],
+                ['C / ~ / ?', 'Character Sheet (3 pages of resistances & skills) / Knowledge & Quest Status Menu / In-game Help']
+            ],
+            tips: [
+                { title: 'Start with Outpost Quests & Yeek/Icky Cave', body: 'Do not dive into the main Angband dungeon at Level 1! Clear the Outpost Thieves Quest first, then conquer the Yeek Cave (DL 1–12) and Icky Cave for guaranteed early artifacts and stat potions.' },
+                { title: 'Check Dungeon Guardian Restrictions', body: 'Every dungeon has an affinity (e.g., Labyrinth is all minotaurs & walls; Dragon\'s Lair is heavy elemental breathers; Anti-Melee Cave forbids physical strikes). Check <kbd>~</kbd> → Dungeons before entering!' },
+                { title: 'Identify & Auto-Picker', body: 'Town shops automatically identify goods, and Scrolls/Rods of Perception are plentiful. Keep Resistance to Confusion, Blindness, Poison, and Shards before DL 35.' },
+                { title: 'Use Racial & Class Powers (U)', body: 'Press <kbd>U</kbd> to see active powers granted by your Race, Class, Personality, and Mutations (e.g., Berserk, Dimension Door, Breathe Fire, Detect Monsters).' }
+            ],
+            statsAndMagic: {
+                title: 'Personalities, 30+ Magic Realms, Monster Evolutions & Multi-Slot Bodies',
+                summary: 'FrogComposband features 40+ classes (Time-Lord, Blood-Knight, Duelist, Chaos-Warrior, Weaponmaster, Ninja, Magic-Eater) and 40+ races.',
+                items: [
+                    ['Dual-Realm Spellcasters', 'Mages and Priests can select two magic realms (Life, Sorcery, Nature, Chaos, Death, Trump, Arcane, Craft, Daemon, Crusade, Armageddon, Music).'],
+                    ['Monster Mode Equipment Slots', 'Playing as a Hydra gives you multiple head/neck slots; playing as a Spider or Centaur gives extra boot/ring slots; playing as a Sentient Ring lets you possess monster bodies!'],
+                    ['Device Skill & Fail Rates', 'Magical devices scale with INT/WIS and your class Device skill—Magic-Eaters can absorb wands/staves/rods directly into their permanent mana repertoire!'],
+                    ['Speed & AC Scaling', 'Late-game bosses move at +30 to +40 Speed and cast Psycho-Spear / Mana Storm (up to 600+ damage)—keep 900+ HP and Potions of *Healing* ready.' ]
+                ]
+            },
+            refs: [
+                { name: 'FrogComposband Official Repository & Docs', url: 'https://github.com/sulkasormi/frogcomposband', desc: 'Complete upstream documentation for FrogComposband 7.1 races, classes, personalities, and dungeons.' },
+                { name: 'FrogComposband In-Game Help & Spoilers', url: 'https://github.com/sulkasormi/frogcomposband/tree/master/lib/help', desc: 'Detailed plain-text encyclopedias for Monster Mode, Magic Realms, Quests, and Town locations.' }
+            ]
+        },
+        hengband: {
+            title: 'Hengband 3.0.1.26 — The Bilingual Japanese Sandbox Epic (変愚蛮怒)',
+            subtitle: 'Overworld & 15+ Dungeons • Bilingual EN/JP UI, Arena Championships, Martial Arts & The Serpent of Chaos',
+            victoryGoal: 'Conquer the Overworld quests and multi-dungeon guardians, climb the Monster Arena ranks, defeat <strong>Oberon, King of Amber</strong> on Angband DL 99, and vanquish the <strong>Serpent of Chaos (混沌のサーペント)</strong> on Angband DL 100.',
+            branches: [
+                { name: 'Outpost, Telmora, Morivant & Angwil Towns (<)', desc: 'Overworld towns connected via wilderness travel (<kbd>&lt;</kbd>). Features Casinos, Monster Arenas, Bounty Brokers, and Museum artifact displays.' },
+                { name: 'Early Dungeons (Yeek Cave, Orc Cave, Labyrinth, Forest)', desc: 'Build up your early hero (DL 1–30), collect Bounties at the Hunter\'s Office, and unlock Town Recall.' },
+                { name: 'Elemental & Specialized Dungeons (Dragon\'s Lair, Castle, Heaven, Hell)', desc: 'Mid-to-late game dungeons (DL 35–85) with unique Dungeon Masters that drop guaranteed artifacts.' },
+                { name: 'Angband Sanctuary (DL 90–100)', desc: 'Home of the Unicorn of Order, Amberites, Oberon (DL 99), and the Serpent of Chaos (DL 100).' }
+            ],
+            mechanics: [
+                { icon: '🈳', title: 'Bilingual English / Japanese Engine Toggle', desc: 'Switch between <strong>English</strong> and <strong>Original Japanese (日本語)</strong> at any time from the Main Menu or Realm Selector—all HUD labels, messages, and Lorekeeper voice lines adapt dynamically!' },
+                { icon: '🏟️', title: 'Monster Arena & Daily Bounty Hunting', desc: 'Visit the Arena in town to fight 1-on-1 gladiator bouts for rare Potions of Constitution/Speed and artifacts, and check the Bounty Broker for daily monster corpse bounties.' },
+                { icon: '🥋', title: 'Specialized Classes (Blue-Mage, Mirror-Master, Ninja, Samurai, Sniper)', desc: 'Each class has bespoke mechanics: Samurais use <em>Hissatsu</em> sword stances, Mirror-Masters place tactical mirrors on tiles to bounce lasers and teleport, and Blue-Mages learn monster breaths/spells cast at them!' },
+                { icon: '🗺️', title: 'Wilderness Fast-Travel (<) & Recall Anchors', desc: 'Press <kbd>&lt;</kbd> on the surface to open the global wilderness map. Once you step inside any new dungeon, it is added to your Word of Recall destination list.' }
+            ],
+            commands: [
+                ['< (on surface)', 'Enter Overworld Wilderness Map / > to re-enter local map or dungeon entrance'],
+                ['m / b / G', 'Use Magic, Samurai Posture, Mirror Art, or Mindcraft / Browse book / Study new spells'],
+                ['U / p', 'Activate Racial / Class / Mutation power / Command pets & mounts (Riding skill)'],
+                ['w / t / d / k', 'Equip weapon or armor / Take off gear / Drop item / Auto-destroy or destroy item'],
+                ['q / r / E', 'Quaff potion / Read scroll / Eat food'],
+                ['u / z / a / f', 'Use staff / Zap rod / Aim wand / Fire bow or gun'],
+                ['C / ~ / ?', 'Character Sheet (Resistances, Virtues & Riding) / Knowledge & Quest log / Help files']
+            ],
+            tips: [
+                { title: 'Complete the Thieves Quest First', body: 'In the starting town, locate the Quest building and clear the Level 1 Thieves Quest (bring Phase Door scrolls and ranged bolts!) to unlock your Town Home and earn a strong early reward.' },
+                { title: 'Daily Corpse Bounties & Casino', body: 'When monsters drop corpses (`~`) or skeletons (`s`), check the Hunter\'s Office in town—turning in wanted monster corpses yields stat potions, rods, and high-tier equipment.' },
+                { title: 'Watch Your Virtues & Alignment', body: 'In Hengband, eight Virtues (Compassion, Honour, Justice, Patience, Temperance, Valour, Faith, Enlightenment) shift based on your actions and directly modify your spell fail rates and saving throw!' },
+                { title: 'Resistance Checklist for DL 40+', body: 'Before tackling Dragon\'s Lair or Castle, lock in <strong>Free Action, Hold Life, See Invisible, Levitation</strong>, all 4 Base Resistances, plus <strong>Poison, Confusion, Blindness, Chaos, and Nether</strong>.' }
+            ],
+            statsAndMagic: {
+                title: 'Virtues, Riding Skill, Dual-Wielding (Niten-Ichi-Ryu) & 12 Magic Realms',
+                summary: 'Hengband 3.0 expands ZAngband with deep martial arts, Cavalry/BeastMaster monster riding, dual-wielding weapon proficiencies, and 12 distinct magic realms.',
+                items: [
+                    ['Weapon & Martial Arts Proficiency', 'Using a weapon type or barehanded Martial Arts increases your proficiency from Unskilled → Beginner → Skilled → Expert → Master, granting huge accuracy bonuses.'],
+                    ['Monster Riding (p)', 'Classes with Riding skill can tame and mount Dragons, Wyverns, or Unicorns—sharing their movement speed and breath attacks!'],
+                    ['12 Magic Realms', 'Life, Sorcery, Nature, Chaos, Death, Trump (summoning & teleportation), Arcane, Craft (self-buffs & branding), Daemon, Crusade, Music, and Hex (continuous curses).'],
+                    ['Personality & Demigod Lineages', 'Your chosen Personality (Combat, Lazy, Sexy, Lucky, Patient, Nimble, Fearless, Pious) shapes your entire stat growth curve from birth to Level 50.']
+                ]
+            },
+            refs: [
+                { name: 'Hengband Official Portal (hengband.github.io)', url: 'https://hengband.github.io/en/', desc: 'Official English & Japanese portal for Hengband 3.0 releases, score ladders, and documentation.' },
+                { name: 'Hengband 3.0 Upstream GitHub Repository', url: 'https://github.com/hengband/hengband', desc: 'Source documentation, class guides, and bilingual help files for Hengband 3.0.1.26.' }
+            ]
+        }
+    };
+
+    function renderRealmSurvivalGuide(realmKey) {
+        const key = (realmKey && REALM_SURVIVAL_GUIDES[realmKey]) ? realmKey : (activeRealm && REALM_SURVIVAL_GUIDES[activeRealm] ? activeRealm : 'angband');
+        guideActiveRealm = key;
+        const g = REALM_SURVIVAL_GUIDES[key];
+        const realmMeta = REALM_DATA[key] || REALM_DATA.angband;
+
+        // Sync realm selector pill bar in #guide-modal
+        document.querySelectorAll('.guide-realm-pill[data-guide-realm]').forEach((btn) => {
+            const isMatch = btn.dataset.guideRealm === key;
+            btn.classList.toggle('active', isMatch);
+            btn.setAttribute('aria-pressed', isMatch ? 'true' : 'false');
+        });
+
+        const titleEl = document.getElementById('guide-modal-title');
+        if (titleEl) {
+            titleEl.textContent = `📖 ADVENTURER'S GUIDE — ${realmMeta.shortName.toUpperCase()}`;
+        }
+
+        // Tab 0: Overview & Victory Goal
+        const tab0 = document.getElementById('guide-tab-0');
+        if (tab0) {
+            const branchHtml = g.branches.map((b) => `
+                <div class="guide-card">
+                    <div class="guide-card-title">${b.name}</div>
+                    <p>${b.desc}</p>
+                </div>
+            `).join('');
+            tab0.innerHTML = `
+                <h3>${g.title}</h3>
+                <p class="guide-lead" style="color:var(--yasd-gold-accent); font-weight:600; margin-bottom:6px;">${g.subtitle}</p>
+                <p class="guide-lead">${g.victoryGoal}</p>
+                <h4 style="margin-top: 14px; color: var(--yasd-text-heading); font-family: 'Cinzel', serif;">🗺️ Dungeon Progression & Key Branches</h4>
+                <div class="guide-card-grid">${branchHtml}</div>
+                <div class="guide-callout" style="margin-top:12px;">
+                    <strong>🎙️ Living Chronicle & Lorekeeper (${escapeHtml(realmMeta.voiceAccent)}):</strong> Open the <strong>📖 Tome</strong> on the top bar at any time during play to ask the Lorekeeper realm-specific survival questions, generate a dark-fantasy sketch of your current scene, or review your narrated adventure log.
+                </div>
+            `;
+        }
+
+        // Tab 1: Core Realm Mechanics
+        const tab1 = document.getElementById('guide-tab-1');
+        if (tab1) {
+            const mechHtml = g.mechanics.map((m) => `
+                <div class="guide-card">
+                    <div class="guide-card-icon">${m.icon}</div>
+                    <div class="guide-card-title">${m.title}</div>
+                    <p>${m.desc}</p>
+                </div>
+            `).join('');
+            tab1.innerHTML = `
+                <h3>Core Survival Mechanics — ${escapeHtml(realmMeta.shortName)}</h3>
+                <p class="guide-lead">Mastering these four signature rules separates victorious ascensions from Yet Another Stupid Death in <strong>${escapeHtml(realmMeta.name)}</strong>:</p>
+                <div class="guide-card-grid">${mechHtml}</div>
+            `;
+        }
+
+        // Tab 2: 3D Viewport, HUD & Universal Controls
+        const tab2 = document.getElementById('guide-tab-2');
+        if (tab2) {
+            tab2.innerHTML = `
+                <h3>3D First-Person Viewport & HUD Controls</h3>
+                <p class="guide-lead">YASD 3D wraps the authentic upstream C/C++ engine of <strong>${escapeHtml(realmMeta.shortName)}</strong> in a real-time first-person 3D dungeon renderer with draggable HUD panels and an instant 2D terminal toggle.</p>
+                <div class="guide-key-table">
+                    <div class="guide-key-row"><span class="key-badge">W / ↑</span><span class="key-desc">Step forward in the direction your camera is facing</span></div>
+                    <div class="guide-key-row"><span class="key-badge">S / ↓</span><span class="key-desc">Step backward (retreat while keeping eyes on threats)</span></div>
+                    <div class="guide-key-row"><span class="key-badge">A / ← • D / →</span><span class="key-desc">Turn camera 90° Left or Right (zero game turns spent!)</span></div>
+                    <div class="guide-key-row"><span class="key-badge">Q / E</span><span class="key-desc">Sidestep / Strafe Left or Right (1 turn)</span></div>
+                    <div class="guide-key-row"><span class="key-badge">PgUp / PgDn / Home</span><span class="key-desc">Look Up, Look Down, or Recenter camera pitch</span></div>
+                    <div class="guide-key-row"><span class="key-badge">Tab</span><span class="key-desc">Toggle between <strong>3D First-Person View</strong> and the <strong>Classic 80x24 Terminal View</strong> at any moment</span></div>
+                    <div class="guide-key-row"><span class="key-badge">Ctrl + K</span><span class="key-desc">Open the searchable <strong>All Realm Commands Compendium</strong> for ${escapeHtml(realmMeta.shortName)}</span></div>
+                    <div class="guide-key-row"><span class="key-badge">Alt + L</span><span class="key-desc">Reset all dragged/resized HUD panels (Minimap, Message Log, Character Status, Move Pad) to default positions</span></div>
+                </div>
+            `;
+        }
+
+        // Tab 3: Realm Commands & Keys
+        const tab3 = document.getElementById('guide-tab-3');
+        if (tab3) {
+            const cmdRows = g.commands.map(([k, d]) => `
+                <div class="guide-key-row">
+                    <span class="key-badge">${escapeHtml(k)}</span>
+                    <span class="key-desc">${escapeHtml(d)}</span>
+                </div>
+            `).join('');
+            tab3.innerHTML = `
+                <h3>${escapeHtml(realmMeta.shortName)} Keybindings & Action Reference</h3>
+                <p class="guide-lead">Essential keyboard commands for <strong>${escapeHtml(realmMeta.name)}</strong>. Every action is also accessible via the bottom <strong>Action Bar</strong> or the searchable <strong>All Commands Compendium (<kbd>Ctrl+K</kbd>)</strong>.</p>
+                <div class="guide-key-table">${cmdRows}</div>
+                <div style="margin-top: 12px; display: flex; justify-content: flex-end;">
+                    <button type="button" class="btn-gold-outline" id="btn-guide-open-compendium" style="font-size: 0.78rem; padding: 6px 14px;">⌘ Open Full ${escapeHtml(realmMeta.shortName)} Command Compendium (Ctrl+K)</button>
+                </div>
+            `;
+            const compBtn = document.getElementById('btn-guide-open-compendium');
+            if (compBtn) {
+                compBtn.onclick = () => {
+                    hideGuide();
+                    if (window.CommandPalette && typeof window.CommandPalette.open === 'function') {
+                        window.CommandPalette.open();
+                    }
+                };
+            }
+        }
+
+        // Tab 4: Pro Survival Tips
+        const tab4 = document.getElementById('guide-tab-4');
+        if (tab4) {
+            const tipHtml = g.tips.map((t, idx) => `
+                <div class="guide-tip-item">
+                    <span class="tip-num">${idx + 1}</span>
+                    <div><strong>${t.title}:</strong> ${t.body}</div>
+                </div>
+            `).join('');
+            tab4.innerHTML = `
+                <h3>Veteran Survival Tactics — ${escapeHtml(realmMeta.shortName)}</h3>
+                <div class="guide-tips-list">${tipHtml}</div>
+            `;
+        }
+
+        // Tab 5: Stats, Skills & Magic
+        const tab5 = document.getElementById('guide-tab-5');
+        if (tab5) {
+            const statRows = g.statsAndMagic.items.map(([k, d]) => `
+                <div class="guide-key-row">
+                    <span class="key-badge">${escapeHtml(k)}</span>
+                    <span class="key-desc">${d}</span>
+                </div>
+            `).join('');
+            tab5.innerHTML = `
+                <h3>${g.statsAndMagic.title}</h3>
+                <p class="guide-lead">${g.statsAndMagic.summary}</p>
+                <div class="guide-key-table">${statRows}</div>
+            `;
+        }
+
+        // Tab 6: Official References & Credits
+        const tab6 = document.getElementById('guide-tab-6');
+        if (tab6) {
+            const refCards = g.refs.map((r) => `
+                <a class="guide-ref-card" href="${escapeHtml(r.url)}" target="_blank" rel="noopener noreferrer">
+                    <div class="guide-ref-card-title">🔗 ${escapeHtml(r.name)} ↗</div>
+                    <div class="guide-ref-card-desc">${escapeHtml(r.desc)}</div>
+                    <div class="guide-ref-card-url">${escapeHtml(r.url)}</div>
+                </a>
+            `).join('');
+            tab6.innerHTML = `
+                <h3>Official ${escapeHtml(realmMeta.shortName)} Wikis, Manuals & Strategy Spoilers</h3>
+                <p class="guide-lead">Click any official reference below to open the canonical wiki, manual, or spoiler database for <strong>${escapeHtml(realmMeta.name)}</strong> in a new browser tab:</p>
+                <div class="guide-ref-grid">${refCards}</div>
+                <div class="guide-callout" style="margin-top: 16px;">
+                    <strong>⚔️ YASD 3D / Angband 3D Multi-Realm Engine</strong><br>
+                    Created by <strong>Brian (ThunderBear Studios — <a href="https://thunderbearstudios.dev" target="_blank" rel="noopener noreferrer" style="color:var(--yasd-gold-accent);">thunderbearstudios.dev</a>)</strong>.<br>
+                    Powered by authentic upstream open-source roguelike engines: NetHack 3.6.7, Dungeon Crawl Stone Soup 0.31, Vanilla Angband 4.2.6, Brogue CE 1.13, Classic Rogue 5.4.4, Sil-Q 1.5.0, FrogComposband 7.1, and Hengband 3.0.1.26.
+                </div>
+            `;
+        }
+
+        // Ensure realm pill click listeners are bound once
+        if (!window.__guideRealmPillsBound) {
+            window.__guideRealmPillsBound = true;
+            document.querySelectorAll('.guide-realm-pill[data-guide-realm]').forEach((pill) => {
+                pill.addEventListener('click', () => {
+                    const targetRealm = pill.dataset.guideRealm;
+                    if (targetRealm && REALM_SURVIVAL_GUIDES[targetRealm]) {
+                        if (audio) audio.playMenuNav();
+                        renderRealmSurvivalGuide(targetRealm);
+                    }
+                });
+            });
+        }
+    }
+
     // Guide Modal Handlers
     function showGuide(tabIndex = 0, fromState = null) {
         guidePreviousState = fromState || appState;
@@ -2132,6 +2806,7 @@ window.addEventListener('DOMContentLoaded', () => {
         hideModals(guideModal);
         if (guideModal) guideModal.classList.remove('hidden');
         if (input) input.setTerminalMode(false);
+        renderRealmSurvivalGuide(activeRealm || 'angband');
         switchGuideTab(tabIndex);
         if (audio) audio.playMenuOpen();
     }
@@ -2460,6 +3135,9 @@ window.addEventListener('DOMContentLoaded', () => {
         hasEnteredPlay = false;
         lastClientSnapshotMs = 0;
         lastSnapshotDepth = null;
+        if (audio && typeof audio.stopThemeMusic === 'function') {
+            audio.stopThemeMusic(0.85);
+        }
         hideModals();
         if (loadingOverlay) loadingOverlay.classList.remove('hidden');
         if (window.__startWatchdog) clearTimeout(window.__startWatchdog);
@@ -3217,7 +3895,7 @@ window.addEventListener('DOMContentLoaded', () => {
     const btnGuideHud = document.getElementById('btn-guide-hud');
     if (btnGuideHud) {
         btnGuideHud.addEventListener('click', () => {
-            showGuide(2, 'game');
+            showGuide(0, 'game');
         });
     }
 
@@ -3647,6 +4325,26 @@ window.addEventListener('DOMContentLoaded', () => {
         if (typeof RealmKeys !== 'undefined') {
             if (typeof RealmKeys.setActiveRealm === 'function') RealmKeys.setActiveRealm(activeRealm);
             if (typeof RealmKeys.applyLabels === 'function') RealmKeys.applyLabels(document, activeRealm, langMode);
+        }
+        // 5. Per-Realm Survival Guide & Chronicle Quick-Topic Chips Synchronization
+        renderRealmSurvivalGuide(activeRealm);
+        const chipsContainer = document.querySelector('.chronicle-quick-topics');
+        if (chipsContainer && REALM_CHRONICLE_CHIPS) {
+            const chips = REALM_CHRONICLE_CHIPS[activeRealm] || REALM_CHRONICLE_CHIPS.angband || [];
+            chipsContainer.innerHTML = chips.map((c) =>
+                `<button type="button" class="chronicle-topic-chip" data-query="${escapeHtml(c.query)}">${escapeHtml(c.label)}</button>`
+            ).join('');
+            chipsContainer.querySelectorAll('.chronicle-topic-chip').forEach((chip) => {
+                chip.addEventListener('click', () => {
+                    const q = chip.getAttribute('data-query');
+                    const inputEl = document.getElementById('chronicle-ask-input');
+                    const sendBtn = document.getElementById('btn-chronicle-ask-send');
+                    if (inputEl && q) {
+                        inputEl.value = q;
+                        if (sendBtn) sendBtn.click();
+                    }
+                });
+            });
         }
     }
 

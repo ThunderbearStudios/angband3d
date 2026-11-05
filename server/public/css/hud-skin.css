@@ -531,7 +531,8 @@
 .realm-pill-btn,
 .menu-realm-badge-btn,
 .cmd-cat-pill,
-.guide-tab {
+.guide-tab,
+.guide-realm-pill {
   background: var(--yasd-slate-card) !important;
   border: 1px solid var(--yasd-border-iron) !important;
   border-radius: 6px !important;
@@ -542,7 +543,8 @@
 .realm-pill-btn:hover,
 .menu-realm-badge-btn:hover,
 .cmd-cat-pill:hover,
-.guide-tab:hover {
+.guide-tab:hover,
+.guide-realm-pill:hover {
   background: var(--yasd-slate-card-hover) !important;
   border-color: var(--yasd-bone-highlight) !important;
   color: var(--yasd-text-heading) !important;
@@ -552,11 +554,74 @@
 .realm-pill-btn[aria-pressed="true"],
 .cmd-cat-pill.active,
 .guide-tab.active,
-.guide-tab[aria-selected="true"] {
+.guide-tab[aria-selected="true"],
+.guide-realm-pill.active,
+.guide-realm-pill[aria-pressed="true"] {
   background: linear-gradient(180deg, #2f3542 0%, #22262e 100%) !important;
   border-color: var(--yasd-gold-accent) !important;
   color: var(--yasd-text-heading) !important;
   box-shadow: 0 0 10px rgba(241, 196, 15, 0.2), inset 0 1px 0 var(--yasd-bone-highlight) !important;
+}
+
+.guide-realm-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+  padding: 8px 16px;
+  background: var(--yasd-slate-deep);
+  border-bottom: 1px solid var(--yasd-border-iron);
+}
+
+.guide-realm-bar-label {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: var(--yasd-gold-accent);
+  margin-right: 4px;
+}
+
+.guide-realm-pill {
+  padding: 4px 9px !important;
+  font-size: 0.76rem !important;
+  font-weight: 700 !important;
+  cursor: pointer;
+}
+
+.guide-ref-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 8px;
+  margin: 8px 0 14px;
+}
+
+.guide-ref-card {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 9px 12px;
+  background: var(--yasd-slate-card);
+  border: 1px solid var(--yasd-border-iron);
+  border-left: 3px solid var(--yasd-gold-accent);
+  border-radius: 6px;
+  text-decoration: none;
+  color: var(--yasd-text-prose);
+  transition: background 120ms ease, border-color 120ms ease;
+}
+
+.guide-ref-card:hover {
+  background: var(--yasd-slate-card-hover);
+  border-color: var(--yasd-bone-highlight);
+}
+
+.guide-ref-card strong {
+  color: var(--yasd-gold-accent);
+  font-size: 0.85rem;
+}
+
+.guide-ref-card span {
+  font-size: 0.75rem;
+  color: var(--yasd-text-muted);
 }
 
 /* --- Main Menu Primary Option Buttons ([1]-[4]) --- */

@@ -3031,6 +3031,9 @@ class WebHUD {
         const wasHidden = this.deathModal.classList.contains('hidden');
         this.deathModal.classList.remove('hidden');
         this.lastDeathFrame = frame;
+        if (wasHidden && typeof window !== 'undefined' && window.__app && window.__app.audio && typeof window.__app.audio.playDeathTheme === 'function') {
+            window.__app.audio.playDeathTheme();
+        }
 
         const realm = (frame && frame.realm) || window.__activeRealm || 'angband';
         const rc = window.RealmCartridge;
