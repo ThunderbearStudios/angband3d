@@ -5503,9 +5503,30 @@ window.addEventListener('DOMContentLoaded', () => {
                     }
                 }
                 const screenText = (rawLine => decodeHengbandText(rawLine).toLowerCase())(rows.map(r => r.g || '').join('\n'));
-                if (/\[y\/n\]|\(y\/n\)|\[ynq?\]|\(ynq?\)|\[ynaq\]|drink from the fountain/.test(screenText) || (isHengCur && screenText.includes('よろしいですか'))) {
+                const row0Decoded = (rows[0] && rows[0].g) ? (isHengCur ? decodeHengbandText(rows[0].g) : rows[0].g).toLowerCase() : '';
+                if (/\[y\/n\]|\(y\/n\)|\[ynq?\]|\(ynq?\)|\[ynaq\]/.test(row0Decoded) || (isHengCur && row0Decoded.includes('よろしいですか'))) {
+                    options = [
+                        { key: 'y', display: '[y] ✓ Yes', label: null },
+                        { key: 'n', display: '[n] ✕ No', label: null }
+                    ];
+                } else if (/\[y\/n\]|\(y\/n\)|\[ynq?\]|\(ynq?\)|\[ynaq\]|drink from the fountain/.test(screenText) || (isHengCur && screenText.includes('よろしいですか'))) {
                     if (!seenKeys.has('n')) options.unshift({ key: 'n', display: '[n] ✕ No', label: null });
                     if (!seenKeys.has('y')) options.unshift({ key: 'y', display: '[y] ✓ Yes', label: null });
+                } else if (screenText.includes('which stat do you want to raise') || screenText.includes('どの能力値を上げますか')) {
+                    const statOpts = [
+                        { key: 'a', display: '[a] Str', label: null },
+                        { key: 'b', display: '[b] Int', label: null },
+                        { key: 'c', display: '[c] Wis', label: null },
+                        { key: 'd', display: '[d] Dex', label: null },
+                        { key: 'e', display: '[e] Con', label: null },
+                        { key: 'f', display: '[f] Chr', label: null }
+                    ];
+                    for (const so of statOpts) {
+                        if (!seenKeys.has(so.key)) {
+                            seenKeys.add(so.key);
+                            options.push(so);
+                        }
+                    }
                 }
                 if (options.length === 0 && inPlay && effFrame) {
                     const row0Line = (rows[0] && rows[0].g) ? (isHengCur ? decodeHengbandText(rows[0].g) : rows[0].g) : '';

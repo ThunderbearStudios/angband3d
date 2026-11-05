@@ -128,6 +128,65 @@ class UniversalCartridgeEngine {
         return copy;
     }
 
+    usesExpLevels() {
+        return this.spec.usesExpLevels !== false && this.realm !== 'brogue';
+    }
+
+    getMaxLevel() {
+        return this.usesExpLevels() ? (this.spec.maxLevel || 27) : 0;
+    }
+
+    getExpNextForLevel(level) {
+        if (!this.usesExpLevels()) return 0;
+        const maxLev = this.getMaxLevel();
+        if (level >= maxLev) return 0;
+        if (typeof this.spec.getExpNext === 'function') {
+            return Number(this.spec.getExpNext(level)) || 0;
+        }
+        if (Array.isArray(this.spec.expTable) && this.spec.expTable.length > 0) {
+            const idx = Math.max(0, (level || 1) - 1);
+            return idx < this.spec.expTable.length ? this.spec.expTable[idx] : 0;
+        }
+        return Math.floor(20 * Math.pow(1.8, Math.max(0, (level || 1) - 1)));
+    }
+
+    checkExperience(opts = {}) {
+        const p = this.state && this.state.player;
+        if (!p) return;
+        if (!this.usesExpLevels()) {
+            p.level = 0;
+            p.maxLevel = 0;
+            p.exp = 0;
+            p.maxExp = 0;
+            p.expNext = 0;
+            return;
+        }
+        const maxLev = this.getMaxLevel();
+        if (!p.level || p.level < 1) p.level = 1;
+        if (p.level > maxLev) p.level = maxLev;
+        p.exp = Math.max(0, Number(p.exp || 0));
+        p.maxExp = Math.max(Number(p.maxExp || 0), p.exp);
+        p.maxLevel = Math.max(Number(p.maxLevel || 1), p.level);
+        p.expNext = this.getExpNextForLevel(p.level);
+
+        while (p.level < maxLev && p.expNext > 0 && p.exp >= p.expNext) {
+            p.level++;
+            if (p.level > p.maxLevel) p.maxLevel = p.level;
+            p.expNext = this.getExpNextForLevel(p.level);
+            if (!opts.silent) {
+                if (typeof this.spec.onLevelGain === 'function') {
+                    this.spec.onLevelGain(p, this);
+                } else {
+                    p.hpMax += 6;
+                    p.hp = p.hpMax;
+                    p.pwMax += 2;
+                    p.pw = p.pwMax;
+                    this.addMessage(`Welcome to Experience Level ${p.level}! Your vitality and power increase!`, 14);
+                }
+            }
+        }
+    }
+
     initNewState(roleIdx = 0) {
         const roles = this.spec.roles;
         const r = roles[roleIdx % roles.length] || roles[0];
@@ -138,6 +197,7 @@ class UniversalCartridgeEngine {
         inv.push({ kind: 'potion', name: this.spec.healingPotionName || 'potion of healing', glyph: '!', attr: 13, heal: 18, count: 2, weight: 15, tval: 71, sval: 38 });
         inv.push({ kind: 'food', name: this.spec.foodName || 'food ration', glyph: '%', attr: 3, nutrition: 800, count: 2, weight: 20, tval: 80, sval: 1 });
 
+        const hasLevels = this.usesExpLevels();
         this.state = {
             realm: this.realm,
             phase: 'setup',
@@ -160,9 +220,11 @@ class UniversalCartridgeEngine {
                 lumenstones: 0,
                 enchantments: 0,
                 nutrition: 1200,
-                level: 1,
+                level: hasLevels ? 1 : 0,
+                maxLevel: hasLevels ? 1 : 0,
                 exp: 0,
-                expNext: 20,
+                maxExp: 0,
+                expNext: hasLevels ? this.getExpNextForLevel(1) : 0,
                 gold: 25,
                 hp: r.hp || 18,
                 hpMax: r.hp || 18,
@@ -386,29 +448,32 @@ class UniversalCartridgeEngine {
         let monId = 1;
         for (let i = 1; i < shuffledRooms.length; i++) {
             const rm = shuffledRooms[i];
-            const template = eligibleMons[this.rand(eligibleMons.length)] || this.spec.monsters[0];
-            const mx = rm.x0 + 1 + this.rand(Math.max(1, rm.x1 - rm.x0 - 1));
-            const my = rm.y0 + 1 + this.rand(Math.max(1, rm.y1 - rm.y0 - 1));
-            if (mx === this.state.player.x && my === this.state.player.y) continue;
-            if (!map[my] || !map[my][mx] || !isWalkableFeat(map[my][mx].feat)) continue;
-            this.state.monsters.push({
-                id: monId++,
-                race: template.name,
-                glyph: template.glyph,
-                attr: template.attr || 12,
-                x: mx,
-                y: my,
-                hp: template.hp,
-                hp_max: template.hp,
-                ac: template.ac != null ? template.ac : 8,
-                dmg: template.dmg || 4,
-                exp: template.exp || 10,
-                speed: template.speed || 110,
-                lore: template.lore || '',
-                isPet: false,
-                peaceful: false,
-                captive: false
-            });
+            const count = 1 + (this.rand(100) < 45 ? 1 : 0);
+            for (let c = 0; c < count; c++) {
+                const template = eligibleMons[this.rand(eligibleMons.length)] || this.spec.monsters[0];
+                const mx = rm.x0 + 1 + this.rand(Math.max(1, rm.x1 - rm.x0 - 1));
+                const my = rm.y0 + 1 + this.rand(Math.max(1, rm.y1 - rm.y0 - 1));
+                if ((mx === this.state.player.x && my === this.state.player.y) || this.state.monsters.some(m => m.x === mx && m.y === my)) continue;
+                if (!map[my] || !map[my][mx] || !isWalkableFeat(map[my][mx].feat)) continue;
+                this.state.monsters.push({
+                    id: monId++,
+                    race: template.name,
+                    glyph: template.glyph,
+                    attr: template.attr || 12,
+                    x: mx,
+                    y: my,
+                    hp: template.hp,
+                    hp_max: template.hp,
+                    ac: template.ac != null ? template.ac : 8,
+                    dmg: template.dmg || 4,
+                    exp: template.exp !== undefined ? template.exp : 10,
+                    speed: template.speed || 110,
+                    lore: template.lore || '',
+                    isPet: false,
+                    peaceful: false,
+                    captive: false
+                });
+            }
         }
 
         // Brogue captive ally in a randomized chamber
@@ -605,6 +670,7 @@ class UniversalCartridgeEngine {
                 this.state = loaded;
                 this.state.phase = 'play';
                 this.state.menuMode = 'none';
+                this.checkExperience({ silent: true });
                 this.updateVisibility();
                 return true;
             }
@@ -618,6 +684,7 @@ class UniversalCartridgeEngine {
                     this.state.phase = 'play';
                     this.state.menuMode = 'none';
                     fs.copyFileSync(this.saveFile + '.living.sav', this.saveFile);
+                    this.checkExperience({ silent: true });
                     this.updateVisibility();
                     return true;
                 }
@@ -1035,7 +1102,19 @@ class UniversalCartridgeEngine {
     applyVerbToItem(verb, item) {
         const p = this.state.player;
         if (verb === 'quaff' || (verb === 'use' && item.kind === 'potion')) {
-            if (item.strengthGain) {
+            if (item.levelGain) {
+                if (this.usesExpLevels()) {
+                    const nextReq = this.getExpNextForLevel(p.level);
+                    if (nextReq > 0) {
+                        p.exp = Math.max(p.exp, nextReq);
+                        this.checkExperience();
+                    } else {
+                        p.hpMax += 6;
+                        p.hp = p.hpMax;
+                        this.addMessage(`You quaff the ${item.name} and feel more experienced!`, 14);
+                    }
+                }
+            } else if (item.strengthGain) {
                 p.str += item.strengthGain;
                 p.hpMax += 6;
                 p.hp = p.hpMax;
@@ -1243,19 +1322,13 @@ class UniversalCartridgeEngine {
     handleMonsterKilled(mon) {
         const p = this.state.player;
         this.state.monsters = this.state.monsters.filter(m => m.id !== mon.id);
-        this.addMessage(`You slay the ${mon.race}!`, 10);
-        if (this.realm !== 'brogue') {
-            p.exp += mon.exp || 10;
-            if (p.exp >= p.expNext) {
-                p.level++;
-                p.expNext = Math.floor(p.expNext * 1.8);
-                p.hpMax += 6;
-                p.hp = p.hpMax;
-                p.pwMax += 2;
-                p.pw = p.pwMax;
-                if (this.realm === 'dcss' && p.piety < 6) p.piety++;
-                this.addMessage(`Welcome to Experience Level ${p.level}! Your vitality and power increase!`, 14);
-            }
+        if (this.usesExpLevels()) {
+            const xpGain = mon.exp !== undefined ? mon.exp : 10;
+            p.exp += xpGain;
+            this.addMessage(`You slay the ${mon.race}! (+${xpGain} XP)`, 10);
+            this.checkExperience();
+        } else {
+            this.addMessage(`You slay the ${mon.race}!`, 10);
         }
     }
 
@@ -1264,6 +1337,43 @@ class UniversalCartridgeEngine {
         this.state.turn++;
         if (p.speedBoost > 0) p.speedBoost--;
         if (p.nutrition > 0) p.nutrition--;
+
+        // Periodic wandering monster spawn (BSD Rogue wanderer() / DCSS / Brogue floor pressure)
+        if (this.state.turn % 35 === 0) {
+            const hostiles = this.state.monsters.filter(m => !m.isPet && !m.peaceful && !m.captive);
+            if (hostiles.length < 8 && Array.isArray(this.spec.monsters) && this.spec.monsters.length > 0) {
+                const depth = this.state.depth || 1;
+                const eligibleMons = this.spec.monsters.filter(m => (m.minDepth || 1) <= depth + 1 && !m.isBoss);
+                const template = eligibleMons[this.rand(eligibleMons.length)] || this.spec.monsters[0];
+                for (let attempt = 0; attempt < 25; attempt++) {
+                    const rx = 2 + this.rand(MAP_W - 4);
+                    const ry = 2 + this.rand(MAP_H - 4);
+                    const cell = this.state.map[ry] && this.state.map[ry][rx];
+                    if (cell && cell.feat === FEAT.FLOOR && !cell.inView && !(rx === p.x && ry === p.y) && !this.state.monsters.some(m => m.x === rx && m.y === ry)) {
+                        const maxId = this.state.monsters.reduce((acc, m) => Math.max(acc, m.id || 0), 0);
+                        this.state.monsters.push({
+                            id: maxId + 1,
+                            race: template.name,
+                            glyph: template.glyph,
+                            attr: template.attr || 12,
+                            x: rx,
+                            y: ry,
+                            hp: template.hp,
+                            hp_max: template.hp,
+                            ac: template.ac != null ? template.ac : 8,
+                            dmg: template.dmg || 4,
+                            exp: template.exp !== undefined ? template.exp : 10,
+                            speed: template.speed || 110,
+                            lore: template.lore || '',
+                            isPet: false,
+                            peaceful: false,
+                            captive: false
+                        });
+                        break;
+                    }
+                }
+            }
+        }
 
         for (const mon of this.state.monsters.slice()) {
             if (mon.captive) continue;
@@ -1399,7 +1509,12 @@ class UniversalCartridgeEngine {
             rows.push({ g: pad80('=============================================================================='), a: attr80('02') });
             if (this.state.menuMode === 'char') {
                 rows.push({ g: pad80(`  Name:  ${p.name.padEnd(22, ' ')} Race:  ${p.race}`), a: attr80('01') });
-                rows.push({ g: pad80(`  Class: ${p.class.padEnd(22, ' ')} Level: ${p.level} (XP: ${p.exp}/${p.expNext})`), a: attr80('01') });
+                if (this.usesExpLevels()) {
+                    const xpNextStr = p.expNext > 0 ? `${p.exp}/${p.expNext}` : `${p.exp} (MAX)`;
+                    rows.push({ g: pad80(`  Class: ${p.class.padEnd(22, ' ')} Level: ${p.level} (XP: ${xpNextStr})`), a: attr80('01') });
+                } else {
+                    rows.push({ g: pad80(`  Class: ${p.class.padEnd(22, ' ')} Strength: ${p.str}  Enchantments: +${p.enchantments || 0}`), a: attr80('01') });
+                }
                 rows.push({ g: pad80(`  Place: ${this.state.branchName} ${this.state.depth} (Deepest: ${this.state.maxDepth})   Turn:  ${this.state.turn}`), a: attr80('01') });
                 rows.push({ g: pad80(`  STR: ${p.str}   DEX: ${p.dex}   INT: ${p.int}   WIS: ${p.wis}   CON: ${p.con}   AC: ${p.ac}`), a: attr80('0b') });
                 rows.push({ g: pad80(`  HP:  ${p.hp}/${p.hpMax}   Power/MP: ${p.pw}/${p.pwMax}   Gold: ${p.gold}`), a: attr80('0a') });
@@ -1616,6 +1731,7 @@ class UniversalCartridgeEngine {
                 runes: Array.isArray(p.runes) ? p.runes.length : (p.runes || 0),
                 rune_list: Array.isArray(p.runes) ? p.runes : [],
                 lumenstones: p.lumenstones || 0,
+                enchantments: p.enchantments || 0,
                 nutrition: Math.min(100, Math.round((p.nutrition || 1000) / 10)),
                 nutrition_max: 100,
                 history: this.spec.lore || `Venturing through ${this.state.branchName}.`,
@@ -1623,11 +1739,11 @@ class UniversalCartridgeEngine {
                 x: p.x,
                 depth: this.state.depth,
                 max_depth: this.state.maxDepth,
-                level: p.level,
-                max_lev: p.level,
-                exp: p.exp,
-                exp_max: p.exp,
-                exp_next: p.expNext,
+                level: this.usesExpLevels() ? p.level : 0,
+                max_lev: this.usesExpLevels() ? (p.maxLevel || p.level) : 0,
+                exp: this.usesExpLevels() ? p.exp : 0,
+                exp_max: this.usesExpLevels() ? (p.maxExp || p.exp) : 0,
+                exp_next: this.usesExpLevels() ? p.expNext : 0,
                 gold: p.gold,
                 hp: p.hp,
                 hp_max: p.hpMax,

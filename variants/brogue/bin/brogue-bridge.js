@@ -16,6 +16,8 @@ const BROGUE_SPEC = {
     magic: 'SaveBROG',
     version: '1.14-ce-bridge',
     title: 'Brogue (Community Edition)',
+    usesExpLevels: false,
+    maxLevel: 0,
     defaultBranch: 'Dungeons of Doom',
     defaultDeity: 'Cavern Resonance',
     goalDepth: 26,

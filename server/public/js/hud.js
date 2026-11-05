@@ -2232,11 +2232,13 @@ class WebHUD {
         const depthLabel = player.place_label || (realm === 'brogue' ? `Depth ${depth}` : (realm === 'rogue' ? `Lvl ${depth}` : (realm === 'nethack' ? `DLvl ${depth}` : (depth === 0 ? (player.wilderness ? 'Wilderness' : 'Town') : `${depth * 50}ft`))));
         const charSubMetaEl = this._charSubMetaEl || (this._charSubMetaEl = document.getElementById('char-sub-meta'));
         if (charSubMetaEl) {
-            const pLev = player.lev || player.level || 1;
+            const pLev = player.lev !== undefined ? player.lev : (player.level !== undefined ? player.level : 1);
+            const hasCharLevels = realm !== 'brogue' && !isSilQ && Number(pLev) > 0;
             const pRace = player.race || '';
             const pClass = player.class || player.cls || '';
             const godSuffix = player.god && player.god !== 'No God' ? ` • ⛩ ${player.god}` : '';
-            const subMetaStr = `Lv.${pLev} ${pRace}${pClass ? ` ${pClass}` : ''} • ${depthLabel}${godSuffix}`;
+            const levPrefix = hasCharLevels ? `${realm === 'dcss' ? 'XL' : 'Lv.'}${pLev} ` : '';
+            const subMetaStr = `${levPrefix}${pRace}${pClass ? ` ${pClass}` : ''} • ${depthLabel}${godSuffix}`;
             if (this._lastCharSubMeta !== subMetaStr) {
                 this._lastCharSubMeta = subMetaStr;
                 charSubMetaEl.textContent = subMetaStr;
@@ -2355,14 +2357,25 @@ class WebHUD {
             }
         }
         if (this.footerLevel) {
-            const plLevel = player.level !== undefined ? player.level : (player.lev !== undefined ? player.lev : 1);
-            const lang = window.__langMode || 'en';
-            if (realm === 'hengband' && lang === 'jp') {
-                this.footerLevel.textContent = `⭐ レベル ${plLevel}`;
-            } else if (realm === 'hengband' && lang === 'bilingual') {
-                this.footerLevel.textContent = `⭐ Lvl (Lv) ${plLevel}`;
+            if (isSilQ) {
+                this.footerLevel.style.display = 'none';
+            } else if (realm === 'brogue') {
+                this.footerLevel.style.display = 'inline';
+                const bStr = (player.stats && player.stats.str && player.stats.str.use !== undefined) ? player.stats.str.use : (player.str || 12);
+                this.footerLevel.textContent = `💪 Str ${bStr}`;
             } else {
-                this.footerLevel.textContent = `⭐ Lvl ${plLevel}`;
+                this.footerLevel.style.display = 'inline';
+                const plLevel = player.level !== undefined ? player.level : (player.lev !== undefined ? player.lev : 1);
+                const lang = window.__langMode || 'en';
+                if (realm === 'hengband' && lang === 'jp') {
+                    this.footerLevel.textContent = `⭐ レベル ${plLevel}`;
+                } else if (realm === 'hengband' && lang === 'bilingual') {
+                    this.footerLevel.textContent = `⭐ Lvl (Lv) ${plLevel}`;
+                } else if (realm === 'dcss') {
+                    this.footerLevel.textContent = `⭐ XL ${plLevel}`;
+                } else {
+                    this.footerLevel.textContent = `⭐ Lvl ${plLevel}`;
+                }
             }
         }
         if (this.footerHp) {
@@ -2398,16 +2411,31 @@ class WebHUD {
             }
         }
         if (this.footerExp) {
-            const expNext = player.exp_next;
-            const expVal = (player.exp !== undefined) ? player.exp.toLocaleString() : '0';
-            const nextStr = (expNext !== undefined && expNext > 0) ? `/${expNext.toLocaleString()}` : '';
-            const lang = window.__langMode || 'en';
-            if (realm === 'hengband' && lang === 'jp') {
-                this.footerExp.textContent = `✨ 経験値 ${expVal}${nextStr}`;
-            } else if (realm === 'hengband' && lang === 'bilingual') {
-                this.footerExp.textContent = `✨ EXP (経験値) ${expVal}${nextStr}`;
+            if (realm === 'brogue') {
+                const ench = player.enchantments || 0;
+                const lum = player.lumenstones || 0;
+                this.footerExp.textContent = lum > 0 ? `✨ Ench +${ench} • 💎 ${lum}` : `✨ Ench +${ench}`;
+            } else if (isSilQ) {
+                const unspent = Number(player.new_exp !== undefined ? player.new_exp : (player.exp || 0));
+                const total = Number(player.exp_max !== undefined ? player.exp_max : unspent);
+                this.footerExp.textContent = total > unspent
+                    ? `✨ EXP ${unspent.toLocaleString()} (${total.toLocaleString()} total)`
+                    : `✨ EXP ${unspent.toLocaleString()}`;
             } else {
-                this.footerExp.textContent = `✨ EXP ${expVal}${nextStr}`;
+                const expNext = player.exp_next;
+                const expVal = (player.exp !== undefined) ? player.exp.toLocaleString() : '0';
+                const plLev = Number(player.level !== undefined ? player.level : (player.lev !== undefined ? player.lev : 1));
+                const nextStr = (expNext !== undefined && expNext > 0)
+                    ? `/${expNext.toLocaleString()}`
+                    : ((expNext === 0 && plLev >= 20) ? ' (MAX)' : '');
+                const lang = window.__langMode || 'en';
+                if (realm === 'hengband' && lang === 'jp') {
+                    this.footerExp.textContent = `✨ 経験値 ${expVal}${nextStr}`;
+                } else if (realm === 'hengband' && lang === 'bilingual') {
+                    this.footerExp.textContent = `✨ EXP (経験値) ${expVal}${nextStr}`;
+                } else {
+                    this.footerExp.textContent = `✨ EXP ${expVal}${nextStr}`;
+                }
             }
         }
         if (this.footerPlace) {
@@ -2647,30 +2675,41 @@ class WebHUD {
                 const smi = getSilqSkill('Smithing');
                 const sng = getSilqSkill('Song');
                 const voice = `${curSp}/${maxSp}`;
-                const turn = String(this.currentTurn || 0);
-                const sig = `silq:${mel}:${arc}:${eva}:${stl}:${per}:${wil}:${smi}:${sng}:${voice}:${turn}`;
+                const unspentXp = Number(player.new_exp !== undefined ? player.new_exp : (player.exp || 0));
+                const totalXp = Number(player.exp_max !== undefined ? player.exp_max : unspentXp);
+                const xpPool = `${unspentXp.toLocaleString()} / ${totalXp.toLocaleString()}`;
+                const sig = `silq:${mel}:${arc}:${eva}:${stl}:${per}:${wil}:${smi}:${sng}:${voice}:${xpPool}`;
                 reconcileDrawerGrid(sig, [
                     ['Melee', mel], ['Archery', arc],
                     ['Evasion', eva], ['Stealth', stl],
                     ['Perception', per], ['Will', wil],
                     ['Smithing', smi], ['Song', sng],
-                    ['Voice', voice], ['Turn', turn]
+                    ['Voice', voice], ['XP (Pool)', xpPool]
                 ]);
             } else {
-                const maxD = player.max_depth ? `${player.max_depth * 50}ft (DL${player.max_depth})` : (depth > 0 ? `${depth * 50}ft (DL${depth})` : 'Town');
+                const maxD = (realm === 'brogue' || realm === 'rogue')
+                    ? `Depth ${player.max_depth || depth}`
+                    : (realm === 'nethack'
+                        ? `Dlvl ${player.max_depth || depth}`
+                        : (realm === 'dcss'
+                            ? `${player.place_label || ('D:' + depth)} (Max ${player.max_depth || depth})`
+                            : (player.max_depth ? `${player.max_depth * 50}ft (DL${player.max_depth})` : (depth > 0 ? `${depth * 50}ft (DL${depth})` : 'Town'))));
                 const spd = this._lastSpdStr || 'Normal (0)';
                 const turn = String(this.currentTurn || 0);
-                const xp = `${(player.exp || 0).toLocaleString()}${player.exp_next ? ` / ${player.exp_next.toLocaleString()}` : ''}`;
+                const xpLabel = realm === 'brogue' ? 'Enchantments' : 'XP';
+                const xp = realm === 'brogue'
+                    ? `+${player.enchantments || 0}${(player.lumenstones || 0) > 0 ? ` (${player.lumenstones} Lumen)` : ''}`
+                    : `${(player.exp || 0).toLocaleString()}${player.exp_next ? ` / ${player.exp_next.toLocaleString()}` : ''}`;
                 const eqCount = (player.equipment && Array.isArray(player.equipment)) ? String(player.equipment.length) : (player.equip_count !== undefined ? String(player.equip_count) : (player.equip ? String(Object.keys(player.equip).length) : '--'));
                 const pkCount = (player.inventory && Array.isArray(player.inventory)) ? String(player.inventory.length) : (player.inven_count !== undefined ? String(player.inven_count) : (player.inven ? String(Object.keys(player.inven).length) : '--'));
                 const weap = _hudItemStr(player.weapon_item) || 'Bare Hands';
                 const light = _hudItemStr(player.light_item) || (player.cur_light > 0 ? `Light +${player.cur_light}` : (player.light > 0 ? `Light +${player.light}` : 'Daylight / Dark'));
-                const sig = `std:${maxD}:${spd}:${turn}:${xp}:${eqCount}:${pkCount}:${weap}:${light}`;
+                const sig = `std:${realm}:${maxD}:${spd}:${turn}:${xp}:${eqCount}:${pkCount}:${weap}:${light}`;
                 reconcileDrawerGrid(sig, [
                     ['Max Depth', maxD],
                     ['Speed', spd],
                     ['Turn', turn],
-                    ['XP', xp],
+                    [xpLabel, xp],
                     ['Equip Count', eqCount],
                     ['Pack Count', pkCount],
                     ['Weapon', weap],

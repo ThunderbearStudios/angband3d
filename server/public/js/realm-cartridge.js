@@ -1298,21 +1298,24 @@
             : '☠   Y O U   H A V E   P E R I S H E D   ☠';
         const epitaph = (r === 'brogue' || r === 'rogue')
             ? `${name} the ${pClass} (${r === 'brogue' ? `Depth ${depth}` : `Level ${level}`})`
-            : `${name} the ${race} ${pClass} (Level ${level})`;
+            : (r === 'silq'
+                ? `${name} of the ${p.house || race} (${depth === 0 ? 'Gates of Angband' : `${depth * 50} ft`})`
+                : `${name} the ${race} ${pClass} (${r === 'dcss' ? `XL ${level}` : `Level ${level}`})`);
         const cause = isWinner
             ? `Ascended triumphantly ${depthStr}!`
             : `Killed by ${diedFrom} ${depthStr}.`;
 
         let score = `Gold: ${gold.toLocaleString()} AU  •  Experience: ${exp.toLocaleString()}  •  Deepest: ${maxDepthStr}`;
         if (r === 'dcss') {
-            score = `Runes: ${p.runes || 0}/3 ${p.rune_list && p.rune_list.length ? `(${p.rune_list.join(', ')})` : ''}  •  God: ${p.god || 'No God'}  •  Gold: ${gold.toLocaleString()}  •  Deepest: ${maxDepthStr}`;
+            score = `XL: ${level}  •  Runes: ${p.runes || 0}/3 ${p.rune_list && p.rune_list.length ? `(${p.rune_list.join(', ')})` : ''}  •  God: ${p.god || 'No God'}  •  Gold: ${gold.toLocaleString()}  •  Deepest: ${maxDepthStr}`;
         } else if (r === 'brogue') {
             const brogueStr = (p.stats && typeof p.stats.str === 'object') ? (p.stats.str.use ?? p.stats.str.top ?? 12) : ((p.stats && p.stats.str) || p.str || 12);
-            score = `Lumenstones: ${p.lumenstones || 0}  •  Gold: ${gold.toLocaleString()}  •  Strength: ${brogueStr}  •  Deepest: ${maxDepthStr}`;
+            score = `Lumenstones: ${p.lumenstones || 0}  •  Enchantments: +${p.enchantments || 0}  •  Gold: ${gold.toLocaleString()}  •  Strength: ${brogueStr}  •  Deepest: ${maxDepthStr}`;
         } else if (r === 'nethack') {
             score = `Score: ${(gold + exp + depth * 50).toLocaleString()}  •  Gold: ${gold.toLocaleString()} zorkmids  •  Turns: ${turns.toLocaleString()}  •  Deepest: ${maxDepthStr}`;
         } else if (r === 'silq') {
-            score = `Experience: ${exp.toLocaleString()}  •  Silmarils: ${p.silmarils || 0}  •  Deepest: ${maxDepthStr}`;
+            const totalExp = p.exp_max !== undefined ? p.exp_max : exp;
+            score = `Total XP: ${totalExp.toLocaleString()} (Unspent: ${exp.toLocaleString()})  •  Silmarils: ${p.silmarils || 0}  •  Deepest: ${maxDepthStr}`;
         }
 
         // Partition equipment / inventory / quiver when equipment array is empty

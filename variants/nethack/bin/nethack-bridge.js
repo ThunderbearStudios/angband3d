@@ -202,6 +202,41 @@ class NetHackEngine {
         return copy;
     }
 
+    getExpNextForLevel(lev) {
+        // Authentic NetHack 3.6.7 exper.c:newuexp(lev) threshold to advance from lev to lev + 1 (max XL 30)
+        const l = Math.max(1, Number(lev || 1));
+        if (l >= 30) return 0;
+        if (l < 10) return 10 * (1 << l);
+        if (l < 20) return 10000 * (1 << (l - 10));
+        return 10000000 * (l - 19);
+    }
+
+    checkExperience(opts = {}) {
+        const p = this.state && this.state.player;
+        if (!p) return;
+        if (!p.level || p.level < 1) p.level = 1;
+        if (p.level > 30) p.level = 30;
+        p.exp = Math.max(0, Number(p.exp || 0));
+        p.maxExp = Math.max(Number(p.maxExp || 0), p.exp);
+        p.maxLevel = Math.max(Number(p.maxLevel || 1), p.level);
+        p.expNext = this.getExpNextForLevel(p.level);
+
+        while (p.level < 30 && p.expNext > 0 && p.exp >= p.expNext) {
+            p.level++;
+            if (p.level > p.maxLevel) p.maxLevel = p.level;
+            p.expNext = this.getExpNextForLevel(p.level);
+            if (!opts.silent) {
+                const hpGain = 6 + this.rand(5);
+                const pwGain = 2 + this.rand(3);
+                p.hpMax += hpGain;
+                p.hp = p.hpMax;
+                p.pwMax += pwGain;
+                p.pw = p.pwMax;
+                this.addMessage(`Welcome to experience level ${p.level}! (+${hpGain} HP, +${pwGain} Pw)`, 14);
+            }
+        }
+    }
+
     initNewState(quickStart = false, roleIdx = 0) {
         const role = ROLES[roleIdx % ROLES.length] || ROLES[0];
         this.state = {
@@ -221,8 +256,10 @@ class NetHackEngine {
                 align: role.align,
                 deity: role.align === 'Lawful' ? 'Tyr' : (role.align === 'Neutral' ? 'Thoth' : 'Crom'),
                 level: 1,
+                maxLevel: 1,
                 exp: 0,
-                expNext: 20,
+                maxExp: 0,
+                expNext: this.getExpNextForLevel(1),
                 gold: 120 + this.rand(80),
                 hp: role.hp,
                 hpMax: role.hp,
@@ -646,6 +683,7 @@ class NetHackEngine {
                     }
                 }
                 this.sanitizeDoorPlacement();
+                this.checkExperience({ silent: true });
                 this.updateVisibility();
                 return true;
             }
@@ -1109,10 +1147,15 @@ class NetHackEngine {
                 p.poisoned = 5;
                 this.addMessage('Ulch! That potion tasted foul!', 4);
             } else if (item.name.includes('gain level')) {
-                p.level++;
-                p.hpMax += 8;
-                p.hp = p.hpMax;
-                this.addMessage(`You rise to experience level ${p.level}!`, 14);
+                const nextReq = this.getExpNextForLevel(p.level);
+                if (nextReq > 0) {
+                    p.exp = Math.max(p.exp, nextReq);
+                    this.checkExperience();
+                } else {
+                    p.hpMax += 8;
+                    p.hp = p.hpMax;
+                    this.addMessage('You feel more experienced!', 14);
+                }
             } else if (item.name.includes('speed')) {
                 p.speedBoost = 30;
                 this.addMessage('You suddenly seem to move much faster!', 10);
@@ -1550,10 +1593,11 @@ class NetHackEngine {
     handleMonsterDefeat(mon) {
         const p = this.state.player;
         this.state.monsters = this.state.monsters.filter(m => m.id !== mon.id);
-        p.exp += (mon.exp || 10);
+        const xpGain = mon.exp || 10;
+        p.exp += xpGain;
         const goldDrop = 5 + this.rand(20);
         p.gold += goldDrop;
-        this.addMessage(`You destroy the ${mon.race}! (+${mon.exp || 10} XP, +${goldDrop}$)`, 14);
+        this.addMessage(`You destroy the ${mon.race}! (+${xpGain} XP, +${goldDrop}$)`, 14);
         if (mon.isBoss) {
             p.hasAmulet = true;
             p.inventory.push({
@@ -1568,15 +1612,7 @@ class NetHackEngine {
             this.reindexInventory();
             this.addMessage('You wrest the legendary Amulet of Yendor from the fallen Wizard! Ascend to Dlvl 1 (<) to triumph!', 14);
         }
-        while (p.exp >= p.expNext) {
-            p.level++;
-            p.expNext = Math.floor(p.expNext * 1.85);
-            p.hpMax += 6 + this.rand(5);
-            p.hp = p.hpMax;
-            p.pwMax += 3;
-            p.pw = p.pwMax;
-            this.addMessage(`Welcome to experience level ${p.level}!`, 14);
-        }
+        this.checkExperience();
     }
 
     advanceWorldTurn() {
@@ -1600,6 +1636,7 @@ class NetHackEngine {
                         this.state.monsters = this.state.monsters.filter(m => m.id !== adjHostile.id);
                         p.exp += Math.max(2, Math.floor((adjHostile.exp || 6) / 2));
                         this.addMessage(`Your faithful little dog kills the ${adjHostile.race}!`, 11);
+                        this.checkExperience();
                     } else {
                         this.addMessage(`Your faithful little dog bites the ${adjHostile.race}! (${petDmg} dmg)`, 11);
                     }
@@ -1641,6 +1678,43 @@ class NetHackEngine {
                 const tx = mon.x + sx, ty = mon.y + sy;
                 if (this.state.map[ty] && this.state.map[ty][tx] && isWalkableFeat(this.state.map[ty][tx].feat) && !this.state.monsters.some(m => m.x === tx && m.y === ty) && !(tx === p.x && ty === p.y)) {
                     mon.x = tx; mon.y = ty;
+                }
+            }
+        }
+
+        // Periodic NetHack wandering monster spawn (makemon in out-of-sight dungeon room)
+        if (this.state.turn % 35 === 0) {
+            const hostiles = this.state.monsters.filter(m => !m.isPet && !m.peaceful);
+            if (hostiles.length < 8) {
+                const depth = this.state.depth || 1;
+                const eligible = MONSTER_TABLE.filter(m => m.minDepth <= depth + 2 && !m.isBoss);
+                const tmpl = eligible[this.rand(eligible.length)] || MONSTER_TABLE[0];
+                for (let attempt = 0; attempt < 25; attempt++) {
+                    const rx = 2 + this.rand(MAP_W - 4);
+                    const ry = 2 + this.rand(MAP_H - 4);
+                    const cell = this.state.map[ry] && this.state.map[ry][rx];
+                    if (cell && cell.feat === FEAT.FLOOR && !cell.inView && !(rx === p.x && ry === p.y) && !this.state.monsters.some(m => m.x === rx && m.y === ry)) {
+                        const maxId = this.state.monsters.reduce((acc, m) => Math.max(acc, m.id || 0), 0);
+                        this.state.monsters.push({
+                            id: maxId + 1,
+                            x: rx,
+                            y: ry,
+                            glyph: tmpl.glyph,
+                            attr: tmpl.attr,
+                            race: tmpl.name,
+                            race_level: tmpl.minDepth,
+                            hp: tmpl.hp + depth * 2,
+                            hp_max: tmpl.hp + depth * 2,
+                            ac: tmpl.ac != null ? tmpl.ac : 8,
+                            dmg: tmpl.dmg + Math.floor(depth / 2),
+                            speed: tmpl.speed || 110,
+                            exp: tmpl.exp,
+                            isPet: false,
+                            peaceful: false,
+                            asleep: false
+                        });
+                        break;
+                    }
                 }
             }
         }
@@ -1752,7 +1826,9 @@ class NetHackEngine {
             rows.push({ g: pad80(this.state.pendingPrompt || 'NetHack 3.6.7 Overview (Press ESC or Space to return)'), a: attr80('0e') });
             rows.push({ g: pad80('=============================================================================='), a: attr80('02') });
             if (this.state.menuMode === 'char') {
+                const xpNextStr = p.expNext > 0 ? `${p.exp}/${p.expNext}` : `${p.exp} (MAX)`;
                 rows.push({ g: pad80(`  Name:  ${p.name.padEnd(20, ' ')} Role:  ${p.class} (${p.race}, ${p.align})`), a: attr80('01') });
+                rows.push({ g: pad80(`  Level: ${String(p.level).padEnd(20, ' ')} XP:    ${xpNextStr}`), a: attr80('01') });
                 rows.push({ g: pad80(`  Deity: ${p.deity.padEnd(20, ' ')} Dlvl:  ${this.state.depth} (${this.state.branchName})`), a: attr80('01') });
                 rows.push({ g: pad80(`  STR: ${p.str}  INT: ${p.int}  WIS: ${p.wis}  DEX: ${p.dex}  CON: ${p.con}  AC: ${p.ac}`), a: attr80('0b') });
                 rows.push({ g: pad80(`  HP: ${p.hp}/${p.hpMax}   Pw: ${p.pw}/${p.pwMax}   Gold: ${p.gold}zm   Turns: ${this.state.turn}`), a: attr80('0a') });
@@ -1924,9 +2000,9 @@ class NetHackEngine {
                 depth: this.state.depth,
                 max_depth: this.state.maxDepth,
                 level: p.level,
-                max_lev: p.level,
+                max_lev: p.maxLevel || p.level,
                 exp: p.exp,
-                exp_max: p.exp,
+                exp_max: p.maxExp || p.exp,
                 exp_next: p.expNext,
                 gold: p.gold,
                 hp: p.hp,

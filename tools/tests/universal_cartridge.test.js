@@ -568,6 +568,66 @@ function check(cond, msg) {
     check(fs.existsSync(path.join(rootDir, 'CREDITS.md')), 'CREDITS.md must exist at repo root');
     check(fs.existsSync(path.join(rootDir, 'server/public/assets/yasd3d_logo.png')), 'yasd3d_logo.png must exist in server/public/assets');
 
+    // 9e. Authoritative Realm XP & Level Advancement Rules Verification
+    // Brogue: Zero XP and Zero Character Levels
+    const broguePlay = new BrogueEngine({ saveDir: tmpSaveDir, user: 'BrogueXpTest', isNew: true });
+    const bFrame0 = broguePlay.buildFrame();
+    check(bFrame0.player.level === 0 && bFrame0.player.exp === 0 && bFrame0.player.exp_next === 0,
+        'BrogueEngine must emit level:0, exp:0, exp_next:0 (zero character levels)');
+    broguePlay.handleMonsterKilled({ id: 999, race: 'goblin', exp: 0 });
+    const bFrame1 = broguePlay.buildFrame();
+    check(bFrame1.player.level === 0 && bFrame1.player.exp === 0 && bFrame1.player.exp_next === 0,
+        'BrogueEngine monster kills must never grant XP or character levels');
+
+    // Classic Rogue 5.4: Authentic e_levels [10, 20, 40, 80, ...] + multi-level loop + raise level potion
+    const roguePlay = new RogueEngine({ saveDir: tmpSaveDir, user: 'RogueXpTest', isNew: true });
+    const rFrame0 = roguePlay.buildFrame();
+    check(rFrame0.player.level === 1 && rFrame0.player.exp === 0 && rFrame0.player.exp_next === 10,
+        'RogueEngine must start at Level 1 with exp_next: 10 (authentic BSD Rogue 5.4 e_levels[0])');
+    roguePlay.handleMonsterKilled({ id: 998, race: 'troll', exp: 45 });
+    const rFrame1 = roguePlay.buildFrame();
+    check(rFrame1.player.level === 4 && rFrame1.player.exp === 45 && rFrame1.player.exp_next === 80,
+        'RogueEngine 45 XP gain must multi-level advance from L1 -> L4 (thresholds 10, 20, 40; next 80)');
+    roguePlay.state.player.inventory.push({ letter: 'z', kind: 'potion', name: 'potion of raise level', levelGain: 1, count: 1 });
+    roguePlay.applyVerbToItem('quaff', roguePlay.state.player.inventory[roguePlay.state.player.inventory.length - 1]);
+    const rFrame2 = roguePlay.buildFrame();
+    check(rFrame2.player.level === 5 && rFrame2.player.exp === 80 && rFrame2.player.exp_next === 160,
+        'RogueEngine potion of raise level must synchronize level:5, exp:80, exp_next:160');
+
+    // DCSS 0.32: XL 1..27 progression + attribute increase every 3rd XL
+    const dcssPlay = new DCSSEngine({ saveDir: tmpSaveDir, user: 'DcssXpTest', isNew: true });
+    dcssPlay.handleKey('a'); // Minotaur Berserker (Str 20)
+    const strBefore = dcssPlay.state.player.str;
+    check(dcssPlay.buildFrame().player.exp_next === 10, 'DCSSEngine XL1 must require 10 XP for XL2');
+    dcssPlay.handleMonsterKilled({ id: 997, race: 'ogre', exp: 75 });
+    const dFrameAfter = dcssPlay.buildFrame();
+    check(dFrameAfter.player.level === 4 && dFrameAfter.player.exp_next === 140 && dcssPlay.state.player.str === strBefore + 1,
+        'DCSSEngine 75 XP must advance to XL4 (exp_next:140) and grant +1 primary stat at XL3');
+
+    // NetHack 3.6.7: Authentic newuexp(lev) thresholds + pet kills + potion of gain level
+    const nhPlay = new NetHackEngine({ saveDir: tmpSaveDir, user: 'NhXpTest', isNew: true });
+    nhPlay.handleKey('a');
+    check(nhPlay.buildFrame().player.exp_next === 20, 'NetHackEngine XL1 must require 20 XP for XL2');
+    nhPlay.handleMonsterDefeat({ id: 996, race: 'kobold', exp: 25 });
+    check(nhPlay.buildFrame().player.level === 2 && nhPlay.buildFrame().player.exp_next === 40,
+        'NetHackEngine 25 XP must advance to XL2 with exp_next: 40 (newuexp(2))');
+    nhPlay.state.player.inventory.push({ letter: 'y', kind: 'potion', name: 'potion of gain level', buc: 'uncursed', count: 1 });
+    nhPlay.executeItemVerb('q', 'y');
+    const nhAfterPot = nhPlay.buildFrame();
+    check(nhAfterPot.player.level === 3 && nhAfterPot.player.exp === 40 && nhAfterPot.player.exp_next === 80,
+        'NetHackEngine potion of gain level must synchronize level:3, exp:40, exp_next:80');
+
+    // C/C++ Bridges: Sil-Q new_exp pool, FrogComposband exp_requirement, Hengband exp_next
+    const silqBridgeSrc = fs.readFileSync(path.join(rootDir, 'variants/silq-src/src/main-bridge.c'), 'utf8');
+    check(silqBridgeSrc.includes('bj_kv_int(fp, "new_exp", p_ptr->new_exp)') && silqBridgeSrc.includes('bj_kv_int(fp, "level", 0)'),
+        'Sil-Q C bridge must emit new_exp pool and level:0');
+    const frogBridgeSrc = fs.readFileSync(path.join(rootDir, 'variants/frogcomposband-src/src/main-bridge.c'), 'utf8');
+    check(frogBridgeSrc.includes('"exp_next"') && frogBridgeSrc.includes('exp_requirement(p_ptr->lev)'),
+        'FrogComposband C bridge must emit exp_next via exp_requirement(p_ptr->lev)');
+    const hengBridgeSrc = fs.readFileSync(path.join(rootDir, 'variants/hengband-src/src/main-bridge.cpp'), 'utf8');
+    check(hengBridgeSrc.includes('"exp_next"') && hengBridgeSrc.includes('player_exp_a') && hengBridgeSrc.includes('player.expfact'),
+        'Hengband C++ bridge must emit exp_next using player_exp / player_exp_a and player.expfact');
+
     try { fs.rmSync(tmpSaveDir, { recursive: true, force: true }); } catch (_) {}
 }
 

@@ -16,6 +16,37 @@ const DCSS_SPEC = {
     magic: 'SaveDCSS',
     version: '0.32-bridge',
     title: 'Dungeon Crawl Stone Soup',
+    usesExpLevels: true,
+    maxLevel: 27,
+    // Authentic DCSS XL 1..27 cumulative experience progression thresholds
+    expTable: [
+        10, 30, 70, 140, 270, 520, 1010, 1980, 3910, 7760,
+        15450, 29000, 48500, 74000, 105500, 143000, 186500, 236000, 291500, 353000,
+        420500, 494000, 573500, 659000, 750500, 848000
+    ],
+    onLevelGain(p, engine) {
+        const hpGain = 5 + Math.floor((p.con || 12) / 4);
+        const mpGain = 1 + Math.floor((p.int || 10) / 5);
+        p.hpMax += hpGain;
+        p.hp = p.hpMax;
+        p.pwMax += mpGain;
+        p.pw = p.pwMax;
+        if (p.piety < 6) p.piety++;
+        let statNote = '';
+        if (p.level % 3 === 0) {
+            if ((p.int || 0) > (p.str || 0) && (p.int || 0) >= (p.dex || 0)) {
+                p.int++;
+                statNote = ' Your intelligence increases!';
+            } else if ((p.dex || 0) > (p.str || 0)) {
+                p.dex++;
+                statNote = ' Your dexterity increases!';
+            } else {
+                p.str++;
+                statNote = ' Your strength increases!';
+            }
+        }
+        engine.addMessage(`You have reached experience level ${p.level}! (+${hpGain} HP, +${mpGain} MP)${statNote}`, 14);
+    },
     defaultBranch: 'D',
     defaultDeity: 'Trog',
     goalDepth: 15,
@@ -38,7 +69,8 @@ const DCSS_SPEC = {
     formatStatusLine(state) {
         const p = state.player;
         const stars = '★'.repeat(Math.max(0, Math.min(6, p.piety || 0))).padEnd(6, '.');
-        return `${state.branchName}:${state.depth}  HP:${p.hp}/${p.hpMax}  MP:${p.pw}/${p.pwMax}  AC:${p.ac}  Str:${p.str} Int:${p.int} Dex:${p.dex}  God:${p.deity || 'None'} [${stars}]  Runes:${p.runes || 0}/15`;
+        const xlStr = p.expNext > 0 ? `XL:${p.level}(${p.exp}/${p.expNext})` : `XL:${p.level}(MAX)`;
+        return `${state.branchName}:${state.depth}  ${xlStr}  HP:${p.hp}/${p.hpMax}  MP:${p.pw}/${p.pwMax}  AC:${p.ac}  Str:${p.str} Int:${p.int} Dex:${p.dex}  God:${p.deity || 'None'}[${stars}]`;
     },
     roles: [
         { key: 'a', id: 'Berserker', race: 'Minotaur', deity: 'Trog', piety: 3, align: 'Chaotic', hp: 24, pw: 2, ac: 5, str: 20, int: 7, wis: 10, dex: 13, con: 18, weapon: { name: 'executioner’s axe', dmg: '2d9', bonus: 2, weight: 65, tval: 22, sval: 12 }, armor: { name: 'scale mail', ac: 6, bonus: 1, weight: 220, tval: 37, sval: 3 }, extra: { kind: 'potion', name: 'potion of might', glyph: '!', heal: 22, count: 2, weight: 15, tval: 71, sval: 38 } },

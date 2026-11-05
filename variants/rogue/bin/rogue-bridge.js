@@ -15,6 +15,19 @@ const ROGUE_SPEC = {
     magic: 'SaveROGU',
     version: '5.4.4-bridge',
     title: 'Classic Rogue 5.4 (1980)',
+    usesExpLevels: true,
+    maxLevel: 21,
+    // Authentic 1980 BSD Rogue 5.4 e_levels progression table (extern.c)
+    expTable: [
+        10, 20, 40, 80, 160, 320, 640, 1300, 2600, 5200,
+        13000, 26000, 50000, 100000, 200000, 400000, 800000, 2000000, 4000000, 8000000
+    ],
+    onLevelGain(p, engine) {
+        const hpGain = 1 + engine.rand(10); // Authentic BSD Rogue 1d10 hit point gain per rank
+        p.hpMax += hpGain;
+        p.hp = Math.min(p.hpMax, p.hp + hpGain);
+        engine.addMessage(`Welcome to level ${p.level}! (+${hpGain} HP)`, 14);
+    },
     defaultBranch: 'Dungeons of Doom',
     defaultDeity: 'The RNG Gods',
     goalDepth: 26,
@@ -68,6 +81,7 @@ const ROGUE_SPEC = {
         { kind: 'gold', name: 'pile of gold pieces', glyph: '*', attr: 14, amount: 35, weight: 2 },
         { kind: 'potion', name: 'potion of extra healing', glyph: '!', attr: 4, heal: 28, weight: 15, tval: 71, sval: 39 },
         { kind: 'potion', name: 'potion of gain strength', glyph: '!', attr: 14, strengthGain: 1, weight: 15, tval: 71, sval: 40 },
+        { kind: 'potion', name: 'potion of raise level', glyph: '!', attr: 11, levelGain: 1, weight: 15, tval: 71, sval: 41 },
         { kind: 'scroll', name: 'scroll of enchant weapon', glyph: '?', attr: 11, enchantGain: 1, weight: 5, tval: 70, sval: 15 },
         { kind: 'scroll', name: 'scroll of magic mapping', glyph: '?', attr: 11, weight: 5, tval: 70, sval: 12 },
         { kind: 'food', name: 'food ration', glyph: ':', attr: 3, nutrition: 850, weight: 20, tval: 80, sval: 1 },
