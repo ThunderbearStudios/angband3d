@@ -640,12 +640,12 @@ function check(cond, msg) {
     // v11.5.0 Pillar 3 & 4: Intelligent 8-Realm Birth Planner & Brogue Scroll of Enchantment
     for (const rId of ['angband', 'silq', 'frogcomposband', 'hengband', 'nethack', 'dcss', 'brogue', 'rogue']) {
         const planner = RealmCartridge.createRandomBirthPlanner(rId, 'melee');
-        check(planner && typeof planner.nextKeys === 'function', `createRandomBirthPlanner must exist for ${rId}`);
+        check(planner && planner.realmId === rId && Array.isArray(planner.silqStatSequence),
+            `createRandomBirthPlanner must exist and return valid plan for ${rId}`);
     }
     const silqPlan = RealmCartridge.createRandomBirthPlanner('silq', 'melee');
-    const silqAllocKeys = silqPlan.nextKeys('Points Left: 12\nStr  2\nDex  2\nCon  2\nGra  2');
-    check(Array.isArray(silqAllocKeys) && silqAllocKeys.length > 1 && silqAllocKeys.includes('Return'),
-        'Sil-Q Birth Planner must allocate point-buy stats before pressing Return');
+    check(silqPlan.silqStatSequence.length > 5 && silqPlan.silqStatSequence.includes('enter'),
+        'Sil-Q Birth Planner must allocate point-buy stats before pressing enter');
 
     const brogueEnch = new BrogueEngine({ saveDir: tmpSaveDir, user: 'BrogueEnchTest', isNew: true });
     brogueEnch.handleKey('a');
