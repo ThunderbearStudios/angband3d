@@ -56,9 +56,9 @@
     <link rel="manifest" href="/manifest.json">
     <link rel="apple-touch-icon" href="/assets/yasd3d_logo.png">
     <link rel="icon" type="image/png" href="/assets/yasd3d_logo.png">
-    <link rel="stylesheet" href="/css/dungeon.css?v=11.4.0">
-    <link rel="stylesheet" href="css/hud-skin.css?v=11.4.0">
-    <link rel="stylesheet" href="/css/chronicle.css?v=11.4.0">
+    <link rel="stylesheet" href="/css/dungeon.css?v=11.4.1">
+    <link rel="stylesheet" href="css/hud-skin.css?v=11.4.1">
+    <link rel="stylesheet" href="/css/chronicle.css?v=11.4.1">
 </head>
 <body>
     <div id="app-container">
@@ -360,7 +360,6 @@
                 <span id="minimap-title-text">MINIMAP</span>
                 <span id="minimap-hint-text" class="minimap-hint">[ ] Size  +/- Zoom</span>
                 <span id="val-depth" style="color:#ffd700;">Town</span>
-                <button id="btn-minimap-minimize" class="map-close-btn" title="Minimize / Shade Minimap">−</button>
                 <button id="btn-minimap-close" class="map-close-btn" title="Close Minimap">✕</button>
             </div>
             <canvas id="minimap-canvas" width="168" height="168"></canvas>
@@ -404,7 +403,6 @@
                 <div class="dpad-header-actions">
                     <button type="button" id="btn-dpad-scale" class="dpad-mini-btn" title="Cycle D-Pad Size (Compact / Standard / Large)">⛶</button>
                     <button type="button" id="btn-dpad-collapse" class="dpad-mini-btn" title="Minimize / Expand D-Pad">−</button>
-                    <button type="button" id="btn-dpad-close" class="dpad-mini-btn" title="Hide D-Pad (Restore via ↺ Layout)">✕</button>
                 </div>
             </div>
             <!-- Top Turning Shoulder Wings -->
@@ -447,7 +445,6 @@
                     <div class="char-window-actions">
                         <button type="button" id="btn-char-details-toggle" class="char-mini-btn" title="Toggle Extended Character Stats, Skills &amp; Context">▾</button>
                         <button type="button" id="btn-char-minimize" class="char-mini-btn" title="Minimize / Shade Hero Panel">−</button>
-                        <button type="button" id="btn-char-close" class="char-mini-btn" title="Hide Hero Panel (Restore via Hero button in Top Bar)">✕</button>
                     </div>
                 </div>
                 <!-- Twin Alchemical Blown-Glass Crystal Vials (Health & Mana / Voice) -->
@@ -492,7 +489,7 @@
                     <div class="stat-item" id="stat-item-ac" title="Armor Class"><span class="stat-label">AC</span><span id="val-ac" class="stat-value">0</span></div>
                     <div class="stat-item" id="stat-item-gold" title="Gold (AU)"><span class="stat-label">GOLD</span><span id="val-gold" class="stat-value" style="color: #ffd700;">0</span></div>
                 </div>
-                <div id="char-resize-handle" class="window-resize-handle" title="Drag to resize Hero Status Vault"></div>
+                <div id="char-resize-handle" class="window-resize-handle" title="Drag to resize Hero Status Panel"></div>
             </div>
 
             <!-- Center Column: Quick Action Bar + Detailed 3-Row Telemetry Footer -->
@@ -510,7 +507,6 @@
                 <!-- Quick Action Bar -->
                 <div id="action-bar" class="hud-panel" data-dock-preset="full">
                     <div id="action-bar-drag-handle" class="hud-dock-drag-handle" title="Drag to move Action Bar &amp; Status Dock • Double-click to reset">⋮⋮</div>
-                    <span class="action-group-tag" data-group="combat" title="Combat, Ranged &amp; Spellcasting">⚔ COMBAT</span>
                     <button id="btn-hero-action" class="action-btn action-hero-btn" title="Context Action (Attack / Open / Pickup / Tunnel / Wait)"><span id="hero-action-icon">⚔</span> <span id="hero-action-text">Attack</span> <kbd id="hero-action-key">Space</kbd></button>
                     <button id="btn-attack" class="action-btn" title="Attack adjacent monster in front [Space]">⚔ Attack <kbd>Space</kbd></button>
                     <button id="btn-throw" class="action-btn" title="Throw item at target [v]">🎯 Throw <kbd>v</kbd></button>
@@ -522,7 +518,6 @@
                     <button id="btn-quests" class="action-btn" style="display: none;" title="Active Quests &amp; Status [Q]">📜 Quests <kbd>Q</kbd></button>
                     <button id="btn-browse" class="action-btn" style="display: none;" title="Browse Spellbook [b]">📖 Browse <kbd>b</kbd></button>
                     <button id="btn-study" class="action-btn" style="display: none;" title="Study New Spells [G]">✨ Study <kbd>G</kbd></button><span class="action-cluster-sep" aria-hidden="true"></span>
-                    <span class="action-group-tag" data-group="pack" title="Potions, Scrolls, Pack &amp; Gear">🧪 PACK</span>
                     <button id="btn-quaff" class="action-btn" title="Drink / quaff potion [q]">🧪 Potion <kbd>q</kbd></button>
                     <button id="btn-read" class="action-btn" title="Read magical scroll [r]">📜 Scroll <kbd>r</kbd></button>
                     <button id="btn-eat" class="action-btn" title="Eat food ration [E]">🍖 Eat <kbd>E</kbd></button>
@@ -533,22 +528,15 @@
                     <button id="btn-equipment" class="action-btn" title="Inspect worn equipment [e]">🛡 Gear <kbd>e</kbd></button>
                     <button id="btn-wield" class="act-btn act-wasd-socket action-btn" title="Wield / Equip Item [w]"><span class="act-icon">🗡</span><span class="act-label">Wield</span><kbd class="act-key">w</kbd></button>
                     <button id="btn-drop" class="act-btn act-wasd-socket action-btn" title="Drop Item [d]"><span class="act-icon">📤</span><span class="act-label">Drop</span><kbd class="act-key">d</kbd></button><span class="action-cluster-sep" aria-hidden="true"></span>
-                    <span class="action-group-tag" data-group="delve" title="Exploration, Stairs &amp; Devices">🧭 DELVE</span>
                     <button id="btn-aim" class="act-btn act-wasd-socket action-btn" title="Aim Wand / Use Device [a]"><span class="act-icon">🪄</span><span class="act-label">Aim</span><kbd class="act-key">a</kbd></button>
                     <button id="btn-search" class="act-btn act-wasd-socket action-btn" title="Search / Perception [S]"><span class="act-icon">🔍</span><span class="act-label">Search</span><kbd class="act-key">s</kbd></button>
                     <button id="btn-stair" class="action-btn stair-btn" style="display: none;" title="Use stairs [&gt; or &lt;]">⬇ Descend <kbd>&gt;</kbd></button>
                     <button id="btn-explore" class="action-btn action-run-pill" title="Toggle Auto-Explore Mode: Automatically scout unexplored dungeon rooms &amp; corridors [Alt+E]"><span id="action-explore-icon">🧭</span> <span id="action-explore-text">Explore</span> <kbd>Alt+E</kbd></button>
                     <button id="btn-run-toggle" class="action-btn action-run-pill" title="Toggle Run / Sprint Mode in Selected Direction [Alt+R]"><span id="action-run-icon">🚶</span> <span id="action-run-text">Walk</span> <kbd>Alt+R</kbd></button><span class="action-cluster-sep" aria-hidden="true"></span>
-                    <span class="action-group-tag" data-group="tome" title="Classic Terminal, Compendium &amp; All Commands">📜 TOME</span>
                     <button id="btn-terminal" class="action-btn" title="Toggle 80x24 classic CRT terminal view [Tab]">📜 Classic <kbd>Tab</kbd></button>
                     <button id="btn-guide-hud" class="action-btn" title="View Complete Controls &amp; Commands Guide [?]">❓ Help <kbd>?</kbd></button>
                     <button id="btn-command-palette" class="action-btn action-cmd-btn" title="Adventurer's Field Compendium &amp; Available Actions [Ctrl+K]"><span class="btn-icon">▤</span><span class="btn-label">Actions ▾</span><kbd>Ctrl+K</kbd></button>
                     <button id="btn-action-more" class="action-btn action-more-btn" title="Toggle All Action Commands">⋯ More</button>
-                    <div class="action-bar-win-ctrls">
-                        <button type="button" id="btn-action-bar-minimize" class="char-mini-btn" title="Minimize / Shade Action Deck">−</button>
-                        <button type="button" id="btn-action-bar-close" class="char-mini-btn" title="Hide Action Deck (Restore via Deck button in Top Bar)">✕</button>
-                    </div>
-                    <div id="action-bar-resize-handle" class="window-resize-handle" title="Drag to resize Action Command Deck"></div>
                 </div>
 
                 <!-- Streamlined Glassmorphic Context & Status Bar -->
@@ -638,7 +626,7 @@
                 <div class="splash-ornament-corner bottom-right"></div>
 
                 <div class="splash-logo-wrap protected-crest" oncontextmenu="return false;">
-                    <img src="/assets/yasd3d_logo.png?v=11.4.0" alt="Yet Another Stupid Death Official Crest — yasd3d.com • Thunderbear Studios" class="splash-logo splash-logo-main" width="520" height="520" fetchpriority="high" draggable="false">
+                    <img src="/assets/yasd3d_logo.png?v=11.4.1" alt="Yet Another Stupid Death Official Crest — yasd3d.com • Thunderbear Studios" class="splash-logo splash-logo-main" width="520" height="520" fetchpriority="high" draggable="false">
                 </div>
 
                 <div class="splash-subtitle">
@@ -652,7 +640,7 @@
 
                 <div class="splash-credits-footer">
                     <a href="https://thunderbearstudios.dev" target="_blank" rel="noopener noreferrer" class="splash-studio-signature" title="Thunderbear Studios™ — Official Studio Portal (thunderbearstudios.dev)">
-                        <img src="/assets/thunderbear_logo.png?v=11.4.0" alt="Thunderbear Studios Official Emblem" class="splash-studio-badge" width="28" height="36" draggable="false">
+                        <img src="/assets/thunderbear_logo.png?v=11.4.1" alt="Thunderbear Studios Official Emblem" class="splash-studio-badge" width="28" height="36" draggable="false">
                         <span class="splash-studio-detail">
                             <strong>Thunderbear Studios&trade;</strong>
                             <small>&copy; 2026 Thunderbear Studios &bull; All Rights Reserved</small>
@@ -672,13 +660,13 @@
 
                 <div class="main-menu-header">
                     <div class="main-menu-crest-bar">
-                        <img src="/assets/yasd3d_logo.png?v=11.4.0" alt="YASD 3D Emblem" class="main-menu-logo-primary" width="56" height="56" draggable="false">
+                        <img src="/assets/yasd3d_logo.png?v=11.4.1" alt="YASD 3D Emblem" class="main-menu-logo-primary" width="56" height="56" draggable="false">
                         <div class="main-menu-title-group">
                             <h2 class="main-menu-title" id="main-menu-title">⚔ YASD 3D • YENDOR ENGINE ⚔</h2>
                             <div class="main-menu-subtitle" id="main-menu-subtitle">The Classic Tolkien Descent • Old British Scholar</div>
                         </div>
                         <a href="https://thunderbearstudios.dev" target="_blank" rel="noopener noreferrer" class="main-menu-studio-link" title="Thunderbear Studios™">
-                            <img src="/assets/thunderbear_logo.png?v=11.4.0" alt="Thunderbear Studios" class="main-menu-logo-secondary" width="28" height="36" draggable="false">
+                            <img src="/assets/thunderbear_logo.png?v=11.4.1" alt="Thunderbear Studios" class="main-menu-logo-secondary" width="28" height="36" draggable="false">
                         </a>
                     </div>
                     <div class="main-menu-realm-strip" id="main-menu-realm-strip">
@@ -1467,43 +1455,43 @@
     <script defer src="/js/vendor/GLTFLoader.js"></script>
 
     <!-- Client Subsystems -->
-    <script defer src="/js/safe-html.js?v=11.4.0"></script>
-    <script defer src="/js/realm-cartridge.js?v=11.4.0"></script>
-    <script defer src="/js/screen-modal-coordinator.js?v=11.4.0"></script>
-    <script defer src="/js/dungeon3d-lightmap.js?v=11.4.0"></script>
-    <script defer src="/js/dungeon3d-model-governor.js?v=11.4.0"></script>
-    <script defer src="/js/screen-context.js?v=11.4.0"></script>
-    <script defer src="/js/menu-router.js?v=11.4.0"></script>
-    <script defer src="/js/grimoire-deck.js?v=11.4.0"></script>
-    <script defer src="/js/quick-actions.js?v=11.4.0"></script>
-    <script defer src="/js/device.js?v=11.4.0"></script>
-    <script defer src="/js/action-catalog.js?v=11.4.0"></script>
-    <script defer src="/js/realm-keys.js?v=11.4.0"></script>
-    <script defer src="/js/command-dispatcher.js?v=11.4.0"></script>
-    <script defer src="/js/command-palette.js?v=11.4.0"></script>
-    <script defer src="/js/prompt-mirror.js?v=11.4.0"></script>
-    <script defer src="/js/item-sheet.js?v=11.4.0"></script>
-    <script defer src="/js/entity-menu.js?v=11.4.0"></script>
-    <script defer src="/js/gamepad.js?v=11.4.0"></script>
-    <script defer src="/js/radial-menu.js?v=11.4.0"></script>
-    <script defer src="/js/mobile-overlay.js?v=11.4.0"></script>
-    <script defer src="/js/audio.js?v=11.4.0"></script>
-    <script defer src="/js/terminal.js?v=11.4.0"></script>
-    <script defer src="/js/dungeon3d.js?v=11.4.0"></script>
-    <script defer src="/js/hud.js?v=11.4.0"></script>
-    <script defer src="/js/network.js?v=11.4.0"></script>
-    <script defer src="/js/local_bridge.js?v=11.4.0"></script>
-    <script defer src="/js/input.js?v=11.4.0"></script>
-    <script defer src="/js/demo-player.js?v=11.4.0"></script>
+    <script defer src="/js/safe-html.js?v=11.4.1"></script>
+    <script defer src="/js/realm-cartridge.js?v=11.4.1"></script>
+    <script defer src="/js/screen-modal-coordinator.js?v=11.4.1"></script>
+    <script defer src="/js/dungeon3d-lightmap.js?v=11.4.1"></script>
+    <script defer src="/js/dungeon3d-model-governor.js?v=11.4.1"></script>
+    <script defer src="/js/screen-context.js?v=11.4.1"></script>
+    <script defer src="/js/menu-router.js?v=11.4.1"></script>
+    <script defer src="/js/grimoire-deck.js?v=11.4.1"></script>
+    <script defer src="/js/quick-actions.js?v=11.4.1"></script>
+    <script defer src="/js/device.js?v=11.4.1"></script>
+    <script defer src="/js/action-catalog.js?v=11.4.1"></script>
+    <script defer src="/js/realm-keys.js?v=11.4.1"></script>
+    <script defer src="/js/command-dispatcher.js?v=11.4.1"></script>
+    <script defer src="/js/command-palette.js?v=11.4.1"></script>
+    <script defer src="/js/prompt-mirror.js?v=11.4.1"></script>
+    <script defer src="/js/item-sheet.js?v=11.4.1"></script>
+    <script defer src="/js/entity-menu.js?v=11.4.1"></script>
+    <script defer src="/js/gamepad.js?v=11.4.1"></script>
+    <script defer src="/js/radial-menu.js?v=11.4.1"></script>
+    <script defer src="/js/mobile-overlay.js?v=11.4.1"></script>
+    <script defer src="/js/audio.js?v=11.4.1"></script>
+    <script defer src="/js/terminal.js?v=11.4.1"></script>
+    <script defer src="/js/dungeon3d.js?v=11.4.1"></script>
+    <script defer src="/js/hud.js?v=11.4.1"></script>
+    <script defer src="/js/network.js?v=11.4.1"></script>
+    <script defer src="/js/local_bridge.js?v=11.4.1"></script>
+    <script defer src="/js/input.js?v=11.4.1"></script>
+    <script defer src="/js/demo-player.js?v=11.4.1"></script>
     <!-- Living Chronicle & Voiced Lorekeeper Modules -->
-    <script defer src="/js/chronicle/chronicle-store.js?v=11.4.0"></script>
-    <script defer src="/js/chronicle/chronicle-grounder.js?v=11.4.0"></script>
-    <script defer src="/js/chronicle/chronicle-filter.js?v=11.4.0"></script>
-    <script defer src="/js/chronicle/chronicle-story-weaver.js?v=11.4.0"></script>
-    <script defer src="/js/chronicle/chronicle-audio.js?v=11.4.0"></script>
-    <script defer src="/js/chronicle/chronicle-llm.js?v=11.4.0"></script>
-    <script defer src="/js/chronicle/chronicle-manager.js?v=11.4.0"></script>
-    <script defer src="/js/app.js?v=11.4.0"></script>
-    <script defer src="/js/boot.js?v=11.4.0"></script>
+    <script defer src="/js/chronicle/chronicle-store.js?v=11.4.1"></script>
+    <script defer src="/js/chronicle/chronicle-grounder.js?v=11.4.1"></script>
+    <script defer src="/js/chronicle/chronicle-filter.js?v=11.4.1"></script>
+    <script defer src="/js/chronicle/chronicle-story-weaver.js?v=11.4.1"></script>
+    <script defer src="/js/chronicle/chronicle-audio.js?v=11.4.1"></script>
+    <script defer src="/js/chronicle/chronicle-llm.js?v=11.4.1"></script>
+    <script defer src="/js/chronicle/chronicle-manager.js?v=11.4.1"></script>
+    <script defer src="/js/app.js?v=11.4.1"></script>
+    <script defer src="/js/boot.js?v=11.4.1"></script>
 </body>
 </html>

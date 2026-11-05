@@ -570,15 +570,19 @@ class WebHUD {
 
     setCustomMinimapSize(w, h) {
         if (!this.minimapCanvas) return;
-        const validW = Math.max(168, Math.min(800, Math.round(w)));
-        const validH = Math.max(168, Math.min(800, Math.round(h)));
+        const validW = Math.max(168, Math.min(680, Math.round(w)));
+        const validH = Math.max(190, Math.min(680, Math.round(h)));
         if (this.minimapContainer) {
             this.minimapContainer.classList.remove('compact', 'standard', 'expanded', 'tactical', 'command', 'minimap-size-compact');
             this.minimapContainer.style.width = `${validW}px`;
-            this.minimapContainer.style.height = `${validH}px`;
+            this.minimapContainer.style.height = 'auto';
         }
-        // Deduct ~64px for header, controls bar, and tilt bar so canvas fills the container cleanly
-        const canvasH = Math.max(110, validH - 64);
+        const ctrlBar = document.getElementById('minimap-controls-bar');
+        const tiltBar = document.getElementById('camera-tilt-bar');
+        const chromeH = (this.minimapHeader ? this.minimapHeader.offsetHeight : 26)
+            + (ctrlBar && ctrlBar.offsetParent !== null ? ctrlBar.offsetHeight : 28)
+            + (tiltBar && tiltBar.offsetParent !== null ? tiltBar.offsetHeight : 26);
+        const canvasH = Math.max(108, validH - chromeH - 4);
         this.minimapCanvas.width = validW;
         this.minimapCanvas.height = canvasH;
         this.minimapCanvas.style.width = `${validW}px`;
@@ -853,7 +857,7 @@ class WebHUD {
             charPanel.style.cursor = 'pointer';
             charPanel.title = 'Click to open full Character Sheet [C]';
             charPanel.addEventListener('click', (e) => {
-                if (e.target && e.target.closest('button, a, input')) return;
+                if (e.target && e.target.closest('button, a, input, .window-resize-handle')) return;
                 if (this._hudWasDragged) return;
                 this.sendQuickHudCommand('C');
             });
@@ -1253,8 +1257,10 @@ class WebHUD {
             el.style.width = '';
             el.style.height = '';
             el.style.margin = '';
+            el.style.removeProperty('--char-panel-w');
             el.classList.remove('hud-widget-dragging', 'window-minimized', 'hud-panel-hidden');
         }
+        this.applyMinimapSize();
         for (const bId of ['btn-minimap-minimize', 'btn-msg-minimize', 'btn-char-minimize', 'btn-action-bar-minimize']) {
             const b = document.getElementById(bId);
             if (b) b.textContent = '−';

@@ -1107,6 +1107,12 @@ window.addEventListener('DOMContentLoaded', () => {
 
     // Draggable and Resizable Windows Coordinator (Minimap and Message Log)
     function setupDraggableAndResizableWindows() {
+        try {
+            if (localStorage.getItem('angband3d_hud_v1141_clean') !== '1') {
+                ['angband_map_pos', 'angband_map_size', 'angband_char_size', 'angband_deck_size', 'angband3d_hud_layout_v2'].forEach(k => localStorage.removeItem(k));
+                localStorage.setItem('angband3d_hud_v1141_clean', '1');
+            }
+        } catch (_) {}
         const makeWindowDraggableAndResizable = (winEl, headerEl, resizeHandleEl, storageKey, onResize) => {
             if (!winEl) return;
             // Restore saved position with safe screen bounds
@@ -1159,9 +1165,6 @@ window.addEventListener('DOMContentLoaded', () => {
                     initialTop = rect.top;
                     fixedW = rect.width;
                     fixedH = rect.height;
-                    // Freeze dimensions strictly so dragging NEVER changes size
-                    winEl.style.width = `${fixedW}px`;
-                    winEl.style.height = `${fixedH}px`;
                     winEl.style.left = `${initialLeft}px`;
                     winEl.style.top = `${initialTop}px`;
                     winEl.style.right = 'auto';
@@ -1176,8 +1179,6 @@ window.addEventListener('DOMContentLoaded', () => {
                     const newTop = Math.max(0, Math.min(window.innerHeight - 40, initialTop + dy));
                     winEl.style.left = `${newLeft}px`;
                     winEl.style.top = `${newTop}px`;
-                    winEl.style.width = `${fixedW}px`;
-                    winEl.style.height = `${fixedH}px`;
                 };
                 const endDrag = () => {
                     if (isDragging) {
@@ -1227,12 +1228,12 @@ window.addEventListener('DOMContentLoaded', () => {
                     } catch (_) {}
                 });
             }
-            // Resizing via bottom-right handle
+            // Resizing via bottom-right handle (supports both mouse and touch via Pointer Events)
             if (resizeHandleEl) {
                 let isResizing = false;
                 let startX = 0, startY = 0;
                 let initialW = 0, initialH = 0;
-                resizeHandleEl.addEventListener('mousedown', (e) => {
+                resizeHandleEl.addEventListener('pointerdown', (e) => {
                     e.preventDefault();
                     e.stopPropagation();
                     isResizing = true;
@@ -1241,29 +1242,37 @@ window.addEventListener('DOMContentLoaded', () => {
                     const rect = winEl.getBoundingClientRect();
                     initialW = rect.width;
                     initialH = rect.height;
-                    const onMouseMove = (ev) => {
+                    try { resizeHandleEl.setPointerCapture(e.pointerId); } catch (_) {}
+                    const onPointerMove = (ev) => {
                         if (!isResizing) return;
                         const dx = ev.clientX - startX;
                         const dy = ev.clientY - startY;
-                        const newW = Math.max(140, Math.min(window.innerWidth - 20, initialW + dx));
-                        const newH = Math.max(50, Math.min(window.innerHeight - 20, initialH + dy));
-                        winEl.style.width = `${newW}px`;
-                        winEl.style.height = `${newH}px`;
-                        if (onResize) onResize(newW, newH);
+                        const minW = storageKey === 'angband_map' ? 168 : 180;
+                        const minH = storageKey === 'angband_map' ? 190 : 80;
+                        const newW = Math.max(minW, Math.min(window.innerWidth - 20, initialW + dx));
+                        const newH = Math.max(minH, Math.min(window.innerHeight - 20, initialH + dy));
+                        if (onResize) {
+                            onResize(newW, newH);
+                        } else {
+                            winEl.style.width = `${newW}px`;
+                            winEl.style.height = `${newH}px`;
+                        }
                     };
-                    const onMouseUp = () => {
+                    const onPointerUp = () => {
                         if (isResizing) {
                             isResizing = false;
-                            window.removeEventListener('mousemove', onMouseMove);
-                            window.removeEventListener('mouseup', onMouseUp);
+                            window.removeEventListener('pointermove', onPointerMove);
+                            window.removeEventListener('pointerup', onPointerUp);
+                            window.removeEventListener('pointercancel', onPointerUp);
                             const rect = winEl.getBoundingClientRect();
                             try {
                                 localStorage.setItem(storageKey + '_size', JSON.stringify({ width: rect.width, height: rect.height }));
                             } catch (_) {}
                         }
                     };
-                    window.addEventListener('mousemove', onMouseMove);
-                    window.addEventListener('mouseup', onMouseUp);
+                    window.addEventListener('pointermove', onPointerMove);
+                    window.addEventListener('pointerup', onPointerUp);
+                    window.addEventListener('pointercancel', onPointerUp);
                 });
             }
         };
@@ -1287,7 +1296,7 @@ window.addEventListener('DOMContentLoaded', () => {
         const chronicleResize = document.getElementById('chronicle-resize-handle');
         makeWindowDraggableAndResizable(chronicleWin, chronicleHeader, chronicleResize, 'angband_chronicle', null);
 
-        // Universal Minimize / Shade, Hide & Resize for All HUD Components (v11.4.0)
+        // Universal Minimize / Shade, Hide & Resize for HUD Components
         const wireShadeToggle = (btnId, winEl) => {
             const btn = document.getElementById(btnId);
             if (!btn || !winEl) return;
@@ -1298,86 +1307,59 @@ window.addEventListener('DOMContentLoaded', () => {
                 btn.title = shaded ? 'Expand Panel' : 'Minimize / Shade Panel';
             });
         };
-        wireShadeToggle('btn-minimap-minimize', mapWin);
         wireShadeToggle('btn-msg-minimize', msgWin);
         const charWin = document.getElementById('char-panel');
         const deckWin = document.getElementById('hud-center-column');
-        const actionBarEl = document.getElementById('action-bar');
-        const dpadWin = document.getElementById('touch-controls');
         wireShadeToggle('btn-char-minimize', charWin);
-        wireShadeToggle('btn-action-bar-minimize', deckWin);
 
-        const wireHideAndRestore = (closeBtnId, topBtnId, winEl) => {
-            const closeBtn = document.getElementById(closeBtnId);
-            const topBtn = topBtnId ? document.getElementById(topBtnId) : null;
+        const wireTopToggle = (topBtnId, winEl) => {
+            const topBtn = document.getElementById(topBtnId);
+            if (!topBtn || !winEl) return;
             const syncTopBtn = () => {
-                if (!topBtn || !winEl) return;
                 const hidden = winEl.classList.contains('hud-panel-hidden');
                 topBtn.classList.toggle('panel-off', hidden);
                 topBtn.setAttribute('aria-pressed', String(!hidden));
             };
-            if (closeBtn && winEl) {
-                closeBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    winEl.classList.add('hud-panel-hidden');
-                    syncTopBtn();
-                });
-            }
-            if (topBtn && winEl) {
-                topBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    const hidden = winEl.classList.toggle('hud-panel-hidden');
-                    if (!hidden) winEl.classList.remove('window-minimized');
-                    syncTopBtn();
-                });
+            topBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const hidden = winEl.classList.toggle('hud-panel-hidden');
+                if (!hidden) winEl.classList.remove('window-minimized');
                 syncTopBtn();
-            }
+            });
+            syncTopBtn();
         };
-        wireHideAndRestore('btn-char-close', 'btn-toggle-hero', charWin);
-        wireHideAndRestore('btn-action-bar-close', 'btn-toggle-actions', deckWin);
-        wireHideAndRestore('btn-dpad-close', null, dpadWin);
+        wireTopToggle('btn-toggle-hero', charWin);
+        wireTopToggle('btn-toggle-actions', deckWin);
 
-        // Wire Resize Handles for Hero Vault & Action Deck
-        const wireSimpleResize = (handleId, targetEl, minW, maxW, minH, maxH, storageKey) => {
-            const handle = document.getElementById(handleId);
-            if (!handle || !targetEl) return;
+        // Wire Width Resize Handle for Hero Status Panel (keeps height auto so drawer never clips)
+        const charResize = document.getElementById('char-resize-handle');
+        if (charResize && charWin) {
             try {
-                const saved = localStorage.getItem(storageKey);
+                const saved = localStorage.getItem('angband_char_size');
                 if (saved) {
                     const sz = JSON.parse(saved);
-                    if (sz.w) targetEl.style.width = `${Math.max(minW, Math.min(maxW, sz.w))}px`;
-                    if (sz.h && minH) targetEl.style.height = `${Math.max(minH, Math.min(maxH, sz.h))}px`;
+                    if (sz.w) charWin.style.setProperty('--char-panel-w', `${Math.max(200, Math.min(380, sz.w))}px`);
                 }
             } catch (_) {}
-            let startX = 0, startY = 0, startW = 0, startH = 0, active = false;
-            handle.addEventListener('pointerdown', (e) => {
+            let startX = 0, startW = 0, active = false;
+            charResize.addEventListener('pointerdown', (e) => {
                 e.stopPropagation();
                 e.preventDefault();
                 active = true;
-                const rect = targetEl.getBoundingClientRect();
                 startX = e.clientX;
-                startY = e.clientY;
-                startW = rect.width;
-                startH = rect.height;
-                try { handle.setPointerCapture(e.pointerId); } catch (_) {}
+                startW = charWin.getBoundingClientRect().width;
+                try { charResize.setPointerCapture(e.pointerId); } catch (_) {}
             });
-            handle.addEventListener('pointermove', (e) => {
+            charResize.addEventListener('pointermove', (e) => {
                 if (!active) return;
-                const nw = Math.round(Math.max(minW, Math.min(maxW, startW + (e.clientX - startX))));
-                targetEl.style.width = `${nw}px`;
-                let nh = null;
-                if (minH) {
-                    nh = Math.round(Math.max(minH, Math.min(maxH, startH + (e.clientY - startY))));
-                    targetEl.style.height = `${nh}px`;
-                }
-                try { localStorage.setItem(storageKey, JSON.stringify({ w: nw, h: nh })); } catch (_) {}
+                const nw = Math.round(Math.max(200, Math.min(380, startW + (e.clientX - startX))));
+                charWin.style.setProperty('--char-panel-w', `${nw}px`);
+                try { localStorage.setItem('angband_char_size', JSON.stringify({ w: nw })); } catch (_) {}
             });
-            const endResize = () => { active = false; };
-            handle.addEventListener('pointerup', endResize);
-            handle.addEventListener('pointercancel', endResize);
-        };
-        wireSimpleResize('char-resize-handle', charWin, 210, 420, 140, 440, 'angband_char_size');
-        wireSimpleResize('action-bar-resize-handle', actionBarEl, 380, 1360, 0, 0, 'angband_deck_size');
+            const endCharResize = () => { active = false; };
+            charResize.addEventListener('pointerup', endCharResize);
+            charResize.addEventListener('pointercancel', endCharResize);
+        }
     }
     setupDraggableAndResizableWindows();
 
