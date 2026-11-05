@@ -2049,10 +2049,12 @@ const POLYHAVEN_ITEM_GLTF_PATHS = {
     item_talisman: '/assets/models/items/phoenix_talisman.glb',
     item_chainmail: '/assets/models/items/chain_mail.glb',
     item_crown: '/assets/models/items/helm_of_brilliance.glb',
+    item_ring: '/assets/models/items/helm_of_brilliance.glb',
     item_gold: '/assets/models/items/coin_pile_spill.glb',
     ph_book: '/assets/polyhaven/models/decorative_book_set_01/decorative_book_set_01.gltf',
-    item_anvil: '/assets/models/environment/Anvil.gltf',
-    item_shrine_candles: '/assets/polyhaven/models/shrine_candles/shrine_candles.gltf'
+    ph_crystal: '/assets/polyhaven/models/crystalline_iceplant/crystalline_iceplant.gltf',
+    item_anvil: '/assets/models/items/Anvil.gltf',
+    item_shrine_candles: '/assets/models/items/shrine_candles.gltf'
 };
 
 if (typeof window !== 'undefined' && !window.DeviceProfile) {
@@ -3018,7 +3020,6 @@ class Dungeon3D {
                 if (onReady) onReady(entry);
                 this._currentThemeId = null;
                 this._currentTexturesAreOutdoors = null;
-                this._lastTerrainSig = null;
                 const isOut = (this.lastDepth === 0 || this.lastDepth === null || this.lastDepth === undefined);
                 this.applyEnvironmentTextures(isOut, this.currentBiome, this.realm || 'angband', this.lastDepth || 0, this.levelSeed || 0);
             };
@@ -3151,7 +3152,6 @@ class Dungeon3D {
                 if (onReady) onReady(entry);
                 this._currentThemeId = null;
                 this._currentTexturesAreOutdoors = null;
-                this._lastTerrainSig = null;
                 const isOut = (this.lastDepth === 0 || this.lastDepth === null || this.lastDepth === undefined);
                 this.applyEnvironmentTextures(isOut, this.currentBiome, this.realm || 'angband', this.lastDepth || 0, this.levelSeed || 0);
             };
@@ -3436,7 +3436,7 @@ class Dungeon3D {
     }
 
     initMeshes() {
-        this.maxInstances = 8192;
+        this.maxInstances = 4096;
         this.createChamferedWallGeometry = createChamferedWallGeometry;
         this.applyWallVertexAO = applyWallVertexAO;
         // 45-degree chamfered geometry creates a visible 0.57m aperture between diagonal blocks
@@ -3461,17 +3461,6 @@ class Dungeon3D {
         }
         ceilingGeo.computeVertexNormals();
         applyCeilingVertexAO(ceilingGeo, this.cellSize);
-
-        // Soft contact shadow disc for grounded 3D item pickups
-        this.shadowGeo = new THREE.PlaneGeometry(0.36, 0.36);
-        this.shadowGeo.rotateX(-Math.PI / 2);
-        this.shadowMat = new THREE.MeshBasicMaterial({
-            map: this.shadowTex,
-            transparent: true,
-            opacity: 0.42,
-            depthWrite: false
-        });
-        this.captionMaterialCache = new Map();
 
         // Helper to construct composite PBR geometries (1:1 with Godot SurfaceTool / BuildDoorMesh)
         const createMergedBoxGeometry = (boxes) => {
@@ -3936,6 +3925,10 @@ class Dungeon3D {
         this.altarMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
         this.scene.add(this.altarMesh);
 
+        this.forgeMesh = new THREE.InstancedMesh(altarGeo.clone(), this.altarMaterial, 32);
+        this.forgeMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+        this.scene.add(this.forgeMesh);
+
         // 8. Sparkling Magic Fountain (feat 44: '{') - Octagonal stone basin, tiered pedestal & cascading azure water
         const fountainBoxes = [
             { pos: [0, 0.05, 0], size: [1.28, 0.10, 1.28], color: [0.68, 0.72, 0.78] },                      // Octagonal base plinth A
@@ -4030,6 +4023,7 @@ class Dungeon3D {
         initInstancedColors(this.stairsMesh, 128);
         initInstancedColors(this.stairsUpMesh, 128);
         initInstancedColors(this.altarMesh, 64);
+        initInstancedColors(this.forgeMesh, 32);
         initInstancedColors(this.fountainMesh, 64);
         initInstancedColors(this.trapMesh, 128);
         initInstancedColors(this.magmaMesh, 256);
@@ -4349,6 +4343,45 @@ class Dungeon3D {
                         if (this.lastFrame) this.updateDungeon(this.lastFrame);
                     });
                 });
+            }
+        }, undefined, () => {});
+
+        loader.load('/assets/models/items/Anvil_Log.gltf', (gltf) => {
+            if (!gltf || !gltf.scene || !this.forgeMesh) return;
+            gltf.scene.updateMatrixWorld(true);
+            const geos = [];
+            gltf.scene.traverse((c) => {
+                if (c.isMesh && c.geometry) {
+                    const g = c.geometry.clone();
+                    g.applyMatrix4(c.matrixWorld);
+                    const vCount = g.attributes.position ? g.attributes.position.count : 0;
+                    if (vCount > 0 && !g.attributes.color) {
+                        const colors = new Float32Array(vCount * 3);
+                        const mc = (c.material && c.material.color) ? c.material.color : { r: 0.45, g: 0.42, b: 0.40 };
+                        for (let i = 0; i < vCount; i++) {
+                            colors[i * 3] = mc.r;
+                            colors[i * 3 + 1] = mc.g;
+                            colors[i * 3 + 2] = mc.b;
+                        }
+                        g.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+                    }
+                    geos.push(g);
+                }
+            });
+            if (geos.length > 0) {
+                const merged = this._mergeBufferGeometries(geos);
+                merged.computeBoundingBox();
+                const bbox = merged.boundingBox;
+                const cx = (bbox.min.x + bbox.max.x) * 0.5;
+                const cz = (bbox.min.z + bbox.max.z) * 0.5;
+                const span = Math.max(bbox.max.x - bbox.min.x, bbox.max.y - bbox.min.y, bbox.max.z - bbox.min.z) || 1.0;
+                merged.translate(-cx, -bbox.min.y, -cz);
+                merged.scale(0.95 / span, 0.95 / span, 0.95 / span);
+                merged.computeVertexNormals();
+                if (this.forgeMesh.geometry) this.forgeMesh.geometry.dispose();
+                this.forgeMesh.geometry = merged;
+                this._lastTerrainSig = null;
+                if (this.lastFrame) this.updateDungeon(this.lastFrame);
             }
         }, undefined, () => {});
     }
@@ -4727,7 +4760,7 @@ class Dungeon3D {
             hammer: 'ph_hammer',
             sledgehammer: 'ph_sledgehammer',
             polearm: 'item_spear',
-            staff: 'item_staff_branch',
+            staff_branch: 'item_staff_branch',
             staff: 'item_staff',
             wand: 'item_wand',
             rod: 'item_rod',
@@ -5014,8 +5047,12 @@ class Dungeon3D {
                 key = 'shovel';
             } else if (/\b(pick|pickaxe|mattock|digger)\b/.test(lowerW) || wTval === 20) {
                 key = 'pickaxe';
-            } else if (/\b(wand|rod|staff|quarterstaff)\b/.test(lowerW) || wTval === 55 || wTval === 65 || wTval === 66) {
-                key = 'staff';
+            } else if (/\bwand\b/.test(lowerW) || wTval === 65) {
+                key = 'wand';
+            } else if (/\brod\b/.test(lowerW) || wTval === 66) {
+                key = 'rod';
+            } else if (/\b(staff|quarterstaff)\b/.test(lowerW) || wTval === 55) {
+                key = /\b(gnarled|branch|druid|wood)\b/.test(lowerW) ? 'staff_branch' : 'staff';
             } else if (/\b(scythe|sickle|glaive|halberd|lochaber)\b/.test(lowerW)) {
                 key = 'axe';
             } else if (lowerW.includes('whip') || lowerW.includes('bullwhip') || lowerW.includes('scourge') || lowerW.includes('cat-o')) {
@@ -5040,7 +5077,9 @@ class Dungeon3D {
                 key = 'club';
             } else if (lowerW.includes('mace') || lowerW.includes('scepter')) {
                 key = 'mace';
-            } else if (lowerW.includes('hammer') || lowerW.includes('maul')) {
+            } else if (/\b(sledge|maul|great hammer|grond)\b/.test(lowerW)) {
+                key = 'sledgehammer';
+            } else if (lowerW.includes('hammer')) {
                 key = 'hammer';
             } else if (lowerW.includes('spear') || lowerW.includes('pike') || lowerW.includes('lance') || lowerW.includes('trident') || lowerW.includes('polearm')) {
                 key = 'spear';
@@ -5051,8 +5090,18 @@ class Dungeon3D {
             key = 'bow';
         }
 
-        if (this.currentRightWeapon === key && this.rightItemSlot && this.rightItemSlot.children.length > 0) return;
+        let brandHex = null;
+        if (/\b(flame|flaming|fire|burning|anduril|sun)\b/.test(lowerW)) brandHex = '#ff5500';
+        else if (/\b(frost|freezing|cold|ice|ringil|glamdring|sting)\b/.test(lowerW)) brandHex = '#38bdf8';
+        else if (/\b(lightning|shocking|elec|thunder)\b/.test(lowerW)) brandHex = '#fde047';
+        else if (/\b(acid|melting|dissolving)\b/.test(lowerW)) brandHex = '#84cc16';
+        else if (/\b(venom|poison|viper)\b/.test(lowerW)) brandHex = '#22c55e';
+        else if (/\b(holy|blessed|defender|westernesse|gondolin|lothlorien)\b/.test(lowerW)) brandHex = '#facc15';
+        else if (/\b(morgul|vampiric|chaos|terror)\b/.test(lowerW)) brandHex = '#a855f7';
+
+        if (this.currentRightWeapon === key && this.currentRightWeaponBrand === brandHex && this.rightItemSlot && this.rightItemSlot.children.length > 0) return;
         this.currentRightWeapon = key;
+        this.currentRightWeaponBrand = brandHex;
 
         if (this.rightItemSlot) {
             while (this.rightItemSlot.children.length > 0) {
@@ -5067,6 +5116,23 @@ class Dungeon3D {
             let mesh = null;
             if (this.weaponCache.has(key)) {
                 mesh = this.weaponCache.get(key).clone(true);
+                if (brandHex) {
+                    const bCol = new THREE.Color(brandHex);
+                    mesh.traverse((c) => {
+                        if (c.isMesh && c.material && !Array.isArray(c.material)) {
+                            const mName = ((c.material.name || '') + ' ' + (c.name || '')).toLowerCase();
+                            if (/gauntlet|hand|wood|handle|grip|leather/i.test(mName)) return;
+                            const mClone = c.material.clone();
+                            mClone._sharedMaterial = true;
+                            if (mClone.color) mClone.color.lerp(bCol, 0.36);
+                            if (mClone.emissive) {
+                                mClone.emissive.copy(bCol);
+                                mClone.emissiveIntensity = 0.28;
+                            }
+                            c.material = mClone;
+                        }
+                    });
+                }
             } else {
                 this._ensureViewmodelWeapon(key);
             }
@@ -5152,12 +5218,12 @@ class Dungeon3D {
                 wClone.scale.setScalar(0.36);
                 wClone.position.set(0, 0.01, 0);
                 wClone.rotation.set(0.16, -0.25, 0.12);
-            } else if (key === 'shovel' || key === 'pickaxe' || key === 'staff') {
-                wClone.scale.setScalar(0.42);
+            } else if (key === 'shovel' || key === 'pickaxe' || key === 'staff' || key === 'staff_branch' || key === 'wand' || key === 'rod') {
+                wClone.scale.setScalar(key === 'wand' || key === 'rod' ? 0.36 : 0.42);
                 wClone.position.set(0, -0.01, 0);
                 wClone.rotation.set(0.12, key === 'shovel' ? -0.35 : -0.22, 0.06);
             } else {
-                const vmScale = key === 'spear' ? 0.32 : (key === 'claymore' ? 0.35 : (key === 'dagger' || key === 'hatchet' ? 0.46 : 0.40));
+                const vmScale = key === 'spear' ? 0.32 : (key === 'claymore' || key === 'sledgehammer' ? 0.35 : (key === 'dagger' || key === 'hatchet' ? 0.46 : 0.40));
                 wClone.scale.setScalar(vmScale);
                 wClone.position.set(0, key === 'dagger' || key === 'hatchet' ? -0.02 : -0.01, 0);
                 wClone.rotation.set(0.14, -0.24, 0.08);
@@ -7055,6 +7121,7 @@ class Dungeon3D {
         let stairsCount = 0;
         let stairsUpCount = 0;
         let altarCount = 0;
+        let forgeCount = 0;
         let fountainCount = 0;
         let magmaCount = 0;
         let quartzCount = 0;
@@ -7329,21 +7396,57 @@ class Dungeon3D {
                     continue;
                 }
 
-                // Alpine Mountain Peaks (feat 30=MOUNTAIN) - Towering craggy alpine massif with organic scale/yaw variation
+                // Alpine Mountain Peaks (feat 30=MOUNTAIN) - Towering craggy alpine massif with organic scale/yaw/tilt variation & interior culling
                 if (feat === 30) {
+                    let hasExposedMountainFace = false;
+                    for (let dy = -1; dy <= 1; dy++) {
+                        for (let dx = -1; dx <= 1; dx++) {
+                            if (dx === 0 && dy === 0) continue;
+                            const nx = x + dx;
+                            const ny = y + dy;
+                            if (nx >= 0 && nx < w && ny >= 0 && ny < h) {
+                                if (this.getFeatAt(map, nx, ny) !== 30) {
+                                    hasExposedMountainFace = true;
+                                    break;
+                                }
+                            }
+                        }
+                        if (hasExposedMountainFace) break;
+                    }
+                    if (!hasExposedMountainFace) continue;
+
+                    if (floorCount < this.maxInstances) {
+                        this.dummy.position.set(wx, -0.05, wz);
+                        this.dummy.rotation.set(0, 0, 0);
+                        this.dummy.updateMatrix();
+                        this.floorMesh.setMatrixAt(floorCount, this.dummy.matrix);
+                        this.floorMesh.setColorAt(floorCount, floorShade);
+                        floorCount++;
+                    }
                     if (mountainCount < this.maxInstances) {
                         this.dummy.position.set(wx, 0, wz);
                         const mYaw = ((x * 53 + y * 97) % 8) * (Math.PI / 4);
-                        const mScaleXZ = 0.94 + ((x * 17 + y * 29) % 4) * 0.05;
-                        const mScaleY = 0.96 + ((x * 19 + y * 31) % 5) * 0.14;
-                        this.dummy.rotation.set(0, mYaw, 0);
-                        this.dummy.scale.set(mScaleXZ, mScaleY, mScaleXZ);
+                        const mTiltX = (((x * 31 + y * 13) % 5) - 2) * 0.032;
+                        const mTiltZ = (((x * 17 + y * 43) % 5) - 2) * 0.032;
+                        const mScaleX = 0.92 + ((x * 17 + y * 29) % 5) * 0.06;
+                        const mScaleZ = 0.92 + ((x * 23 + y * 37) % 5) * 0.06;
+                        const mScaleY = 0.92 + ((x * 19 + y * 31) % 6) * 0.14;
+                        this.dummy.rotation.set(mTiltX, mYaw, mTiltZ);
+                        this.dummy.scale.set(mScaleX, mScaleY, mScaleZ);
                         this.dummy.updateMatrix();
                         const mountainShade = this.computeTileShade(this._scratchMountainColor, this.getBaseColour(30, biome), inView, outdoors, lighting, x, y, isRoom, depth);
                         this.mountainMesh.setMatrixAt(mountainCount, this.dummy.matrix);
                         this.mountainMesh.setColorAt(mountainCount, mountainShade);
                         mountainCount++;
                         this.dummy.scale.set(1, 1, 1);
+                    }
+                    if (!outdoors && ceilingCount < this.maxInstances) {
+                        this.dummy.position.set(wx, this.wallHeight + 0.05, wz);
+                        this.dummy.rotation.set(0, 0, 0);
+                        this.dummy.updateMatrix();
+                        this.ceilingMesh.setMatrixAt(ceilingCount, this.dummy.matrix);
+                        this.ceilingMesh.setColorAt(ceilingCount, ceilingShade);
+                        ceilingCount++;
                     }
                     continue;
                 }
@@ -7426,11 +7529,11 @@ class Dungeon3D {
                 }
 
                 // Store Entrances (feat 7 to 14 in Town / depth 0) and Special Town Buildings (feat 32 to 40)
-                // In subterranean Sil-Q (!outdoors && this.realm === 'silq'), feat 7..14 are Elemental Glyphs/Runes, NOT shops!
+                // Underground (!outdoors), feat 7..14 are Elemental Glyphs/Runes, NOT shops!
                 let shopIdx = -1;
-                if (feat >= 7 && feat <= 14 && (outdoors || this.realm !== 'silq')) {
+                if (feat >= 7 && feat <= 14 && outdoors) {
                     shopIdx = feat - 7;
-                } else if (feat >= 7 && feat <= 14 && !outdoors && this.realm === 'silq') {
+                } else if (feat >= 7 && feat <= 14 && !outdoors) {
                     this.dummy.position.set(wx, -0.05, wz);
                     this.dummy.rotation.set(0, floorRot, 0);
                     this.dummy.updateMatrix();
@@ -7776,7 +7879,14 @@ class Dungeon3D {
                         treeCount++;
                         this.dummy.scale.set(1, 1, 1);
                     }
-                    // Tree canopy reaches into open sky: NO ceiling!
+                    if (!outdoors && ceilingCount < this.maxInstances) {
+                        this.dummy.position.set(wx, this.wallHeight, wz);
+                        this.dummy.rotation.set(0, ceilingRot, 0);
+                        this.dummy.updateMatrix();
+                        this.ceilingMesh.setMatrixAt(ceilingCount, this.dummy.matrix);
+                        this.ceilingMesh.setColorAt(ceilingCount, ceilingShade);
+                        ceilingCount++;
+                    }
                     continue;
                 }
 
@@ -7816,6 +7926,14 @@ class Dungeon3D {
                         this.bushMesh.setColorAt(bushCount, bushShade);
                         bushCount++;
                         this.dummy.scale.set(1, 1, 1);
+                    }
+                    if (!outdoors && ceilingCount < this.maxInstances) {
+                        this.dummy.position.set(wx, this.wallHeight, wz);
+                        this.dummy.rotation.set(0, ceilingRot, 0);
+                        this.dummy.updateMatrix();
+                        this.ceilingMesh.setMatrixAt(ceilingCount, this.dummy.matrix);
+                        this.ceilingMesh.setColorAt(ceilingCount, ceilingShade);
+                        ceilingCount++;
                     }
                     continue;
                 }
@@ -7997,7 +8115,13 @@ class Dungeon3D {
                     this.dummy.position.set(wx, 0, wz);
                     this.dummy.rotation.set(0, 0, 0);
                     this.dummy.updateMatrix();
-                    if (feat === 43 || isSilQForge) {
+                    if (isSilQForge && this.forgeMesh) {
+                        if (forgeCount < 32) {
+                            this.forgeMesh.setMatrixAt(forgeCount, this.dummy.matrix);
+                            this.forgeMesh.setColorAt(forgeCount, floorShade);
+                            forgeCount++;
+                        }
+                    } else if (feat === 43 || isSilQForge) {
                         if (altarCount < 64) {
                             this.altarMesh.setMatrixAt(altarCount, this.dummy.matrix);
                             this.altarMesh.setColorAt(altarCount, floorShade);
@@ -8057,8 +8181,18 @@ class Dungeon3D {
             const oldCount = mesh.count;
             mesh.count = newCount;
             if (newCount > 0 || oldCount > 0) {
+                if (mesh.instanceMatrix.updateRange) {
+                    mesh.instanceMatrix.updateRange.offset = 0;
+                    mesh.instanceMatrix.updateRange.count = newCount * 16;
+                }
                 mesh.instanceMatrix.needsUpdate = true;
-                if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+                if (mesh.instanceColor) {
+                    if (mesh.instanceColor.updateRange) {
+                        mesh.instanceColor.updateRange.offset = 0;
+                        mesh.instanceColor.updateRange.count = newCount * 3;
+                    }
+                    mesh.instanceColor.needsUpdate = true;
+                }
             }
         };
 
@@ -8092,21 +8226,41 @@ class Dungeon3D {
         updateMesh(this.stairsMesh, stairsCount);
         updateMesh(this.stairsUpMesh, stairsUpCount);
         updateMesh(this.altarMesh, altarCount);
+        if (this.forgeMesh) updateMesh(this.forgeMesh, forgeCount);
         updateMesh(this.fountainMesh, fountainCount);
         updateMesh(this.trapMesh, trapCount);
         if (this.chasmMesh) updateMesh(this.chasmMesh, chasmIdx);
         if (this.chasmVoidMesh) {
+            const oldChasmVoid = this.chasmVoidMesh.count;
             this.chasmVoidMesh.count = chasmVoidIdx;
-            this.chasmVoidMesh.instanceMatrix.needsUpdate = true;
+            if (chasmVoidIdx > 0 || oldChasmVoid > 0) {
+                if (this.chasmVoidMesh.instanceMatrix.updateRange) {
+                    this.chasmVoidMesh.instanceMatrix.updateRange.offset = 0;
+                    this.chasmVoidMesh.instanceMatrix.updateRange.count = chasmVoidIdx * 16;
+                }
+                this.chasmVoidMesh.instanceMatrix.needsUpdate = true;
+            }
         }
 
         const oldLava = this.lavaMesh.count;
         this.lavaMesh.count = lavaCount;
-        if (lavaCount > 0 || oldLava > 0) this.lavaMesh.instanceMatrix.needsUpdate = true;
+        if (lavaCount > 0 || oldLava > 0) {
+            if (this.lavaMesh.instanceMatrix.updateRange) {
+                this.lavaMesh.instanceMatrix.updateRange.offset = 0;
+                this.lavaMesh.instanceMatrix.updateRange.count = lavaCount * 16;
+            }
+            this.lavaMesh.instanceMatrix.needsUpdate = true;
+        }
 
         const oldLavaCooled = this.lavaCooledMesh.count;
         this.lavaCooledMesh.count = lavaCooledCount;
-        if (lavaCooledCount > 0 || oldLavaCooled > 0) this.lavaCooledMesh.instanceMatrix.needsUpdate = true;
+        if (lavaCooledCount > 0 || oldLavaCooled > 0) {
+            if (this.lavaCooledMesh.instanceMatrix.updateRange) {
+                this.lavaCooledMesh.instanceMatrix.updateRange.offset = 0;
+                this.lavaCooledMesh.instanceMatrix.updateRange.count = lavaCooledCount * 16;
+            }
+            this.lavaCooledMesh.instanceMatrix.needsUpdate = true;
+        }
 
         this.updateMonsters(frame.monsters || [], frame.player);
         this.updateItems(frame.objects || frame.items || [], frame.player);
@@ -8174,7 +8328,7 @@ class Dungeon3D {
                     feat = 41;
                 }
 
-                if (feat >= 7 && feat <= 14 && (outdoors || this.realm !== 'silq')) {
+                if (feat >= 7 && feat <= 14 && outdoors) {
                     if (!storePositions.has(feat)) {
                         storePositions.set(feat, []);
                     }
@@ -8387,10 +8541,24 @@ class Dungeon3D {
                 shopPropAnchor.rotation.set(0, doorYaw, 0);
                 this.storefrontPropsGroup.add(shopPropAnchor);
 
-                // Warm golden storefront lantern light
-                const sconceLight = new THREE.PointLight(0xffb454, 1.15, 6.5, 1.6);
-                sconceLight.position.set(0, 2.08, 0.72);
-                shopPropAnchor.add(sconceLight);
+                // Zero-PointLight warm golden storefront light pool decal (avoids full-scene WebGL shader recompilation)
+                if (this.shadowGeo && this.shadowTex) {
+                    if (!this._storeLightPoolMat) {
+                        this._storeLightPoolMat = new THREE.MeshBasicMaterial({
+                            map: this.shadowTex,
+                            color: 0xffb454,
+                            transparent: true,
+                            opacity: 0.55,
+                            blending: THREE.AdditiveBlending,
+                            depthWrite: false
+                        });
+                        this._storeLightPoolMat._sharedMaterial = true;
+                    }
+                    const lightPool = new THREE.Mesh(this.shadowGeo, this._storeLightPoolMat);
+                    lightPool.position.set(0, 0.014, 0.72);
+                    lightPool.scale.set(6.2, 1.0, 5.2);
+                    shopPropAnchor.add(lightPool);
+                }
 
                 // Attach 2 hanging 3D lanterns on wrought-iron sconces
                 const attachStoreProp = (propKey, lx, ly, lz, targetSize = 0.36, rotY = 0) => {
@@ -8398,6 +8566,19 @@ class Dungeon3D {
                         if (!tmpl || !shopPropAnchor.parent) return;
                         const clone = this._cloneCachedGltfTemplate ? this._cloneCachedGltfTemplate(tmpl, null, propKey) : tmpl.clone(true);
                         if (!clone) return;
+                        if (propKey === 'ph_lantern') {
+                            clone.traverse((c) => {
+                                if (c.isMesh && c.material && !Array.isArray(c.material)) {
+                                    const mClone = c.material.clone();
+                                    mClone._sharedMaterial = true;
+                                    if (mClone.emissive) {
+                                        mClone.emissive.setHex(0xffa834);
+                                        mClone.emissiveIntensity = 0.85;
+                                    }
+                                    c.material = mClone;
+                                }
+                            });
+                        }
                         const box = new THREE.Box3().setFromObject(clone);
                         const sz = new THREE.Vector3();
                         box.getSize(sz);
@@ -10547,7 +10728,12 @@ class Dungeon3D {
         if (!m) return;
         const mName = (m.name || '').toLowerCase();
         if (/eye|pupil|iris|teeth|tooth|fang|horn|claw/i.test(mName)) return;
-        const bumpTex = this.floorNormal || this.townFloorNormal || null;
+        const bType = opts.bumpType || '';
+        const bumpTex = (bType === 'fur' && this.furNormal) ? this.furNormal
+            : (bType === 'scale' && this.scaleNormal) ? this.scaleNormal
+            : (bType === 'chitin' && this.chitinNormal) ? this.chitinNormal
+            : (bType === 'organic' && this.organicNormal) ? this.organicNormal
+            : (this.floorNormal || this.townFloorNormal || null);
         if (!m.normalMap && bumpTex) {
             m.normalMap = bumpTex;
             const bScale = opts.bumpScale || 0.32;
@@ -10563,18 +10749,22 @@ class Dungeon3D {
         m.roughness = opts.roughness !== undefined ? opts.roughness : 0.54;
         if (!m.map && !m._hasCountershadeShader) {
             m._hasCountershadeShader = true;
-            m.onBeforeCompile = (shader) => {
-                shader.fragmentShader = shader.fragmentShader.replace(
-                    '#include <dithering_fragment>',
-                    `#include <dithering_fragment>
-                    vec3 nUp = normalize(geometryNormal);
-                    float dorsal = clamp(nUp.y * 0.5 + 0.5, 0.0, 1.0);
-                    float counterShade = mix(0.76, 1.12, dorsal);
-                    vec3 vDir = normalize(vViewPosition);
-                    float sssRim = pow(1.0 - max(0.0, dot(nUp, vDir)), 2.6) * 0.16;
-                    gl_FragColor.rgb = gl_FragColor.rgb * counterShade + gl_FragColor.rgb * sssRim;`
-                );
-            };
+            if (!this._countershadeOnBeforeCompile) {
+                this._countershadeOnBeforeCompile = (shader) => {
+                    shader.fragmentShader = shader.fragmentShader.replace(
+                        '#include <dithering_fragment>',
+                        `#include <dithering_fragment>
+                        vec3 nUp = normalize(geometryNormal);
+                        float dorsal = clamp(nUp.y * 0.5 + 0.5, 0.0, 1.0);
+                        float counterShade = mix(0.76, 1.12, dorsal);
+                        vec3 vDir = normalize(vViewPosition);
+                        float sssRim = pow(1.0 - max(0.0, dot(nUp, vDir)), 2.6) * 0.16;
+                        gl_FragColor.rgb = gl_FragColor.rgb * counterShade + gl_FragColor.rgb * sssRim;`
+                    );
+                };
+            }
+            m.onBeforeCompile = this._countershadeOnBeforeCompile;
+            m.customProgramCacheKey = () => 'tb_countershade_v1';
         }
         m.needsUpdate = true;
     }
@@ -10590,7 +10780,7 @@ class Dungeon3D {
             return this._monster3DLoading.get(templateKey);
         }
 
-        if (templateKey === 'ph_chest' || templateKey === 'ph_sledgehammer' || templateKey === 'item_gold' || templateKey === 'item_greatsword' || templateKey === 'ph_potion_flask' || templateKey === 'ph_book' || templateKey === 'item_crown' || templateKey === 'item_plate_armor' || templateKey === 'item_wand' || templateKey === 'item_rod' || templateKey === 'item_staff' || templateKey === 'item_staff_branch') {
+        if (templateKey === 'ph_chest' || templateKey === 'ph_sledgehammer' || templateKey === 'ph_crystal' || templateKey === 'item_gold' || templateKey === 'item_greatsword' || templateKey === 'ph_potion_flask' || templateKey === 'ph_book' || templateKey === 'item_crown' || templateKey === 'item_ring' || templateKey === 'item_plate_armor' || templateKey === 'item_wand' || templateKey === 'item_rod' || templateKey === 'item_staff' || templateKey === 'item_staff_branch') {
             const p = this._ensurePolyHavenFloorItem(templateKey).then(tmpl => {
                 this._monster3DTemplates.set(templateKey, tmpl);
                 this._monster3DLoading.delete(templateKey);
@@ -10625,8 +10815,12 @@ class Dungeon3D {
         };
 
         const normalizeWrapper = (content, targetHeight, isHeightOnly = true, yawOffset = 0, maxFootprint = 1.65) => {
-            if (templateKey.startsWith('bestiary_') || templateKey === 'env_fungi_cluster' || templateKey === 'env_ooze_mound') {
-                this._enhanceBestiaryMeshQuality(content, { smoothNormals: true, applyCreatureBump: true, roughness: 0.45 });
+            if (templateKey.startsWith('bestiary_') || templateKey.startsWith('obj_') || templateKey === 'ph_street_rat' || templateKey === 'env_fungi_cluster' || templateKey === 'env_ooze_mound') {
+                const bumpType = /wolf|husky|fox|shiba|lion|bear|horse|yeti|gnoll|rat|bat|bird|owl|stork|flamingo/.test(templateKey) ? 'fur'
+                    : /dragon|snake|lizard|naga|hydra|aquatic/.test(templateKey) ? 'scale'
+                    : /spider|centipede|beetle|scorpion|ant|wasp/.test(templateKey) ? 'chitin'
+                    : 'organic';
+                this._enhanceBestiaryMeshQuality(content, { smoothNormals: true, applyCreatureBump: true, bumpType, roughness: 0.45 });
             }
             const bbox = this._computeTrueSkinnedBoundingBox(content);
             const size = new THREE.Vector3();
@@ -10683,90 +10877,15 @@ class Dungeon3D {
         let loadPromise = null;
 
         if (templateKey === 'char_male_peasant') {
-            loadPromise = loadGltf('/assets/models/characters/steward.glb', () => {
-                return Promise.all([
-                    this._loadSingleGltfScene('/assets/models/characters/Male_Peasant.gltf'),
-                    this._loadSingleGltfScene('/assets/models/characters/Superhero_Male_FullBody.gltf'),
-                    this._loadSingleGltfScene('/assets/models/characters/Hair_SimpleParted.gltf')
-                ]).then(([outfit, body, hair]) => {
-                    this._filterInnerBodyHeadAndHands(body, true);
-                    hair.traverse(c => {
-                        if (c.isMesh && c.material) {
-                            c.material = Array.isArray(c.material) ? c.material[0].clone() : c.material.clone();
-                            c.material.color = new THREE.Color(0x3b2a1e);
-                        }
-                    });
-                    const grp = new THREE.Group();
-                    grp.add(outfit);
-                    grp.add(body);
-                    grp.add(hair);
-                    return grp;
-                });
-            }).then(content => normalizeWrapper(content, 1.70, true));
+            loadPromise = loadGltf('/assets/models/characters/steward.glb').then(content => normalizeWrapper(content, 1.70, true));
         } else if (templateKey === 'char_male_peasant_bearded') {
-            loadPromise = loadGltf('/assets/models/characters/steward.glb', () => {
-                return Promise.all([
-                    this._loadSingleGltfScene('/assets/models/characters/Male_Peasant.gltf'),
-                    this._loadSingleGltfScene('/assets/models/characters/Superhero_Male_FullBody.gltf'),
-                    this._loadSingleGltfScene('/assets/models/characters/Hair_Beard.gltf')
-                ]).then(([outfit, body, hair]) => {
-                    this._filterInnerBodyHeadAndHands(body, true);
-                    const grp = new THREE.Group();
-                    grp.add(outfit);
-                    grp.add(body);
-                    grp.add(hair);
-                    return grp;
-                });
-            }).then(content => normalizeWrapper(content, 1.70, true));
+            loadPromise = loadGltf('/assets/models/characters/steward.glb').then(content => normalizeWrapper(content, 1.70, true));
         } else if (templateKey === 'char_female_peasant') {
-            loadPromise = loadGltf('/assets/models/characters/npc_woman.glb', () => {
-                return Promise.all([
-                    this._loadSingleGltfScene('/assets/models/characters/Female_Peasant.gltf'),
-                    this._loadSingleGltfScene('/assets/models/characters/Superhero_Female_FullBody.gltf'),
-                    this._loadSingleGltfScene('/assets/models/characters/Hair_Long.gltf')
-                ]).then(([outfit, body, hair]) => {
-                    this._filterInnerBodyHeadAndHands(body, true);
-                    const grp = new THREE.Group();
-                    grp.add(outfit);
-                    grp.add(body);
-                    grp.add(hair);
-                    return grp;
-                });
-            }).then(content => normalizeWrapper(content, 1.64, true));
+            loadPromise = loadGltf('/assets/models/characters/npc_woman.glb').then(content => normalizeWrapper(content, 1.64, true));
         } else if (templateKey === 'char_male_ranger') {
-            loadPromise = loadGltf('/assets/models/characters/ranger.glb', () => {
-                return Promise.all([
-                    this._loadSingleGltfScene('/assets/models/characters/Male_Ranger.gltf'),
-                    this._loadSingleGltfScene('/assets/models/characters/Male_Peasant.gltf'),
-                    this._loadSingleGltfScene('/assets/models/characters/Superhero_Male_FullBody.gltf')
-                ]).then(([outfit, peasant, body]) => {
-                    this._prepareRangerUndertunic(peasant);
-                    this._filterInnerBodyHeadAndHands(body, false);
-                    const grp = new THREE.Group();
-                    grp.add(outfit);
-                    grp.add(peasant);
-                    grp.add(body);
-                    return grp;
-                });
-            }).then(content => normalizeWrapper(content, 1.78, true));
+            loadPromise = loadGltf('/assets/models/characters/ranger.glb').then(content => normalizeWrapper(content, 1.78, true));
         } else if (templateKey === 'char_female_ranger') {
-            loadPromise = loadGltf('/assets/models/characters/female_rogue.glb', () => {
-                return Promise.all([
-                    this._loadSingleGltfScene('/assets/models/characters/Female_Ranger.gltf'),
-                    this._loadSingleGltfScene('/assets/models/characters/Female_Peasant.gltf'),
-                    this._loadSingleGltfScene('/assets/models/characters/Superhero_Female_FullBody.gltf'),
-                    this._loadSingleGltfScene('/assets/models/characters/Hair_Long.gltf')
-                ]).then(([outfit, peasant, body, hair]) => {
-                    this._prepareRangerUndertunic(peasant);
-                    this._filterInnerBodyHeadAndHands(body, false);
-                    const grp = new THREE.Group();
-                    grp.add(outfit);
-                    grp.add(peasant);
-                    grp.add(body);
-                    grp.add(hair);
-                    return grp;
-                });
-            }).then(content => normalizeWrapper(content, 1.72, true));
+            loadPromise = loadGltf('/assets/models/characters/female_rogue.glb').then(content => normalizeWrapper(content, 1.72, true));
         } else if (templateKey === 'char_valkyrie') {
             loadPromise = loadGltf('/assets/models/characters/valkyrie.glb', () => this._ensureMonster3DTemplate('char_female_ranger')).then(content => {
                 return normalizeWrapper(content, 1.88, true);
@@ -10946,7 +11065,7 @@ class Dungeon3D {
                 return normalizeWrapper(scene, 1.05, true);
             });
         } else if (templateKey === 'bestiary_goblin') {
-            loadPromise = loadGltf('/assets/models/monsters/bestiary/goblin.glb', () => loadGltf('/assets/models/monsters/bestiary/goblin_warrior.glb', () => this._ensureMonster3DTemplate('bestiary_puglin'))).then(scene => {
+            loadPromise = loadGltf('/assets/models/monsters/bestiary/goblin.glb', () => this._ensureMonster3DTemplate('bestiary_puglin')).then(scene => {
                 return normalizeWrapper(scene, 1.18, true);
             });
         } else if (templateKey === 'bestiary_orc') {
@@ -11015,6 +11134,20 @@ class Dungeon3D {
             });
         } else if (templateKey === 'bestiary_wraith') {
             loadPromise = loadGltf('/assets/models/monsters/bestiary/GhostArmature.glb', () => loadGltf('/assets/models/monsters/bestiary/skeleton_knight.glb', () => this._ensureMonster3DTemplate('char_male_ranger'))).then(scene => {
+                if (!this._wraithRimOnBeforeCompile) {
+                    this._wraithRimOnBeforeCompile = (shader) => {
+                        shader.uniforms.rimColor = { value: new THREE.Color(0x66ccff) };
+                        shader.uniforms.rimPower = { value: 2.2 };
+                        shader.fragmentShader = shader.fragmentShader.replace(
+                            '#include <common>',
+                            `#include <common>\nuniform vec3 rimColor;\nuniform float rimPower;`
+                        );
+                        shader.fragmentShader = shader.fragmentShader.replace(
+                            '#include <dithering_fragment>',
+                            `#include <dithering_fragment>\nvec3 viewDir = normalize(vViewPosition);\nfloat rim = 1.0 - max(0.0, dot(geometryNormal, -viewDir));\nrim = pow(rim, rimPower);\ngl_FragColor.rgb += rimColor * rim * 0.8;\ngl_FragColor.a = max(gl_FragColor.a, rim * 0.7);`
+                        );
+                    };
+                }
                 scene.traverse(c => {
                     if (c.isMesh && c.material) {
                         const mat = Array.isArray(c.material) ? c.material[0] : c.material;
@@ -11022,18 +11155,8 @@ class Dungeon3D {
                         mat.opacity = 0.84;
                         mat.blending = THREE.NormalBlending;
                         mat.depthWrite = false;
-                        mat.onBeforeCompile = (shader) => {
-                            shader.uniforms.rimColor = { value: new THREE.Color(0x66ccff) };
-                            shader.uniforms.rimPower = { value: 2.2 };
-                            shader.fragmentShader = shader.fragmentShader.replace(
-                                '#include <common>',
-                                `#include <common>\nuniform vec3 rimColor;\nuniform float rimPower;`
-                            );
-                            shader.fragmentShader = shader.fragmentShader.replace(
-                                '#include <dithering_fragment>',
-                                `#include <dithering_fragment>\nvec3 viewDir = normalize(vViewPosition);\nfloat rim = 1.0 - max(0.0, dot(geometryNormal, -viewDir));\nrim = pow(rim, rimPower);\ngl_FragColor.rgb += rimColor * rim * 0.8;\ngl_FragColor.a = max(gl_FragColor.a, rim * 0.7);`
-                            );
-                        };
+                        mat.onBeforeCompile = this._wraithRimOnBeforeCompile;
+                        mat.customProgramCacheKey = () => 'tb_wraith_rim_v1';
                     }
                 });
                 return normalizeWrapper(scene, 1.68, true);
@@ -11046,6 +11169,10 @@ class Dungeon3D {
             loadPromise = loadGltf('/assets/models/monsters/bestiary/stone_golem.glb', () => loadGltf('/assets/polyhaven/models/gothic_statue/gothic_statue.gltf', () => loadGltf('/assets/models/monsters/bestiary/GodAnubis_Art.glb', () => this._ensureMonster3DTemplate('char_male_ranger')))).then(scene => {
                 return normalizeWrapper(scene, 2.05, true, 0, 1.85);
             });
+        } else if (templateKey === 'bestiary_statue') {
+            loadPromise = loadGltf('/assets/polyhaven/models/gothic_statue/gothic_statue.gltf', () => this._ensureMonster3DTemplate('bestiary_golem')).then(scene => {
+                return normalizeWrapper(scene, 1.95, true, 0, 1.55);
+            });
         } else if (templateKey === 'bestiary_guardian') {
             loadPromise = loadGltf('/assets/models/monsters/bestiary/GodAnubis_Art.glb', () => this._ensureMonster3DTemplate('char_male_ranger')).then(scene => {
                 return normalizeWrapper(scene, 2.05, true, 0, 1.65);
@@ -11056,49 +11183,36 @@ class Dungeon3D {
             });
         } else if (templateKey === 'bestiary_wolf') {
             loadPromise = loadGltf('/assets/models/monsters/bestiary/wolf.glb', () => this._ensureMonster3DTemplate('bestiary_fox')).then(scene => {
-                this._enhanceBestiaryMeshQuality(scene, { smoothNormals: true, applyCreatureBump: true, bumpScale: 0.36, roughness: 0.56 });
+                this._enhanceBestiaryMeshQuality(scene, { smoothNormals: true, applyCreatureBump: true, bumpType: 'fur', bumpScale: 0.36, roughness: 0.56 });
                 return normalizeWrapper(scene, 0.88, true, 0.42, 1.45);
             });
         } else if (templateKey === 'bestiary_husky') {
-            loadPromise = loadGltf('/assets/models/monsters/Husky.glb', () => this._ensureMonster3DTemplate('bestiary_wolf')).then(scene => {
-                this._enhanceBestiaryMeshQuality(scene, { smoothNormals: true, applyCreatureBump: true, bumpScale: 0.34, roughness: 0.54 });
+            loadPromise = loadGltf('/assets/models/monsters/bestiary/wolf.glb', () => this._ensureMonster3DTemplate('bestiary_wolf')).then(scene => {
+                this._enhanceBestiaryMeshQuality(scene, { smoothNormals: true, applyCreatureBump: true, bumpType: 'fur', bumpScale: 0.34, roughness: 0.54 });
                 return normalizeWrapper(scene, 0.78, true, 0.42, 1.35);
             });
         } else if (templateKey === 'bestiary_shiba') {
-            loadPromise = loadGltf('/assets/models/monsters/ShibaInu.glb', () => this._ensureMonster3DTemplate('bestiary_fox')).then(scene => {
-                this._enhanceBestiaryMeshQuality(scene, { smoothNormals: true, applyCreatureBump: true, bumpScale: 0.32, roughness: 0.52 });
+            loadPromise = loadGltf('/assets/models/monsters/bestiary/Fox.glb', () => this._ensureMonster3DTemplate('bestiary_fox')).then(scene => {
+                this._enhanceBestiaryMeshQuality(scene, { smoothNormals: true, applyCreatureBump: true, bumpType: 'fur', bumpScale: 0.32, roughness: 0.52 });
                 return normalizeWrapper(scene, 0.62, true, 0.42, 1.15);
             });
         } else if (templateKey === 'bestiary_flamingo') {
-            loadPromise = loadGltf('/assets/models/monsters/Flamingo.glb', () => this._ensureMonster3DTemplate('bestiary_stork')).then(scene => {
-                this._enhanceBestiaryMeshQuality(scene, { smoothNormals: true, applyCreatureBump: true, bumpScale: 0.28, roughness: 0.48 });
+            loadPromise = loadGltf('/assets/models/monsters/bestiary/Flamingo.glb', () => this._ensureMonster3DTemplate('bestiary_stork')).then(scene => {
+                this._enhanceBestiaryMeshQuality(scene, { smoothNormals: true, applyCreatureBump: true, bumpType: 'fur', bumpScale: 0.28, roughness: 0.48 });
                 return normalizeWrapper(scene, 0.86, true, 0, 1.25);
             });
         } else if (templateKey === 'env_anvil') {
-            loadPromise = loadGltf('/assets/models/environment/Anvil.gltf', '/assets/polyhaven/models/sledgehammer_01/sledgehammer_01.gltf').then(scene => {
+            loadPromise = loadGltf('/assets/models/items/Anvil.gltf', '/assets/polyhaven/models/sledgehammer_01/sledgehammer_01.gltf').then(scene => {
                 return normalizeWrapper(scene, 0.92, true, 0, 1.20);
             });
         } else if (templateKey === 'bestiary_lion') {
             loadPromise = loadGltf('/assets/models/monsters/bestiary/MountainLion.glb', () => this._ensureMonster3DTemplate('bestiary_fox')).then(scene => {
-                this._enhanceBestiaryMeshQuality(scene);
+                this._enhanceBestiaryMeshQuality(scene, { smoothNormals: true, applyCreatureBump: true, bumpType: 'fur' });
                 return normalizeWrapper(scene, 0.95, true, 0.42, 1.45);
             });
         } else if (templateKey === 'bestiary_owl') {
-            // Use the winged flying bird mesh (Parrot.glb, with Owl.glb fallback) re-tinted to dark corvid/raptor plumage
-            loadPromise = loadGltf('/assets/models/monsters/bestiary/Parrot.glb', '/assets/models/monsters/bestiary/Owl.glb').then(scene => {
-                scene.traverse(c => {
-                    if ((c.isMesh || c.isSkinnedMesh) && c.geometry && c.geometry.attributes && c.geometry.attributes.color) {
-                        c.geometry = c.geometry.clone();
-                        c.geometry._sharedGeometry = true;
-                        const col = c.geometry.attributes.color;
-                        for (let i = 0; i < col.count; i++) {
-                            const r = col.getX(i), g = col.getY(i), b = col.getZ(i);
-                            col.setXYZ(i, r * 0.14 + 0.08, g * 0.15 + 0.09, b * 0.18 + 0.12);
-                        }
-                        col.needsUpdate = true;
-                    }
-                });
-                this._enhanceBestiaryMeshQuality(scene);
+            loadPromise = loadGltf('/assets/models/monsters/bestiary/Owl.glb', '/assets/models/monsters/bestiary/Parrot.glb').then(scene => {
+                this._enhanceBestiaryMeshQuality(scene, { smoothNormals: true, applyCreatureBump: true, bumpType: 'fur' });
                 return normalizeWrapper(scene, 0.68, true, 0.35, 0.95);
             });
         } else if (templateKey === 'bestiary_stork') {
@@ -11122,39 +11236,39 @@ class Dungeon3D {
                 return normalizeWrapper(scene, 0.78, true, 0, 1.25);
             });
         } else if (templateKey === 'obj_spider') {
-            loadPromise = loadGltf('/assets/models/monsters/bestiary/giant_spider.glb', () => loadGltf('/assets/models/monsters/bestiary/giant_spider_model.glb', '/assets/models/monsters/Spider.obj')).then(scene => {
-                this._enhanceBestiaryMeshQuality(scene, { smoothNormals: true, applyCreatureBump: true, roughness: 0.52 });
+            loadPromise = loadGltf('/assets/models/monsters/bestiary/giant_spider.glb').then(scene => {
+                this._enhanceBestiaryMeshQuality(scene, { smoothNormals: true, applyCreatureBump: true, bumpType: 'chitin', roughness: 0.52 });
                 return normalizeWrapper(scene, 0.62, true, 0.35, 1.25);
             });
         } else if (templateKey === 'bestiary_centipede') {
-            loadPromise = loadGltf('/assets/models/monsters/bestiary/centipede.glb', () => loadGltf('/assets/models/monsters/bestiary/giant_spider.glb', '/assets/models/monsters/Spider.obj')).then(scene => {
+            loadPromise = loadGltf('/assets/models/monsters/bestiary/centipede.glb', () => this._ensureMonster3DTemplate('obj_spider')).then(scene => {
                 return normalizeWrapper(scene, 0.38, true, 0.20, 1.25);
             });
         } else if (templateKey === 'bestiary_beetle') {
-            loadPromise = loadGltf('/assets/models/monsters/bestiary/beetle.glb', () => loadGltf('/assets/models/monsters/bestiary/giant_spider.glb', '/assets/models/monsters/Spider.obj')).then(scene => {
+            loadPromise = loadGltf('/assets/models/monsters/bestiary/beetle.glb', () => this._ensureMonster3DTemplate('obj_spider')).then(scene => {
                 return normalizeWrapper(scene, 0.52, true, 0.25, 1.15);
             });
         } else if (templateKey === 'bestiary_scorpion') {
-            loadPromise = loadGltf('/assets/models/monsters/bestiary/scorpion.glb', () => loadGltf('/assets/models/monsters/bestiary/giant_spider.glb', '/assets/models/monsters/Spider.obj')).then(scene => {
+            loadPromise = loadGltf('/assets/models/monsters/bestiary/scorpion.glb', () => this._ensureMonster3DTemplate('obj_spider')).then(scene => {
                 return normalizeWrapper(scene, 0.64, true, 0.25, 1.20);
             });
         } else if (templateKey === 'bestiary_ant') {
-            loadPromise = loadGltf('/assets/models/monsters/bestiary/ant.glb', () => loadGltf('/assets/models/monsters/bestiary/wasp.glb', '/assets/models/monsters/Wasp.obj')).then(scene => {
+            loadPromise = loadGltf('/assets/models/monsters/bestiary/ant.glb', () => this._ensureMonster3DTemplate('obj_wasp')).then(scene => {
                 return normalizeWrapper(scene, 0.48, true, 0.25, 1.10);
             });
         } else if (templateKey === 'obj_wasp') {
-            loadPromise = loadGltf('/assets/models/monsters/bestiary/wasp.glb', '/assets/models/monsters/Wasp.obj').then(scene => {
-                this._enhanceBestiaryMeshQuality(scene, { smoothNormals: true, applyCreatureBump: true, roughness: 0.48 });
+            loadPromise = loadGltf('/assets/models/monsters/bestiary/wasp.glb').then(scene => {
+                this._enhanceBestiaryMeshQuality(scene, { smoothNormals: true, applyCreatureBump: true, bumpType: 'chitin', roughness: 0.48 });
                 return normalizeWrapper(scene, 0.62, true, 0.42, 0.95);
             });
         } else if (templateKey === 'obj_snake') {
-            loadPromise = loadGltf('/assets/models/monsters/bestiary/snake.glb', '/assets/models/monsters/Snake_angry.obj').then(scene => {
-                this._enhanceBestiaryMeshQuality(scene, { smoothNormals: true, applyCreatureBump: true, roughness: 0.42 });
+            loadPromise = loadGltf('/assets/models/monsters/bestiary/snake.glb').then(scene => {
+                this._enhanceBestiaryMeshQuality(scene, { smoothNormals: true, applyCreatureBump: true, bumpType: 'scale', roughness: 0.42 });
                 return normalizeWrapper(scene, 0.78, true, 0.35, 1.15);
             });
         } else if (templateKey === 'obj_frog' || templateKey === 'bestiary_frog') {
-            loadPromise = loadGltf('/assets/models/monsters/bestiary/frog.glb', '/assets/models/monsters/Frog.obj').then(scene => {
-                this._enhanceBestiaryMeshQuality(scene, { smoothNormals: true, applyCreatureBump: true, roughness: 0.38 });
+            loadPromise = loadGltf('/assets/models/monsters/bestiary/frog.glb').then(scene => {
+                this._enhanceBestiaryMeshQuality(scene, { smoothNormals: true, applyCreatureBump: true, bumpType: 'organic', roughness: 0.38 });
                 return normalizeWrapper(scene, 0.48, true, 0.25, 0.95);
             });
         } else if (templateKey === 'bestiary_eye') {
@@ -11162,7 +11276,7 @@ class Dungeon3D {
                 return normalizeWrapper(scene, 0.72, true, 0.15, 0.85);
             });
         } else if (templateKey === 'bestiary_worm_mass') {
-            loadPromise = loadGltf('/assets/models/monsters/bestiary/worm_mass.glb', () => loadGltf('/assets/models/monsters/bestiary/snake.glb', '/assets/models/monsters/Snake_angry.obj')).then(scene => {
+            loadPromise = loadGltf('/assets/models/monsters/bestiary/worm_mass.glb', () => this._ensureMonster3DTemplate('obj_snake')).then(scene => {
                 return normalizeWrapper(scene, 0.42, true, 0.20, 1.25);
             });
         } else if (templateKey === 'env_fungi_cluster' || templateKey === 'env_mushroom_patch') {
@@ -11194,7 +11308,7 @@ class Dungeon3D {
                 return normalizeWrapper(scene, 1.45, true, 0.25, 1.55);
             });
         } else if (templateKey === 'bestiary_naga') {
-            loadPromise = loadGltf('/assets/models/monsters/bestiary/naga.glb', () => loadGltf('/assets/models/monsters/bestiary/snake.glb', '/assets/models/monsters/Snake_angry.obj')).then(scene => {
+            loadPromise = loadGltf('/assets/models/monsters/bestiary/naga.glb', () => this._ensureMonster3DTemplate('obj_snake')).then(scene => {
                 return normalizeWrapper(scene, 1.25, true, 0.25, 1.25);
             });
         } else if (templateKey === 'bestiary_bat') {
@@ -11206,11 +11320,11 @@ class Dungeon3D {
                 return normalizeWrapper(scene, 1.05, true, 0.25, 1.45);
             });
         } else if (templateKey === 'bestiary_lizard') {
-            loadPromise = loadGltf('/assets/models/monsters/bestiary/lizard.glb', () => loadGltf('/assets/models/monsters/bestiary/frog.glb', '/assets/models/monsters/Frog.obj')).then(scene => {
+            loadPromise = loadGltf('/assets/models/monsters/bestiary/lizard.glb', () => this._ensureMonster3DTemplate('obj_frog')).then(scene => {
                 return normalizeWrapper(scene, 0.54, true, 0.20, 1.35);
             });
         } else if (templateKey === 'bestiary_aquatic') {
-            loadPromise = loadGltf('/assets/models/monsters/bestiary/aquatic.glb', () => loadGltf('/assets/models/monsters/bestiary/lizard.glb', () => loadGltf('/assets/models/monsters/bestiary/frog.glb', '/assets/models/monsters/Frog.obj'))).then(scene => {
+            loadPromise = loadGltf('/assets/models/monsters/bestiary/aquatic.glb', () => loadGltf('/assets/models/monsters/bestiary/lizard.glb', () => this._ensureMonster3DTemplate('obj_frog'))).then(scene => {
                 return normalizeWrapper(scene, 0.68, true, 0.20, 1.30);
             });
         } else {
@@ -11661,21 +11775,33 @@ class Dungeon3D {
 
         // Golems, Gargoyles, Statues, Idols
         if (g === 'g' || /\b(golem|gargoyle|statue|idol)\b/.test(lowerName)) {
+            const isStatue = /\b(statue|idol|gargoyle)\b/.test(lowerName) && !/\bgolem\b/.test(lowerName);
+            const golemTint = /\biron\b/.test(lowerName) ? '#64748b'
+                : /\bgold\b/.test(lowerName) ? '#facc15'
+                : /\b(mithril|silver)\b/.test(lowerName) ? '#38bdf8'
+                : /\b(crystal|diamond|glass)\b/.test(lowerName) ? '#e0f2fe'
+                : /\bclay\b/.test(lowerName) ? '#b45309'
+                : /\bwood\b/.test(lowerName) ? '#78350f'
+                : /\bflesh\b/.test(lowerName) ? '#fca5a5'
+                : /\bbronze\b/.test(lowerName) ? '#d97706'
+                : colorHex;
             return {
-                templateKey: /anubis|guardian|demon|bronze/.test(lowerName) ? 'bestiary_guardian' : 'bestiary_golem',
+                templateKey: /anubis|guardian|demon|bronze/.test(lowerName) ? 'bestiary_guardian' : (isStatue ? 'bestiary_statue' : 'bestiary_golem'),
                 scale: 1.18,
+                tintHex: golemTint,
                 seed
             };
         }
 
         // Skeletons / Druj / Floating Skulls
         if (/\b(skull druj|floating skull|flaming skull|demilich|burning skull)\b/i.test(lower) && !/hand/i.test(lower)) {
-            return { templateKey: 'bestiary_skull', scale: 1.05, weaponKey: null, seed };
+            return { templateKey: 'bestiary_skull', scale: 1.05, tintHex: colorHex, weaponKey: null, seed };
         }
         if (g === 's' || /\b(skeleton|druj)\b/.test(lowerName)) {
             return {
                 templateKey: /knight|warrior|lord|champion|king|druj/.test(lowerName) ? 'bestiary_skeleton_knight' : 'bestiary_skeleton_warrior',
                 scale: 1.0,
+                tintHex: colorHex,
                 weaponKey: /knight|warrior|lord|champion|king|druj/.test(lowerName) ? 'item_longsword' : 'item_goblin_sword',
                 shieldKey: /knight|lord|champion|king/.test(lowerName) ? 'item_shield_raven' : 'item_shield_wooden',
                 seed
@@ -11687,18 +11813,21 @@ class Dungeon3D {
             return {
                 templateKey: 'bestiary_zombie',
                 scale: 1.02,
+                tintHex: colorHex,
                 seed
             };
         }
 
         // Wraiths, Nazgûl, Ghosts, Liches
         if (g === 'W' || g === 'G' || g === 'L' || /\b(wraith|nazgul|ghost|spectre|specter|lich|shade|barrow-wight)\b/.test(lowerName)) {
+            const isLich = (g === 'L' || /\blich\b/.test(lowerName));
             return {
                 templateKey: /\bbarrow-wight\b/.test(lowerName) ? 'bestiary_skeleton_knight' : 'bestiary_wraith',
-                scale: 1.05,
+                scale: isLich ? 1.10 : 1.05,
+                tintHex: colorHex || (isLich ? '#c084fc' : null),
                 floating: true,
                 isFloating: true,
-                weaponKey: (g === 'L' || /lich/.test(lowerName)) ? 'item_morningstar' : 'item_rune_blade',
+                weaponKey: isLich ? 'item_staff' : 'item_rune_blade',
                 seed
             };
         }
@@ -11708,6 +11837,7 @@ class Dungeon3D {
             return {
                 templateKey: 'bestiary_gnoll',
                 scale: 1.0,
+                tintHex: colorHex,
                 weaponKey: 'ph_axe',
                 seed
             };
@@ -11718,6 +11848,7 @@ class Dungeon3D {
             return {
                 templateKey: 'bestiary_lizardfolk',
                 scale: 1.0,
+                tintHex: colorHex,
                 weaponKey: 'item_spear',
                 shieldKey: 'item_shield_wooden',
                 seed
@@ -11729,6 +11860,7 @@ class Dungeon3D {
             return {
                 templateKey: 'bestiary_kobold',
                 scale: /large|chief|lord|hero/.test(lowerName) ? 1.12 : 0.95,
+                tintHex: colorHex,
                 weaponKey: 'ph_dagger',
                 seed
             };
@@ -11740,6 +11872,7 @@ class Dungeon3D {
                 return {
                     templateKey: 'bestiary_goblin',
                     scale: 1.0,
+                    tintHex: colorHex,
                     weaponKey: /archer/.test(lowerName) ? 'item_bow' : 'item_goblin_sword',
                     shieldKey: /warrior|guard|captain|chief|soldier/.test(lowerName) ? 'item_shield_wooden' : null,
                     seed
@@ -11749,15 +11882,18 @@ class Dungeon3D {
                 return {
                     templateKey: 'bestiary_hobgoblin',
                     scale: /golfimbul|bolg|azog|lord|chief/.test(lowerName) ? 1.12 : 1.02,
+                    tintHex: colorHex,
                     weaponKey: 'ph_axe',
                     shieldKey: /golfimbul|bolg|azog|lord|chief|captain/.test(lowerName) ? 'ph_shield' : 'item_shield_wooden',
                     seed
                 };
             }
+            const isFemaleOrc = /\b(female|woman|witch|matron|queen|shaman)\b/.test(lowerName);
             return {
-                templateKey: 'bestiary_orc',
+                templateKey: isFemaleOrc ? 'bestiary_orc_female' : 'bestiary_orc',
                 scale: 1.0,
-                weaponKey: /archer|tracker/.test(lowerName) ? 'item_bow' : ((seed % 2 === 0) ? 'ph_axe' : 'item_goblin_sword'),
+                tintHex: colorHex,
+                weaponKey: /archer|tracker/.test(lowerName) ? 'item_bow' : (/shaman|witch/.test(lowerName) ? 'item_staff_branch' : ((seed % 2 === 0) ? 'ph_axe' : 'item_goblin_sword')),
                 shieldKey: /warrior|guard|captain/.test(lowerName) ? 'item_shield_wooden' : null,
                 seed
             };
@@ -11768,6 +11904,7 @@ class Dungeon3D {
             return {
                 templateKey: 'bestiary_troll',
                 scale: /lord|chief|king|great|olog|ettin/.test(lowerName) ? 1.15 : 1.0,
+                tintHex: colorHex,
                 weaponKey: (seed % 2 === 0) ? 'item_greatclub' : 'ph_sledgehammer',
                 seed
             };
@@ -11778,6 +11915,7 @@ class Dungeon3D {
             return {
                 templateKey: 'bestiary_ogre',
                 scale: /lord|king|mage|shaman|giant|black/.test(lowerName) ? 1.12 : 1.0,
+                tintHex: colorHex,
                 weaponKey: (seed % 2 === 0) ? 'item_greatclub' : 'ph_sledgehammer',
                 seed
             };
@@ -11788,6 +11926,7 @@ class Dungeon3D {
             return {
                 templateKey: 'bestiary_yeti',
                 scale: 1.05,
+                tintHex: colorHex,
                 seed
             };
         }
@@ -11797,6 +11936,7 @@ class Dungeon3D {
             return {
                 templateKey: 'bestiary_cyclops',
                 scale: /titan|storm|greater/.test(lowerName) ? 1.18 : 1.0,
+                tintHex: colorHex,
                 weaponKey: 'ph_sledgehammer',
                 seed
             };
@@ -11964,10 +12104,16 @@ class Dungeon3D {
         }
 
         // Birds, Owls, Ravens, Eagles
-        if (g === 'B' || /\b(bird|crow|raven|eagle|hawk|falcon|owl|stirge|stork|swan)\b/.test(lower)) {
+        if (g === 'B' || /\b(bird|crow|raven|eagle|hawk|falcon|owl|stirge|stork|swan|flamingo|phoenix)\b/.test(lower)) {
+            const birdTint = /\b(crow|raven|night|black|crebain)\b/.test(lower) ? '#24242c'
+                : /\b(eagle|hawk|falcon|roc|condor)\b/.test(lower) ? '#8b5a2b'
+                : /\b(stirge|blood)\b/.test(lower) ? '#dc2626'
+                : /\b(phoenix|fire)\b/.test(lower) ? '#f97316'
+                : colorHex;
             return {
-                templateKey: /owl|raven|crow/.test(lower) ? 'bestiary_owl' : (/stork|swan|water/.test(lower) ? 'bestiary_stork' : 'bestiary_bird'),
-                scale: 0.95,
+                templateKey: /owl|raven|crow/.test(lower) ? 'bestiary_owl' : (/flamingo/.test(lower) ? 'bestiary_flamingo' : (/stork|swan|water/.test(lower) ? 'bestiary_stork' : 'bestiary_bird')),
+                scale: /\b(great|giant|lord|thorondor|gwaihir|phoenix)\b/.test(lower) ? 1.25 : 0.95,
+                tintHex: birdTint,
                 floating: true,
                 isFloating: true,
                 seed
@@ -12024,6 +12170,7 @@ class Dungeon3D {
                 return {
                     templateKey: 'bestiary_horse',
                     scale: 1.05,
+                    tintHex: colorHex,
                     weaponKey: null,
                     seed
                 };
@@ -12123,15 +12270,22 @@ class Dungeon3D {
                 return {
                     templateKey: 'bestiary_horror',
                     scale: 1.05,
+                    tintHex: colorHex,
                     seed
                 };
             }
             const isSmallCat = /\b(scrawny cat|wild cat|house cat|kitten|cat|feline)\b/.test(lowerName) && !/\b(big|great|giant|sabre|saber|lion|tiger|panther|leopard|cougar|puma|lynx|jaguar|cheetah)\b/.test(lowerName);
             const isMedCat = !isSmallCat && /\b(lynx|bobcat|ocelot|caracal|cheetah|leopard|panther|cougar|puma)\b/.test(lowerName);
+            const catTint = /panther|black/.test(lowerName) ? '#262630'
+                : /white|snow/.test(lowerName) ? '#e8e6e0'
+                : /tiger|sabre|saber/.test(lowerName) ? '#ea580c'
+                : /leopard|jaguar|cheetah|ocelot/.test(lowerName) ? '#eab308'
+                : /lion|cougar|puma|manticore|chimera/.test(lowerName) ? '#d97706'
+                : colorHex;
             return {
                 templateKey: 'bestiary_lion',
                 scale: isSmallCat ? 0.46 : (isMedCat ? 0.85 : 1.18),
-                tintHex: /panther|black/.test(lowerName) ? '#262630' : (/white|snow/.test(lowerName) ? '#e8e6e0' : null),
+                tintHex: catTint,
                 seed
             };
         }
@@ -12173,6 +12327,7 @@ class Dungeon3D {
             return {
                 templateKey: 'bestiary_horse',
                 scale: 1.0,
+                tintHex: colorHex,
                 seed
             };
         }
@@ -12182,6 +12337,7 @@ class Dungeon3D {
             return {
                 templateKey: 'ph_street_rat',
                 scale: 1.0,
+                tintHex: colorHex,
                 seed
             };
         }
@@ -12246,6 +12402,7 @@ class Dungeon3D {
             return {
                 templateKey: 'bestiary_puglin',
                 scale: 0.72,
+                tintHex: colorHex,
                 hunched: true,
                 weaponKey: null,
                 seed
@@ -12259,7 +12416,7 @@ class Dungeon3D {
             return {
                 templateKey: 'bestiary_imp',
                 scale: isMajor ? 1.48 : 0.98,
-                tintHex: null,
+                tintHex: colorHex,
                 weaponKey: (g === 'U') ? 'ph_saber' : null,
                 seed
             };
@@ -12716,6 +12873,8 @@ class Dungeon3D {
                     }
                     pooledMat = oldMat.clone();
                     pooledMat._sharedMaterial = true;
+                    if (oldMat.onBeforeCompile) pooledMat.onBeforeCompile = oldMat.onBeforeCompile;
+                    if (oldMat.customProgramCacheKey) pooledMat.customProgramCacheKey = oldMat.customProgramCacheKey;
                     if (isSkinned || oldMat.skinning) {
                         pooledMat.skinning = true;
                     }
@@ -13273,9 +13432,19 @@ class Dungeon3D {
             return 'item_spear';
         }
 
-        // Amulets & Talismans
-        if (g === '"' || /\b(amulet|talisman|pendant|necklace|periapt)\b/.test(lower)) {
+        // Amulets & Talismans (including Rogue ',' Amulet of Yendor)
+        if (g === '"' || (g === ',' && /\b(yendor|amulet|talisman)\b/.test(lower)) || /\b(amulet|talisman|pendant|necklace|periapt)\b/.test(lower)) {
             return 'item_talisman';
+        }
+
+        // Rings ('=')
+        if (g === '=' || (/\bring\b/.test(lower) && !/\b(ring mail|ringil)\b/.test(lower))) {
+            return 'item_ring';
+        }
+
+        // Gems, Crystals, Silmarils & Lumenstones ('*')
+        if (g === '*' || /\b(gem|jewel|diamond|ruby|emerald|sapphire|amethyst|topaz|opal|garnet|quartz|agate|jade|pearl|crystal|silmaril|lumenstone|arcanite)\b/.test(lower)) {
+            return 'ph_crystal';
         }
 
         // Shields
@@ -13332,8 +13501,8 @@ class Dungeon3D {
             if (/lantern|lamp|phial/.test(lower)) return 'ph_lantern';
         }
 
-        // Food
-        if (g === ',' || /ration|bread|food|waybread|lembas|wafer/.test(lower)) {
+        // Food (',' in Angband/Variants, ':' in Classic Rogue)
+        if (g === ',' || g === ':' || /ration|bread|food|waybread|lembas|wafer|slime-mold|melon/.test(lower)) {
             if (/waybread|lembas|wafer/.test(lower)) return 'item_lembas';
             return 'item_bread';
         }
@@ -13343,9 +13512,14 @@ class Dungeon3D {
             return 'item_key';
         }
 
-        // Goblets & Chalices (generic $ coins fall through to Shockbolt item_atlas.png)
+        // Goblets & Chalices
         if (/goblet|chalice|cup|grail/.test(lower)) {
             return 'ph_goblet';
+        }
+
+        // Gold & Coin Piles ('$')
+        if (g === '$' || /\b(gold|coins?|silver|copper|adamantite|treasure)\b/.test(lower)) {
+            return 'item_coins';
         }
 
         return null;
@@ -13461,7 +13635,7 @@ class Dungeon3D {
                 const isOpenMmoXWeapon = (key === 'item_goblin_sword' || key === 'item_longsword' || key === 'item_greatsword' || key === 'item_rune_blade' || key === 'item_morningstar' || key === 'item_greatclub' || key === 'item_spear' || key === 'item_bow' || key === 'item_torch');
                 const isShield = (key === 'ph_shield' || key === 'item_shield_wooden' || key === 'item_shield_raven' || key === 'item_shield_wicker' || key === 'item_shield_leather' || key === 'item_shield_metal');
                 const isArmor = (key === 'item_helmet' || key === 'item_plate_armor' || key === 'item_leather_armor' || key === 'item_boots' || key === 'item_gauntlets' || key === 'item_cloak' || key === 'item_chainmail' || key === 'item_crown');
-        const isWeapon = (key === 'ph_saber' || key === 'ph_estoc' || key === 'ph_katana' || key === 'ph_dagger' || key === 'ph_axe' || key === 'ph_hatchet' || key === 'ph_hammer' || key === 'ph_sledgehammer' || key === 'ph_mace' || isOpenMmoXWeapon || key === 'item_shovel' || key === 'item_pickaxe' || key === 'item_wand' || key === 'item_rod' || key === 'item_staff' || key === 'item_staff_branch' || key === 'item_arrow');
+                const isWeapon = (key === 'ph_saber' || key === 'ph_estoc' || key === 'ph_katana' || key === 'ph_dagger' || key === 'ph_axe' || key === 'ph_hatchet' || key === 'ph_hammer' || key === 'ph_sledgehammer' || key === 'ph_mace' || isOpenMmoXWeapon || key === 'item_shovel' || key === 'item_pickaxe' || key === 'item_wand' || key === 'item_rod' || key === 'item_staff' || key === 'item_staff_branch' || key === 'item_arrow');
 
                 if (isWeapon) {
                     targetSpan = 0.68;
@@ -13469,6 +13643,10 @@ class Dungeon3D {
                     targetSpan = 0.62;
                 } else if (isArmor) {
                     targetSpan = 0.52;
+                } else if (key === 'item_ring') {
+                    targetSpan = 0.26;
+                } else if (key === 'ph_crystal') {
+                    targetSpan = 0.42;
                 } else if (key === 'ph_chest') {
                     targetSpan = 0.55;
                 } else {
@@ -13540,28 +13718,41 @@ class Dungeon3D {
                 }
             }
         });
-        if (colorHex && (key === 'item_wand' || key === 'item_rod' || key === 'item_staff' || key === 'item_staff_branch')) {
-            this._tintedMatPool = this._tintedMatPool || new Map();
-            const tintCol = new THREE.Color(colorHex);
-            clone.traverse((c) => {
-                if (c.isMesh && c.material && !Array.isArray(c.material)) {
-                    const mName = (c.material.name || '').toLowerCase();
-                    if (/core|crystal|orb|glow|tip|emerald/i.test(mName)) return;
-                    const pKey = `item_${c.material.uuid}_${colorHex}`;
-                    let pMat = this._tintedMatPool.get(pKey);
-                    if (!pMat) {
-                        if (this._tintedMatPool.size >= 256) {
-                            const firstKey = this._tintedMatPool.keys().next().value;
-                            this._tintedMatPool.delete(firstKey);
+        if (colorHex) {
+            const isNeutralItemColor = (colorHex === '#ffffff' || colorHex === '#9ca3af' || colorHex === '#d1d5db');
+            const isAlwaysTintedKey = (key === 'item_wand' || key === 'item_rod' || key === 'item_staff' || key === 'item_staff_branch' || key === 'ph_potion_bottle' || key === 'ph_potion_flask' || key === 'ph_potion_urn' || key === 'ph_crystal' || key === 'item_ring' || key === 'item_crown' || key === 'item_talisman' || key === 'item_cloak' || key === 'item_plate_armor' || key === 'item_chainmail' || key === 'item_leather_armor');
+            if (isAlwaysTintedKey || !isNeutralItemColor) {
+                this._tintedMatPool = this._tintedMatPool || new Map();
+                const tintCol = new THREE.Color(colorHex);
+                const isMagicalFocus = (key === 'item_wand' || key === 'item_rod' || key === 'item_staff' || key === 'item_staff_branch' || key === 'ph_crystal' || key === 'ph_potion_bottle' || key === 'ph_potion_flask' || key === 'ph_potion_urn');
+                clone.traverse((c) => {
+                    if (c.isMesh && c.material && !Array.isArray(c.material)) {
+                        const mName = ((c.material.name || '') + ' ' + (c.name || '')).toLowerCase();
+                        const isTipOrCrystal = /core|crystal|orb|glow|tip|emerald|gem/i.test(mName);
+                        const pKey = `item_${key}_${c.material.uuid}_${colorHex}`;
+                        let pMat = this._tintedMatPool.get(pKey);
+                        if (!pMat) {
+                            if (this._tintedMatPool.size >= 256) {
+                                const firstKey = this._tintedMatPool.keys().next().value;
+                                this._tintedMatPool.delete(firstKey);
+                            }
+                            pMat = c.material.clone();
+                            pMat._sharedMaterial = true;
+                            if (c.material.onBeforeCompile) pMat.onBeforeCompile = c.material.onBeforeCompile;
+                            if (c.material.customProgramCacheKey) pMat.customProgramCacheKey = c.material.customProgramCacheKey;
+                            if (pMat.color) {
+                                pMat.color.lerp(tintCol, isTipOrCrystal ? 0.72 : 0.46);
+                            }
+                            if ((isTipOrCrystal || key === 'ph_crystal') && pMat.emissive) {
+                                pMat.emissive.copy(tintCol);
+                                pMat.emissiveIntensity = isMagicalFocus ? 0.45 : 0.25;
+                            }
+                            this._tintedMatPool.set(pKey, pMat);
                         }
-                        pMat = c.material.clone();
-                        pMat._sharedMaterial = true;
-                        if (pMat.color) pMat.color.lerp(tintCol, 0.48);
-                        this._tintedMatPool.set(pKey, pMat);
+                        c.material = pMat;
                     }
-                    c.material = pMat;
-                }
-            });
+                });
+            }
         }
         clone.isReal3DItem = true;
         clone.phKey = key;
@@ -14254,6 +14445,24 @@ class Dungeon3D {
                 const sprite = this.terrainLabelsGroup.children[i];
                 const maxDist = sprite.maxDist || 45.0;
                 sprite.visible = (this.camera.position.distanceToSquared(sprite.position) <= maxDist * maxDist);
+            }
+        }
+        if (this.storefrontPropsGroup && this.storefrontPropsGroup.visible && this.storefrontPropsGroup.children) {
+            for (let i = 0; i < this.storefrontPropsGroup.children.length; i++) {
+                const anchor = this.storefrontPropsGroup.children[i];
+                anchor.visible = (this.camera.position.distanceToSquared(anchor.position) <= 1225.0);
+            }
+        }
+        if ((this.waterMesh && this.waterMesh.count > 0) || (this.deepWaterMesh && this.deepWaterMesh.count > 0)) {
+            if (this.waterMaterial && this.waterMaterial.map && this.waterMaterial.map.offset) {
+                this.waterMaterial.map.offset.x = (tNow * 0.000018) % 1.0;
+                this.waterMaterial.map.offset.y = (tNow * 0.000012) % 1.0;
+            }
+        }
+        if (this.lavaMesh && this.lavaMesh.count > 0) {
+            if (this.lavaMaterial && this.lavaMaterial.normalMap && this.lavaMaterial.normalMap.offset) {
+                this.lavaMaterial.normalMap.offset.x = (tNow * 0.000009) % 1.0;
+                this.lavaMaterial.normalMap.offset.y = (tNow * 0.000006) % 1.0;
             }
         }
 
