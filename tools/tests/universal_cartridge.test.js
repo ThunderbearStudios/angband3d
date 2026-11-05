@@ -617,16 +617,45 @@ function check(cond, msg) {
     check(nhAfterPot.player.level === 3 && nhAfterPot.player.exp === 40 && nhAfterPot.player.exp_next === 80,
         'NetHackEngine potion of gain level must synchronize level:3, exp:40, exp_next:80');
 
-    // C/C++ Bridges: Sil-Q new_exp pool, FrogComposband exp_requirement, Hengband exp_next
-    const silqBridgeSrc = fs.readFileSync(path.join(rootDir, 'variants/silq-src/src/main-bridge.c'), 'utf8');
-    check(silqBridgeSrc.includes('bj_kv_int(fp, "new_exp", p_ptr->new_exp)') && silqBridgeSrc.includes('bj_kv_int(fp, "level", 0)'),
-        'Sil-Q C bridge must emit new_exp pool and level:0');
-    const frogBridgeSrc = fs.readFileSync(path.join(rootDir, 'variants/frogcomposband-src/src/main-bridge.c'), 'utf8');
-    check(frogBridgeSrc.includes('"exp_next"') && frogBridgeSrc.includes('exp_requirement(p_ptr->lev)'),
-        'FrogComposband C bridge must emit exp_next via exp_requirement(p_ptr->lev)');
-    const hengBridgeSrc = fs.readFileSync(path.join(rootDir, 'variants/hengband-src/src/main-bridge.cpp'), 'utf8');
-    check(hengBridgeSrc.includes('"exp_next"') && hengBridgeSrc.includes('player_exp_a') && hengBridgeSrc.includes('player.expfact'),
-        'Hengband C++ bridge must emit exp_next using player_exp / player_exp_a and player.expfact');
+    // C/C++ Bridges: Sil-Q new_exp pool, FrogComposband exp_requirement, Hengband exp_next (checked when local variant source trees are present)
+    const silqBridgePath = path.join(rootDir, 'variants/silq-src/src/main-bridge.c');
+    if (fs.existsSync(silqBridgePath)) {
+        const silqBridgeSrc = fs.readFileSync(silqBridgePath, 'utf8');
+        check(silqBridgeSrc.includes('bj_kv_int(fp, "new_exp", p_ptr->new_exp)') && silqBridgeSrc.includes('bj_kv_int(fp, "level", 0)'),
+            'Sil-Q C bridge must emit new_exp pool and level:0');
+    }
+    const frogBridgePath = path.join(rootDir, 'variants/frogcomposband-src/src/main-bridge.c');
+    if (fs.existsSync(frogBridgePath)) {
+        const frogBridgeSrc = fs.readFileSync(frogBridgePath, 'utf8');
+        check(frogBridgeSrc.includes('"exp_next"') && frogBridgeSrc.includes('exp_requirement(p_ptr->lev)'),
+            'FrogComposband C bridge must emit exp_next via exp_requirement(p_ptr->lev)');
+    }
+    const hengBridgePath = path.join(rootDir, 'variants/hengband-src/src/main-bridge.cpp');
+    if (fs.existsSync(hengBridgePath)) {
+        const hengBridgeSrc = fs.readFileSync(hengBridgePath, 'utf8');
+        check(hengBridgeSrc.includes('"exp_next"') && hengBridgeSrc.includes('player_exp_a') && hengBridgeSrc.includes('player.expfact'),
+            'Hengband C++ bridge must emit exp_next using player_exp / player_exp_a and player.expfact');
+    }
+
+    // v11.5.0 Pillar 3 & 4: Intelligent 8-Realm Birth Planner & Brogue Scroll of Enchantment
+    for (const rId of ['angband', 'silq', 'frogcomposband', 'hengband', 'nethack', 'dcss', 'brogue', 'rogue']) {
+        const planner = RealmCartridge.createRandomBirthPlanner(rId, 'melee');
+        check(planner && typeof planner.nextKeys === 'function', `createRandomBirthPlanner must exist for ${rId}`);
+    }
+    const silqPlan = RealmCartridge.createRandomBirthPlanner('silq', 'melee');
+    const silqAllocKeys = silqPlan.nextKeys('Points Left: 12\nStr  2\nDex  2\nCon  2\nGra  2');
+    check(Array.isArray(silqAllocKeys) && silqAllocKeys.length > 1 && silqAllocKeys.includes('Return'),
+        'Sil-Q Birth Planner must allocate point-buy stats before pressing Return');
+
+    const brogueEnch = new BrogueEngine({ saveDir: tmpSaveDir, user: 'BrogueEnchTest', isNew: true });
+    brogueEnch.handleKey('a');
+    const enchScroll = brogueEnch.state.player.inventory.find(it => /enchant/i.test(it.name));
+    if (enchScroll) {
+        const prevEnch = brogueEnch.state.player.inventory[0].enchant || 0;
+        brogueEnch.executeItemVerb('r', enchScroll.letter);
+        const totalEnch = brogueEnch.state.player.inventory.reduce((s, it) => s + (it.enchant || 0), 0);
+        check(totalEnch > prevEnch, 'Brogue Scroll of Enchantment must increase item enchantment');
+    }
 
     try { fs.rmSync(tmpSaveDir, { recursive: true, force: true }); } catch (_) {}
 }
