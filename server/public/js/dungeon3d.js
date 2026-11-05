@@ -3130,12 +3130,16 @@ class Dungeon3D {
             }
         });
 
-        // Promoted Architectural & Creature Detail PBR Sets (/assets/textures/pbr/)
-        this.loadLocalPbrSet = (id, prefix, repX = 2, repY = 2) => {
-            if (this.polyHavenSets.has(id)) return this.polyHavenSets.get(id);
+        // Promoted Architectural & Creature Detail PBR Sets (/assets/textures/)
+        this.loadLocalPbrSet = (id, prefix, repX = 2, repY = 2, onReady = null) => {
+            if (this.polyHavenSets.has(id)) {
+                const existing = this.polyHavenSets.get(id);
+                if (onReady && existing.diff) onReady(existing);
+                return existing;
+            }
             const entry = { id, diff: null, nor: null, arm: null };
             this.polyHavenSets.set(id, entry);
-            const base = `/assets/textures/pbr/${prefix}`;
+            const base = `/assets/textures/${prefix}`;
             const cfgTex = (tex, isSRGB) => {
                 tex.wrapS = THREE.RepeatWrapping;
                 tex.wrapT = THREE.RepeatWrapping;
@@ -3143,32 +3147,94 @@ class Dungeon3D {
                 if (isSRGB && typeof THREE.sRGBEncoding !== 'undefined') tex.encoding = THREE.sRGBEncoding;
                 tex.anisotropy = Math.min(16, maxAniso || 1);
             };
-            loader.load(`${base}_Color.jpg`, (tex) => { cfgTex(tex, true); entry.diff = tex; }, undefined, () => {});
-            loader.load(`${base}_Normal.jpg`, (tex) => { cfgTex(tex, false); entry.nor = tex; }, undefined, () => {});
-            loader.load(`${base}_Roughness.jpg`, (tex) => { cfgTex(tex, false); entry.arm = tex; }, undefined, () => {});
+            const notifyLocal = () => {
+                if (onReady) onReady(entry);
+                this._currentThemeId = null;
+                this._currentTexturesAreOutdoors = null;
+                this._lastTerrainSig = null;
+                const isOut = (this.lastDepth === 0 || this.lastDepth === null || this.lastDepth === undefined);
+                this.applyEnvironmentTextures(isOut, this.currentBiome, this.realm || 'angband', this.lastDepth || 0, this.levelSeed || 0);
+            };
+            const norUrl = prefix === 'T_RedBrick' ? '/assets/textures/T_Brick_Normal.png' : `${base}_Normal.png`;
+            const roughUrl = prefix === 'T_Plaster'
+                ? '/assets/textures/T_Plaster_ORM.png'
+                : (prefix === 'T_RedBrick' ? '/assets/textures/T_Brick_Roughness.png' : `${base}_Roughness.png`);
+            loader.load(`${base}_BaseColor.png`, (tex) => { cfgTex(tex, true); entry.diff = tex; notifyLocal(); }, undefined, () => {});
+            if (prefix !== 'T_WindowGradient') {
+                loader.load(norUrl, (tex) => { cfgTex(tex, false); entry.nor = tex; notifyLocal(); }, undefined, () => {});
+                loader.load(roughUrl, (tex) => { cfgTex(tex, false); entry.arm = tex; notifyLocal(); }, undefined, () => {});
+            }
             return entry;
         };
         this.loadLocalPbrSet('local_brick', 'T_Brick', 2, 3);
         this.loadLocalPbrSet('local_uneven_brick', 'T_UnevenBrick', 2, 3);
         this.loadLocalPbrSet('local_plaster', 'T_Plaster', 2, 2);
         this.loadLocalPbrSet('local_rock_trim', 'T_RockTrim', 2, 2);
-        this.loadLocalPbrSet('local_wood_trim', 'T_WoodTrim', 2, 2);
-        this.loadLocalPbrSet('local_round_tiles', 'T_RoundTiles', 2, 2);
+        this.loadLocalPbrSet('local_wood_trim', 'T_WoodTrim', 2, 2, (e) => {
+            if (this.shopFrameMaterial) {
+                if (e.diff) this.shopFrameMaterial.map = e.diff;
+                if (e.nor) this.shopFrameMaterial.normalMap = e.nor;
+                if (e.arm) this.shopFrameMaterial.roughnessMap = e.arm;
+                this.shopFrameMaterial.needsUpdate = true;
+            }
+            if (this.townTimberMaterial) {
+                if (e.diff) this.townTimberMaterial.map = e.diff;
+                if (e.nor) this.townTimberMaterial.normalMap = e.nor;
+                if (e.arm) this.townTimberMaterial.roughnessMap = e.arm;
+                this.townTimberMaterial.needsUpdate = true;
+            }
+        });
+        this.loadLocalPbrSet('local_round_tiles', 'T_RoundTiles', 2, 2, (e) => {
+            if (this.townRoofMaterial) {
+                if (e.diff) this.townRoofMaterial.map = e.diff;
+                if (e.nor) this.townRoofMaterial.normalMap = e.nor;
+                if (e.arm) this.townRoofMaterial.roughnessMap = e.arm;
+                this.townRoofMaterial.needsUpdate = true;
+            }
+        });
         this.loadLocalPbrSet('local_red_brick', 'T_RedBrick', 2, 3);
-        this.loadLocalPbrSet('local_window_gradient', 'T_WindowGradient', 1, 1);
-        loader.load('/assets/textures/pbr/T_BrushedNoise.png', (tex) => {
+        loader.load('/assets/textures/T_BrushedNoise.png', (tex) => {
             tex.wrapS = THREE.RepeatWrapping;
             tex.wrapT = THREE.RepeatWrapping;
             tex.repeat.set(4, 4);
             tex._sharedTexture = true;
             this.brushedNoiseTex = tex;
         }, undefined, () => {});
-        loader.load('/assets/textures/pbr/T_Noise_Terrain.png', (tex) => {
+        loader.load('/assets/textures/T_Noise_Terrain.png', (tex) => {
             tex.wrapS = THREE.RepeatWrapping;
             tex.wrapT = THREE.RepeatWrapping;
             tex.repeat.set(3, 3);
             tex._sharedTexture = true;
             this.terrainNoiseTex = tex;
+        }, undefined, () => {});
+
+        // Load Poly Haven 1K scanned Large Castle Door PBR maps for Shop & Dungeon Doors
+        loader.load('/assets/polyhaven/models/large_castle_door/textures/large_castle_door_nor_gl_1k.jpg', (nor) => {
+            nor.wrapS = THREE.RepeatWrapping;
+            nor.wrapT = THREE.RepeatWrapping;
+            nor.anisotropy = Math.min(16, maxAniso || 1);
+            if (this.doorMaterial) {
+                this.doorMaterial.normalMap = nor;
+                this.doorMaterial.normalScale.set(1.45, 1.45);
+                this.doorMaterial.needsUpdate = true;
+            }
+            if (this.shopDoorMaterials) {
+                for (const mat of this.shopDoorMaterials) {
+                    mat.normalMap = nor;
+                    mat.normalScale = new THREE.Vector2(1.45, 1.45);
+                    mat.needsUpdate = true;
+                }
+            }
+        }, undefined, () => {});
+        loader.load('/assets/polyhaven/models/large_castle_door/textures/large_castle_door_arm_1k.jpg', (arm) => {
+            arm.wrapS = THREE.RepeatWrapping;
+            arm.wrapT = THREE.RepeatWrapping;
+            if (this.shopDoorMaterials) {
+                for (const mat of this.shopDoorMaterials) {
+                    mat.roughnessMap = arm;
+                    mat.needsUpdate = true;
+                }
+            }
         }, undefined, () => {});
     }
 
@@ -3186,10 +3252,11 @@ class Dungeon3D {
         const isHeng = (curRealm === 'hengband');
 
         if (outdoors) {
-            wallPhId = isHeng ? 'japanese_stone_wall' : (curRealm === 'frogcomposband' ? 'local_plaster' : 'medieval_blocks_05');
+            // Town Shop Building Facades use plastered stone / limewashed masonry; Outer Ramparts use broken castle stone
+            wallPhId = isHeng ? 'japanese_stone_wall' : (ph.get('plastered_stone_wall')?.diff ? 'plastered_stone_wall' : 'local_plaster');
             const isWild = tid.includes('wild') || (this.currentBiome && (this.currentBiome.id === 'wilderness' || this.currentBiome.id === 'grassland'));
             floorPhId = isWild ? 'aerial_grass_rock' : (curRealm === 'hengband' ? 'local_round_tiles' : 'cobblestone_floor_08');
-            permPhId = isHeng ? 'japanese_stone_wall' : 'medieval_blocks_05';
+            permPhId = isHeng ? 'japanese_stone_wall' : (ph.get('castle_brick_broken_06')?.diff ? 'castle_brick_broken_06' : 'medieval_blocks_05');
             ceilPhId = 'rock_wall_10';
         } else {
             // Dungeon depths > 0 across all 8 realms
@@ -3464,18 +3531,51 @@ class Dungeon3D {
             { pos: [-0.72, 0.55, 0.04], size: [0.10, 0.14, 0.16] }  // Bottom hinge bracket
         ]);
 
-        // 1b. Authentic Shop Entrance Masonry (Matches Godot DungeonWorld.cs:1653-1678 BuildShopDoorMesh)
-        // Spans full 2.0m tile depth to perfectly flush with adjacent 2.0m wall blocks and seal building interior
+        // 1b. Authentic Medieval Town Storefront Architecture (Carved Timber Jambs, Display Plinths, Pediment & Brackets)
         const shopFrameGeo = createMergedBoxGeometry([
-            { pos: [-0.85, 1.10, 0.0], size: [0.30, 2.40, 2.00] }, // Left stone pier spanning full 2.0m depth
-            { pos: [0.85, 1.10, 0.0], size: [0.30, 2.40, 2.00] },  // Right stone pier spanning full 2.0m depth
-            { pos: [0, 2.65, 0.0], size: [2.00, 0.70, 2.00] },     // Top stone lintel spanning full 2.0m depth to 3m ceiling
-            { pos: [0, 1.10, -0.55], size: [1.40, 2.40, 0.90] },   // Back solid masonry wall sealing building interior
-            { pos: [0, -0.02, 0.45], size: [1.40, 0.08, 0.90] },   // Front threshold step
-            { pos: [-0.72, 1.10, 0.15], size: [0.12, 2.40, 0.30] }, // Front decorative pilaster left
-            { pos: [0.72, 1.10, 0.15], size: [0.12, 2.40, 0.30] },  // Front decorative pilaster right
-            { pos: [-0.64, 1.75, 0.12], size: [0.08, 0.14, 0.14] }, // Top iron hinge bracket
-            { pos: [-0.64, 0.55, 0.12], size: [0.08, 0.14, 0.14] }  // Bottom iron hinge bracket
+            { pos: [-0.85, 1.15, 0.0], size: [0.32, 2.50, 2.00], color: [0.42, 0.28, 0.16] },  // Left heavy carved oak pier
+            { pos: [0.85, 1.15, 0.0], size: [0.32, 2.50, 2.00], color: [0.42, 0.28, 0.16] },   // Right heavy carved oak pier
+            { pos: [0, 2.65, 0.0], size: [2.04, 0.72, 2.04], color: [0.38, 0.25, 0.14] },      // Top heavy timber lintel & architrave
+            { pos: [0, 1.15, -0.55], size: [1.40, 2.45, 0.90], color: [0.68, 0.62, 0.54] },    // Back solid masonry wall sealing interior
+            { pos: [0, 0.04, 0.48], size: [1.56, 0.12, 0.96], color: [0.76, 0.70, 0.62] },     // Stepped cut-stone entrance threshold
+            { pos: [-0.76, 0.22, 0.54], size: [0.42, 0.44, 0.48], color: [0.72, 0.66, 0.58] }, // Left merchant display stone plinth
+            { pos: [0.76, 0.22, 0.54], size: [0.42, 0.44, 0.48], color: [0.72, 0.66, 0.58] },  // Right merchant display stone plinth
+            { pos: [-0.72, 1.18, 0.20], size: [0.16, 2.42, 0.34], color: [0.34, 0.22, 0.12] }, // Front carved oak pilaster left
+            { pos: [0.72, 1.18, 0.20], size: [0.16, 2.42, 0.34], color: [0.34, 0.22, 0.12] },  // Front carved oak pilaster right
+            { pos: [-0.48, 2.18, 0.22], size: [0.52, 0.14, 0.28], rotZ: 0.42, color: [0.34, 0.22, 0.12] }, // Left gothic timber corbel arch
+            { pos: [0.48, 2.18, 0.22], size: [0.52, 0.14, 0.28], rotZ: -0.42, color: [0.34, 0.22, 0.12] }, // Right gothic timber corbel arch
+            { pos: [0, 2.38, 0.26], size: [1.96, 0.18, 0.38], color: [0.32, 0.20, 0.11] },     // Storefront transom crossbeam
+            { pos: [-0.76, 2.02, 0.44], size: [0.08, 0.10, 0.42], color: [0.18, 0.17, 0.16] }, // Left wrought-iron lantern sconce arm
+            { pos: [0.76, 2.02, 0.44], size: [0.08, 0.10, 0.42], color: [0.18, 0.17, 0.16] },  // Right wrought-iron lantern sconce arm
+            { pos: [0, 2.88, 0.56], size: [0.08, 0.10, 0.92], color: [0.18, 0.17, 0.16] },     // Projecting wrought-iron guild sign arm
+            { pos: [-0.64, 1.75, 0.12], size: [0.08, 0.14, 0.14], color: [0.18, 0.17, 0.16] }, // Top iron hinge bracket
+            { pos: [-0.64, 0.55, 0.12], size: [0.08, 0.14, 0.14], color: [0.18, 0.17, 0.16] }  // Bottom iron hinge bracket
+        ]);
+
+        // 1c. Sloped Merchant Storefront Canopy / Awning (colored per-shop via instanceColor)
+        const shopAwningGeo = createMergedBoxGeometry([
+            { pos: [0, 2.52, 0.58], size: [1.92, 0.09, 0.92], rotX: 0.34, color: [1.0, 1.0, 1.0] },      // Sloped canvas/shingle awning roof
+            { pos: [0, 2.32, 0.98], size: [1.92, 0.16, 0.06], color: [0.92, 0.85, 0.70] },               // Front guild valance trim
+            { pos: [-0.82, 2.18, 0.46], size: [0.10, 0.72, 0.10], rotX: -0.68, color: [0.36, 0.23, 0.13] }, // Left timber awning strut
+            { pos: [0.82, 2.18, 0.46], size: [0.10, 0.72, 0.10], rotX: -0.68, color: [0.36, 0.23, 0.13] }   // Right timber awning strut
+        ]);
+
+        // 1d. Medieval Half-Timbered Framing & Pitched Shingle Roof for Town Buildings
+        const townTimberGeo = createMergedBoxGeometry([
+            { pos: [0, 0.12, 0], size: [2.04, 0.24, 2.04], color: [0.55, 0.50, 0.45] },        // Dressed stone foundation plinth
+            { pos: [0, 1.58, 0], size: [2.05, 0.16, 2.05], color: [0.36, 0.23, 0.13] },        // Mid-wall horizontal oak bressummer beam
+            { pos: [0, 2.96, 0], size: [2.08, 0.20, 2.08], color: [0.34, 0.21, 0.12] },        // Upper overhanging timber eaves cornice
+            { pos: [-0.94, 1.55, -0.94], size: [0.18, 3.00, 0.18], color: [0.34, 0.21, 0.12] }, // NW vertical oak corner post
+            { pos: [0.94, 1.55, -0.94], size: [0.18, 3.00, 0.18], color: [0.34, 0.21, 0.12] },  // NE vertical oak corner post
+            { pos: [-0.94, 1.55, 0.94], size: [0.18, 3.00, 0.18], color: [0.34, 0.21, 0.12] },  // SW vertical oak corner post
+            { pos: [0.94, 1.55, 0.94], size: [0.18, 3.00, 0.18], color: [0.34, 0.21, 0.12] }    // SE vertical oak corner post
+        ]);
+
+        const townRoofGeo = createMergedBoxGeometry([
+            { pos: [0, 3.16, 0], size: [2.18, 0.28, 2.18], color: [0.72, 0.42, 0.30] },        // Overhanging lower shingle eaves tier
+            { pos: [0, 3.44, 0], size: [1.82, 0.30, 1.82], color: [0.76, 0.45, 0.32] },        // Middle pitched roof tier
+            { pos: [0, 3.72, 0], size: [1.36, 0.28, 1.36], color: [0.80, 0.48, 0.34] },        // Upper pitched roof tier
+            { pos: [0, 3.96, 0], size: [0.84, 0.24, 0.84], color: [0.52, 0.32, 0.22] }         // Timbered roof ridge cap
         ]);
 
         // 2. Closed Wooden Door Panel with Horizontal Iron Straps (DungeonWorld.cs:1581-1593)
@@ -3598,10 +3698,61 @@ class Dungeon3D {
         this.doorFrameMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
         this.scene.add(this.doorFrameMesh);
 
-        // Full-depth Town Shop Entrance Masonry Facade (1:1 with Godot BuildShopDoorMesh)
-        this.shopFrameMesh = new THREE.InstancedMesh(shopFrameGeo, this.wallMaterial, 64);
+        // Full-depth Town Shop Entrance Timber & Stone Storefront Facade
+        const woodPbr = this.polyHavenSets && this.polyHavenSets.get('local_wood_trim');
+        const roofPbr = this.polyHavenSets && this.polyHavenSets.get('local_round_tiles');
+        this.shopFrameMaterial = new THREE.MeshStandardMaterial({
+            map: (woodPbr && woodPbr.diff) || this.doorTex || this.wallTex,
+            normalMap: (woodPbr && woodPbr.nor) || this.treeBarkNormal || this.wallNormal,
+            roughnessMap: (woodPbr && woodPbr.arm) || null,
+            normalScale: new THREE.Vector2(1.45, 1.45),
+            roughness: 0.76,
+            metalness: 0.08,
+            vertexColors: true
+        });
+        this.shopFrameMesh = new THREE.InstancedMesh(shopFrameGeo, this.shopFrameMaterial, 64);
         this.shopFrameMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
         this.scene.add(this.shopFrameMesh);
+
+        // Sloped Merchant Storefront Canopy / Awning
+        this.shopAwningMaterial = new THREE.MeshStandardMaterial({
+            map: (roofPbr && roofPbr.diff) || this.storeTex || this.wallTex,
+            normalMap: (roofPbr && roofPbr.nor) || this.wallNormal,
+            normalScale: new THREE.Vector2(1.25, 1.25),
+            roughness: 0.80,
+            metalness: 0.05,
+            vertexColors: true
+        });
+        this.shopAwningMesh = new THREE.InstancedMesh(shopAwningGeo, this.shopAwningMaterial, 64);
+        this.shopAwningMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+        this.scene.add(this.shopAwningMesh);
+
+        // Town Building Half-Timbered Framing & Pitched Terracotta/Slate Roofs
+        this.townTimberMaterial = new THREE.MeshStandardMaterial({
+            map: (woodPbr && woodPbr.diff) || this.treeBarkTex || this.doorTex,
+            normalMap: (woodPbr && woodPbr.nor) || this.treeBarkNormal || this.wallNormal,
+            roughnessMap: (woodPbr && woodPbr.arm) || null,
+            normalScale: new THREE.Vector2(1.40, 1.40),
+            roughness: 0.82,
+            metalness: 0.04,
+            vertexColors: true
+        });
+        this.townTimberMesh = new THREE.InstancedMesh(townTimberGeo, this.townTimberMaterial, 2048);
+        this.townTimberMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+        this.scene.add(this.townTimberMesh);
+
+        this.townRoofMaterial = new THREE.MeshStandardMaterial({
+            map: (roofPbr && roofPbr.diff) || this.wallTex,
+            normalMap: (roofPbr && roofPbr.nor) || this.wallNormal,
+            roughnessMap: (roofPbr && roofPbr.arm) || null,
+            normalScale: new THREE.Vector2(1.50, 1.50),
+            roughness: 0.78,
+            metalness: 0.05,
+            vertexColors: true
+        });
+        this.townRoofMesh = new THREE.InstancedMesh(townRoofGeo, this.townRoofMaterial, 2048);
+        this.townRoofMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+        this.scene.add(this.townRoofMesh);
 
         // Impassable Rubble Piles (feat 16)
         this.rubbleMesh = new THREE.InstancedMesh(rubbleGeo, this.rubbleMaterial || this.wallMaterial, 256);
@@ -4598,62 +4749,168 @@ class Dungeon3D {
         this._ensureViewmodelWeapon('sword');
         this._ensureViewmodelWeapon('shield');
 
-        // Whip viewmodel (zero CylinderGeometry - uses BoxGeometry)
+        // Masterwork Braided Kangaroo-Leather Bullwhip + Coiled Loops + 3D Armored Gauntlet (zero CylinderGeometry/BoxGeometry)
         const createWhipViewmodelMesh = () => {
             const whipGroup = new THREE.Group();
-            const handleLeatherMat = new THREE.MeshStandardMaterial({ color: 0x3a2012, roughness: 0.85, metalness: 0.10 });
-            const brassMat = new THREE.MeshStandardMaterial({ color: 0xd4a034, roughness: 0.28, metalness: 0.85 });
-            const lashMat = new THREE.MeshStandardMaterial({ color: 0x24140b, roughness: 0.80, metalness: 0.12 });
-            const popperMat = new THREE.MeshStandardMaterial({ color: 0x9c7a52, roughness: 0.90, metalness: 0.05 });
+            const braidNormal = this.furNormal || this.organicNormal || null;
+            const handleLeatherMat = new THREE.MeshStandardMaterial({
+                color: 0x28140a,
+                normalMap: braidNormal,
+                normalScale: new THREE.Vector2(1.65, 1.65),
+                roughness: 0.72,
+                metalness: 0.14
+            });
+            const darkCoilMat = new THREE.MeshStandardMaterial({
+                color: 0x1e0e06,
+                normalMap: braidNormal,
+                normalScale: new THREE.Vector2(1.80, 1.80),
+                roughness: 0.68,
+                metalness: 0.16
+            });
+            const brassMat = new THREE.MeshStandardMaterial({
+                color: 0xc89632,
+                normalMap: this.organicNormal || null,
+                normalScale: new THREE.Vector2(0.65, 0.65),
+                roughness: 0.25,
+                metalness: 0.88
+            });
+            const popperMat = new THREE.MeshStandardMaterial({
+                color: 0xb88648,
+                roughness: 0.85,
+                metalness: 0.08
+            });
 
-            const handleGeom = new THREE.BoxGeometry(0.032, 0.22, 0.032);
+            // 1. Contoured 16-sided LatheGeometry braided leather grip (y = -0.12..+0.11)
+            const handleProfile = [
+                new THREE.Vector2(0.015, -0.12),
+                new THREE.Vector2(0.019, -0.09),
+                new THREE.Vector2(0.017, -0.04),
+                new THREE.Vector2(0.0185, 0.01),
+                new THREE.Vector2(0.0165, 0.06),
+                new THREE.Vector2(0.018, 0.105)
+            ];
+            const handleGeom = new THREE.LatheGeometry(handleProfile, 16);
             whipGroup.add(new THREE.Mesh(handleGeom, handleLeatherMat));
 
-            const pommelGeom = new THREE.SphereGeometry(0.024, 12, 8);
+            // Spiral braided leather grip rings along handle
+            for (let i = 0; i < 7; i++) {
+                const ringGeom = new THREE.TorusGeometry(0.0182, 0.0028, 8, 16);
+                const ringMesh = new THREE.Mesh(ringGeom, darkCoilMat);
+                ringMesh.position.set(0, -0.085 + i * 0.028, 0);
+                ringMesh.rotation.set(Math.PI / 2 + ((i & 1) ? 0.22 : -0.22), 0, 0);
+                whipGroup.add(ringMesh);
+            }
+
+            // 2. Engraved brass pommel cap & braided wrist loop
+            const pommelGeom = new THREE.SphereGeometry(0.022, 16, 12);
             const pommelMesh = new THREE.Mesh(pommelGeom, brassMat);
-            pommelMesh.position.set(0, -0.115, 0);
+            pommelMesh.scale.set(1.0, 0.82, 1.0);
+            pommelMesh.position.set(0, -0.125, 0);
             whipGroup.add(pommelMesh);
 
-            const loopGeom = new THREE.TorusGeometry(0.022, 0.005, 8, 16);
-            const loopMesh = new THREE.Mesh(loopGeom, handleLeatherMat);
-            loopMesh.position.set(0, -0.135, 0);
-            loopMesh.rotation.x = Math.PI / 2;
+            const pommelRing = new THREE.Mesh(new THREE.TorusGeometry(0.018, 0.0035, 8, 16), brassMat);
+            pommelRing.position.set(0, -0.112, 0);
+            pommelRing.rotation.x = Math.PI / 2;
+            whipGroup.add(pommelRing);
+
+            const loopGeom = new THREE.TorusGeometry(0.020, 0.0045, 8, 18);
+            const loopMesh = new THREE.Mesh(loopGeom, darkCoilMat);
+            loopMesh.position.set(0, -0.145, 0.004);
+            loopMesh.rotation.set(0.35, 0.25, 0);
             whipGroup.add(loopMesh);
 
-            const collarGeom = new THREE.BoxGeometry(0.038, 0.03, 0.038);
-            const collarMesh = new THREE.Mesh(collarGeom, brassMat);
-            collarMesh.position.set(0, 0.115, 0);
-            whipGroup.add(collarMesh);
-
-            const curvePoints = [
-                new THREE.Vector3(0, 0.125, 0),
-                new THREE.Vector3(0.015, 0.18, -0.04),
-                new THREE.Vector3(0.035, 0.23, -0.12),
-                new THREE.Vector3(0.045, 0.21, -0.22),
-                new THREE.Vector3(0.030, 0.13, -0.32),
-                new THREE.Vector3(0.005, -0.01, -0.40),
-                new THREE.Vector3(-0.025, -0.18, -0.46),
-                new THREE.Vector3(-0.040, -0.34, -0.50),
+            // 3. Tapered brass bolster ferrule at top of grip (LatheGeometry — zero BoxGeometry!)
+            const collarProfile = [
+                new THREE.Vector2(0.0195, 0.102),
+                new THREE.Vector2(0.0210, 0.115),
+                new THREE.Vector2(0.0175, 0.132),
+                new THREE.Vector2(0.0145, 0.145)
             ];
-            const curve = new THREE.CatmullRomCurve3(curvePoints);
-            const lashGeom = new THREE.TubeGeometry(curve, 32, 0.012, 8, false);
-            whipGroup.add(new THREE.Mesh(lashGeom, lashMat));
+            const collarGeom = new THREE.LatheGeometry(collarProfile, 14);
+            whipGroup.add(new THREE.Mesh(collarGeom, brassMat));
 
-            const tipPoints = [
-                new THREE.Vector3(-0.040, -0.34, -0.50),
-                new THREE.Vector3(-0.048, -0.44, -0.52),
-                new THREE.Vector3(-0.052, -0.52, -0.53)
+            // 4. Three taut braided leather coils held compactly beside the grip
+            for (let c = 0; c < 3; c++) {
+                const coilRadius = 0.082 + c * 0.007;
+                const coilGeom = new THREE.TorusGeometry(coilRadius, 0.0085 - c * 0.0008, 10, 28);
+                const coilMesh = new THREE.Mesh(coilGeom, c === 1 ? handleLeatherMat : darkCoilMat);
+                coilMesh.position.set(0.026 + c * 0.006, 0.018 - c * 0.008, -0.035 - c * 0.012);
+                coilMesh.rotation.set(0.28 + c * 0.06, 1.18 - c * 0.08, -0.42);
+                whipGroup.add(coilMesh);
+            }
+
+            // 5. Four-stage tapered forward-striking braided lash (sweeps forward into dungeon, never a high arch!)
+            const lashStages = [
+                {
+                    radius: 0.0125,
+                    mat: darkCoilMat,
+                    pts: [
+                        new THREE.Vector3(0, 0.142, 0),
+                        new THREE.Vector3(0.010, 0.152, -0.055),
+                        new THREE.Vector3(0.022, 0.138, -0.135)
+                    ]
+                },
+                {
+                    radius: 0.0095,
+                    mat: handleLeatherMat,
+                    pts: [
+                        new THREE.Vector3(0.022, 0.138, -0.135),
+                        new THREE.Vector3(0.018, 0.095, -0.235),
+                        new THREE.Vector3(-0.004, 0.042, -0.340)
+                    ]
+                },
+                {
+                    radius: 0.0065,
+                    mat: darkCoilMat,
+                    pts: [
+                        new THREE.Vector3(-0.004, 0.042, -0.340),
+                        new THREE.Vector3(-0.032, -0.015, -0.445),
+                        new THREE.Vector3(-0.048, -0.065, -0.535)
+                    ]
+                },
+                {
+                    radius: 0.0038,
+                    mat: popperMat,
+                    pts: [
+                        new THREE.Vector3(-0.048, -0.065, -0.535),
+                        new THREE.Vector3(-0.036, -0.098, -0.595),
+                        new THREE.Vector3(-0.018, -0.115, -0.645)
+                    ]
+                }
             ];
-            const tipCurve = new THREE.CatmullRomCurve3(tipPoints);
-            const tipGeom = new THREE.TubeGeometry(tipCurve, 12, 0.006, 6, false);
-            whipGroup.add(new THREE.Mesh(tipGeom, popperMat));
+            for (const st of lashStages) {
+                const segCurve = new THREE.CatmullRomCurve3(st.pts);
+                const segGeom = new THREE.TubeGeometry(segCurve, 16, st.radius, 10, false);
+                whipGroup.add(new THREE.Mesh(segGeom, st.mat));
+            }
+
+            // Braided fall-hitch knot between thong and cracker
+            const knotMesh = new THREE.Mesh(new THREE.SphereGeometry(0.0065, 10, 8), brassMat);
+            knotMesh.position.set(-0.048, -0.065, -0.535);
+            whipGroup.add(knotMesh);
 
             return whipGroup;
         };
 
         const whipObj = createWhipViewmodelMesh();
-        whipObj.rotation.set(18 * Math.PI / 180, -14 * Math.PI / 180, 6 * Math.PI / 180);
+        whipObj.position.set(0.02, -0.03, -0.02);
+        whipObj.rotation.set(10 * Math.PI / 180, -18 * Math.PI / 180, 8 * Math.PI / 180);
         this.weaponCache.set('whip', whipObj);
+        this._ensurePolyHavenFloorItem('item_gauntlets').then((gTmpl) => {
+            if (!gTmpl) return;
+            const gClone = this._cloneCachedGltfTemplate(gTmpl, '#3a3530', 'item_gauntlets');
+            if (!gClone) return;
+            gClone.scale.set(0.30, 0.36, 0.30);
+            gClone.position.set(0.0, -0.06, 0.02);
+            gClone.rotation.set(0.35, 0.0, -0.18);
+            whipObj.add(gClone);
+            if (this.currentRightWeapon === 'whip' && this.rightItemSlot) {
+                while (this.rightItemSlot.children.length > 0) {
+                    this.rightItemSlot.remove(this.rightItemSlot.children[0]);
+                }
+                this.rightItemSlot.add(whipObj.clone(true));
+            }
+        }).catch(() => {});
     }
 
     getCharacterGltfKey(race, name, glyph) {
@@ -6787,6 +7044,9 @@ class Dungeon3D {
         let ceilingCount = 0;
         let doorFrameCount = 0;
         let shopFrameCount = 0;
+        let shopAwningCount = 0;
+        let townTimberCount = 0;
+        let townRoofCount = 0;
         let doorCount = 0;
         let doorOpenCount = 0;
         let doorBrokenCount = 0;
@@ -7123,7 +7383,8 @@ class Dungeon3D {
                     const wallYaw = ((x + y) & 1) * Math.PI;
                     this.dummy.rotation.set(0, wallYaw, 0);
                     this.dummy.updateMatrix();
-                    if (feat === 22) {
+                    const isTownBuilding = outdoors && feat === 22 && x > 1 && x < (w - 2) && y > 1 && y < (h - 2);
+                    if (feat === 22 && !isTownBuilding) {
                         if (permWallCount < this.maxInstances) {
                             const permShade = this.computeTileShade(this._scratchPermWallColor, this.getBaseColour(22, biome), inView, outdoors, lighting, x, y, isRoom, depth);
                             this.permWallMesh.setMatrixAt(permWallCount, this.dummy.matrix);
@@ -7135,6 +7396,21 @@ class Dungeon3D {
                             this.wallMesh.setMatrixAt(wallCount, this.dummy.matrix);
                             this.wallMesh.setColorAt(wallCount, wallShade);
                             wallCount++;
+                        }
+                        if (isTownBuilding) {
+                            this.dummy.position.set(wx, 0, wz);
+                            this.dummy.rotation.set(0, 0, 0);
+                            this.dummy.updateMatrix();
+                            if (this.townTimberMesh && townTimberCount < this.maxInstances) {
+                                this.townTimberMesh.setMatrixAt(townTimberCount, this.dummy.matrix);
+                                this.townTimberMesh.setColorAt(townTimberCount, wallShade);
+                                townTimberCount++;
+                            }
+                            if (this.townRoofMesh && townRoofCount < this.maxInstances) {
+                                this.townRoofMesh.setMatrixAt(townRoofCount, this.dummy.matrix);
+                                this.townRoofMesh.setColorAt(townRoofCount, wallShade);
+                                townRoofCount++;
+                            }
                         }
                     }
 
@@ -7214,9 +7490,31 @@ class Dungeon3D {
                     this.shopFrameMesh.setColorAt(shopFrameCount, wallShade);
                     shopFrameCount++;
 
+                    if (this.shopAwningMesh && shopAwningCount < 256) {
+                        const sc = procStoreColor(shopIdx + 1);
+                        if (!this._scratchAwningColor) this._scratchAwningColor = new THREE.Color();
+                        this._scratchAwningColor.setRGB(
+                            Math.min(1.0, sc[0] * 0.92 * wallShade.r + 0.08),
+                            Math.min(1.0, sc[1] * 0.92 * wallShade.g + 0.08),
+                            Math.min(1.0, sc[2] * 0.92 * wallShade.b + 0.08)
+                        );
+                        this.shopAwningMesh.setMatrixAt(shopAwningCount, this.dummy.matrix);
+                        this.shopAwningMesh.setColorAt(shopAwningCount, this._scratchAwningColor);
+                        shopAwningCount++;
+                    }
+
                     this.shopMeshes[shopIdx].setMatrixAt(shopCounts[shopIdx], this.dummy.matrix);
                     this.shopMeshes[shopIdx].setColorAt(shopCounts[shopIdx], wallShade);
                     shopCounts[shopIdx]++;
+
+                    if (outdoors && this.townRoofMesh && townRoofCount < this.maxInstances) {
+                        this.dummy.position.set(wx, 0, wz);
+                        this.dummy.rotation.set(0, 0, 0);
+                        this.dummy.updateMatrix();
+                        this.townRoofMesh.setMatrixAt(townRoofCount, this.dummy.matrix);
+                        this.townRoofMesh.setColorAt(townRoofCount, wallShade);
+                        townRoofCount++;
+                    }
 
                     if (!outdoors) {
                         this.dummy.position.set(wx, this.wallHeight, wz);
@@ -7770,6 +8068,9 @@ class Dungeon3D {
         updateMesh(this.ceilingMesh, ceilingCount);
         updateMesh(this.doorFrameMesh, doorFrameCount);
         updateMesh(this.shopFrameMesh, shopFrameCount);
+        if (this.shopAwningMesh) updateMesh(this.shopAwningMesh, shopAwningCount);
+        if (this.townTimberMesh) updateMesh(this.townTimberMesh, townTimberCount);
+        if (this.townRoofMesh) updateMesh(this.townRoofMesh, townRoofCount);
         updateMesh(this.rubbleMesh, rubbleCount);
         updateMesh(this.doorMesh, doorCount);
         updateMesh(this.doorOpenMesh, doorOpenCount);
@@ -7902,39 +8203,153 @@ class Dungeon3D {
             }
         }
 
-        const createCaption = (text, pos, colorHex, isStore = false) => {
+        const storeSubtitles = [
+            'PROVISIONS & LANTERNS',
+            'ROYAL ARMOURERS',
+            'MASTER BLADESMITHS',
+            'HOLY & ARCANE TOMES',
+            'ALCHEMICAL APOTHECARY',
+            'SORCEROUS RELICS',
+            'SHADOW SYNDICATE',
+            'HERO\'S SANCTUARY'
+        ];
+        const storeIcons = ['⚖', '🛡', '⚔', '📖', '⚗', '🔮', '🗝', '🏠'];
+
+        const createCaption = (text, pos, colorHex, isStore = false, storeIdx = 0) => {
             const canvas = document.createElement('canvas');
             canvas.width = 512;
-            canvas.height = 96;
+            canvas.height = isStore ? 128 : 96;
             const ctx = canvas.getContext('2d');
 
-            ctx.clearRect(0, 0, 512, 96);
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            // Clean, crisp outlined text matching Godot Label3D (OutlineSize = 8, OutlineModulate = Black)
-            ctx.font = isStore ? '700 30px "Cinzel", "Noto Sans JP", "Yu Gothic", sans-serif' : '700 24px "Cinzel", "Noto Sans JP", "Yu Gothic", sans-serif';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
+            if (isStore) {
+                // Illuminated Medieval Carved-Oak & Brass Guild Signboard Plaque
+                const w = 492, h = 108, x0 = 10, y0 = 10;
+                // Iron hanging chains at top
+                ctx.fillStyle = '#22201e';
+                ctx.fillRect(108, 0, 10, 14);
+                ctx.fillRect(394, 0, 10, 14);
 
-            // Bold dark outline/shadow for high contrast
-            ctx.strokeStyle = 'rgba(0, 0, 0, 0.95)';
-            ctx.lineWidth = 7;
-            ctx.strokeText(text, 256, 48);
+                // Weathered dark oak plaque background
+                const woodGrad = ctx.createLinearGradient(0, y0, 0, y0 + h);
+                woodGrad.addColorStop(0, '#2a1b10');
+                woodGrad.addColorStop(0.5, '#1d120a');
+                woodGrad.addColorStop(1, '#120b06');
+                ctx.fillStyle = woodGrad;
+                ctx.beginPath();
+                if (ctx.roundRect) ctx.roundRect(x0, y0, w, h, 10);
+                else ctx.rect(x0, y0, w, h);
+                ctx.fill();
 
-            ctx.fillStyle = colorHex;
-            ctx.fillText(text, 256, 48);
+                // Subtle horizontal oak grain lines
+                ctx.strokeStyle = 'rgba(255, 210, 145, 0.06)';
+                ctx.lineWidth = 1.5;
+                for (let gy = y0 + 14; gy < y0 + h - 10; gy += 12) {
+                    ctx.beginPath();
+                    ctx.moveTo(x0 + 12, gy);
+                    ctx.lineTo(x0 + w - 12, gy);
+                    ctx.stroke();
+                }
+
+                // Outer burnished brass border & inner filigree frame
+                ctx.strokeStyle = '#c89b3c';
+                ctx.lineWidth = 4;
+                ctx.strokeRect(x0 + 2, y0 + 2, w - 4, h - 4);
+                ctx.strokeStyle = colorHex || '#f3d078';
+                ctx.lineWidth = 1.5;
+                ctx.strokeRect(x0 + 8, y0 + 8, w - 16, h - 16);
+
+                // 4 corner brass rivets
+                ctx.fillStyle = '#e5b85c';
+                for (const [rx, ry] of [[x0 + 14, y0 + 14], [x0 + w - 14, y0 + 14], [x0 + 14, y0 + h - 14], [x0 + w - 14, y0 + h - 14]]) {
+                    ctx.beginPath();
+                    ctx.arc(rx, ry, 3.5, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                // Guild crest medallion on left
+                const cx = x0 + 52, cy = y0 + h / 2;
+                ctx.fillStyle = '#150d08';
+                ctx.beginPath();
+                ctx.arc(cx, cy, 32, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = colorHex || '#e5b85c';
+                ctx.lineWidth = 2.5;
+                ctx.stroke();
+
+                ctx.font = '32px "Segoe UI Symbol", "Noto Sans Symbols", serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillStyle = colorHex || '#ffd866';
+                ctx.fillText(storeIcons[storeIdx] || '⚜', cx, cy + 2);
+
+                // Main Shop Title
+                ctx.font = '700 28px "Cinzel", "Georgia", serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.strokeStyle = 'rgba(0, 0, 0, 0.95)';
+                ctx.lineWidth = 6;
+                ctx.strokeText(text, 286, y0 + 40);
+                ctx.fillStyle = '#fff5dc';
+                ctx.fillText(text, 286, y0 + 40);
+
+                // Guild Subtitle
+                const sub = storeSubtitles[storeIdx] || 'MERCHANT GUILD';
+                ctx.font = '600 15px "Cinzel", "Georgia", serif';
+                ctx.fillStyle = colorHex || '#e5b85c';
+                ctx.fillText(sub, 286, y0 + 78);
+            } else {
+                // Clean, crisp outlined text matching Godot Label3D (OutlineSize = 8, OutlineModulate = Black)
+                ctx.font = '700 24px "Cinzel", "Noto Sans JP", "Yu Gothic", sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+
+                ctx.strokeStyle = 'rgba(0, 0, 0, 0.95)';
+                ctx.lineWidth = 7;
+                ctx.strokeText(text, 256, 48);
+
+                ctx.fillStyle = colorHex;
+                ctx.fillText(text, 256, 48);
+            }
 
             const tex = new THREE.CanvasTexture(canvas);
             tex.minFilter = THREE.LinearFilter;
             // depthTest = true so buildings, walls, and pillars properly occlude labels
             const mat = new THREE.SpriteMaterial({ map: tex, depthTest: true, depthWrite: false, transparent: true });
             const sprite = new THREE.Sprite(mat);
-            sprite.scale.set(isStore ? 2.6 : 2.0, isStore ? 0.48 : 0.38, 1.0);
+            sprite.scale.set(isStore ? 2.45 : 2.0, isStore ? 0.62 : 0.38, 1.0);
             sprite.position.set(pos.x, pos.y, pos.z);
             sprite.maxDist = isStore ? 45.0 : 25.0; // Distance culling threshold
             return sprite;
         };
 
         const activeLabelKeys = new Set();
+
+        // Populate 3D Storefront Lanterns & Merchant Display Wares in Town
+        if (!this.storefrontPropsGroup && this.scene) {
+            this.storefrontPropsGroup = new THREE.Group();
+            this.storefrontPropsGroup.name = 'StorefrontPropsGroup';
+            this.scene.add(this.storefrontPropsGroup);
+        }
+        const storefrontSig = outdoors ? `${depth}:${this.realm || 'angband'}:${storePositions.size}` : 'indoors';
+        const rebuildStorefrontProps = (this._lastStorefrontPropsSig !== storefrontSig);
+        if (rebuildStorefrontProps && this.storefrontPropsGroup) {
+            this._lastStorefrontPropsSig = storefrontSig;
+            while (this.storefrontPropsGroup.children.length > 0) {
+                this.storefrontPropsGroup.remove(this.storefrontPropsGroup.children[0]);
+            }
+        }
+        const storeDisplayWares = [
+            ['ph_chest', 'ph_lantern'],
+            ['item_plate_armor', 'ph_shield'],
+            ['item_anvil', 'item_greatsword'],
+            ['ph_book', 'item_shrine_candles'],
+            ['ph_potion_urn', 'item_healing_potion'],
+            ['ph_candle', 'item_wand'],
+            ['ph_chest', 'item_gold'],
+            ['ph_goblet', 'ph_book']
+        ];
 
         // Shop Labels at Centroid (1:1 with Godot DungeonWorld.cs:2648-2670)
         for (const [feat, points] of storePositions.entries()) {
@@ -7954,13 +8369,61 @@ class Dungeon3D {
 
             const gx = Math.round(avgX / this.cellSize);
             const gy = Math.round(avgZ / this.cellSize);
+            const doorYaw = this.determineShopDoorOrientation(map, gx, gy, w, h);
+            const signX = avgX + Math.sin(doorYaw) * 0.88;
+            const signZ = avgZ + Math.cos(doorYaw) * 0.88;
             const key = `${gx},${gy},${labelText}`;
             activeLabelKeys.add(key);
 
             if (!this._terrainLabelSprites.has(key)) {
-                const sprite = createCaption(labelText, { x: avgX, y: this.wallHeight + 0.55, z: avgZ }, col, true);
+                const sprite = createCaption(labelText, { x: signX, y: 2.96, z: signZ }, col, true, storeIdx);
                 this.terrainLabelsGroup.add(sprite);
                 this._terrainLabelSprites.set(key, sprite);
+            }
+
+            if (outdoors && rebuildStorefrontProps && this.storefrontPropsGroup) {
+                const shopPropAnchor = new THREE.Group();
+                shopPropAnchor.position.set(avgX, 0, avgZ);
+                shopPropAnchor.rotation.set(0, doorYaw, 0);
+                this.storefrontPropsGroup.add(shopPropAnchor);
+
+                // Warm golden storefront lantern light
+                const sconceLight = new THREE.PointLight(0xffb454, 1.15, 6.5, 1.6);
+                sconceLight.position.set(0, 2.08, 0.72);
+                shopPropAnchor.add(sconceLight);
+
+                // Attach 2 hanging 3D lanterns on wrought-iron sconces
+                const attachStoreProp = (propKey, lx, ly, lz, targetSize = 0.36, rotY = 0) => {
+                    const mount = (tmpl) => {
+                        if (!tmpl || !shopPropAnchor.parent) return;
+                        const clone = this._cloneCachedGltfTemplate ? this._cloneCachedGltfTemplate(tmpl, null, propKey) : tmpl.clone(true);
+                        if (!clone) return;
+                        const box = new THREE.Box3().setFromObject(clone);
+                        const sz = new THREE.Vector3();
+                        box.getSize(sz);
+                        const maxDim = Math.max(0.001, sz.x, sz.y, sz.z);
+                        const s = targetSize / maxDim;
+                        clone.scale.set(s, s, s);
+                        const box2 = new THREE.Box3().setFromObject(clone);
+                        const center = new THREE.Vector3();
+                        box2.getCenter(center);
+                        clone.position.set(lx - center.x, ly - box2.min.y, lz - center.z);
+                        clone.rotation.y = rotY;
+                        shopPropAnchor.add(clone);
+                    };
+                    if (this._gltfTemplateCache && this._gltfTemplateCache.has(propKey)) {
+                        mount(this._gltfTemplateCache.get(propKey));
+                    } else if (this._ensurePolyHavenFloorItem) {
+                        this._ensurePolyHavenFloorItem(propKey).then(mount).catch(() => {});
+                    }
+                };
+
+                attachStoreProp('ph_lantern', -0.76, 1.68, 0.48, 0.32, 0);
+                attachStoreProp('ph_lantern', 0.76, 1.68, 0.48, 0.32, 0);
+
+                const wares = storeDisplayWares[storeIdx] || storeDisplayWares[0];
+                if (wares[0]) attachStoreProp(wares[0], -0.76, 0.44, 0.54, 0.42, 0.35);
+                if (wares[1]) attachStoreProp(wares[1], 0.76, 0.44, 0.54, 0.42, -0.35);
             }
         }
 

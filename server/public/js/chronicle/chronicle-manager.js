@@ -2933,32 +2933,7 @@ class ChronicleManager {
         }
         if (this.sketchModalGear) {
             this.sketchModalGear.innerHTML = '';
-
-            let gear = gearBadges;
-            let stats = statBadges;
-            let status = statusBadges;
-            let history = historyTimeline;
-            if (gearBadges && !Array.isArray(gearBadges) && typeof gearBadges === 'object') {
-                stats = gearBadges.statBadges || [];
-                status = gearBadges.statusBadges || [];
-                history = gearBadges.historyTimeline || [];
-                gear = gearBadges.gearBadges || [];
-            }
-
-            const appendPills = (items, className, prefix = '') => {
-                if (!Array.isArray(items) || items.length === 0) return;
-                for (const item of items) {
-                    const tag = document.createElement('span');
-                    tag.className = 'chronicle-sketch-gear-tag ' + className;
-                    tag.textContent = prefix ? `${prefix} ${item}` : item;
-                    this.sketchModalGear.appendChild(tag);
-                }
-            };
-
-            appendPills(status, 'chronicle-sketch-status-tag');
-            appendPills(stats, 'chronicle-sketch-stat-tag');
-            appendPills(gear, 'chronicle-sketch-gear-pill');
-            appendPills(history, 'chronicle-sketch-history-tag', '📜');
+            this.sketchModalGear.style.display = 'none';
         }
         if (this.btnDownloadSketchPng) {
             this.btnDownloadSketchPng.href = imageUrl || '#';
@@ -3584,12 +3559,15 @@ class ChronicleManager {
         const hasSeverePerilOrAffliction = hpRatio < 0.40 || isCut || isPoisoned || isBlind || isConfused || isAfraid || isStunned;
 
         if (mode === 'death') {
-            const isHumorousKiller = /newt|grid bug|jackal|rat|kobold|bat|floating eye|mold|jelly|mushroom|urchin|beggar|starv|hunger|sink|fountain|chok/i.test(killedBy);
+            const recentFoe = (killedBy && killedBy !== 'mortal wounds')
+                ? killedBy
+                : (visibleMonsters.length > 0 ? visibleMonsters[0].name : (notableDeeds[notableDeeds.length - 1] || 'mortal wounds'));
+            const isHumorousKiller = /newt|grid bug|jackal|rat|kobold|bat|floating eye|mold|jelly|mushroom|urchin|beggar|drunk|squint|thief|cutpurse|vagabond|idiot|drool|filthy|starv|hunger|sink|fountain|chok/i.test(`${killedBy} ${recentFoe} ${combinedRecent}`);
             sceneTone = isHumorousKiller ? 'humor_horror' : 'horror';
             toneBadge = isHumorousKiller ? '🎭 Tragicomic YASD Demise' : '☠ YASD Horror Demise';
             situationalFocus = isHumorousKiller
-                ? `Darkly comedic & horrifying "Yet Another Stupid Death" (YASD) fantasy vignette! Depict ${name} the ${race} ${heroClass} meeting an absurd, tragicomic demise caused by ${killedBy} in ${locationLabel}, blending slapstick dungeon absurdity with grim roguelike consequence, scattered loot, an expressive reaction, and a carved stone tombstone nearby.`
-                : `Visceral dark-fantasy horror death scene ("Yet Another Stupid Death" / YASD)! Depict the fallen hero ${name} the ${race} ${heroClass} overcome by the terrifying ${killedBy} in ${locationLabel}, with shattered shield, spilled gold coins, ominous shadows, and a weathered stone tombstone emerging in the dying torchlight.`;
+                ? `Darkly comedic & horrifying "Yet Another Stupid Death" (YASD) fantasy painting! Depict ${name} the ${race} ${heroClass} meeting an absurd, tragicomic demise against ${recentFoe} in ${locationLabel}, blending dark slapstick dungeon comedy with grim roguelike consequence, expressive facial reaction, scattered coins, and dramatic torchlight shadows.`
+                : `Visceral dark-fantasy horror death scene ("Yet Another Stupid Death" / YASD) painting! Depict the fallen hero ${name} the ${race} ${heroClass} overcome by the terrifying ${recentFoe} in ${locationLabel}, with shattered shield, spilled gold coins, and menacing abyssal shadows in the dying torchlight.`;
         } else if (mode === 'victory') {
             sceneTone = 'victory';
             toneBadge = '👑 Immortal Ascension';
@@ -3598,7 +3576,7 @@ class ChronicleManager {
             sceneTone = 'humor_horror';
             toneBadge = '🎭 Horror & Dark Comedy';
             const foeDesc = visibleMonsters.length ? visibleMonsters[0].name : 'dungeon menaces';
-            situationalFocus = `Grotesque tragicomic fantasy scene blending visceral dungeon horror AND dark slapstick comedy! Depict ${name} the ${race} ${heroClass} (${condition}, ${statusBadges.join(', ')}) caught in an absurd yet life-threatening predicament with ${foeDesc} (${notableDeeds[notableDeeds.length - 1] || 'chaos in the dark'}), with wide-eyed panicked expression, flying potions/coins, and menacing shadows closing in.`;
+            situationalFocus = `Grotesque tragicomic fantasy scene blending visceral dungeon horror AND dark slapstick comedy! Depict ${name} the ${race} ${heroClass} (${condition}) caught in an absurd yet life-threatening predicament with ${foeDesc} (${notableDeeds[notableDeeds.length - 1] || 'chaos in the dark'}), with wide-eyed panicked expression, flying potions/coins, and menacing shadows closing in.`;
         } else if (hasBizarreOrTheft || hasHumorousFoe) {
             sceneTone = 'humor';
             toneBadge = '🃏 Dungeon Comedy';
@@ -3625,19 +3603,14 @@ class ChronicleManager {
                 : `Atmospheric blend of subterranean horror and dark roguelike humor! Depict ${name} the ${race} ${heroClass} creeping cautiously through ${locationLabel} past a skeleton of an unlucky predecessor${visibleItems.length ? ` while eyeing ${visibleItems[0]} suspiciously for mimics or traps` : ''}, as glowing eyes watch from the oppressive darkness.`;
         }
 
-        const gearDesc = gearBadges.length > 0
-            ? `Equipped gear visibly worn or wielded: ${gearBadges.join(', ')}.`
-            : 'Equipped with basic explorer traveling clothes and a sturdy blade.';
+        const cleanGearNames = gearBadges
+            .map(g => g.replace(/^[^\w\u3000-\u9faf]+/, '').replace(/\([^)]*\)/g, '').replace(/\[[^\]]*\]/g, '').trim())
+            .filter(Boolean);
+        const gearDesc = cleanGearNames.length > 0
+            ? `Wielding and wearing: ${cleanGearNames.slice(0, 4).join(', ')}.`
+            : 'Clad in worn adventurer robes and carrying a weathered blade.';
 
-        const packDesc = inventoryHighlights.length > 0
-            ? `Carried pack relics: ${inventoryHighlights.join(', ')}.`
-            : '';
-
-        const statsSummary = statBadges.join(', ');
-        const statusSummary = statusBadges.join(', ');
-        const deedsSummary = notableDeeds.slice(-3).join('; ');
-
-        const prompt = `A masterwork dark-fantasy book illustration, charcoal and graphite drawing with deep pen-and-ink crosshatching on aged vellum paper, accented with rich watercolor washes and gold-leaf highlights. Tone: ${toneBadge}. ${situationalFocus} Hero: ${name}, a Level ${level} ${race} ${heroClass}${p.god ? ` (Worshipper of ${p.god})` : ''} (${condition}). Physical form: ${statTraits} (${statsSummary}). Active conditions: ${statusSummary}. Recent deeds: ${deedsSummary}. Setting: ${locationLabel}, ${realmAtmosphere} ${gearDesc} ${packDesc} ${alliesDesc} ${monstersDesc} Scene: “${narrativeText}”. Dramatic chiaroscuro lighting with warm torchlight glow. Pure fantasy artwork — DO NOT include any text, letters, words, watermarks, or HUD numbers in the image.`;
+        const prompt = `A masterwork dark-fantasy oil and ink illustration in the style of classic grimdark tabletop RPG artwork, deep chiaroscuro shadows, warm flickering torchlight, and expressive cinematic storytelling. ${situationalFocus} Character: a ${race} ${heroClass} (${condition}, ${statTraits}). Setting: ${locationLabel}, ${realmAtmosphere} ${gearDesc} ${alliesDesc} ${monstersDesc} Narrative moment: “${narrativeText}”. Full-bleed dark-fantasy painting ONLY — strictly NO text, NO words, NO letters, NO numbers, NO stat sheets, NO UI frames, NO banners, and NO watermarks anywhere in the image.`;
 
         const heroObj = {
             name,
@@ -3732,18 +3705,22 @@ class ChronicleManager {
         const statusVisuals = ctxData.statusVisuals || {};
         const vitals = ctxData.vitals || {};
 
-        // 1. Warm aged vellum & obsidian chiaroscuro backdrop
-        const grad = ctx.createRadialGradient(385, 270, 30, 400, 300, 450);
-        grad.addColorStop(0, '#3a3024');
-        grad.addColorStop(0.4, '#241d16');
-        grad.addColorStop(0.8, '#14100c');
-        grad.addColorStop(1, '#0b0907');
+        // 1. Full-bleed dark-fantasy chiaroscuro canvas backdrop (zero sidebars or stat tables)
+        const isDeathMode = (ctxData.mode === 'death');
+        const isVictoryMode = (ctxData.mode === 'victory');
+        const sceneTone = ctxData.sceneTone || 'horror';
+
+        const grad = ctx.createRadialGradient(400, 260, 40, 400, 300, 480);
+        grad.addColorStop(0, isDeathMode ? '#2e1616' : (sceneTone === 'humor' ? '#362919' : '#2b2118'));
+        grad.addColorStop(0.45, '#19130e');
+        grad.addColorStop(0.85, '#0e0b08');
+        grad.addColorStop(1, '#060504');
         ctx.fillStyle = grad;
         ctx.fillRect(0, 0, 800, 600);
 
-        // Procedural fine charcoal crosshatching
+        // Procedural fine charcoal crosshatching across full canvas
         ctx.save();
-        ctx.strokeStyle = 'rgba(200, 180, 140, 0.04)';
+        ctx.strokeStyle = 'rgba(200, 180, 140, 0.035)';
         ctx.lineWidth = 1;
         ctx.beginPath();
         for (let x = -600; x < 1400; x += 18) {
@@ -3752,808 +3729,153 @@ class ChronicleManager {
         }
         ctx.stroke();
 
-        ctx.strokeStyle = 'rgba(15, 12, 9, 0.2)';
+        ctx.strokeStyle = 'rgba(10, 8, 6, 0.25)';
         ctx.beginPath();
-        for (let x = 1400; x > -600; x -= 24) {
+        for (let x = 1400; x > -600; x -= 22) {
             ctx.moveTo(x, 0);
             ctx.lineTo(x - 600, 600);
         }
         ctx.stroke();
         ctx.restore();
 
-        // Ornate double-line gold-leaf frame
+        // Full-frame gothic stone vault & torchlight stage (x = 24..776, y = 24..576)
         ctx.save();
-        ctx.strokeStyle = '#c9a050';
-        ctx.lineWidth = 2.5;
-        ctx.strokeRect(18, 18, 764, 564);
-        ctx.strokeStyle = 'rgba(201, 160, 80, 0.45)';
-        ctx.lineWidth = 1;
-        ctx.strokeRect(24, 24, 752, 552);
-
-        const corners = [[18, 18], [782, 18], [18, 582], [782, 582]];
-        ctx.fillStyle = '#f1d08a';
-        for (const [cx, cy] of corners) {
-            ctx.beginPath();
-            ctx.arc(cx, cy, 4, 0, Math.PI * 2);
-            ctx.fill();
-        }
-        ctx.restore();
-
-        // 2. Top Heraldic Banner + Status Condition Pills (y = 26..92)
-        ctx.save();
-        const realmTitle = realm.toUpperCase();
-        const isDeathMode = (ctxData.mode === 'death');
-        const isVictoryMode = (ctxData.mode === 'victory');
-        const sceneTone = ctxData.sceneTone || 'horror';
-        ctx.fillStyle = isDeathMode ? '#fca5a5' : (isVictoryMode ? '#fde047' : (sceneTone === 'horror' ? '#fca5a5' : (sceneTone === 'humor' ? '#fde68a' : '#f1d08a')));
-        ctx.font = 'bold 15px "Cinzel", "Times New Roman", Georgia, serif';
-        ctx.textAlign = 'center';
-        ctx.shadowColor = 'rgba(0, 0, 0, 0.9)';
-        ctx.shadowBlur = 6;
-        const actionBanner = sceneTone === 'humor_horror'
-            ? `🎭  HORROR & DARK COMEDY  •  CHRONICLE OF ${realmTitle}  🎭`
-            : (sceneTone === 'humor'
-                ? `🃏  DUNGEON COMEDY  •  CHRONICLE OF ${realmTitle}  🃏`
-                : `😱  DUNGEON HORROR  •  CHRONICLE OF ${realmTitle}  😱`);
-        ctx.fillText(
-            isDeathMode ? `☠  Y A S D  •  CHRONICLE OF ${realmTitle}  ☠`
-                : (isVictoryMode ? `👑  IMMORTAL ASCENSION OF ${realmTitle}  👑` : actionBanner),
-            400, 42
-        );
-
-        ctx.fillStyle = '#fce7a1';
-        ctx.font = 'bold 12px "Cinzel", Georgia, serif';
-        const heroLine = isDeathMode
-            ? `${hero.name || 'Hero'} (Lv.${hero.level || 1} ${hero.race || 'Human'} ${hero.class || 'Warrior'})  •  Slain by ${ctxData.killedBy || 'mortal wounds'}`
-            : `${hero.name || 'Hero'} — Lv.${hero.level || 1} ${hero.race || 'Human'} ${hero.class || 'Warrior'}  •  ${ctxData.locationLabel || 'Dungeon'}`;
-        ctx.fillText(heroLine, 400, 60);
-
-        // Horizontal row of colored Status Condition Pills (y = 68..88)
-        const displayStatus = statusBadges.slice(0, 5);
-        if (displayStatus.length > 0) {
-            ctx.font = '10px sans-serif';
-            const pillPadX = 8;
-            const pillH = 18;
-            const pillY = 70;
-            const pillGutter = 8;
-
-            const pillWidths = displayStatus.map(st => ctx.measureText(st).width + pillPadX * 2);
-            const totalRowW = pillWidths.reduce((a, b) => a + b, 0) + (displayStatus.length - 1) * pillGutter;
-            let curPillX = Math.max(35, 400 - (totalRowW / 2));
-
-            displayStatus.forEach((st, idx) => {
-                const w = pillWidths[idx];
-                ctx.save();
-
-                let borderColor = 'rgba(201, 160, 80, 0.6)';
-                let textColor = '#e6d3a3';
-                let bgColor = 'rgba(24, 18, 14, 0.85)';
-
-                if (st.includes('Blessed') || st.includes('Heroic')) {
-                    borderColor = '#ffd700';
-                    textColor = '#ffeaa7';
-                    bgColor = 'rgba(50, 40, 10, 0.9)';
-                } else if (st.includes('Poisoned')) {
-                    borderColor = '#34d399';
-                    textColor = '#a7f3d0';
-                    bgColor = 'rgba(10, 40, 20, 0.9)';
-                } else if (st.includes('Bleeding') || st.includes('Critical') || st.includes('Cut')) {
-                    borderColor = '#f87171';
-                    textColor = '#fecaca';
-                    bgColor = 'rgba(45, 12, 12, 0.9)';
-                } else if (st.includes('Fast')) {
-                    borderColor = '#38bdf8';
-                    textColor = '#bae6fd';
-                    bgColor = 'rgba(12, 30, 48, 0.9)';
-                } else if (st.includes('Vigorous')) {
-                    borderColor = '#60a5fa';
-                    textColor = '#dbeafe';
-                    bgColor = 'rgba(16, 28, 44, 0.9)';
-                }
-
-                ctx.fillStyle = bgColor;
-                ctx.strokeStyle = borderColor;
-                ctx.lineWidth = 1.2;
-                ctx.beginPath();
-                ctx.roundRect ? ctx.roundRect(curPillX, pillY, w, pillH, 9) : ctx.rect(curPillX, pillY, w, pillH);
-                ctx.fill();
-                ctx.stroke();
-
-                ctx.fillStyle = textColor;
-                ctx.textAlign = 'center';
-                ctx.fillText(st, curPillX + (w / 2), pillY + 13);
-                ctx.restore();
-
-                curPillX += w + pillGutter;
-            });
-        }
-        ctx.restore();
-
-        // 3. Left Illuminated Margin — Character Stats & Vitals Column (x = 30..188, y = 104..428)
-        ctx.save();
-        ctx.fillStyle = 'rgba(18, 14, 10, 0.92)';
-        ctx.strokeStyle = '#a6833b';
-        ctx.lineWidth = 1.2;
-        ctx.fillRect(30, 104, 158, 324);
-        ctx.strokeRect(30, 104, 158, 324);
-
-        // Header
-        ctx.fillStyle = '#fce7a1';
-        ctx.font = 'bold 11px "Cinzel", Georgia, serif';
-        ctx.textAlign = 'center';
-        ctx.fillText('⚔ ATTRIBUTES & VITALS ⚔', 109, 122);
-        ctx.strokeStyle = 'rgba(166, 131, 59, 0.4)';
-        ctx.beginPath();
-        ctx.moveTo(38, 128);
-        ctx.lineTo(180, 128);
-        ctx.stroke();
-
-        // Render stat badges list with mini accent indicators
-        const displayStats = statBadges.slice(0, 10);
-        let statY = 144;
-        displayStats.forEach(b => {
-            const parts = b.split(/\s+/);
-            const label = parts[0] || b;
-            const val = parts.slice(1).join(' ') || '';
-
-            ctx.font = 'bold 10px sans-serif';
-            ctx.textAlign = 'left';
-            let labelColor = '#d4c2a0';
-            let valColor = '#fce7a1';
-            if (label === 'HP') { labelColor = '#f87171'; valColor = '#fca5a5'; }
-            else if (label === 'MP') { labelColor = '#60a5fa'; valColor = '#93c5fd'; }
-            else if (label === 'AC') { labelColor = '#34d399'; valColor = '#a7f3d0'; }
-            else if (label === 'AU') { labelColor = '#fbbf24'; valColor = '#fde68a'; }
-
-            ctx.fillStyle = labelColor;
-            ctx.fillText(label, 40, statY);
-
-            ctx.font = 'bold 10px monospace';
-            ctx.textAlign = 'right';
-            ctx.fillStyle = valColor;
-            ctx.fillText(val, 178, statY);
-
-            // Subtle divider dot
-            ctx.fillStyle = 'rgba(166, 131, 59, 0.25)';
-            ctx.fillRect(40, statY + 3, 138, 1);
-
-            statY += 17;
-        });
-
-        // Bottom of stat panel: Physical Form & Traits
-        if (ctxData.statTraits) {
-            ctx.fillStyle = '#a89a84';
-            ctx.font = 'bold 9px "Cinzel", Georgia, serif';
-            ctx.textAlign = 'left';
-            ctx.fillText('PHYSICAL TRAITS', 40, 332);
-
-            ctx.font = 'italic 9px Georgia, serif';
-            ctx.fillStyle = '#d4c2a0';
-            const traitWords = ctxData.statTraits.split(' ');
-            let line = '';
-            let ty = 346;
-            for (const word of traitWords) {
-                const test = line + (line ? ' ' : '') + word;
-                if (ctx.measureText(test).width > 138 && line) {
-                    ctx.fillText(line, 40, ty);
-                    line = word;
-                    ty += 12;
-                    if (ty > 418) break;
-                } else {
-                    line = test;
-                }
-            }
-            if (line && ty <= 418) {
-                ctx.fillText(line, 40, ty);
-            }
-        }
-        ctx.restore();
-
-        // 4. Right Illuminated Margin — Equipped Arms, Pack Relics & Chronicle History (x = 582..770, y = 104..428)
-        ctx.save();
-        ctx.fillStyle = 'rgba(18, 14, 10, 0.92)';
-        ctx.strokeStyle = '#a6833b';
-        ctx.lineWidth = 1.2;
-        ctx.fillRect(582, 104, 188, 324);
-        ctx.strokeRect(582, 104, 188, 324);
-
-        // Header
-        ctx.fillStyle = '#fce7a1';
-        ctx.font = 'bold 11px "Cinzel", Georgia, serif';
-        ctx.textAlign = 'center';
-        ctx.fillText('🛡 ARMS & CHRONICLE 📜', 676, 122);
-        ctx.strokeStyle = 'rgba(166, 131, 59, 0.4)';
-        ctx.beginPath();
-        ctx.moveTo(590, 128);
-        ctx.lineTo(762, 128);
-        ctx.stroke();
-
-        // Section A: Equipped Arms
-        ctx.fillStyle = '#c9a050';
-        ctx.font = 'bold 9px "Cinzel", sans-serif';
-        ctx.textAlign = 'left';
-        ctx.fillText('EQUIPPED LOADOUT', 592, 142);
-
-        let armY = 156;
-        const arms = gearBadges.slice(0, 4);
-        if (arms.length > 0) {
-            ctx.font = '10px sans-serif';
-            ctx.fillStyle = '#e2d2b5';
-            arms.forEach(arm => {
-                let text = arm;
-                if (ctx.measureText(text).width > 170) {
-                    while (text.length > 3 && ctx.measureText(text + '...').width > 170) {
-                        text = text.slice(0, -1);
-                    }
-                    text += '...';
-                }
-                ctx.fillText(text, 592, armY);
-                armY += 15;
-            });
-        } else {
-            ctx.font = 'italic 10px sans-serif';
-            ctx.fillStyle = '#8f8373';
-            ctx.fillText('Basic traveling apparel', 592, armY);
-            armY += 15;
-        }
-
-        // Section B: Pack Relics
-        ctx.fillStyle = '#c9a050';
-        ctx.font = 'bold 9px "Cinzel", sans-serif';
-        ctx.fillText('CARRIED RELICS', 592, armY + 8);
-        let relicY = armY + 22;
-        const relics = inventoryHighlights.slice(0, 2);
-        if (relics.length > 0) {
-            ctx.font = '10px sans-serif';
-            ctx.fillStyle = '#c0d0a0';
-            relics.forEach(rel => {
-                let text = rel;
-                if (ctx.measureText(text).width > 170) {
-                    while (text.length > 3 && ctx.measureText(text + '...').width > 170) {
-                        text = text.slice(0, -1);
-                    }
-                    text += '...';
-                }
-                ctx.fillText(text, 592, relicY);
-                relicY += 15;
-            });
-        } else {
-            ctx.font = 'italic 10px sans-serif';
-            ctx.fillStyle = '#8f8373';
-            ctx.fillText('Supplies gathered in pack', 592, relicY);
-            relicY += 15;
-        }
-
-        // Section C: Chronicle History Milestones
-        ctx.fillStyle = '#c9a050';
-        ctx.font = 'bold 9px "Cinzel", sans-serif';
-        ctx.fillText('CHRONICLE BEATS', 592, relicY + 8);
-        let histY = relicY + 22;
-        const beats = historyTimeline.slice(0, 3);
-        if (beats.length > 0) {
-            ctx.font = 'italic 9px Georgia, serif';
-            ctx.fillStyle = '#d4c2a0';
-            beats.forEach(beat => {
-                let text = '• ' + beat;
-                if (ctx.measureText(text).width > 170) {
-                    while (text.length > 5 && ctx.measureText(text + '...').width > 170) {
-                        text = text.slice(0, -1);
-                    }
-                    text += '...';
-                }
-                ctx.fillText(text, 592, histY);
-                histY += 14;
-            });
-        }
-        ctx.restore();
-
-        // 5. Center Chiaroscuro Action Stage (x = 194..576, y = 104..428)
-        ctx.save();
-        // Stage floor
-        const floorGrad = ctx.createLinearGradient(0, 370, 0, 430);
-        floorGrad.addColorStop(0, '#221a14');
-        floorGrad.addColorStop(1, '#110d0a');
+        const floorGrad = ctx.createLinearGradient(0, 410, 0, 576);
+        floorGrad.addColorStop(0, '#1e1610');
+        floorGrad.addColorStop(1, '#090705');
         ctx.fillStyle = floorGrad;
-        ctx.fillRect(194, 370, 382, 58);
+        ctx.fillRect(24, 410, 752, 166);
 
-        // Biome architectural silhouettes in background
-        if (realm === 'silq') {
-            ctx.fillStyle = '#17120e';
-            ctx.fillRect(205, 120, 30, 250);
-            ctx.fillRect(535, 120, 30, 250);
-            // Underground forge embers
-            const emberGrad = ctx.createRadialGradient(500, 340, 5, 500, 340, 80);
-            emberGrad.addColorStop(0, 'rgba(255, 110, 30, 0.45)');
-            emberGrad.addColorStop(1, 'rgba(255, 110, 30, 0)');
-            ctx.fillStyle = emberGrad;
-            ctx.beginPath();
-            ctx.arc(500, 340, 80, 0, Math.PI * 2);
-            ctx.fill();
-        } else if (realm === 'hengband') {
-            ctx.fillStyle = '#15110d';
-            ctx.beginPath();
-            ctx.moveTo(210, 200);
-            ctx.quadraticCurveTo(385, 175, 560, 200);
-            ctx.lineTo(540, 218);
-            ctx.quadraticCurveTo(385, 195, 230, 218);
-            ctx.closePath();
-            ctx.fill();
-            // Stone pagoda post
-            ctx.fillRect(540, 218, 14, 155);
-        } else if (realm === 'frogcomposband') {
-            ctx.fillStyle = '#140f0c';
-            ctx.beginPath();
-            ctx.moveTo(460, 370);
-            ctx.lineTo(510, 160);
-            ctx.lineTo(565, 370);
-            ctx.closePath();
-            ctx.fill();
-        } else {
-            // Vanilla Angband: Rough-hewn gothic masonry arch and torchlight
-            ctx.fillStyle = '#18120d';
-            ctx.fillRect(202, 120, 32, 250);
-            ctx.fillRect(538, 120, 32, 250);
-            const torchGrad = ctx.createRadialGradient(245, 200, 5, 245, 200, 95);
-            torchGrad.addColorStop(0, 'rgba(255, 185, 80, 0.45)');
-            torchGrad.addColorStop(1, 'rgba(255, 185, 80, 0)');
-            ctx.fillStyle = torchGrad;
-            ctx.beginPath();
-            ctx.arc(245, 200, 95, 0, Math.PI * 2);
-            ctx.fill();
-        }
+        // Vault pillars & warm chiaroscuro torchlight
+        ctx.fillStyle = '#120d09';
+        ctx.fillRect(48, 40, 56, 400);
+        ctx.fillRect(696, 40, 56, 400);
 
-        // Hero and Monster atlas sprite compositing
-        const dungeon = this.dungeon || (typeof window !== 'undefined' && (window.__dungeonRenderer || window.dungeonRenderer || window.dungeon));
-        const monsterAtlasImg = dungeon?.monsterAtlasTex?.image;
-        const itemAtlasImg = dungeon?.itemAtlasTex?.image;
-        let drewHero = false;
-
-        const heroX = 275;
-        const heroY = 220;
-
-        // Ground shadow beneath center stage
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.65)';
+        const torchLeft = ctx.createRadialGradient(145, 190, 6, 145, 190, 170);
+        torchLeft.addColorStop(0, 'rgba(255, 175, 70, 0.45)');
+        torchLeft.addColorStop(0.5, 'rgba(220, 100, 30, 0.15)');
+        torchLeft.addColorStop(1, 'rgba(255, 160, 60, 0)');
+        ctx.fillStyle = torchLeft;
         ctx.beginPath();
-        ctx.ellipse(heroX + 60, 375, 68, 15, 0, 0, Math.PI * 2);
+        ctx.arc(145, 190, 170, 0, Math.PI * 2);
         ctx.fill();
 
-        const heroUvObj = (dungeon && typeof dungeon.getMonsterAtlasUV === 'function')
-            ? (dungeon.getMonsterAtlasUV(hero.class || '<player>', '@') || dungeon.getMonsterAtlasUV('<player>', '@'))
-            : null;
-        const heroUvArr = heroUvObj && (Array.isArray(heroUvObj) ? heroUvObj : heroUvObj.uv);
+        const torchRight = ctx.createRadialGradient(655, 190, 6, 655, 190, 170);
+        torchRight.addColorStop(0, isDeathMode ? 'rgba(239, 68, 68, 0.35)' : 'rgba(255, 175, 70, 0.35)');
+        torchRight.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        ctx.fillStyle = torchRight;
+        ctx.beginPath();
+        ctx.arc(655, 190, 170, 0, Math.PI * 2);
+        ctx.fill();
 
-        // Helper to draw a menacing horned slayer silhouette when monster atlas UV is unavailable or collides with hero default UV
+        // Helper to draw a menacing horned slayer silhouette in full-frame chiaroscuro
         const drawSlayerSilhouette = (mx, my) => {
             ctx.save();
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.65)';
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
             ctx.beginPath();
-            ctx.ellipse(mx + 50, 375, 52, 13, 0, 0, Math.PI * 2);
+            ctx.ellipse(mx + 70, 435, 78, 18, 0, 0, Math.PI * 2);
             ctx.fill();
 
             ctx.shadowColor = '#ef4444';
-            ctx.shadowBlur = 22;
+            ctx.shadowBlur = 28;
             ctx.fillStyle = '#12080a';
             ctx.strokeStyle = 'rgba(239, 68, 68, 0.65)';
-            ctx.lineWidth = 2;
-            // Cloak & torso
+            ctx.lineWidth = 2.2;
             ctx.beginPath();
-            ctx.moveTo(mx + 50, my + 18);
-            ctx.lineTo(mx + 88, my + 55);
-            ctx.lineTo(mx + 98, my + 148);
-            ctx.lineTo(mx + 4, my + 148);
-            ctx.lineTo(mx + 14, my + 55);
+            ctx.moveTo(mx + 70, my + 10);
+            ctx.lineTo(mx + 125, my + 65);
+            ctx.lineTo(mx + 142, my + 210);
+            ctx.lineTo(mx + 2, my + 210);
+            ctx.lineTo(mx + 18, my + 65);
             ctx.closePath();
             ctx.fill();
             ctx.stroke();
+
             // Horns
             ctx.beginPath();
-            ctx.moveTo(mx + 34, my + 24);
-            ctx.quadraticCurveTo(mx + 12, my - 4, mx + 22, my - 12);
-            ctx.quadraticCurveTo(mx + 28, my + 8, mx + 44, my + 20);
-            ctx.moveTo(mx + 66, my + 24);
-            ctx.quadraticCurveTo(mx + 88, my - 4, mx + 78, my - 12);
-            ctx.quadraticCurveTo(mx + 72, my + 8, mx + 56, my + 20);
+            ctx.moveTo(mx + 48, my + 20);
+            ctx.quadraticCurveTo(mx + 14, my - 18, mx + 28, my - 30);
+            ctx.quadraticCurveTo(mx + 38, my + 2, mx + 62, my + 16);
+            ctx.moveTo(mx + 92, my + 20);
+            ctx.quadraticCurveTo(mx + 126, my - 18, mx + 112, my - 30);
+            ctx.quadraticCurveTo(mx + 102, my + 2, mx + 78, my + 16);
             ctx.fill();
             ctx.stroke();
+
             // Glowing crimson eyes
             ctx.fillStyle = '#ff3b30';
             ctx.shadowColor = '#ff0000';
-            ctx.shadowBlur = 12;
+            ctx.shadowBlur = 14;
             ctx.beginPath();
-            ctx.arc(mx + 42, my + 34, 3.5, 0, Math.PI * 2);
-            ctx.arc(mx + 58, my + 34, 3.5, 0, Math.PI * 2);
-            ctx.fill();
-            // Reaper scythe / jagged polearm
-            ctx.strokeStyle = '#cbd5e1';
-            ctx.shadowColor = '#f87171';
-            ctx.shadowBlur = 8;
-            ctx.lineWidth = 3;
-            ctx.beginPath();
-            ctx.moveTo(mx + 12, my + 145);
-            ctx.lineTo(mx + 82, my + 5);
-            ctx.stroke();
-            ctx.fillStyle = '#94a3b8';
-            ctx.beginPath();
-            ctx.moveTo(mx + 82, my + 5);
-            ctx.quadraticCurveTo(mx + 30, my - 8, mx + 14, my + 28);
-            ctx.quadraticCurveTo(mx + 46, my + 12, mx + 76, my + 18);
-            ctx.closePath();
+            ctx.arc(mx + 58, my + 38, 4.5, 0, Math.PI * 2);
+            ctx.arc(mx + 82, my + 38, 4.5, 0, Math.PI * 2);
             ctx.fill();
             ctx.restore();
         };
 
-        if (!isDeathMode && dungeon && typeof dungeon.getMonsterAtlasUV === 'function' && monsterAtlasImg && monsterAtlasImg.complete && monsterAtlasImg.width > 0) {
-            try {
-                if (heroUvArr && heroUvArr.length >= 4) {
-                    const [u0, v0, u1, v1] = heroUvArr;
-                    const sx = u0 * monsterAtlasImg.width;
-                    const sy = (1 - v1) * monsterAtlasImg.height;
-                    const sw = (u1 - u0) * monsterAtlasImg.width;
-                    const sh = (v1 - v0) * monsterAtlasImg.height;
+        // Hero silhouette on left/center + Slayer/Threat silhouette on right
+        ctx.save();
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+        ctx.beginPath();
+        ctx.ellipse(290, 435, 75, 18, 0, 0, Math.PI * 2);
+        ctx.fill();
 
-                    ctx.save();
-                    ctx.shadowColor = '#f5c97a';
-                    ctx.shadowBlur = 16;
-                    ctx.drawImage(monsterAtlasImg, sx, sy, sw, sh, heroX, heroY, 110, 145);
-                    ctx.restore();
-                    drewHero = true;
+        // Cloaked adventurer silhouette in chiaroscuro
+        ctx.fillStyle = '#18120d';
+        ctx.strokeStyle = isDeathMode ? 'rgba(248, 113, 113, 0.5)' : 'rgba(245, 201, 122, 0.55)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(290, 215);
+        ctx.lineTo(255, 260);
+        ctx.lineTo(230, 430);
+        ctx.quadraticCurveTo(290, 442, 350, 430);
+        ctx.lineTo(325, 260);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
 
-                    // Flanking equipped item icons
-                    if (itemAtlasImg && itemAtlasImg.complete && itemAtlasImg.width > 0 && typeof dungeon.getItemAtlasUV === 'function') {
-                        const gearPositions = [[208, 235], [208, 295]];
-                        gearBadges.slice(0, 2).forEach((badge, idx) => {
-                            const cleanItem = badge.replace(/^[^\w\u3000-\u9faf]+/, '').trim();
-                            const itUv = dungeon.getItemAtlasUV(cleanItem, null);
-                            const iArr = itUv && (Array.isArray(itUv) ? itUv : itUv.uv);
-                            if (iArr && iArr.length >= 4) {
-                                const [iu0, iv0, iu1, iv1] = iArr;
-                                const isx = iu0 * itemAtlasImg.width;
-                                const isy = (1 - iv1) * itemAtlasImg.height;
-                                const isw = (iu1 - iu0) * itemAtlasImg.width;
-                                const ish = (iv1 - iv0) * itemAtlasImg.height;
-                                const [gx, gy] = gearPositions[idx];
-                                ctx.save();
-                                ctx.fillStyle = 'rgba(18, 14, 10, 0.85)';
-                                ctx.strokeStyle = 'rgba(201, 160, 80, 0.75)';
-                                ctx.lineWidth = 1.2;
-                                ctx.beginPath();
-                                ctx.arc(gx + 20, gy + 20, 22, 0, Math.PI * 2);
-                                ctx.fill();
-                                ctx.stroke();
-                                ctx.drawImage(itemAtlasImg, isx, isy, isw, ish, gx + 4, gy + 4, 32, 32);
-                                ctx.restore();
-                            }
-                        });
-                    }
+        ctx.fillStyle = '#0e0a07';
+        ctx.beginPath();
+        ctx.arc(290, 228, 22, 0, Math.PI * 2);
+        ctx.fill();
 
-                    // Visible monster sprite (never duplicate the hero sprite UV!)
-                    if (Array.isArray(ctxData.visibleMonsters) && ctxData.visibleMonsters.length > 0) {
-                        const m = ctxData.visibleMonsters[0];
-                        const mUv = dungeon.getMonsterAtlasUV(m.name, m.glyph);
-                        const mArr = mUv && (Array.isArray(mUv) ? mUv : mUv.uv);
-                        const isDistinctUv = mArr && mArr.length >= 4 && (Math.abs(mArr[0] - u0) > 0.001 || Math.abs(mArr[1] - v0) > 0.001);
-                        if (isDistinctUv) {
-                            const [mu0, mv0, mu1, mv1] = mArr;
-                            const msx = mu0 * monsterAtlasImg.width;
-                            const msy = (1 - mv1) * monsterAtlasImg.height;
-                            const msw = (mu1 - mu0) * monsterAtlasImg.width;
-                            const msh = (mv1 - mv0) * monsterAtlasImg.height;
-
-                            ctx.save();
-                            ctx.fillStyle = 'rgba(0, 0, 0, 0.65)';
-                            ctx.beginPath();
-                            ctx.ellipse(475, 375, 55, 14, 0, 0, Math.PI * 2);
-                            ctx.fill();
-
-                            ctx.shadowColor = '#ff6050';
-                            ctx.shadowBlur = 18;
-                            ctx.drawImage(monsterAtlasImg, msx, msy, msw, msh, 420, 225, 110, 140);
-                            ctx.restore();
-                        } else {
-                            drawSlayerSilhouette(425, 225);
-                        }
-                    }
-                }
-            } catch (_) {}
-        }
-
-        if (isDeathMode) {
-            // Showcase Dark-Fantasy YASD Memorial Scene: Looming Slayer + Grand Chiseled Tombstone + Fallen Arms & Gold
-            let drewKillerSprite = false;
-            if (dungeon && typeof dungeon.getMonsterAtlasUV === 'function' && monsterAtlasImg && monsterAtlasImg.complete && monsterAtlasImg.width > 0 && Array.isArray(ctxData.visibleMonsters) && ctxData.visibleMonsters.length > 0) {
-                try {
-                    const m = ctxData.visibleMonsters[0];
-                    const mUv = dungeon.getMonsterAtlasUV(m.name, m.glyph);
-                    const mArr = mUv && (Array.isArray(mUv) ? mUv : mUv.uv);
-                    const isDistinctUv = mArr && mArr.length >= 4 && (!heroUvArr || Math.abs(mArr[0] - heroUvArr[0]) > 0.001 || Math.abs(mArr[1] - heroUvArr[1]) > 0.001);
-                    if (isDistinctUv) {
-                        const [mu0, mv0, mu1, mv1] = mArr;
-                        ctx.save();
-                        ctx.shadowColor = '#ef4444';
-                        ctx.shadowBlur = 22;
-                        ctx.drawImage(
-                            monsterAtlasImg,
-                            mu0 * monsterAtlasImg.width,
-                            (1 - mv1) * monsterAtlasImg.height,
-                            (mu1 - mu0) * monsterAtlasImg.width,
-                            (mv1 - mv0) * monsterAtlasImg.height,
-                            430, 215, 115, 150
-                        );
-                        ctx.restore();
-                        drewKillerSprite = true;
-                    }
-                } catch (_) {}
-            }
-            if (!drewKillerSprite) {
-                drawSlayerSilhouette(432, 218);
-            }
-
-            // Crossed broadsword driven into the flagstones beside the grave
-            ctx.save();
-            ctx.strokeStyle = '#94a3b8';
-            ctx.lineWidth = 4;
-            ctx.beginPath();
-            ctx.moveTo(235, 372);
-            ctx.lineTo(272, 232);
-            ctx.stroke();
-            ctx.strokeStyle = '#d4af37';
-            ctx.lineWidth = 3;
-            ctx.beginPath();
-            ctx.moveTo(254, 255);
-            ctx.lineTo(284, 263);
-            ctx.stroke();
-
-            // Grand Chiseled Granite Tombstone (x = 262..418, y = 175..374)
-            const tombGrad = ctx.createLinearGradient(262, 175, 418, 374);
-            tombGrad.addColorStop(0, '#3a3532');
-            tombGrad.addColorStop(0.5, '#262220');
-            tombGrad.addColorStop(1, '#171412');
-            ctx.fillStyle = tombGrad;
-            ctx.strokeStyle = '#c9a050';
-            ctx.lineWidth = 2.2;
-            ctx.beginPath();
-            ctx.moveTo(262, 374);
-            ctx.lineTo(262, 248);
-            ctx.arc(340, 248, 78, Math.PI, 0, false);
-            ctx.lineTo(418, 374);
-            ctx.closePath();
-            ctx.fill();
-            ctx.stroke();
-
-            // Inner chiseled stone bevel
-            ctx.strokeStyle = 'rgba(201, 160, 80, 0.38)';
-            ctx.lineWidth = 1;
-            ctx.beginPath();
-            ctx.moveTo(270, 368);
-            ctx.lineTo(270, 248);
-            ctx.arc(340, 248, 70, Math.PI, 0, false);
-            ctx.lineTo(410, 368);
-            ctx.closePath();
-            ctx.stroke();
-
-            // Skull & Inscription on Tombstone
-            ctx.textAlign = 'center';
-            ctx.fillStyle = '#f5d77f';
-            ctx.font = 'bold 18px "Cinzel", Georgia, serif';
-            ctx.fillText('☠  R. I. P.  ☠', 340, 222);
-
-            ctx.fillStyle = '#fff8e1';
-            ctx.font = 'bold 13px "Cinzel", Georgia, serif';
-            ctx.fillText((hero.name || 'Hero').slice(0, 16), 340, 252);
-
-            ctx.fillStyle = '#d8be82';
-            ctx.font = '11px Georgia, serif';
-            ctx.fillText(`Lv.${hero.level || 1} ${hero.race || ''} ${hero.class || ''}`.trim().slice(0, 22), 340, 272);
-
-            ctx.fillStyle = '#94a3b8';
-            ctx.font = 'italic 10px Georgia, serif';
-            ctx.fillText('Slain by', 340, 294);
-
-            ctx.fillStyle = '#fca5a5';
-            ctx.font = 'bold 12px "Cinzel", Georgia, serif';
-            ctx.fillText((ctxData.killedBy || 'mortal wounds').slice(0, 20), 340, 314);
-
-            ctx.fillStyle = '#cbd5e1';
-            ctx.font = '10px monospace';
-            ctx.fillText((ctxData.locationLabel || 'Dungeon').slice(0, 22), 340, 336);
-
-            // Spilled gold coins & fallen shield at the base of the tombstone
-            const coins = [[248, 374], [258, 378], [272, 376], [408, 376], [420, 373], [428, 378]];
-            ctx.fillStyle = '#fbbf24';
-            ctx.strokeStyle = '#92400e';
-            ctx.lineWidth = 1;
-            for (const [cx, cy] of coins) {
-                ctx.beginPath();
-                ctx.ellipse(cx, cy, 5, 2.5, 0, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.stroke();
-            }
-            ctx.restore();
-        } else if (!drewHero) {
-            ctx.save();
-            ctx.fillStyle = '#1c1611';
-            ctx.strokeStyle = '#2d231b';
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.moveTo(330, 230);
-            ctx.lineTo(310, 260);
-            ctx.lineTo(285, 370);
-            ctx.quadraticCurveTo(330, 380, 375, 370);
-            ctx.lineTo(350, 260);
-            ctx.closePath();
-            ctx.fill();
-            ctx.stroke();
-
-            ctx.fillStyle = '#0f0c09';
-            ctx.beginPath();
-            ctx.arc(330, 240, 18, 0, Math.PI * 2);
-            ctx.fill();
-
-            ctx.shadowColor = '#80d0ff';
-            ctx.shadowBlur = 15;
-            ctx.strokeStyle = '#e0f4ff';
-            ctx.lineWidth = 3.5;
-            ctx.beginPath();
-            ctx.moveTo(355, 310);
-            ctx.lineTo(415, 235);
-            ctx.stroke();
-            ctx.restore();
-        }
-
-        // Status-Driven Visual VFX
-        // 1. Blessed / Heroic: Golden celestial halo arc + rising gold embers
-        if (statusVisuals.isBlessed || statusVisuals.isHeroic) {
-            ctx.save();
-            ctx.strokeStyle = '#ffd700';
-            ctx.shadowColor = '#ffe066';
-            ctx.shadowBlur = 18;
-            ctx.lineWidth = 2.5;
-            ctx.beginPath();
-            ctx.arc(heroX + 55, heroY + 8, 26, Math.PI * 1.1, Math.PI * 1.9);
-            ctx.stroke();
-
-            // Rising spark embers
-            ctx.fillStyle = '#fff0a0';
-            const emberOffsets = [[20, 40], [35, 15], [65, 10], [80, 35], [50, -10]];
-            for (const [ox, oy] of emberOffsets) {
-                ctx.beginPath();
-                ctx.arc(heroX + ox, heroY + oy, 2, 0, Math.PI * 2);
-                ctx.fill();
-            }
-            ctx.restore();
-        }
-
-        // 2. Poisoned: Sickly emerald miasma wisps rising at the hero's feet
-        if (statusVisuals.isPoisoned) {
-            ctx.save();
-            ctx.strokeStyle = 'rgba(74, 222, 128, 0.55)';
-            ctx.shadowColor = '#22c55e';
-            ctx.shadowBlur = 14;
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.moveTo(heroX + 20, 375);
-            ctx.bezierCurveTo(heroX + 15, 345, heroX + 45, 335, heroX + 35, 310);
-            ctx.moveTo(heroX + 65, 375);
-            ctx.bezierCurveTo(heroX + 80, 350, heroX + 55, 340, heroX + 70, 315);
-            ctx.stroke();
-            ctx.restore();
-        }
-
-        // 3. Cut / Bleeding or Critical HP: Crimson blood droplets & corner vignette
-        if (statusVisuals.isCut || statusVisuals.isLowHp) {
-            ctx.save();
-            ctx.fillStyle = '#ef4444';
-            ctx.shadowColor = '#b91c1c';
-            ctx.shadowBlur = 10;
-            const dropOffsets = [[25, 360], [45, 370], [75, 365], [90, 372]];
-            for (const [dx, dy] of dropOffsets) {
-                ctx.beginPath();
-                ctx.arc(heroX + dx, dy, 2.5, 0, Math.PI * 2);
-                ctx.fill();
-            }
-            // Corner warning arc
-            ctx.strokeStyle = 'rgba(239, 68, 68, 0.4)';
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.arc(195, 105, 35, 0, Math.PI * 0.5);
-            ctx.stroke();
-            ctx.restore();
-        }
-
-        // 4. High Mana: Glowing cyan/violet arcane sigil ring beneath the hero
-        if (statusVisuals.hasHighMana) {
-            ctx.save();
-            ctx.strokeStyle = 'rgba(56, 189, 248, 0.65)';
-            ctx.shadowColor = '#0284c7';
-            ctx.shadowBlur = 14;
-            ctx.lineWidth = 1.5;
-            ctx.beginPath();
-            ctx.ellipse(heroX + 50, 375, 62, 16, 0, 0, Math.PI * 2);
-            ctx.stroke();
-            ctx.restore();
-        }
-
+        // Gleaming steel blade catching the torchlight
+        ctx.shadowColor = isVictoryMode ? '#fde047' : '#93c5fd';
+        ctx.shadowBlur = 16;
+        ctx.strokeStyle = '#e2e8f0';
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.moveTo(320, 325);
+        ctx.lineTo(405, 225);
+        ctx.stroke();
         ctx.restore();
 
-        // 6. Bottom Illuminated Story & History Scroll (x = 30..770, y = 438..572)
+        drawSlayerSilhouette(445, 225);
+        ctx.restore();
+
+        // Subtle gold-leaf border frame + single clean narrative caption at bottom
         ctx.save();
-        ctx.fillStyle = 'rgba(20, 15, 11, 0.94)';
-        ctx.strokeStyle = '#a6833b';
-        ctx.lineWidth = 1.5;
-        ctx.fillRect(30, 438, 740, 134);
-        ctx.strokeRect(30, 438, 740, 134);
+        ctx.strokeStyle = 'rgba(201, 160, 80, 0.7)';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(18, 18, 764, 564);
+        ctx.strokeStyle = 'rgba(201, 160, 80, 0.3)';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(24, 24, 752, 552);
 
-        // Line 1: Origin & History Arc
-        ctx.fillStyle = '#fce7a1';
-        ctx.font = 'bold 11px "Cinzel", Georgia, serif';
-        ctx.textAlign = 'left';
-        let arcText = `📜 ${ctxData.storyArc || ('Origin: ' + ctxData.originSummary)}`;
-        if (ctx.measureText(arcText).width > 710) {
-            while (arcText.length > 5 && ctx.measureText(arcText + '...').width > 710) {
-                arcText = arcText.slice(0, -1);
-            }
-            arcText += '...';
-        }
-        ctx.fillText(arcText, 45, 456);
-
-        // Lines 2-3: Current Narrative Beat Quote
-        ctx.fillStyle = '#d4c2a0';
-        ctx.font = 'italic 11px Georgia, serif';
-        let quote = (ctxData.narrativeText || 'Venturing into the dungeon depths.').replace(/\s+/g, ' ').trim();
-        const quoteWords = quote.split(' ');
-        let qLine = '“';
-        let qY = 474;
-        let lineCount = 0;
-        for (const w of quoteWords) {
-            const test = qLine + (qLine === '“' ? '' : ' ') + w;
-            if (ctx.measureText(test + (lineCount >= 1 ? '”' : '')).width > 710 && qLine !== '“') {
-                ctx.fillText(qLine, 45, qY);
-                qLine = w;
-                qY += 15;
-                lineCount++;
-                if (lineCount >= 2) break;
-            } else {
-                qLine = test;
-            }
-        }
-        if (qLine) {
-            if (!qLine.endsWith('”') && !qLine.endsWith('"')) qLine += '”';
-            ctx.fillText(qLine, 45, qY);
-        }
-
-        // Line 4: Equipped Arms & Relics Summary
-        ctx.fillStyle = '#c9a050';
-        ctx.font = '10px sans-serif';
-        const loadoutSummary = [...gearBadges.slice(0, 4), ...inventoryHighlights.slice(0, 2)].join('  •  ') || 'Traveling apparel';
-        let loadoutText = `Arms & Pack: ${loadoutSummary}`;
-        if (ctx.measureText(loadoutText).width > 710) {
-            while (loadoutText.length > 5 && ctx.measureText(loadoutText + '...').width > 710) {
-                loadoutText = loadoutText.slice(0, -1);
-            }
-            loadoutText += '...';
-        }
-        ctx.fillText(loadoutText, 45, 524);
-
-        // Line 5: Active Status & Traits Footer Line
-        ctx.fillStyle = '#a89a84';
-        ctx.font = '10px sans-serif';
-        const statusSummaryLine = `Status: ${statusBadges.join(' • ')}  |  Stance: ${ctxData.condition}`;
-        let statusText = statusSummaryLine;
-        if (ctx.measureText(statusText).width > 710) {
-            while (statusText.length > 5 && ctx.measureText(statusText + '...').width > 710) {
-                statusText = statusText.slice(0, -1);
-            }
-            statusText += '...';
-        }
-        ctx.fillText(statusText, 45, 542);
-
-        // Line 6: Inscribed timestamp & turn footer
-        ctx.fillStyle = '#7a6e5d';
-        ctx.font = '9px monospace';
-        const footerNote = `✦ YASD 3D (yasd3d.com) • Living Chronicle of ${realmTitle} • ${ctxData.locationLabel} • Turn ${vitals.turn ?? 1} ✦`;
+        ctx.fillStyle = 'rgba(245, 215, 127, 0.85)';
+        ctx.font = 'bold 14px "Cinzel", Georgia, serif';
         ctx.textAlign = 'center';
-        ctx.fillText(footerNote, 400, 560);
+        ctx.fillText(
+            isDeathMode
+                ? `☠ ${hero.name || 'Hero'} — Slain by ${ctxData.killedBy || 'mortal wounds'} in ${ctxData.locationLabel || 'Dungeon'} ☠`
+                : `${ctxData.toneBadge || '🎭 Dungeon Scene'} — ${hero.name || 'Hero'} (${ctxData.locationLabel || 'Dungeon'})`,
+            400, 520
+        );
 
+        ctx.fillStyle = 'rgba(212, 194, 160, 0.85)';
+        ctx.font = 'italic 13px Georgia, serif';
+        const shortQuote = (ctxData.narrativeText || 'Painting dark-fantasy scene...').replace(/\s+/g, ' ').trim().slice(0, 96);
+        ctx.fillText(`“${shortQuote}”`, 400, 548);
         ctx.restore();
 
         return canvas.toDataURL('image/png');
@@ -4785,13 +4107,6 @@ class ChronicleManager {
         const displayQuote = quoteSnippet.length > 120 ? quoteSnippet.slice(0, 117) + '...' : quoteSnippet;
         const toneTitle = ctxData.toneBadge || '🎨 Hero Action Sketch';
 
-        const statPillsHtml = (ctxData.statBadges || []).slice(0, 8).map(b => `<span class="chronicle-sketch-gear-tag chronicle-sketch-stat-tag chronicle-sketch-gear-pill">${this.escapeHtml(b)}</span>`).join('');
-        const statusPillsHtml = (ctxData.statusBadges || []).map(b => `<span class="chronicle-sketch-gear-tag chronicle-sketch-status-tag chronicle-sketch-gear-pill">${this.escapeHtml(b)}</span>`).join('');
-        const gearPillsHtml = (ctxData.gearBadges || []).map(b => `<span class="chronicle-sketch-gear-tag chronicle-sketch-gear-pill">${this.escapeHtml(b)}</span>`).join('');
-        const relicPillsHtml = (ctxData.inventoryHighlights || []).map(r => `<span class="chronicle-sketch-gear-tag chronicle-sketch-relic-tag chronicle-sketch-gear-pill">${this.escapeHtml(r)}</span>`).join('');
-        const foePillsHtml = (ctxData.visibleMonsters || []).map(m => `<span class="chronicle-sketch-gear-tag chronicle-sketch-foe-tag chronicle-sketch-gear-pill">👁 ${this.escapeHtml(m.name)} (${this.escapeHtml(m.state)})</span>`).join('');
-        const historyPillsHtml = (ctxData.historyTimeline || []).map(h => `<span class="chronicle-sketch-gear-tag chronicle-sketch-history-tag chronicle-sketch-gear-pill">📜 ${this.escapeHtml(h)}</span>`).join('');
-
         cardEl.innerHTML = `
             <div class="chronicle-sketch-card-header">
                 <span class="chronicle-sketch-title">${this.escapeHtml(toneTitle)} — ${this.escapeHtml(ctxData.hero.name)}</span>
@@ -4807,15 +4122,6 @@ class ChronicleManager {
             <div class="chronicle-sketch-card-status">🎨 Illustrating ${this.escapeHtml(toneTitle)} with Gemini...</div>
             <div class="chronicle-sketch-caption">
                 <p class="chronicle-sketch-quote">“${this.escapeHtml(displayQuote)}”</p>
-                ${ctxData.storyArc ? `<p class="chronicle-sketch-history-summary" style="font-size: 0.85em; opacity: 0.85; margin-top: 4px;">📜 ${this.escapeHtml(ctxData.storyArc)}</p>` : ''}
-            </div>
-            <div class="chronicle-sketch-gear-tags">
-                ${statusPillsHtml}
-                ${statPillsHtml}
-                ${gearPillsHtml}
-                ${relicPillsHtml}
-                ${foePillsHtml}
-                ${historyPillsHtml}
             </div>
         `;
 

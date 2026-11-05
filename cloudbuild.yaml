@@ -3,17 +3,26 @@ steps:
     entrypoint: 'bash'
     args:
       - '-c'
-      - 'docker pull gcr.io/$PROJECT_ID/angband3d-cloud:latest || true'
-  - name: 'gcr.io/cloud-builders/docker'
-    args:
-      - 'build'
-      - '--cache-from'
-      - 'gcr.io/$PROJECT_ID/angband3d-cloud:latest'
-      - '-t'
-      - 'gcr.io/$PROJECT_ID/angband3d-cloud:latest'
-      - '-f'
-      - 'server/Dockerfile'
-      - '.'
+      - |
+        if docker pull gcr.io/$PROJECT_ID/angband3d-cloud:latest; then
+          cat << 'EOF' > Dockerfile.fast
+        FROM gcr.io/${PROJECT_ID}/angband3d-cloud:latest
+        WORKDIR /app
+        COPY server/src/ /app/server/src/
+        COPY server/public/ /app/public/
+        COPY variants/nethack/ /app/variants/nethack/
+        COPY variants/rogue/ /app/variants/rogue/
+        COPY variants/brogue/ /app/variants/brogue/
+        COPY variants/dcss/ /app/variants/dcss/
+        COPY engine-manifest.json /app/engine-manifest.json
+        COPY CREDITS.md /app/CREDITS.md
+        WORKDIR /app/server
+        EOF
+          sed -i "s/\${PROJECT_ID}/$PROJECT_ID/g" Dockerfile.fast
+          docker build --cache-from gcr.io/$PROJECT_ID/angband3d-cloud:latest -t gcr.io/$PROJECT_ID/angband3d-cloud:latest -f Dockerfile.fast .
+        else
+          docker build -t gcr.io/$PROJECT_ID/angband3d-cloud:latest -f server/Dockerfile .
+        fi
 images:
   - 'gcr.io/$PROJECT_ID/angband3d-cloud:latest'
 timeout: '1200s'

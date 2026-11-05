@@ -1817,33 +1817,26 @@ const server = http.createServer((req, res) => {
                 return;
             }
 
-            const apiKey = req.headers['x-goog-api-key'] || req.headers['x-api-key'] || process.env.GEMINI_API_KEY || '';
-            if (!apiKey) {
-                res.writeHead(200, {
-                    'Content-Type': 'application/json',
-                    'Cache-Control': 'no-cache, no-store, must-revalidate'
-                });
-                res.end(JSON.stringify({ ok: false, fallback: true, reason: 'no_api_key' }));
-                return;
-            }
+            const customKey = req.headers['x-goog-api-key'] || req.headers['x-api-key'] || '';
+            const apiKey = customKey || process.env.GEMINI_API_KEY || '';
 
-            const sketchModels = ['gemini-2.5-flash-image', 'gemini-3.1-flash-image', 'gemini-nano-banana-2.1'];
+            const sketchModels = ['gemini-2.5-flash-image', 'gemini-3.1-flash-image'];
             const payload = {
                 contents: [{ role: 'user', parts: [{ text: prompt }] }],
-                generationConfig: { responseModalities: ["TEXT", "IMAGE"] }
+                generationConfig: { responseModalities: ["IMAGE"] }
             };
             const payloadStr = JSON.stringify(payload);
 
             function handleSketchResponse(upstreamRes, respBody, usedVertex, modelIdx = 0) {
                 if (upstreamRes.statusCode !== 200 && !usedVertex) {
-                    if (modelIdx + 1 < sketchModels.length) {
-                        return sendSketchViaAiStudio(modelIdx + 1);
-                    }
                     if (upstreamRes.statusCode === 402 || upstreamRes.statusCode === 403 || upstreamRes.statusCode === 404 || upstreamRes.statusCode === 429 || upstreamRes.statusCode === 500 || upstreamRes.statusCode === 503) {
                         if ((upstreamRes.statusCode === 402 || upstreamRes.statusCode === 403 || upstreamRes.statusCode === 429) && apiKey === process.env.GEMINI_API_KEY) {
-                            _aiStudioDepletedUntil = Date.now() + 15 * 60 * 1000;
+                            _aiStudioDepletedUntil = Date.now() + 60 * 60 * 1000;
                         }
                         return sendSketchViaVertex(upstreamRes.statusCode);
+                    }
+                    if (modelIdx + 1 < sketchModels.length) {
+                        return sendSketchViaAiStudio(modelIdx + 1);
                     }
                 }
                 if (res.headersSent) return;
@@ -1864,16 +1857,20 @@ const server = http.createServer((req, res) => {
                                 sketchCache.delete(oldestKey);
                             }
                             sketchCache.set(cacheKey, imageUrl);
-                            const usedModel = usedVertex ? 'gemini-nano-banana-2.1' : (sketchModels[modelIdx] || sketchModels[0]);
+                            const usedModel = usedVertex ? 'gemini-2.5-flash-image' : (sketchModels[modelIdx] || sketchModels[0]);
                             res.end(JSON.stringify({ ok: true, imageUrl, model: usedModel }));
-                        } else if (!usedVertex && modelIdx + 1 < sketchModels.length) {
-                            return sendSketchViaAiStudio(modelIdx + 1);
+                        } else if (usedVertex && !customKey && apiKey && Date.now() >= _aiStudioDepletedUntil) {
+                            return sendSketchViaAiStudio(0);
+                        } else if (!usedVertex) {
+                            return sendSketchViaVertex(200);
                         } else {
                             res.end(JSON.stringify({ ok: false, fallback: true, reason: 'upstream_no_image' }));
                         }
                     } catch(e) {
                         res.end(JSON.stringify({ ok: false, fallback: true, reason: 'upstream_no_image' }));
                     }
+                } else if (usedVertex && apiKey && Date.now() >= _aiStudioDepletedUntil) {
+                    return sendSketchViaAiStudio(0);
                 } else {
                     res.end(JSON.stringify({ ok: false, fallback: true, reason: `upstream_error_${upstreamRes.statusCode}` }));
                 }
@@ -1882,13 +1879,16 @@ const server = http.createServer((req, res) => {
             function sendSketchViaVertex(fallbackStatus = 502) {
                 getGcpAuthContext().then(({ token, projectId }) => {
                     if (!token || !projectId) {
+                        if (apiKey && Date.now() >= _aiStudioDepletedUntil) {
+                            return sendSketchViaAiStudio(0);
+                        }
                         if (!res.headersSent) {
                             res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-cache, no-store, must-revalidate' });
-                            res.end(JSON.stringify({ ok: false, fallback: true, reason: `upstream_error_${fallbackStatus}` }));
+                            res.end(JSON.stringify({ ok: false, fallback: true, reason: apiKey ? `upstream_error_${fallbackStatus}` : 'no_api_key' }));
                         }
                         return;
                     }
-                    const vUrl = `https://aiplatform.googleapis.com/v1beta1/projects/${encodeURIComponent(projectId)}/locations/global/publishers/google/models/gemini-nano-banana-2.1:generateContent`;
+                    const vUrl = `https://aiplatform.googleapis.com/v1beta1/projects/${encodeURIComponent(projectId)}/locations/global/publishers/google/models/gemini-2.5-flash-image:generateContent`;
                     const vReq = https.request(vUrl, {
                         method: 'POST',
                         agent: geminiHttpsAgent,
@@ -1921,12 +1921,14 @@ const server = http.createServer((req, res) => {
                 });
             }
 
-            if (apiKey.startsWith('AQ.') || (Date.now() < _aiStudioDepletedUntil && apiKey === process.env.GEMINI_API_KEY)) {
-                sendSketchViaVertex();
-                return;
-            }
-
             function sendSketchViaAiStudio(modelIdx = 0) {
+                if (!apiKey) {
+                    if (!res.headersSent) {
+                        res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-cache, no-store, must-revalidate' });
+                        res.end(JSON.stringify({ ok: false, fallback: true, reason: 'no_api_key' }));
+                    }
+                    return;
+                }
                 const activeModel = sketchModels[modelIdx] || sketchModels[0];
                 const targetUrl = `https://generativelanguage.googleapis.com/v1beta/models/${activeModel}:generateContent`;
                 const upstreamReq = https.request(targetUrl, {
@@ -1963,6 +1965,12 @@ const server = http.createServer((req, res) => {
 
                 upstreamReq.write(payloadStr);
                 upstreamReq.end();
+            }
+
+            // Route directly to Vertex AI gemini-2.5-flash-image on Cloud Run when no custom AI Studio key header is sent
+            if (!customKey || customKey.startsWith('AQ.') || Date.now() < _aiStudioDepletedUntil) {
+                sendSketchViaVertex();
+                return;
             }
 
             sendSketchViaAiStudio(0);
