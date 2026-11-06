@@ -4752,30 +4752,16 @@ class ChronicleManager {
     _buildCoreItemInspection(entity, depth = 0, realm = 'angband') {
         const itemName = (entity && (entity.name || entity.itemName)) ? String(entity.name || entity.itemName).trim() : 'Dungeon Object';
         const g = (entity && entity.glyph) ? String(entity.glyph).charAt(0) : '?';
-
-        const ITEM_GLYPH_MAP = {
-            ')': 'Melee Weapon', '|': 'Edged / Polearm Weapon',
-            '}': 'Missile Launcher (Bow / Sling / Crossbow)',
-            '{': 'Ammunition (Arrows / Bolts / Shots)',
-            '[': 'Body Armour', '(': 'Soft Body Armour',
-            ']': 'Protective Gear (Shield / Helm / Boots / Gloves / Cloak)',
-            '=': 'Ring', '"': 'Amulet', '~': 'Light Source / Tool / Chest',
-            '!': 'Potion', '?': 'Scroll', '_': 'Staff', '-': 'Wand / Rod',
-            ':': 'Spellbook / Tome', ',': 'Food / Mushroom', '$': 'Gold / Treasure'
-        };
-        let coreCategory = ITEM_GLYPH_MAP[g] || 'Dungeon Object';
         const lower = itemName.toLowerCase();
-        if (/potion|phial of|draught/i.test(lower) && g === '!') coreCategory = 'Potion (Quaff [q])';
-        else if (/scroll/i.test(lower) || g === '?') coreCategory = 'Scroll (Read [r])';
-        else if (/wand/i.test(lower)) coreCategory = 'Wand (Aim [a])';
-        else if (/rod/i.test(lower)) coreCategory = 'Rod (Zap [z])';
-        else if (/staff/i.test(lower) || g === '_') coreCategory = 'Staff (Use [u])';
-        else if (/book|tome|prayer|magic|song/i.test(lower) || g === ':') coreCategory = 'Spellbook (Browse [b] / Cast [m])';
-        else if (/torch|lantern|phial|star|stone/i.test(lower) && g === '~') coreCategory = 'Light Source (Equip [w] / Fuel [F])';
-        else if (/arrow|bolt|pebble|shot|seeker/i.test(lower)) coreCategory = 'Ammunition (Fire [f])';
-        else if (/bow|crossbow|sling/i.test(lower) || g === '}') coreCategory = 'Launcher (Equip [w] / Fire [f])';
-        else if (/food|ration|waybread|mushroom|jerky|biscuit|pint|ale|wine/i.test(lower) || g === ',') coreCategory = 'Food / Sustenance (Eat [E])';
-        else if (/gold|silver|copper|mithril|adamantite|gems|diamonds|emeralds|sapphires|rubies|coins/i.test(lower) || g === '$') coreCategory = 'Treasure / Currency';
+        let mir = (typeof window !== 'undefined' && window.MASTER_ITEM_REGISTRY) || (typeof global !== 'undefined' && global.MASTER_ITEM_REGISTRY) || null;
+        if (!mir && typeof require === 'function') {
+            try { mir = require('../master-item-registry.js'); } catch (_) {}
+        }
+        const tax = (mir && typeof mir.resolveItemInspectionTaxonomy === 'function')
+            ? mir.resolveItemInspectionTaxonomy(entity, realm)
+            : null;
+        let coreCategory = tax ? tax.categoryLabel : (g === ')' ? 'Melee Weapon' : 'Dungeon Object');
+        const actionsHint = tax ? tax.actionsSummary : '[g] Pick Up • [w] Wield/Equip • [d] Drop • [I] Inspect in Pack';
 
         // Extract authentic core stats directly from the item name string
         const parsedStats = [];
@@ -4841,8 +4827,8 @@ class ChronicleManager {
 
         const primarySummary = `Type: ${coreCategory}${parsedStats.length > 0 ? ' • ' + parsedStats.join(' • ') : ''}${distSuffix}`;
         const detailSummary = knownProps.length > 0
-            ? `${knownProps.join(' • ')} • Actions: [g] Pick Up • [w] Wield/Equip • [I] Inspect`
-            : `Core Symbol: '${g}' • Actions: [g] Pick Up • [w] Wield/Equip • [d] Drop • [I] Inspect in Pack`;
+            ? `${knownProps.join(' • ')} • Actions: ${actionsHint}`
+            : `Core Symbol: '${g}' • Actions: ${actionsHint}`;
 
         return {
             type: 'item',

@@ -154,8 +154,8 @@
         const isItemPrompt = inPlay && !isTargeting && (
             /inventory\s*\|\s*equipment/.test(screenText) ||
             ['select item:', 'inven:', '(inven', '(inventory)', 'inventory pack (', 'inventory |', '| equipment', 'equip:', '(equip', '(equipment)', 'equipped gear (',
-            'quiver:', '(quiver', 'choice:', 'what do you want to ', 'which item?', 'which potion?', 'drink which', 'which scroll?', 'which spell?', 'which prayer?',
-            'which book?', 'wear/wield which', 'wield which', 'wear which', 'equip which', 'take off which', 'remove which item', 'remove which', 'drop which',
+            'quiver:', '(quiver', 'choice:', 'what do you want to ', 'which item do you wish to ', 'which item?', 'which potion?', 'drink which', 'which scroll?', 'which spell?', 'which prayer?',
+            'which book?', 'wear/wield which', 'wield which', 'wear which', 'put on which', 'equip which', 'apply which', 'evoke which', 'take off which', 'remove which item', 'remove which', 'drop which',
             'throw which', 'fire which', 'shoot which', 'quaff which', 'read which', 'destroy which', 'eat which', 'use which', 'use or invoke which', 'use, zap, or evoke which',
             'aim which', 'zap which', 'activate which', 'inscribe which', 'uninscribe which', 'refill which', 'refill with which',
             'fuel with which', 'fuel which', 'browse which', 'cast which', 'study which'].some(s => screenText.includes(s)) ||
@@ -449,26 +449,26 @@
             const cyRowText = (cy >= 0 && frame.term.rows && frame.term.rows[cy] && frame.term.rows[cy].g) ? frame.term.rows[cy].g.toLowerCase() : '';
             const check = (s) => screenText.includes(s) || cyRowText.includes(s);
 
-            if (check('wear/wield') || check('wear which') || check('wield which') || check('どれを装備')) verbPrompt = 'wear';
-            else if (check('remove which') || check('take off') || check('どれを外しますか')) verbPrompt = 'remove';
-            else if (check('drop which') || check('どれを落としますか') || (realm === 'frogcomposband' && check('drop'))) verbPrompt = 'drop';
-            else if (check('throw which') || check('どれを投げますか') || (realm === 'frogcomposband' && check('throw'))) verbPrompt = 'throw';
-            else if (check('fire which') || check('shoot which') || (realm === 'frogcomposband' && check('shoot'))) verbPrompt = 'fire';
-            else if (check('quaff which') || check('どの薬') || (realm === 'frogcomposband' && check('quaff'))) verbPrompt = 'quaff';
-            else if (check('read which') || check('どの巻物') || (realm === 'frogcomposband' && check('read'))) verbPrompt = 'read';
+            if (check('wear/wield') || check('wear which') || check('wield which') || check('put on which') || check('equip which') || check('what do you want to wear') || check('what do you want to wield') || check('what do you want to put on') || check('which item do you wish to wield') || check('which item do you wish to wear') || check('which item do you wish to put on') || check('どれを装備')) verbPrompt = 'wear';
+            else if (check('remove which') || check('take off') || check('what do you want to take off') || check('what do you want to remove') || check('which item do you wish to take off') || check('which item do you wish to remove') || check('どれを外しますか')) verbPrompt = 'remove';
+            else if (check('drop which') || check('what do you want to drop') || check('which item do you wish to drop') || check('どれを落としますか') || (realm === 'frogcomposband' && check('drop'))) verbPrompt = 'drop';
+            else if (check('throw which') || check('what do you want to throw') || check('which item do you wish to throw') || check('どれを投げますか') || (realm === 'frogcomposband' && check('throw'))) verbPrompt = 'throw';
+            else if (check('fire which') || check('shoot which') || check('what do you want to fire') || (realm === 'frogcomposband' && check('shoot'))) verbPrompt = 'fire';
+            else if (check('quaff which') || check('drink which') || check('what do you want to drink') || check('what do you want to quaff') || check('which item do you wish to quaff') || check('which item do you wish to drink') || check('どの薬') || (realm === 'frogcomposband' && check('quaff'))) verbPrompt = 'quaff';
+            else if (check('read which') || check('what do you want to read') || check('which item do you wish to read') || check('どの巻物') || (realm === 'frogcomposband' && check('read'))) verbPrompt = 'read';
             else if (check('examine which') || check('どれを調べますか')) verbPrompt = 'examine';
             else if (check('destroy which') || (realm === 'frogcomposband' && check('destroy'))) verbPrompt = 'destroy';
-            else if (check('eat which') || check('どれを食べますか') || (realm === 'frogcomposband' && check('eat'))) verbPrompt = 'eat';
-            else if (check('use which') || check('どれを使いますか') || (realm === 'frogcomposband' && check('use'))) verbPrompt = 'use';
-            else if (check('aim which') || check('どの杖') || (realm === 'frogcomposband' && check('aim'))) verbPrompt = 'aim';
-            else if (check('zap which') || check('どのロッド') || (realm === 'frogcomposband' && check('zap'))) verbPrompt = 'zap';
+            else if (check('eat which') || check('what do you want to eat') || check('which item do you wish to eat') || check('どれを食べますか') || (realm === 'frogcomposband' && check('eat'))) verbPrompt = 'eat';
+            else if (check('use which') || check('apply which') || check('what do you want to use') || check('what do you want to apply') || check('どれを使いますか') || (realm === 'frogcomposband' && check('use'))) verbPrompt = 'use';
+            else if (check('aim which') || check('evoke which') || check('どの杖') || (realm === 'frogcomposband' && check('aim'))) verbPrompt = 'aim';
+            else if (check('zap which') || check('what do you want to zap') || check('which item do you wish to zap') || check('どのロッド') || (realm === 'frogcomposband' && check('zap'))) verbPrompt = 'zap';
             else if (check('activate which') || check('どれを発動') || (realm === 'frogcomposband' && check('activate'))) verbPrompt = 'activate';
             else if (check('inscribe which') || check('銘を刻み') || (realm === 'frogcomposband' && check('inscribe'))) verbPrompt = 'inscribe';
             else if (check('uninscribe which') || check('銘を消') || (realm === 'frogcomposband' && check('uninscribe'))) verbPrompt = 'uninscribe';
             else if (check('refill which') || check('refill with which') || check('fuel with which') || (realm === 'frogcomposband' && (check('refill') || check('fuel')))) verbPrompt = 'refill';
             else if (check('cast which') || check('use which book') || check('どの呪文')) verbPrompt = 'cast';
             else if (check('browse which') || check('どの本を')) verbPrompt = 'browse';
-            else if (check('study which') || check('どれを学習')) verbPrompt = 'study';
+            else if (check('study which') || check('memorise which') || check('どれを学習')) verbPrompt = 'study';
             else if (realm === 'frogcomposband' && check('identify')) verbPrompt = 'identify';
             else if (realm === 'frogcomposband' && check('choice:')) verbPrompt = 'select';
         }
@@ -562,7 +562,7 @@
         } else if ((legacy && (legacy.isTargeting || legacy.isTargetingPrompt || legacy.mode === 'targeting')) ||
                    /(?:target\s*\[|target:|select target|target mode|choose target|ターゲット|照準)/i.test(activeLower) || activeLower.startsWith('target')) {
             kind = 'target'; verb = null;
-        } else if (/(?:direction\?|which direction\?|aim which direction\?|どの方向|方向\?)/i.test(activeLower)) {
+        } else if (/(?:direction\?|which direction\?|in what direction|aim which direction\?|どの方向|方向\?)/i.test(activeLower)) {
             kind = 'direction'; verb = null;
         } else if ((legacy && (legacy.isYesNoPrompt || legacy.mode === 'yesno')) ||
                    /\[y\/n\]|\(y\/n\)|\[ynq?\]|\(ynq?\)|\[ynaq\]|y\/n\?|\bdrink from the fountain\b|really\s+(?:drop|destroy)|are you sure|よろしいですか/i.test(activeLower)) {
@@ -577,12 +577,24 @@
         } else if (legacy && (legacy.isStore || legacy.mode === 'store')) {
             kind = 'store'; verb = null;
         } else if (isSpellOrAbilityMenu(legacy ? legacy.screenText : '') ||
-                   /(?:cast|study|browse)\s+which|(?:use|sing)\s+which|which\s+(?:spell|prayer|book|power)|どの(?:魔法|呪文|本)/i.test(activeLower)) {
+                   /(?:cast|study|browse|memorise)\s+which|(?:use|sing)\s+which|which\s+(?:spell|prayer|book|power)|どの(?:魔法|呪文|本)/i.test(activeLower)) {
             kind = 'spell'; verb = verb || 'cast';
         } else if ((legacy && legacy.mode === 'item-list' && legacy.promptKind === 'select') ||
                    (legacy && legacy.isItemPrompt && legacy.promptKind === 'select') ||
-                   /(?:select\s+item|which\s+(?:item|potion|scroll|book|weapon|armour|wand|staff|rod)|wear\/wield\s+which|wear\s+which|wield\s+which|take\s+off|remove\s+which|drop\s+which|throw\s+which|fire\s+which|shoot\s+which|quaff\s+which|read\s+which|eat\s+which|destroy\s+which|examine\s+which|choice:)/i.test(activeLower)) {
+                   /(?:select\s+item|what\s+do\s+you\s+want\s+to\s+|which\s+item\s+do\s+you\s+wish\s+to\s+|which\s+(?:item|potion|scroll|book|weapon|armour|wand|staff|rod|piece)|wear\/wield\s+which|wear\s+which|wield\s+which|put\s+on\s+which|equip\s+which|apply\s+which|evoke\s+which|take\s+off|remove\s+which|drop\s+which|throw\s+which|fire\s+which|shoot\s+which|quaff\s+which|drink\s+which|read\s+which|eat\s+which|destroy\s+which|examine\s+which|choice:)/i.test(activeLower)) {
             kind = 'item'; verb = legacy ? legacy.verbPrompt : null;
+            if (!verb) {
+                if (/what do you want to (?:wear|wield|put on)|put on which|equip which|which item do you wish to (?:wield|wear|put on)/i.test(activeLower)) verb = 'wear';
+                else if (/what do you want to (?:take off|remove)|remove which|which item do you wish to (?:take off|remove)/i.test(activeLower)) verb = 'remove';
+                else if (/what do you want to (?:drink|quaff)|drink which|quaff which|which item do you wish to (?:quaff|drink)/i.test(activeLower)) verb = 'quaff';
+                else if (/what do you want to eat|eat which|which item do you wish to eat/i.test(activeLower)) verb = 'eat';
+                else if (/what do you want to read|read which|which item do you wish to read/i.test(activeLower)) verb = 'read';
+                else if (/what do you want to zap|zap which|which item do you wish to zap/i.test(activeLower)) verb = 'zap';
+                else if (/what do you want to (?:use|apply)|apply which/i.test(activeLower)) verb = 'use';
+                else if (/evoke which|aim which/i.test(activeLower)) verb = 'aim';
+                else if (/what do you want to drop|drop which|which item do you wish to drop/i.test(activeLower)) verb = 'drop';
+                else if (/what do you want to throw|throw which|which item do you wish to throw/i.test(activeLower)) verb = 'throw';
+            }
         } else if ((legacy && (legacy.isNamePrompt || legacy.mode === 'name')) ||
                    /(?:enter\s+(?:a\s+)?name|enter\s+name|character's\s+name|inscribe\b|inscription|file\s+name|名前を入力)/i.test(activeLower)) {
             kind = 'string'; verb = null;
@@ -811,6 +823,6 @@
         isKnowledgeOrOptions, rawScreenText, screenTextOf, playerFeatOf, needsTerminal, toolbarFlags, birthFlags,
         promptFlags, storeFlags, itemFlags, inputEscapeReview, inputTerminalKeyFlags, inputTargetingPrompt,
         terminalDetectMode, extractItems, extractRowRegions, extractMultiColumnItems, detectRealmSubmenu,
-        classify, classifyScreen: classify, ScreenModel, of: screenModelOf, decodeSjis, ENGINE_VERBS, isAllowedEngineCommand
+        classify, classifyScreen: classify, ScreenModel, of: screenModelOf, screenModelOf, decodeSjis, ENGINE_VERBS, isAllowedEngineCommand
     };
 });

@@ -641,19 +641,13 @@ class InputController {
             statuses.some((s) => /hungry|weak|faint|starv|空腹|衰弱|飢餓/i.test(String((s && (s.name || s)) || '')))
         );
 
-        let primaryDeviceVerb = r === 'silq' ? 'use_staff' : 'aim';
-        let primaryDeviceLabel = r === 'silq' ? 'Staff' : (isJp ? '魔法棒' : 'Wand');
-        let primaryDeviceKey = r === 'silq' ? 'a' : 'a';
-        if (r === 'silq') {
-            if (staffCount > 0) { primaryDeviceVerb = 'use_staff'; primaryDeviceLabel = 'Staff'; primaryDeviceKey = 'a'; }
-            else if (hornCount > 0) { primaryDeviceVerb = 'play_horn'; primaryDeviceLabel = 'Horn'; primaryDeviceKey = 'p'; }
-            else { primaryDeviceVerb = 'use'; primaryDeviceLabel = 'Use'; primaryDeviceKey = 'u'; }
-        } else {
-            if (wandCount > 0) { primaryDeviceVerb = 'aim'; primaryDeviceLabel = isJp ? '魔法棒' : 'Wand'; primaryDeviceKey = 'a'; }
-            else if (rodCount > 0) { primaryDeviceVerb = 'zap'; primaryDeviceLabel = isJp ? 'ロッド' : 'Rod'; primaryDeviceKey = 'z'; }
-            else if (staffCount > 0) { primaryDeviceVerb = 'use_staff'; primaryDeviceLabel = isJp ? '杖' : 'Staff'; primaryDeviceKey = 'u'; }
-            else if (activatableCount > 0) { primaryDeviceVerb = 'activate'; primaryDeviceLabel = isJp ? '始動' : 'Activate'; primaryDeviceKey = 'A'; }
-        }
+        const mir = (typeof window !== 'undefined' && window.MASTER_ITEM_REGISTRY) || null;
+        const devCfg = (mir && typeof mir.resolveDeviceButtonConfig === 'function')
+            ? mir.resolveDeviceButtonConfig({ wandCount, rodCount, staffCount, hornCount, activatableCount }, r, isJp)
+            : { verb: r === 'silq' ? 'use_staff' : 'aim', label: r === 'silq' ? 'Staff' : (isJp ? '魔法棒' : 'Wand'), key: r === 'dcss' ? 'V' : (r === 'nethack' || r === 'rogue' ? 'z' : 'a') };
+        const primaryDeviceVerb = devCfg.verb;
+        const primaryDeviceLabel = devCfg.label;
+        const primaryDeviceKey = devCfg.key;
         this._adaptiveDeviceVerb = primaryDeviceVerb;
         const btnAimEl = document.getElementById('btn-aim');
         if (btnAimEl) {

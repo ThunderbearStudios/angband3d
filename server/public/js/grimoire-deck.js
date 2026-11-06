@@ -138,16 +138,19 @@
             return v;
         }
         const verbs = [];
+        const eatK = (r === 'nethack' || r === 'dcss' || r === 'rogue' || r === 'brogue') ? 'e' : 'E';
+        const inspK = r === 'nethack' ? ':' : (r === 'dcss' ? 'v' : (r === 'brogue' ? 'x' : 'I'));
+        const wVerb = (cat === 'armor' && (r === 'nethack' || r === 'dcss' || r === 'rogue')) ? 'W' : ((cat === 'jewelry' && (r === 'nethack' || r === 'dcss' || r === 'rogue')) ? 'P' : 'w');
         if (/^(weapon|ranged|armor|jewelry|light)$/.test(cat)) {
-            verbs.push({ id: 'wield', label: lbl('⚔️ Wield', '⚔️ 装備', '⚔️ Wield (装備)'), verb: 'w' });
-            if (cat === 'ranged') verbs.push({ id: 'bind', label: lbl('⚡ Bind', '⚡ 登録', '⚡ Bind'), verb: 'f', isBind: true });
+            verbs.push({ id: 'wield', label: lbl('⚔️ Wield', '⚔️ 装備', '⚔️ Wield (装備)'), verb: wVerb });
+            if (cat === 'ranged') verbs.push({ id: 'bind', label: lbl('⚡ Bind', '⚡ 登録', '⚡ Bind'), verb: (r === 'brogue' || r === 'rogue') ? 't' : 'f', isBind: true });
         }
         if (cat === 'potion') verbs.push({ id: 'quaff', label: lbl('🧪 Quaff', '🧪 飲む', '🧪 Quaff (薬)'), verb: 'q' }, { id: 'bind', label: lbl('⚡ Bind', '⚡ 登録', '⚡ Bind'), verb: 'q', isBind: true });
         else if (cat === 'scroll') verbs.push({ id: 'read', label: lbl('📜 Read', '📜 読む', '📜 Read (巻)'), verb: 'r' }, { id: 'bind', label: lbl('⚡ Bind', '⚡ 登録', '⚡ Bind'), verb: 'r', isBind: true });
-        else if (cat === 'food') verbs.push({ id: 'eat', label: lbl('🍞 Eat', '🍞 食べる', '🍞 Eat (食)'), verb: 'E' });
-        else if (cat === 'device') { const dv = (r === 'hengband' || r === 'frogcomposband') ? 'a' : 'u'; verbs.push({ id: 'use', label: lbl('🪄 Use / Aim', '🪄 使う', '🪄 Use (使)'), verb: dv }, { id: 'bind', label: lbl('⚡ Bind', '⚡ 登録', '⚡ Bind'), verb: dv, isBind: true }); }
-        else if (cat === 'tome') verbs.push({ id: 'browse', label: lbl('📖 Browse', '📖 閲覧', '📖 Browse (閲)'), verb: 'b' }, { id: 'cast', label: lbl('✨ Cast', '✨ 詠唱', '✨ Cast (呪)'), verb: 'm' }, { id: 'bind', label: lbl('⚡ Bind', '⚡ 登録', '⚡ Bind'), verb: 'm', isBind: true });
-        verbs.push({ id: 'inspect', label: lbl('🔍 Inspect', '🔍 調査', '🔍 Inspect (調)'), verb: 'I' }, { id: 'drop', label: lbl('⬇️ Drop', '⬇️ 落とす', '⬇️ Drop (落)'), verb: 'd' });
+        else if (cat === 'food') verbs.push({ id: 'eat', label: lbl('🍞 Eat', '🍞 食べる', '🍞 Eat (食)'), verb: eatK });
+        else if (cat === 'device') { const dv = r === 'dcss' ? 'V' : (r === 'brogue' ? 'a' : (r === 'nethack' || r === 'rogue' ? 'z' : ((r === 'hengband' || r === 'frogcomposband') ? 'a' : 'u'))); verbs.push({ id: 'use', label: lbl('🪄 Use / Aim', '🪄 使う', '🪄 Use (使)'), verb: dv }, { id: 'bind', label: lbl('⚡ Bind', '⚡ 登録', '⚡ Bind'), verb: dv, isBind: true }); }
+        else if (cat === 'tome') verbs.push({ id: 'browse', label: lbl('📖 Browse', '📖 閲覧', '📖 Browse (閲)'), verb: r === 'nethack' ? 'r' : (r === 'dcss' ? 'I' : 'b') }, { id: 'cast', label: lbl('✨ Cast', '✨ 詠唱', '✨ Cast (呪)'), verb: r === 'nethack' ? 'Z' : (r === 'dcss' ? 'z' : 'm') }, { id: 'bind', label: lbl('⚡ Bind', '⚡ 登録', '⚡ Bind'), verb: r === 'nethack' ? 'Z' : (r === 'dcss' ? 'z' : 'm'), isBind: true });
+        verbs.push({ id: 'inspect', label: lbl('🔍 Inspect', '🔍 調査', '🔍 Inspect (調)'), verb: inspK }, { id: 'drop', label: lbl('⬇️ Drop', '⬇️ 落とす', '⬇️ Drop (落)'), verb: 'd' });
         return verbs;
     }
 

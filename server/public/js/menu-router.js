@@ -282,6 +282,10 @@
 
     function determineSuggestedVerb(item, listKind, realm) {
         if (!item) return null;
+        if (realm === undefined && listKind && listKind !== 'inven' && listKind !== 'equip' && listKind !== 'quiver') {
+            realm = listKind;
+            listKind = 'inven';
+        }
         if (listKind === 'equip') {
             if (realm === 'silq') return 'r';
             if (realm === 'nethack' || realm === 'dcss' || realm === 'brogue' || realm === 'rogue') return 'T';
@@ -292,19 +296,45 @@
         const label = (item.label || '').toLowerCase();
 
         // Books / Tomes / Prayer Books (check before Scrolls since books also use '?' in some variants)
-        if (label.includes('book') || label.includes('handbook') || label.includes('tome') ||
-            label.includes('grimoire') || label.includes('prayer') || label.includes('魔法書') ||
-            label.includes('教本') || label.includes('経典')) {
+        // Spellbooks / Tomes (must precede generic '?' scroll check)
+        if ((glyph === '+' && (realm === 'nethack' || realm === 'dcss')) ||
+            label.includes('book') || label.includes('handbook') || label.includes('tome') ||
+            label.includes('grimoire') || label.includes('prayer') || label.includes('spellbook') ||
+            label.includes('魔法書') || label.includes('教本') || label.includes('経典')) {
             if (realm === 'silq' || realm === 'brogue' || realm === 'rogue') return null;
             if (realm === 'nethack') return 'r';
             if (realm === 'dcss') return 'z';
             return 'b';
         }
 
+        const mir = (typeof window !== 'undefined' && window.MASTER_ITEM_REGISTRY) || (typeof global !== 'undefined' && global.MASTER_ITEM_REGISTRY) || null;
+        if (mir && typeof mir.resolvePrimaryVerb === 'function') {
+            return mir.resolvePrimaryVerb(item, realm);
+        }
+
+        // Wands / Rods / Staves / Tools (must precede generic wearable glyph check)
+        if ((glyph === '/' && (realm === 'nethack' || realm === 'dcss' || realm === 'brogue' || realm === 'rogue')) || glyph === '-' || label.includes('wand') || label.includes('魔法棒')) {
+            if (realm === 'silq') return null;
+            if (realm === 'dcss') return 'V';
+            if (realm === 'brogue') return 'a';
+            if (realm === 'nethack' || realm === 'rogue') return 'z';
+            return 'a';
+        }
+        if (label.includes('rod') || label.includes('ロッド')) return realm === 'silq' ? null : (realm === 'dcss' ? 'V' : 'z');
+        if ((glyph === '_' && realm !== 'nethack') || label.includes('staff') || label.includes('杖')) {
+            if (realm === 'silq' || realm === 'brogue') return 'a';
+            if (realm === 'dcss') return 'V';
+            if (realm === 'nethack' || realm === 'rogue') return 'z';
+            return 'u';
+        }
+        if (realm === 'nethack' && (glyph === '(' || /\b(lock\s*pick|key|stethoscope|tinning|grease|marker|whistle|bag|sack|lamp|lantern|unicorn\s*horn|blindfold|towel|mirror|bell|candelabrum)\b/.test(label))) {
+            return 'a';
+        }
+
         // Wearables (weapons, armor, jewelry, light)
         if ('|/\\}()=["~{['.includes(glyph)) {
             if (glyph === '[' && (realm === 'nethack' || realm === 'dcss' || realm === 'rogue')) return 'W';
-            if ((glyph === '=' || glyph === '"') && realm === 'nethack') return 'P';
+            if ((glyph === '=' || glyph === '"') && (realm === 'nethack' || realm === 'dcss' || realm === 'rogue')) return 'P';
             return 'w';
         }
         if (label.includes('armor') || label.includes('armour') || label.includes('mail') ||
@@ -313,7 +343,7 @@
             return (realm === 'nethack' || realm === 'dcss' || realm === 'rogue') ? 'W' : 'w';
         }
         if (label.includes('ring') || label.includes('amulet')) {
-            return realm === 'nethack' ? 'P' : 'w';
+            return (realm === 'nethack' || realm === 'dcss' || realm === 'rogue') ? 'P' : 'w';
         }
         if (label.includes('torch') || label.includes('lantern') || label.includes('sword') ||
             label.includes('bow') || label.includes('dagger') || label.includes('axe') ||
@@ -322,39 +352,18 @@
         }
 
         // Food
-        const eatKey = (realm === 'nethack' || realm === 'dcss' || realm === 'rogue') ? 'e' : 'E';
-        if (glyph === ',' || glyph === '%' || (glyph === ':' && realm === 'rogue')) return eatKey;
+        const eatKey = (realm === 'nethack' || realm === 'dcss' || realm === 'rogue' || realm === 'brogue') ? 'e' : 'E';
+        if ((glyph === ',' && realm !== 'nethack' && realm !== 'rogue') || glyph === '%' || (glyph === ':' && (realm === 'rogue' || realm === 'brogue'))) return eatKey;
         if (label.includes('food') || label.includes('ration') || label.includes('bread') ||
-            label.includes('mushroom') || label.includes('mold') || label.includes('食料')) {
+            label.includes('mushroom') || label.includes('mold') || label.includes('corpse') || label.includes('食料')) {
             return eatKey;
         }
 
         // Potions
-        if (glyph === '!') return 'q';
-        if (label.includes('potion') || label.includes('薬')) return 'q';
+        if (glyph === '!' || label.includes('potion') || label.includes('薬')) return 'q';
 
         // Scrolls
-        if (glyph === '?') return realm === 'silq' ? null : 'r';
-        if (label.includes('scroll') || label.includes('巻物')) return realm === 'silq' ? null : 'r';
-
-        // Staves / Wands
-        if (glyph === '_' || label.includes('staff') || label.includes('杖')) {
-            if (realm === 'silq' || realm === 'brogue') return 'a';
-            if (realm === 'dcss') return 'V';
-            if (realm === 'nethack' || realm === 'rogue') return 'z';
-            return 'u';
-        }
-
-        // Rods
-        if (label.includes('rod')) return realm === 'silq' ? null : 'z';
-
-        // Wands
-        if (glyph === '-' || label.includes('wand')) {
-            if (realm === 'silq') return null;
-            if (realm === 'dcss') return 'V';
-            if (realm === 'nethack' || realm === 'rogue') return 'z';
-            return 'a';
-        }
+        if (glyph === '?' || label.includes('scroll') || label.includes('巻物')) return realm === 'silq' ? null : 'r';
 
         return null;
     }

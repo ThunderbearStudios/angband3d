@@ -68,11 +68,12 @@
             } else if (r === 'frogcomposband' || r === 'hengband') {
                 actions.push({ id: 'cast', label: 'Cast at', key: 'm' });
                 actions.push({ id: 'power', label: 'Power at', key: 'U' });
-            } else {
+            } else if (r !== 'brogue' && r !== 'rogue') {
                 actions.push({ id: 'cast', label: 'Cast at', key: keyFor('cast', 'm') });
             }
 
-            actions.push({ id: 'recall', label: 'Recall', key: '/' });
+            if (r === 'dcss' || r === 'brogue') actions.push({ id: 'examine', label: 'Examine', key: 'x' });
+            else if (r !== 'rogue') actions.push({ id: 'recall', label: 'Recall', key: '/' });
             return actions;
         }
 
@@ -85,46 +86,28 @@
         }
 
         if (type === 'door') {
-            return [
+            const acts = [
                 { id: 'open', label: 'Open', key: keyFor('open', 'o') },
-                { id: 'close', label: 'Close', key: keyFor('close', 'c') },
-                { id: 'bash', label: 'Bash', key: (r === 'silq' ? 'b' : keyFor('bash', 'B')) },
-                { id: 'disarm', label: 'Disarm', key: keyFor('disarm', 'D') }
+                { id: 'close', label: 'Close', key: keyFor('close', 'c') }
             ];
+            if (r !== 'brogue' && r !== 'rogue') acts.push({ id: 'bash', label: 'Bash', key: (r === 'silq' ? 'b' : keyFor('bash', 'B')) });
+            if (r !== 'brogue') acts.push({ id: 'disarm', label: 'Disarm', key: keyFor('disarm', 'D') });
+            return acts;
         }
 
-        if (type === 'trap') {
-            return [
-                { id: 'disarm', label: 'Disarm', key: keyFor('disarm', 'D') }
-            ];
-        }
-
-        if (type === 'rubble') {
-            return [
-                { id: 'tunnel', label: 'Tunnel', key: keyFor('tunnel', 'T') },
-                { id: 'alter', label: 'Alter', key: (r === 'silq' ? '/' : keyFor('alter', '+')) }
-            ];
-        }
-
+        if (type === 'trap') return [{ id: 'disarm', label: 'Disarm', key: keyFor('disarm', 'D') }];
+        if (type === 'rubble') return [{ id: 'tunnel', label: 'Tunnel', key: keyFor('tunnel', 'T') }, { id: 'alter', label: 'Alter', key: (r === 'silq' ? '/' : keyFor('alter', '+')) }];
         if (type === 'stair' || type === 'stairs' || type === 'staircase') {
-            return [
-                { id: 'stairs_up', label: 'Stairs Up', key: keyFor('stairs_up', '<') },
-                { id: 'stairs_down', label: 'Stairs Down', key: keyFor('stairs_down', '>') }
-            ];
+            return [{ id: 'stairs_up', label: 'Stairs Up', key: keyFor('stairs_up', '<') }, { id: 'stairs_down', label: 'Stairs Down', key: keyFor('stairs_down', '>') }];
         }
-
         if (type === 'altar') {
-            return [
-                { id: 'pray', label: 'Pray', key: '#pray' },
-                { id: 'offer', label: 'Offer Sacrifice', key: '#offer' }
-            ];
+            if (r === 'dcss') return [{ id: 'pray', label: 'Pray / Join God', key: 'p' }, { id: 'power', label: 'Divine Ability', key: 'a' }];
+            if (r === 'brogue') return [{ id: 'pickup', label: 'Take from Altar', key: 'g' }];
+            return [{ id: 'pray', label: 'Pray', key: '#pray' }, { id: 'offer', label: 'Offer Sacrifice', key: '#offer' }];
         }
-
         if (type === 'fountain') {
-            return [
-                { id: 'dip', label: 'Dip Item', key: '#dip' },
-                { id: 'quaff', label: 'Drink Fountain', key: keyFor('quaff', 'q') }
-            ];
+            if (r !== 'nethack') return [{ id: 'quaff', label: 'Drink Fountain', key: keyFor('quaff', 'q') }];
+            return [{ id: 'dip', label: 'Dip Item', key: '#dip' }, { id: 'quaff', label: 'Drink Fountain', key: keyFor('quaff', 'q') }];
         }
 
         // Generic feature

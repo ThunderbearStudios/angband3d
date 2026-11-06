@@ -23,13 +23,13 @@
         const rk = (typeof RealmKeys !== 'undefined' && RealmKeys) || (typeof window !== 'undefined' && window.RealmKeys) || null;
         if (rk && typeof rk.realmKey === 'function') { const k = rk.realmKey(verb, r); if (k !== null && k !== undefined) return k; }
         const fb = {
-            quaff: { angband: 'q', silq: 'u', frogcomposband: 'q', hengband: 'q' }, read: { angband: 'r', silq: 'u', frogcomposband: 'r', hengband: 'r' },
-            eat: { angband: 'E', silq: 'u', frogcomposband: 'E', hengband: 'E' }, wield: { angband: 'w', silq: 'w', frogcomposband: 'w', hengband: 'w' },
-            takeoff: { angband: 't', silq: 'r', frogcomposband: 't', hengband: 't' }, drop: { angband: 'd', silq: 'd', frogcomposband: 'd', hengband: 'd' },
-            fire: { angband: 'f', silq: 'f', frogcomposband: 'f', hengband: 'f' }, cast: { angband: 'm', silq: 's', frogcomposband: 'm', hengband: 'm' },
-            power: { angband: 'U', silq: 'U', frogcomposband: 'U', hengband: 'U' }, rest: { angband: 'R', silq: '%', frogcomposband: 'R', hengband: 'R' },
-            open: { angband: 'o', silq: 'o', frogcomposband: 'o', hengband: 'o' }, study: { angband: 'G', silq: null, frogcomposband: 'G', hengband: 'G' },
-            search: { angband: null, silq: null, frogcomposband: 'S', hengband: 'S' }
+            quaff: { angband: 'q', silq: 'u', frogcomposband: 'q', hengband: 'q', nethack: 'q', dcss: 'q', brogue: 'q', rogue: 'q' }, read: { angband: 'r', silq: 'u', frogcomposband: 'r', hengband: 'r', nethack: 'r', dcss: 'r', brogue: 'r', rogue: 'r' },
+            eat: { angband: 'E', silq: 'u', frogcomposband: 'E', hengband: 'E', nethack: 'e', dcss: 'e', brogue: 'e', rogue: 'e' }, wield: { angband: 'w', silq: 'w', frogcomposband: 'w', hengband: 'w', nethack: 'w', dcss: 'w', brogue: 'w', rogue: 'w' },
+            takeoff: { angband: 't', silq: 'r', frogcomposband: 't', hengband: 't', nethack: 'T', dcss: 'T', brogue: 'T', rogue: 'T' }, drop: { angband: 'd', silq: 'd', frogcomposband: 'd', hengband: 'd', nethack: 'd', dcss: 'd', brogue: 'd', rogue: 'd' },
+            fire: { angband: 'f', silq: 'f', frogcomposband: 'f', hengband: 'f', nethack: 'f', dcss: 'f', brogue: 't', rogue: 't' }, cast: { angband: 'm', silq: 's', frogcomposband: 'm', hengband: 'm', nethack: 'Z', dcss: 'z', brogue: null, rogue: null },
+            power: { angband: 'U', silq: 'U', frogcomposband: 'U', hengband: 'U', nethack: '#', dcss: 'a', brogue: null, rogue: null }, rest: { angband: 'R', silq: '%', frogcomposband: 'R', hengband: 'R', nethack: '.', dcss: '5', brogue: 'z', rogue: '.' },
+            open: { angband: 'o', silq: 'o', frogcomposband: 'o', hengband: 'o', nethack: 'o', dcss: 'O', brogue: 'o', rogue: 'o' }, study: { angband: 'G', silq: null, frogcomposband: 'G', hengband: 'G', nethack: 'r', dcss: 'M', brogue: null, rogue: null },
+            search: { angband: null, silq: null, frogcomposband: 'S', hengband: 'S', nethack: 's', dcss: 's', brogue: 's', rogue: 's' }
         };
         return fb[verb] ? (fb[verb][r] || null) : null;
     }
@@ -37,6 +37,10 @@
     function getDeviceVerb(it, realm = 'angband') {
         const r = String(realm || 'angband').toLowerCase(), tval = Number(it && it.tval) || 0, name = String((it && it.name) || '').toLowerCase();
         if (r === 'silq') return (/\bhorn\b/.test(name) || tval === 54) ? 'p' : 'a';
+        if (r === 'dcss') return 'V';
+        if (r === 'brogue') return 'a';
+        if (r === 'rogue') return 'z';
+        if (r === 'nethack') return (/\bwand\b/.test(name) || (it && it.glyph === '/')) ? 'z' : 'a';
         if (tval === 23 || tval === 66 || /\b(wand)\b/.test(name) || /魔法棒/.test(name)) return 'a';
         if (tval === 24 || tval === 65 || /\b(rod)\b/.test(name) || /ロッド/.test(name)) return 'z';
         if (tval === 22 || tval === 55 || /\b(staff|staves)\b/.test(name) || /(スタッフ|の杖)/.test(name)) return 'u';

@@ -5981,6 +5981,19 @@ class Dungeon3D {
         monsterEntity._hitFlashTimer = 0.18;
     }
 
+    triggerMonsterAttackLunge(monsterEntity) {
+        if (!monsterEntity) return;
+        monsterEntity._attackLungeTimer = 0.22;
+        const camPos = this.camera ? this.camera.position : new THREE.Vector3();
+        monsterEntity._attackLungeDir = camPos.clone().sub(monsterEntity.position).setY(0).normalize();
+        if (monsterEntity._attackLungeDir.lengthSq() < 0.001) {
+            monsterEntity._attackLungeDir.set(0, 0, 1);
+        }
+        // Reuse flinch timer with negative sign / lunge vector so 60fps loop advances monster toward player
+        monsterEntity._hitFlinchTimer = 0.22;
+        monsterEntity._hitFlinchDir = monsterEntity._attackLungeDir.clone().multiplyScalar(1.65);
+    }
+
     spawnProjectileOrSpellVfx(kind, startPos, endPos, colorHex = 0xff6600) {
         this._ensureSharedVfxResources();
         this.activeProjectiles = this.activeProjectiles || [];
@@ -6750,8 +6763,8 @@ class Dungeon3D {
             return true;
         }
 
-        // 8. Normal Melee Strikes (Weapon-Matched to 1st-Person Equipped Rig + Verb)
-        if (lower.includes('you hit') || lower.includes('you strike') || lower.includes('you slash') || lower.includes('you cleave') || lower.includes('you hack') || lower.includes('you lash') || lower.includes('you whip') || lower.includes('you crush') || lower.includes('you smite') || lower.includes('you stab') || lower.includes('you gouge') || lower.includes('you thrust')) {
+        // 8. Normal Melee Strikes (Weapon-Matched to 1st-Person Equipped Rig + Verb across all 8 realms)
+        if (lower.includes('you hit') || lower.includes('you strike') || lower.includes('you slash') || lower.includes('you slice') || lower.includes('you cleave') || lower.includes('you hack') || lower.includes('you lash') || lower.includes('you whip') || lower.includes('you crush') || lower.includes('you bash') || lower.includes('you kick') || lower.includes('you claw') || lower.includes('you smite') || lower.includes('you stab') || lower.includes('you pierce') || lower.includes('you gouge') || lower.includes('you thrust') || lower.includes('を攻撃した') || lower.includes('切りつけた') || lower.includes('突き刺した') || lower.includes('殴った')) {
             const style = this._resolveEquippedMeleeStyle(lower);
             this.spawnProjectileOrSpellVfx(style.vfxKind, ep.startPos, ep.endPos, style.vfxColor);
             this.triggerMonsterHitReaction(ep.monsterEntity);
@@ -6766,12 +6779,16 @@ class Dungeon3D {
             return true;
         }
 
-        // 9. Monster Strikes Player
-        if (lower.includes('hits you') || lower.includes('bites you') || lower.includes('claws you') || lower.includes('crushes you') || lower.includes('stings you') || lower.includes('burns you')) {
+        // 9. Monster Strikes Player (All 8 Realms: with 'you' OR NetHack subject-only 'The <monster> bites!')
+        if (lower.includes('hits you') || lower.includes('bites you') || lower.includes('claws you') || lower.includes('crushes you') || lower.includes('stings you') || lower.includes('burns you') || lower.includes('grips you') || lower.includes('butts you') ||
+            /\b(?:the|a|an)\s+[a-z0-9\s\-']+\s+(?:hits|bites|claws|stings|butts|kicks|gazes|touches|zaps|crushes|engulfs|burns|freezes|shocks)!/i.test(lower)) {
             this.addTrauma(0.35);
             this.spawnFloatingText('OUCH!', ep.endPos, '#ff3333', 1.15);
             this.spawnHitSparks(ep.endPos, '#ff2222', 14);
             this.triggerHurtAnimation();
+            if (typeof this.triggerMonsterAttackLunge === 'function') {
+                this.triggerMonsterAttackLunge(ep.monsterEntity);
+            }
             if (this.audio && typeof this.audio.playPlayerHurt === 'function') this.audio.playPlayerHurt();
             return true;
         }
@@ -6786,15 +6803,16 @@ class Dungeon3D {
         }
 
         // 11. Misses
-        if (lower.includes('you miss') || lower.includes('misses you')) {
+        if (lower.includes('you miss') || lower.includes('misses you') || /\b(?:the|a|an)\s+[a-z0-9\s\-']+\s+misses!/i.test(lower)) {
             if (lower.includes('you miss')) this.triggerAttackAnimation();
+            else if (typeof this.triggerMonsterAttackLunge === 'function') this.triggerMonsterAttackLunge(ep.monsterEntity);
             this.spawnFloatingText('MISS', ep.endPos, '#a0b0c0', 0.95);
             if (this.audio && typeof this.audio.playWhoosh === 'function') this.audio.playWhoosh();
             return true;
         }
 
-        // 12. Monster Slain
-        if (lower.includes('you have slain') || lower.includes('is destroyed') || lower.includes('dies.') || lower.includes('is slain') || lower.includes('倒した') || lower.includes('葬り去った')) {
+        // 12. Monster Slain (All 8 Realms: Angband 'You have slain', NetHack/DCSS 'You kill/destroy', Brogue/Rogue 'You defeat')
+        if (lower.includes('you have slain') || lower.includes('you kill ') || lower.includes('you destroy ') || lower.includes('you defeat ') || lower.includes('you have defeated') || lower.includes('is destroyed') || lower.includes('is killed') || lower.includes('dies.') || lower.includes('is slain') || lower.includes('倒した') || lower.includes('葬り去った')) {
             this.spawnFloatingText('SLAIN!', ep.endPos.clone().add(new THREE.Vector3(0, 0.25, 0)), '#ff44aa', 1.30);
             this.spawnDetonationDome(ep.endPos, 0xff44aa, 0.75);
             this.spawnHitSparks(ep.endPos, '#ff44aa', 24);
@@ -14689,11 +14707,42 @@ class Dungeon3D {
 
         if (this.attackAnimationTime > 0) {
             this.attackAnimationTime -= delta;
-            const prog = (0.22 - this.attackAnimationTime) / 0.22;
+            const prog = Math.max(0, Math.min(1, (0.22 - this.attackAnimationTime) / 0.22));
             const sinPulse = Math.sin(prog * Math.PI);
-            actZ += sinPulse * 0.16; // Thrust forward
-            actRotZ -= sinPulse * 0.32; // Slash rotation
-            actRotX += sinPulse * 0.12;
+            const mir = (typeof window !== 'undefined' && window.MASTER_ITEM_REGISTRY) || null;
+            const fam = (mir && typeof mir.getWeaponAnimFamily === 'function')
+                ? mir.getWeaponAnimFamily(this.currentRightWeapon)
+                : 'blade';
+            if (fam === 'pierce') {
+                // Linear forward thrust along sightline
+                actZ += sinPulse * 0.28;
+                actY += sinPulse * 0.03;
+                actRotX += sinPulse * 0.22;
+            } else if (fam === 'axe_blunt') {
+                // Overhead windup into heavy downward cleave/smash
+                const windup = Math.sin(prog * Math.PI * 2.0);
+                actY += (prog < 0.35 ? windup * 0.10 : -sinPulse * 0.14);
+                actZ += sinPulse * 0.18;
+                actRotX += (prog < 0.35 ? -windup * 0.25 : sinPulse * 0.52);
+                actRotZ -= sinPulse * 0.18;
+            } else if (fam === 'bow') {
+                // Draw pull-back and crisp release snap
+                actZ -= sinPulse * 0.14;
+                actX -= sinPulse * 0.04;
+                actRotZ += sinPulse * 0.10;
+            } else if (fam === 'device') {
+                // Arcane forward extension & tip elevation pulse
+                actZ += sinPulse * 0.20;
+                actY += sinPulse * 0.05;
+                actRotX += sinPulse * 0.18;
+            } else {
+                // Sweeping diagonal blade draw-cut across viewport
+                actX -= sinPulse * 0.14;
+                actY -= sinPulse * 0.05;
+                actZ += sinPulse * 0.18;
+                actRotZ -= sinPulse * 0.42;
+                actRotX += sinPulse * 0.16;
+            }
             if (this.currentRightWeapon === 'whip' && this.viewmodelRightWeaponSlot) {
                 const lash = this.viewmodelRightWeaponSlot.getObjectByName('WhipStrikeLash');
                 if (lash) lash.visible = true;

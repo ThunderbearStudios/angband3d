@@ -785,6 +785,177 @@
             return this.getItemObjKey(it && it.name ? it.name : lowerName, g);
         },
 
+        getWeaponAnimFamily(viewmodelKey, rawName = '') {
+            const k = String(viewmodelKey || '').toLowerCase();
+            const n = String(rawName || '').toLowerCase();
+            if (k === 'whip' || /\b(whip|bullwhip|scourge)\b/.test(n)) return 'whip';
+            if (k === 'bow' || /\b(bow|crossbow|sling)\b/.test(n)) return 'bow';
+            if (k === 'wand' || k === 'rod' || k === 'staff' || k === 'staff_branch' || /\b(wand|rod|staff)\b/.test(n)) return 'device';
+            if (k === 'spear' || k === 'dagger' || k === 'pickaxe' || k === 'shovel' || /\b(spear|dagger|knife|rapier|estoc|trident|pike|lance|halberd|glaive|dirk|stiletto)\b/.test(n)) return 'pierce';
+            if (k === 'axe' || k === 'hatchet' || k === 'sledgehammer' || k === 'hammer' || k === 'mace' || k === 'morningstar' || k === 'club' || /\b(axe|hatchet|cleaver|mace|hammer|maul|flail|club|morningstar)\b/.test(n)) return 'axe_blunt';
+            return 'blade';
+        },
+
+        resolvePrimaryVerb(itemOrObj, realm = 'angband') {
+            if (!itemOrObj) return null;
+            const r = String(realm || 'angband').toLowerCase();
+            const label = String(itemOrObj.label || itemOrObj.name || itemOrObj.desc || (typeof itemOrObj === 'string' ? itemOrObj : '')).toLowerCase();
+            const glyph = String(itemOrObj.glyph || '').charAt(0);
+            const plugged = PLUGGED_REALMS.get(r);
+            if (plugged && plugged.verbs && typeof plugged.resolveVerb === 'function') {
+                const pv = plugged.resolveVerb(itemOrObj, r);
+                if (pv !== undefined) return pv;
+            }
+
+            // 1. Spellbooks / Tomes
+            if (glyph === '+' && (r === 'nethack' || r === 'dcss')) return r === 'nethack' ? 'r' : 'z';
+            if (/\b(book|handbook|tome|grimoire|prayer|spellbook|manual|hymnal)\b/.test(label) || /(魔法書|教本|経典)/.test(label)) {
+                if (r === 'silq' || r === 'brogue' || r === 'rogue') return null;
+                if (r === 'nethack') return 'r';
+                if (r === 'dcss') return 'z';
+                return 'b';
+            }
+
+            // 2. Potions & Scrolls
+            if (glyph === '!' || /\b(potion|phial of|draught|elixir)\b/.test(label) || /薬/.test(label)) return 'q';
+            if (glyph === '?' || /\b(scroll|parchment)\b/.test(label) || /巻物/.test(label)) return r === 'silq' ? null : 'r';
+
+            // 3. Food / Sustenance
+            const eatKey = (r === 'nethack' || r === 'dcss' || r === 'rogue' || r === 'brogue') ? 'e' : 'E';
+            if ((glyph === ',' && r !== 'nethack' && r !== 'rogue') || glyph === '%' || (glyph === ':' && (r === 'rogue' || r === 'brogue')) ||
+                /\b(food|ration|bread|waybread|mushroom|mold|slime mold|jerky|biscuit|corpse|tripe|pancake|wafer|lembas|meat)\b/.test(label) || /食料/.test(label)) {
+                return eatKey;
+            }
+
+            // 4. Wands / Rods / Staves / Horns / Tools (before generic weapon/armor glyph check)
+            if (r === 'silq' && /\bhorn\b/.test(label)) return 'p';
+            if ((glyph === '/' && (r === 'nethack' || r === 'dcss' || r === 'brogue' || r === 'rogue')) || glyph === '-' || /\bwand\b/.test(label) || /魔法棒/.test(label)) {
+                if (r === 'silq') return null;
+                if (r === 'dcss') return 'V';
+                if (r === 'brogue') return 'a';
+                if (r === 'nethack' || r === 'rogue') return 'z';
+                return 'a';
+            }
+            if (/\brod\b/.test(label) || /ロッド/.test(label)) {
+                if (r === 'silq') return null;
+                if (r === 'dcss') return 'V';
+                return 'z';
+            }
+            if ((glyph === '_' && r !== 'nethack') || /\b(staff|stave)\b/.test(label) || /(スタッフ|の杖|杖)/.test(label)) {
+                if (r === 'silq' || r === 'brogue') return 'a';
+                if (r === 'dcss') return 'V';
+                if (r === 'nethack' || r === 'rogue') return 'z';
+                return 'u';
+            }
+            if (r === 'nethack' && (glyph === '(' || /\b(lock\s*pick|credit\s*card|skeleton\s*key|stethoscope|tinning\s*kit|can\s*of\s*grease|magic\s*marker|whistle|bag|sack|oilskin|chest|box|horn|harp|flute|bugle|drum|camera|towel|blindfold|lenses|mirror|bell|candelabrum|lamp|lantern|unicorn\s*horn|figurine|saddle|leash)\b/.test(label))) {
+                return 'a';
+            }
+            if (r === 'brogue' && /\bcharm\b/.test(label)) return 'a';
+
+            // 5. Jewelry (Rings & Amulets — exclude 'ring mail')
+            if (glyph === '=' || glyph === '"' || (glyph !== '[' && glyph !== '(' && !/\bring\s+mail\b/.test(label) && (/\b(ring|amulet|necklace|pendant|talisman)\b/.test(label) || /(指輪|アミュレット)/.test(label)))) {
+                return (r === 'nethack' || r === 'dcss' || r === 'rogue') ? 'P' : 'w';
+            }
+
+            // 6. Body & Extremity Armor
+            if (glyph === '[' || glyph === ']' || (glyph === '(' && r !== 'nethack' && r !== 'dcss' && r !== 'rogue') ||
+                /\b(armor|armour|mail|plate|hauberk|robe|cloak|shield|helm|helmet|crown|cap|boots|gloves|gauntlets|shirt|dragon\s+scale|leather\s+jacket)\b/.test(label) ||
+                /(鎧|メイル|ローブ|クローク|盾|兜|冠|帽子|篭手|靴)/.test(label)) {
+                return (r === 'nethack' || r === 'dcss' || r === 'rogue') ? 'W' : 'w';
+            }
+
+            // 7. Weapons & Ranged Launchers
+            if ('|/\\})~{'.includes(glyph) || (glyph === '(' && (r === 'dcss' || r === 'rogue')) ||
+                /\b(torch|lantern|sword|bow|crossbow|sling|dagger|knife|axe|mace|spear|blade|katana|halberd|lance|hammer|flail|club|whip|pick-axe|mattock)\b/.test(label)) {
+                if (glyph === '(' && r === 'dcss') return 'f';
+                return 'w';
+            }
+
+            return null;
+        },
+
+        resolveItemInspectionTaxonomy(entity, realm = 'angband') {
+            const r = String(realm || 'angband').toLowerCase();
+            const itemName = (entity && (entity.name || entity.itemName || entity.label)) ? String(entity.name || entity.itemName || entity.label).trim() : 'Dungeon Object';
+            const g = (entity && entity.glyph) ? String(entity.glyph).charAt(0) : '?';
+            const lower = itemName.toLowerCase();
+            const primaryKey = this.resolvePrimaryVerb({ name: itemName, glyph: g }, r);
+            const pickupKey = (r === 'nethack' || r === 'rogue') ? ',' : 'g';
+            const inspectKey = r === 'nethack' ? ':' : (r === 'silq' || r === 'brogue' ? 'x' : (r === 'dcss' ? 'v' : 'I'));
+            const equipKey = primaryKey || 'w';
+
+            let categoryLabel = 'Dungeon Object';
+            if (g === '!' || /\b(potion|phial of|draught|elixir)\b/.test(lower)) categoryLabel = `Potion (Quaff [${primaryKey || 'q'}])`;
+            else if (g === '?' || /\bscroll\b/.test(lower)) categoryLabel = `Scroll (Read [${primaryKey || 'r'}])`;
+            else if ((g === '+' && (r === 'nethack' || r === 'dcss')) || /\b(book|tome|grimoire|prayer|spellbook)\b/.test(lower) || (g === ':' && r !== 'rogue' && r !== 'brogue' && r !== 'nethack')) {
+                categoryLabel = r === 'nethack' ? 'Spellbook (Read [r] / Cast [Z])' : (r === 'dcss' ? 'Spellbook (Cast [z] / Memorise [M])' : 'Spellbook (Browse [b] / Cast [m])');
+            } else if ((g === '/' && (r === 'nethack' || r === 'dcss' || r === 'brogue' || r === 'rogue')) || /\bwand\b/.test(lower)) {
+                const verbLbl = r === 'dcss' ? 'Evoke [V]' : (r === 'brogue' ? 'Apply [a]' : (r === 'nethack' || r === 'rogue' ? 'Zap [z]' : 'Aim [a]'));
+                categoryLabel = `Wand (${verbLbl})`;
+            } else if (/\brod\b/.test(lower) || (g === '-' && r !== 'nethack')) {
+                categoryLabel = r === 'dcss' ? 'Rod (Evoke [V])' : 'Wand / Rod (Aim [a] / Zap [z])';
+            } else if ((g === '_' && r !== 'nethack') || /\b(staff|stave)\b/.test(lower)) {
+                const staffLbl = (r === 'silq' || r === 'brogue') ? 'Activate [a]' : (r === 'dcss' ? 'Evoke [V]' : (r === 'nethack' || r === 'rogue' ? 'Zap [z]' : 'Use [u]'));
+                categoryLabel = `Staff (${staffLbl})`;
+            } else if (r === 'nethack' && (g === '(' || /\b(lock\s*pick|key|stethoscope|tinning|grease|marker|whistle|bag|sack|lamp|lantern|unicorn\s*horn|blindfold|towel|mirror|bell|candelabrum)\b/.test(lower))) {
+                categoryLabel = 'Tool / Implement (Apply [a])';
+            } else if (g === '=' || /\bring\b/.test(lower)) {
+                categoryLabel = `Ring (Put On [${equipKey}])`;
+            } else if (g === '"' || /\bamulet\b/.test(lower)) {
+                categoryLabel = `Amulet (Wear [${equipKey}])`;
+            } else if (g === '[' || g === ']' || (g === '(' && r !== 'nethack' && r !== 'dcss') || /\b(armor|armour|mail|plate|robe|cloak|shield|helm|boots|gloves)\b/.test(lower)) {
+                categoryLabel = `Protective Armour (Wear [${equipKey}])`;
+            } else if ((g === ',' && r !== 'nethack' && r !== 'rogue') || g === '%' || (g === ':' && (r === 'rogue' || r === 'brogue')) || /\b(food|ration|waybread|mushroom|jerky|biscuit|corpse|slime mold)\b/.test(lower)) {
+                categoryLabel = `Food / Sustenance (Eat [${primaryKey || 'e'}])`;
+            } else if (g === '$' || (g === '*' && (r === 'nethack' || r === 'dcss' || r === 'brogue' || r === 'rogue')) || /\b(gold|silver|copper|mithril|gems|diamonds|emeralds|sapphires|rubies|coins|zorkmid|lumenstone)\b/.test(lower)) {
+                categoryLabel = 'Treasure / Gems';
+            } else if (/\b(arrow|bolt|pebble|shot|seeker|dart|javelin)\b/.test(lower) || g === '{') {
+                categoryLabel = `Ammunition (Fire [${(r === 'brogue' || r === 'rogue') ? 't' : 'f'}])`;
+            } else if (/\b(bow|crossbow|sling)\b/.test(lower) || g === '}') {
+                categoryLabel = `Missile Launcher (Equip [w] / Fire [${(r === 'brogue' || r === 'rogue') ? 't' : 'f'}])`;
+            } else if (/\b(torch|lantern|phial|lamp)\b/.test(lower) || g === '~') {
+                categoryLabel = r === 'nethack' ? 'Light Source (Apply [a])' : 'Light Source (Equip [w] / Fuel [F])';
+            } else if (g === ')' || g === '|') {
+                categoryLabel = 'Melee Weapon (Wield [w])';
+            }
+
+            return {
+                categoryLabel,
+                primaryKey: equipKey,
+                pickupKey,
+                inspectKey,
+                actionsSummary: `[${pickupKey}] Pick Up • [${equipKey}] Use/Equip • [d] Drop • [${inspectKey}] Inspect`
+            };
+        },
+
+        resolveDeviceButtonConfig(counts, realm = 'angband', isJp = false) {
+            const r = String(realm || 'angband').toLowerCase();
+            const c = counts || {};
+            if (r === 'silq') {
+                if (c.staffCount > 0) return { verb: 'use_staff', label: 'Staff', key: 'a' };
+                if (c.hornCount > 0) return { verb: 'play_horn', label: 'Horn', key: 'p' };
+                return { verb: 'use', label: 'Use', key: 'u' };
+            }
+            if (r === 'nethack') {
+                if (c.wandCount > 0) return { verb: 'aim', label: 'Wand', key: 'z' };
+                return { verb: 'use', label: 'Apply', key: 'a' };
+            }
+            if (r === 'dcss') {
+                return { verb: 'aim', label: 'Evoke', key: 'V' };
+            }
+            if (r === 'brogue') {
+                return { verb: 'use_staff', label: 'Staff', key: 'a' };
+            }
+            if (r === 'rogue') {
+                return { verb: 'aim', label: 'Zap', key: 'z' };
+            }
+            if (c.wandCount > 0) return { verb: 'aim', label: isJp ? '魔法棒' : 'Wand', key: 'a' };
+            if (c.rodCount > 0) return { verb: 'zap', label: isJp ? 'ロッド' : 'Rod', key: 'z' };
+            if (c.staffCount > 0) return { verb: 'use_staff', label: isJp ? '杖' : 'Staff', key: 'u' };
+            if (c.activatableCount > 0) return { verb: 'activate', label: isJp ? '始動' : 'Activate', key: 'A' };
+            return { verb: 'aim', label: isJp ? '魔法棒' : 'Wand', key: 'a' };
+        },
+
         clearCache() {
             _cache.clear();
         }

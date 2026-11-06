@@ -660,10 +660,13 @@
                 wield: { id: 'wield', key: 'w', label: '⚔️ Wield' },
                 wear: { id: 'wear', key: 'W', label: '🛡️ Wear' },
                 takeoff: { id: 'takeoff', key: 'T', label: '🔓 Take Off' },
+                puton: { id: 'puton', key: 'P', label: '💍 Put On' },
+                remove: { id: 'remove', key: 'R', label: '💍 Remove' },
                 quaff: { id: 'quaff', key: 'q', label: '🧪 Quaff' },
                 read: { id: 'read', key: 'r', label: '📜 Read' },
                 eat: { id: 'eat', key: 'e', label: '🍖 Eat' },
                 aim: { id: 'aim', key: 'V', label: '🪄 Evoke Wand' },
+                evoke: { id: 'evoke', key: 'V', label: '🪄 Evoke' },
                 zap: { id: 'zap', key: 'z', label: '✨ Cast Spell' },
                 cast: { id: 'cast', key: 'z', label: '✨ Cast Spell' },
                 browse: { id: 'browse', key: 'M', label: '📖 Memorise / Browse' },
@@ -1155,30 +1158,32 @@
         }
 
         const verbs = [];
+        const eatKey = (r === 'dcss' || r === 'rogue' || r === 'brogue') ? 'e' : 'E';
+        const wieldKey = (cat === 'armor' && (r === 'dcss' || r === 'rogue')) ? 'W' : ((cat === 'jewelry' && (r === 'dcss' || r === 'rogue')) ? 'P' : 'w');
         if (/^(weapon|ranged|armor|jewelry|light)$/.test(cat)) {
-            verbs.push({ id: 'wield', label: lbl('⚔️ Wield', '⚔️ 装備', '⚔️ Wield (装備)'), verb: 'w' });
-            if (cat === 'ranged') verbs.push({ id: 'bind', label: lbl('⚡ Bind', '⚡ 登録', '⚡ Bind'), verb: 'f', isBind: true });
-            if (cat === 'light') verbs.push({ id: 'refill', label: lbl('🔥 Refill', '🔥 補給', '🔥 Refill (補)'), verb: 'F' });
+            verbs.push({ id: 'wield', label: lbl('⚔️ Wield', '⚔️ 装備', '⚔️ Wield (装備)'), verb: wieldKey });
+            if (cat === 'ranged') verbs.push({ id: 'bind', label: lbl('⚡ Bind', '⚡ 登録', '⚡ Bind'), verb: (r === 'brogue' || r === 'rogue') ? 't' : 'f', isBind: true });
+            if (cat === 'light' && r !== 'dcss' && r !== 'brogue' && r !== 'rogue') verbs.push({ id: 'refill', label: lbl('🔥 Refill', '🔥 補給', '🔥 Refill (補)'), verb: 'F' });
         }
         if (cat === 'potion') {
             verbs.push({ id: 'quaff', label: lbl('🧪 Quaff', '🧪 飲む', '🧪 Quaff (薬)'), verb: 'q' }, { id: 'bind', label: lbl('⚡ Bind', '⚡ 登録', '⚡ Bind'), verb: 'q', isBind: true });
         } else if (cat === 'scroll') {
             verbs.push({ id: 'read', label: lbl('📜 Read', '📜 読む', '📜 Read (巻)'), verb: 'r' }, { id: 'bind', label: lbl('⚡ Bind', '⚡ 登録', '⚡ Bind'), verb: 'r', isBind: true });
         } else if (cat === 'food') {
-            verbs.push({ id: 'eat', label: lbl('🍞 Eat', '🍞 食べる', '🍞 Eat (食)'), verb: 'E' });
+            verbs.push({ id: 'eat', label: lbl('🍞 Eat', '🍞 食べる', '🍞 Eat (食)'), verb: eatKey });
         } else if (cat === 'device') {
             const isWand = /\bwand\b|魔法棒/i.test(itemDesc);
             const isRod = /\brod\b|ロッド/i.test(itemDesc);
             const isStaff = /\bstaff\b|\bstave\b|スタッフ|の杖/i.test(itemDesc);
-            const dv = isRod ? 'z' : (isWand ? 'a' : (isStaff ? 'u' : ((r === 'hengband' || r === 'frogcomposband') ? 'a' : 'u')));
-            const dLabel = isRod ? lbl('⚡ Zap Rod', '⚡ 使う(ロッド)', '⚡ Zap (ロ)') : (isWand ? lbl('🪄 Aim Wand', '🪄 振る(魔法棒)', '🪄 Aim (棒)') : lbl('🪄 Use Staff', '🪄 使う(杖)', '🪄 Use (杖)'));
+            const dv = r === 'dcss' ? 'V' : (r === 'brogue' ? 'a' : (r === 'rogue' ? 'z' : (isRod ? 'z' : (isWand ? 'a' : (isStaff ? 'u' : ((r === 'hengband' || r === 'frogcomposband') ? 'a' : 'u'))))));
+            const dLabel = r === 'dcss' ? '🪄 Evoke (V)' : (r === 'brogue' ? '🪄 Apply (a)' : (r === 'rogue' ? '🪄 Zap (z)' : (isRod ? lbl('⚡ Zap Rod', '⚡ 使う(ロッド)', '⚡ Zap (ロ)') : (isWand ? lbl('🪄 Aim Wand', '🪄 振る(魔法棒)', '🪄 Aim (棒)') : lbl('🪄 Use Staff', '🪄 使う(杖)', '🪄 Use (杖)')))));
             verbs.push({ id: isRod ? 'zap' : (isWand ? 'aim' : 'use'), label: dLabel, verb: dv }, { id: 'bind', label: lbl('⚡ Bind', '⚡ 登録', '⚡ Bind'), verb: dv, isBind: true });
-        } else if (cat === 'tome') {
+        } else if (cat === 'tome' && r !== 'brogue' && r !== 'rogue') {
             verbs.push(
-                { id: 'browse', label: lbl('📖 Browse', '📖 閲覧', '📖 Browse (閲)'), verb: 'b' },
-                { id: 'cast', label: lbl('✨ Cast', '✨ 詠唱', '✨ Cast (呪)'), verb: 'm' },
-                { id: 'study', label: lbl('📚 Study', '📚 学習', '📚 Study (学)'), verb: 'G' },
-                { id: 'bind', label: lbl('⚡ Bind', '⚡ 登録', '⚡ Bind'), verb: 'm', isBind: true }
+                { id: 'browse', label: lbl('📖 Browse', '📖 閲覧', '📖 Browse (閲)'), verb: r === 'dcss' ? 'I' : 'b' },
+                { id: 'cast', label: lbl('✨ Cast', '✨ 詠唱', '✨ Cast (呪)'), verb: r === 'dcss' ? 'z' : 'm' },
+                { id: 'study', label: lbl('📚 Study', '📚 学習', '📚 Study (学)'), verb: r === 'dcss' ? 'M' : 'G' },
+                { id: 'bind', label: lbl('⚡ Bind', '⚡ 登録', '⚡ Bind'), verb: r === 'dcss' ? 'z' : 'm', isBind: true }
             );
         }
         verbs.push(
@@ -1233,8 +1238,17 @@
             biomeBranches: Object.assign({}, base.biomeBranches, spec.biomeBranches || {}),
             interactiveFeatures: Object.assign({}, base.interactiveFeatures, spec.interactiveFeatures || {})
         });
+        const mb = (typeof window !== 'undefined' && window.MASTER_BESTIARY) || (typeof global !== 'undefined' && global.MASTER_BESTIARY) || null;
+        if (mb && typeof mb.registerRealm === 'function' && spec.bestiary) {
+            mb.registerRealm(key, spec.bestiary);
+        }
+        const mir = (typeof window !== 'undefined' && window.MASTER_ITEM_REGISTRY) || (typeof global !== 'undefined' && global.MASTER_ITEM_REGISTRY) || null;
+        if (mir && typeof mir.registerRealm === 'function' && spec.items) {
+            mir.registerRealm(key, spec.items);
+        }
         return CARTRIDGES[key];
     }
+    const registerRealm = registerCartridge;
 
     function loadExternalCartridgeJSON(jsonOrObject) {
         let parsed = jsonOrObject;
@@ -1479,6 +1493,7 @@
         getBiomeProfile,
         validateCartridgeManifest,
         registerCartridge,
+        registerRealm,
         loadExternalCartridgeJSON,
         formatDeathModalSummary,
         buildDeathStatsHtml,
