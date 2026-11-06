@@ -1850,29 +1850,38 @@ const server = http.createServer((req, res) => {
             const customKey = req.headers['x-goog-api-key'] || req.headers['x-api-key'] || '';
             const apiKey = customKey || process.env.GEMINI_API_KEY || '';
 
-            const sketchModels = ['gemini-2.5-flash-image', 'gemini-3.1-flash-image'];
-            const payload = {
-                contents: [{ role: 'user', parts: [{ text: prompt }] }],
-                generationConfig: { responseModalities: ["IMAGE"] }
-            };
-            const payloadStr = JSON.stringify(payload);
+            const sketchModels = ['gemini-3.1-flash-lite-image', 'gemini-2.5-flash-image', 'gemini-3.1-flash-image'];
+            const buildSketchPayload = (promptText, forVertex) => JSON.stringify({
+                contents: [{ role: 'user', parts: [{ text: promptText }] }],
+                generationConfig: { responseModalities: ["IMAGE"] },
+                safetySettings: [
+                    { category: 'HARM_CATEGORY_HARASSMENT', threshold: forVertex ? 'OFF' : 'BLOCK_NONE' },
+                    { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: forVertex ? 'OFF' : 'BLOCK_NONE' },
+                    { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: forVertex ? 'OFF' : 'BLOCK_NONE' },
+                    { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: forVertex ? 'OFF' : 'BLOCK_NONE' }
+                ]
+            });
+            const sanitizeSketchPrompt = (rawText) => String(rawText || '')
+                .replace(/\b(bloodied|blood-stained|blood|gore|visceral|horror|horrifying|corpse|mutilated|slaughtered|suicide|self-harm|macabre|grotesque)\b/gi, 'shadow-wreathed')
+                .replace(/\b(killed by mortal wounds|slain by|meeting an absurd, tragicomic demise|death scene)\b/gi, 'in a dramatic dungeon confrontation with');
 
-            function handleSketchResponse(upstreamRes, respBody, usedVertex, modelIdx = 0) {
+            function handleSketchResponse(upstreamRes, respBody, usedVertex, modelIdx = 0, retriedSafe = false) {
                 if (upstreamRes.statusCode !== 200 && !usedVertex) {
                     if (upstreamRes.statusCode === 402 || upstreamRes.statusCode === 403 || upstreamRes.statusCode === 404 || upstreamRes.statusCode === 429 || upstreamRes.statusCode === 500 || upstreamRes.statusCode === 503) {
                         if ((upstreamRes.statusCode === 402 || upstreamRes.statusCode === 403 || upstreamRes.statusCode === 429) && apiKey === process.env.GEMINI_API_KEY) {
                             _aiStudioDepletedUntil = Date.now() + 60 * 60 * 1000;
                         }
-                        return sendSketchViaVertex(upstreamRes.statusCode);
+                        return sendSketchViaVertex(upstreamRes.statusCode, 0, retriedSafe);
                     }
                     if (modelIdx + 1 < sketchModels.length) {
-                        return sendSketchViaAiStudio(modelIdx + 1);
+                        return sendSketchViaAiStudio(modelIdx + 1, retriedSafe);
                     }
                 }
                 if (upstreamRes.statusCode === 200) {
                     try {
                         const rb = JSON.parse(respBody);
-                        const parts = rb.candidates?.[0]?.content?.parts || [];
+                        const cand = rb.candidates?.[0] || {};
+                        const parts = cand.content?.parts || [];
                         const imgPart = parts.find(p => p.inlineData && p.inlineData.data);
                         if (imgPart) {
                             const mime = imgPart.inlineData.mimeType || 'image/png';
@@ -1882,67 +1891,88 @@ const server = http.createServer((req, res) => {
                                 sketchCache.delete(oldestKey);
                             }
                             sketchCache.set(cacheKey, imageUrl);
-                            const usedModel = usedVertex ? 'gemini-2.5-flash-image' : (sketchModels[modelIdx] || sketchModels[0]);
+                            const usedModel = sketchModels[modelIdx] || sketchModels[0];
                             finishSketchRequest({ ok: true, imageUrl, model: usedModel });
+                        } else if (!retriedSafe && cand.finishReason === 'IMAGE_SAFETY') {
+                            return usedVertex
+                                ? sendSketchViaVertex(200, modelIdx, true)
+                                : sendSketchViaAiStudio(modelIdx, true);
+                        } else if (usedVertex && modelIdx + 1 < sketchModels.length) {
+                            return sendSketchViaVertex(200, modelIdx + 1, retriedSafe);
                         } else if (usedVertex && !customKey && apiKey && Date.now() >= _aiStudioDepletedUntil) {
-                            return sendSketchViaAiStudio(0);
+                            return sendSketchViaAiStudio(0, retriedSafe);
                         } else if (!usedVertex) {
-                            return sendSketchViaVertex(200);
+                            return sendSketchViaVertex(200, 0, retriedSafe);
                         } else {
                             finishSketchRequest({ ok: false, fallback: true, reason: 'upstream_no_image' });
                         }
                     } catch(e) {
                         finishSketchRequest({ ok: false, fallback: true, reason: 'upstream_no_image' });
                     }
+                } else if (usedVertex && modelIdx + 1 < sketchModels.length) {
+                    return sendSketchViaVertex(upstreamRes.statusCode, modelIdx + 1, retriedSafe);
                 } else if (usedVertex && apiKey && Date.now() >= _aiStudioDepletedUntil) {
-                    return sendSketchViaAiStudio(0);
+                    return sendSketchViaAiStudio(0, retriedSafe);
                 } else {
                     finishSketchRequest({ ok: false, fallback: true, reason: `upstream_error_${upstreamRes.statusCode}` });
                 }
             }
 
-            function sendSketchViaVertex(fallbackStatus = 502) {
+            function sendSketchViaVertex(fallbackStatus = 502, modelIdx = 0, useSanitized = false) {
                 getGcpAuthContext().then(({ token, projectId }) => {
                     if (!token || !projectId) {
                         if (apiKey && Date.now() >= _aiStudioDepletedUntil) {
-                            return sendSketchViaAiStudio(0);
+                            return sendSketchViaAiStudio(0, useSanitized);
                         }
                         finishSketchRequest({ ok: false, fallback: true, reason: apiKey ? `upstream_error_${fallbackStatus}` : 'no_api_key' });
                         return;
                     }
-                    const vUrl = `https://aiplatform.googleapis.com/v1beta1/projects/${encodeURIComponent(projectId)}/locations/global/publishers/google/models/gemini-2.5-flash-image:generateContent`;
+                    const activeModel = sketchModels[modelIdx] || sketchModels[0];
+                    const activePrompt = useSanitized ? sanitizeSketchPrompt(prompt) : prompt;
+                    const vPayloadStr = buildSketchPayload(activePrompt, true);
+                    const vUrl = `https://aiplatform.googleapis.com/v1beta1/projects/${encodeURIComponent(projectId)}/locations/global/publishers/google/models/${activeModel}:generateContent`;
                     const vReq = https.request(vUrl, {
                         method: 'POST',
                         agent: geminiHttpsAgent,
                         headers: {
                             'Content-Type': 'application/json',
                             'Authorization': `Bearer ${token}`,
-                            'Content-Length': Buffer.byteLength(payloadStr)
+                            'Content-Length': Buffer.byteLength(vPayloadStr)
                         },
-                        timeout: 30000
+                        timeout: 22000
                     }, vRes => {
                         let vBody = '';
                         vRes.on('data', c => vBody += c);
-                        vRes.on('end', () => handleSketchResponse(vRes, vBody, true));
+                        vRes.on('end', () => handleSketchResponse(vRes, vBody, true, modelIdx, useSanitized));
                     });
                     vReq.on('timeout', () => {
                         vReq.destroy();
-                        finishSketchRequest({ ok: false, fallback: true, reason: 'timeout' });
+                        if (modelIdx + 1 < sketchModels.length) {
+                            sendSketchViaVertex(504, modelIdx + 1, useSanitized);
+                        } else {
+                            finishSketchRequest({ ok: false, fallback: true, reason: 'timeout' });
+                        }
                     });
                     vReq.on('error', () => {
-                        finishSketchRequest({ ok: false, fallback: true, reason: 'network_error' });
+                        if (modelIdx + 1 < sketchModels.length) {
+                            sendSketchViaVertex(502, modelIdx + 1, useSanitized);
+                        } else {
+                            finishSketchRequest({ ok: false, fallback: true, reason: 'network_error' });
+                        }
                     });
-                    vReq.write(payloadStr);
+                    vReq.write(vPayloadStr);
                     vReq.end();
                 });
             }
 
-            function sendSketchViaAiStudio(modelIdx = 0) {
+            function sendSketchViaAiStudio(modelIdx = 0, useSanitized = false) {
                 if (!apiKey) {
                     finishSketchRequest({ ok: false, fallback: true, reason: 'no_api_key' });
                     return;
                 }
                 const activeModel = sketchModels[modelIdx] || sketchModels[0];
+                const activePrompt = useSanitized ? sanitizeSketchPrompt(prompt) : prompt;
+                const aPayloadStr = buildSketchPayload(activePrompt, false);
                 const targetUrl = `https://generativelanguage.googleapis.com/v1beta/models/${activeModel}:generateContent`;
                 const upstreamReq = https.request(targetUrl, {
                     method: 'POST',
@@ -1950,13 +1980,13 @@ const server = http.createServer((req, res) => {
                     headers: {
                         'Content-Type': 'application/json',
                         'x-goog-api-key': apiKey,
-                        'Content-Length': Buffer.byteLength(payloadStr)
+                        'Content-Length': Buffer.byteLength(aPayloadStr)
                     },
-                    timeout: 30000
+                    timeout: 22000
                 }, upstreamRes => {
                     let respBody = '';
                     upstreamRes.on('data', chunk => respBody += chunk);
-                    upstreamRes.on('end', () => handleSketchResponse(upstreamRes, respBody, false, modelIdx));
+                    upstreamRes.on('end', () => handleSketchResponse(upstreamRes, respBody, false, modelIdx, useSanitized));
                 });
 
                 upstreamReq.on('timeout', () => {
@@ -1966,23 +1996,23 @@ const server = http.createServer((req, res) => {
 
                 upstreamReq.on('error', err => {
                     if (modelIdx + 1 < sketchModels.length) {
-                        sendSketchViaAiStudio(modelIdx + 1);
+                        sendSketchViaAiStudio(modelIdx + 1, useSanitized);
                     } else {
                         finishSketchRequest({ ok: false, fallback: true, reason: 'network_error' });
                     }
                 });
 
-                upstreamReq.write(payloadStr);
+                upstreamReq.write(aPayloadStr);
                 upstreamReq.end();
             }
 
-            // Route directly to Vertex AI gemini-2.5-flash-image on Cloud Run when no custom AI Studio key header is sent
+            // Route directly to Vertex AI gemini-3.1-flash-lite-image on Cloud Run when no custom AI Studio key header is sent
             if (!customKey || customKey.startsWith('AQ.') || Date.now() < _aiStudioDepletedUntil) {
-                sendSketchViaVertex();
+                sendSketchViaVertex(502, 0, false);
                 return;
             }
 
-            sendSketchViaAiStudio(0);
+            sendSketchViaAiStudio(0, false);
         });
         return;
     }

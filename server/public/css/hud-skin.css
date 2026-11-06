@@ -1005,25 +1005,11 @@
     url('/assets/showcase/live_town_sky_stores.png') center center / cover no-repeat !important;
 }
 
-/* Restore Gothic / Elven Gold Filigree Corner Medallions */
+/* Remove decorative corner trim on Splash & Main Menu */
 .splash-ornament-corner,
 .main-menu-ornament-corner {
-  display: block !important;
-  position: absolute !important;
-  width: 26px !important;
-  height: 26px !important;
-  pointer-events: none !important;
-  opacity: 0.78 !important;
-  z-index: 3 !important;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32' fill='none'%3E%3Cpath d='M2 30V6C2 3.79 3.79 2 6 2H30' stroke='%23d8b15a' stroke-width='2'/%3E%3Cpath d='M6 24V8C6 6.9 6.9 6 8 6H24' stroke='%23f0cf7a' stroke-width='1' stroke-opacity='0.75'/%3E%3Ccircle cx='7' cy='7' r='2.2' fill='%23d8b15a'/%3E%3Cpath d='M12 2L9 6L12 10M2 12L6 9L10 12' stroke='%23d8b15a' stroke-width='1.1' stroke-opacity='0.8'/%3E%3C/svg%3E") !important;
-  background-size: contain !important;
-  background-repeat: no-repeat !important;
+  display: none !important;
 }
-
-.splash-ornament-corner.tl, .main-menu-ornament-corner.tl { top: 8px !important; left: 8px !important; transform: none !important; }
-.splash-ornament-corner.tr, .main-menu-ornament-corner.tr { top: 8px !important; right: 8px !important; transform: scaleX(-1) !important; }
-.splash-ornament-corner.bl, .main-menu-ornament-corner.bl { bottom: 8px !important; left: 8px !important; transform: scaleY(-1) !important; }
-.splash-ornament-corner.br, .main-menu-ornament-corner.br { bottom: 8px !important; right: 8px !important; transform: scale(-1, -1) !important; }
 
 /* Realm-Specific Heraldic Card Crests */
 .realm-card[data-realm="vanilla"] {
@@ -1143,5 +1129,53 @@
 body.grimoire-primary-open #grimoire-deck-container {
   max-height: min(26dvh, 195px) !important;
 }
+
+/* ==========================================================================
+   v11.6.1: Zero Menu Overlap, Minimal Non-Classic Chrome & Clean Death Modal
+   ========================================================================== */
+
+/* 1. Never allow floating top-right HUD / Audio bar to overlap Classic Terminal or Modals */
+body.terminal-mode-active #top-right-bar,
+body.terminal-mode-active #global-audio-bar,
+body:has(#terminal-container:not(.hidden)) #top-right-bar,
+body:has(#terminal-container:not(.hidden)) #global-audio-bar,
+body:has(#death-modal:not(.hidden)) #top-right-bar,
+body:has(#death-modal:not(.hidden)) #global-audio-bar,
+body:has(#pause-modal:not(.hidden)) #top-right-bar,
+body:has(#pause-modal:not(.hidden)) #global-audio-bar,
+body:has(#guide-modal:not(.hidden)) #top-right-bar,
+body:has(#guide-modal:not(.hidden)) #global-audio-bar,
+body:has(#load-modal:not(.hidden)) #top-right-bar,
+body:has(#load-modal:not(.hidden)) #global-audio-bar,
+body:has(#realm-selector-modal:not(.hidden)) #top-right-bar,
+body:has(#realm-selector-modal:not(.hidden)) #global-audio-bar,
+body:has(#command-palette-modal:not(.hidden)) #top-right-bar,
+body:has(#command-palette-modal:not(.hidden)) #global-audio-bar {
+  display: none !important;
+}
+
+/* 2. De-duplicate Classic Terminal Chrome: hide top static buttons when contextual bar is active */
+#terminal-card:has(#term-contextual-actions button) .terminal-toolbar .terminal-actions > button:not(#btn-term-grimoire-toggle),
+.terminal-card:has(#term-contextual-actions button) .terminal-toolbar .terminal-actions > button:not(#btn-term-grimoire-toggle),
+#terminal-birth-helper-bar {
+  display: none !important;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  #terminal-touch-controls .term-touch-dpad-col {
+    display: none !important;
+  }
+}
+
+/* 3. Clean Death Screen Title Spacing & Maximized Classic Post-Death Terminal */
+#death-modal .death-title {
+  letter-spacing: 0.14em !important;
+  word-spacing: 0.32em !important;
+}
+
+#death-term-toolbar {
+  display: none !important;
+}
+
 
 

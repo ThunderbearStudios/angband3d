@@ -3439,11 +3439,13 @@ class InputController {
         const worldKey = this.getWorldDirectionKey(dx, dy);
         if (!worldKey) { this.stopMinimapAutoNav('Invalid step direction'); return; }
 
-        if (nav.isExplore && this.dungeon && !this.inTerminal) {
+        if (this.dungeon && !this.inTerminal) {
             const look = nav.path[Math.min(2, nav.path.length - 1)] || nextStep;
             const lx = look.x - px, ly = look.y - py;
-            if (lx !== 0 || ly !== 0) {
-                const targetYaw = Math.atan2(lx, -ly);
+            if (typeof this.dungeon.orientCameraTowardStep === 'function') {
+                this.dungeon.orientCameraTowardStep(dx, dy, lx, ly);
+            } else if (lx !== 0 || ly !== 0) {
+                const targetYaw = Math.atan2(-lx, -ly);
                 if (typeof this.dungeon.setCameraYaw === 'function') this.dungeon.setCameraYaw(targetYaw);
                 else if (typeof this.dungeon.cameraYaw === 'number') this.dungeon.cameraYaw = targetYaw;
             }
@@ -3459,8 +3461,8 @@ class InputController {
             } else {
                 nav.expectedX = nextStep.x; nav.expectedY = nextStep.y;
             }
-            if (typeof this.sendMovementKey === 'function') this.sendMovementKey(worldKey);
-            else if (this.network) this.network.sendKey(worldKey);
+            if (this.network) this.network.sendKey(worldKey);
+            else if (typeof this.sendMovementKey === 'function') this.sendMovementKey(worldKey);
         };
         if (isInitial) dispatchStep();
         else nav.stepTimer = setTimeout(dispatchStep, nav.isExplore ? 85 : 42);

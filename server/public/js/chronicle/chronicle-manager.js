@@ -1303,8 +1303,9 @@ class ChronicleManager {
                 return;
             }
 
-            // Cache live hero state for ongoing catch-up evaluations
+            // Cache live hero state for ongoing catch-up evaluations & background sketch pre-warming
             this.liveHero = frame.player;
+            this.maybeAutoTriggerSceneSketch({ type: 'FRAME_TICK' }, null, frame);
 
             // If audio is disabled or manual story playlist is active, still record primary chapter card silently
             if (!this.audio || !this.audio.enabled || this.isStoryPlaying) {
@@ -1853,26 +1854,31 @@ class ChronicleManager {
     }
 
     maybeAutoTriggerSceneSketch(event, entry, frame) {
-        if (!event || !frame || !frame.player) return;
+        if (!frame || !frame.player) return;
         const p = frame.player;
         if (p.dead || p.winner) return;
         const hp = Number(p.hp ?? 0);
         const mhp = Math.max(1, Number(p.hp_max ?? p.mhp ?? 1));
         const hpRatio = hp / mhp;
         const now = Date.now();
-        // Pre-warm YASD death sketch proactively at <= 45% HP (45s cooldown) so sudden lethal hits have a 0ms ready illustration
-        if (hp > 0 && hpRatio <= 0.45) {
-            if (!this._lastPerilPreWarmTime || (now - this._lastPerilPreWarmTime > 45000)) {
+        const visibleHostiles = Array.isArray(frame.monsters)
+            ? frame.monsters.filter(m => m && m.visible !== false && !(m.isPet || m.pet || m.friendly || m.tame))
+            : [];
+        const hasDangerousFoe = visibleHostiles.some(m => Boolean(m.unique || m.boss || /dragon|balrog|lich|nazgul|demon|vampire|wraith|troll|ogre|giant|hound|lord|king|queen|prince/i.test(m.name || '')));
+        // Pre-warm YASD death sketch proactively at <= 65% HP or when a dangerous/unique foe is in sight (35s cooldown) so sudden lethal hits have a 0ms ready illustration
+        if (hp > 0 && (hpRatio <= 0.65 || hasDangerousFoe)) {
+            if (!this._lastPerilPreWarmTime || (now - this._lastPerilPreWarmTime > 35000)) {
                 this._lastPerilPreWarmTime = now;
                 this.preWarmDeathSketch(frame, event || entry);
             }
         }
-        // Background pre-warm active scene sketch on depth transition or boss encounter (60s cooldown)
+        // Background pre-warm active scene sketch on depth transition or boss encounter (45s cooldown)
         const depth = Number(p.depth ?? 0);
         const evType = String((event && event.type) || '').toUpperCase();
         const isNotableScene = (this._lastPreWarmedDepth !== depth) ||
+            hasDangerousFoe ||
             evType.includes('UNIQUE') || evType.includes('BOSS') || evType.includes('DEPTH') || evType.includes('ARTIFACT');
-        if (isNotableScene && (!this._lastScenePreWarmTime || (now - this._lastScenePreWarmTime > 60000))) {
+        if (isNotableScene && (!this._lastScenePreWarmTime || (now - this._lastScenePreWarmTime > 45000))) {
             this._lastPreWarmedDepth = depth;
             this._lastScenePreWarmTime = now;
             this.preWarmActiveSceneSketch(frame, entry || event);
@@ -3143,7 +3149,7 @@ class ChronicleManager {
         // 2. Active Status Effects & Conditions
         const hpRatio = hp_max > 0 ? (hp / hp_max) : 1;
         const condition = hpRatio < 0.35
-            ? 'battle-worn, bleeding, desperate stance'
+            ? 'battle-worn, battered, desperate stance'
             : (hpRatio < 0.7 ? 'weary, soot-stained, alert stance' : 'vigorous, heroic, poised stance');
 
         const bottomText = termRows.slice(-5).join(' ');
@@ -3482,7 +3488,7 @@ class ChronicleManager {
 
         let narrativeText = overrideBeat?.text || overrideBeat?.prose || '';
         if (mode === 'death' && !overrideBeat) {
-            narrativeText = `Here lies ${name} the ${race} ${heroClass} (Level ${level}), slain by ${killedBy || 'mortal wounds'} in ${locationLabel}.`;
+            narrativeText = `Here lies ${name} the ${race} ${heroClass} (Level ${level}), overwhelmed by ${killedBy || 'the perils of the depths'} in ${locationLabel}.`;
         } else if (mode === 'victory' && !overrideBeat) {
             narrativeText = `Triumphant ascension! ${name} the ${race} ${heroClass} emerges victorious from ${locationLabel}!`;
         }
@@ -3543,46 +3549,46 @@ class ChronicleManager {
         if (mode === 'death') {
             const recentFoe = (killedBy && killedBy !== 'mortal wounds')
                 ? killedBy
-                : (visibleMonsters.length > 0 ? visibleMonsters[0].name : (notableDeeds[notableDeeds.length - 1] || 'mortal wounds'));
+                : (visibleMonsters.length > 0 ? visibleMonsters[0].name : (notableDeeds[notableDeeds.length - 1] || 'an abyssal dungeon menace'));
             const isHumorousKiller = /newt|grid bug|jackal|rat|kobold|bat|floating eye|mold|jelly|mushroom|urchin|beggar|drunk|squint|thief|cutpurse|vagabond|idiot|drool|filthy|starv|hunger|sink|fountain|chok/i.test(`${killedBy} ${recentFoe} ${combinedRecent}`);
             sceneTone = isHumorousKiller ? 'humor_horror' : 'horror';
-            toneBadge = isHumorousKiller ? '🎭 Tragicomic YASD Demise' : '☠ YASD Horror Demise';
+            toneBadge = isHumorousKiller ? '🎭 Tragicomic YASD Demise' : '☠ YASD Dark-Fantasy Demise';
             situationalFocus = isHumorousKiller
-                ? `Darkly comedic & horrifying "Yet Another Stupid Death" (YASD) fantasy painting! Depict ${name} the ${race} ${heroClass} meeting an absurd, tragicomic demise against ${recentFoe} in ${locationLabel}, blending dark slapstick dungeon comedy with grim roguelike consequence, expressive facial reaction, scattered coins, and dramatic torchlight shadows.`
-                : `Visceral dark-fantasy horror death scene ("Yet Another Stupid Death" / YASD) painting! Depict the fallen hero ${name} the ${race} ${heroClass} overcome by the terrifying ${recentFoe} in ${locationLabel}, with shattered shield, spilled gold coins, and menacing abyssal shadows in the dying torchlight.`;
+                ? `Darkly comedic & iconic "Yet Another Stupid Death" (YASD) dark-fantasy illustration! Depict ${name} the ${race} ${heroClass} caught in an absurd, tragicomic final stand against ${recentFoe} in ${locationLabel}, blending classic roguelike irony with dramatic chiaroscuro torchlight, expressive reaction, scattered gold coins, and rich subterranean detail.`
+                : `Epic dark-fantasy final stand ("Yet Another Stupid Death" / YASD) painting! Depict the valiant hero ${name} the ${race} ${heroClass} overwhelmed by the towering silhouette of ${recentFoe} in ${locationLabel}, with splintered shield, scattered gold coins, glowing arcane embers, and dramatic abyssal shadows in the flickering torchlight.`;
         } else if (mode === 'victory') {
             sceneTone = 'victory';
             toneBadge = '👑 Immortal Ascension';
-            situationalFocus = `Triumphant mythic ascension! Depict ${name} the ${race} ${heroClass} raising the ultimate relic aloft in golden celestial light as dungeon horrors recoil into the abyss.`;
+            situationalFocus = `Triumphant mythic ascension! Depict ${name} the ${race} ${heroClass} raising the ultimate relic aloft in golden celestial light as dungeon shadows recoil into the abyss.`;
         } else if ((hasHumorousFoe || hasBizarreOrTheft) && (hasSeverePerilOrAffliction || hasEldritchOrBossHorror)) {
             sceneTone = 'humor_horror';
-            toneBadge = '🎭 Horror & Dark Comedy';
+            toneBadge = '🎭 Peril & Dark Comedy';
             const foeDesc = visibleMonsters.length ? visibleMonsters[0].name : 'dungeon menaces';
-            situationalFocus = `Grotesque tragicomic fantasy scene blending visceral dungeon horror AND dark slapstick comedy! Depict ${name} the ${race} ${heroClass} (${condition}) caught in an absurd yet life-threatening predicament with ${foeDesc} (${notableDeeds[notableDeeds.length - 1] || 'chaos in the dark'}), with wide-eyed panicked expression, flying potions/coins, and menacing shadows closing in.`;
+            situationalFocus = `Atmospheric tragicomic dark-fantasy scene blending subterranean peril and roguelike wit! Depict ${name} the ${race} ${heroClass} (${condition}) caught in a chaotic predicament with ${foeDesc} (${notableDeeds[notableDeeds.length - 1] || 'chaos in the dark'}), with wide-eyed expression, scattered potions and coins, and dramatic torchlit shadows closing in.`;
         } else if (hasBizarreOrTheft || hasHumorousFoe) {
             sceneTone = 'humor';
             toneBadge = '🃏 Dungeon Comedy';
             const foeDesc = visibleMonsters.length ? visibleMonsters[0].name : 'an eccentric dungeon denizen';
-            situationalFocus = `Witty, darkly comedic roguelike fantasy vignette! Depict the heavily armed ${name} the ${race} ${heroClass} in an absurd, expressive encounter with ${foeDesc} (${notableDeeds[notableDeeds.length - 1] || 'dungeon shenanigans'}), highlighting the hilarious scale contrast, exaggerated facial expressions, and chaotic tabletop RPG humor.`;
+            situationalFocus = `Witty, darkly comedic roguelike fantasy vignette! Depict the heavily armed ${name} the ${race} ${heroClass} in an absurd, expressive encounter with ${foeDesc} (${notableDeeds[notableDeeds.length - 1] || 'dungeon shenanigans'}), highlighting the hilarious scale contrast, expressive character acting, and classic tabletop RPG charm.`;
         } else if (isConfused || isBlind || isAfraid || isStunned) {
             sceneTone = 'humor_horror';
             toneBadge = '🎭 Peril & Panic';
-            situationalFocus = `Harrowing yet darkly comical dungeon predicament! Depict ${name} staggering under ${isConfused ? 'dizzy arcane confusion' : (isBlind ? 'sudden terrifying blindness' : (isAfraid ? 'heart-pounding terror' : 'reeling concussive stun'))} with expressive panicked body language while ${visibleMonsters.length ? `the monstrous ${visibleMonsters[0].name} looms inches away in the torchlight` : 'clawing along the cold stone wall as unseen eyes gleam in the dark'}.`;
+            situationalFocus = `Dramatic dark-fantasy dungeon predicament! Depict ${name} staggering under ${isConfused ? 'swirling arcane confusion' : (isBlind ? 'sudden pitch-black blindness' : (isAfraid ? 'overwhelming dread' : 'reeling concussive shock'))} with expressive body language while ${visibleMonsters.length ? `the monstrous ${visibleMonsters[0].name} looms in the torchlight` : 'feeling along the cold carved stone wall as glowing eyes watch from the dark'}.`;
         } else if (hpRatio < 0.40 || isCut || isPoisoned || hasEldritchOrBossHorror) {
             sceneTone = 'horror';
-            toneBadge = '😱 Dungeon Horror';
-            const threatName = visibleMonsters.length ? visibleMonsters[0].name : 'lurking abyssal horrors';
-            situationalFocus = `Visceral dark-fantasy horror & survival dread! Depict ${name} the ${race} ${heroClass} bloodied and defiant in a claustrophobic stone vault, facing the nightmare terror of ${threatName} as flickering torchlight casts monstrous shadows across blood-stained flagstones.`;
+            toneBadge = '😱 Subterranean Peril';
+            const threatName = visibleMonsters.length ? visibleMonsters[0].name : 'lurking abyssal shadows';
+            situationalFocus = `High-contrast dark-fantasy survival drama! Depict ${name} the ${race} ${heroClass} weathered and defiant in a ancient stone vault, facing the towering menace of ${threatName} as flickering torchlight casts long dramatic shadows across weathered flagstones.`;
         } else if (visibleMonsters.length > 0) {
             sceneTone = 'humor_horror';
-            toneBadge = '🎭 Grim Clash & Quirk';
-            situationalFocus = `Dramatic dark-fantasy clash with roguelike personality & grim humor! Depict ${name} the ${race} ${heroClass} mid-battle against ${visibleMonsters.map(m => m.name).join(' and ')}${visibleAllies.length ? ` alongside loyal ${visibleAllies[0].name}` : ''}, capturing both the terrifying subterranean monster anatomy and the frantic, gritty reality of dungeon survival.`;
+            toneBadge = '⚔ Dark-Fantasy Clash';
+            situationalFocus = `Cinematic dark-fantasy battle illustration! Depict ${name} the ${race} ${heroClass} mid-clash against ${visibleMonsters.map(m => m.name).join(' and ')}${visibleAllies.length ? ` alongside loyal ${visibleAllies[0].name}` : ''}, capturing dramatic rim lighting, dynamic weapon arcs, and atmospheric subterranean scale.`;
         } else {
             sceneTone = depth === 0 ? 'humor' : 'humor_horror';
-            toneBadge = depth === 0 ? '🃏 Town Shenanigans' : '🎭 Dungeon Dread & Humor';
+            toneBadge = depth === 0 ? '🃏 Town Shenanigans' : '🕯️ Subterranean Delve';
             situationalFocus = depth === 0
-                ? `Wry dark-fantasy town vignette! Depict ${name} the ${race} ${heroClass} in ${locationLabel}, weighed down by an absurd assortment of dungeon gear and clutching their gold purse tightly while eyeing suspicious street urchins and eccentric shopkeepers.`
-                : `Atmospheric blend of subterranean horror and dark roguelike humor! Depict ${name} the ${race} ${heroClass} creeping cautiously through ${locationLabel} past a skeleton of an unlucky predecessor${visibleItems.length ? ` while eyeing ${visibleItems[0]} suspiciously for mimics or traps` : ''}, as glowing eyes watch from the oppressive darkness.`;
+                ? `Wry dark-fantasy town vignette! Depict ${name} the ${race} ${heroClass} in ${locationLabel}, weighed down by an assortment of dungeon gear and clutching their gold purse tightly while eyeing eccentric townsfolk and lantern-lit timber storefronts.`
+                : `Atmospheric dark-fantasy dungeon exploration painting! Depict ${name} the ${race} ${heroClass} advancing cautiously through ${locationLabel} past ancient carved pillars${visibleItems.length ? ` toward ${visibleItems[0]} glinting in the torchlight` : ''}, as glowing eyes watch from the oppressive darkness.`;
         }
 
         const cleanGearNames = gearBadges
@@ -3590,15 +3596,15 @@ class ChronicleManager {
             .filter(Boolean);
         const gearDesc = cleanGearNames.length > 0
             ? `Wielding and wearing: ${cleanGearNames.slice(0, 4).join(', ')}.`
-            : 'Clad in worn adventurer robes and carrying a weathered blade.';
+            : 'Clad in weathered adventurer armor and carrying a steel blade.';
 
         const isIronicLowDepthDeath = (mode === 'death') && (
             depth <= 5 ||
             /crow|raven|urchin|beggar|idiot|newt|grid bug|floating eye|kobold|rat|mouse|mold|jelly|mushroom|chicken|worm|bat|maggot|bullroarer|dog|puppy|cat|bee|ant|centipede|frog|toad|starv|trap|poison|chok/i.test(killedBy || '')
         );
         const artDirection = isIronicLowDepthDeath
-            ? `A darkly comedic, richly detailed grimdark fantasy oil painting and Gustave Doré woodcut crosshatch illustration capturing the classic roguelike "Yet Another Stupid Death" (YASD) tragicomedy: depict the humiliating, ironic physical chaos of ${name} the Level ${level} ${race} ${heroClass} meeting an absurdly undignified demise at the hands of ${killedBy || 'a lowly nuisance'} in ${locationLabel}. Show exaggerated medieval dark-fantasy slapstick, scattered gear, dramatic chiaroscuro torchlight, and expressive faces/creatures.`
-            : `A masterwork dark-fantasy oil and ink illustration in the style of Frank Frazetta and Gustave Doré tabletop RPG artwork, deep chiaroscuro shadows, warm flickering torchlight, and visceral heroic storytelling. ${situationalFocus}`;
+            ? `A richly detailed dark-fantasy oil painting and Gustave Doré woodcut crosshatch illustration capturing the iconic roguelike "Yet Another Stupid Death" (YASD) tragicomedy: depict the ironic physical chaos of ${name} the Level ${level} ${race} ${heroClass} in an undignified final stand against ${killedBy || 'a lowly dungeon nuisance'} in ${locationLabel}. Show dramatic chiaroscuro torchlight, scattered gear, rim lighting, and expressive fantasy creatures.`
+            : `A viral-quality, collector-grade dark-fantasy oil and ink masterwork in the style of Frank Frazetta, Gustave Doré, and Dark Souls concept art, with dramatic chiaroscuro rim lighting, warm flickering torchlight against deep obsidian shadows, and dynamic heroic composition. ${situationalFocus}`;
 
         const prompt = `${artDirection} Character: a ${race} ${heroClass} (${condition}, ${statTraits}). Setting: ${locationLabel}, ${realmAtmosphere} ${gearDesc} ${alliesDesc} ${monstersDesc} Narrative moment: “${narrativeText}”. Full-bleed dark-fantasy painting ONLY — strictly NO text, NO words, NO letters, NO numbers, NO stat sheets, NO UI frames, NO banners, and NO watermarks anywhere in the image.`;
 
@@ -4114,7 +4120,21 @@ class ChronicleManager {
         document.body.appendChild(a);
         a.click();
         a.remove();
-        this.showHudToast(isActionScene ? '⚔ Downloaded Shareable Scene Card (.PNG)!' : '⚔ Downloaded Shareable YASD Memorial Card (.PNG)!');
+        let copiedToClipboard = false;
+        if (typeof navigator !== 'undefined' && navigator.clipboard && typeof navigator.clipboard.write === 'function' && typeof ClipboardItem !== 'undefined' && typeof canvas.toBlob === 'function') {
+            try {
+                const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+                if (blob) {
+                    await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+                    copiedToClipboard = true;
+                }
+            } catch (_) {}
+        }
+        this.showHudToast(
+            copiedToClipboard
+                ? (isActionScene ? '⚔ Copied to Clipboard & Downloaded Scene Card (.PNG)!' : '⚔ Copied to Clipboard & Downloaded YASD Card (.PNG)!')
+                : (isActionScene ? '⚔ Downloaded Shareable Scene Card (.PNG)!' : '⚔ Downloaded Shareable YASD Memorial Card (.PNG)!')
+        );
     }
 
     async promptHeroActionSketch(overrideBeat = null, options = {}) {

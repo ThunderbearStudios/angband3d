@@ -6882,10 +6882,42 @@ class Dungeon3D {
         this.userPitchOffset = 0.0;
         const defaultYaw = -this.facing * (Math.PI / 2);
         // Find closest equivalent angle to avoid long spin
-        const cur = this.targetYaw || 0;
+        const cur = this.camera ? this.camera.rotation.y : (this.targetYaw || 0);
         const diff = defaultYaw - cur;
         const wrapped = Math.atan2(Math.sin(diff), Math.cos(diff));
         this.targetYaw = cur + wrapped;
+    }
+
+    orientCameraTowardStep(dx, dy, lookDx = dx, lookDy = dy) {
+        const sdx = Number(dx) || 0;
+        const sdy = Number(dy) || 0;
+        const ldx = Number(lookDx ?? sdx) || 0;
+        const ldy = Number(lookDy ?? sdy) || 0;
+        const vx = sdx * 0.72 + ldx * 0.28;
+        const vy = sdy * 0.72 + ldy * 0.28;
+        if (vx === 0 && vy === 0) return;
+        // Right-handed Three.js camera yaw: North (0,-1)->0, East (+1,0)->-PI/2, South (0,+1)->PI, West (-1,0)->+PI/2
+        const desiredYaw = Math.atan2(-vx, -vy);
+        const curYaw = this.camera ? this.camera.rotation.y : (this.targetYaw || 0);
+        const diff = Math.atan2(Math.sin(desiredYaw - curYaw), Math.cos(desiredYaw - curYaw));
+        this.targetYaw = curYaw + diff;
+        this.userPitchOffset = 0.0;
+        const stepYaw = (sdx !== 0 || sdy !== 0) ? Math.atan2(-sdx, -sdy) : desiredYaw;
+        const norm = ((-stepYaw % (Math.PI * 2)) + (Math.PI * 2)) % (Math.PI * 2);
+        this.facing = Math.round(norm / (Math.PI / 2)) % 4;
+    }
+
+    setCameraYaw(val, immediate = false) {
+        if (!Number.isFinite(val)) return;
+        const curYaw = this.camera ? this.camera.rotation.y : (this.targetYaw || 0);
+        const diff = Math.atan2(Math.sin(val - curYaw), Math.cos(val - curYaw));
+        this.targetYaw = curYaw + diff;
+        this.userPitchOffset = 0.0;
+        const norm = ((-val % (Math.PI * 2)) + (Math.PI * 2)) % (Math.PI * 2);
+        this.facing = Math.round(norm / (Math.PI / 2)) % 4;
+        if (immediate && this.camera) {
+            this.camera.rotation.y = this.targetYaw;
+        }
     }
 
     get yaw() {

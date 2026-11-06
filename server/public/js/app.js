@@ -5116,8 +5116,6 @@ window.addEventListener('DOMContentLoaded', () => {
         setTermDpadVisible(false);
         if (birthNameBar) birthNameBar.style.display = 'none';
         if (termLetterRibbon) termLetterRibbon.style.display = 'none';
-        const birthHelperBar = document.getElementById('terminal-birth-helper-bar');
-        if (birthHelperBar) birthHelperBar.style.display = !inPlay ? 'flex' : 'none';
         if (!inPlay) {
             if (termExitMenuBtn) {
                 termExitMenuBtn.style.display = 'inline-flex';
@@ -6042,9 +6040,10 @@ window.addEventListener('DOMContentLoaded', () => {
                 const expBtn = document.getElementById('btn-chronicle-expand');
                 if (expBtn) expBtn.textContent = '▼ Show';
             }
-            [hudOverlay, minimapContainer, messageFeedWindow, topMessageBanner, touchControls, btnToggleMsg, btnToggleMap, btnToggleDpad, btnToggleChronicle].forEach(el => { if (el) el.style.display = 'none'; });
+            const topRightBar = document.getElementById('top-right-bar');
+            [hudOverlay, topRightBar, minimapContainer, messageFeedWindow, topMessageBanner, touchControls, btnToggleMsg, btnToggleMap, btnToggleDpad, btnToggleChronicle].forEach(el => { if (el) el.style.display = 'none'; });
             const globalAudioBarTerm = document.getElementById('global-audio-bar');
-            if (globalAudioBarTerm) globalAudioBarTerm.style.display = 'flex';
+            if (globalAudioBarTerm) globalAudioBarTerm.style.display = 'none';
             input.setTerminalMode(true);
             updateTerminalToolbar(currentFrame);
             terminal.resize();
@@ -6057,6 +6056,8 @@ window.addEventListener('DOMContentLoaded', () => {
             document.body.classList.remove('terminal-mode-active', 'terminal-active', 'grimoire-primary-open');
             const globalAudioBarPlay = document.getElementById('global-audio-bar');
             if (globalAudioBarPlay) globalAudioBarPlay.style.display = 'none';
+            const topRightBarPlay = document.getElementById('top-right-bar');
+            if (topRightBarPlay) topRightBarPlay.style.display = 'flex';
             const gc = document.getElementById('grimoire-deck-container');
             if (gc && window.RealmGrimoireDeck && typeof window.RealmGrimoireDeck.hide === 'function') {
                 window.RealmGrimoireDeck.hide(gc);
