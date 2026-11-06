@@ -4545,23 +4545,28 @@ class ChronicleManager {
             'Y': 'Owlbear / Ape', 'Z': 'Zombie (Undead)', '@': 'Human / NPC',
             '&': 'Major Demon', ';': 'Sea Monster', ':': 'Lizard / Reptile'
         };
-        let coreType = (r === 'nethack' ? NETHACK_GLYPH_TYPE_MAP[g] : GLYPH_TYPE_MAP[g]) || GLYPH_TYPE_MAP[g] || 'Dungeon Creature';
-        if (/grid bug|xan/i.test(lower)) coreType = 'Grid Bug / Insect';
-        else if (/gelatinous cube|acid blob|quivering blob/i.test(lower)) coreType = 'Acidic Blob / Cube';
-        else if (/rust monster|disenchanter/i.test(lower)) coreType = 'Rust Monster';
-        else if (/cockatrice|chickatrice|pyrolisk/i.test(lower)) coreType = 'Cockatrice (Petrifying)';
-        else if (/mind flayer/i.test(lower)) coreType = 'Mind Flayer (Illithid)';
-        else if (/owlbear/i.test(lower)) coreType = 'Owlbear (Hybrid Beast)';
-        else if (/minotaur/i.test(lower)) coreType = 'Minotaur';
-        else if (/\bgnome\b/i.test(lower)) coreType = 'Gnome (Humanoid)';
-        else if (/little dog|large dog|jackal|dingo|wolf|hound|puppy/i.test(lower)) coreType = 'Canine / Hound';
-        else if (/kitten|housecat|jaguar|lynx|panther|tiger|cat\b/i.test(lower)) coreType = 'Feline';
-        else if (/snake|viper|cobra|asp|python|boa|mamba|adder|serpent/i.test(lower)) coreType = 'Snake / Serpent';
-        else if (/spider|tarantula|scorpion|arachnid|ungoliant|shelob/i.test(lower)) coreType = 'Spider / Arachnid';
-        else if (/skeleton|zombie|mummy|lich|wraith|wight|vampire|ghost|spectre|phantom|shade|undead/i.test(lower)) coreType = 'Undead';
-        else if (/demon|balrog|fiend|imp|quasit|marilith|pit fiend|juiblex/i.test(lower)) coreType = 'Demon';
-        else if (/dragon|drake|wyrm/i.test(lower)) coreType = 'Dragon';
-        else if (/towns|citizen|urchin|mercenary|drunk|idiot|beggar|mayor|agent|shopkeeper|villager|peasant|sailor|veteran|tamer|bard|farmer maggot|woodsman|hobo/i.test(lower) && depth === 0) coreType = 'Townsperson';
+        const mbTax = (typeof window !== 'undefined' && window.MASTER_BESTIARY && typeof window.MASTER_BESTIARY.resolveInspectionTaxonomy === 'function')
+            ? window.MASTER_BESTIARY.resolveInspectionTaxonomy(entity, r)
+            : null;
+        let coreType = (mbTax && mbTax.typeLabel) || (r === 'nethack' ? NETHACK_GLYPH_TYPE_MAP[g] : GLYPH_TYPE_MAP[g]) || GLYPH_TYPE_MAP[g] || 'Dungeon Creature';
+        if (!mbTax) {
+            if (/grid bug|xan/i.test(lower)) coreType = 'Grid Bug / Insect';
+            else if (/gelatinous cube|acid blob|quivering blob/i.test(lower)) coreType = 'Acidic Blob / Cube';
+            else if (/rust monster|disenchanter/i.test(lower)) coreType = 'Rust Monster';
+            else if (/cockatrice|chickatrice|pyrolisk/i.test(lower)) coreType = 'Cockatrice (Petrifying)';
+            else if (/mind flayer/i.test(lower)) coreType = 'Mind Flayer (Illithid)';
+            else if (/owlbear/i.test(lower)) coreType = 'Owlbear (Hybrid Beast)';
+            else if (/minotaur/i.test(lower)) coreType = 'Minotaur';
+            else if (/\bgnome\b/i.test(lower)) coreType = 'Gnome (Humanoid)';
+            else if (/little dog|large dog|jackal|dingo|wolf|hound|puppy/i.test(lower)) coreType = 'Canine / Hound';
+            else if (/kitten|housecat|jaguar|lynx|panther|tiger|cat\b/i.test(lower)) coreType = 'Feline';
+            else if (/snake|viper|cobra|asp|python|boa|mamba|adder|serpent/i.test(lower)) coreType = 'Snake / Serpent';
+            else if (/spider|tarantula|scorpion|arachnid|ungoliant|shelob/i.test(lower)) coreType = 'Spider / Arachnid';
+            else if (/skeleton|zombie|mummy|lich|wraith|wight|vampire|ghost|spectre|phantom|shade|undead/i.test(lower)) coreType = 'Undead';
+            else if (/demon|balrog|fiend|imp|quasit|marilith|pit fiend|juiblex/i.test(lower)) coreType = 'Demon';
+            else if (/dragon|drake|wyrm/i.test(lower)) coreType = 'Dragon';
+            else if (/towns|citizen|urchin|mercenary|drunk|idiot|beggar|mayor|agent|shopkeeper|villager|peasant|sailor|veteran|tamer|bard|farmer maggot|woodsman|hobo/i.test(lower) && depth === 0) coreType = 'Townsperson';
+        }
 
         const isPet = Boolean(
             entity.isPet || entity.pet || entity.friendly ||
@@ -4589,16 +4594,18 @@ class ChronicleManager {
         const isNaturalAnimal = /Canine|Feline|Bat|Bird|Rodent|Snake|Spider|Ant|Centipede|Quadruped|Beetle|Aquatic|Reptile|Worm|Grid Bug|Cockatrice|Owlbear/.test(coreType);
         const isMindless = /Eye|Golem|Jelly|Ooze|Blob|Mold|Mushroom|Vortex|Quylthulg|Coins|Mimic|Fungus/.test(coreType);
 
-        let alignment = 'Evil';
-        if (isPet) alignment = 'Loyal Companion';
-        else if (isTownNpc) alignment = 'Neutral (Town)';
-        else if (isPeacefulNpc) alignment = 'Peaceful / Co-Aligned';
-        else if (g === 'A' || /angel|archon|seraph|cherub|unicorn|gold dragon|silver dragon|bronze dragon/i.test(lower)) alignment = 'Good';
-        else if (isNaturalAnimal || isMindless || /gnome|leprechaun|nymph|rust monster/i.test(lower)) alignment = 'Neutral';
-        else if (isUndead || isDemon || ['o', 'O', 'T', 'P', 'k', 'n', 'd', 'D'].includes(g) || /orc|troll|ogre|goblin|kobold|uruk|thief|bandit|brigand|necromancer|warlock|dark elf|easterling|cultist|mind flayer|wizard of yendor/i.test(lower)) {
-            alignment = 'Evil';
-        } else {
-            alignment = 'Neutral';
+        let alignment = (mbTax && mbTax.alignmentLabel) || 'Evil';
+        if (!mbTax) {
+            if (isPet) alignment = 'Loyal Companion';
+            else if (isTownNpc) alignment = 'Neutral (Town)';
+            else if (isPeacefulNpc) alignment = 'Peaceful / Co-Aligned';
+            else if (g === 'A' || /angel|archon|seraph|cherub|unicorn|gold dragon|silver dragon|bronze dragon/i.test(lower)) alignment = 'Good';
+            else if (isNaturalAnimal || isMindless || /gnome|leprechaun|nymph|rust monster/i.test(lower)) alignment = 'Neutral';
+            else if (isUndead || isDemon || ['o', 'O', 'T', 'P', 'k', 'n', 'd', 'D'].includes(g) || /orc|troll|ogre|goblin|kobold|uruk|thief|bandit|brigand|necromancer|warlock|dark elf|easterling|cultist|mind flayer|wizard of yendor/i.test(lower)) {
+                alignment = 'Evil';
+            } else {
+                alignment = 'Neutral';
+            }
         }
 
         const activeStatuses = [];

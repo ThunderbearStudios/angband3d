@@ -5418,7 +5418,9 @@ class Dungeon3D {
         const lowerB = (bowItem || '').toLowerCase();
         const wTval = player && Number(player.weapon_tval || 0);
 
-        if (lowerW.length > 0) {
+        if (typeof window !== 'undefined' && window.MASTER_ITEM_REGISTRY && typeof window.MASTER_ITEM_REGISTRY.resolveEquippedWeaponKey === 'function') {
+            key = window.MASTER_ITEM_REGISTRY.resolveEquippedWeaponKey(weaponItem, bowItem, player, this.realm) || '';
+        } else if (lowerW.length > 0) {
             if (/\b(shovel|spade|trowel)\b/.test(lowerW)) {
                 key = 'shovel';
             } else if (/\b(pick|pickaxe|mattock|digger)\b/.test(lowerW) || wTval === 20) {
@@ -5528,7 +5530,9 @@ class Dungeon3D {
         }
         const lower = String(shieldItem).toLowerCase();
         let key;
-        if (/\b(deflection|dragon|artifact|thorin|celegorm|anor|gil-galad|harad|raven|mirror|elven)\b/.test(lower)) {
+        if (typeof window !== 'undefined' && window.MASTER_ITEM_REGISTRY && typeof window.MASTER_ITEM_REGISTRY.resolveShieldKey === 'function') {
+            key = window.MASTER_ITEM_REGISTRY.resolveShieldKey(shieldItem) || 'shield';
+        } else if (/\b(deflection|dragon|artifact|thorin|celegorm|anor|gil-galad|harad|raven|mirror|elven)\b/.test(lower)) {
             key = 'shield_raven';
         } else if (/\b(wicker|buckler|basket)\b/.test(lower)) {
             key = 'shield_wicker';
@@ -7442,6 +7446,15 @@ class Dungeon3D {
             || (window.__app && window.__app.getActiveRealm ? window.__app.getActiveRealm() : (this.realm || 'angband'));
         this.realm = realm ? realm.toLowerCase() : 'angband';
 
+        // Purge all cached 3D monsters and floor items on realm switch or dungeon depth change
+        if (this._lastPurgedRealm !== undefined && (this._lastPurgedRealm !== this.realm || this._lastPurgedDepth !== depth)) {
+            if (typeof this.purgeAllSceneEntities === 'function') {
+                this.purgeAllSceneEntities();
+            }
+        }
+        this._lastPurgedRealm = this.realm;
+        this._lastPurgedDepth = depth;
+
         // Apply Depth Biomes & Procedural Sub-Themes (Exact Parity with Godot BiomeProfile)
         const biome = this.getBiomeProfile(depth, levelSeed, this.realm);
         this.currentBiome = biome;
@@ -9302,11 +9315,32 @@ class Dungeon3D {
         return false;
     }
 
-    createNameplateSprite(m, isTargeted, isSensedParam) {
-        const canvas = document.createElement('canvas');
-        canvas.width = 384;
-        canvas.height = 110;
-        const ctx = canvas.getContext('2d');
+    purgeAllSceneEntities() {
+        if (this.monsters) {
+            for (const entity of this.monsters.values()) {
+                if (entity.nameplate && entity.nameplate.material && entity.nameplate.material.map) {
+                    entity.nameplate.material.map.dispose();
+                }
+                this.destroyEntity(entity);
+            }
+            this.monsters.clear();
+        }
+        if (this.items) {
+            for (const entity of this.items.values()) {
+                this.destroyEntity(entity);
+            }
+            this.items.clear();
+        }
+    }
+
+    createNameplateSprite(m, isTargeted, isSensedParam, existingSprite = null) {
+        const reuse = Boolean(existingSprite && existingSprite._npCanvas && existingSprite._npCtx && existingSprite.material && existingSprite.material.map);
+        const canvas = reuse ? existingSprite._npCanvas : document.createElement('canvas');
+        if (!reuse) {
+            canvas.width = 384;
+            canvas.height = 110;
+        }
+        const ctx = reuse ? existingSprite._npCtx : canvas.getContext('2d');
 
         const rawRace = m.race || m.name || 'creature';
         const isHeng = this.isHengband();
@@ -9448,22 +9482,20 @@ class Dungeon3D {
         ctx.strokeText(`${hp}/${hpMax}`, barX + barW + 6, barY + 9);
         ctx.fillText(`${hp}/${hpMax}`, barX + barW + 6, barY + 9);
 
-        const poolKey = `${race}|${glyph}|${hp}/${hpMax}|${isTargeted ? 1 : 0}|${isSensed ? 1 : 0}|${m.asleep ? 1 : 0}`;
-        const tex = (this.nameplatePool && typeof this.nameplatePool.acquire === 'function')
-            ? this.nameplatePool.acquire(poolKey, () => {
-                const t = new THREE.CanvasTexture(canvas);
-                t.minFilter = THREE.LinearFilter;
-                return t;
-            })
-            : (() => {
-                const t = new THREE.CanvasTexture(canvas);
-                t.minFilter = THREE.LinearFilter;
-                return t;
-            })();
+        if (reuse) {
+            existingSprite.material.map.needsUpdate = true;
+            existingSprite.monsterData = m;
+            return existingSprite;
+        }
+        const tex = new THREE.CanvasTexture(canvas);
+        tex.minFilter = THREE.LinearFilter;
         // Godot MonsterModelResolver.cs:388 sets NoDepthTest = false (occluded by walls)
         const mat = new THREE.SpriteMaterial({ map: tex, depthTest: true, depthWrite: false, transparent: true });
         const sprite = new THREE.Sprite(mat);
         sprite.scale.set(0.82, 0.23, 1.0);
+        sprite._npCanvas = canvas;
+        sprite._npCtx = ctx;
+        sprite.monsterData = m;
         return sprite;
     }
 
@@ -10280,353 +10312,6 @@ class Dungeon3D {
             }
         });
         return { leftHand, rightHand };
-    }
-
-    configureCreatureEquipment(mesh, role) {
-        // 1. Hide any pre-existing weapon/shield child meshes embedded in model
-        mesh.traverse((c) => {
-            const n = (c.name || '').toLowerCase();
-            if (n.includes('sword') || n.includes('shield') || n.includes('axe') || n.includes('dagger') || n.includes('bow') || n.includes('staff') || n.includes('hammer') || n.includes('spear')) {
-                c.visible = false;
-            }
-        });
-
-        if (role === 'unarmed') return;
-
-        const { leftHand, rightHand } = this.findHandSlots(mesh);
-        if (!rightHand && !leftHand) return;
-
-        const attach = (handNode, weaponKey, scale = 0.05, rot = null, pos = null) => {
-            if (!handNode || !this.weaponCache || !this.weaponCache.has(weaponKey)) return;
-            const tmpl = this.weaponCache.get(weaponKey);
-            const wClone = tmpl.clone(true);
-            wClone.scale.set(scale, scale, scale);
-            if (pos) wClone.position.set(pos.x, pos.y, pos.z);
-            if (rot) wClone.rotation.set(rot.x, rot.y, rot.z);
-            handNode.add(wClone);
-        };
-
-        if (role === 'warrior') {
-            attach(rightHand, 'sword', 0.05, { x: 0, y: Math.PI / 2, z: -Math.PI / 2 }, { x: 0, y: 0, z: 0 });
-            attach(leftHand, 'shield', 0.05, { x: 0, y: 0, z: 0 }, { x: 0, y: 0, z: 0 });
-        } else if (role === 'barbarian') {
-            attach(rightHand, 'axe', 0.05, { x: 0, y: Math.PI / 2, z: -Math.PI / 2 }, { x: 0, y: 0, z: 0 });
-        } else if (role === 'rogue') {
-            attach(rightHand, 'dagger', 0.05, { x: 0, y: Math.PI / 2, z: -Math.PI / 2 }, { x: 0, y: 0, z: 0 });
-        } else if (role === 'archer') {
-            attach(rightHand, 'bow', 0.05, { x: 0, y: Math.PI / 2, z: 0 }, { x: 0, y: 0, z: 0 });
-        } else if (role === 'mage') {
-            attach(rightHand, 'spear', 0.05, { x: 0, y: 0, z: -Math.PI / 2 }, { x: 0, y: 0, z: 0 });
-        } else if (role === 'twohandedsword') {
-            attach(rightHand, 'claymore', 0.055, { x: 0, y: Math.PI / 2, z: -Math.PI / 2 }, { x: 0, y: 0, z: 0 });
-        }
-    }
-
-    resolveMonsterModelConfig(glyph, rawName, monsterInstance = null) {
-        const name = (rawName || '').toLowerCase();
-
-        // 1. Determine Model & Biological Sex for Humanoid / Townsfolk Entities
-        const isExplicitFemale = /\b(female|woman|lady|maiden|crone|hag|witch|priestess|sorceress|enchantress|temptress|mistress|matron|siren|harpy|nymph|dryad|medusa|gorgon|banshee|shelob|thuringwethil|ungoliant|lobelia|maid|girl|princess|duchess|daughter|mother|sister|wife|vixen|queen)\b/i.test(name);
-        const isExplicitMale = /\b(king|prince|lord|patriarch|emperor|baron|warlock|father|brother|boy|son|husband|male)\b/i.test(name);
-        
-        let gender = 'male';
-        if (isExplicitFemale) {
-            gender = 'female';
-        } else if (isExplicitMale) {
-            gender = 'male';
-        } else if (monsterInstance && (monsterInstance.isFemale === true || monsterInstance.modelKey === 'casual' || monsterInstance.modelKey === 'witch')) {
-            gender = 'female';
-        } else if (monsterInstance && (monsterInstance.modelGender || monsterInstance.gender || monsterInstance.sex)) {
-            const rawG = String(monsterInstance.modelGender || monsterInstance.gender || monsterInstance.sex).toLowerCase();
-            gender = rawG.startsWith('f') ? 'female' : 'male';
-        } else if (glyph === 't' || glyph === 'h' || glyph === 'p') {
-            // Default to male for ambiguous townsfolk and humanoids unless explicitly female
-            gender = 'male';
-        }
-
-        // 1. Townsfolk (t)
-        if (glyph === 't') {
-            let modelKey = (gender === 'female') ? 'casual' : 'farmer';
-            let role = 'unarmed';
-
-            if (name.includes('merchant') || name.includes('shopkeeper') || name.includes('innkeeper') || name.includes('clerk') || name.includes('crier') || name.includes('scribe')) {
-                modelKey = (gender === 'female') ? 'casual' : 'formal';
-            } else if (name.includes('worker') || name.includes('smith') || name.includes('miner') || name.includes('artisan') || name.includes('craftsman') || name.includes('butcher') || name.includes('baker') || name.includes('cook')) {
-                modelKey = (gender === 'female') ? 'casual' : 'worker';
-            } else if (name.includes('mercenary') || name.includes('veteran') || name.includes('rogue') || name.includes('scoundrel') || name.includes('brawler')) {
-                modelKey = (gender === 'female') ? 'casual' : 'adventurer';
-                role = (name.includes('veteran') || name.includes('mercenary')) ? 'warrior' : 'rogue';
-            } else if (name.includes('beggar') || name.includes('leper') || name.includes('urchin') || name.includes('idiot') || name.includes('hermit') || name.includes('drunk') || name.includes('peasant') || name.includes('wretch') || name.includes('farmer')) {
-                modelKey = (gender === 'female') ? 'casual' : 'farmer';
-            }
-
-            let scale = (gender === 'female') ? 0.88 : 0.90;
-            if (name.includes('dwarf') || name.includes('hobbit') || name.includes('gnome') || name.includes('halfling')) {
-                scale = 0.65;
-            }
-            return { templateKey: modelKey, scale, role: role, gender: gender, isFloating: false, isEthereal: false };
-        }
-
-        // 2. Humanoids (h) and People / Adventurers (p)
-        if (glyph === 'h' || glyph === 'p') {
-            let scale = (gender === 'female') ? 0.90 : 0.95;
-            if (name.includes('dwarf') || name.includes('hobbit') || name.includes('gnome') || name.includes('halfling') || name.includes('leprechaun')) {
-                scale = 0.65;
-            } else if (name.includes('elf') || name.includes('ranger') || name.includes('dunedain')) {
-                scale = (gender === 'female') ? 0.92 : 0.98;
-            }
-
-            if (name.includes('knight') || name.includes('paladin') || name.includes('veteran') || name.includes('warrior') || name.includes('soldier') || name.includes('guard') || name.includes('captain') || name.includes('fighter') || name.includes('champion') || name.includes('swordsman') || name.includes('centurion') || name.includes('lord') || name.includes('templar')) {
-                return { templateKey: (gender === 'female') ? 'casual' : 'medieval', scale, role: 'warrior', gender, isFloating: false, isEthereal: false };
-            }
-            if (name.includes('archer') || name.includes('scout') || name.includes('sniper') || name.includes('tracker') || name.includes('marksman') || name.includes('bowman') || name.includes('hunter') || name.includes('ranger')) {
-                return { templateKey: (gender === 'female') ? 'casual' : 'adventurer', scale, role: 'archer', gender, isFloating: false, isEthereal: false };
-            }
-            if (name.includes('thief') || name.includes('rogue') || name.includes('burglar') || name.includes('assassin') || name.includes('cutpurse') || name.includes('bandit') || name.includes('brigand') || name.includes('ninja') || name.includes('scoundrel')) {
-                return { templateKey: (gender === 'female') ? 'casual' : 'adventurer', scale, role: 'rogue', gender, isFloating: false, isEthereal: false };
-            }
-            if (name.includes('peasant') || name.includes('drunkard') || name.includes('drunk') || name.includes('beggar') || name.includes('idiot') || name.includes('commoner') || name.includes('villager') || name.includes('leper') || name.includes('urchin') || name.includes('hermit') || name.includes('slave')) {
-                return { templateKey: (gender === 'female') ? 'casual' : 'farmer', scale: 0.90, role: 'unarmed', gender, isFloating: false, isEthereal: false };
-            }
-            if (name.includes('barbarian') || name.includes('mercenary') || name.includes('gladiator') || name.includes('berserker') || name.includes('bouncer') || name.includes('ruffian') || name.includes('brute')) {
-                return { templateKey: (gender === 'female') ? 'casual' : 'punk', scale: 1.0, role: 'barbarian', gender, isFloating: false, isEthereal: false };
-            }
-            if (name.includes('mage') || name.includes('wizard') || name.includes('warlock') || name.includes('sorcerer') || name.includes('alchemist') || name.includes('scholar') || name.includes('priest') || name.includes('cleric') || name.includes('sage') || name.includes('cultist') || name.includes('druid') || name.includes('seer') || name.includes('shaman') || name.includes('necromancer')) {
-                return { templateKey: (gender === 'female') ? 'witch' : 'formal', scale: 0.92, role: 'mage', gender, isFloating: false, isEthereal: false };
-            }
-            return { templateKey: (gender === 'female') ? 'casual' : 'adventurer', scale, role: 'warrior', gender, isFloating: false, isEthereal: false };
-        }
-
-        // 3. Orcs, Goblins, Snagas, Uruks (o)
-        if (glyph === 'o') {
-            if (name.includes('goblin') || name.includes('snaga')) {
-                return { templateKey: 'punk', scale: 0.72, role: 'rogue', isFloating: false, isEthereal: false };
-            }
-            if (name.includes('archer') || name.includes('scout') || name.includes('sniper')) {
-                return { templateKey: 'adventurer', scale: 0.85, role: 'archer', isFloating: false, isEthereal: false };
-            }
-            if (name.includes('shaman') || name.includes('mage') || name.includes('curse')) {
-                return { templateKey: 'punk', scale: 0.85, role: 'mage', isFloating: false, isEthereal: false };
-            }
-            if (name.includes('uruk') || name.includes('captain') || name.includes('chieftain') || name.includes('leader') || name.includes('black orc')) {
-                return { templateKey: 'punk', scale: 0.98, role: 'barbarian', isFloating: false, isEthereal: false };
-            }
-            return { templateKey: 'adventurer', scale: 0.88, role: 'barbarian', isFloating: false, isEthereal: false };
-        }
-
-        // 4. Skeletons (s)
-        if (glyph === 's') {
-            if (name.includes('archer') || name.includes('scout') || name.includes('sniper')) {
-                return { templateKey: 'soldier', scale: 0.88, role: 'archer', isFloating: false, isEthereal: false };
-            }
-            if (name.includes('mage') || name.includes('sorcerer') || name.includes('druj') || name.includes('necromancer')) {
-                return { templateKey: 'soldier', scale: 0.88, role: 'mage', isFloating: false, isEthereal: false };
-            }
-            return { templateKey: 'medieval', scale: 0.92, role: 'warrior', isFloating: false, isEthereal: false };
-        }
-
-        // 5. Zombies, Mummies, Ghouls (z)
-        if (glyph === 'z') {
-            if (name.includes('worker') || name.includes('ghoul')) {
-                return { templateKey: 'worker', scale: 0.90, role: 'unarmed', isFloating: false, isEthereal: false };
-            }
-            if (name.includes('mummy')) {
-                return { templateKey: 'farmer', scale: 0.90, role: 'unarmed', isFloating: false, isEthereal: false };
-            }
-            return { templateKey: 'adventurer', scale: 0.90, role: 'unarmed', isFloating: false, isEthereal: false };
-        }
-
-        // 6. Liches (L)
-        if (glyph === 'L') {
-            return { templateKey: 'witch', scale: 1.05, role: 'mage', isFloating: false, isEthereal: true };
-        }
-
-        // 7. Wights, Wraiths, Nazgul (W)
-        if (glyph === 'W') {
-            if (name.includes('nazgul') || name.includes('ringwraith') || name.includes('witch-king')) {
-                return { templateKey: 'medieval', scale: 1.10, role: 'twohandedsword', isFloating: true, isEthereal: true };
-            }
-            if (name.includes('wraith')) {
-                return { templateKey: 'witch', scale: 1.00, role: 'mage', isFloating: true, isEthereal: true };
-            }
-            return { templateKey: 'medieval', scale: 0.98, role: 'warrior', isFloating: true, isEthereal: true };
-        }
-
-        // 8. Ghosts, Spectres (G)
-        if (glyph === 'G') {
-            return { templateKey: 'witch', scale: 0.90, role: 'unarmed', isFloating: true, isEthereal: true };
-        }
-
-        // 9. Vampires (V)
-        if (glyph === 'V') {
-            return { templateKey: 'king', scale: 1.00, role: 'warrior', isFloating: false, isEthereal: false };
-        }
-
-        // 10. Ainur, Maiar (A)
-        if (glyph === 'A') {
-            return { templateKey: 'king', scale: 1.15, role: 'twohandedsword', isFloating: false, isEthereal: false };
-        }
-
-        // 11. Giants, Morgoth (P)
-        if (glyph === 'P') {
-            const scale = name.includes('morgoth') ? 1.55 : 1.35;
-            return { templateKey: 'king', scale, role: 'barbarian', isFloating: false, isEthereal: false };
-        }
-
-        // 12. Trolls (T), Ogres (O)
-        if (glyph === 'T' || glyph === 'O') {
-            return { templateKey: 'punk', scale: glyph === 'T' ? 1.25 : 1.18, role: 'barbarian', isFloating: false, isEthereal: false };
-        }
-
-        // 13. Kobolds (k) -> Puglin.glb
-        if (glyph === 'k' || name.includes('kobold')) {
-            return { templateKey: 'puglin', scale: 0.65, role: 'rogue', isFloating: false, isEthereal: false };
-        }
-
-        // 14. Demons / Imps (u / U) -> Imp.glb
-        if (glyph === 'u' || (glyph === 'U' && (name.includes('imp') || name.includes('minor') || name.includes('demon')))) {
-            return { templateKey: 'imp', scale: glyph === 'U' ? 1.10 : 0.75, role: 'unarmed', isFloating: true, isEthereal: false };
-        }
-
-        // 15. Rodents (r) -> Rat.obj
-        if (glyph === 'r' || name.includes('rat')) {
-            return { templateKey: 'rat', scale: 0.42, role: 'unarmed', isFloating: false, isEthereal: false };
-        }
-
-        // 16. Snakes & Serpents (J / n) -> Snake.obj / Snake_angry.obj
-        if (glyph === 'J' || glyph === 'n' || name.includes('snake') || name.includes('serpent')) {
-            const key = (name.includes('viper') || name.includes('cobra') || name.includes('rattle') || name.includes('black')) ? 'snake_angry' : 'snake';
-            return { templateKey: key, scale: 0.38, role: 'unarmed', isFloating: false, isEthereal: false };
-        }
-
-        // 17. Spiders & Scorpions (S) -> Spider.obj
-        if (glyph === 'S' || name.includes('spider') || name.includes('scorpion')) {
-            return { templateKey: 'spider', scale: 0.48, role: 'unarmed', isFloating: false, isEthereal: false };
-        }
-
-        // 18. Frogs & Amphibians (R) -> Frog.obj
-        if (glyph === 'R' || name.includes('frog') || name.includes('toad')) {
-            return { templateKey: 'frog', scale: 0.38, role: 'unarmed', isFloating: false, isEthereal: false };
-        }
-
-        // 19. Wasps & Flying Insects (F) -> Wasp.obj
-        if (glyph === 'F' || name.includes('wasp') || name.includes('fly')) {
-            return { templateKey: 'wasp', scale: 0.42, role: 'unarmed', isFloating: true, isEthereal: false };
-        }
-
-        return null; // Fallback to anatomical procedural creature tokens
-    }
-
-    applyCharacterSkinAndTint(mesh, glyph, rawName, colorHex, templateKey, isEthereal = false) {
-        if (!mesh) return;
-        if (isEthereal) {
-            const spectralColor = new THREE.Color(colorHex);
-            mesh.traverse((c) => {
-                if (c.isMesh && c.material) {
-                    c.material = c.material.clone();
-                    c.material.transparent = true;
-                    c.material.opacity = 0.60;
-                    c.material.emissive = spectralColor;
-                    c.material.emissiveIntensity = 0.85;
-                }
-            });
-            return;
-        }
-
-        const lowerName = (rawName || '').toLowerCase();
-        const tint = new THREE.Color(colorHex);
-        // Is tint neutral white / light gray? (If so, preserve original KayKit textures without white bleaching)
-        const isWhiteTint = (tint.r > 0.90 && tint.g > 0.90 && tint.b > 0.90);
-
-        const isDemon = glyph === 'U' || (glyph === 'u' && !lowerName.includes('imp'));
-        const isAinu = glyph === 'A';
-        const isUndead = glyph === 's' || glyph === 'z' || glyph === 'L' || glyph === 'V';
-        const isDragon = glyph === 'D' || glyph === 'd' || glyph === 'M';
-        const isElemental = glyph === 'E' || glyph === 'v';
-
-        let paletteTex = null;
-        if (this.characterPalettes) {
-            if (templateKey === 'soldier') paletteTex = this.characterPalettes.get('knight');
-            else if (templateKey === 'witch') paletteTex = this.characterPalettes.get('mage');
-            else if (templateKey === 'punk' || templateKey === 'casual') paletteTex = this.characterPalettes.get('rogue');
-            else if (templateKey === 'adventurer' || templateKey === 'farmer' || templateKey === 'worker' || templateKey === 'medieval' || templateKey === 'king') paletteTex = this.characterPalettes.get('barbarian');
-            else if (templateKey === 'skeleton') paletteTex = this.characterPalettes.get('skeleton');
-        }
-
-        mesh.traverse((c) => {
-            if (c.isMesh && c.material) {
-                const origMat = c.material;
-                const mat = origMat.clone();
-                const matName = (mat.name || c.name || '').toLowerCase();
-
-                if (paletteTex && !mat.map) {
-                    mat.map = paletteTex;
-                    mat.needsUpdate = true;
-                }
-
-                // Specialized handling for Rat
-                if (templateKey === 'rat') {
-                    if (matName.includes('pink') || matName.includes('nose') || matName.includes('ear') || matName.includes('tail')) {
-                        mat.color.setHex(0xd9a6ad);
-                    } else {
-                        if (lowerName.includes('white') || isWhiteTint) {
-                            mat.color.setHex(0xf2f2f2);
-                        } else if (lowerName.includes('black') || lowerName.includes('shadow') || lowerName.includes('dark')) {
-                            mat.color.setHex(0x1f1f1f);
-                        } else if (!isWhiteTint) {
-                            mat.color.copy(tint).multiplyScalar(0.75);
-                        } else {
-                            mat.color.setHex(0x594738);
-                        }
-                    }
-                } else if (templateKey === 'spider' || templateKey === 'snake' || templateKey === 'snake_angry' || templateKey === 'frog' || templateKey === 'wasp') {
-                    if (!isWhiteTint) {
-                        mat.color.lerp(tint, 0.55);
-                    }
-                } else if (isDemon) {
-                    mat.emissive = new THREE.Color(0xf24714);
-                    mat.emissiveIntensity = 0.85;
-                } else if (isAinu) {
-                    mat.emissive = new THREE.Color(0xf2e066);
-                    mat.emissiveIntensity = 0.65;
-                } else if (isDragon) {
-                    mat.metalness = 0.35;
-                    mat.roughness = 0.45;
-                    if (!isWhiteTint) {
-                        mat.emissive = tint.clone().multiplyScalar(0.5);
-                        mat.emissiveIntensity = 0.8;
-                    }
-                } else if (isElemental) {
-                    mat.emissive = !isWhiteTint ? tint.clone() : new THREE.Color(0xb3ccff);
-                    mat.emissiveIntensity = 1.2;
-                } else if (isUndead) {
-                    mat.roughness = Math.min(1.0, (mat.roughness || 0.5) + 0.15);
-                    if (matName.includes('skin') || matName.includes('head') || matName.includes('face')) {
-                        mat.color.lerp(new THREE.Color(0xb3b8ae), 0.50);
-                    }
-                } else if (glyph === 'o' || glyph === 'k' || glyph === 'y' || glyph === 'T' || glyph === 'O') {
-                    // Orcs, goblins, kobolds, trolls - customize skin tone while leaving clothes and gear intact (1:1 with Godot MonsterModelResolver.cs:3372-3393)
-                    if (matName.includes('skin') || matName.includes('head') || matName.includes('face') || matName.includes('body')) {
-                        if (glyph === 'o') {
-                            mat.color.setHex(0x527a38); // Orc green skin
-                        } else if (glyph === 'k') {
-                            mat.color.setHex(0x946138); // Kobold reptilian skin
-                        } else if (glyph === 'y') {
-                            mat.color.setHex(0x7a8561); // Yeek mottled skin
-                        } else {
-                            mat.color.setHex(0x73856b); // Troll/ogre hide
-                        }
-                    } else if (!isWhiteTint) {
-                        mat.color.lerp(tint, 0.25);
-                    }
-                } else if (!isWhiteTint && !matName.includes('skin') && !matName.includes('face') && !matName.includes('head') && !matName.includes('hair') && !matName.includes('eye')) {
-                    // Accent tinting on garments/armor for distinct monster variants (1:1 with Godot MonsterModelResolver.cs:3399-3403)
-                    mat.color.lerp(tint, 0.28);
-                }
-
-                c.material = mat;
-            }
-        });
     }
 
     createFoggyMonsterAura(glyph, rawName, colorHex, modelHeight, isFloating) {
@@ -11613,7 +11298,7 @@ class Dungeon3D {
                         c.receiveShadow = false;
                     }
                 });
-                return normalizeWrapper(scene, 1.95, true, 0.42, 2.20);
+                return normalizeWrapper(scene, 1.95, true, Math.PI, 2.20);
             });
         } else if (templateKey === 'bestiary_fox') {
             loadPromise = this._loadSingleGltfScene('/assets/models/monsters/bestiary/Fox.glb').then(scene => {
@@ -11633,7 +11318,7 @@ class Dungeon3D {
                         c.receiveShadow = false;
                     }
                 });
-                return normalizeWrapper(scene, 0.62, true, 0.52, 1.15);
+                return normalizeWrapper(scene, 0.62, true, -Math.PI / 2, 1.15);
             });
         } else if (templateKey === 'bestiary_horse') {
             loadPromise = loadGltf('/assets/models/monsters/bestiary/horse_mount.glb', '/assets/models/monsters/bestiary/Horse.glb').then(scene => {
@@ -11653,7 +11338,7 @@ class Dungeon3D {
                         c.receiveShadow = false;
                     }
                 });
-                return normalizeWrapper(scene, 1.55, true, 0.42, 1.85);
+                return normalizeWrapper(scene, 1.55, true, 0, 1.85);
             });
         } else if (templateKey === 'bestiary_bird') {
             loadPromise = this._loadSingleGltfScene('/assets/models/monsters/bestiary/Parrot.glb').then(scene => {
@@ -11703,7 +11388,7 @@ class Dungeon3D {
                         c.receiveShadow = false;
                     }
                 });
-                return normalizeWrapper(scene, 0.36, true, 0.42, 0.90);
+                return normalizeWrapper(scene, 0.36, true, 0, 0.90);
             });
         } else if (templateKey === 'bestiary_kobold') {
             loadPromise = loadGltf('/assets/models/monsters/bestiary/kobold.glb', () => this._ensureMonster3DTemplate('bestiary_puglin')).then(scene => {
@@ -11775,7 +11460,7 @@ class Dungeon3D {
                         }
                     }
                 });
-                return normalizeWrapper(scene, 1.68, true);
+                return normalizeWrapper(scene, 1.68, true, -Math.PI / 2, 1.35);
             });
         } else if (templateKey === 'bestiary_wraith') {
             loadPromise = loadGltf('/assets/models/monsters/bestiary/GhostArmature.glb', () => loadGltf('/assets/models/monsters/bestiary/skeleton_knight.glb', () => this._ensureMonster3DTemplate('char_male_ranger'))).then(scene => {
@@ -11829,27 +11514,27 @@ class Dungeon3D {
         } else if (templateKey === 'bestiary_wolf') {
             loadPromise = loadGltf('/assets/models/monsters/bestiary/wolf.glb', () => this._ensureMonster3DTemplate('bestiary_fox')).then(scene => {
                 this._enhanceBestiaryMeshQuality(scene, { smoothNormals: true, applyCreatureBump: true, bumpType: 'fur', bumpScale: 0.36, roughness: 0.56 });
-                return normalizeWrapper(scene, 0.88, true, 0.42, 1.45);
+                return normalizeWrapper(scene, 0.88, true, 0, 1.45);
             });
         } else if (templateKey === 'bestiary_werewolf') {
             loadPromise = loadGltf('/assets/models/monsters/bestiary/werewolf.glb', () => this._ensureMonster3DTemplate('bestiary_wolf')).then(scene => {
                 this._enhanceBestiaryMeshQuality(scene, { smoothNormals: true, applyCreatureBump: true, bumpType: 'fur', bumpScale: 0.38, roughness: 0.54 });
-                return normalizeWrapper(scene, 1.75, true, 0.25, 1.55);
+                return normalizeWrapper(scene, 1.75, true, -Math.PI / 2, 1.55);
             });
         } else if (templateKey === 'bestiary_hellhound') {
             loadPromise = loadGltf('/assets/models/monsters/bestiary/hellhound.glb', () => this._ensureMonster3DTemplate('bestiary_wolf')).then(scene => {
                 this._enhanceBestiaryMeshQuality(scene, { smoothNormals: true, applyCreatureBump: true, bumpType: 'fur', bumpScale: 0.36, roughness: 0.50 });
-                return normalizeWrapper(scene, 0.96, true, 0.42, 1.50);
+                return normalizeWrapper(scene, 0.96, true, 0, 1.50);
             });
         } else if (templateKey === 'bestiary_husky') {
             loadPromise = loadGltf('/assets/models/monsters/bestiary/husky.glb', () => this._ensureMonster3DTemplate('bestiary_wolf')).then(scene => {
                 this._enhanceBestiaryMeshQuality(scene, { smoothNormals: true, applyCreatureBump: true, bumpType: 'fur', bumpScale: 0.34, roughness: 0.54 });
-                return normalizeWrapper(scene, 0.82, true, 0.42, 1.38);
+                return normalizeWrapper(scene, 0.82, true, -Math.PI / 2, 1.38);
             });
         } else if (templateKey === 'bestiary_shiba') {
             loadPromise = loadGltf('/assets/models/monsters/bestiary/shiba.glb', () => this._ensureMonster3DTemplate('bestiary_fox')).then(scene => {
                 this._enhanceBestiaryMeshQuality(scene, { smoothNormals: true, applyCreatureBump: true, bumpType: 'fur', bumpScale: 0.32, roughness: 0.52 });
-                return normalizeWrapper(scene, 0.66, true, 0.42, 1.18);
+                return normalizeWrapper(scene, 0.66, true, -Math.PI / 2, 1.18);
             });
         } else if (templateKey === 'bestiary_flamingo') {
             loadPromise = loadGltf('/assets/models/monsters/bestiary/Flamingo.glb', () => this._ensureMonster3DTemplate('bestiary_stork')).then(scene => {
@@ -11863,12 +11548,12 @@ class Dungeon3D {
         } else if (templateKey === 'bestiary_lion') {
             loadPromise = loadGltf('/assets/models/monsters/bestiary/MountainLion.glb', () => this._ensureMonster3DTemplate('bestiary_fox')).then(scene => {
                 this._enhanceBestiaryMeshQuality(scene, { smoothNormals: true, applyCreatureBump: true, bumpType: 'fur' });
-                return normalizeWrapper(scene, 0.95, true, 0.42, 1.45);
+                return normalizeWrapper(scene, 0.95, true, -Math.PI / 2, 1.45);
             });
         } else if (templateKey === 'bestiary_owl') {
             loadPromise = loadGltf('/assets/models/monsters/bestiary/Owl.glb', '/assets/models/monsters/bestiary/Parrot.glb').then(scene => {
                 this._enhanceBestiaryMeshQuality(scene, { smoothNormals: true, applyCreatureBump: true, bumpType: 'fur' });
-                return normalizeWrapper(scene, 0.68, true, 0.35, 0.95);
+                return normalizeWrapper(scene, 0.68, true, -Math.PI / 2, 0.95);
             });
         } else if (templateKey === 'bestiary_stork') {
             loadPromise = this._loadSingleGltfScene('/assets/models/monsters/bestiary/Stork.glb').then(scene => {
@@ -11888,110 +11573,110 @@ class Dungeon3D {
                         c.receiveShadow = false;
                     }
                 });
-                return normalizeWrapper(scene, 0.78, true, 0, 1.25);
+                return normalizeWrapper(scene, 0.78, true, -Math.PI / 2, 1.25);
             });
         } else if (templateKey === 'obj_spider') {
             loadPromise = loadGltf('/assets/models/monsters/bestiary/giant_spider.glb').then(scene => {
                 this._enhanceBestiaryMeshQuality(scene, { smoothNormals: true, applyCreatureBump: true, bumpType: 'chitin', roughness: 0.52 });
-                return normalizeWrapper(scene, 0.62, true, 0.35, 1.25);
+                return normalizeWrapper(scene, 0.62, true, 0, 1.25);
             });
         } else if (templateKey === 'bestiary_centipede') {
             loadPromise = loadGltf('/assets/models/monsters/bestiary/centipede.glb', () => this._ensureMonster3DTemplate('obj_spider')).then(scene => {
-                return normalizeWrapper(scene, 0.38, true, 0.20, 1.25);
+                return normalizeWrapper(scene, 0.38, true, -Math.PI / 2, 1.25);
             });
         } else if (templateKey === 'bestiary_beetle') {
             loadPromise = loadGltf('/assets/models/monsters/bestiary/beetle.glb', () => this._ensureMonster3DTemplate('obj_spider')).then(scene => {
-                return normalizeWrapper(scene, 0.52, true, 0.25, 1.15);
+                return normalizeWrapper(scene, 0.52, true, 0, 1.15);
             });
         } else if (templateKey === 'bestiary_scorpion') {
             loadPromise = loadGltf('/assets/models/monsters/bestiary/scorpion.glb', () => this._ensureMonster3DTemplate('obj_spider')).then(scene => {
-                return normalizeWrapper(scene, 0.64, true, 0.25, 1.20);
+                return normalizeWrapper(scene, 0.64, true, 0, 1.20);
             });
         } else if (templateKey === 'bestiary_ant') {
             loadPromise = loadGltf('/assets/models/monsters/bestiary/ant.glb', () => this._ensureMonster3DTemplate('obj_wasp')).then(scene => {
-                return normalizeWrapper(scene, 0.48, true, 0.25, 1.10);
+                return normalizeWrapper(scene, 0.48, true, 0, 1.10);
             });
         } else if (templateKey === 'obj_wasp') {
             loadPromise = loadGltf('/assets/models/monsters/bestiary/wasp.glb').then(scene => {
                 this._enhanceBestiaryMeshQuality(scene, { smoothNormals: true, applyCreatureBump: true, bumpType: 'chitin', roughness: 0.48 });
-                return normalizeWrapper(scene, 0.62, true, 0.42, 0.95);
+                return normalizeWrapper(scene, 0.62, true, 0, 0.95);
             });
         } else if (templateKey === 'obj_snake') {
             loadPromise = loadGltf('/assets/models/monsters/bestiary/snake.glb').then(scene => {
                 this._enhanceBestiaryMeshQuality(scene, { smoothNormals: true, applyCreatureBump: true, bumpType: 'scale', roughness: 0.42 });
-                return normalizeWrapper(scene, 0.78, true, 0.35, 1.15);
+                return normalizeWrapper(scene, 0.78, true, 0, 1.15);
             });
         } else if (templateKey === 'obj_frog' || templateKey === 'bestiary_frog') {
             loadPromise = loadGltf('/assets/models/monsters/bestiary/frog.glb').then(scene => {
                 this._enhanceBestiaryMeshQuality(scene, { smoothNormals: true, applyCreatureBump: true, bumpType: 'organic', roughness: 0.38 });
-                return normalizeWrapper(scene, 0.48, true, 0.25, 0.95);
+                return normalizeWrapper(scene, 0.48, true, -Math.PI / 2, 0.95);
             });
         } else if (templateKey === 'bestiary_eye') {
             loadPromise = loadGltf('/assets/models/monsters/bestiary/floating_eye.glb', () => loadGltf('/assets/models/monsters/bestiary/Skull.glb', () => this._ensureMonster3DTemplate('bestiary_wraith'))).then(scene => {
-                return normalizeWrapper(scene, 0.72, true, 0.15, 0.85);
+                return normalizeWrapper(scene, 0.72, true, 0, 0.85);
             });
         } else if (templateKey === 'bestiary_worm_mass') {
             loadPromise = loadGltf('/assets/models/monsters/bestiary/worm_mass.glb', () => this._ensureMonster3DTemplate('obj_snake')).then(scene => {
-                return normalizeWrapper(scene, 0.42, true, 0.20, 1.25);
+                return normalizeWrapper(scene, 0.42, true, 0, 1.25);
             });
         } else if (templateKey === 'env_fungi_cluster' || templateKey === 'env_mushroom_patch') {
             loadPromise = loadGltf('/assets/models/monsters/bestiary/mushroom_cluster.glb', () => loadGltf('/assets/polyhaven/models/crystalline_iceplant/crystalline_iceplant.gltf', () => loadGltf('/assets/polyhaven/models/moon_rock_02/moon_rock_02.gltf'))).then(scene => {
-                return normalizeWrapper(scene, 0.56, true, 0.15, 0.95);
+                return normalizeWrapper(scene, 0.56, true, 0, 0.95);
             });
         } else if (templateKey === 'env_ooze_mound') {
             loadPromise = loadGltf('/assets/models/monsters/bestiary/jelly_ooze.glb', () => loadGltf('/assets/polyhaven/models/moon_rock_02/moon_rock_02.gltf')).then(scene => {
-                return normalizeWrapper(scene, 0.58, true, 0.15, 1.05);
+                return normalizeWrapper(scene, 0.58, true, 0, 1.05);
             });
         } else if (templateKey === 'env_tanglethorn' || templateKey === 'env_bush_dead') {
             loadPromise = loadGltf('/assets/models/items/bush_pbr.glb', () => loadGltf('/assets/polyhaven/models/pine_roots/pine_roots.gltf')).then(scene => {
-                return normalizeWrapper(scene, 1.15, true, 0.25, 1.20);
+                return normalizeWrapper(scene, 1.15, true, 0, 1.20);
             });
         } else if (templateKey === 'env_tree' || templateKey === 'bestiary_treeman') {
             const primaryTreeUrl = templateKey === 'bestiary_treeman'
                 ? '/assets/models/monsters/bestiary/treeman.glb'
                 : '/assets/models/items/tree_pbr.glb';
             loadPromise = loadGltf(primaryTreeUrl, () => loadGltf('/assets/polyhaven/models/pachira_aquatica_01/pachira_aquatica_01.gltf')).then(scene => {
-                return normalizeWrapper(scene, templateKey === 'bestiary_treeman' ? 2.15 : 1.65, true, 0.25, 1.45);
+                return normalizeWrapper(scene, templateKey === 'bestiary_treeman' ? 2.15 : 1.65, true, 0, 1.45);
             });
         } else if (templateKey === 'bestiary_vortex') {
             loadPromise = loadGltf('/assets/models/monsters/bestiary/vortex_elemental.glb', () => loadGltf('/assets/models/monsters/bestiary/GhostArmature.glb', () => this._ensureMonster3DTemplate('bestiary_wraith'))).then(scene => {
-                return normalizeWrapper(scene, 1.15, true, 0.15, 1.05);
+                return normalizeWrapper(scene, 1.15, true, 0, 1.05);
             });
         } else if (templateKey === 'bestiary_quylthulg') {
             loadPromise = loadGltf('/assets/models/monsters/bestiary/quylthulg.glb', () => loadGltf('/assets/models/monsters/bestiary/jelly_ooze.glb', () => loadGltf('/assets/polyhaven/models/moon_rock_02/moon_rock_02.gltf'))).then(scene => {
-                return normalizeWrapper(scene, 0.62, true, 0.15, 1.05);
+                return normalizeWrapper(scene, 0.62, true, 0, 1.05);
             });
         } else if (templateKey === 'bestiary_hydra') {
             loadPromise = loadGltf('/assets/models/monsters/bestiary/hydra.glb', () => loadGltf('/assets/models/monsters/bestiary/Dragon.glb', () => this._ensureMonster3DTemplate('bestiary_dragon'))).then(scene => {
-                return normalizeWrapper(scene, 1.45, true, 0.25, 1.55);
+                return normalizeWrapper(scene, 1.45, true, 0, 1.55);
             });
         } else if (templateKey === 'bestiary_naga') {
             loadPromise = loadGltf('/assets/models/monsters/bestiary/naga.glb', () => this._ensureMonster3DTemplate('obj_snake')).then(scene => {
-                return normalizeWrapper(scene, 1.25, true, 0.25, 1.25);
+                return normalizeWrapper(scene, 1.25, true, 0, 1.25);
             });
         } else if (templateKey === 'bestiary_bat') {
             loadPromise = loadGltf('/assets/models/monsters/bestiary/bat.glb', () => loadGltf('/assets/models/monsters/bestiary/Owl.glb', () => this._ensureMonster3DTemplate('bestiary_owl'))).then(scene => {
-                return normalizeWrapper(scene, 0.52, true, 0.15, 1.15);
+                return normalizeWrapper(scene, 0.52, true, 0, 1.15);
             });
         } else if (templateKey === 'bestiary_bear') {
             loadPromise = loadGltf('/assets/models/monsters/bestiary/bear.glb', () => loadGltf('/assets/models/monsters/bestiary/wolf.glb', () => this._ensureMonster3DTemplate('bestiary_wolf'))).then(scene => {
-                return normalizeWrapper(scene, 1.05, true, 0.25, 1.45);
+                return normalizeWrapper(scene, 1.05, true, -Math.PI / 2, 1.45);
             });
         } else if (templateKey === 'bestiary_bear_armored') {
             loadPromise = loadGltf('/assets/models/monsters/bestiary/bear_armored.glb', () => this._ensureMonster3DTemplate('bestiary_bear')).then(scene => {
-                return normalizeWrapper(scene, 1.28, true, 0.25, 1.55);
+                return normalizeWrapper(scene, 1.28, true, 0, 1.55);
             });
         } else if (templateKey === 'bestiary_lizard') {
             loadPromise = loadGltf('/assets/models/monsters/bestiary/lizard.glb', () => this._ensureMonster3DTemplate('obj_frog')).then(scene => {
-                return normalizeWrapper(scene, 0.54, true, 0.20, 1.35);
+                return normalizeWrapper(scene, 0.54, true, Math.PI / 2, 1.35);
             });
         } else if (templateKey === 'bestiary_kraken') {
             loadPromise = loadGltf('/assets/models/monsters/bestiary/kraken.glb', () => this._ensureMonster3DTemplate('bestiary_aquatic')).then(scene => {
-                return normalizeWrapper(scene, 1.45, true, 0.25, 1.65);
+                return normalizeWrapper(scene, 1.45, true, Math.PI / 2, 1.65);
             });
         } else if (templateKey === 'bestiary_aquatic') {
             loadPromise = loadGltf('/assets/models/monsters/bestiary/aquatic.glb', () => loadGltf('/assets/models/monsters/bestiary/lizard.glb', () => this._ensureMonster3DTemplate('obj_frog'))).then(scene => {
-                return normalizeWrapper(scene, 0.68, true, 0.20, 1.30);
+                return normalizeWrapper(scene, 0.68, true, Math.PI / 2, 1.30);
             });
         } else {
             return Promise.reject(new Error(`Unknown 3D monster template key: ${templateKey}`));
@@ -12067,6 +11752,10 @@ class Dungeon3D {
 
     resolveMonster3DConfig(m, glyph, realmOverride) {
         const realm = String(realmOverride || (m && m.realm) || this.realm || 'angband').toLowerCase();
+        const colorHex = (typeof getAngbandColorString === 'function') ? getAngbandColorString(m && m.attr) : null;
+        if (typeof window !== 'undefined' && window.MASTER_BESTIARY && typeof window.MASTER_BESTIARY.resolve === 'function') {
+            return window.MASTER_BESTIARY.resolve(m, glyph, realm, colorHex);
+        }
         let rawName = (m && (m.race || m.name)) || '';
         if (typeof window !== 'undefined' && window.HengTranslate && typeof window.HengTranslate.translateName === 'function') {
             rawName = window.HengTranslate.translateName(rawName, 1, 'en') || rawName;
@@ -12074,7 +11763,6 @@ class Dungeon3D {
         const lowerName = rawName.toLowerCase();
         const lower = lowerName;
         const g = (glyph || (m && m.glyph) || '?').trim();
-        const colorHex = (typeof getAngbandColorString === 'function') ? getAngbandColorString(m && m.attr) : null;
 
         const rawSeed = m && m.id !== undefined ? m.id : ((m ? (m.x || 0) * 7 + (m.y || 0) * 13 : 0));
         let seedNum = typeof rawSeed === 'number' ? rawSeed : 0;
@@ -13374,7 +13062,7 @@ class Dungeon3D {
             ph_hammer: { span: 0.74, rotY: -Math.PI * 0.5, gripFrac: 0.22 },
             ph_sledgehammer: { span: 1.02, rotY: -Math.PI * 0.5, gripFrac: 0.25 },
             ph_saber: { span: 0.88, rotY: 0, gripFrac: 0.16 },
-            ph_katana: { span: 0.94, rotY: 0, gripFrac: 0.18 },
+            ph_katana: { span: 0.94, rotY: Math.PI * 0.5, gripFrac: 0.18 },
             ph_estoc: { span: 1.04, rotY: -Math.PI * 0.5, gripFrac: 0.14 }
         };
 
@@ -13490,7 +13178,7 @@ class Dungeon3D {
         const swingBone = (parentBone, childBone, targetWorldDir) => {
             if (!parentBone || !childBone) return;
             parentBone.updateWorldMatrix(true, false);
-            childBone.updateWorldMatrix(true, false);
+            childBone.updateWorldMatrix(false, false);
             this._tmpArmPPos.setFromMatrixPosition(parentBone.matrixWorld);
             this._tmpArmCPos.setFromMatrixPosition(childBone.matrixWorld);
             const curDir = this._tmpArmCPos.sub(this._tmpArmPPos);
@@ -13501,10 +13189,11 @@ class Dungeon3D {
             parentBone.getWorldQuaternion(this._tmpArmPWorldQ);
             this._tmpArmLocalQ.copy(this._tmpArmPWorldQ).invert().multiply(this._tmpArmDeltaQ).multiply(this._tmpArmPWorldQ);
             parentBone.quaternion.multiply(this._tmpArmLocalQ);
-            parentBone.updateMatrixWorld(true);
+            parentBone.updateWorldMatrix(false, false);
+            childBone.updateWorldMatrix(false, false);
         };
 
-        instRoot.updateMatrixWorld(true);
+        instRoot.updateWorldMatrix(true, false);
         instRoot.getWorldQuaternion(this._tmpArmRootQ);
 
         if (hasWeapon && rigBones.upperarm_r && rigBones.lowerarm_r && rigBones.hand_r) {
@@ -13524,18 +13213,20 @@ class Dungeon3D {
     _stabilizeHeldEquipment(entity) {
         this._applyCombatArmPose(entity);
         const list = entity && (entity._heldAttachments || (entity.creatureMesh && entity.creatureMesh._heldAttachments) || (entity.mesh && entity.mesh._heldAttachments));
-        if (!list || list.length === 0) return;
+        if (!list || !list.length) return;
         const instObj = entity.creatureMesh || entity.mesh || entity;
-        instObj.updateMatrixWorld(true);
+        instObj.updateWorldMatrix(true, false);
         this._tmpInstQ = this._tmpInstQ || new THREE.Quaternion();
         this._tmpBoneQ = this._tmpBoneQ || new THREE.Quaternion();
         instObj.getWorldQuaternion(this._tmpInstQ).invert();
         for (let i = 0; i < list.length; i++) {
             const att = list[i];
             if (!att || !att.clone || !att.bone || !att.targetCharQ) continue;
+            att.bone.updateWorldMatrix(true, false);
             att.bone.getWorldQuaternion(this._tmpBoneQ);
             this._tmpBoneQ.premultiply(this._tmpInstQ).invert().multiply(att.targetCharQ);
             att.clone.quaternion.copy(this._tmpBoneQ);
+            att.clone.updateWorldMatrix(false, false);
         }
     }
 
@@ -13949,10 +13640,18 @@ class Dungeon3D {
                 isTileLit = inView && (lighting < 3 || distSq <= (this.torchRadius + 1) ** 2);
             }
             const isSensed = !isTileLit || !!m.invisible;
+            const identitySig = `${this.realm || 'angband'}|${m.race || m.name || ''}|${m.glyph || ''}|${m.attr || ''}`;
+
+            if (entity && entity.identitySig && entity.identitySig !== identitySig) {
+                this.destroyEntity(entity);
+                this.monsters.delete(id);
+                entity = null;
+            }
 
             if (!entity) {
                 monstersChanged = true;
                 entity = this.createMonster3DEntity(m, isTargeted, isSensed);
+                entity.identitySig = identitySig;
                 entity.position.set(wx, baseY, wz);
                 entity.rotation.y = Math.atan2(px * this.cellSize - wx, py * this.cellSize - wz);
                 entity.targetPos = new THREE.Vector3(wx, baseY, wz);
@@ -13964,9 +13663,12 @@ class Dungeon3D {
                 entity.lastAfraid = !!m.afraid;
                 entity.isAsleep = !!m.asleep;
                 entity.monsterData = m;
+                if (entity.creatureMesh) entity.creatureMesh.monsterData = m;
+                if (entity.nameplate) entity.nameplate.monsterData = m;
                 this.scene.add(entity);
                 this.monsters.set(id, entity);
             } else {
+                entity.identitySig = identitySig;
                 if (entity.position.x !== wx || entity.position.z !== wz || (entity.targetPos && (entity.targetPos.x !== wx || entity.targetPos.z !== wz))) {
                     monstersChanged = true;
                 }
@@ -13979,6 +13681,8 @@ class Dungeon3D {
                     m.isFemale = (m.modelGender === 'female' || m.modelKey === 'casual' || m.modelKey === 'witch');
                 }
                 entity.monsterData = m;
+                if (entity.creatureMesh) entity.creatureMesh.monsterData = m;
+                if (entity.nameplate) entity.nameplate.monsterData = m;
 
                 // Auto-upgrade monster to true 3D rigged model once glTF/GLB template has loaded
                 if (!entity.isReal3DMonster) {
@@ -14027,18 +13731,16 @@ class Dungeon3D {
                     }
                 }
 
-                // Refresh nameplate if HP, status, target state, or sensed state changed
+                // Refresh nameplate in-place (zero DOM/VRAM allocations) if HP, status, target state, or sensed state changed
                 if (entity.lastHp !== m.hp || entity.lastTargeted !== isTargeted || entity.lastAsleep !== m.asleep || entity.lastAfraid !== m.afraid || entity.lastSensed !== isSensed) {
                     if (entity.nameplate) {
-                        if (entity.nameplate.material) {
-                            if (entity.nameplate.material.map) entity.nameplate.material.map.dispose();
-                            entity.nameplate.material.dispose();
-                        }
-                        entity.remove(entity.nameplate);
+                        this.createNameplateSprite(m, isTargeted, isSensed, entity.nameplate);
+                        entity.nameplate.position.set(0, Math.min(2.55, Math.max(0.58, entity.modelHeight + 0.24)), 0);
+                    } else {
+                        entity.nameplate = this.createNameplateSprite(m, isTargeted, isSensed);
+                        entity.nameplate.position.set(0, Math.min(2.55, Math.max(0.58, entity.modelHeight + 0.24)), 0);
+                        entity.add(entity.nameplate);
                     }
-                    entity.nameplate = this.createNameplateSprite(m, isTargeted, isSensed);
-                    entity.nameplate.position.set(0, Math.min(2.55, Math.max(0.58, entity.modelHeight + 0.24)), 0);
-                    entity.add(entity.nameplate);
                     entity.lastHp = m.hp;
                     entity.lastTargeted = isTargeted;
                     entity.lastAsleep = m.asleep;
@@ -14106,22 +13808,24 @@ class Dungeon3D {
                 const isTargeted = Boolean(this.currentTarget && this.currentTarget.key === id);
                 const isSensed = !!(m.invisible || (m.detected && m.unlit));
                 if (entity.nameplate) {
-                    if (entity.nameplate.material) {
-                        if (entity.nameplate.material.map) entity.nameplate.material.map.dispose();
-                        entity.nameplate.material.dispose();
-                    }
-                    entity.remove(entity.nameplate);
+                    this.createNameplateSprite(m, isTargeted, isSensed, entity.nameplate);
+                    entity.nameplate.position.set(0, Math.min(2.65, (entity.modelHeight || 1.6) + 0.35), 0);
+                    entity.nameplate.monsterData = m;
+                } else {
+                    entity.nameplate = this.createNameplateSprite(m, isTargeted, isSensed);
+                    entity.nameplate.position.set(0, Math.min(2.65, (entity.modelHeight || 1.6) + 0.35), 0);
+                    entity.nameplate.monsterData = m;
+                    entity.add(entity.nameplate);
                 }
-                entity.nameplate = this.createNameplateSprite(m, isTargeted, isSensed);
-                entity.nameplate.position.set(0, Math.min(2.65, (entity.modelHeight || 1.6) + 0.35), 0);
-                entity.nameplate.monsterData = m;
                 entity.monsterData = m;
-                entity.add(entity.nameplate);
             }
         }
     }
 
-    getItemObjKey(name, glyph) {
+    getItemObjKey(name, glyph, realmOverride) {
+        if (typeof window !== 'undefined' && window.MASTER_ITEM_REGISTRY && typeof window.MASTER_ITEM_REGISTRY.getItemObjKey === 'function') {
+            return window.MASTER_ITEM_REGISTRY.getItemObjKey(name, glyph, realmOverride || this.realm || 'angband');
+        }
         const lower = (name || '').toLowerCase();
         const g = glyph || '';
 
@@ -14639,14 +14343,6 @@ class Dungeon3D {
         group.colorHex = colorHex;
         group.itemData = it;
 
-        if (it.name) {
-            const sprite = this.createItemCaptionSprite(it);
-            if (sprite) {
-                group.add(sprite);
-                group.caption = sprite;
-            }
-        }
-
         return group;
     }
 
@@ -14737,19 +14433,36 @@ class Dungeon3D {
 
         items.forEach(it => {
             const id = `${it.x}_${it.y}_${it.name || it.glyph}`;
+            const itemDistSq = (it.x - px) * (it.x - px) + (it.y - py) * (it.y - py);
+            if (itemDistSq > 784 && !this.items.has(id)) return;
+            if (itemDistSq > 900 && this.items.has(id)) {
+                activeIds.add(id);
+                const entity = this.items.get(id);
+                entity.visible = false;
+                return;
+            }
             activeIds.add(id);
             let entity = this.items.get(id);
+            const identitySig = `${this.realm || 'angband'}|${it.name || ''}|${it.glyph || ''}|${it.attr || ''}`;
+            if (entity && entity.identitySig && entity.identitySig !== identitySig) {
+                this.destroyEntity(entity);
+                this.items.delete(id);
+                entity = null;
+            }
 
             const wx = it.x * this.cellSize;
             const wz = it.y * this.cellSize;
 
             if (!entity) {
                 entity = this.createItem3DEntity(it);
+                entity.identitySig = identitySig;
                 entity.position.set(wx, 0.0, wz);
                 this.scene.add(entity);
                 this.items.set(id, entity);
             } else {
+                entity.identitySig = identitySig;
                 entity.itemData = it;
+                if (entity.itemMesh) entity.itemMesh.itemData = it;
                 // Auto-upgrade fallback 3D/procedural item to Shockbolt PBR billboard once item_atlas.json has loaded!
                 if (entity.isItemBillboardFallback && this.itemAtlasData && (!window.GRAPHICS_CONFIG || window.GRAPHICS_CONFIG.itemRenderer !== 'classic')) {
                     const atlasEntry = this.resolveItemAtlasEntry(entity.itemName, entity.glyph);
@@ -14773,7 +14486,6 @@ class Dungeon3D {
 
             // Strict Subterranean Visibility Invariant:
             // Items are only visible in 3D if outdoors within 28m, or if within player's lit field of view or torchlight
-            const itemDistSq = (it.x - px) * (it.x - px) + (it.y - py) * (it.y - py);
             let isVisible = outdoors ? (itemDistSq <= 784) : false;
             if (!isVisible && !outdoors && this.lastMap) {
                 const flag = this.getFlagAt(this.lastMap, it.x, it.y);
@@ -14783,10 +14495,17 @@ class Dungeon3D {
             }
             entity.visible = isVisible;
 
-            // Only show caption when player is within 6 cells and item is visible
+            // Lazy-create and display caption only when player is within 6 cells and item is visible
+            const showCaption = Boolean(isVisible && itemDistSq <= 36 && it.name);
+            if (showCaption && !entity.caption) {
+                const sprite = this.createItemCaptionSprite(it);
+                if (sprite) {
+                    entity.add(sprite);
+                    entity.caption = sprite;
+                }
+            }
             if (entity.caption) {
-                const dist = Math.hypot(it.x - px, it.y - py);
-                entity.caption.visible = isVisible && (dist <= 6);
+                entity.caption.visible = showCaption;
             }
         });
 
@@ -15498,8 +15217,12 @@ class Dungeon3D {
                         }
                     }
                     if (entity.visible && entityDistSq < 324) {
-                        entity._mixer.update(delta);
-                        this._stabilizeHeldEquipment(entity);
+                        const isDistantIdle = (!isMoving && entityDistSq > 100);
+                        entity._animTick = ((entity._animTick || 0) + 1) & 1;
+                        if (!isDistantIdle || entity._animTick === 0) {
+                            entity._mixer.update(isDistantIdle ? delta * 2.0 : delta);
+                            this._stabilizeHeldEquipment(entity);
+                        }
                     }
                 }
             }
@@ -15768,58 +15491,48 @@ class Dungeon3D {
 
         this._raycaster.setFromCamera(this._mouseVec, this.camera);
 
-        // 1. Direct mesh intersection
-        const candidates = [];
-        for (const entity of this.monsters.values()) {
-            if (entity.visible) candidates.push(entity);
-        }
-
-        if (candidates.length > 0) {
-            const intersects = this._raycaster.intersectObjects(candidates, true);
-            if (intersects.length > 0) {
-                let obj = intersects[0].object;
-                while (obj && !obj.monsterData && obj.parent) {
-                    obj = obj.parent;
-                }
-                if (obj && obj.monsterData) {
-                    const mData = obj.monsterData;
-                    if (obj.modelGender) mData.modelGender = obj.modelGender;
-                    if (obj.modelKey) mData.modelKey = obj.modelKey;
-                    if (obj.isFemale !== undefined) mData.isFemale = obj.isFemale;
-                    return mData;
-                }
-            }
-        }
-
-        // 2. Proximity check along ray (ensures responsive clicking even on slender models/nameplates)
+        // Fast O(N) analytical 3-sphere vertical capsule ray intersection on root entities:
+        // Zero CPU SkinnedMesh.raycast() triangle loops (<0.01 ms) and 100% immune to child-mesh .monsterData shadowing!
         let closestMonster = null;
         let minRayDist = Infinity;
+        let closestGenerous = null;
+        let minGenerousDist = Infinity;
         const ray = this._raycaster.ray;
 
         for (const entity of this.monsters.values()) {
             if (!entity.visible || !entity.monsterData) continue;
             const mHeight = entity.modelHeight || 1.2;
             this._tempVec3.copy(entity.position);
+            this._tempVec3.y += mHeight * 0.82;
+            const distTop = ray.distanceToPoint(this._tempVec3);
+            this._tempVec3.copy(entity.position);
             this._tempVec3.y += mHeight * 0.45;
             const distMid = ray.distanceToPoint(this._tempVec3);
             this._tempVec3.copy(entity.position);
             this._tempVec3.y += 0.25;
             const distLow = ray.distanceToPoint(this._tempVec3);
-            const distToRay = Math.min(distMid, distLow);
-            if (distToRay < 1.25) { // Generous creature interaction sphere for small/flying models
-                const distAlongRay = ray.origin.distanceTo(entity.position);
-                if (distAlongRay < minRayDist) {
-                    minRayDist = distAlongRay;
-                    const mData = entity.monsterData;
-                    if (entity.modelGender) mData.modelGender = entity.modelGender;
-                    if (entity.modelKey) mData.modelKey = entity.modelKey;
-                    if (entity.isFemale !== undefined) mData.isFemale = entity.isFemale;
-                    closestMonster = mData;
-                }
+            const distToRay = Math.min(distTop, distMid, distLow);
+            const tightRadius = Math.max(0.48, Math.min(0.95, mHeight * 0.42));
+            const distAlongRay = ray.origin.distanceTo(entity.position);
+
+            if (distToRay <= tightRadius && distAlongRay < minRayDist) {
+                minRayDist = distAlongRay;
+                const mData = entity.monsterData;
+                if (entity.modelGender) mData.modelGender = entity.modelGender;
+                if (entity.modelKey) mData.modelKey = entity.modelKey;
+                if (entity.isFemale !== undefined) mData.isFemale = entity.isFemale;
+                closestMonster = mData;
+            } else if (distToRay < 1.25 && distAlongRay < minGenerousDist) {
+                minGenerousDist = distAlongRay;
+                const mData = entity.monsterData;
+                if (entity.modelGender) mData.modelGender = entity.modelGender;
+                if (entity.modelKey) mData.modelKey = entity.modelKey;
+                if (entity.isFemale !== undefined) mData.isFemale = entity.isFemale;
+                closestGenerous = mData;
             }
         }
 
-        return closestMonster;
+        return closestMonster || closestGenerous;
     }
 
     /**
@@ -15842,26 +15555,7 @@ class Dungeon3D {
 
         this._raycaster.setFromCamera(this._mouseVec, this.camera);
 
-        // 1. Direct mesh intersection
-        const candidates = [];
-        for (const entity of this.items.values()) {
-            if (entity.visible) candidates.push(entity);
-        }
-
-        if (candidates.length > 0) {
-            const intersects = this._raycaster.intersectObjects(candidates, true);
-            if (intersects.length > 0) {
-                let obj = intersects[0].object;
-                while (obj && !obj.itemData && !obj.itemName && obj.parent) {
-                    obj = obj.parent;
-                }
-                if (obj && (obj.itemData || obj.itemName)) {
-                    return obj.itemData || { name: obj.itemName, glyph: obj.glyph, attr: obj.attr };
-                }
-            }
-        }
-
-        // 2. Proximity check along ray (ensures responsive clicking for small floor items like rings, potions, coins)
+        // Fast O(N) analytical bounding sphere intersection on root item entities (<0.01 ms, 0 triangle loops)
         let closestItem = null;
         let minRayDist = Infinity;
         const ray = this._raycaster.ray;

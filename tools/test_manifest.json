@@ -18,6 +18,7 @@
     "test_static_invariants.js",
     "test_hero_sketch_and_gui.js",
     "test_bestiary_match_verification.js",
+    "test_universal_8realm_bestiary_and_items.js",
     "test_bridge_schema.js",
     "test_action_catalog.js",
     "test_command_dispatcher.js",

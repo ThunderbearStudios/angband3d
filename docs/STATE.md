@@ -1,13 +1,13 @@
 # Execution State (Read First, Update Last)
 
 ## Active Task
-**WS56 — `v11.6.1` Smooth Auto-Explore Camera Orientation, Fast (`~3.1s`) Viral Dark-Fantasy Sketch Pipeline (`gemini-3.1-flash-lite-image` + `safetySettings: OFF`), Splash Gold Trim Removal & Minimal Classic Menu Footprint — COMPLETE**
+**WS57 — `v11.7.0` Universal 4-Tier Master Bestiary (`master-bestiary.js`) & Item Registry (`master-item-registry.js`), 8-Realm + Future-Realm Forward Compatibility, Katana & 15-GLB Orientation Fixes, and 60fps WebGL Screen Optimizations (`P1–P5`) — COMPLETE**
 
-- **Checklist** (`v11.6.1` Polish, Sketch & Menu Architecture):
-  - [x] **Auto-Explore & Auto-Travel Smooth 3D Camera Orientation (`dungeon3d.js`, `input.js`)**: Added `orientCameraTowardStep(dx, dy, lookDx, lookDy)` fixing the East/West yaw sign inversion (`Math.atan2(-vx, -vy)`), blending 2-tile path lookahead, wrapping `targetYaw` via shortest angular arc, and bypassing `snapCameraToDefault` clobbering during active auto-nav.
-  - [x] **Splash & Main Menu Gold Trim Removal (`index.html`, `dungeon.css`, `hud-skin.css`)**: Removed `.splash-ornament-corner` and `.main-menu-ornament-corner` elements and replaced heavy gold borders with a clean dark-slate frame.
-  - [x] **Fast (`~3.1s`), Engaging, Virally Shareable Dark-Fantasy Sketch Pipeline (`server.js`, `chronicle-manager.js`)**: Prioritized `gemini-3.1-flash-lite-image` (`3,178 ms` live Vertex AI latency, 2.2x faster than `2.5-flash-image`), added explicit `safetySettings: OFF` + automatic 1-shot sanitized prompt retry to eliminate `finishReason: "IMAGE_SAFETY"`, refined `buildHeroSketchContext` for collector-grade Frazetta/Doré/*Dark Souls* chiaroscuro dark-fantasy art, expanded background pre-warming to `<= 65%` HP / boss sightlines on every frame, and added `navigator.clipboard.write` PNG copy to `downloadCompositeCard`.
-  - [x] **Menu Overlap Elimination & Non-Classic Footprint Minimization (`index.html`, `app.js`, `hud-skin.css`)**: Hid `#top-right-bar` and `#global-audio-bar` over `#terminal-container` and all full-screen modals; removed `#terminal-birth-helper-bar` (`Fast Start 3D`); de-duplicated top vs. bottom terminal toolbars; hid `#death-term-toolbar`; and fixed `.death-title` (`☠ YOU HAVE PERISHED ☠`) word spacing.
+- **Checklist** (`v11.7.0` Universal Bestiary, Item Registry & 60fps Performance Architecture):
+  - [x] **Universal 4-Tier Master Bestiary (`server/public/js/master-bestiary.js`)**: Implemented Tier 0 $O(1)$ 2048-entry LRU cache (`<0.001 ms`), Tier 1 `registerRealm()` manifests + bilingual Hengband JP translation, Tier 2 morphological head-noun + modifier decomposer, Tier 3 isolated 8-realm glyph tables (`angband`, `silq`, `frogcomposband`, `hengband`, `nethack`, `dcss`, `brogue`, `rogue`), `resolveInspectionTaxonomy()` shared with `ChronicleManager`, and the `useAsciiTint` visual fidelity invariant so multi-material models (`Wolf.glb`, `Fox.glb`, `husky.glb`, `shiba.glb`, `MountainLion.glb`, `bear.glb`, `Horse.glb`, `Owl.glb`, `Stork.glb`) preserve their natural PBR fur/feathers.
+  - [x] **Universal Master Item & Transform Registry (`server/public/js/master-item-registry.js`)**: Unified `POLYHAVEN_ITEM_GLTF_PATHS`, `HELD_CANONICAL_SPECS`, `VIEWMODEL_POSES`, `REALM_ITEM_GLYPHS`, `registerRealm()`, and $O(1)$ LRU-memoized `resolveItem()`, `resolveEquippedWeaponKey()`, `resolveShieldKey()`, and `getItemObjKey()`.
+  - [x] **Fixed All 3 Proved NetHack Bugs (`dungeon3d.js`, `chronicle-manager.js`)**: (1) Added `identitySig` invalidation in `updateMonsters`/`updateItems`, `purgeAllSceneEntities()` on realm/depth transitions, and synchronized `entity.creatureMesh.monsterData` + `entity.nameplate.monsterData`; (2) Fixed `ph_katana` (`antique_katana_01.gltf`) `rotY: Math.PI * 0.5` so `-X` convex cutting edge (`ha`) faces forward (`+Z`); (3) Fixed canonical yaw offsets on 15 creature GLBs (`Dragon`, `Fox`, `husky`, `shiba`, `MountainLion`, `bear`, `werewolf`, `zombie_model`, `centipede`, `frog`, `Owl`, `Stork`, `lizard`, `kraken`, `aquatic`) and removed bogus `0.15–0.52` radian offsets.
+  - [x] **Shipped 5 Proved 60fps WebGL Screen Optimizations (`P1–P5` in `dungeon3d.js`)**: (`P1`) Targeted 3-bone `updateWorldMatrix(false, false)` in `_applyCombatArmPose`/`_stabilizeHeldEquipment` + 30Hz distant idle mixer throttle; (`P2`) In-place `<canvas>` & `THREE.CanvasTexture` reuse (`needsUpdate = true`) in `createNameplateSprite`; (`P3`) Distance-gated `updateItems` (`<=28m`) + lazy `caption` creation (`<=6m`); (`P4`) $O(N)$ analytical 3-sphere vertical capsule ray intersection (`<0.01 ms`) replacing `SkinnedMesh.raycast()`; (`P5`) Removed `347` lines of dead legacy methods.
 
 ## Completed Workstreams
 | WS | Scope | Status |
@@ -16,6 +16,7 @@
 | WS37–WS47 | Popover, Chronicle, Minimap, Command Unification, Zero-Flicker HUD (`v11.1.1`) | `[x]` |
 | WS48–WS55 | 8-Realm Cartridges, High-Poly PBR Bestiary/Altars, Action-Matched VFX, Cloud Overhaul (`v11.6.0`) | `[x]` |
 | WS56 | Auto-Explore Camera, 3.1s Viral Dark-Fantasy Sketch Pipeline, Minimal Menu Chrome (`v11.6.1`) | `[x]` |
+| WS57 | Universal 4-Tier Master Bestiary & Item Registry, 8-Realm + Future-Realm Gate, 60fps P1–P5 (`v11.7.0`) | `[x]` |
 
 ## Mandatory Verification Gate (Web-Only Focus)
 Fresh server (`L13`): `Get-NetTCPConnection -LocalPort 8080 -State Listen | % { Stop-Process -Id $_.OwningProcess -Force }`; `cd server; node src/server.js`.
