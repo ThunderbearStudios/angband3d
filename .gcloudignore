@@ -1,16 +1,22 @@
-# Cloud Build context ignore — excludes client/Godot, Android, C/C++ raw source trees, and test suites
+# Cloud Build context ignore — excludes desktop/Godot/Android/dist/resources and local build caches
 .git/
 .github/
+.vscode/
+dist/
 client/
+resources/
+engine/
 android/
+desktop/
 docs/
 tools/
+test/
 tests/
-variants/*-src/
+lib/
+node_modules/
+server/node_modules/
+variants/*-src/build/
 variants/*/*.o
 variants/*/*.a
 *.log
-*.md
 .pytest_cache/
-node_modules/
-server/node_modules/
