@@ -5108,7 +5108,12 @@ window.addEventListener('DOMContentLoaded', () => {
         const rawScreenText = (effFrame && effFrame.term && effFrame.term.rows) ? effFrame.term.rows.map(r => r.g || '').join('\n') : '';
         const decodedScreenText = decodeHengbandText(rawScreenText);
         const screenText = (rawScreenText + '\n' + decodedScreenText).toLowerCase();
-        if (termDpad) termDpad.style.display = 'none';
+        const setTermDpadVisible = (vis) => {
+            if (!termDpad) return;
+            termDpad.style.display = vis ? 'grid' : 'none';
+            if (termDpad.parentElement) termDpad.parentElement.style.display = vis ? '' : 'none';
+        };
+        setTermDpadVisible(false);
         if (birthNameBar) birthNameBar.style.display = 'none';
         if (termLetterRibbon) termLetterRibbon.style.display = 'none';
         const birthHelperBar = document.getElementById('terminal-birth-helper-bar');
@@ -5159,15 +5164,15 @@ window.addEventListener('DOMContentLoaded', () => {
                 setCtxActions(renderCtxButtons([{ key: 'enter', badge: '⏎', label: hengLabel('✓ Accept', '✓ Accept / 決定', '✓ 決定'), gold: true }, escStepBtn, mmBtn]));
             } else if (bf.isStatRoller) {
                 terminalTitle.textContent = isHeng ? hengTitle('🎴 HENGBAND — Stat Roller', '🎴 HENGBAND — 能力値抽選 / Stat Roller', '🎴 HENGBAND — 能力値抽選') : '⚔ ATTRIBUTE ALLOCATION';
-                if (termDpad) termDpad.style.display = 'grid';
                 setCtxActions(renderCtxButtons([
                     { key: 'enter', badge: '⏎', label: hengLabel('✓ Accept', '✓ Accept / 決定', '✓ 決定'), gold: true },
+                    { key: 'up', badge: '[▲]', label: '▲' }, { key: 'down', badge: '[▼]', label: '▼' },
+                    { key: 'left', badge: '[◀]', label: '◀' }, { key: 'right', badge: '[▶]', label: '▶' },
                     { key: 'r', badge: '[r]', label: hengLabel('🔄 Reset Stats', '🔄 Reset / 再抽選', '🔄 再抽選') },
                     escStepBtn, mmBtn
                 ]));
             } else if (bf.isBackgroundEdit) {
                 terminalTitle.textContent = isHeng ? hengTitle('📜 CHARACTER BACKGROUND — Enter to Continue', '📜 生い立ち / BACKGROUND — Enter', '📜 キャラクターの生い立ち — Enter') : '📜 CHARACTER BACKGROUND — Enter to Continue';
-                if (termDpad) termDpad.style.display = 'grid';
                 setCtxActions(renderCtxButtons([{ key: 'enter', badge: '⏎', label: hengLabel('Continue (Enter)', 'Continue / 決定 (Enter)', '決定 (Enter)'), gold: true }, escStepBtn, mmBtn]));
             } else if (bf.isReadyPrompt) {
                 terminalTitle.textContent = isHeng ? hengTitle('🎴 HENGBAND — Begin Game / Embark', '🎴 HENGBAND — ゲーム開始 / Embark', '🎴 HENGBAND — ゲーム開始') : '⚔ READY TO EMBARK — Enter to Begin';
@@ -5200,9 +5205,9 @@ window.addEventListener('DOMContentLoaded', () => {
                 else if (screenText.includes('race affects stats')) terminalTitle.textContent = '⚔ CHOOSE CHARACTER RACE';
                 else if (screenText.includes('class affects stats')) terminalTitle.textContent = '⚔ CHOOSE CHARACTER CLASS';
                 else terminalTitle.textContent = '⚔ CHARACTER CREATION';
-                if (termDpad) termDpad.style.display = 'grid';
                 setCtxActions(renderCtxButtons([
                     { key: 'enter', badge: '⏎', label: hengLabel('✓ Select', '✓ Select / 決定', '✓ 決定'), gold: true },
+                    { key: 'up', badge: '[▲]', label: '▲' }, { key: 'down', badge: '[▼]', label: '▼' },
                     { key: '*', badge: '[*]', label: hengLabel('🎲 Random', '🎲 Random / ランダム', '🎲 ランダム') },
                     escBackBtn, mmBtn
                 ]));
@@ -5217,10 +5222,7 @@ window.addEventListener('DOMContentLoaded', () => {
         if (pendingState && pendingState.step === 'chooser' && pendingState.item) {
             const pending = pendingState;
             terminalTitle.textContent = isHeng ? hengTitle(`🎒 ${pending.item.key}) ${pending.item.label}`, `🎒 ${pending.item.key}) ${pending.item.label}`, `🎒 ${pending.item.key}) ${pending.item.label}`) : `🎒 ${pending.item.key}) ${pending.item.label}`;
-            if (termDpad) {
-                termDpad.style.display = 'none';
-                if (termDpad.parentElement) termDpad.parentElement.style.display = 'none';
-            }
+            setTermDpadVisible(false);
             const chooserRealm = (typeof getActiveRealm === 'function' ? getActiveRealm() : activeRealm) || (effFrame && effFrame.realm) || 'angband';
             if (window.MenuRouter && typeof window.MenuRouter.renderChooserHtml === 'function') {
                 let chooserHtml = window.MenuRouter.renderChooserHtml(pending, chooserRealm);
@@ -5234,7 +5236,6 @@ window.addEventListener('DOMContentLoaded', () => {
             if (terminal && typeof terminal.setSelectedKey === 'function') terminal.setSelectedKey(pending.item.key);
             return;
         }
-        if (termDpad && termDpad.parentElement) termDpad.parentElement.style.display = '';
         const promptKind = prompt.kind || '';
         const mirror = model ? model.mirror : null;
         const isPressAnyKey = Boolean(legacy.isPressAnyKey || promptKind === 'more' || mirror === 'more' || (effFrame.ui && effFrame.ui.more));
@@ -5260,7 +5261,6 @@ window.addEventListener('DOMContentLoaded', () => {
             populateLetterRibbon(effFrame.term ? effFrame.term.rows : null, ['y', 'n']);
         } else if (isQuantityPrompt) {
             terminalTitle.textContent = '📦 ENTER QUANTITY';
-            if (termDpad) termDpad.style.display = 'grid';
             setCtxActions(renderCtxButtons([
                 { key: 'enter', badge: '⏎', label: 'All (Default)', gold: true },
                 { key: '1', badge: '[1]', label: 'Just 1' },
@@ -5290,7 +5290,6 @@ window.addEventListener('DOMContentLoaded', () => {
                 }
             }
             const sf = legacy.storeFlags || (SC.storeFlags ? SC.storeFlags(effFrame, screenText, isHeng) : {});
-            if (termDpad) termDpad.style.display = 'grid';
             if (sf.isStoreContextMenu) {
                 terminalTitle.textContent = isHeng ? hengTitle('⚔ CHOOSE ACTION FOR ITEM', '⚔ CHOOSE ACTION / 選択', '⚔ アイテムの行動を選択') : '⚔ CHOOSE ACTION FOR ITEM';
                 const exKey = isHeng ? 'x' : 'l';
@@ -5305,9 +5304,11 @@ window.addEventListener('DOMContentLoaded', () => {
                 const subPrompt = sf.isStoreBuy ? { t: '💰 BUY WHICH ITEM?', l: 'Cancel Buy', j: '何を買いますか？' } :
                     sf.isStoreSell ? { t: '🏷 SELL WHICH ITEM?', l: 'Cancel Sell', j: 'どれを売りますか？' } :
                     { t: '🔍 EXAMINE WHICH ITEM?', l: 'Cancel Examine', j: 'どれを調べますか？' };
-                terminalTitle.textContent = isHeng ? hengTitle(`${subPrompt.t} (Tap letter or D-pad + Enter)`, `${subPrompt.t} / 選択 (Tap letter or Enter)`, `${subPrompt.j} (文字か方向キー+Enter)`) : `${subPrompt.t} (Tap letter or D-pad + Enter)`;
+                terminalTitle.textContent = isHeng ? hengTitle(`${subPrompt.t} (Tap letter or Enter)`, `${subPrompt.t} / 選択 (Tap letter or Enter)`, `${subPrompt.j} (文字かEnter)`) : `${subPrompt.t} (Tap letter or Enter)`;
                 setCtxActions(renderCtxButtons([
                     { key: 'enter', badge: '⏎', label: hengLabel('Select', 'Select / 決定', '決定'), gold: true },
+                    { key: 'up', badge: '[▲]', label: '▲' },
+                    { key: 'down', badge: '[▼]', label: '▼' },
                     { key: 'space', badge: '[␣]', label: hengLabel('Next Page', 'Next Page / 次頁', '次ページ') },
                     { key: 'escape', badge: '[Esc]', label: hengLabel(`⎋ ${subPrompt.l}`, `⎋ ${subPrompt.l} / 取消`, '⎋ 取消') }
                 ]));
@@ -5323,6 +5324,9 @@ window.addEventListener('DOMContentLoaded', () => {
                     { key: 'p', badge: '[p]', label: hengLabel('💰 Buy', '💰 Buy / 購入', '💰 購入'), gold: true },
                     { key: 's', badge: '[s]', label: hengLabel('🏷 Sell', '🏷 Sell / 売却', '🏷 売却') },
                     { key: exKey, badge: `[${exKey}]`, label: hengLabel('🔍 Examine', '🔍 Examine / 調べる', '🔍 調べる') },
+                    { key: 'up', badge: '[▲]', label: '▲' },
+                    { key: 'down', badge: '[▼]', label: '▼' },
+                    { key: 'enter', badge: '[⏎]', label: hengLabel('Select', 'Select / 決定', '決定') },
                     { key: 'space', badge: '[␣]', label: hengLabel('Next Page', 'Next Page / 次頁', '次ページ') },
                     { key: 'escape', badge: '[Esc]', label: hengLabel('🚪 Exit Store', '🚪 Exit Store / 店を出る', '🚪 店を出る') }
                 );
@@ -5338,18 +5342,19 @@ window.addEventListener('DOMContentLoaded', () => {
             }
         } else if (isItemActions) {
             terminalTitle.textContent = isHeng ? hengTitle('⚔ CHOOSE ACTION FOR ITEM', '⚔ CHOOSE ACTION / 選択', '⚔ アイテムの行動を選択') : '⚔ CHOOSE ACTION FOR ITEM';
-            if (termDpad) termDpad.style.display = 'grid';
             const actionRows = (effFrame.term && Array.isArray(effFrame.term.rows)) ? effFrame.term.rows : [];
             const extractedVerbs = (SC && typeof SC.extractItems === 'function') ? SC.extractItems(actionRows, isHeng, decodeHengbandText) : [];
             setCtxActions(renderCtxButtons([
                 { key: 'enter', badge: '⏎', label: hengLabel('Select', 'Select / 決定', '決定'), gold: true },
+                { key: 'up', badge: '[▲]', label: '▲' },
+                { key: 'down', badge: '[▼]', label: '▼' },
                 ...extractedVerbs.map(v => ({ key: v.key, badge: `[${v.key}]`, label: v.label })),
                 { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Back', '⎋ Back / 戻る', '戻る') }
             ]));
             populateLetterRibbon(actionRows);
         } else if (isTargeting) {
             terminalTitle.textContent = isHeng ? hengTitle('🎯 TARGETING & AIMING', '🎯 TARGETING / 照準・位置指定', '🎯 照準・位置指定') : '🎯 TARGETING & AIMING';
-            if (termDpad) termDpad.style.display = 'grid';
+            setTermDpadVisible(true);
             setCtxActions(renderCtxButtons([
                 { key: '5', badge: '[5/⏎]', label: hengLabel('🎯 Fire / Select', '🎯 Fire / 発射・選択', '🎯 発射・選択'), gold: true },
                 { key: '*', badge: '[*]', label: hengLabel('🔍 Next Target', '🔍 Next Target / 次の対象', '🔍 次の対象') },
@@ -5464,7 +5469,7 @@ window.addEventListener('DOMContentLoaded', () => {
             setCtxActions(renderCtxButtons(charBtns));
         } else if (legacy.isSpellOrAbilityMenu || promptKind === 'spell' || (SC && SC.isSpellOrAbilityMenu(screenText))) {
             terminalTitle.textContent = isHeng ? hengTitle('✨ GRIMOIRE & ABILITIES — Choose Spell or Power', '✨ GRIMOIRE / 呪文・技能の選択', '✨ 呪文・技能の選択') : (activeRealm === 'silq' ? '✨ SONGS, ABILITIES & SMITHING' : '✨ GRIMOIRE & POWERS — Select Spell or Ability');
-            if (termDpad) termDpad.style.display = activeRealm === 'silq' ? 'grid' : 'none';
+            setTermDpadVisible(activeRealm === 'silq');
             setCtxActions(renderCtxButtons([
                 { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Cancel', '⎋ Cancel / 戻る', '⎋ 戻る'), gold: true },
                 { key: 'up', badge: '[↑]', label: '▲ Up' }, { key: 'down', badge: '[↓]', label: '▼ Down' },
@@ -5490,7 +5495,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 termEscapeBtn.style.display = 'inline-flex';
                 termEscapeBtn.textContent = isHeng ? hengLabel('🎮 3D View', '🎮 3D View / 3D画面', '🎮 3D画面') : '🎮 3D View';
             }
-            if (termDpad) termDpad.style.display = 'grid';
+            setTermDpadVisible(true);
             const hasMore = Boolean(effFrame.ui && effFrame.ui.more) || screenText.includes('-more-');
             if (hasMore) {
                 setCtxActions(renderCtxButtons([
@@ -5944,6 +5949,9 @@ window.addEventListener('DOMContentLoaded', () => {
                 });
             }
         }
+        if (terminal && typeof terminal.resize === 'function' && !terminalContainer.classList.contains('hidden')) {
+            terminal.resize();
+        }
     }
     if (window.__app) {
         Object.assign(window.__app, {
@@ -6038,11 +6046,11 @@ window.addEventListener('DOMContentLoaded', () => {
             const globalAudioBarTerm = document.getElementById('global-audio-bar');
             if (globalAudioBarTerm) globalAudioBarTerm.style.display = 'flex';
             input.setTerminalMode(true);
+            updateTerminalToolbar(currentFrame);
             terminal.resize();
             if (currentFrame && currentFrame.term) {
                 terminal.render(currentFrame.term);
             }
-            updateTerminalToolbar(currentFrame);
         } else {
             terminalContainer.classList.add('hidden');
             terminalContainer.classList.remove('in-game-modal');

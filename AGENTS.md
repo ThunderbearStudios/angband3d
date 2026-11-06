@@ -1,4 +1,4 @@
-# Angband 3D — Contributor & Engine-Bridge Invariants (v11.5.5)
+# Angband 3D — Contributor & Engine-Bridge Invariants (v11.5.7)
 
 > **`Law U0` (Epistemic Honesty)**: Tag claims `⊢ PROVED` / `⊬ HYPOTHESIS` / `⊥ REFUTED` (cite file/line or exit code `0`); separate external benchmarks from internal proof receipts (`HONESTY-01`). Zero personal name references in code/docs (`PUB-PII-01`).
 

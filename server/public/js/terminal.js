@@ -325,31 +325,29 @@ class WebTerminal {
         const mode = this.detectMode(this.lastTermData);
         this.currentMode = mode;
 
-        // Anchor scale to stable outer #terminal-window bounds minus chrome + active Grimoire height
+        // Anchor scale to true viewport budget minus actual rendered toolbar/ribbon/grimoire chrome
         const viewport = document.getElementById('terminal-viewport');
         const termWindow = document.getElementById('terminal-window') || document.getElementById('terminal-card');
+        const toolbarEl = termWindow ? termWindow.querySelector('.terminal-toolbar') : null;
+        const birthBarEl = document.getElementById('terminal-birth-helper-bar');
         const grimoireEl = document.getElementById('grimoire-deck-container');
-        const grimoireH = (grimoireEl && grimoireEl.style.display !== 'none' && grimoireEl.offsetHeight > 0) ? Math.min(grimoireEl.offsetHeight + 8, 280) : 0;
-        const isLandscapePhone = window.innerHeight <= 500 && window.innerWidth > window.innerHeight;
-        const chromeReserveH = (isLandscapePhone ? 112 : 136) + grimoireH;
-        const outerW = (termWindow && termWindow.clientWidth > 0)
-            ? (termWindow.clientWidth - 16)
-            : (viewport && viewport.clientWidth > 0 ? viewport.clientWidth : (window.innerWidth - 16));
-        const outerH = (termWindow && termWindow.clientHeight > 0)
-            ? (termWindow.clientHeight - chromeReserveH)
-            : (window.innerHeight - chromeReserveH);
+        const touchDockEl = document.getElementById('terminal-touch-controls');
+        const elH = (el) => (el && el.style.display !== 'none' && el.offsetHeight > 0) ? (el.offsetHeight + 6) : 0;
+        const measuredChromeH = elH(toolbarEl) + elH(birthBarEl) + elH(grimoireEl) + elH(touchDockEl) + 28;
+        const maxViewportW = Math.min(Math.floor(window.innerWidth * 0.96), 1480) - 24;
+        const maxViewportH = Math.floor(window.innerHeight * 0.96) - Math.max(96, measuredChromeH);
 
-        const availW = Math.max(280, outerW || window.innerWidth);
-        const availH = Math.max(220, outerH || (window.innerHeight - 160));
+        const availW = Math.max(260, maxViewportW);
+        const availH = Math.max(180, maxViewportH);
 
-        // Keep logical 80x24 grid aspect uniform across all modes (classic_play, item_prompt, store, birth)
-        // so switching between menus and gameplay never triggers jarring zoom jumps.
+        // Scale the 80x24 classic grid to fit 100% inside availW x availH at zoomLevel=1.0
+        // with zero vertical or horizontal scrollbars on desktop/tablet.
         const isMobileScreen = window.innerWidth <= 640;
         let baseScale;
         if (isMobileScreen) {
             baseScale = Math.max(0.58, Math.min(availW / logicalWidth, availH / logicalHeight, 1.35));
         } else {
-            baseScale = Math.max(0.62, Math.min(availW / logicalWidth, availH / logicalHeight, 2.25));
+            baseScale = Math.max(0.34, Math.min(availW / logicalWidth, availH / logicalHeight, 2.25));
         }
 
         const effectiveScale = baseScale * this.zoomLevel;
