@@ -3583,23 +3583,22 @@ class Dungeon3D {
 
         // 1b. Authentic Medieval Town Storefront Architecture (Carved Timber Jambs, Display Plinths, Pediment & Brackets)
         const shopFrameGeo = createMergedBoxGeometry([
-            { pos: [-0.85, 1.15, 0.0], size: [0.32, 2.50, 2.00], color: [0.42, 0.28, 0.16] },  // Left heavy carved oak pier
-            { pos: [0.85, 1.15, 0.0], size: [0.32, 2.50, 2.00], color: [0.42, 0.28, 0.16] },   // Right heavy carved oak pier
-            { pos: [0, 2.65, 0.0], size: [2.04, 0.72, 2.04], color: [0.38, 0.25, 0.14] },      // Top heavy timber lintel & architrave
-            { pos: [0, 1.15, -0.55], size: [1.40, 2.45, 0.90], color: [0.68, 0.62, 0.54] },    // Back solid masonry wall sealing interior
-            { pos: [0, 0.04, 0.48], size: [1.56, 0.12, 0.96], color: [0.76, 0.70, 0.62] },     // Stepped cut-stone entrance threshold
-            { pos: [-0.76, 0.22, 0.54], size: [0.42, 0.44, 0.48], color: [0.72, 0.66, 0.58] }, // Left merchant display stone plinth
-            { pos: [0.76, 0.22, 0.54], size: [0.42, 0.44, 0.48], color: [0.72, 0.66, 0.58] },  // Right merchant display stone plinth
-            { pos: [-0.72, 1.18, 0.20], size: [0.16, 2.42, 0.34], color: [0.34, 0.22, 0.12] }, // Front carved oak pilaster left
-            { pos: [0.72, 1.18, 0.20], size: [0.16, 2.42, 0.34], color: [0.34, 0.22, 0.12] },  // Front carved oak pilaster right
-            { pos: [-0.48, 2.18, 0.22], size: [0.52, 0.14, 0.28], rotZ: 0.42, color: [0.34, 0.22, 0.12] }, // Left gothic timber corbel arch
-            { pos: [0.48, 2.18, 0.22], size: [0.52, 0.14, 0.28], rotZ: -0.42, color: [0.34, 0.22, 0.12] }, // Right gothic timber corbel arch
-            { pos: [0, 2.38, 0.26], size: [1.96, 0.18, 0.38], color: [0.32, 0.20, 0.11] },     // Storefront transom crossbeam
-            { pos: [-0.76, 2.02, 0.44], size: [0.08, 0.10, 0.42], color: [0.18, 0.17, 0.16] }, // Left wrought-iron lantern sconce arm
-            { pos: [0.76, 2.02, 0.44], size: [0.08, 0.10, 0.42], color: [0.18, 0.17, 0.16] },  // Right wrought-iron lantern sconce arm
-            { pos: [0, 2.88, 0.56], size: [0.08, 0.10, 0.92], color: [0.18, 0.17, 0.16] },     // Projecting wrought-iron guild sign arm
-            { pos: [-0.64, 1.75, 0.12], size: [0.08, 0.14, 0.14], color: [0.18, 0.17, 0.16] }, // Top iron hinge bracket
-            { pos: [-0.64, 0.55, 0.12], size: [0.08, 0.14, 0.14], color: [0.18, 0.17, 0.16] }  // Bottom iron hinge bracket
+            { pos: [-0.835, 1.14, 0.0], size: [0.31, 2.28, 1.98], color: [0.42, 0.28, 0.16] },  // Left heavy carved oak pier (disjoint below lintel & inside cell)
+            { pos: [0.835, 1.14, 0.0], size: [0.31, 2.28, 1.98], color: [0.42, 0.28, 0.16] },   // Right heavy carved oak pier (disjoint below lintel & inside cell)
+            { pos: [0, 2.66, 0.0], size: [1.992, 0.74, 1.992], color: [0.38, 0.25, 0.14] },     // Top heavy timber lintel & architrave (Y [2.29, 3.03], X/Z ±0.996)
+            { pos: [0, 1.14, -0.52], size: [1.35, 2.28, 0.88], color: [0.68, 0.62, 0.54] },     // Back solid masonry wall sealing interior (disjoint from piers & lintel)
+            { pos: [0, 0.04, 0.48], size: [1.34, 0.12, 0.96], color: [0.76, 0.70, 0.62] },      // Stepped cut-stone entrance threshold
+            { pos: [-0.76, 0.22, 0.54], size: [0.42, 0.44, 0.48], color: [0.72, 0.66, 0.58] },  // Left merchant display stone plinth
+            { pos: [0.76, 0.22, 0.54], size: [0.42, 0.44, 0.48], color: [0.72, 0.66, 0.58] },   // Right merchant display stone plinth
+            { pos: [-0.72, 1.14, 0.20], size: [0.16, 2.26, 0.34], color: [0.34, 0.22, 0.12] },  // Front carved oak pilaster left
+            { pos: [0.72, 1.14, 0.20], size: [0.16, 2.26, 0.34], color: [0.34, 0.22, 0.12] },   // Front carved oak pilaster right
+            { pos: [-0.48, 2.16, 0.22], size: [0.52, 0.14, 0.28], rotZ: 0.42, color: [0.34, 0.22, 0.12] }, // Left gothic timber corbel arch
+            { pos: [0.48, 2.16, 0.22], size: [0.52, 0.14, 0.28], rotZ: -0.42, color: [0.34, 0.22, 0.12] }, // Right gothic timber corbel arch
+            { pos: [0, 2.38, 0.86], size: [1.96, 0.18, 0.32], color: [0.32, 0.20, 0.11] },      // Storefront transom crossbeam
+            { pos: [-0.76, 2.02, 0.44], size: [0.08, 0.10, 0.42], color: [0.18, 0.17, 0.16] },  // Left wrought-iron lantern sconce arm
+            { pos: [0.76, 2.02, 0.44], size: [0.08, 0.10, 0.42], color: [0.18, 0.17, 0.16] },   // Right wrought-iron lantern sconce arm
+            { pos: [-0.64, 1.75, 0.12], size: [0.08, 0.14, 0.14], color: [0.18, 0.17, 0.16] },  // Top iron hinge bracket
+            { pos: [-0.64, 0.55, 0.12], size: [0.08, 0.14, 0.14], color: [0.18, 0.17, 0.16] }   // Bottom iron hinge bracket
         ]);
 
         // 1c. Sloped Merchant Storefront Canopy / Awning (colored per-shop via instanceColor)
@@ -3610,21 +3609,25 @@ class Dungeon3D {
             { pos: [0.82, 2.18, 0.46], size: [0.10, 0.72, 0.10], rotX: -0.68, color: [0.36, 0.23, 0.13] }   // Right timber awning strut
         ]);
 
-        // 1d. Medieval Dressed Stone & Dark Timber Framing + Flat Architectural Slate Cornice for Town Buildings
+        // 1d. Medieval Dressed Stone & Dark Timber Framing (100% non-overlapping & non-coplanar in X, Y, Z to eliminate Z-fighting)
         const townTimberGeo = createMergedBoxGeometry([
-            { pos: [0, 0.12, 0], size: [2.04, 0.24, 2.04], color: [0.44, 0.42, 0.40] },         // Dressed dark stone foundation plinth
-            { pos: [0, 1.58, 0], size: [2.04, 0.14, 2.04], color: [0.28, 0.26, 0.25] },         // Mid-wall horizontal dark stone/charred oak band
-            { pos: [0, 2.96, 0], size: [2.06, 0.18, 2.06], color: [0.26, 0.25, 0.24] },         // Upper overhanging dark stone eaves cornice
-            { pos: [-0.94, 1.55, -0.94], size: [0.16, 3.00, 0.16], color: [0.25, 0.24, 0.23] }, // NW dark stone quoin / corner post
-            { pos: [0.94, 1.55, -0.94], size: [0.16, 3.00, 0.16], color: [0.25, 0.24, 0.23] },  // NE dark stone quoin / corner post
-            { pos: [-0.94, 1.55, 0.94], size: [0.16, 3.00, 0.16], color: [0.25, 0.24, 0.23] },  // SW dark stone quoin / corner post
-            { pos: [0.94, 1.55, 0.94], size: [0.16, 3.00, 0.16], color: [0.25, 0.24, 0.23] }   // SE dark stone quoin / corner post
+            { pos: [0, 0.125, 0], size: [1.992, 0.24, 1.992], color: [0.44, 0.42, 0.40] },         // Foundation plinth: Y [0.005, 0.245], X/Z ±0.996
+            { pos: [0, 1.580, 0], size: [1.992, 0.14, 1.992], color: [0.28, 0.26, 0.25] },         // Mid-wall horizontal band: Y [1.510, 1.650], X/Z ±0.996
+            { pos: [0, 2.950, 0], size: [1.996, 0.18, 1.996], color: [0.26, 0.25, 0.24] },         // Upper eaves cornice: Y [2.860, 3.040], X/Z ±0.998
+            { pos: [-0.905, 0.8775, -0.905], size: [0.17, 1.259, 0.17], color: [0.25, 0.24, 0.23] }, // Lower NW post: Y [0.248, 1.507], outer X/Z ±0.990
+            { pos: [0.905, 0.8775, -0.905], size: [0.17, 1.259, 0.17], color: [0.25, 0.24, 0.23] },  // Lower NE post
+            { pos: [-0.905, 0.8775, 0.905], size: [0.17, 1.259, 0.17], color: [0.25, 0.24, 0.23] },  // Lower SW post
+            { pos: [0.905, 0.8775, 0.905], size: [0.17, 1.259, 0.17], color: [0.25, 0.24, 0.23] },   // Lower SE post
+            { pos: [-0.905, 2.255, -0.905], size: [0.17, 1.204, 0.17], color: [0.25, 0.24, 0.23] },  // Upper NW post: Y [1.653, 2.857], outer X/Z ±0.990
+            { pos: [0.905, 2.255, -0.905], size: [0.17, 1.204, 0.17], color: [0.25, 0.24, 0.23] },   // Upper NE post
+            { pos: [-0.905, 2.255, 0.905], size: [0.17, 1.204, 0.17], color: [0.25, 0.24, 0.23] },   // Upper SW post
+            { pos: [0.905, 2.255, 0.905], size: [0.17, 1.204, 0.17], color: [0.25, 0.24, 0.23] }    // Upper SE post
         ]);
 
-        // Continuous flat/beveled dark weathered slate & stone parapet cap (zero stepped red Minecraft pyramids)
+        // Continuous flat/beveled dark weathered slate & stone parapet cap (strictly disjoint above Y=3.040m & inside ±0.997m)
         const townRoofGeo = createMergedBoxGeometry([
-            { pos: [0, 3.06, 0], size: [2.04, 0.12, 2.04], color: [0.34, 0.35, 0.38] },         // Flush dark slate cornice coping
-            { pos: [0, 3.15, 0], size: [1.96, 0.08, 1.96], color: [0.24, 0.25, 0.28] }          // Low-profile dark stone parapet cap
+            { pos: [0, 3.104, 0], size: [1.994, 0.12, 1.994], color: [0.34, 0.35, 0.38] },         // Flush dark slate cornice coping: Y [3.044, 3.164]
+            { pos: [0, 3.208, 0], size: [1.920, 0.08, 1.920], color: [0.24, 0.25, 0.28] }          // Low-profile dark stone parapet cap: Y [3.168, 3.248]
         ]);
 
         // 2. Closed Wooden Door Panel with Horizontal Iron Straps (DungeonWorld.cs:1581-1593)
@@ -7858,9 +7861,17 @@ class Dungeon3D {
                         }
                     } else {
                         if (wallCount < this.maxInstances) {
+                            if (isTownBuilding) {
+                                this.dummy.position.set(wx, wallYCenter * 0.96, wz);
+                                this.dummy.scale.set(0.96, 0.96, 0.96);
+                                this.dummy.updateMatrix();
+                            }
                             this.wallMesh.setMatrixAt(wallCount, this.dummy.matrix);
                             this.wallMesh.setColorAt(wallCount, wallShade);
                             wallCount++;
+                            if (isTownBuilding) {
+                                this.dummy.scale.set(1, 1, 1);
+                            }
                         }
                         if (isTownBuilding) {
                             this.dummy.position.set(wx, 0, wz);

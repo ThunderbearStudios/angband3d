@@ -1,6 +1,6 @@
 {
   "name": "angband3d-app",
-  "version": "11.5.5",
+  "version": "11.5.6",
   "private": true,
   "scripts": {
     "cap": "cap",
