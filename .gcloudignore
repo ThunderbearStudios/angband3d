@@ -1,4 +1,4 @@
-# Cloud Build context ignore — excludes desktop/Godot/Android/dist/resources and local build caches
+# Cloud Build context ignore — excludes desktop/Godot/Android/dist/resources and C/C++ engine build trees
 .git/
 .github/
 .vscode/
@@ -15,7 +15,7 @@ tests/
 lib/
 node_modules/
 server/node_modules/
-variants/*-src/build/
+variants/*-src/
 variants/*/*.o
 variants/*/*.a
 *.log
