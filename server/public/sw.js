@@ -1,5 +1,5 @@
 // Angband3D Service Worker — v9.1.0 PWA & Multi-Realm Standalone Client Caching
-const CACHE_NAME = 'angband3d-v11.5.4';
+const CACHE_NAME = 'angband3d-v11.5.5';
 const SHELL_ASSETS = [
   '/',
   '/index.html',

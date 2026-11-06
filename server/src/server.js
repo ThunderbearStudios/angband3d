@@ -86,7 +86,7 @@ const inFlightTTS = new Map();
 
 // In-Memory Static Gzip Cache (eliminates repeated compression CPU overhead on static assets)
 const staticGzipCache = new Map();
-const MAX_STATIC_CACHE_ITEMS = 100;
+const MAX_STATIC_CACHE_ITEMS = 250;
 
 // In-Memory Living Chronicle Hero Action Sketch Cache (LRU up to 32 items)
 const sketchCache = new Map();
@@ -676,12 +676,12 @@ loadEnv();
 // Configuration
 const PORT = parseInt(process.env.PORT || '8080', 10);
 const IS_WIN = process.platform === 'win32';
-const IDLE_TIMEOUT_MS = parseInt(process.env.IDLE_TIMEOUT_MS || `${2 * 60 * 60 * 1000}`, 10); // 2 hours
-const MAX_CONCURRENT_GAMES = parseInt(process.env.MAX_CONCURRENT_GAMES || '50', 10);
+const IDLE_TIMEOUT_MS = parseInt(process.env.IDLE_TIMEOUT_MS || `${20 * 60 * 1000}`, 10); // 20 minutes
+const MAX_CONCURRENT_GAMES = parseInt(process.env.MAX_CONCURRENT_GAMES || '36', 10);
 const MAX_WS_PER_IP = parseInt(process.env.MAX_WS_PER_IP || '8', 10);
 const MAX_QUEUE_SIZE = parseInt(process.env.MAX_QUEUE_SIZE || '100', 10);
-// Reconnect Grace Period: Keeps headless game engine alive across network drops, tab reloads, or lag spikes (30 minutes)
-const DISCONNECT_GRACE_PERIOD_MS = parseInt(process.env.DISCONNECT_GRACE_PERIOD_MS || `${30 * 60 * 1000}`, 10); // 30 minutes
+// Reconnect Grace Period: Keeps headless game engine alive across network drops, tab reloads, or lag spikes (5 minutes; active play sessions save immediately on disconnect)
+const DISCONNECT_GRACE_PERIOD_MS = parseInt(process.env.DISCONNECT_GRACE_PERIOD_MS || `${5 * 60 * 1000}`, 10); // 5 minutes
 
 // Waiting queue for connections when activeSessions.size >= MAX_CONCURRENT_GAMES
 // Each item: { id, ws, request, enqueueTime, user, save }
@@ -2824,17 +2824,18 @@ const server = http.createServer((req, res) => {
             // - Static Audio SFX (.mp3, .wav, .ogg): 24h caching
             // - 3D Models, Textures, Atlases, WASM: 24h immutable caching
             const posixPath = safePath.replace(/\\/g, '/');
+            const hasVersionQuery = req.url && req.url.includes('?v=');
             let cacheControl = 'no-cache, must-revalidate';
             if (posixPath === '/index.html' || posixPath === '/' || posixPath === '/sw.js' || posixPath === '/version.json') {
                 cacheControl = 'no-store, no-cache, must-revalidate, max-age=0';
             } else if (['.mp4', '.webm', '.m4a'].includes(ext)) {
                 cacheControl = 'no-cache, no-store, must-revalidate';
             } else if (['.mp3', '.wav', '.ogg'].includes(ext)) {
-                cacheControl = 'public, max-age=86400, no-transform';
+                cacheControl = 'public, max-age=604800, no-transform';
             } else if (['.png', '.jpg', '.jpeg', '.webp', '.obj', '.mtl', '.gltf', '.glb', '.bin', '.wasm', '.pck'].includes(ext)) {
-                cacheControl = 'public, max-age=86400, immutable';
+                cacheControl = 'public, max-age=604800, immutable';
             } else if (['.js', '.css'].includes(ext)) {
-                cacheControl = 'no-cache, must-revalidate';
+                cacheControl = hasVersionQuery ? 'public, max-age=604800, immutable' : 'no-cache, must-revalidate';
             }
 
             const etag = `W/"${fileStat.size.toString(16)}-${Math.floor(fileStat.mtimeMs).toString(16)}"`;
@@ -2865,7 +2866,7 @@ const server = http.createServer((req, res) => {
 
             // HTTP 206 Partial Content (Range Request) support for smooth video/audio seeking & scrubbing
             const range = req.headers.range;
-            if (range && (ext === '.mp4' || ext === '.webm' || ext === '.mp3' || ext === '.wav' || ext === '.m4a')) {
+            if (range && (ext === '.mp4' || ext === '.webm' || ext === '.mp3' || ext === '.wav' || ext === '.ogg' || ext === '.m4a')) {
                 try {
                     const total = fileStat.size;
                     const matches = range.match(/bytes=(\d*)-(\d*)/);
@@ -2889,9 +2890,12 @@ const server = http.createServer((req, res) => {
                             const actualEnd = Math.min(end, start + MAX_CHUNK - 1, total - 1);
                             const chunksize = (actualEnd - start) + 1;
                             const stream = fs.createReadStream(filePath, { start, end: actualEnd });
+                            const rangeCacheControl = (ext === '.mp3' || ext === '.wav' || ext === '.ogg')
+                                ? 'public, max-age=604800, no-transform'
+                                : 'no-cache, no-store, must-revalidate';
                             res.writeHead(206, {
                                 ...headers,
-                                'Cache-Control': filePath.includes('yasd_theme.mp3') ? 'public, max-age=86400' : 'no-cache, no-store, must-revalidate',
+                                'Cache-Control': rangeCacheControl,
                                 'Content-Range': `bytes ${start}-${actualEnd}/${total}`,
                                 'Content-Length': chunksize,
                             });
@@ -2912,8 +2916,8 @@ const server = http.createServer((req, res) => {
                 } catch (_) {}
             }
 
-        // Gzip compression for text & code payloads (.html, .js, .css, .json, .obj, .mtl, .svg)
-        const compressible = ['.html', '.js', '.css', '.json', '.obj', '.mtl', '.svg'].includes(ext);
+        // Gzip compression for text & 3D scene/code payloads (.html, .js, .css, .json, .obj, .mtl, .svg, .gltf, .bin)
+        const compressible = ['.html', '.js', '.css', '.json', '.obj', '.mtl', '.svg', '.gltf', '.bin'].includes(ext);
         const acceptEncoding = req.headers['accept-encoding'] || '';
 
         if (compressible && acceptEncoding.includes('gzip')) {
@@ -3201,7 +3205,7 @@ function handleSessionDisconnect(sessionId, socket = null) {
 
     // Check if the engine process is still running
     if (session.child && !session.child.killed && session.child.exitCode === null) {
-        const graceMs = session.phase === 'setup' ? Math.min(DISCONNECT_GRACE_PERIOD_MS, 60000) : DISCONNECT_GRACE_PERIOD_MS;
+        const graceMs = (session.phase === 'setup' || session.isDead) ? Math.min(DISCONNECT_GRACE_PERIOD_MS, 45000) : DISCONNECT_GRACE_PERIOD_MS;
         console.log(`[WebSocket] Client disconnected from session ${sessionId} (Phase: ${session.phase || 'unknown'}, isDead: ${session.isDead || false}). Keeping engine alive for ${Math.round(graceMs / 1000)}s grace period...`);
 
         // Only issue non-blocking save command if actively in gameplay and player is NOT dead

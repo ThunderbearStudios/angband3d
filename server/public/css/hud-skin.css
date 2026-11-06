@@ -783,3 +783,306 @@
   border-color: var(--yasd-gold-accent);
   transform: translateY(-1px);
 }
+
+/* ==========================================================================
+   v11.5.5: Sketch Loading Indicator, Maximized Death Modal & Heraldic Skin
+   ========================================================================== */
+
+@keyframes yasdSketchSpin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.sketch-loading-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 156px;
+  width: 100%;
+  padding: 14px 10px;
+  border-radius: 6px;
+  background: radial-gradient(circle at 50% 40%, rgba(216, 177, 90, 0.10) 0%, rgba(15, 17, 21, 0.92) 78%);
+  border: 1px dashed var(--yasd-gold-border);
+  color: var(--yasd-gold-accent);
+  text-align: center;
+  box-sizing: border-box;
+}
+
+.sketch-loading-spinner {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2.5px solid rgba(216, 177, 90, 0.22);
+  border-top-color: var(--yasd-gold-accent);
+  border-right-color: var(--yasd-gold-bright);
+  animation: yasdSketchSpin 0.95s linear infinite;
+  box-shadow: 0 0 12px rgba(216, 177, 90, 0.25);
+}
+
+.sketch-loading-label {
+  font-family: var(--font-display, 'Cinzel', Georgia, serif);
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  color: var(--yasd-gold-bright);
+}
+
+/* Death Modal: Compact 184px Sketch Sidebar + Maximized Classic Terminal (>82% Width) */
+#death-modal .death-panel {
+  width: min(96vw, 1340px) !important;
+  max-width: 1340px !important;
+}
+
+#death-modal .death-tombstone-split {
+  display: grid !important;
+  grid-template-columns: 196px minmax(0, 1fr) !important;
+  gap: 12px !important;
+  align-items: stretch !important;
+}
+
+#death-sketch-wrap {
+  width: 196px !important;
+  max-width: 196px !important;
+  padding: 8px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  gap: 6px !important;
+  background: rgba(15, 17, 21, 0.86) !important;
+  border: 1px solid var(--yasd-border-control) !important;
+  border-top: 2px solid var(--yasd-gold-accent) !important;
+  border-radius: 7px !important;
+  box-sizing: border-box !important;
+  align-self: start !important;
+}
+
+#death-sketch-img {
+  width: 176px !important;
+  height: 176px !important;
+  max-width: 176px !important;
+  max-height: 176px !important;
+  object-fit: cover !important;
+  border-radius: 5px !important;
+  border: 1px solid var(--yasd-gold-border) !important;
+  cursor: zoom-in !important;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.7) !important;
+}
+
+.death-terminal-main-col {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 6px !important;
+  min-width: 0 !important;
+  width: 100% !important;
+  flex: 1 1 auto !important;
+}
+
+.death-term-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 8px;
+  background: linear-gradient(180deg, rgba(35, 40, 49, 0.94) 0%, rgba(21, 24, 29, 0.96) 100%);
+  border: 1px solid var(--yasd-border-control);
+  border-radius: 6px;
+}
+
+.death-term-toolbar-hint {
+  font-family: var(--font-display, 'Cinzel', Georgia, serif);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--yasd-gold-accent);
+  margin-right: 4px;
+}
+
+.death-term-key-btn {
+  background: linear-gradient(180deg, #282e38 0%, #191d24 100%);
+  border: 1px solid var(--yasd-border-control);
+  border-bottom: 2px solid #0b0d11;
+  border-radius: 4px;
+  color: var(--yasd-text-bright);
+  font-family: var(--font-terminal, monospace);
+  font-size: 11px;
+  padding: 3px 8px;
+  cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease, transform 80ms ease;
+}
+
+.death-term-key-btn:hover {
+  background: var(--yasd-slate-card-hover);
+  border-color: var(--yasd-gold-accent);
+  color: var(--yasd-gold-bright);
+}
+
+.death-term-key-btn:active {
+  transform: translateY(1px);
+}
+
+#death-terminal-container {
+  width: 100% !important;
+  min-height: min(66dvh, 640px) !important;
+  height: min(66dvh, 640px) !important;
+  background: #08090c !important;
+  border: 1px solid var(--yasd-border-control) !important;
+  border-radius: 6px !important;
+  overflow: hidden !important;
+  box-sizing: border-box !important;
+}
+
+#death-terminal-canvas {
+  width: 100% !important;
+  height: 100% !important;
+  display: block !important;
+}
+
+@media (max-width: 760px) {
+  #death-modal .death-tombstone-split {
+    grid-template-columns: 1fr !important;
+  }
+  #death-sketch-wrap {
+    width: 100% !important;
+    max-width: 100% !important;
+    flex-direction: row !important;
+    justify-content: space-between !important;
+  }
+  #death-sketch-img {
+    width: 96px !important;
+    height: 96px !important;
+  }
+}
+
+/* Close D-Pad [✕] Button directly on D-Pad Header */
+.dpad-close-btn {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--yasd-border-iron);
+  border-radius: 4px;
+  color: var(--yasd-text-muted);
+  font-size: 10px;
+  line-height: 1;
+  padding: 2px 5px;
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
+}
+
+.dpad-close-btn:hover {
+  background: rgba(196, 60, 60, 0.24);
+  border-color: rgba(235, 95, 95, 0.68);
+  color: #ffd6d6;
+}
+
+/* Jukebox Popover Track Attribution Line */
+.popover-music-credit {
+  font-size: 10px;
+  line-height: 1.35;
+  color: var(--yasd-text-muted);
+  margin: 2px 0 6px 0;
+  padding: 3px 6px;
+  background: rgba(15, 17, 21, 0.55);
+  border-left: 2px solid var(--yasd-gold-border);
+  border-radius: 0 4px 4px 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ==========================================================================
+   World-Class Heraldic Dark-Fantasy Skin (Splash, Main Menu, Realm Cards, HUD)
+   ========================================================================== */
+
+#splash-overlay {
+  background:
+    radial-gradient(circle at 50% 28%, rgba(21, 24, 29, 0.62) 0%, rgba(12, 14, 18, 0.93) 72%, rgba(8, 10, 13, 0.98) 100%),
+    url('/assets/showcase/live_3d_combat_showcase.png') center center / cover no-repeat !important;
+}
+
+#main-menu-overlay {
+  background:
+    radial-gradient(circle at 50% 24%, rgba(21, 24, 29, 0.68) 0%, rgba(12, 14, 18, 0.94) 74%, rgba(8, 10, 13, 0.98) 100%),
+    url('/assets/showcase/live_town_sky_stores.png') center center / cover no-repeat !important;
+}
+
+/* Restore Gothic / Elven Gold Filigree Corner Medallions */
+.splash-ornament-corner,
+.main-menu-ornament-corner {
+  display: block !important;
+  position: absolute !important;
+  width: 26px !important;
+  height: 26px !important;
+  pointer-events: none !important;
+  opacity: 0.78 !important;
+  z-index: 3 !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32' fill='none'%3E%3Cpath d='M2 30V6C2 3.79 3.79 2 6 2H30' stroke='%23d8b15a' stroke-width='2'/%3E%3Cpath d='M6 24V8C6 6.9 6.9 6 8 6H24' stroke='%23f0cf7a' stroke-width='1' stroke-opacity='0.75'/%3E%3Ccircle cx='7' cy='7' r='2.2' fill='%23d8b15a'/%3E%3Cpath d='M12 2L9 6L12 10M2 12L6 9L10 12' stroke='%23d8b15a' stroke-width='1.1' stroke-opacity='0.8'/%3E%3C/svg%3E") !important;
+  background-size: contain !important;
+  background-repeat: no-repeat !important;
+}
+
+.splash-ornament-corner.tl, .main-menu-ornament-corner.tl { top: 8px !important; left: 8px !important; transform: none !important; }
+.splash-ornament-corner.tr, .main-menu-ornament-corner.tr { top: 8px !important; right: 8px !important; transform: scaleX(-1) !important; }
+.splash-ornament-corner.bl, .main-menu-ornament-corner.bl { bottom: 8px !important; left: 8px !important; transform: scaleY(-1) !important; }
+.splash-ornament-corner.br, .main-menu-ornament-corner.br { bottom: 8px !important; right: 8px !important; transform: scale(-1, -1) !important; }
+
+/* Realm-Specific Heraldic Card Crests */
+.realm-card[data-realm="vanilla"] {
+  border-top: 2.5px solid #d8b15a !important;
+  background: radial-gradient(120% 90% at 50% 0%, rgba(216, 177, 90, 0.13) 0%, var(--yasd-slate-card) 68%) !important;
+}
+.realm-card[data-realm="sil"] {
+  border-top: 2.5px solid #9cc2e6 !important;
+  background: radial-gradient(120% 90% at 50% 0%, rgba(156, 194, 230, 0.14) 0%, var(--yasd-slate-card) 68%) !important;
+}
+.realm-card[data-realm="FAangband"] {
+  border-top: 2.5px solid #5ec28f !important;
+  background: radial-gradient(120% 90% at 50% 0%, rgba(94, 194, 143, 0.13) 0%, var(--yasd-slate-card) 68%) !important;
+}
+.realm-card[data-realm="Furyband"] {
+  border-top: 2.5px solid #e05a47 !important;
+  background: radial-gradient(120% 90% at 50% 0%, rgba(224, 90, 71, 0.14) 0%, var(--yasd-slate-card) 68%) !important;
+}
+.realm-card[data-realm="FrogComposband"] {
+  border-top: 2.5px solid #b57edc !important;
+  background: radial-gradient(120% 90% at 50% 0%, rgba(181, 126, 220, 0.14) 0%, var(--yasd-slate-card) 68%) !important;
+}
+.realm-card[data-realm="Hengband"] {
+  border-top: 2.5px solid #e67e9c !important;
+  background: radial-gradient(120% 90% at 50% 0%, rgba(230, 126, 156, 0.14) 0%, var(--yasd-slate-card) 68%) !important;
+}
+.realm-card[data-realm="ToME"] {
+  border-top: 2.5px solid #4db8d6 !important;
+  background: radial-gradient(120% 90% at 50% 0%, rgba(77, 184, 214, 0.14) 0%, var(--yasd-slate-card) 68%) !important;
+}
+.realm-card[data-realm="moria"] {
+  border-top: 2.5px solid #cd8c52 !important;
+  background: radial-gradient(120% 90% at 50% 0%, rgba(205, 140, 82, 0.14) 0%, var(--yasd-slate-card) 68%) !important;
+}
+
+/* Apothecary Glass Specular Highlight on Health & Mana Vials */
+.vial-glass-gloss {
+  display: block !important;
+  opacity: 0.36 !important;
+  pointer-events: none !important;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.45) 0%,
+    rgba(255, 255, 255, 0.10) 42%,
+    transparent 62%
+  ) !important;
+}
+
+/* Beveled Obsidian Keycaps on Action Bar */
+#action-bar .action-btn {
+  background: linear-gradient(180deg, #29303b 0%, #1a1e26 85%, #14171e 100%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.13) !important;
+  border-top-color: rgba(242, 232, 207, 0.22) !important;
+  border-bottom: 2px solid #0b0d11 !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 2px 5px rgba(0, 0, 0, 0.45) !important;
+}
+
+#action-bar .action-btn:hover {
+  background: linear-gradient(180deg, #343d4b 0%, #232934 100%) !important;
+  border-color: var(--yasd-gold-accent) !important;
+}
+

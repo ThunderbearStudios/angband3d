@@ -449,56 +449,77 @@ class SoundEngine {
 
     getMusicCatalog() {
         if (this._musicCatalog) return this._musicCatalog;
-        const m = (id, title, cat, file) => ({ id, title, category: cat, src: file.startsWith('/') ? file : `/assets/audio/music/${file}` });
+        const m = (id, title, cat, file, artist = 'Isamu (HURT RECORD)', license = 'Free BGM (HURT RECORD / Hengband)', url = 'https://www.hurtrecord.com/') => ({
+            id,
+            title,
+            category: cat,
+            src: file.startsWith('/') ? file : `/assets/audio/music/${file}`,
+            artist,
+            license,
+            url
+        });
+        const yasdUrl = 'https://yasd3d.com';
+        const oga = (id, title, cat, file, artist, license, slug) => m(id, title, cat, file, artist, license, `https://opengameart.org/content/${slug}`);
         this._musicCatalog = [
-            m('yasd_theme', 'YASD 3D Official Theme', 'theme', '/assets/audio/yasd_theme.mp3'),
-            m('town_cloudancer', 'Town: Outpost Sanctuary', 'town', 'town1.mp3'),
-            m('town_snowland', 'Town: Telmora Hearth', 'town', 'town2.mp3'),
-            m('town_theme', 'Town: Classic Town Theme', 'town', 'town3.mp3'),
-            m('town_no_place', 'Town: Angwil Sanctuary', 'town', 'town4.mp3'),
-            m('town_pleasant', 'Town: Pleasant Creek & Shire', 'town', 'town5.mp3'),
-            m('town_sorrow', 'Town: Hero\'s Prelude', 'town', 'new_game.mp3'),
-            m('wilderness_day', 'Wilderness: Worldmap Overland', 'town', 'wild.mp3'),
-            m('wilderness_night', 'Wilderness: Borderlands Dawn', 'town', 'field_low1.mp3'),
-            m('store_tavern', 'Shop & Tavern: Merchant Guild', 'town', 'build.mp3'),
-            m('store_carol', 'Shop & Forge: Carol of the Anvil', 'town', 'field_low2.mp3'),
-            m('store_black', 'Black Market: Strange Meadow', 'town', 'field_low3.mp3'),
-            m('arena_fanfare', 'Arena: Gladiators\' Fanfare', 'quest', 'arena.mp3'),
-            m('dungeon_low_1', 'Shallow Halls: Determined Ascent', 'dungeon_low', 'dun_low1.mp3'),
-            m('dungeon_low_2', 'Shallow Halls: Frozen Wastes', 'dungeon_low', 'dun_low2.mp3'),
-            m('dungeon_low_3', 'Shallow Halls: Restless Spirit', 'dungeon_low', 'dun_low3.mp3'),
-            m('dungeon_low_feel1', 'Dungeon Feeling: Dark Cavern', 'dungeon_low', 'dun_low4.mp3'),
-            m('dungeon_low_feel2', 'Dungeon Feeling: Dark Ambience', 'dungeon_low', 'dun_low5.mp3'),
-            m('dungeon_med_1', 'Mid Depths: Darkness Must Fall', 'dungeon_med', 'dun_med1.mp3'),
-            m('dungeon_med_2', 'Mid Depths: Lost Forever', 'dungeon_med', 'dun_med2.mp3'),
-            m('dungeon_med_3', 'Mid Depths: Unholy Serenade', 'dungeon_med', 'dun_med3.mp3'),
-            m('dungeon_med_feel1', 'Vault Feeling: Beyond The End', 'dungeon_med', 'dun_med4.mp3'),
-            m('dungeon_med_feel2', 'Vault Feeling: Cave of Return', 'dungeon_med', 'dun_med5.mp3'),
-            m('dungeon_high_1', 'Deep Abyss: Demon Trench', 'dungeon_high', 'dun_high1.mp3'),
-            m('dungeon_high_2', 'Deep Abyss: Halls of Despair', 'dungeon_high', 'dun_high2.mp3'),
-            m('dungeon_high_3', 'Deep Abyss: The Dark Amulet', 'dungeon_high', 'dun_high3.mp3'),
-            m('dungeon_high_feel1', 'Abyssal Feeling: Deep Tunnels', 'dungeon_high', 'dun_high4.mp3'),
-            m('dungeon_high_feel2', 'Abyssal Feeling: Factory of Chaos', 'dungeon_high', 'dun_high5.mp3'),
-            m('dungeon_special', 'Special Level: Ominous Premonition', 'dungeon_med', 'feel1.mp3'),
-            m('quest_1', 'Quest Citadel: Battle Theme A', 'quest', 'quest1.mp3'),
-            m('quest_2', 'Quest Citadel: Heroic Demise', 'quest', 'quest2.mp3'),
-            m('quest_3', 'Quest Citadel: Winds of Stories', 'quest', 'quest3.mp3'),
-            m('quest_clear', 'Quest Cleared: Orchestral Fanfare', 'victory', 'quest_clear.mp3'),
-            m('boss_1', 'Unique Foe: Clash of Steel', 'boss', 'battle.mp3'),
-            m('boss_2', 'Unique Foe: Persecution & Pursuit', 'boss', 'quest4.mp3'),
-            m('boss_3', 'Unique Foe: Visions of Death', 'boss', 'feel2.mp3'),
-            m('boss_special', 'Arch-Vile Boss: Serpent of Chaos', 'boss', 'The_Serpent_of_Chaos.mp3'),
-            m('boss_final', 'Final Boss: Ambush in the Pit', 'boss', 'ambush.mp3'),
-            m('victory_royal', 'Victory: Orchestral Royal Theme', 'victory', 'winner.mp3'),
-            m('victory_celeb', 'Ascension: Celebration in Peace', 'victory', 'exit.mp3'),
-            m('death_wind', 'Fallen Hero: Lament for a Warrior', 'death', 'gameover.mp3'),
-            m('extra_arabesque', 'Realm Suite: Mist Forest', 'dungeon_med', 'field_med1.mp3'),
-            m('extra_battle_rain', 'Realm Suite: Wasteland Overdrive', 'boss', 'field_high1.mp3'),
-            m('extra_cursed', 'Realm Suite: The Cursed Hero', 'dungeon_high', 'field_high2.mp3'),
-            m('extra_mysterious', 'Realm Suite: Mysterious Groves', 'dungeon_low', 'field_med2.mp3'),
-            m('extra_sins', 'Realm Suite: Wraiths of Winter', 'dungeon_high', 'field_high3.mp3'),
-            m('extra_journey', 'Realm Suite: A New Journey', 'town', 'field_med3.mp3'),
-            m('extra_hope', 'Realm Suite: Glimmer of Hope', 'town', 'town1.mp3')
+            m('yasd_theme', 'YASD 3D Official Theme', 'theme', '/assets/audio/yasd_theme.mp3', 'Thunderbear Studios', 'Proprietary (© 2026 Thunderbear Studios)', yasdUrl),
+            m('town_cloudancer', 'Town: Outpost Sanctuary (Cloudancer)', 'town', 'town1.mp3', 'pin (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
+            m('town_snowland', 'Town: Telmora Hearth (Snowland)', 'town', 'town2.mp3', 'Take (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
+            m('town_theme', 'Town: Classic Town Theme', 'town', 'town3.mp3', 'Isamu (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
+            m('town_no_place', 'Town: Angwil Sanctuary (No Place For Us)', 'town', 'town4.mp3', 'kiku (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
+            m('town_pleasant', 'Town: Pleasant Creek & Shire', 'town', 'town5.mp3', 'G.S (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
+            m('town_sorrow', 'Town: Hero\'s Prelude (Overcome Sorrow)', 'town', 'new_game.mp3', 'you (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
+            m('wilderness_day', 'Wilderness: Worldmap Overland', 'town', 'wild.mp3', 'kiku (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
+            m('wilderness_night', 'Wilderness: Borderlands Dawn', 'town', 'field_low1.mp3', 'Shintaro Aoki (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
+            m('store_tavern', 'Shop & Tavern: Merchant Guild', 'town', 'build.mp3', 'G.S (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
+            m('store_carol', 'Shop & Forge: Carol of the Anvil', 'town', 'field_low2.mp3', 'Shintaro Aoki (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
+            m('store_black', 'Black Market: Strange Meadow', 'town', 'field_low3.mp3', 'Take (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
+            m('arena_fanfare', 'Arena: Gladiators\' Fanfare', 'quest', 'arena.mp3', 'G.S (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
+            m('dungeon_low_1', 'Shallow Halls: Determined Ascent', 'dungeon_low', 'dun_low1.mp3', 'Isamu (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
+            m('dungeon_low_2', 'Shallow Halls: Frozen Wastes', 'dungeon_low', 'dun_low2.mp3', 'Isamu (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
+            m('dungeon_low_3', 'Shallow Halls: Restless Spirit', 'dungeon_low', 'dun_low3.mp3', 'Isamu (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
+            m('dungeon_low_feel1', 'Dungeon Feeling: Dark Cavern', 'dungeon_low', 'dun_low4.mp3', 'Isamu (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
+            m('dungeon_low_feel2', 'Dungeon Feeling: Dark Ambience', 'dungeon_low', 'dun_low5.mp3', 'Isamu (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
+            m('dungeon_med_1', 'Mid Depths: Darkness Must Fall', 'dungeon_med', 'dun_med1.mp3', 'Isamu (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
+            m('dungeon_med_2', 'Mid Depths: Lost Forever', 'dungeon_med', 'dun_med2.mp3', 'Isamu (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
+            m('dungeon_med_3', 'Mid Depths: Unholy Serenade', 'dungeon_med', 'dun_med3.mp3', 'Isamu (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
+            m('dungeon_med_feel1', 'Vault Feeling: Beyond The End', 'dungeon_med', 'dun_med4.mp3', 'kiku (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
+            m('dungeon_med_feel2', 'Vault Feeling: Cave of Return', 'dungeon_med', 'dun_med5.mp3', 'N.K (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
+            m('dungeon_high_1', 'Deep Abyss: Demon Trench', 'dungeon_high', 'dun_high1.mp3', 'Isamu (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
+            m('dungeon_high_2', 'Deep Abyss: Halls of Despair', 'dungeon_high', 'dun_high2.mp3', 'Isamu (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
+            m('dungeon_high_3', 'Deep Abyss: The Dark Amulet', 'dungeon_high', 'dun_high3.mp3', 'Isamu (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
+            m('dungeon_high_feel1', 'Abyssal Feeling: Deep Tunnels', 'dungeon_high', 'dun_high4.mp3', 'N.K (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
+            m('dungeon_high_feel2', 'Abyssal Feeling: Factory of Chaos', 'dungeon_high', 'dun_high5.mp3', 'N.K (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
+            m('dungeon_special', 'Special Level: Ominous Premonition', 'dungeon_med', 'feel1.mp3', 'Isamu (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
+            m('quest_1', 'Quest Citadel: Battle Theme A', 'quest', 'quest1.mp3', 'masa (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
+            m('quest_2', 'Quest Citadel: Heroic Demise', 'quest', 'quest2.mp3', 'Isamu (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
+            m('quest_3', 'Quest Citadel: Winds of Stories', 'quest', 'quest3.mp3', 'you (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
+            m('quest_clear', 'Quest Cleared: Orchestral Fanfare', 'victory', 'quest_clear.mp3', 'TMS (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
+            m('boss_1', 'Unique Foe: Clash of Steel', 'boss', 'battle.mp3', 'Isamu (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
+            m('boss_2', 'Unique Foe: Persecution & Pursuit', 'boss', 'quest4.mp3', 'y.tamura (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
+            m('boss_3', 'Unique Foe: Visions of Death', 'boss', 'feel2.mp3', 'Isamu (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
+            m('boss_special', 'Arch-Vile Boss: Serpent of Chaos', 'boss', 'The_Serpent_of_Chaos.mp3', 'kuusuke (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
+            m('boss_final', 'Final Boss: Ambush in the Pit', 'boss', 'ambush.mp3', 'kiku (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
+            m('victory_royal', 'Victory: Orchestral Royal Theme', 'victory', 'winner.mp3', 'TMS (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
+            m('victory_celeb', 'Ascension: Celebration in Peace', 'victory', 'exit.mp3', 'G.S (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
+            m('death_wind', 'Fallen Hero: Where the Wind Goes', 'death', 'gameover.mp3', 'G.S (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
+            m('extra_arabesque', 'Realm Suite: Mist Forest (Arabesque)', 'dungeon_med', 'field_med1.mp3', 'Take (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
+            m('extra_battle_rain', 'Realm Suite: Wasteland Overdrive', 'boss', 'field_high1.mp3', 'mosaic (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
+            m('extra_cursed', 'Realm Suite: The Cursed Hero', 'dungeon_high', 'field_high2.mp3', 'you (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
+            m('extra_mysterious', 'Realm Suite: Mysterious Groves', 'dungeon_low', 'field_med2.mp3', 'Isamu (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
+            m('extra_sins', 'Realm Suite: Wraiths of Winter (Seven Deadly Sins)', 'dungeon_high', 'field_high3.mp3', 'you (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
+            m('extra_journey', 'Realm Suite: A New Journey', 'town', 'field_med3.mp3', 'you (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
+            m('extra_hope', 'Realm Suite: Glimmer of Hope', 'town', 'town1.mp3', 'pin (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
+            // 10 OpenGameArt CC0 / CC-BY Dark-Fantasy Realm Expansion Tracks
+            oga('oga_destroyed_sanctuary', 'First Age: Destroyed Sanctuary (Gates of Angband)', 'dungeon_low', 'oga_destroyed_sanctuary.mp3', 'Filtered (OpenGameArt)', 'CC0 1.0 Public Domain', 'destroyed-sanctuary'),
+            oga('oga_alandriels_theme', 'First Age: Alandriel\'s Theme (Elven Harp & Flute)', 'town', 'oga_alandriels_theme.mp3', 'Remaxim (OpenGameArt)', 'CC-BY-SA 3.0', 'fantasy-music-alandriels-theme'),
+            oga('oga_elven_groves', 'Brogue & Sylvan: The Elven Groves', 'dungeon_low', 'oga_elven_groves.mp3', 'loyalty_freak_music (OpenGameArt)', 'CC0 1.0 Public Domain', 'the-elven-groves'),
+            oga('oga_small_fire_tavern', 'Minetown & Hearth: A Small Fire Will Do', 'town', 'oga_small_fire_tavern.mp3', 'syncopika (OpenGameArt)', 'CC-BY 3.0', 'a-small-fire-will-do'),
+            oga('oga_dungeon_vorfuehrung', 'Dungeons of Doom: Dungeon Theme I', 'dungeon_low', 'oga_dungeon_vorfuehrung.mp3', 'Remaxim (OpenGameArt)', 'CC-BY-SA 3.0', 'dungeon-theme-1'),
+            oga('oga_fantasy_night', 'Starlight Cavern: Fantasy Night', 'dungeon_med', 'oga_fantasy_night.mp3', 'Cleyton Kauffman (OpenGameArt)', 'CC-BY-SA 3.0', 'fantasy-night'),
+            oga('oga_dark_descent', 'Lair & Vaults: Dark Descent (Extended)', 'dungeon_med', 'oga_dark_descent.mp3', 'Phat Phrog Studios (OpenGameArt)', 'CC0 1.0 Public Domain', 'dark-descent-extended-cut'),
+            oga('oga_dungeon_of_agony', 'Gehennom & Zot: Dungeon of Agony', 'dungeon_high', 'oga_dungeon_of_agony.mp3', 'Cleyton Kauffman (OpenGameArt)', 'CC-BY-SA 4.0', 'dungeon-of-agony'),
+            oga('oga_throne_room_boss', 'Throne Room of Morgoth & Zot', 'boss', 'oga_throne_room_boss.mp3', 'Of Far Different Nature (OpenGameArt)', 'CC-BY 4.0', 'throne-room'),
+            oga('oga_warriors_lament', 'Tombstone Dirge: Lament for a Warrior\'s Soul', 'death', 'oga_warriors_lament.mp3', 'RandomMind (OpenGameArt)', 'CC0 1.0 Public Domain', 'lament-for-a-warriors-soul')
         ];
         return this._musicCatalog;
     }
@@ -512,6 +533,9 @@ class SoundEngine {
             shuffle: Boolean(this.musicShuffle),
             trackId: cur.id,
             trackTitle: cur.title,
+            artist: cur.artist || 'HURT RECORD',
+            license: cur.license || 'CC-BY / Free BGM',
+            url: cur.url || 'https://www.hurtrecord.com/',
             playing: Boolean(this.enabled && this.musicEnabled && deck && !deck.paused),
             mood: this._contextualMood || 'menu'
         };
@@ -596,13 +620,13 @@ class SoundEngine {
         if (/^battle/i.test(lower)) return 'boss_1';
         if (/^ambush/i.test(lower)) return 'boss_final';
         if (/serpent|morgoth|final_boss/i.test(lower)) return 'boss_special';
-        if (/^quest_clear/i.test(lower)) return 'quest_complete';
-        if (/^quest/i.test(lower)) return 'quest_active_1';
+        if (/^quest_clear/i.test(lower)) return 'quest_clear';
+        if (/^quest/i.test(lower)) return 'quest_1';
         if (/^feel1/i.test(lower)) return 'dungeon_special';
         if (/^feel2/i.test(lower)) return 'boss_3';
         if (/^wild/i.test(lower)) return 'wilderness_day';
         if (/^winner|victory/i.test(lower)) return 'victory_royal';
-        if (/^gameover|death/i.test(lower)) return 'gameover_dirge';
+        if (/^gameover|death/i.test(lower)) return 'death_wind';
         return null;
     }
 
@@ -650,7 +674,12 @@ class SoundEngine {
         if (this.musicMode === 'playlist:town') pool = cat.filter(t => t.category === 'town');
         else if (this.musicMode === 'playlist:dungeon') pool = cat.filter(t => t.category.startsWith('dungeon_'));
         else if (this.musicMode === 'playlist:boss') pool = cat.filter(t => t.category === 'boss' || t.category === 'quest');
-        else if (this.musicMode === 'auto' && fromAutoAdvance && this._contextualCategory) {
+        else if (this.musicMode === 'auto' && fromAutoAdvance && this._contextualPool && this._contextualPool.length) {
+            pool = cat.filter(t => this._contextualPool.includes(t.id) && t.id !== 'yasd_theme');
+            if (!pool.length && this._contextualCategory) {
+                pool = cat.filter(t => t.category === this._contextualCategory && t.id !== 'yasd_theme');
+            }
+        } else if (this.musicMode === 'auto' && fromAutoAdvance && this._contextualCategory) {
             pool = cat.filter(t => t.category === this._contextualCategory && t.id !== 'yasd_theme');
             if (!pool.length) pool = cat.filter(t => t.id !== 'yasd_theme');
         }
@@ -703,6 +732,93 @@ class SoundEngine {
         return this.musicShuffle;
     }
 
+    getRealmMusicProfile(realm) {
+        const r = String(realm || 'angband').toLowerCase();
+        const profiles = {
+            angband: {
+                town: ['town_cloudancer', 'town_theme', 'town_sorrow', 'oga_small_fire_tavern'],
+                wilderness: ['wilderness_day', 'wilderness_night', 'extra_journey'],
+                store: ['store_tavern', 'store_carol', 'oga_small_fire_tavern'],
+                low: ['dungeon_low_1', 'dungeon_low_3', 'dungeon_low_feel1', 'oga_dungeon_vorfuehrung', 'extra_mysterious'],
+                med: ['dungeon_med_1', 'dungeon_med_2', 'dungeon_med_feel1', 'oga_dark_descent', 'oga_fantasy_night'],
+                high: ['dungeon_high_1', 'dungeon_high_3', 'dungeon_high_feel1', 'oga_dungeon_of_agony', 'extra_cursed'],
+                boss: ['boss_1', 'boss_2', 'boss_3'],
+                finalBoss: ['oga_throne_room_boss', 'boss_special', 'boss_final']
+            },
+            silq: {
+                town: ['oga_destroyed_sanctuary', 'oga_alandriels_theme'],
+                wilderness: ['oga_destroyed_sanctuary', 'oga_alandriels_theme'],
+                store: ['oga_alandriels_theme'],
+                low: ['oga_destroyed_sanctuary', 'oga_alandriels_theme', 'dungeon_low_2', 'dungeon_low_feel2'],
+                med: ['oga_fantasy_night', 'extra_arabesque', 'dungeon_med_2', 'dungeon_med_feel2'],
+                high: ['oga_dungeon_of_agony', 'extra_sins', 'dungeon_high_2', 'dungeon_high_3'],
+                boss: ['oga_throne_room_boss', 'boss_3', 'boss_1'],
+                finalBoss: ['oga_throne_room_boss', 'boss_special']
+            },
+            brogue: {
+                town: ['oga_elven_groves', 'oga_alandriels_theme'],
+                wilderness: ['oga_elven_groves', 'wilderness_night'],
+                store: ['oga_small_fire_tavern'],
+                low: ['oga_elven_groves', 'extra_mysterious', 'dungeon_low_feel1', 'dungeon_low_1'],
+                med: ['oga_fantasy_night', 'extra_arabesque', 'dungeon_med_feel2', 'oga_dark_descent'],
+                high: ['oga_dungeon_of_agony', 'dungeon_high_feel1', 'dungeon_high_1', 'extra_cursed'],
+                boss: ['boss_2', 'oga_throne_room_boss'],
+                finalBoss: ['oga_throne_room_boss', 'boss_final']
+            },
+            nethack: {
+                town: ['oga_small_fire_tavern', 'town_no_place', 'store_tavern'],
+                wilderness: ['wilderness_day', 'extra_journey'],
+                store: ['oga_small_fire_tavern', 'store_tavern', 'store_carol'],
+                low: ['oga_dungeon_vorfuehrung', 'dungeon_low_1', 'dungeon_low_3', 'oga_small_fire_tavern'],
+                med: ['oga_dark_descent', 'dungeon_med_1', 'dungeon_med_3', 'quest_1'],
+                high: ['oga_dungeon_of_agony', 'dungeon_high_1', 'dungeon_high_2', 'extra_cursed'],
+                boss: ['boss_1', 'boss_2', 'oga_throne_room_boss'],
+                finalBoss: ['oga_throne_room_boss', 'boss_special']
+            },
+            dcss: {
+                town: ['town_theme', 'oga_small_fire_tavern'],
+                wilderness: ['wilderness_day', 'extra_journey'],
+                store: ['store_tavern', 'store_black'],
+                low: ['oga_dungeon_vorfuehrung', 'dungeon_low_2', 'dungeon_low_feel2', 'dungeon_low_1'],
+                med: ['oga_dark_descent', 'oga_elven_groves', 'dungeon_med_feel1', 'quest_2', 'dungeon_med_1'],
+                high: ['oga_dungeon_of_agony', 'dungeon_high_feel2', 'extra_sins', 'dungeon_high_3'],
+                boss: ['boss_1', 'extra_battle_rain', 'oga_throne_room_boss'],
+                finalBoss: ['oga_throne_room_boss', 'boss_final']
+            },
+            rogue: {
+                town: ['town_no_place', 'oga_dungeon_vorfuehrung'],
+                wilderness: ['wilderness_night'],
+                store: ['store_tavern'],
+                low: ['oga_dungeon_vorfuehrung', 'dungeon_low_3', 'dungeon_low_feel1', 'dungeon_low_1'],
+                med: ['oga_dark_descent', 'dungeon_med_2', 'dungeon_special', 'dungeon_med_3'],
+                high: ['oga_dungeon_of_agony', 'dungeon_high_3', 'boss_3', 'dungeon_high_1'],
+                boss: ['boss_1', 'oga_throne_room_boss'],
+                finalBoss: ['oga_throne_room_boss', 'boss_final']
+            },
+            frogcomposband: {
+                town: ['town_pleasant', 'town_cloudancer', 'town_snowland', 'town_no_place', 'oga_small_fire_tavern'],
+                wilderness: ['wilderness_day', 'wilderness_night', 'extra_journey', 'oga_elven_groves'],
+                store: ['store_tavern', 'store_carol', 'store_black', 'oga_small_fire_tavern'],
+                low: ['dungeon_low_1', 'dungeon_low_2', 'oga_elven_groves', 'extra_mysterious', 'oga_dungeon_vorfuehrung'],
+                med: ['dungeon_med_1', 'extra_arabesque', 'oga_fantasy_night', 'quest_3', 'oga_dark_descent'],
+                high: ['dungeon_high_1', 'dungeon_high_2', 'extra_cursed', 'extra_sins', 'oga_dungeon_of_agony'],
+                boss: ['boss_1', 'boss_2', 'extra_battle_rain', 'oga_throne_room_boss'],
+                finalBoss: ['boss_special', 'oga_throne_room_boss', 'boss_final']
+            },
+            hengband: {
+                town: ['town_snowland', 'town_cloudancer', 'town_theme', 'town_no_place', 'town_pleasant'],
+                wilderness: ['wilderness_day', 'wilderness_night', 'extra_journey'],
+                store: ['store_tavern', 'store_carol', 'store_black'],
+                low: ['dungeon_low_1', 'dungeon_low_2', 'dungeon_low_3', 'dungeon_low_feel1', 'dungeon_low_feel2'],
+                med: ['dungeon_med_1', 'dungeon_med_2', 'dungeon_med_3', 'dungeon_med_feel1', 'dungeon_med_feel2', 'extra_arabesque'],
+                high: ['dungeon_high_1', 'dungeon_high_2', 'dungeon_high_3', 'dungeon_high_feel1', 'dungeon_high_feel2', 'extra_sins'],
+                boss: ['boss_1', 'boss_2', 'boss_3', 'extra_battle_rain'],
+                finalBoss: ['boss_special', 'boss_final', 'oga_throne_room_boss']
+            }
+        };
+        return profiles[r] || profiles.angband;
+    }
+
     updateContextualMusic(frame, activeRealm = 'angband') {
         if (!frame || !frame.player) return;
         const p = frame.player;
@@ -725,6 +841,7 @@ class SoundEngine {
             if (this._contextualMood !== progSig || this._currentMusicTrackId !== progTrack || !this._themeActuallyPlaying) {
                 this._contextualMood = progSig;
                 this._contextualCategory = 'quest';
+                this._contextualPool = [progTrack];
                 this.playMusicTrack(progTrack, false);
             }
             return;
@@ -734,74 +851,69 @@ class SoundEngine {
             if (this._contextualMood !== 'victory') {
                 this._contextualMood = 'victory';
                 this._contextualCategory = 'victory';
+                this._contextualPool = ['victory_royal', 'victory_celeb'];
                 this.playMusicTrack('victory_royal', true);
             }
             return;
         }
 
-        // 2. Store / Building / Arena / Boss / Level Feeling hooks (matching music.cfg)
+        // 2. Store / Building / Arena / Boss / Level Feeling hooks + 8-Realm Profiles
         const inStore = Boolean(frame.store || frame.inStore || (typeof window !== 'undefined' && window.ScreenContext && typeof window.ScreenContext.isStore === 'function' && frame.screenText && window.ScreenContext.isStore(frame.screenText)));
         const inArena = Boolean(p.arena || /arena/i.test(p.location || ''));
         const mons = Array.isArray(frame.monsters) ? frame.monsters : [];
         const bossMon = mons.find(m => m && !m.isPet && !m.peaceful && (m.unique || m.isBoss || /morgoth|sauron|oberon|serpent of chaos|yendor|arch-lich|tiamat|glaurung|gothmog|carcharoth/i.test(m.name || m.race || '')));
         const depth = Number(p.depth || 0);
         const r = String(activeRealm || frame.realm || 'angband').toLowerCase();
+        const profile = this.getRealmMusicProfile(r);
         let realmHash = 0;
         for (let i = 0; i < r.length; i++) realmHash = (realmHash * 31 + r.charCodeAt(i)) >>> 0;
+        const locStr = String(p.location || '');
+        let locHash = 0;
+        for (let i = 0; i < locStr.length; i++) locHash = (locHash * 31 + locStr.charCodeAt(i)) >>> 0;
 
         let nextCategory = 'dungeon_low';
-        let defaultTrack = 'dungeon_low_1';
+        let activePool = profile.low;
+        let defaultTrack = activePool[0] || 'dungeon_low_1';
         if (inStore) {
             nextCategory = 'town';
-            defaultTrack = 'store_tavern';
+            activePool = profile.store;
+            defaultTrack = activePool[locHash % activePool.length] || 'store_tavern';
         } else if (inArena) {
             nextCategory = 'boss';
+            activePool = ['arena_fanfare', ...profile.boss];
             defaultTrack = 'arena_fanfare';
         } else if (bossMon) {
             nextCategory = 'boss';
             const bName = String(bossMon.name || bossMon.race || '');
-            defaultTrack = /morgoth|serpent|yendor|oberon|sauron/i.test(bName) ? 'boss_special' : 'boss_1';
+            const isFinal = /morgoth|serpent|yendor|oberon|sauron|orb of zot/i.test(bName);
+            activePool = isFinal ? profile.finalBoss : profile.boss;
+            defaultTrack = activePool[0] || (isFinal ? 'oga_throne_room_boss' : 'boss_1');
         } else if (depth === 0) {
             nextCategory = 'town';
-            const isWild = Boolean(frame.wilderness || /wilderness|outskirts|grassland/i.test(p.location || ''));
-            if (isWild) {
-                const wildTracks = ['wilderness_day', 'wilderness_night', 'extra_journey'];
-                defaultTrack = wildTracks[realmHash % wildTracks.length];
-            } else if (r === 'hengband') {
-                defaultTrack = 'town_snowland';
-            } else if (r === 'frogcomposband') {
-                defaultTrack = 'town_pleasant';
-            } else if (r === 'silq') {
-                defaultTrack = 'extra_Edge_of_Night';
-            } else if (r === 'nethack' || r === 'rogue') {
-                defaultTrack = 'town_no_place';
-            } else if (r === 'dcss') {
-                defaultTrack = 'town_theme';
-            } else if (r === 'brogue') {
-                defaultTrack = 'extra_lullaby';
-            } else {
-                defaultTrack = 'town_cloudancer';
-            }
+            const isWild = Boolean(frame.wilderness || /wilderness|outskirts|grassland/i.test(locStr));
+            activePool = isWild ? profile.wilderness : profile.town;
+            defaultTrack = activePool[(realmHash + locHash) % activePool.length] || 'town_cloudancer';
         } else {
             const deepThresh = (r === 'silq') ? 12 : ((r === 'brogue' || r === 'rogue' || r === 'dcss' || r === 'nethack') ? 15 : 50);
             const midThresh = (r === 'silq') ? 6 : ((r === 'brogue' || r === 'rogue' || r === 'dcss' || r === 'nethack') ? 7 : 20);
-            const lowTracks = ['dungeon_low_1', 'dungeon_low_2', 'dungeon_low_3', 'dungeon_low_feel1', 'dungeon_low_feel2', 'extra_underground', 'extra_depths'];
-            const medTracks = ['dungeon_med_1', 'dungeon_med_2', 'dungeon_med_3', 'dungeon_med_feel1', 'dungeon_med_feel2', 'extra_mysterious', 'extra_catacombs'];
-            const highTracks = ['dungeon_high_1', 'dungeon_high_2', 'dungeon_high_3', 'dungeon_high_feel1', 'dungeon_high_feel2', 'extra_Inferno', 'extra_Shadow_Realms'];
             const pickIdx = (Math.max(1, depth) + realmHash);
             if (depth >= deepThresh) {
                 nextCategory = 'dungeon_high';
-                defaultTrack = highTracks[pickIdx % highTracks.length];
+                activePool = profile.high;
+                defaultTrack = activePool[pickIdx % activePool.length];
             } else if (depth >= midThresh) {
                 nextCategory = 'dungeon_med';
-                defaultTrack = medTracks[pickIdx % medTracks.length];
+                activePool = profile.med;
+                defaultTrack = activePool[pickIdx % activePool.length];
             } else {
                 nextCategory = 'dungeon_low';
-                defaultTrack = lowTracks[pickIdx % lowTracks.length];
+                activePool = profile.low;
+                defaultTrack = activePool[pickIdx % activePool.length];
             }
         }
         const nextMoodSig = `${nextCategory}:${r}:${depth}:${defaultTrack}`;
         this._contextualCategory = nextCategory;
+        this._contextualPool = activePool;
         if (this._contextualMood !== nextMoodSig || this._themeMode === 'none' || this._themeMode === 'menu') {
             this._contextualMood = nextMoodSig;
             this.playMusicTrack(defaultTrack, false);

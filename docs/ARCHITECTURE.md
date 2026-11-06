@@ -30,7 +30,7 @@ variants/hengband-src/       Hengband 3.0.1 C++ engine + bridge
 variants/nethack/bin/        NetHack 3.6.7 headless JSON bridge cartridge
 server/src/cartridges/       UniversalCartridge runtime (NetHack, DCSS, Brogue CE, Rogue 5.4)
 server/src/                  Cloud session multiplexer, rate limiting, and AI proxy (/api/tts, /api/llm)
-server/public/               Three.js WebGL / PWA client (PBR biomes, 48-track Jukebox, Movable HUD, Living Chronicle)
+server/public/               Three.js WebGL / PWA client (PBR biomes, 58-track Jukebox, Movable HUD, Living Chronicle)
 tools/                       Tiered test runner (fast/e2e/cdp), C smoke tests, LOC/version gates
 docs/                        Protocol specification, architecture, and playability guides
 ```

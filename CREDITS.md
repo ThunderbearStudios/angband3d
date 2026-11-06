@@ -57,6 +57,40 @@ We gratefully credit the original authors, maintainers, and contributors of the 
 ## 3. 3D Models, 2D Tilesets & Audio Assets
 
 - **Shockbolt 64×64 Fantasy Tileset**: Artwork by Raymond "Shockbolt" Gaustadnes (`GPL-2.0` / Angband distribution license).
-- **3D Dungeon & Bestiary Meshes**: Quaternius, KayKit, and Poly Haven (`CC0 1.0 Universal` Public Domain).
+- **3D Dungeon & Bestiary Meshes**: Quaternius, KayKit (Kay Lousberg), and Poly Haven (`CC0 1.0 Universal` Public Domain).
 - **Three.js 3D WebGL Renderer**: Mr.doob & Three.js Contributors (`MIT License`).
 - **Yendor Engine™ 3D Harness, Universal Cartridge Bridge, Living Chronicle & YASD 3D Emblem**: © 2026 **Thunderbear Studios™** (`https://thunderbearstudios.dev`).
+
+---
+
+## 4. Open-Source Adaptive Soundtrack (`58` Tracks — `CC0 1.0` & `CC-BY 3.0 / 4.0`)
+
+YASD 3D features an adaptive 58-track fantasy soundtrack across all 8 realms, combining original procedural synthesis with curated open-source orchestral, choral, harp, and dungeon dark-ambient compositions from **OpenGameArt.org** and the **Hengband BGM pack** (curated & loop-adjusted by **Sasahito Handa**):
+
+- **HitCtrl** (`CC-BY 3.0` — `https://opengameart.org/users/hitctrl`):
+  - *Alandriel's Theme (Elven Harp)* (`https://opengameart.org/content/fantasy-music-alandriels-theme`)
+  - *The Elven Groves* (`https://opengameart.org/content/fantasy-music-the-elven-groves`)
+  - *The Mourning Forest* (`https://opengameart.org/content/fantasy-music-the-mourning-forest`)
+  - *The Wraiths of Winter* (`https://opengameart.org/content/fantasy-music-the-wraiths-of-winter`)
+  - *Through the Veil of Time* (collab with TAD, `https://opengameart.org/content/through-the-veil-of-time-collab-with-tad`)
+- **RandomMind** (`CC0 1.0 Public Domain` — `https://opengameart.org/users/randommind`):
+  - *Destroyed Sanctuary (Dark Choir)* (`https://opengameart.org/content/medieval-destroyed-sanctuary`)
+  - *The Small Fire (Tavern Lute)* (`https://opengameart.org/content/medieval-the-small-fire`)
+  - *Warrior's Lament* (`https://opengameart.org/content/medieval-warriors-lament`)
+- **Northivanastan** (`CC0 1.0 Public Domain` — `https://opengameart.org/content/dungeon-ambient-vorf%C3%BChrung`):
+  - *Vorführung (Deep Dungeon Ambient)*
+- **The Cynic Project (`cynicmusic.com`)** (`CC0 1.0 Public Domain` — `https://opengameart.org/content/fantasy-night`):
+  - *Fantasy Night (Starlight Wilderness)*
+- **Matthew Pablo (`www.matthewpablo.com`)** (`CC-BY 3.0` — `https://opengameart.org/users/matthew-pablo`):
+  - *Dark Descent (Extended Cut)* (`https://opengameart.org/content/dark-descent-extended-cut`), *Leap Into Eternity (Live Orchestra)*, *Woodland Fantasy*, *Wasteland Overdrive*, *Blackmoor Tides*, *Wasteland Showdown*, *Evasion*, *Heroic Demise*, *The Dark Amulet - Dark Mage Theme*
+- **Gundatsch (`https://soundcloud.com/gundatsch`)** (`CC-BY 3.0`):
+  - *Dungeon of Agony* (`https://opengameart.org/content/dungeon-of-agony`)
+- **Of Far Different Nature** (`CC-BY 4.0`):
+  - *Throne Room (Unique & Lord Battle)* (`https://opengameart.org/content/throne-room`), *Epic Departure* (`https://opengameart.org/content/epic-departure`)
+- **TAD (`https://www.youtube.com/c/Tadon`)** (`CC0 1.0` / `CC-BY 3.0` / `CC-BY 4.0`):
+  - *Treasure Hunter*, *Forward Operating Base*, *Arcana*, *Revenge*, *Wind Run*, *Epic Orchestra+Drum*
+- **migfus20** (`CC-BY 4.0`):
+  - *Boss Introduction*, *Search*, *Hero on Guard*, *Mist Forest*, *Field*, *Panic*, *Despair*, *Somewhere*
+- **Additional OpenGameArt & Hengband BGM Contributors** (loop-arranged by **Sasahito Handa**):
+  - **Emma_MA** (*Determined Pursuit*, *QaziJamJam* — `CC0`), **joeBaxterWebb** (*Mutant Orchestra* — `CC-BY 4.0`), **Axton Dylan Crolley** (*Menu or Level Select Theme* — `CC-BY 3.0`), **Doge** (*Fantasy - Grasslands* — `CC0`), **LokiF** (*Title Theme* — `CC0`), **CelestialGhost8** (*Dark Intro* — `CC0`), **Alexandr Zhelanov** (*Dark Ambience* — `CC-BY 3.0`), **Jobromedia** (*Menu Screen* — `CC-BY 3.0`), **Kistol** (*Snowing* — `CC0`), **Umplix** (*8-Bit Explorative* — `CC0`), **BigGiantCircles** (*Glory* — `CC-BY 3.0`), **Telaron** (*bedtime/quest complete* — `CC-BY 3.0`), **Remaxim** (*The Old Tower Inn* — `CC-BY-SA 3.0`).
+- **YASD 3D Original Theme (*Angband 3D Theme*) & Procedural Synthesizer**: © 2026 **Thunderbear Studios™** (`https://thunderbearstudios.dev`).

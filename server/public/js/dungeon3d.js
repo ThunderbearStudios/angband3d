@@ -5203,72 +5203,87 @@ class Dungeon3D {
             const collarGeom = new THREE.LatheGeometry(collarProfile, 14);
             whipGroup.add(new THREE.Mesh(collarGeom, brassMat));
 
-            // 4. Three taut braided leather coils held compactly beside the grip
-            for (let c = 0; c < 3; c++) {
-                const coilRadius = 0.082 + c * 0.007;
-                const coilGeom = new THREE.TorusGeometry(coilRadius, 0.0085 - c * 0.0008, 10, 28);
-                const coilMesh = new THREE.Mesh(coilGeom, c === 1 ? handleLeatherMat : darkCoilMat);
-                coilMesh.position.set(0.026 + c * 0.006, 0.018 - c * 0.008, -0.035 - c * 0.012);
-                coilMesh.rotation.set(0.28 + c * 0.06, 1.18 - c * 0.08, -0.42);
-                whipGroup.add(coilMesh);
+            // 4. Five supple concentric braided leather coils gathered naturally in the hand (classic coiled bullwhip)
+            const coilGroup = new THREE.Group();
+            coilGroup.name = 'WhipHandCoils';
+            for (let c = 0; c < 5; c++) {
+                const coilRadius = 0.068 + c * 0.0085;
+                const tubeRadius = 0.0092 - c * 0.0009;
+                const coilGeom = new THREE.TorusGeometry(coilRadius, tubeRadius, 12, 32);
+                const coilMesh = new THREE.Mesh(coilGeom, (c & 1) ? handleLeatherMat : darkCoilMat);
+                // Hang naturally from the top collar down alongside the grip
+                coilMesh.scale.set(0.84, 1.18, 1.0);
+                coilMesh.position.set(0.018 + c * 0.0055, 0.025 - c * 0.012, -0.028 - c * 0.006);
+                coilMesh.rotation.set(0.18 + c * 0.04, 1.32 - c * 0.05, -0.24 + (c & 1 ? 0.05 : -0.05));
+                coilGroup.add(coilMesh);
             }
+            // Leather keeper strap binding the top of the coils to the bolster
+            const strapGeom = new THREE.TorusGeometry(0.024, 0.0045, 8, 18);
+            const strapMesh = new THREE.Mesh(strapGeom, brassMat);
+            strapMesh.position.set(0.015, 0.112, -0.018);
+            strapMesh.rotation.set(0.45, 0.30, 0.20);
+            coilGroup.add(strapMesh);
 
-            // 5. Four-stage tapered forward-striking braided lash (sweeps forward into dungeon, never a high arch!)
+            // Supple hanging rawhide fall & knotted popper tail draping downward from the outer coil
+            const tailCurve = new THREE.CatmullRomCurve3([
+                new THREE.Vector3(0.042, -0.045, -0.065),
+                new THREE.Vector3(0.050, -0.095, -0.088),
+                new THREE.Vector3(0.038, -0.142, -0.105),
+                new THREE.Vector3(0.022, -0.168, -0.125)
+            ]);
+            const tailGeom = new THREE.TubeGeometry(tailCurve, 14, 0.0042, 8, false);
+            coilGroup.add(new THREE.Mesh(tailGeom, popperMat));
+            const knotMesh = new THREE.Mesh(new THREE.SphereGeometry(0.0062, 10, 8), brassMat);
+            knotMesh.position.set(0.042, -0.045, -0.065);
+            coilGroup.add(knotMesh);
+            whipGroup.add(coilGroup);
+
+            // 5. Dynamic Attack Strike Lash (only extends forward into the dungeon during active whip crack swing!)
+            const strikeGroup = new THREE.Group();
+            strikeGroup.name = 'WhipStrikeLash';
+            strikeGroup.visible = false;
             const lashStages = [
                 {
-                    radius: 0.0125,
+                    radius: 0.0105,
                     mat: darkCoilMat,
                     pts: [
-                        new THREE.Vector3(0, 0.142, 0),
-                        new THREE.Vector3(0.010, 0.152, -0.055),
-                        new THREE.Vector3(0.022, 0.138, -0.135)
+                        new THREE.Vector3(0, 0.135, 0),
+                        new THREE.Vector3(-0.015, 0.105, -0.14),
+                        new THREE.Vector3(-0.035, 0.065, -0.32)
                     ]
                 },
                 {
-                    radius: 0.0095,
+                    radius: 0.0068,
                     mat: handleLeatherMat,
                     pts: [
-                        new THREE.Vector3(0.022, 0.138, -0.135),
-                        new THREE.Vector3(0.018, 0.095, -0.235),
-                        new THREE.Vector3(-0.004, 0.042, -0.340)
+                        new THREE.Vector3(-0.035, 0.065, -0.32),
+                        new THREE.Vector3(-0.055, 0.025, -0.52),
+                        new THREE.Vector3(-0.040, -0.015, -0.72)
                     ]
                 },
                 {
-                    radius: 0.0065,
-                    mat: darkCoilMat,
-                    pts: [
-                        new THREE.Vector3(-0.004, 0.042, -0.340),
-                        new THREE.Vector3(-0.032, -0.015, -0.445),
-                        new THREE.Vector3(-0.048, -0.065, -0.535)
-                    ]
-                },
-                {
-                    radius: 0.0038,
+                    radius: 0.0036,
                     mat: popperMat,
                     pts: [
-                        new THREE.Vector3(-0.048, -0.065, -0.535),
-                        new THREE.Vector3(-0.036, -0.098, -0.595),
-                        new THREE.Vector3(-0.018, -0.115, -0.645)
+                        new THREE.Vector3(-0.040, -0.015, -0.72),
+                        new THREE.Vector3(-0.018, -0.035, -0.84),
+                        new THREE.Vector3(0.010, -0.045, -0.92)
                     ]
                 }
             ];
             for (const st of lashStages) {
                 const segCurve = new THREE.CatmullRomCurve3(st.pts);
-                const segGeom = new THREE.TubeGeometry(segCurve, 16, st.radius, 10, false);
-                whipGroup.add(new THREE.Mesh(segGeom, st.mat));
+                const segGeom = new THREE.TubeGeometry(segCurve, 14, st.radius, 8, false);
+                strikeGroup.add(new THREE.Mesh(segGeom, st.mat));
             }
-
-            // Braided fall-hitch knot between thong and cracker
-            const knotMesh = new THREE.Mesh(new THREE.SphereGeometry(0.0065, 10, 8), brassMat);
-            knotMesh.position.set(-0.048, -0.065, -0.535);
-            whipGroup.add(knotMesh);
+            whipGroup.add(strikeGroup);
 
             return whipGroup;
         };
 
         const whipObj = createWhipViewmodelMesh();
-        whipObj.position.set(0.02, -0.03, -0.02);
-        whipObj.rotation.set(10 * Math.PI / 180, -18 * Math.PI / 180, 8 * Math.PI / 180);
+        whipObj.position.set(0.03, -0.035, -0.02);
+        whipObj.rotation.set(12 * Math.PI / 180, -22 * Math.PI / 180, 10 * Math.PI / 180);
         this.weaponCache.set('whip', whipObj);
         this._ensurePolyHavenFloorItem('item_gauntlets').then((gTmpl) => {
             if (!gTmpl) return;
@@ -5551,23 +5566,29 @@ class Dungeon3D {
             const wClone = this._cloneCachedGltfTemplate(tmpl, null, phKey);
             if (!wClone) return;
             this._prepareCanonicalHeldClone(wClone, phKey);
+            // _prepareCanonicalHeldClone aligns cutting edges / striking faces to +Z for 3rd-person monster hands.
+            // In 1st-person camera space (looking down -Z), rotate innerPivot so the striking edge faces forward-left (-Z / -X) into the dungeon!
+            const innerPivot = wClone.children && wClone.children[0];
             if (key === 'shield' || key.startsWith('shield_')) {
                 wClone.scale.setScalar(0.38);
                 wClone.position.set(0.02, -0.01, 0);
                 wClone.rotation.set(0, 0, 0);
             } else if (key === 'bow') {
+                if (innerPivot) innerPivot.rotation.y += Math.PI * 0.85;
                 wClone.scale.setScalar(0.36);
                 wClone.position.set(0, 0.01, 0);
                 wClone.rotation.set(0.16, -0.25, 0.12);
             } else if (key === 'shovel' || key === 'pickaxe' || key === 'staff' || key === 'staff_branch' || key === 'wand' || key === 'rod') {
-                wClone.scale.setScalar(key === 'wand' || key === 'rod' ? 0.36 : 0.42);
+                if (innerPivot) innerPivot.rotation.y += Math.PI * 0.86;
+                wClone.scale.setScalar(key === 'wand' || key === 'rod' ? 0.38 : 0.42);
                 wClone.position.set(0, -0.01, 0);
-                wClone.rotation.set(0.12, key === 'shovel' ? -0.35 : -0.22, 0.06);
+                wClone.rotation.set(0.16, key === 'shovel' ? -0.28 : -0.22, 0.08);
             } else {
-                const vmScale = key === 'spear' ? 0.32 : (key === 'claymore' || key === 'sledgehammer' ? 0.35 : (key === 'dagger' || key === 'hatchet' ? 0.46 : 0.40));
+                if (innerPivot) innerPivot.rotation.y += Math.PI * 0.86;
+                const vmScale = key === 'spear' ? 0.34 : (key === 'claymore' || key === 'sledgehammer' ? 0.36 : (key === 'dagger' || key === 'hatchet' ? 0.46 : 0.40));
                 wClone.scale.setScalar(vmScale);
                 wClone.position.set(0, key === 'dagger' || key === 'hatchet' ? -0.02 : -0.01, 0);
-                wClone.rotation.set(0.14, -0.24, 0.08);
+                wClone.rotation.set(0.16, -0.22, 0.10);
             }
             if (!key.startsWith('shield') && key !== 'bow') {
                 this._ensurePolyHavenFloorItem('item_gauntlets').then((gTmpl) => {
@@ -8832,21 +8853,17 @@ class Dungeon3D {
                 if (!this._storeSignSharedGeos) {
                     const fasciaBackGeo = new THREE.BoxGeometry(1.94, 0.50, 0.05);
                     fasciaBackGeo._sharedGeometry = true;
+                    const fasciaTrimGeo = new THREE.BoxGeometry(1.98, 0.54, 0.035);
+                    fasciaTrimGeo._sharedGeometry = true;
                     const fasciaFaceGeo = new THREE.PlaneGeometry(1.90, 0.46);
                     fasciaFaceGeo._sharedGeometry = true;
-                    const bladeBackGeo = new THREE.BoxGeometry(0.05, 0.40, 0.96);
-                    bladeBackGeo._sharedGeometry = true;
-                    const bladeFaceGeo = new THREE.PlaneGeometry(0.92, 0.36);
-                    bladeFaceGeo._sharedGeometry = true;
-                    const armGeo = new THREE.BoxGeometry(0.06, 0.06, 1.04);
-                    armGeo._sharedGeometry = true;
                     const woodMat = new THREE.MeshStandardMaterial({ color: 0x26170c, roughness: 0.82, metalness: 0.12 });
                     woodMat._sharedMaterial = true;
-                    const ironMat = new THREE.MeshStandardMaterial({ color: 0x22201d, roughness: 0.55, metalness: 0.78 });
-                    ironMat._sharedMaterial = true;
-                    this._storeSignSharedGeos = { fasciaBackGeo, fasciaFaceGeo, bladeBackGeo, bladeFaceGeo, armGeo, woodMat, ironMat };
+                    const brassMat = new THREE.MeshStandardMaterial({ color: 0xc89b3c, roughness: 0.38, metalness: 0.82 });
+                    brassMat._sharedMaterial = true;
+                    this._storeSignSharedGeos = { fasciaBackGeo, fasciaTrimGeo, fasciaFaceGeo, woodMat, brassMat };
                 }
-                const { fasciaBackGeo, fasciaFaceGeo, bladeBackGeo, bladeFaceGeo, armGeo, woodMat, ironMat } = this._storeSignSharedGeos;
+                const { fasciaBackGeo, fasciaTrimGeo, fasciaFaceGeo, woodMat, brassMat } = this._storeSignSharedGeos;
                 const signFaceMat = new THREE.MeshBasicMaterial({
                     map: tex,
                     transparent: true,
@@ -8856,25 +8873,26 @@ class Dungeon3D {
                 signGroup._ownedSignMaterial = signFaceMat;
                 signGroup._ownedSignTexture = tex;
 
-                // 1. Front Storefront Fascia Guild Plaque mounted parallel in front of the lintel (z = 1.04m, never clips into wall)
+                // 1. Flush Unobstructed Front Lintel Guild Plaque above the doorway (y = 2.76m, z = 1.06m — zero perpendicular blade sign obstruction!)
+                const fasciaTrim = new THREE.Mesh(fasciaTrimGeo, brassMat);
+                fasciaTrim.position.set(0, 2.76, 1.022);
                 const fasciaBack = new THREE.Mesh(fasciaBackGeo, woodMat);
-                fasciaBack.position.set(0, 2.78, 1.03);
+                fasciaBack.position.set(0, 2.76, 1.035);
                 const fasciaFace = new THREE.Mesh(fasciaFaceGeo, signFaceMat);
-                fasciaFace.position.set(0, 2.78, 1.058);
+                fasciaFace.position.set(0, 2.76, 1.062);
 
-                // 2. Projecting Double-Sided Tavern Blade Sign (z = 1.05m .. 2.01m) readable from both directions down narrow streets
-                const armMesh = new THREE.Mesh(armGeo, ironMat);
-                armMesh.position.set(0, 3.04, 1.52);
-                const bladeBack = new THREE.Mesh(bladeBackGeo, woodMat);
-                bladeBack.position.set(0, 2.80, 1.53);
-                const bladeRight = new THREE.Mesh(bladeFaceGeo, signFaceMat);
-                bladeRight.position.set(0.028, 2.80, 1.53);
-                bladeRight.rotation.y = Math.PI / 2;
-                const bladeLeft = new THREE.Mesh(bladeFaceGeo, signFaceMat);
-                bladeLeft.position.set(-0.028, 2.80, 1.53);
-                bladeLeft.rotation.y = -Math.PI / 2;
+                // 2. High Hover-Over Wayfinder Beacon above the roofline (y = 4.40m, well above the 3.19m cornice so walls never clip it!)
+                const roofSpriteMat = new THREE.SpriteMaterial({
+                    map: tex,
+                    depthTest: true,
+                    depthWrite: false,
+                    transparent: true
+                });
+                const roofSprite = new THREE.Sprite(roofSpriteMat);
+                roofSprite.scale.set(2.85, 0.72, 1.0);
+                roofSprite.position.set(0, 4.40, 0.0);
 
-                signGroup.add(fasciaBack, fasciaFace, armMesh, bladeBack, bladeRight, bladeLeft);
+                signGroup.add(fasciaTrim, fasciaBack, fasciaFace, roofSprite);
                 return signGroup;
             }
             // depthTest = true so buildings, walls, and pillars properly occlude labels
@@ -13070,6 +13088,14 @@ class Dungeon3D {
         scene.position.set(0, 0, 0);
         scene.rotation.set(0, 0, 0);
 
+        if (itemKey === 'ph_dagger') {
+            scene.traverse((c) => {
+                if (c.name && /scabbard|sheath/i.test(c.name)) {
+                    c.visible = false;
+                }
+            });
+        }
+
         const openMmoXWeapons = {
             item_goblin_sword: 0.72,
             item_longsword: 0.98,
@@ -13097,26 +13123,34 @@ class Dungeon3D {
         let scaleMult = 1.0;
         if (openMmoXWeapons[itemKey] !== undefined) {
             combatSpan = openMmoXWeapons[itemKey];
-            // Raw OpenMMO weapons: +X is shaft (pommel->tip), +Y is blade edge / bow curve, +Z is thickness
-            // Map raw +X -> canonical +Y (shaft), raw +Y -> canonical +Z (edge/front), raw +Z -> canonical +X
-            const basis = new THREE.Matrix4().makeBasis(
-                new THREE.Vector3(0, 1, 0),
-                new THREE.Vector3(0, 0, 1),
-                new THREE.Vector3(1, 0, 0)
-            );
-            scene.quaternion.setFromRotationMatrix(basis);
             if (itemKey === 'item_spear') {
-                scene.position.set(0, -0.15, 0);
-            } else if (itemKey === 'item_bow') {
-                const c = wClone._rawCenter || new THREE.Vector3();
-                scene.position.set(0, 0, -c.x);
+                // spear.glb has its spearhead tip at -X (min X = -2.019) and butt at +X (+0.155): map raw -X -> canonical +Y (upward shaft)
+                const spearBasis = new THREE.Matrix4().makeBasis(
+                    new THREE.Vector3(0, -1, 0),
+                    new THREE.Vector3(0, 0, 1),
+                    new THREE.Vector3(-1, 0, 0)
+                );
+                scene.quaternion.setFromRotationMatrix(spearBasis);
+                scene.position.set(0, -0.36, 0);
             } else {
-                scene.position.set(0, 0.04, 0);
+                // Raw OpenMMO weapons: +X is shaft (pommel->tip), +Y is blade edge / bow curve, +Z is thickness
+                // Map raw +X -> canonical +Y (shaft), raw +Y -> canonical +Z (edge/front), raw +Z -> canonical +X
+                const basis = new THREE.Matrix4().makeBasis(
+                    new THREE.Vector3(0, 1, 0),
+                    new THREE.Vector3(0, 0, 1),
+                    new THREE.Vector3(1, 0, 0)
+                );
+                scene.quaternion.setFromRotationMatrix(basis);
+                if (itemKey === 'item_bow') {
+                    const c = wClone._rawCenter || new THREE.Vector3();
+                    scene.position.set(0, 0, -c.x);
+                } else {
+                    scene.position.set(0, 0.04, 0);
+                }
             }
         } else if (phYWeapons[itemKey]) {
             const cfgW = phYWeapons[itemKey];
             combatSpan = cfgW.span;
-            const c = wClone._rawCenter || new THREE.Vector3();
             const rMin = wClone._rawMin || new THREE.Vector3(0, -0.25, 0);
             const rSize = wClone._rawSize || new THREE.Vector3(0.1, 0.6, 0.1);
             const gripY = -(rMin.y + rSize.y * (cfgW.gripFrac || 0.20));
@@ -13133,10 +13167,15 @@ class Dungeon3D {
             scene.rotation.set(0, -Math.PI * 0.5, 0);
             scene.position.set(0, 0.16, 0);
         } else if (itemKey === 'item_staff_branch' || itemKey === 'item_staff' || itemKey === 'item_wand' || itemKey === 'item_rod') {
-            combatSpan = 1.12;
+            const isShortFocus = (itemKey === 'item_wand' || itemKey === 'item_rod');
+            combatSpan = isShortFocus ? 0.64 : 1.16;
             const c = wClone._rawCenter || new THREE.Vector3();
-            scene.position.set(-c.x, -c.y, -c.z);
-            innerPivot.position.y = 0.08;
+            const rMin = wClone._rawMin || new THREE.Vector3(0, -0.5, 0);
+            const rSize = wClone._rawSize || new THREE.Vector3(0.1, 1.0, 0.1);
+            const gripFrac = isShortFocus ? 0.26 : 0.38;
+            const gripY = -(rMin.y + rSize.y * gripFrac);
+            scene.position.set(-c.x, gripY, -c.z);
+            innerPivot.position.y = 0.04;
             scaleMult = 1.0;
         } else if (itemKey === 'item_shield_wicker' || itemKey === 'ph_shield' || itemKey === 'item_shield_wooden' || itemKey === 'item_shield_raven' || itemKey === 'item_shield_leather' || itemKey === 'item_shield_metal') {
             combatSpan = itemKey === 'ph_shield' ? 0.72 : (itemKey === 'item_shield_wicker' ? 0.56 : 0.62);
@@ -14668,33 +14707,43 @@ class Dungeon3D {
             actZ += sinPulse * 0.16; // Thrust forward
             actRotZ -= sinPulse * 0.32; // Slash rotation
             actRotX += sinPulse * 0.12;
-        } else if (this.hurtAnimationTime > 0) {
-            this.hurtAnimationTime -= delta;
-            const prog = (0.16 - this.hurtAnimationTime) / 0.16;
-            const sinPulse = Math.sin(prog * Math.PI);
-            actZ -= sinPulse * 0.10; // Recoil back toward camera
-            actRotX -= sinPulse * 0.18;
-            actY -= sinPulse * 0.04;
-        } else if (this.castAnimationTime > 0) {
-            this.castAnimationTime -= delta;
-            const dur = this.actionAnimationDuration || 0.32;
-            const prog = Math.max(0, Math.min(1, (dur - this.castAnimationTime) / dur));
-            const sinPulse = Math.sin(prog * Math.PI);
-            const kind = this.actionAnimationKind || 'cast';
-            if (kind === 'quaff' || kind === 'eat' || kind === 'horn') {
-                actX -= sinPulse * 0.11; // Bring toward mouth/center
-                actY += sinPulse * 0.12;
-                actZ -= sinPulse * 0.05;
-                actRotX -= sinPulse * 0.42; // Tip flask/ration/horn back
-                actRotZ += sinPulse * 0.25;
-            } else if (kind === 'aim') {
-                actX -= sinPulse * 0.06;
-                actY += sinPulse * 0.06;
-                actZ += sinPulse * 0.14; // Level wand/rod forward
-                actRotX += sinPulse * 0.18;
-            } else {
-                actY += sinPulse * 0.09; // Raise hands/tome/scroll
-                actRotX -= sinPulse * 0.22;
+            if (this.currentRightWeapon === 'whip' && this.viewmodelRightWeaponSlot) {
+                const lash = this.viewmodelRightWeaponSlot.getObjectByName('WhipStrikeLash');
+                if (lash) lash.visible = true;
+            }
+        } else {
+            if (this.currentRightWeapon === 'whip' && this.viewmodelRightWeaponSlot) {
+                const lash = this.viewmodelRightWeaponSlot.getObjectByName('WhipStrikeLash');
+                if (lash && lash.visible) lash.visible = false;
+            }
+            if (this.hurtAnimationTime > 0) {
+                this.hurtAnimationTime -= delta;
+                const prog = (0.16 - this.hurtAnimationTime) / 0.16;
+                const sinPulse = Math.sin(prog * Math.PI);
+                actZ -= sinPulse * 0.10; // Recoil back toward camera
+                actRotX -= sinPulse * 0.18;
+                actY -= sinPulse * 0.04;
+            } else if (this.castAnimationTime > 0) {
+                this.castAnimationTime -= delta;
+                const dur = this.actionAnimationDuration || 0.32;
+                const prog = Math.max(0, Math.min(1, (dur - this.castAnimationTime) / dur));
+                const sinPulse = Math.sin(prog * Math.PI);
+                const kind = this.actionAnimationKind || 'cast';
+                if (kind === 'quaff' || kind === 'eat' || kind === 'horn') {
+                    actX -= sinPulse * 0.11; // Bring toward mouth/center
+                    actY += sinPulse * 0.12;
+                    actZ -= sinPulse * 0.05;
+                    actRotX -= sinPulse * 0.42; // Tip flask/ration/horn back
+                    actRotZ += sinPulse * 0.25;
+                } else if (kind === 'aim') {
+                    actX -= sinPulse * 0.06;
+                    actY += sinPulse * 0.06;
+                    actZ += sinPulse * 0.14; // Level wand/rod forward
+                    actRotX += sinPulse * 0.18;
+                } else {
+                    actY += sinPulse * 0.09; // Raise hands/tome/scroll
+                    actRotX -= sinPulse * 0.22;
+                }
             }
         }
 

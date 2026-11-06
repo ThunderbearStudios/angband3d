@@ -1127,9 +1127,27 @@ class InputController {
         }
         const activeTab = (window.__app && window.__app.hud) ? (window.__app.hud.activeDeathTab || 0) : 0;
 
-        if (['1', '2', '3', '4', '5'].includes(e.key)) { e.preventDefault(); window.__app?.hud?.switchDeathTab(parseInt(e.key, 10) - 1); return; }
-        if (e.key === 'Tab' || e.key === 'ArrowRight') { e.preventDefault(); window.__app?.hud?.switchDeathTab((activeTab + 1) % 5); return; }
-        if (e.key === 'ArrowLeft') { e.preventDefault(); window.__app?.hud?.switchDeathTab((activeTab + 4) % 5); return; }
+        // Tab switching: Alt+1..5 or Tab always switches tabs; on non-terminal tabs (1..4), bare 1..5 and Left/Right also switch tabs.
+        // On Tab 0 (Classic Tombstone & Menus), bare keys (a-z, 1-5, Space, Enter, Escape, arrows) pass directly to the C engine!
+        if ((e.altKey || activeTab !== 0) && ['1', '2', '3', '4', '5'].includes(e.key)) {
+            e.preventDefault();
+            window.__app?.hud?.switchDeathTab(parseInt(e.key, 10) - 1);
+            return;
+        }
+        if (e.key === 'Tab' || (activeTab !== 0 && e.key === 'ArrowRight')) {
+            e.preventDefault();
+            window.__app?.hud?.switchDeathTab((activeTab + 1) % 5);
+            return;
+        }
+        if (activeTab !== 0 && e.key === 'ArrowLeft') {
+            e.preventDefault();
+            window.__app?.hud?.switchDeathTab((activeTab + 4) % 5);
+            return;
+        }
+        if (activeTab === 0 && !e.altKey && !e.ctrlKey && !e.metaKey) {
+            this.handleTerminalKey(e);
+            return;
+        }
         if (e.key === 'u' || e.key === 'U') {
             e.preventDefault();
             this.network.sendKey('u');
@@ -1160,14 +1178,10 @@ class InputController {
             }
             return;
         }
-        if (e.key === 'Escape' || (activeTab !== 0 && (e.key === 'm' || e.key === 'M'))) {
+        if (e.key === 'Escape' || e.key === 'm' || e.key === 'M') {
             e.preventDefault();
             if (window.__app && window.__app.returnToMainMenu) window.__app.returnToMainMenu();
             else window.location.href = '/';
-            return;
-        }
-        if (activeTab === 0) {
-            this.handleTerminalKey(e);
             return;
         }
         if (['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown'].includes(e.key)) {

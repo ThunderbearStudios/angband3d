@@ -166,3 +166,26 @@ Or toggle in-game:
 
 ### Web Browser Client
 Navigate to `https://angband.example.com/` — the client runs directly in your browser with zero install required.
+
+
+---
+
+## High-Traffic & Viral Scaling Specification (`v11.5.5` — `2 vCPU / 2GiB RAM`)
+
+To support viral spikes across all 8 realms (`angband`, `silq`, `frogcomposband`, `hengband`, `nethack`, `dcss`, `brogue`, `rogue`):
+
+- **Edge & Browser Cache Offload (`server/src/server.js`)**:
+  - `.mp3`, `.wav`, `.ogg` (`58` music tracks + `101` foley SFX): `Cache-Control: public, max-age=604800, no-transform` (`7 days`) on both HTTP `200` and HTTP `206 Partial Content` Range responses.
+  - `?v=` cache-busted `.js` & `.css` bundles: `Cache-Control: public, max-age=604800` (`7 days`).
+  - `.glb`, `.gltf`, `.bin`, `.obj`, `.png`, `.woff2`: `Cache-Control: public, max-age=604800` (`7 days`) with in-memory Gzip LRU cache (`MAX_STATIC_CACHE_ITEMS = 250`).
+- **Session Lifecycle & Zombie Reaping**:
+  - Disconnected character-setup or dead sessions (`phase === 'setup'` or `isDead`): reaped after **`45 seconds`**.
+  - Disconnected active saved play sessions: reaped after **`5 minutes`** (`DISCONNECT_GRACE_PERIOD_MS`).
+  - Idle connected sessions: reaped after **`20 minutes`** (`IDLE_TIMEOUT_MS`).
+  - Per-instance concurrency cap: `MAX_CONCURRENT_GAMES = 36` C/C++ engine subprocesses per `2 vCPU / 2GiB` instance (`~900` concurrent active players across `25` max instances).
+- **Cloud Run Production Upgrade Command**:
+  ```powershell
+  gcloud.cmd run services update angband3d-web --region us-central1 --cpu 2 --memory 2Gi --concurrency 40 --max-instances 25 --min-instances 0
+  gcloud.cmd run services update angband3d --region us-central1 --cpu 2 --memory 2Gi --concurrency 40 --max-instances 25 --min-instances 0
+  gcloud.cmd run services update angband3d-cloud --region us-central1 --cpu 2 --memory 2Gi --concurrency 40 --max-instances 25 --min-instances 0
+  ```

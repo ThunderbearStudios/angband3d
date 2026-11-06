@@ -49,9 +49,9 @@ Angband 3D is a derivative work based upon the authoritative **Angband 4.2.6** r
 
 All 3D models, textures, user interface fonts, and audio systems utilized in Angband 3D have been curated to ensure complete licensing compliance:
 
-- **3D Models & Textures**: Sourced exclusively from creators releasing under public domain dedications (**CC0 1.0 Universal**) or permissive open licenses (e.g. KayKit by Kay Lousberg, Quaternius).
+- **3D Models & Textures**: Sourced exclusively from creators releasing under public domain dedications (**CC0 1.0 Universal**) or permissive open licenses (e.g. KayKit by Kay Lousberg, Quaternius, Poly Haven).
 - **Fonts**: Distributed under the **SIL Open Font License 1.1** (Cinzel, Outfit, Fira Code).
-- **Audio**: Authored exclusively via client-side procedural mathematical synthesis utilizing the Web Audio API and C# PCM dynamic generators (zero copyrighted audio recordings).
+- **Audio & Adaptive Soundtrack (`58` Tracks)**: Combines original procedural synthesis and the *Angband 3D Theme* (© 2026 Thunderbear Studios) with curated open-source fantasy compositions from **OpenGameArt.org** and the **Hengband BGM pack** under **CC0 1.0 Public Domain**, **CC-BY 3.0**, and **CC-BY 4.0** (by HitCtrl, RandomMind, Northivanastan, The Cynic Project, Matthew Pablo, Gundatsch, Of Far Different Nature, TAD, migfus20, Emma_MA, and contributors, loop-adjusted by Sasahito Handa). Full per-track artist and license attribution is surfaced live in the in-game Music Jukebox popover, the Adventurer's Guide (`Audio & Music` tab), [`CREDITS.md`](CREDITS.md), and [`server/public/assets/audio/music/readme.txt`](server/public/assets/audio/music/readme.txt).
 
 For full details, citations, and links to upstream asset repositories, refer to [`CREDITS.md`](CREDITS.md).
 

@@ -2848,7 +2848,13 @@ window.addEventListener('DOMContentLoaded', () => {
                 <pre id="guide-helpfile-viewer" style="background:#0d0f13; color:#d5dae3; border:1px solid var(--yasd-border-iron); border-radius:6px; padding:12px 14px; font-family:'JetBrains Mono','Fira Code',Consolas,monospace; font-size:0.76rem; line-height:1.48; max-height:310px; overflow:auto; white-space:pre-wrap; word-break:break-word; margin:0 0 16px 0; box-shadow:inset 0 2px 10px rgba(0,0,0,0.7);">Loading ${escapeHtml(realmMeta.shortName)} help files...</pre>
                 <h3 style="margin-top: 8px;">🌐 External ${escapeHtml(realmMeta.shortName)} Wikis &amp; Strategy Spoilers</h3>
                 <div class="guide-ref-grid">${refCards}</div>
-                <div class="guide-callout" style="margin-top: 16px;">
+                <div class="guide-callout" style="margin-top: 14px;">
+                    <strong>🎵 Multi-Realm Adaptive Soundtrack &amp; Open-Source Audio Attribution</strong><br>
+                    • <strong>YASD 3D Official Theme</strong> — Composed &amp; Produced by <strong>Thunderbear Studios</strong>.<br>
+                    • <strong>Hengband 3.0 / HURT RECORD Suite (47 Tracks)</strong> — Composed by Isamu, pin, Take, kiku, G.S, you, Shintaro Aoki, N.K, masa, TMS, y.tamura, kuusuke &amp; mosaic (<a href="https://www.hurtrecord.com/" target="_blank" rel="noopener noreferrer" style="color:var(--yasd-gold-accent);">hurtrecord.com</a>).<br>
+                    • <strong>OpenGameArt Dark-Fantasy Realm Expansion (10 Tracks)</strong> — <em>Destroyed Sanctuary</em> by Filtered (CC0), <em>Alandriel's Theme</em> &amp; <em>Dungeon Theme I</em> by Remaxim (CC-BY-SA 3.0), <em>The Elven Groves</em> by loyalty_freak_music (CC0), <em>A Small Fire Will Do</em> by syncopika (CC-BY 3.0), <em>Fantasy Night</em> &amp; <em>Dungeon of Agony</em> by Cleyton Kauffman (CC-BY-SA 3.0/4.0), <em>Dark Descent</em> by Phat Phrog Studios (CC0), <em>Throne Room</em> by Of Far Different Nature (CC-BY 4.0), and <em>Lament for a Warrior's Soul</em> by RandomMind (CC0).
+                </div>
+                <div class="guide-callout" style="margin-top: 10px;">
                     <strong>⚔️ YASD 3D / Angband 3D Multi-Realm Engine</strong><br>
                     Created by <strong>Thunderbear Studios (<a href="https://thunderbearstudios.dev" target="_blank" rel="noopener noreferrer" style="color:var(--yasd-gold-accent);">thunderbearstudios.dev</a>)</strong>.<br>
                     Powered by authentic upstream open-source roguelike engines: NetHack 3.6.7, Dungeon Crawl Stone Soup 0.31, Vanilla Angband 4.2.6, Brogue CE 1.13, Classic Rogue 5.4.4, Sil-Q 1.5.0, FrogComposband 7.1, and Hengband 3.0.1.26.
@@ -3836,6 +3842,11 @@ window.addEventListener('DOMContentLoaded', () => {
                 const modeBadge = mState.mode === 'auto' ? 'Auto' : (mState.mode === 'shuffle' ? 'Shuffle' : 'Manual');
                 npEl.textContent = effMusicMuted ? '🔇 Music Muted' : `🎶 ${modeBadge}: ${mState.trackTitle || 'YASD Theme Song'}`;
             }
+            const credEl = document.getElementById('popover-music-credit');
+            if (credEl) {
+                credEl.textContent = `🎵 ${mState.artist || 'HURT RECORD'} • ${mState.license || 'CC-BY / CC0'}`;
+                credEl.title = `${mState.trackTitle || ''} — ${mState.artist || ''} (${mState.license || ''})`;
+            }
             const playBtn = document.getElementById('btn-music-playpause');
             if (playBtn) playBtn.textContent = (mState.playing && !effMusicMuted) ? '⏸' : '▶';
             const shufBtn = document.getElementById('btn-music-shuffle');
@@ -3857,7 +3868,7 @@ window.addEventListener('DOMContentLoaded', () => {
                     cat.forEach((tr) => {
                         const opt = document.createElement('option');
                         opt.value = tr.id;
-                        opt.textContent = `${tr.title} [${tr.category || tr.mood || 'realm'}]`;
+                        opt.textContent = `${tr.title} — ${tr.artist || 'HURT RECORD'} [${tr.category || tr.mood || 'realm'}]`;
                         optGroup.appendChild(opt);
                     });
                     selEl.appendChild(optGroup);

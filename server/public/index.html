@@ -54,12 +54,12 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Fira+Code:wght@400;600&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet" crossorigin="anonymous">
     <link rel="manifest" href="/manifest.json">
-    <link rel="preload" as="image" href="/assets/yasd3d_logo_fast.jpg?v=11.5.4" fetchpriority="high">
+    <link rel="preload" as="image" href="/assets/yasd3d_logo_fast.jpg?v=11.5.5" fetchpriority="high">
     <link rel="apple-touch-icon" href="/assets/yasd3d_logo.png">
     <link rel="icon" type="image/png" href="/assets/yasd3d_logo.png">
-    <link rel="stylesheet" href="/css/dungeon.css?v=11.5.4">
-    <link rel="stylesheet" href="css/hud-skin.css?v=11.5.4">
-    <link rel="stylesheet" href="/css/chronicle.css?v=11.5.4">
+    <link rel="stylesheet" href="/css/dungeon.css?v=11.5.5">
+    <link rel="stylesheet" href="css/hud-skin.css?v=11.5.5">
+    <link rel="stylesheet" href="/css/chronicle.css?v=11.5.5">
 </head>
 <body>
     <div id="app-container">
@@ -355,13 +355,14 @@
                                     <button type="button" id="btn-music-prev" class="popover-mute-toggle" style="padding:2px 6px; font-size:0.7rem;" title="Previous Track">⏮</button>
                                     <button type="button" id="btn-music-playpause" class="popover-mute-toggle" style="padding:2px 6px; font-size:0.7rem;" title="Play / Pause Music">⏯</button>
                                     <button type="button" id="btn-music-next" class="popover-mute-toggle" style="padding:2px 6px; font-size:0.7rem;" title="Next Track">⏭</button>
-                                    <button type="button" id="btn-music-shuffle" class="popover-mute-toggle" style="padding:2px 6px; font-size:0.7rem;" title="Toggle Shuffle All 48 Tracks">🔀</button>
+                                    <button type="button" id="btn-music-shuffle" class="popover-mute-toggle" style="padding:2px 6px; font-size:0.7rem;" title="Toggle Shuffle All 58 Tracks">🔀</button>
                                 </div>
                             </div>
+                            <div id="popover-music-credit" style="font-size:0.65rem; color:#94a3b8; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="Composer &amp; License Attribution">🎵 HURT RECORD &amp; OpenGameArt (CC0 / CC-BY)</div>
                             <select id="popover-music-track-select" aria-label="Select Background Music Mode or Track" style="width:100%; background:#10141d; color:#e2e8f0; border:1px solid rgba(212,175,55,0.4); border-radius:4px; padding:3px 6px; font-size:0.73rem; cursor:pointer;">
                                 <option value="auto">🎭 Auto (Contextual Realm Director)</option>
                                 <option value="theme_full">⚔️ YASD Theme Song (Full Track)</option>
-                                <option value="shuffle">🔀 Shuffle All Soundtrack (48 Tracks)</option>
+                                <option value="shuffle">🔀 Shuffle All Soundtrack (58 Tracks)</option>
                                 <option value="playlist:town">🏰 Playlist: Peaceful Town &amp; Outposts</option>
                                 <option value="playlist:dungeon">🕯️ Playlist: Dungeon Delving</option>
                                 <option value="playlist:boss">🔥 Playlist: Boss &amp; High Danger</option>
@@ -444,6 +445,7 @@
                 <div class="dpad-header-actions">
                     <button type="button" id="btn-dpad-scale" class="dpad-mini-btn" title="Cycle D-Pad Size (Compact / Standard / Large)">⛶</button>
                     <button type="button" id="btn-dpad-collapse" class="dpad-mini-btn" title="Minimize / Expand D-Pad">−</button>
+                    <button type="button" id="btn-dpad-close" class="dpad-mini-btn dpad-close-btn" title="Close On-Screen D-Pad (Re-open via Menu → D-Pad or ↺ Layout)" aria-label="Close On-Screen D-Pad">✕</button>
                 </div>
             </div>
             <!-- Top Turning Shoulder Wings -->
@@ -626,21 +628,39 @@
                 </div>
 
                 <div class="death-tabs">
-                    <button class="death-tab active" data-tab="0">1. Tombstone & Menus</button>
-                    <button class="death-tab" data-tab="1">2. Equipment</button>
-                    <button class="death-tab" data-tab="2">3. Inventory</button>
-                    <button class="death-tab" data-tab="3">4. Quiver</button>
-                    <button class="death-tab" data-tab="4">5. Stats & Attributes</button>
+                    <button class="death-tab active" data-tab="0" title="Classic Engine Tombstone &amp; Post-Death Menus [Alt+1]">1. Tombstone &amp; Menus</button>
+                    <button class="death-tab" data-tab="1" title="Worn Equipment [Alt+2]">2. Equipment</button>
+                    <button class="death-tab" data-tab="2" title="Pack Inventory [Alt+3]">3. Inventory</button>
+                    <button class="death-tab" data-tab="3" title="Quiver &amp; Ammo [Alt+4]">4. Quiver</button>
+                    <button class="death-tab" data-tab="4" title="Hero Stats &amp; Attributes [Alt+5]">5. Stats &amp; Attributes</button>
                 </div>
 
                 <div class="death-body">
                     <div id="death-content-0" class="death-tab-content active">
                         <div class="death-tombstone-split">
                             <div id="death-sketch-wrap" class="death-sketch-wrap">
-                                <img id="death-sketch-img" class="death-sketch-img" alt="Illustrated YASD Death Sketch" src="" />
+                                <div id="death-sketch-loader" class="sketch-loading-placeholder">
+                                    <div class="sketch-loading-spinner"></div>
+                                    <div class="sketch-loading-label">🎨 Illuminating YASD...</div>
+                                </div>
+                                <img id="death-sketch-img" class="death-sketch-img" alt="Illustrated YASD Death Sketch" style="display:none;" />
                                 <div id="death-sketch-status" class="death-sketch-status">🎨 Illustrated YASD Scene (Click to Expand)</div>
                             </div>
-                            <div id="death-terminal-container"><canvas id="death-terminal-canvas"></canvas></div>
+                            <div class="death-terminal-main-col">
+                                <div id="death-term-toolbar" class="death-term-toolbar" role="toolbar" aria-label="Classic Post-Death Menu Actions">
+                                    <span class="death-term-toolbar-label">⌨ CLASSIC MENU KEYS:</span>
+                                    <button type="button" class="death-term-key-btn" data-death-key="space" title="Send Space / Continue">[Space] Continue</button>
+                                    <button type="button" class="death-term-key-btn" data-death-key="enter" title="Send Enter / Confirm">[Enter] Select</button>
+                                    <button type="button" class="death-term-key-btn" data-death-key="c" title="Inspect Character Sheet (c)">[c] Character</button>
+                                    <button type="button" class="death-term-key-btn" data-death-key="i" title="Inspect Inventory (i)">[i] Inventory</button>
+                                    <button type="button" class="death-term-key-btn" data-death-key="m" title="Inspect Last Messages (m)">[m] Messages</button>
+                                    <button type="button" class="death-term-key-btn" data-death-key="f" title="Save Character Dump (f)">[f] File Dump</button>
+                                    <button type="button" class="death-term-key-btn" data-death-key="y" title="Send 'y' (Yes)">[y] Yes</button>
+                                    <button type="button" class="death-term-key-btn" data-death-key="n" title="Send 'n' (No)">[n] No</button>
+                                    <button type="button" class="death-term-key-btn" data-death-key="escape" title="Send Escape to Engine">[Esc] Step / Exit</button>
+                                </div>
+                                <div id="death-terminal-container"><canvas id="death-terminal-canvas"></canvas></div>
+                            </div>
                         </div>
                     </div>
                     <div id="death-content-1" class="death-tab-content"><ul id="death-equipment-list" class="death-list"></ul></div>
@@ -686,7 +706,7 @@
                 <div class="splash-ornament-corner bottom-right"></div>
 
                 <div class="splash-logo-wrap protected-crest" oncontextmenu="return false;">
-                    <img src="/assets/yasd3d_logo_fast.jpg?v=11.5.4" alt="Yet Another Stupid Death Official Crest — yasd3d.com • Thunderbear Studios" class="splash-logo splash-logo-main" width="520" height="520" fetchpriority="high" decoding="async" draggable="false">
+                    <img src="/assets/yasd3d_logo_fast.jpg?v=11.5.5" alt="Yet Another Stupid Death Official Crest — yasd3d.com • Thunderbear Studios" class="splash-logo splash-logo-main" width="520" height="520" fetchpriority="high" decoding="async" draggable="false">
                 </div>
 
                 <div class="splash-subtitle">
@@ -700,7 +720,7 @@
 
                 <div class="splash-credits-footer">
                     <a href="https://thunderbearstudios.dev" target="_blank" rel="noopener noreferrer" class="splash-studio-signature" title="Thunderbear Studios™ — Official Studio Portal (thunderbearstudios.dev)">
-                        <img src="/assets/thunderbear_logo.png?v=11.5.4" alt="Thunderbear Studios Official Emblem" class="splash-studio-badge" width="28" height="36" draggable="false">
+                        <img src="/assets/thunderbear_logo.png?v=11.5.5" alt="Thunderbear Studios Official Emblem" class="splash-studio-badge" width="28" height="36" draggable="false">
                         <span class="splash-studio-detail">
                             <strong>Thunderbear Studios&trade;</strong>
                             <small>&copy; 2026 Thunderbear Studios &bull; All Rights Reserved</small>
@@ -720,13 +740,13 @@
 
                 <div class="main-menu-header">
                     <div class="main-menu-crest-bar">
-                        <img src="/assets/yasd3d_logo_fast.jpg?v=11.5.4" alt="YASD 3D Emblem" class="main-menu-logo-primary" width="56" height="56" decoding="async" draggable="false">
+                        <img src="/assets/yasd3d_logo_fast.jpg?v=11.5.5" alt="YASD 3D Emblem" class="main-menu-logo-primary" width="56" height="56" decoding="async" draggable="false">
                         <div class="main-menu-title-group">
                             <h2 class="main-menu-title" id="main-menu-title">⚔ YASD 3D • YENDOR ENGINE ⚔</h2>
                             <div class="main-menu-subtitle" id="main-menu-subtitle">The Classic Tolkien Descent • Old British Scholar</div>
                         </div>
                         <a href="https://thunderbearstudios.dev" target="_blank" rel="noopener noreferrer" class="main-menu-studio-link" title="Thunderbear Studios™">
-                            <img src="/assets/thunderbear_logo.png?v=11.5.4" alt="Thunderbear Studios" class="main-menu-logo-secondary" width="28" height="36" draggable="false">
+                            <img src="/assets/thunderbear_logo.png?v=11.5.5" alt="Thunderbear Studios" class="main-menu-logo-secondary" width="28" height="36" draggable="false">
                         </a>
                     </div>
                     <div class="main-menu-realm-strip" id="main-menu-realm-strip">
@@ -1334,43 +1354,43 @@
     <script defer src="/js/vendor/GLTFLoader.js"></script>
 
     <!-- Client Subsystems -->
-    <script defer src="/js/safe-html.js?v=11.5.4"></script>
-    <script defer src="/js/realm-cartridge.js?v=11.5.4"></script>
-    <script defer src="/js/screen-modal-coordinator.js?v=11.5.4"></script>
-    <script defer src="/js/dungeon3d-lightmap.js?v=11.5.4"></script>
-    <script defer src="/js/dungeon3d-model-governor.js?v=11.5.4"></script>
-    <script defer src="/js/screen-context.js?v=11.5.4"></script>
-    <script defer src="/js/menu-router.js?v=11.5.4"></script>
-    <script defer src="/js/grimoire-deck.js?v=11.5.4"></script>
-    <script defer src="/js/quick-actions.js?v=11.5.4"></script>
-    <script defer src="/js/device.js?v=11.5.4"></script>
-    <script defer src="/js/action-catalog.js?v=11.5.4"></script>
-    <script defer src="/js/realm-keys.js?v=11.5.4"></script>
-    <script defer src="/js/command-dispatcher.js?v=11.5.4"></script>
-    <script defer src="/js/command-palette.js?v=11.5.4"></script>
-    <script defer src="/js/prompt-mirror.js?v=11.5.4"></script>
-    <script defer src="/js/item-sheet.js?v=11.5.4"></script>
-    <script defer src="/js/entity-menu.js?v=11.5.4"></script>
-    <script defer src="/js/gamepad.js?v=11.5.4"></script>
-    <script defer src="/js/radial-menu.js?v=11.5.4"></script>
-    <script defer src="/js/mobile-overlay.js?v=11.5.4"></script>
-    <script defer src="/js/audio.js?v=11.5.4"></script>
-    <script defer src="/js/terminal.js?v=11.5.4"></script>
-    <script defer src="/js/dungeon3d.js?v=11.5.4"></script>
-    <script defer src="/js/hud.js?v=11.5.4"></script>
-    <script defer src="/js/network.js?v=11.5.4"></script>
-    <script defer src="/js/local_bridge.js?v=11.5.4"></script>
-    <script defer src="/js/input.js?v=11.5.4"></script>
-    <script defer src="/js/demo-player.js?v=11.5.4"></script>
+    <script defer src="/js/safe-html.js?v=11.5.5"></script>
+    <script defer src="/js/realm-cartridge.js?v=11.5.5"></script>
+    <script defer src="/js/screen-modal-coordinator.js?v=11.5.5"></script>
+    <script defer src="/js/dungeon3d-lightmap.js?v=11.5.5"></script>
+    <script defer src="/js/dungeon3d-model-governor.js?v=11.5.5"></script>
+    <script defer src="/js/screen-context.js?v=11.5.5"></script>
+    <script defer src="/js/menu-router.js?v=11.5.5"></script>
+    <script defer src="/js/grimoire-deck.js?v=11.5.5"></script>
+    <script defer src="/js/quick-actions.js?v=11.5.5"></script>
+    <script defer src="/js/device.js?v=11.5.5"></script>
+    <script defer src="/js/action-catalog.js?v=11.5.5"></script>
+    <script defer src="/js/realm-keys.js?v=11.5.5"></script>
+    <script defer src="/js/command-dispatcher.js?v=11.5.5"></script>
+    <script defer src="/js/command-palette.js?v=11.5.5"></script>
+    <script defer src="/js/prompt-mirror.js?v=11.5.5"></script>
+    <script defer src="/js/item-sheet.js?v=11.5.5"></script>
+    <script defer src="/js/entity-menu.js?v=11.5.5"></script>
+    <script defer src="/js/gamepad.js?v=11.5.5"></script>
+    <script defer src="/js/radial-menu.js?v=11.5.5"></script>
+    <script defer src="/js/mobile-overlay.js?v=11.5.5"></script>
+    <script defer src="/js/audio.js?v=11.5.5"></script>
+    <script defer src="/js/terminal.js?v=11.5.5"></script>
+    <script defer src="/js/dungeon3d.js?v=11.5.5"></script>
+    <script defer src="/js/hud.js?v=11.5.5"></script>
+    <script defer src="/js/network.js?v=11.5.5"></script>
+    <script defer src="/js/local_bridge.js?v=11.5.5"></script>
+    <script defer src="/js/input.js?v=11.5.5"></script>
+    <script defer src="/js/demo-player.js?v=11.5.5"></script>
     <!-- Living Chronicle & Voiced Lorekeeper Modules -->
-    <script defer src="/js/chronicle/chronicle-store.js?v=11.5.4"></script>
-    <script defer src="/js/chronicle/chronicle-grounder.js?v=11.5.4"></script>
-    <script defer src="/js/chronicle/chronicle-filter.js?v=11.5.4"></script>
-    <script defer src="/js/chronicle/chronicle-story-weaver.js?v=11.5.4"></script>
-    <script defer src="/js/chronicle/chronicle-audio.js?v=11.5.4"></script>
-    <script defer src="/js/chronicle/chronicle-llm.js?v=11.5.4"></script>
-    <script defer src="/js/chronicle/chronicle-manager.js?v=11.5.4"></script>
-    <script defer src="/js/app.js?v=11.5.4"></script>
-    <script defer src="/js/boot.js?v=11.5.4"></script>
+    <script defer src="/js/chronicle/chronicle-store.js?v=11.5.5"></script>
+    <script defer src="/js/chronicle/chronicle-grounder.js?v=11.5.5"></script>
+    <script defer src="/js/chronicle/chronicle-filter.js?v=11.5.5"></script>
+    <script defer src="/js/chronicle/chronicle-story-weaver.js?v=11.5.5"></script>
+    <script defer src="/js/chronicle/chronicle-audio.js?v=11.5.5"></script>
+    <script defer src="/js/chronicle/chronicle-llm.js?v=11.5.5"></script>
+    <script defer src="/js/chronicle/chronicle-manager.js?v=11.5.5"></script>
+    <script defer src="/js/app.js?v=11.5.5"></script>
+    <script defer src="/js/boot.js?v=11.5.5"></script>
 </body>
 </html>

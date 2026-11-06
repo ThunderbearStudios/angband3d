@@ -6,12 +6,12 @@
 [![License: GPL v2](https://img.shields.io/badge/License-GPL_v2-blue.svg)](LICENSE)
 [![Engines: 8 Authoritative Realms](https://img.shields.io/badge/Engines-Angband_•_Sil--Q_•_FCB_•_Hengband_•_NetHack_•_DCSS_•_Brogue_•_Rogue-darkgreen.svg)](#-eight-legendary-realms-one-unified-experience)
 [![Web Client: Three.js PBR](https://img.shields.io/badge/Web_Client-Three.js_WebGL_PBR_&_PWA-orange.svg)](server/public)
-[![Audio: 48-Track Jukebox & Foley](https://img.shields.io/badge/Audio-48--Track_Jukebox_&_101_Foley_SFX-blueviolet.svg)](server/public/assets/audio)
-[![Tests: 29/29 Fast + 11/11 Smoke + 4/4 E2E](https://img.shields.io/badge/Automated_Gates-44%2F44_Passing-brightgreen.svg)](tools)
+[![Audio: 58-Track Jukebox & Foley](https://img.shields.io/badge/Audio-58--Track_Jukebox_&_101_Foley_SFX-blueviolet.svg)](server/public/assets/audio)
+[![Tests: 30/30 Fast + 11/11 Smoke + 9/9 Cartridge](https://img.shields.io/badge/Automated_Gates-50%2F50_Passing-brightgreen.svg)](tools)
 
 ---
 
-> ### 🌟 Official Live Links & Instant Play (`v11.5.0`)
+> ### 🌟 Official Live Links & Instant Play (`v11.5.5`)
 > - ⚔ **Play Now in Browser**: **[https://angband3d.com](https://angband3d.com)** *(Instant 60 FPS 3D roguelike across Desktop, iOS & Android — zero install or 1-click PWA install)*
 > - 📖 **System Architecture & Wire Protocol**: **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** *(C99 & Universal Cartridge bridge specification, 60 FPS dirty-state gating & automated test matrix)*
 > - 🏛 **Official Studio & Architecture Overview**: **[https://thunderbearstudios.dev](https://thunderbearstudios.dev)** *(Thunderbear Studios frameworks & Cloud Run proving ground)*
@@ -26,7 +26,7 @@ Classic turn-based roguelikes represent some of the most mathematically deep, ta
 
 Rather than rewriting the game, Angband 3D runs **eight authoritative roguelike realms** (`Vanilla Angband 4.2.6`, `Sil-Q 1.5.0`, `FrogComposBand 7.1.1`, `Hengband 3.0.1`, `NetHack 3.6.7`, `Dungeon Crawl Stone Soup`, `Brogue CE`, and `Classic Rogue 5.4`) through a unified headless JSON wire protocol (`main-bridge.c` and `UniversalCartridge`). Every combat roll, saving throw, item generation curve, hunger clock tick, stealth check, and monster AI decision runs authoritative backend rules, while our responsive Three.js WebGL / PWA client acts purely as a high-craft 60 FPS presentation layer.
 
-The result is a breathtaking first-person dungeon crawl with real-time camera look, 8-realm PBR biomes, dual-scrolling water and magma shaders, a 65+ model rigged 3D bestiary (including a 4-model canine pack with breath-element emissive veins), an interactive 48-track Jukebox & Contextual Music Director, intelligent 1-click character generation presets, and voiced narrative sagas.
+The result is a breathtaking first-person dungeon crawl with real-time camera look, 8-realm PBR biomes, dual-scrolling water and magma shaders, a 65+ model rigged 3D bestiary (including a 4-model canine pack with breath-element emissive veins), an interactive 58-track Multi-Realm Adaptive Jukebox & Contextual Music Director (`CC0`/`CC-BY` OpenGameArt + Hengband BGM), vertex-verified 1st-person weaponry (including coiled braided leather bullwhips & forward-facing axes/blades), flush 3D guild plaques with high floating wayfinders, intelligent 1-click character generation presets, and voiced narrative sagas.
 
 ---
 

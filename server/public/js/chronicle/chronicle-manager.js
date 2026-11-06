@@ -3712,14 +3712,21 @@ class ChronicleManager {
             this._lastDeathCtx = ctxData;
 
             const imgEl = typeof document !== 'undefined' && document.getElementById('death-sketch-img');
+            const loaderEl = typeof document !== 'undefined' && document.getElementById('death-sketch-loader');
             const statusEl = typeof document !== 'undefined' && document.getElementById('death-sketch-status');
 
             const bindDeathImage = (imageUrl, modelLabel = 'Gemini') => {
                 this._lastDeathSketchUrl = imageUrl;
                 if (imgEl) {
+                    imgEl.onload = () => {
+                        if (loaderEl) loaderEl.style.display = 'none';
+                        imgEl.style.display = 'block';
+                        imgEl.style.opacity = '1';
+                    };
                     imgEl.src = imageUrl;
                     imgEl.style.display = 'block';
                     imgEl.style.opacity = '1';
+                    if (loaderEl) loaderEl.style.display = 'none';
                     imgEl.style.cursor = 'pointer';
                     imgEl.onclick = () => {
                         this.openSketchLightbox(
@@ -3740,7 +3747,7 @@ class ChronicleManager {
                 if (statusEl) {
                     statusEl.style.cursor = 'default';
                     statusEl.onclick = null;
-                    statusEl.textContent = `🎨 Illustrated by ${modelLabel} (Click Image to Expand)`;
+                    statusEl.textContent = `🎨 Illustrated by ${modelLabel} (Click to Expand)`;
                 }
             };
 
@@ -3751,14 +3758,18 @@ class ChronicleManager {
             }
 
             if (imgEl) {
-                imgEl.style.opacity = '0.15';
+                imgEl.style.display = 'none';
+                imgEl.removeAttribute('src');
+            }
+            if (loaderEl) {
+                loaderEl.style.display = 'flex';
             }
             if (statusEl) {
                 statusEl.style.cursor = 'default';
                 statusEl.onclick = null;
                 statusEl.textContent = mode === 'victory'
-                    ? '✨ Painting Immortal Ascension Masterwork with Gemini...'
-                    : '🎨 Painting Dark-Fantasy YASD Scene with Gemini...';
+                    ? '✨ Illuminating Ascension Masterwork...'
+                    : '🎨 Illuminating YASD Scene...';
             }
 
             // 2. If Critical-Peril Pre-Warm is currently in flight, await it first
@@ -3788,6 +3799,13 @@ class ChronicleManager {
                 }
             }
 
+            // Fallback to procedural canvas parchment sketch so a broken image is never shown
+            const fallbackUrl = this.renderMasterworkCanvasSketch(ctxData);
+            if (fallbackUrl) {
+                bindDeathImage(fallbackUrl, 'Tome Chronicler');
+                return fallbackUrl;
+            }
+            if (loaderEl) loaderEl.style.display = 'none';
             if (statusEl) {
                 statusEl.textContent = '⚠ AI Illustrator busy — Click here to retry YASD Painting';
                 statusEl.style.cursor = 'pointer';
@@ -3978,7 +3996,11 @@ class ChronicleManager {
                 <span class="chronicle-sketch-badge">${this.escapeHtml(ctxData.locationLabel)}</span>
             </div>
             <div class="chronicle-sketch-img-wrap">
-                <img class="chronicle-sketch-card-img chronicle-sketch-img" src="${placeholderUrl}" style="min-height:180px;opacity:0.2;" alt="Hero Action Sketch" />
+                <div class="sketch-loading-placeholder">
+                    <div class="sketch-loading-spinner"></div>
+                    <div class="sketch-loading-label">🎨 Illuminating ${this.escapeHtml(toneTitle)}...</div>
+                </div>
+                <img class="chronicle-sketch-card-img chronicle-sketch-img" style="display:none;" alt="Hero Action Sketch" />
                 <div class="chronicle-sketch-overlay-actions">
                     <button type="button" class="btn-sketch-expand chronicle-sketch-expand-btn chronicle-ctrl-btn" title="Expand Fullscreen Lightbox">🔍 Expand</button>
                     <a class="btn-sketch-save chronicle-ctrl-btn" download="${this.escapeHtml(cleanFilename)}.png" href="${placeholderUrl}">⬇ Save PNG</a>
@@ -3991,12 +4013,26 @@ class ChronicleManager {
         `;
 
         const cardImg = cardEl.querySelector('.chronicle-sketch-card-img');
+        const cardLoader = cardEl.querySelector('.sketch-loading-placeholder');
         const cardStatusEl = cardEl.querySelector('.chronicle-sketch-card-status');
         const expandBtn = cardEl.querySelector('.btn-sketch-expand');
         const saveLink = cardEl.querySelector('.btn-sketch-save');
 
+        const revealCardImage = (url) => {
+            if (!cardImg) return;
+            cardImg.onload = () => {
+                if (cardLoader) cardLoader.style.display = 'none';
+                cardImg.style.display = 'block';
+                cardImg.style.opacity = '1';
+            };
+            cardImg.src = url;
+            cardImg.style.display = 'block';
+            cardImg.style.opacity = '1';
+            if (cardLoader) cardLoader.style.display = 'none';
+        };
+
         const openLightboxForCard = (statusOverride = '') => {
-            const currentSrc = (cardImg && cardImg.src) || this._lastActiveSketchUrl || placeholderUrl;
+            const currentSrc = (cardImg && cardImg.getAttribute('src')) || this._lastActiveSketchUrl || placeholderUrl;
             const currentStatus = statusOverride || (cardStatusEl && cardStatusEl.textContent) || `✨ ${toneTitle}`;
             this._lastActiveSketchCtx = ctxData;
             this._lastActiveSketchUrl = currentSrc;
@@ -4042,10 +4078,7 @@ class ChronicleManager {
                     const json = await res.json();
                     if (json && json.ok && json.imageUrl) {
                         this._lastActiveSketchUrl = json.imageUrl;
-                        if (cardImg) {
-                            cardImg.src = json.imageUrl;
-                            cardImg.style.opacity = '1';
-                        }
+                        revealCardImage(json.imageUrl);
                         if (saveLink) saveLink.href = json.imageUrl;
                         const doneStatus = `🎨 Illustrated by ${json.model || 'Gemini'} (Click to Expand)`;
                         if (cardStatusEl) cardStatusEl.textContent = doneStatus;
@@ -4056,9 +4089,11 @@ class ChronicleManager {
                         return;
                     }
                 }
-                if (cardStatusEl) cardStatusEl.textContent = '⚠ AI Illustrator busy — Click Sketch button to retry';
+                revealCardImage(placeholderUrl);
+                if (cardStatusEl) cardStatusEl.textContent = '🎨 Illustrated by Tome Chronicler (Click Sketch button to retry Gemini)';
             } catch (_) {
-                if (cardStatusEl) cardStatusEl.textContent = '⚠ AI Illustrator busy — Click Sketch button to retry';
+                revealCardImage(placeholderUrl);
+                if (cardStatusEl) cardStatusEl.textContent = '🎨 Illustrated by Tome Chronicler (Click Sketch button to retry Gemini)';
             } finally {
                 if (sketchBtn) sketchBtn.classList.remove('is-voicing');
             }

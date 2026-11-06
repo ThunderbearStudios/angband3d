@@ -1074,7 +1074,7 @@ class WebHUD {
             });
         }
 
-        // Wire D-Pad Collapse / Expand
+        // Wire D-Pad Collapse / Expand & Close
         const btnDpadCollapse = document.getElementById('btn-dpad-collapse');
         if (btnDpadCollapse && touchControls) {
             btnDpadCollapse.addEventListener('click', (e) => {
@@ -1083,6 +1083,23 @@ class WebHUD {
                 btnDpadCollapse.textContent = isCollapsed ? '+' : '−';
                 btnDpadCollapse.title = isCollapsed ? 'Expand D-Pad' : 'Minimize / Expand D-Pad';
                 this.saveHudWidgetPosition('touch-controls', { collapsed: isCollapsed });
+            });
+        }
+        const btnDpadClose = document.getElementById('btn-dpad-close');
+        if (btnDpadClose && touchControls) {
+            btnDpadClose.addEventListener('click', (e) => {
+                e.stopPropagation();
+                window.__dpadVisible = false;
+                touchControls.style.display = 'none';
+                const btnToggleDpad = document.getElementById('btn-toggle-dpad');
+                if (btnToggleDpad) {
+                    btnToggleDpad.classList.remove('active');
+                    btnToggleDpad.classList.add('panel-off');
+                    btnToggleDpad.setAttribute('aria-pressed', 'false');
+                }
+                if (window.__app && typeof window.__app.showToast === 'function') {
+                    window.__app.showToast('D-Pad Closed (Re-enable via Menu → D-Pad or ↺ Layout)');
+                }
             });
         }
 
@@ -1272,8 +1289,16 @@ class WebHUD {
 
         const touchControls = document.getElementById('touch-controls');
         if (touchControls) {
+            window.__dpadVisible = true;
+            touchControls.style.display = 'flex';
             touchControls.style.removeProperty('--dpad-scale');
             touchControls.classList.remove('dpad-collapsed');
+        }
+        const btnToggleDpad = document.getElementById('btn-toggle-dpad');
+        if (btnToggleDpad) {
+            btnToggleDpad.classList.add('active');
+            btnToggleDpad.classList.remove('panel-off');
+            btnToggleDpad.setAttribute('aria-pressed', 'true');
         }
         const btnDpadCollapse = document.getElementById('btn-dpad-collapse');
         if (btnDpadCollapse) {
@@ -2983,6 +3008,16 @@ class WebHUD {
             this.renderDeathTabContent(this.activeDeathTab, frame);
         }
 
+        if (typeof requestAnimationFrame === 'function') {
+            requestAnimationFrame(() => {
+                if (this.deathTerminal && typeof this.deathTerminal.resize === 'function') {
+                    this.deathTerminal.resize();
+                    const f = this.lastDeathFrame || frame;
+                    if (f && f.term) this.deathTerminal.render(f.term);
+                }
+            });
+        }
+
         const p = (frame && frame.player) || {};
         const sketchSig = `${realm}:${p.name || 'Hero'}:${p.level || 1}:${p.depth || 0}:${summary.cause || ''}`;
         if (this._lastDeathSketchSig !== sketchSig && window.chronicleManager && typeof window.chronicleManager.renderDeathSketchIntoModal === 'function') {
@@ -2999,6 +3034,20 @@ class WebHUD {
                 }
             });
         }
+        const termToolbar = document.getElementById('death-term-toolbar');
+        if (termToolbar && !termToolbar._boundDeathKeys) {
+            termToolbar._boundDeathKeys = true;
+            termToolbar.querySelectorAll('button[data-death-key]').forEach((btn) => {
+                btn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const keySpec = btn.getAttribute('data-death-key');
+                    if (keySpec && window.__app && window.__app.network) {
+                        window.__app.network.sendKey(keySpec);
+                    }
+                });
+            });
+        }
     }
 
     renderDeathTabContent(tabIdx, frame) {
@@ -3013,6 +3062,9 @@ class WebHUD {
                     this.deathTerminal = new WebTerminal('death-terminal-canvas', (key) => {
                         if (window.__app && window.__app.network) window.__app.network.sendKey(key);
                     });
+                }
+                if (typeof this.deathTerminal.resize === 'function' && termCanvas.clientWidth > 0) {
+                    this.deathTerminal.resize();
                 }
                 this.deathTerminal.render(frame.term);
                 termCanvas.style.width = '100%';

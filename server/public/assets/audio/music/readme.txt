@@ -228,3 +228,58 @@ https://opengameart.org/content/dark-clouds-covering-the-horizon-loading-backgro
 -----------------------------------------------------------------------
 The above Music by "Francisco Javier González López from Black Light Sound" is licensed underCC BY 3.0
 modified by "Sasahito Handa"
+
+
+=======================================================================
+v11.5.5 OpenGameArt Multi-Realm Adaptive Soundtrack Expansion (10 Tracks)
+=======================================================================
+
+1. oga_destroyed_sanctuary.mp3 ("Destroyed Sanctuary (Dark Choir)")
+   - Artist: RandomMind
+   - License: CC0 1.0 Universal (Public Domain)
+   - Source: https://opengameart.org/content/medieval-destroyed-sanctuary
+
+2. oga_alandriels_theme.mp3 ("Alandriel's Theme (Elven Harp)")
+   - Artist: HitCtrl
+   - License: CC-BY 3.0
+   - Source: https://opengameart.org/content/fantasy-music-alandriels-theme
+
+3. oga_elven_groves.mp3 ("The Elven Groves (First Age)")
+   - Artist: HitCtrl
+   - License: CC-BY 3.0
+   - Source: https://opengameart.org/content/fantasy-music-the-elven-groves
+
+4. oga_small_fire_tavern.mp3 ("The Small Fire (Tavern Lute)")
+   - Artist: RandomMind
+   - License: CC0 1.0 Universal (Public Domain)
+   - Source: https://opengameart.org/content/medieval-the-small-fire
+
+5. oga_dungeon_vorfuehrung.mp3 ("Vorführung (Deep Dungeon Ambient)")
+   - Artist: Northivanastan
+   - License: CC0 1.0 Universal (Public Domain)
+   - Source: https://opengameart.org/content/dungeon-ambient-vorf%C3%BChrung
+
+6. oga_fantasy_night.mp3 ("Fantasy Night (Starlight Wilderness)")
+   - Artist: The Cynic Project (cynicmusic.com)
+   - License: CC0 1.0 Universal (Public Domain)
+   - Source: https://opengameart.org/content/fantasy-night
+
+7. oga_dark_descent.mp3 ("Dark Descent (Extended Cut)")
+   - Artist: Matthew Pablo (www.matthewpablo.com)
+   - License: CC-BY 3.0
+   - Source: https://opengameart.org/content/dark-descent-extended-cut
+
+8. oga_dungeon_of_agony.mp3 ("Dungeon of Agony (Crypts & Vaults)")
+   - Artist: Gundatsch (https://soundcloud.com/gundatsch)
+   - License: CC-BY 3.0
+   - Source: https://opengameart.org/content/dungeon-of-agony
+
+9. oga_throne_room_boss.mp3 ("Throne Room (Unique & Lord Battle)")
+   - Artist: Of Far Different Nature
+   - License: CC-BY 4.0
+   - Source: https://opengameart.org/content/throne-room
+
+10. oga_warriors_lament.mp3 ("Warrior's Lament (Fallen Hero)")
+    - Artist: RandomMind
+    - License: CC0 1.0 Universal (Public Domain)
+    - Source: https://opengameart.org/content/medieval-warriors-lament
