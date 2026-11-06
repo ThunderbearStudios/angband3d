@@ -88,9 +88,10 @@ const inFlightTTS = new Map();
 const staticGzipCache = new Map();
 const MAX_STATIC_CACHE_ITEMS = 250;
 
-// In-Memory Living Chronicle Hero Action Sketch Cache (LRU up to 32 items)
+// In-Memory Living Chronicle Hero Action Sketch Cache (LRU up to 64 items) + In-Flight Deduplication Map
 const sketchCache = new Map();
-const MAX_SKETCH_CACHE_ITEMS = 32;
+const sketchInFlight = new Map();
+const MAX_SKETCH_CACHE_ITEMS = 64;
 
 // Warm WebSocket Connection Pool for Edge Neural TTS
 // Eliminates 250-450ms cold TLS connection setup latency on repeated synthesis requests
@@ -1799,7 +1800,7 @@ const server = http.createServer((req, res) => {
                 return;
             }
 
-            const cacheKey = crypto.createHash('sha256').update(realm + ':' + prompt).digest('hex');
+            const cacheKey = crypto.createHash('sha256').update(realm + ':' + prompt.trim().slice(0, 640)).digest('hex');
             if (sketchCache.has(cacheKey)) {
                 const cachedImg = sketchCache.get(cacheKey);
                 sketchCache.delete(cacheKey);
@@ -1811,11 +1812,40 @@ const server = http.createServer((req, res) => {
                 res.end(JSON.stringify({
                     ok: true,
                     imageUrl: cachedImg,
-                    model: 'gemini-nano-banana-2.1',
+                    model: 'gemini-2.5-flash-image',
                     cached: true
                 }));
                 return;
             }
+
+            // Coalesce identical or concurrent pre-warm + user sketch requests in flight
+            if (sketchInFlight.has(cacheKey)) {
+                sketchInFlight.get(cacheKey).then((sharedPayload) => {
+                    if (!res.headersSent) {
+                        res.writeHead(200, {
+                            'Content-Type': 'application/json',
+                            'Cache-Control': 'no-cache, no-store, must-revalidate'
+                        });
+                        res.end(JSON.stringify(sharedPayload));
+                    }
+                });
+                return;
+            }
+
+            let resolveInFlight;
+            const inFlightPromise = new Promise((resolve) => { resolveInFlight = resolve; });
+            sketchInFlight.set(cacheKey, inFlightPromise);
+            const finishSketchRequest = (payloadObj) => {
+                sketchInFlight.delete(cacheKey);
+                if (resolveInFlight) resolveInFlight(payloadObj);
+                if (!res.headersSent) {
+                    res.writeHead(200, {
+                        'Content-Type': 'application/json',
+                        'Cache-Control': 'no-cache, no-store, must-revalidate'
+                    });
+                    res.end(JSON.stringify(payloadObj));
+                }
+            };
 
             const customKey = req.headers['x-goog-api-key'] || req.headers['x-api-key'] || '';
             const apiKey = customKey || process.env.GEMINI_API_KEY || '';
@@ -1839,11 +1869,6 @@ const server = http.createServer((req, res) => {
                         return sendSketchViaAiStudio(modelIdx + 1);
                     }
                 }
-                if (res.headersSent) return;
-                res.writeHead(200, {
-                    'Content-Type': 'application/json',
-                    'Cache-Control': 'no-cache, no-store, must-revalidate'
-                });
                 if (upstreamRes.statusCode === 200) {
                     try {
                         const rb = JSON.parse(respBody);
@@ -1858,21 +1883,21 @@ const server = http.createServer((req, res) => {
                             }
                             sketchCache.set(cacheKey, imageUrl);
                             const usedModel = usedVertex ? 'gemini-2.5-flash-image' : (sketchModels[modelIdx] || sketchModels[0]);
-                            res.end(JSON.stringify({ ok: true, imageUrl, model: usedModel }));
+                            finishSketchRequest({ ok: true, imageUrl, model: usedModel });
                         } else if (usedVertex && !customKey && apiKey && Date.now() >= _aiStudioDepletedUntil) {
                             return sendSketchViaAiStudio(0);
                         } else if (!usedVertex) {
                             return sendSketchViaVertex(200);
                         } else {
-                            res.end(JSON.stringify({ ok: false, fallback: true, reason: 'upstream_no_image' }));
+                            finishSketchRequest({ ok: false, fallback: true, reason: 'upstream_no_image' });
                         }
                     } catch(e) {
-                        res.end(JSON.stringify({ ok: false, fallback: true, reason: 'upstream_no_image' }));
+                        finishSketchRequest({ ok: false, fallback: true, reason: 'upstream_no_image' });
                     }
                 } else if (usedVertex && apiKey && Date.now() >= _aiStudioDepletedUntil) {
                     return sendSketchViaAiStudio(0);
                 } else {
-                    res.end(JSON.stringify({ ok: false, fallback: true, reason: `upstream_error_${upstreamRes.statusCode}` }));
+                    finishSketchRequest({ ok: false, fallback: true, reason: `upstream_error_${upstreamRes.statusCode}` });
                 }
             }
 
@@ -1882,10 +1907,7 @@ const server = http.createServer((req, res) => {
                         if (apiKey && Date.now() >= _aiStudioDepletedUntil) {
                             return sendSketchViaAiStudio(0);
                         }
-                        if (!res.headersSent) {
-                            res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-cache, no-store, must-revalidate' });
-                            res.end(JSON.stringify({ ok: false, fallback: true, reason: apiKey ? `upstream_error_${fallbackStatus}` : 'no_api_key' }));
-                        }
+                        finishSketchRequest({ ok: false, fallback: true, reason: apiKey ? `upstream_error_${fallbackStatus}` : 'no_api_key' });
                         return;
                     }
                     const vUrl = `https://aiplatform.googleapis.com/v1beta1/projects/${encodeURIComponent(projectId)}/locations/global/publishers/google/models/gemini-2.5-flash-image:generateContent`;
@@ -1905,16 +1927,10 @@ const server = http.createServer((req, res) => {
                     });
                     vReq.on('timeout', () => {
                         vReq.destroy();
-                        if (!res.headersSent) {
-                            res.writeHead(200, { 'Content-Type': 'application/json' });
-                            res.end(JSON.stringify({ ok: false, fallback: true, reason: 'timeout' }));
-                        }
+                        finishSketchRequest({ ok: false, fallback: true, reason: 'timeout' });
                     });
                     vReq.on('error', () => {
-                        if (!res.headersSent) {
-                            res.writeHead(200, { 'Content-Type': 'application/json' });
-                            res.end(JSON.stringify({ ok: false, fallback: true, reason: 'network_error' }));
-                        }
+                        finishSketchRequest({ ok: false, fallback: true, reason: 'network_error' });
                     });
                     vReq.write(payloadStr);
                     vReq.end();
@@ -1923,10 +1939,7 @@ const server = http.createServer((req, res) => {
 
             function sendSketchViaAiStudio(modelIdx = 0) {
                 if (!apiKey) {
-                    if (!res.headersSent) {
-                        res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-cache, no-store, must-revalidate' });
-                        res.end(JSON.stringify({ ok: false, fallback: true, reason: 'no_api_key' }));
-                    }
+                    finishSketchRequest({ ok: false, fallback: true, reason: 'no_api_key' });
                     return;
                 }
                 const activeModel = sketchModels[modelIdx] || sketchModels[0];
@@ -1948,18 +1961,14 @@ const server = http.createServer((req, res) => {
 
                 upstreamReq.on('timeout', () => {
                     upstreamReq.destroy();
-                    if (!res.headersSent) {
-                        res.writeHead(200, { 'Content-Type': 'application/json' });
-                        res.end(JSON.stringify({ ok: false, fallback: true, reason: 'timeout' }));
-                    }
+                    finishSketchRequest({ ok: false, fallback: true, reason: 'timeout' });
                 });
 
                 upstreamReq.on('error', err => {
                     if (modelIdx + 1 < sketchModels.length) {
                         sendSketchViaAiStudio(modelIdx + 1);
-                    } else if (!res.headersSent) {
-                        res.writeHead(200, { 'Content-Type': 'application/json' });
-                        res.end(JSON.stringify({ ok: false, fallback: true, reason: 'network_error' }));
+                    } else {
+                        finishSketchRequest({ ok: false, fallback: true, reason: 'network_error' });
                     }
                 });
 

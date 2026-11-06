@@ -1859,12 +1859,23 @@ class ChronicleManager {
         const hp = Number(p.hp ?? 0);
         const mhp = Math.max(1, Number(p.hp_max ?? p.mhp ?? 1));
         const hpRatio = hp / mhp;
-        if (hp > 0 && hpRatio <= 0.20) {
-            const now = Date.now();
-            if (!this._lastPerilPreWarmTime || (now - this._lastPerilPreWarmTime > 180000)) {
+        const now = Date.now();
+        // Pre-warm YASD death sketch proactively at <= 45% HP (45s cooldown) so sudden lethal hits have a 0ms ready illustration
+        if (hp > 0 && hpRatio <= 0.45) {
+            if (!this._lastPerilPreWarmTime || (now - this._lastPerilPreWarmTime > 45000)) {
                 this._lastPerilPreWarmTime = now;
                 this.preWarmDeathSketch(frame, event || entry);
             }
+        }
+        // Background pre-warm active scene sketch on depth transition or boss encounter (60s cooldown)
+        const depth = Number(p.depth ?? 0);
+        const evType = String((event && event.type) || '').toUpperCase();
+        const isNotableScene = (this._lastPreWarmedDepth !== depth) ||
+            evType.includes('UNIQUE') || evType.includes('BOSS') || evType.includes('DEPTH') || evType.includes('ARTIFACT');
+        if (isNotableScene && (!this._lastScenePreWarmTime || (now - this._lastScenePreWarmTime > 60000))) {
+            this._lastPreWarmedDepth = depth;
+            this._lastScenePreWarmTime = now;
+            this.preWarmActiveSceneSketch(frame, entry || event);
         }
     }
 
@@ -3663,9 +3674,155 @@ class ChronicleManager {
     }
 
     renderMasterworkCanvasSketch(ctxData) {
-        // Never render procedural geometric cone/circle stick silhouettes; return 1x1 transparent pixel while Gemini illustrates
-        void ctxData;
-        return 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+        if (typeof document === 'undefined') {
+            return 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+        }
+        try {
+            const canvas = document.createElement('canvas');
+            canvas.width = 768;
+            canvas.height = 480;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) return 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+
+            const info = ctxData || {};
+            const hero = info.hero || { name: 'Adventurer', level: 1, race: 'Human', class: 'Warrior' };
+            const loc = info.locationLabel || 'The Dungeons of Doom';
+            const realm = String(info.realm || 'angband').toUpperCase();
+            const quote = String(info.narrativeText || 'The shadows deepen around the torchlight...').replace(/\s+/g, ' ').trim();
+
+            // 1. Dark Heraldic Parchment / Charcoal Engraving Plate
+            const bg = ctx.createRadialGradient(384, 240, 40, 384, 240, 460);
+            bg.addColorStop(0, '#1f1812');
+            bg.addColorStop(0.65, '#130e0a');
+            bg.addColorStop(1, '#090705');
+            ctx.fillStyle = bg;
+            ctx.fillRect(0, 0, 768, 480);
+
+            // Subtle Gustave Doré cross-hatching lines
+            ctx.strokeStyle = 'rgba(212, 175, 55, 0.045)';
+            ctx.lineWidth = 1;
+            for (let y = 24; y < 456; y += 6) {
+                ctx.beginPath();
+                ctx.moveTo(24, y);
+                ctx.lineTo(744, y + ((y % 12 === 0) ? 2 : -2));
+                ctx.stroke();
+            }
+
+            // Double Gilded Folio Frame
+            ctx.strokeStyle = 'rgba(212, 175, 55, 0.68)';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(18, 18, 732, 444);
+            ctx.strokeStyle = 'rgba(212, 175, 55, 0.28)';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(26, 26, 716, 428);
+
+            // Gothic Archway Silhouette & Torchlight Glow
+            const archGlow = ctx.createRadialGradient(384, 210, 12, 384, 210, 185);
+            archGlow.addColorStop(0, 'rgba(245, 185, 75, 0.22)');
+            archGlow.addColorStop(0.55, 'rgba(180, 95, 30, 0.08)');
+            archGlow.addColorStop(1, 'rgba(0, 0, 0, 0)');
+            ctx.fillStyle = archGlow;
+            ctx.beginPath();
+            ctx.arc(384, 210, 185, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.strokeStyle = 'rgba(212, 175, 55, 0.32)';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.arc(384, 220, 130, Math.PI, 0, false);
+            ctx.lineTo(514, 355);
+            ctx.moveTo(254, 220);
+            ctx.lineTo(254, 355);
+            ctx.stroke();
+
+            // Header Crest & Location
+            ctx.textAlign = 'center';
+            ctx.fillStyle = '#c9a050';
+            ctx.font = 'bold 13px "Cinzel", Georgia, serif';
+            ctx.fillText(`✦ CHRONICLE ENGRAVING • ${realm} REALM • ${loc.toUpperCase()} ✦`, 384, 62);
+
+            // Hero Title Plate
+            ctx.fillStyle = '#f5d77f';
+            ctx.font = 'bold 24px "Cinzel", Georgia, serif';
+            ctx.fillText(`${hero.name} — Lv.${hero.level || 1} ${hero.race || ''} ${hero.class || ''}`.trim(), 384, 102);
+
+            // Central Heraldic Crossed-Blades & Shield Emblem
+            ctx.save();
+            ctx.translate(384, 225);
+            ctx.strokeStyle = 'rgba(245, 215, 127, 0.55)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(-55, -55); ctx.lineTo(55, 55);
+            ctx.moveTo(55, -55); ctx.lineTo(-55, 55);
+            ctx.stroke();
+            ctx.fillStyle = '#1b140d';
+            ctx.beginPath();
+            ctx.moveTo(0, -46);
+            ctx.lineTo(38, -26);
+            ctx.lineTo(30, 22);
+            ctx.lineTo(0, 48);
+            ctx.lineTo(-30, 22);
+            ctx.lineTo(-38, -26);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+            ctx.fillStyle = '#f5d77f';
+            ctx.font = 'bold 26px "Cinzel", Georgia, serif';
+            ctx.fillText(info.mode === 'death' ? '☠' : (info.mode === 'victory' ? '👑' : '⚔'), 0, 10);
+            ctx.restore();
+
+            // Narrative Inscription Footer
+            ctx.fillStyle = '#e5d5b5';
+            ctx.font = 'italic 15px Georgia, serif';
+            const maxChars = 76;
+            const l1 = quote.slice(0, maxChars);
+            const l2 = quote.length > maxChars ? quote.slice(maxChars, maxChars * 2 - 3) + (quote.length > maxChars * 2 - 3 ? '...' : '') : '';
+            ctx.fillText(`“${l1}${l2 ? '' : '”'}`, 384, 392);
+            if (l2) {
+                ctx.fillText(`${l2}”`, 384, 416);
+            }
+
+            return canvas.toDataURL('image/jpeg', 0.88);
+        } catch (_) {
+            return 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+        }
+    }
+
+    async preWarmActiveSceneSketch(frame, beat = null) {
+        const activeFrame = frame || this.lastFrame;
+        if (!activeFrame || !activeFrame.player) return null;
+        const ctxData = this.buildHeroSketchContext(beat, { mode: 'action', frame: activeFrame });
+        const sceneKey = `${ctxData.realm}:${ctxData.locationLabel}`;
+        if (this._preWarmedSceneKey === sceneKey && (this._preWarmedScenePromise || this._preWarmedSceneUrl)) {
+            return this._preWarmedScenePromise || Promise.resolve(this._preWarmedSceneUrl);
+        }
+        this._preWarmedSceneKey = sceneKey;
+        this._preWarmedSceneUrl = null;
+        this._preWarmedScenePromise = (async () => {
+            try {
+                const res = await fetch('/api/chronicle/sketch', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        realm: ctxData.realm,
+                        prompt: ctxData.prompt,
+                        heroSummary: ctxData.heroSummary
+                    })
+                });
+                if (res.ok) {
+                    const json = await res.json();
+                    if (json && json.ok && json.imageUrl) {
+                        this._preWarmedSceneUrl = json.imageUrl;
+                        this._preWarmedSceneModel = json.model || 'gemini-2.5-flash-image';
+                        return json.imageUrl;
+                    }
+                }
+            } catch (_) {}
+            return null;
+        })();
+        const out = await this._preWarmedScenePromise;
+        if (!out) this._preWarmedScenePromise = null;
+        return out;
     }
 
     async preWarmDeathSketch(frame, event = null) {
@@ -4063,8 +4220,43 @@ class ChronicleManager {
         }
         this.showHudToast(`${toneTitle}: Painting ${this.escapeHtml(ctxData.hero.name || 'Hero')} at ${this.escapeHtml(ctxData.locationLabel || 'Dungeon')}...`);
 
+        // Show immediate Gustave Doré dark-parchment engraving preview while Gemini illustrates
+        if (placeholderUrl && placeholderUrl.startsWith('data:image/jpeg')) {
+            if (cardImg) {
+                cardImg.src = placeholderUrl;
+                cardImg.style.display = 'block';
+                cardImg.style.opacity = '0.62';
+            }
+        }
+
+        const sceneKey = `${ctxData.realm}:${ctxData.locationLabel}`;
+        if (this._preWarmedSceneKey === sceneKey && this._preWarmedSceneUrl) {
+            const warmUrl = this._preWarmedSceneUrl;
+            const warmModel = this._preWarmedSceneModel || 'Gemini';
+            this._lastActiveSketchUrl = warmUrl;
+            revealCardImage(warmUrl);
+            if (saveLink) saveLink.href = warmUrl;
+            const doneStatus = `🎨 Illustrated by ${warmModel} (Click to Expand)`;
+            if (cardStatusEl) cardStatusEl.textContent = doneStatus;
+            openLightboxForCard(doneStatus);
+            if (sketchBtn) sketchBtn.classList.remove('is-voicing');
+            return;
+        }
+
         (async () => {
             try {
+                if (this._preWarmedSceneKey === sceneKey && this._preWarmedScenePromise) {
+                    const awaitedWarmUrl = await this._preWarmedScenePromise;
+                    if (awaitedWarmUrl) {
+                        this._lastActiveSketchUrl = awaitedWarmUrl;
+                        revealCardImage(awaitedWarmUrl);
+                        if (saveLink) saveLink.href = awaitedWarmUrl;
+                        const doneStatus = `🎨 Illustrated by ${this._preWarmedSceneModel || 'Gemini'} (Click to Expand)`;
+                        if (cardStatusEl) cardStatusEl.textContent = doneStatus;
+                        openLightboxForCard(doneStatus);
+                        return;
+                    }
+                }
                 const res = await fetch('/api/chronicle/sketch', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },

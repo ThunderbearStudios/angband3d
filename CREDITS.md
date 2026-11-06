@@ -57,7 +57,12 @@ We gratefully credit the original authors, maintainers, and contributors of the 
 ## 3. 3D Models, 2D Tilesets & Audio Assets
 
 - **Shockbolt 64×64 Fantasy Tileset**: Artwork by Raymond "Shockbolt" Gaustadnes (`GPL-2.0` / Angband distribution license).
-- **3D Dungeon & Bestiary Meshes**: Quaternius, KayKit (Kay Lousberg), and Poly Haven (`CC0 1.0 Universal` Public Domain).
+- **3D Dungeon, High Altar, Weapon & Bestiary PBR Meshes**:
+  - **Poly Haven (`https://polyhaven.com`)**: Photogrammetry 3D props, weapons, statues, and architectural assets (`CC0 1.0 Universal` Public Domain).
+  - **Meshy 800 Categorised & Labelled 3D PBR Dataset (`tfnn/MESHY.AI_800_GLB_3D-Assets_Categorised_and_Labelled`)**: High-polygon (`13,000–24,200` vertex) PBR-textured creatures, canines (`wolf.glb`, `werewolf.glb`, `husky.glb`, `hellhound.glb`, `Fox.glb`, `shiba.glb`), bears, felines, raptors, reptiles, hydras, nagas, undead, insects, staves, rods, wands, and foliage (`MIT License`).
+  - **OpenMMO 2K PBR Asset Collection (`jake-song-openmmo/onlinerpg-assets`)**: Sculpted `2K` PBR High Altars (`high_altar_pbr.glb`), wraiths (`GhostArmature.glb`), archfiend guardians (`GodAnubis_Art.glb`), character rigs (`thief_king.glb`), crystals, and weapons (`MIT` / Open-Source RPG Asset Release).
+  - **Khronos glTF Sample Assets & Substance 3D Community**: High-resolution PBR Dragon (`Dragon.glb`) and Skull (`Skull.glb`) (`CC-BY 4.0` / `CC0`).
+  - **Quaternius & KayKit (Kay Lousberg)**: Modular dungeon & animated rig templates (`CC0 1.0 Universal` Public Domain).
 - **Three.js 3D WebGL Renderer**: Mr.doob & Three.js Contributors (`MIT License`).
 - **Yendor Engine™ 3D Harness, Universal Cartridge Bridge, Living Chronicle & YASD 3D Emblem**: © 2026 **Thunderbear Studios™** (`https://thunderbearstudios.dev`).
 

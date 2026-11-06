@@ -4480,73 +4480,88 @@ class Dungeon3D {
             }
         }, undefined, () => {});
 
-        // 4. Sculpted Stone Shrine + Votive Candles for High Altars (feat 43: '_')
-        loader.load('/assets/models/items/shrine.gltf', (gltf) => {
-            if (!gltf || !gltf.scene || !this.altarMesh) return;
-            gltf.scene.updateMatrixWorld(true);
-            const geos = [];
-            let shrineTex = null;
-            gltf.scene.traverse((c) => {
-                if (c.isMesh && c.geometry) {
-                    const g = c.geometry.clone();
-                    g.applyMatrix4(c.matrixWorld);
-                    if (c.material && c.material.map && !shrineTex) shrineTex = c.material.map;
-                    const vCount = g.attributes.position ? g.attributes.position.count : 0;
-                    if (vCount > 0) {
-                        const colors = new Float32Array(vCount * 3).fill(1.0);
-                        g.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-                    }
-                    geos.push(g);
-                }
-            });
-            const finalizeAltar = () => {
-                if (geos.length === 0) return;
-                const merged = this._mergeBufferGeometries(geos);
-                merged.computeBoundingBox();
-                const bbox = merged.boundingBox;
-                const cx = (bbox.min.x + bbox.max.x) * 0.5;
-                const cz = (bbox.min.z + bbox.max.z) * 0.5;
-                const spanY = (bbox.max.y - bbox.min.y) || 1.0;
-                const spanXZ = Math.max(bbox.max.x - bbox.min.x, bbox.max.z - bbox.min.z) || 1.0;
-                merged.translate(-cx, -bbox.min.y, -cz);
-                merged.scale(1.38 / spanXZ, 1.58 / spanY, 1.38 / spanXZ);
-                merged.computeVertexNormals();
-                if (this.altarMesh.geometry) this.altarMesh.geometry.dispose();
-                this.altarMesh.geometry = merged;
-                if (shrineTex && this.altarMaterial) {
-                    if (typeof THREE.sRGBEncoding !== 'undefined') shrineTex.encoding = THREE.sRGBEncoding;
-                    this.altarMaterial.map = shrineTex;
-                    this.altarMaterial.color.setHex(0xffffff);
-                    this.altarMaterial.roughness = 0.65;
-                    this.altarMaterial.metalness = 0.12;
-                    this.altarMaterial.emissive.setHex(0x241808);
-                    this.altarMaterial.emissiveIntensity = 0.35;
-                    this.altarMaterial.needsUpdate = true;
-                }
-                this._lastTerrainSig = null;
-                if (this.lastFrame) this.updateDungeon(this.lastFrame);
-            };
-            loader.load('/assets/models/items/shrine_candles.gltf', (cGltf) => {
-                if (cGltf && cGltf.scene) {
-                    cGltf.scene.updateMatrixWorld(true);
-                    cGltf.scene.traverse((c) => {
-                        if (c.isMesh && c.geometry) {
-                            const g = c.geometry.clone();
-                            g.applyMatrix4(c.matrixWorld);
-                            g.scale(0.85, 0.85, 0.85);
-                            g.translate(0, 0.02, 0.42);
-                            const vCount = g.attributes.position ? g.attributes.position.count : 0;
-                            if (vCount > 0) {
-                                const colors = new Float32Array(vCount * 3).fill(1.0);
-                                g.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-                            }
-                            geos.push(g);
+        // 4. Sculpted 2K PBR High Altar + Votive Candles for High Altars (feat 43: '_')
+        const loadAltarWithFallback = (url, fallbackUrl) => {
+            loader.load(url, (gltf) => {
+                if (!gltf || !gltf.scene || !this.altarMesh) return;
+                gltf.scene.updateMatrixWorld(true);
+                const geos = [];
+                let shrineTex = null;
+                let shrineNorm = null;
+                gltf.scene.traverse((c) => {
+                    if (c.isMesh && c.geometry) {
+                        const g = c.geometry.clone();
+                        g.applyMatrix4(c.matrixWorld);
+                        if (c.material) {
+                            if (c.material.map && !shrineTex) shrineTex = c.material.map;
+                            if (c.material.normalMap && !shrineNorm) shrineNorm = c.material.normalMap;
                         }
-                    });
-                }
-                finalizeAltar();
-            }, undefined, finalizeAltar);
-        }, undefined, () => {});
+                        const vCount = g.attributes.position ? g.attributes.position.count : 0;
+                        if (vCount > 0) {
+                            const colors = new Float32Array(vCount * 3).fill(1.0);
+                            g.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+                        }
+                        geos.push(g);
+                    }
+                });
+                const finalizeAltar = () => {
+                    if (geos.length === 0) return;
+                    const merged = this._mergeBufferGeometries(geos);
+                    merged.computeBoundingBox();
+                    const bbox = merged.boundingBox;
+                    const cx = (bbox.min.x + bbox.max.x) * 0.5;
+                    const cz = (bbox.min.z + bbox.max.z) * 0.5;
+                    const spanY = (bbox.max.y - bbox.min.y) || 1.0;
+                    const spanXZ = Math.max(bbox.max.x - bbox.min.x, bbox.max.z - bbox.min.z) || 1.0;
+                    merged.translate(-cx, -bbox.min.y, -cz);
+                    merged.scale(1.52 / spanXZ, 1.72 / spanY, 1.52 / spanXZ);
+                    merged.computeVertexNormals();
+                    if (this.altarMesh.geometry) this.altarMesh.geometry.dispose();
+                    this.altarMesh.geometry = merged;
+                    if (this.altarMaterial) {
+                        if (shrineTex) {
+                            if (typeof THREE.sRGBEncoding !== 'undefined') shrineTex.encoding = THREE.sRGBEncoding;
+                            this.altarMaterial.map = shrineTex;
+                        }
+                        if (shrineNorm) {
+                            this.altarMaterial.normalMap = shrineNorm;
+                            this.altarMaterial.normalScale = new THREE.Vector2(1.15, 1.15);
+                        }
+                        this.altarMaterial.color.setHex(0xffffff);
+                        this.altarMaterial.roughness = 0.58;
+                        this.altarMaterial.metalness = 0.18;
+                        this.altarMaterial.emissive.setHex(0x281a08);
+                        this.altarMaterial.emissiveIntensity = 0.32;
+                        this.altarMaterial.needsUpdate = true;
+                    }
+                    this._lastTerrainSig = null;
+                    if (this.lastFrame) this.updateDungeon(this.lastFrame);
+                };
+                loader.load('/assets/models/items/shrine_candles.gltf', (cGltf) => {
+                    if (cGltf && cGltf.scene) {
+                        cGltf.scene.updateMatrixWorld(true);
+                        cGltf.scene.traverse((c) => {
+                            if (c.isMesh && c.geometry) {
+                                const g = c.geometry.clone();
+                                g.applyMatrix4(c.matrixWorld);
+                                g.scale(0.85, 0.85, 0.85);
+                                g.translate(0, 0.02, 0.46);
+                                const vCount = g.attributes.position ? g.attributes.position.count : 0;
+                                if (vCount > 0) {
+                                    const colors = new Float32Array(vCount * 3).fill(1.0);
+                                    g.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+                                }
+                                geos.push(g);
+                            }
+                        });
+                    }
+                    finalizeAltar();
+                }, undefined, finalizeAltar);
+            }, undefined, () => {
+                if (fallbackUrl) loadAltarWithFallback(fallbackUrl, null);
+            });
+        };
+        loadAltarWithFallback('/assets/models/items/high_altar_pbr.glb', '/assets/models/items/shrine.gltf');
 
         // 5. Sculpted Medieval Stone Well / Fountain (feat 44: '{')
         loader.load('/assets/models/items/building_well_blue.gltf', (gltf) => {
@@ -4576,7 +4591,7 @@ class Dungeon3D {
                 const spanXZ = Math.max(bbox.max.x - bbox.min.x, bbox.max.z - bbox.min.z) || 1.0;
                 const spanY = (bbox.max.y - bbox.min.y) || 1.0;
                 merged.translate(-cx, -bbox.min.y, -cz);
-                merged.scale(1.36 / spanXZ, 1.32 / spanY, 1.36 / spanXZ);
+                merged.scale(1.42 / spanXZ, 1.38 / spanY, 1.42 / spanXZ);
                 merged.computeVertexNormals();
                 if (this.fountainMesh.geometry) this.fountainMesh.geometry.dispose();
                 this.fountainMesh.geometry = merged;
@@ -4584,8 +4599,10 @@ class Dungeon3D {
                     if (typeof THREE.sRGBEncoding !== 'undefined') wellTex.encoding = THREE.sRGBEncoding;
                     this.fountainMaterial.map = wellTex;
                     this.fountainMaterial.color.setHex(0xffffff);
-                    this.fountainMaterial.emissive.setHex(0x082238);
-                    this.fountainMaterial.emissiveIntensity = 0.35;
+                    this.fountainMaterial.roughness = 0.45;
+                    this.fountainMaterial.metalness = 0.15;
+                    this.fountainMaterial.emissive.setHex(0x0c2d48);
+                    this.fountainMaterial.emissiveIntensity = 0.42;
                     this.fountainMaterial.needsUpdate = true;
                 }
                 this._lastTerrainSig = null;
@@ -4641,7 +4658,7 @@ class Dungeon3D {
                 if (this.doorOpenMesh) {
                     const openGeo = closedGeo.clone();
                     openGeo.translate(0.68, 0, 0);
-                    openGeo.rotateY(-70 * Math.PI / 180);
+                    openGeo.rotateY(-86 * Math.PI / 180);
                     openGeo.translate(-0.68, 0, 0);
                     openGeo.computeVertexNormals();
                     if (this.doorOpenMesh.geometry) this.doorOpenMesh.geometry.dispose();
@@ -5637,24 +5654,44 @@ class Dungeon3D {
     }
 
     spawnFloatingText(text, worldPos, colorHex = '#ffcc00', scale = 1.0) {
-        const canvas = document.createElement('canvas');
-        canvas.width = 384;
-        canvas.height = 96;
-        const ctx = canvas.getContext('2d');
-        ctx.font = '900 36px "Cinzel", serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
+        this._floatingTextTexCache = this._floatingTextTexCache || new Map();
+        const cacheKey = `${text}|${colorHex}`;
+        let tex = this._floatingTextTexCache.get(cacheKey);
+        if (tex) {
+            this._floatingTextTexCache.delete(cacheKey);
+            this._floatingTextTexCache.set(cacheKey, tex);
+        } else {
+            const canvas = document.createElement('canvas');
+            canvas.width = 384;
+            canvas.height = 96;
+            const ctx = canvas.getContext('2d');
+            ctx.font = '900 36px "Cinzel", serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
 
-        // Dark glowing outline for crisp readability against any 3D backdrop
-        ctx.strokeStyle = 'rgba(0, 0, 0, 0.95)';
-        ctx.lineWidth = 6;
-        ctx.strokeText(text, 192, 48);
+            // Dark glowing outline for crisp readability against any 3D backdrop
+            ctx.strokeStyle = 'rgba(0, 0, 0, 0.95)';
+            ctx.lineWidth = 6;
+            ctx.strokeText(text, 192, 48);
 
-        ctx.fillStyle = colorHex;
-        ctx.fillText(text, 192, 48);
+            ctx.fillStyle = colorHex;
+            ctx.fillText(text, 192, 48);
 
-        const tex = new THREE.CanvasTexture(canvas);
-        tex.minFilter = THREE.LinearFilter;
+            tex = new THREE.CanvasTexture(canvas);
+            tex.minFilter = THREE.LinearFilter;
+            tex._cachedFloatingTex = true;
+            if (this._floatingTextTexCache.size >= 64) {
+                const oldestKey = this._floatingTextTexCache.keys().next().value;
+                const oldTex = this._floatingTextTexCache.get(oldestKey);
+                this._floatingTextTexCache.delete(oldestKey);
+                if (oldTex && typeof oldTex.dispose === 'function') {
+                    oldTex._cachedFloatingTex = false;
+                    oldTex.dispose();
+                }
+            }
+            this._floatingTextTexCache.set(cacheKey, tex);
+        }
+
         const mat = new THREE.SpriteMaterial({ map: tex, depthTest: false, depthWrite: false, transparent: true });
         const sprite = new THREE.Sprite(mat);
         sprite.scale.set(1.4 * scale, 0.35 * scale, 1.0);
@@ -5692,6 +5729,9 @@ class Dungeon3D {
         this._sharedSlashCoreGeo = new THREE.RingGeometry(0.42, 0.56, 24, 1, -Math.PI * 0.38, Math.PI * 0.76);
         this._sharedSlashCoreGeo._sharedGeometry = true;
 
+        this._sharedCleaveWaveGeo = new THREE.RingGeometry(0.24, 0.74, 28, 1, -Math.PI * 0.48, Math.PI * 0.96);
+        this._sharedCleaveWaveGeo._sharedGeometry = true;
+
         this._sharedThrustLanceGeo = new THREE.ConeGeometry(0.075, 0.95, 8);
         this._sharedThrustLanceGeo.rotateX(Math.PI / 2);
         this._sharedThrustLanceGeo._sharedGeometry = true;
@@ -5711,6 +5751,29 @@ class Dungeon3D {
 
         this._sharedAuraCylinderGeo = new THREE.CylinderGeometry(0.42, 0.50, 1.35, 20, 1, true);
         this._sharedAuraCylinderGeo._sharedGeometry = true;
+
+        // Persistent pooled VFX flash PointLight: never add/remove dynamic PointLights per hit/spell (prevents WebGL shader recompilation stalls)
+        if (this.scene && !this.vfxFlashLight) {
+            this.vfxFlashLight = new THREE.PointLight(0xffaa44, 0, 10);
+            this.vfxFlashLight.position.set(0, -100, 0);
+            this.scene.add(this.vfxFlashLight);
+            this._vfxFlashState = { active: false, elapsed: 0, duration: 0.25, maxIntensity: 0 };
+        }
+    }
+
+    _triggerVfxFlash(pos, colorHex = 0xffaa44, intensity = 3.5, distance = 9.0, duration = 0.26) {
+        this._ensureSharedVfxResources();
+        if (!this.vfxFlashLight || !pos) return;
+        this.vfxFlashLight.position.copy(pos);
+        this.vfxFlashLight.color.set(colorHex);
+        this.vfxFlashLight.intensity = intensity;
+        this.vfxFlashLight.distance = distance;
+        this._vfxFlashState = {
+            active: true,
+            elapsed: 0,
+            duration: Math.max(0.08, duration),
+            maxIntensity: intensity
+        };
     }
 
     spawnHitSparks(worldPos, colorHex = '#ffaa33', count = 14, opts = {}) {
@@ -5817,10 +5880,9 @@ class Dungeon3D {
         ringMesh.position.y = 0.02;
         group.add(ringMesh);
 
-        const pLight = new THREE.PointLight(colorHex, 4.2, 9);
-        group.add(pLight);
+        this._triggerVfxFlash(worldPos, colorHex, 4.2, 9.0, 0.32);
 
-        const disposables = [domeMat, coreMat, ringMat, pLight];
+        const disposables = [domeMat, coreMat, ringMat];
 
         this.activeProjectiles.push({
             kind: 'detonation',
@@ -5829,7 +5891,7 @@ class Dungeon3D {
             domeMat,
             coreMat,
             ringMat,
-            pLight,
+            pLight: null,
             startPos: worldPos.clone(),
             endPos: worldPos.clone(),
             colorHex,
@@ -5839,25 +5901,35 @@ class Dungeon3D {
         });
     }
 
-    _resolveCombatEndpoints(msgLower, isPlayerAction = true) {
+    _resolveCombatEndpoints(msgLower, isPlayerAction = true, isRangedOrSpell = false) {
         const playerPos = this.camera ? this.camera.position.clone() : new THREE.Vector3();
         const fwd = new THREE.Vector3(0, 0, -1);
         if (this.camera) fwd.applyQuaternion(this.camera.quaternion);
 
+        const maxDist = (isPlayerAction && !isRangedOrSpell) ? 3.8 : 14.0;
         let monsterEntity = null;
         if (this.targetedMonsterId && this.monsters && this.monsters.has(this.targetedMonsterId)) {
-            monsterEntity = this.monsters.get(this.targetedMonsterId);
-        } else if (this.monsters) {
+            const candidate = this.monsters.get(this.targetedMonsterId);
+            if (candidate && (isRangedOrSpell || !isPlayerAction || candidate.position.distanceTo(playerPos) <= maxDist)) {
+                monsterEntity = candidate;
+            }
+        }
+        if (!monsterEntity && this.monsters) {
+            let bestNamedDist = maxDist;
             for (const ent of this.monsters.values()) {
+                if (!ent.visible) continue;
                 const mData = ent.monsterData;
                 const mName = ((mData && mData.name) || ent.name || '').toLowerCase();
                 if (mName && msgLower.includes(mName)) {
-                    monsterEntity = ent;
-                    break;
+                    const d = ent.position.distanceTo(playerPos);
+                    if (d <= bestNamedDist) {
+                        bestNamedDist = d;
+                        monsterEntity = ent;
+                    }
                 }
             }
             if (!monsterEntity) {
-                let bestDist = 14.0;
+                let bestDist = maxDist;
                 for (const ent of this.monsters.values()) {
                     if (!ent.visible) continue;
                     const d = ent.position.distanceTo(playerPos);
@@ -5873,7 +5945,8 @@ class Dungeon3D {
         if (monsterEntity) {
             monsterPos = monsterEntity.position.clone().add(new THREE.Vector3(0, (monsterEntity.modelHeight || 1.4) * 0.55, 0));
         } else {
-            monsterPos = playerPos.clone().addScaledVector(fwd, 3.2);
+            const reach = (isPlayerAction && !isRangedOrSpell) ? 1.55 : 3.2;
+            monsterPos = playerPos.clone().addScaledVector(fwd, reach);
             monsterPos.y = playerPos.y - 0.15;
         }
 
@@ -6014,12 +6087,91 @@ class Dungeon3D {
                 group.add(ringMesh);
                 disposables.push(ringMat);
 
-                pLight = new THREE.PointLight(colorHex, 3.5, 6);
-                group.add(pLight);
-                disposables.push(pLight);
+                this._triggerVfxFlash(endPos, colorHex, 3.5, 6.0, duration);
             }
 
             this.spawnHitSparks(endPos, colorHex, (kind === 'crit_slash') ? 24 : 14, { shockRing: kind === 'crit_slash' });
+        } else if (kind === 'axe_cleave') {
+            duration = 0.24;
+            group.position.copy(endPos);
+            group.lookAt(startPos);
+
+            outerMat = new THREE.MeshBasicMaterial({
+                color: col,
+                transparent: true,
+                opacity: 0.96,
+                blending: THREE.AdditiveBlending,
+                side: THREE.DoubleSide,
+                depthWrite: false
+            });
+            innerMat = new THREE.MeshBasicMaterial({
+                color: 0xfff3cc,
+                transparent: true,
+                opacity: 0.98,
+                blending: THREE.AdditiveBlending,
+                side: THREE.DoubleSide,
+                depthWrite: false
+            });
+            ringMat = new THREE.MeshBasicMaterial({
+                color: col,
+                transparent: true,
+                opacity: 0.88,
+                blending: THREE.AdditiveBlending,
+                side: THREE.DoubleSide,
+                depthWrite: false
+            });
+            disposables.push(outerMat, innerMat, ringMat);
+
+            const cleaveArc = new THREE.Group();
+            cleaveArc.rotation.set(0.42, -0.15, 0.36);
+            cleaveArc.add(new THREE.Mesh(this._sharedCleaveWaveGeo || this._sharedSlashArcGeo, outerMat));
+            cleaveArc.add(new THREE.Mesh(this._sharedSlashCoreGeo, innerMat));
+            group.add(cleaveArc);
+
+            const shockRing = new THREE.Mesh(this._sharedShockRingGeo, ringMat);
+            shockRing.position.y = -0.15;
+            group.add(shockRing);
+
+            this._triggerVfxFlash(endPos, colorHex, 3.6, 6.5, duration);
+            this.spawnHitSparks(endPos, colorHex, 20, { shockRing: true });
+        } else if (kind === 'whip_lash') {
+            duration = 0.21;
+            lines = [];
+            const coreMat = new THREE.LineBasicMaterial({ color: 0xffe4b5, transparent: true, opacity: 0.98 });
+            const outerLineMat = new THREE.LineBasicMaterial({ color: col, transparent: true, opacity: 0.92 });
+            ringMat = new THREE.MeshBasicMaterial({
+                color: col,
+                transparent: true,
+                opacity: 0.90,
+                blending: THREE.AdditiveBlending,
+                side: THREE.DoubleSide,
+                depthWrite: false
+            });
+            disposables.push(coreMat, outerLineMat, ringMat);
+
+            const segs = 18;
+            const lashPts = [];
+            for (let i = 0; i <= segs; i++) {
+                const frac = i / segs;
+                const pt = new THREE.Vector3().lerpVectors(startPos, endPos, frac);
+                const wave = Math.sin(frac * Math.PI * 2.5) * (1.0 - frac * 0.6) * 0.22;
+                pt.x += wave;
+                pt.y += Math.cos(frac * Math.PI * 2.0) * 0.14 * (1.0 - frac);
+                lashPts.push(pt.sub(startPos));
+            }
+            const lashGeo = new THREE.BufferGeometry().setFromPoints(lashPts);
+            disposables.push(lashGeo);
+            const lashLine = new THREE.Line(lashGeo, coreMat);
+            group.add(lashLine);
+            lines.push(lashLine);
+
+            const crackRing = new THREE.Mesh(this._sharedShockRingGeo, ringMat);
+            crackRing.position.copy(endPos).sub(startPos);
+            crackRing.lookAt(startPos.clone().sub(endPos));
+            group.add(crackRing);
+
+            this._triggerVfxFlash(endPos, colorHex, 2.8, 5.5, duration);
+            this.spawnHitSparks(endPos, colorHex, 16, { shockRing: true });
         } else if (kind === 'blunt') {
             duration = 0.24;
             group.position.copy(endPos);
@@ -6058,9 +6210,7 @@ class Dungeon3D {
             flashDome.scale.setScalar(0.55);
             group.add(flashDome);
 
-            pLight = new THREE.PointLight(colorHex, 3.0, 6);
-            group.add(pLight);
-            disposables.push(pLight);
+            this._triggerVfxFlash(endPos, colorHex, 3.0, 6.0, duration);
 
             this.spawnHitSparks(endPos, colorHex, 18, { shockRing: true });
         } else if (kind === 'pierce') {
@@ -6147,9 +6297,7 @@ class Dungeon3D {
                 vortexRings.push(vRing);
             }
 
-            pLight = new THREE.PointLight(colorHex, 4.5, 11);
-            group.add(pLight);
-            disposables.push(pLight);
+            this._triggerVfxFlash(startPos.clone().lerp(endPos, 0.5), colorHex, 4.5, 11.0, duration);
 
             onComplete = () => {
                 this.spawnDetonationDome(endPos, colorHex, 1.15);
@@ -6198,9 +6346,7 @@ class Dungeon3D {
             this.spawnHitSparks(startPos.clone().lerp(endPos, 0.35), colorHex, 14);
             this.spawnHitSparks(startPos.clone().lerp(endPos, 0.65), 0xffcc44, 14);
 
-            pLight = new THREE.PointLight(colorHex, 3.8, 10);
-            group.add(pLight);
-            disposables.push(pLight);
+            this._triggerVfxFlash(endPos, colorHex, 3.8, 10.0, duration);
 
             onComplete = () => {
                 this.spawnDetonationDome(endPos, colorHex, kind === 'fireball' ? 1.0 : 0.65);
@@ -6288,9 +6434,7 @@ class Dungeon3D {
             strikeRing.position.y += 0.02;
             group.add(strikeRing);
 
-            pLight = new THREE.PointLight(colorHex, 4.5, 10);
-            group.add(pLight);
-            disposables.push(pLight);
+            this._triggerVfxFlash(endPos, colorHex, 4.5, 10.0, duration);
 
             onComplete = () => {
                 this.spawnDetonationDome(endPos, colorHex, 0.65);
@@ -6326,9 +6470,7 @@ class Dungeon3D {
                 group.add(rMesh);
             }
 
-            pLight = new THREE.PointLight(colorHex, 3.2, 7);
-            group.add(pLight);
-            disposables.push(pLight);
+            this._triggerVfxFlash(startPos, colorHex, 3.2, 7.0, duration);
 
             this.spawnHitSparks(startPos, colorHex, 16);
         }
@@ -6361,17 +6503,51 @@ class Dungeon3D {
 
     triggerMessageVfx(msgText) {
         if (!msgText) return;
+        const clauses = String(msgText).split(/(?<=[.!?])\s+/).map(s => s.trim()).filter(Boolean);
+        if (clauses.length > 1) {
+            let vfxCount = 0;
+            for (const cl of clauses) {
+                if (vfxCount >= 3) break;
+                if (this._triggerSingleClauseVfx(cl)) vfxCount++;
+            }
+            return;
+        }
+        this._triggerSingleClauseVfx(String(msgText));
+    }
+
+    _resolveEquippedMeleeStyle(lower) {
+        const eq = String(this.currentRightWeapon || '').toLowerCase();
+        if (lower.includes('whip') || lower.includes('lash') || eq === 'whip') {
+            return { weaponCat: 'whip', vfxKind: 'whip_lash', vfxColor: 0xffb347, label: 'LASH' };
+        }
+        if (lower.includes('cleave') || lower.includes('hack') || lower.includes('chop') || eq === 'axe') {
+            return { weaponCat: 'axe', vfxKind: 'axe_cleave', vfxColor: 0xff6b35, label: 'CLEAVE' };
+        }
+        if (lower.includes('crush') || lower.includes('smite') || lower.includes('pound') || lower.includes('bash') || lower.includes('hammer') || lower.includes('club') || lower.includes('mace') || eq === 'hammer' || eq === 'mace') {
+            return { weaponCat: 'blunt', vfxKind: 'blunt', vfxColor: 0xffaa44, label: 'CRUSH' };
+        }
+        if (lower.includes('stab') || lower.includes('gouge') || lower.includes('pierce') || lower.includes('thrust') || lower.includes('impale') || lower.includes('spear') || eq === 'spear' || eq === 'dagger') {
+            return { weaponCat: 'pierce', vfxKind: 'pierce', vfxColor: 0x88eeff, label: 'THRUST' };
+        }
+        return { weaponCat: 'blade', vfxKind: 'slash', vfxColor: 0xff4444, label: 'SLASH' };
+    }
+
+    _triggerSingleClauseVfx(msgText) {
+        if (!msgText) return false;
         const lower = msgText.toLowerCase();
 
         const isPlayerSource = lower.startsWith('you ') || lower.startsWith('your ') ||
             lower.includes('you hit') || lower.includes('you strike') || lower.includes('you slash') ||
+            lower.includes('you cleave') || lower.includes('you hack') || lower.includes('you lash') ||
+            lower.includes('you whip') || lower.includes('you stab') || lower.includes('you thrust') ||
             lower.includes('you crush') || lower.includes('you smite') || lower.includes('you shoot') ||
             lower.includes('you fire') || lower.includes('you cast') || lower.includes('you throw') ||
             lower.includes('you zap') || lower.includes('you aim') || lower.includes('you quaff') ||
             lower.includes('you read') || lower.includes('you tunnel') || lower.includes('you dig') ||
             lower.includes('you pray') || lower.includes('you recite') || lower.includes('you use a staff');
 
-        const ep = this._resolveCombatEndpoints(lower, isPlayerSource);
+        const isRangedOrSpell = /\b(lightning|elec|shock|thunder|spark|breathes|fireball|frost|cold|acid|poison|venom|missile|mana bolt|mana storm|mana burst|chaos|nether|you cast|you zap|you aim|mumbles|invokes|you shoot|you fire|shoots|fires|arrow|bolt|you throw|you hurl|flask)\b/.test(lower);
+        const ep = this._resolveCombatEndpoints(lower, isPlayerSource, isRangedOrSpell);
         const mGlyph = (ep.monsterEntity && ep.monsterEntity.monsterData && ep.monsterEntity.monsterData.char) || (ep.monsterEntity && ep.monsterEntity.glyph) || 'm';
 
         // 1. Lightning Spells & Attacks
@@ -6389,7 +6565,7 @@ class Dungeon3D {
                 this.addTrauma(0.28);
                 this.triggerHurtAnimation();
             }
-            return;
+            return true;
         }
 
         // 2. Fire / Frost / Acid / Poison / Chaos / Mana Spells & Breaths
@@ -6405,7 +6581,7 @@ class Dungeon3D {
                 if (isPlayerSource) {
                     this.triggerCastAnimation();
                 }
-                return;
+                return true;
             }
             let elemColor = 0xff7722;
             let elemType = 'fire';
@@ -6435,7 +6611,7 @@ class Dungeon3D {
                 this.addTrauma(0.30);
                 this.triggerHurtAnimation();
             }
-            return;
+            return true;
         }
 
         // 3. Arrows / Bolts / Slings
@@ -6451,7 +6627,7 @@ class Dungeon3D {
                 this.triggerAttackAnimation();
                 this.spawnFloatingText('SHOOT', ep.startPos, '#ffdd55', 1.05);
             }
-            return;
+            return true;
         }
 
         // 4. Thrown Potions / Flasks / Items
@@ -6467,7 +6643,7 @@ class Dungeon3D {
                 this.triggerAttackAnimation();
                 this.spawnFloatingText('THROW', ep.startPos, '#ffcc44', 1.05);
             }
-            return;
+            return true;
         }
 
         // 5. Scrolls, Staves, Potions Quaffed, Rations Eaten, Spells Studied & Horns/Songs/Forges/Cards (EN/JP)
@@ -6481,19 +6657,19 @@ class Dungeon3D {
                 this.spawnHitSparks(ep.startPos, 0xffaa33, 18);
                 if (this.audio && typeof this.audio.playAnvilStrike === 'function') this.audio.playAnvilStrike();
                 this.spawnFloatingText('FORGE!', ep.startPos, '#ffd700', 1.20);
-                return;
+                return true;
             }
             if (lower.includes('trump') || lower.includes('shuffle')) {
                 this.spawnProjectileOrSpellVfx('aura', ep.startPos, ep.startPos, 0xc084fc);
                 if (this.audio && typeof this.audio.playTrumpSnap === 'function') this.audio.playTrumpSnap();
                 this.spawnFloatingText('TRUMP!', ep.startPos, '#e879f9', 1.15);
-                return;
+                return true;
             }
             if (lower.includes('koto') || lower.includes('shamisen') || lower.includes('kata') || /琴|三味線|型/.test(msgText)) {
                 this.spawnProjectileOrSpellVfx('aura', ep.startPos, ep.startPos, 0xfbbf24);
                 if (this.audio && typeof this.audio.playKotoPluck === 'function') this.audio.playKotoPluck();
                 this.spawnFloatingText('BUSHIDO', ep.startPos, '#fde047', 1.15);
-                return;
+                return true;
             }
             if (lower.includes('quaff') || lower.includes('drink') || msgText.includes('飲')) {
                 auraColor = 0x33ff88;
@@ -6537,7 +6713,7 @@ class Dungeon3D {
                 if (this.audio && typeof this.audio.playScroll === 'function') this.audio.playScroll();
             }
             this.spawnFloatingText(floatLabel, ep.startPos, '#88ffcc', 1.10);
-            return;
+            return true;
         }
 
         // 6. Digging / Tunneling
@@ -6550,41 +6726,40 @@ class Dungeon3D {
             }
             this.triggerActionAnimation('dig', 0.24);
             this.spawnFloatingText('DIG', ep.endPos, '#c2b29d', 1.0);
-            return;
+            return true;
         }
 
         // 7. Critical Melee Strikes
         if (lower.includes('critical hit') || lower.includes('was a good hit') || lower.includes('was a great hit') || lower.includes('was a superb hit') || lower.includes('great force') || lower.includes('superb') || lower.includes('痛恨')) {
+            const style = this._resolveEquippedMeleeStyle(lower);
             this.addTrauma(0.25);
             this.spawnFloatingText('CRITICAL!', ep.endPos.clone().add(new THREE.Vector3(0, 0.25, 0)), '#ffd700', 1.35);
-            this.spawnProjectileOrSpellVfx('crit_slash', ep.startPos, ep.endPos, 0xffd700);
+            const critKind = style.vfxKind === 'whip_lash' ? 'whip_lash' : (style.vfxKind === 'axe_cleave' ? 'axe_cleave' : 'crit_slash');
+            this.spawnProjectileOrSpellVfx(critKind, ep.startPos, ep.endPos, 0xffd700);
             this.triggerMonsterHitReaction(ep.monsterEntity);
             if (this.audio && typeof this.audio.playWeaponImpact === 'function') {
-                this.audio.playWeaponImpact('blade', true, ep.pan);
+                this.audio.playWeaponImpact(style.weaponCat === 'whip' || style.weaponCat === 'axe' ? 'blade' : style.weaponCat, true, ep.pan);
             } else if (this.audio && typeof this.audio.playCrit === 'function') {
                 this.audio.playCrit();
             }
             this.triggerAttackAnimation();
-            return;
+            return true;
         }
 
-        // 8. Normal Melee Strikes
-        if (lower.includes('you hit') || lower.includes('you strike') || lower.includes('you slash') || lower.includes('you crush') || lower.includes('you smite') || lower.includes('you stab') || lower.includes('you gouge')) {
-            let weaponCat = 'blade';
-            if (lower.includes('crush') || lower.includes('hammer') || lower.includes('club') || lower.includes('mace')) weaponCat = 'blunt';
-            else if (lower.includes('stab') || lower.includes('gouge') || lower.includes('spear')) weaponCat = 'pierce';
-            const vfxKind = weaponCat === 'blunt' ? 'blunt' : (weaponCat === 'pierce' ? 'pierce' : 'slash');
-            const vfxColor = weaponCat === 'blunt' ? 0xffaa44 : (weaponCat === 'pierce' ? 0x88eeff : 0xff4444);
-            this.spawnProjectileOrSpellVfx(vfxKind, ep.startPos, ep.endPos, vfxColor);
+        // 8. Normal Melee Strikes (Weapon-Matched to 1st-Person Equipped Rig + Verb)
+        if (lower.includes('you hit') || lower.includes('you strike') || lower.includes('you slash') || lower.includes('you cleave') || lower.includes('you hack') || lower.includes('you lash') || lower.includes('you whip') || lower.includes('you crush') || lower.includes('you smite') || lower.includes('you stab') || lower.includes('you gouge') || lower.includes('you thrust')) {
+            const style = this._resolveEquippedMeleeStyle(lower);
+            this.spawnProjectileOrSpellVfx(style.vfxKind, ep.startPos, ep.endPos, style.vfxColor);
             this.triggerMonsterHitReaction(ep.monsterEntity);
             if (this.audio && typeof this.audio.playWeaponImpact === 'function') {
-                this.audio.playWeaponImpact(weaponCat, false, ep.pan);
+                const audioCat = (style.weaponCat === 'whip' || style.weaponCat === 'axe') ? 'blade' : style.weaponCat;
+                this.audio.playWeaponImpact(audioCat, false, ep.pan);
             } else if (this.audio && typeof this.audio.playHit === 'function') {
                 this.audio.playHit(false);
             }
             this.triggerAttackAnimation();
-            this.spawnFloatingText('HIT', ep.endPos, '#ffaa33', 1.05);
-            return;
+            this.spawnFloatingText(style.label, ep.endPos, '#ffaa33', 1.05);
+            return true;
         }
 
         // 9. Monster Strikes Player
@@ -6594,7 +6769,7 @@ class Dungeon3D {
             this.spawnHitSparks(ep.endPos, '#ff2222', 14);
             this.triggerHurtAnimation();
             if (this.audio && typeof this.audio.playPlayerHurt === 'function') this.audio.playPlayerHurt();
-            return;
+            return true;
         }
 
         // 10. Deflect / Block
@@ -6603,7 +6778,7 @@ class Dungeon3D {
             this.spawnHitSparks(ep.endPos, '#88ddff', 10);
             if (this.audio && typeof this.audio.playArmorDeflect === 'function') this.audio.playArmorDeflect();
             else if (this.audio && typeof this.audio.playShieldBlock === 'function') this.audio.playShieldBlock();
-            return;
+            return true;
         }
 
         // 11. Misses
@@ -6611,7 +6786,7 @@ class Dungeon3D {
             if (lower.includes('you miss')) this.triggerAttackAnimation();
             this.spawnFloatingText('MISS', ep.endPos, '#a0b0c0', 0.95);
             if (this.audio && typeof this.audio.playWhoosh === 'function') this.audio.playWhoosh();
-            return;
+            return true;
         }
 
         // 12. Monster Slain
@@ -6623,7 +6798,7 @@ class Dungeon3D {
             if (this.audio && typeof this.audio.playMonsterDeath === 'function') {
                 this.audio.playMonsterDeath(mGlyph, ep.pan);
             }
-            return;
+            return true;
         }
 
         // 13. Other environmental & UI triggers
@@ -6631,8 +6806,10 @@ class Dungeon3D {
             this.addTrauma(0.08);
             this.spawnFloatingText('BLOCKED', ep.endPos, '#aaaaaa', 0.95);
             if (this.audio && typeof this.audio.playWallBump === 'function') this.audio.playWallBump();
+            return true;
         } else if (lower.includes('you open the door') || lower.includes('the door opens')) {
             if (this.audio && typeof this.audio.playDoor === 'function') this.audio.playDoor(true);
+            return true;
         } else if (lower.includes('you close the door') || lower.includes('the door closes')) {
             if (this.audio && typeof this.audio.playDoor === 'function') this.audio.playDoor(false);
         } else if (lower.includes('door is broken') || lower.includes('smash open the door') || lower.includes('door is destroyed')) {
@@ -7162,22 +7339,23 @@ class Dungeon3D {
                 const fStr = row.f;
                 const startIdx = minX * 2;
                 const endIdx = Math.min(fStr.length - 1, (maxX + 1) * 2);
-                for (let i = startIdx; i <= endIdx; i += 4) {
+                for (let i = startIdx; i <= endIdx; i += 1) {
                     h = Math.imul(h ^ fStr.charCodeAt(i), 16777619) >>> 0;
                 }
             }
-            if (row.flags && depth !== 0) {
-                const flgStr = row.flags;
+            const flgStr = row.l || row.flags;
+            if (flgStr && depth !== 0) {
                 const startIdx = minX * 2;
                 const endIdx = Math.min(flgStr.length - 1, (maxX + 1) * 2);
-                for (let i = startIdx; i <= endIdx; i += 4) {
+                for (let i = startIdx; i <= endIdx; i += 1) {
                     h = Math.imul(h ^ flgStr.charCodeAt(i), 16777619) >>> 0;
                 }
-            } else if (row.g && depth === 0) {
+            }
+            if (row.g) {
                 const gStr = row.g;
                 const startIdx = minX;
                 const endIdx = Math.min(gStr.length - 1, maxX);
-                for (let i = startIdx; i <= endIdx; i += 2) {
+                for (let i = startIdx; i <= endIdx; i += 1) {
                     h = Math.imul(h ^ gStr.charCodeAt(i), 16777619) >>> 0;
                 }
             }
@@ -11466,14 +11644,14 @@ class Dungeon3D {
                 return normalizeWrapper(scene, 0.52, true, 0, 1.10);
             });
         } else if (templateKey === 'bestiary_skull') {
-            loadPromise = loadGltf('/assets/models/items/skull.gltf', '/assets/models/monsters/bestiary/Skull.glb').then(scene => {
+            loadPromise = loadGltf('/assets/models/monsters/bestiary/Skull.glb', '/assets/models/items/skull.gltf').then(scene => {
                 scene.traverse(c => {
                     if (c.isMesh || c.isSkinnedMesh) {
                         const hasVColor = Boolean(c.geometry && c.geometry.attributes && c.geometry.attributes.color);
                         if (c.material) {
                             const mats = Array.isArray(c.material) ? c.material : [c.material];
                             for (const m of mats) {
-                                if (hasVColor) m.vertexColors = true;
+                                if (hasVColor && !m.map) m.vertexColors = true;
                                 m.skinning = Boolean(c.isSkinnedMesh);
                                 m._sharedMaterial = true;
                             }
@@ -11552,7 +11730,7 @@ class Dungeon3D {
                         const isFlesh = /head|hand|arm/i.test(name);
                         const isCloth = /torso|leg|foot/i.test(name);
                         for (const mat of mats) {
-                            if (!mat) continue;
+                            if (!mat || mat.map) continue;
                             if (isFlesh) {
                                 mat.color = new THREE.Color(0x6b7c5e);
                                 mat.roughness = 0.82;
@@ -11621,15 +11799,25 @@ class Dungeon3D {
                 this._enhanceBestiaryMeshQuality(scene, { smoothNormals: true, applyCreatureBump: true, bumpType: 'fur', bumpScale: 0.36, roughness: 0.56 });
                 return normalizeWrapper(scene, 0.88, true, 0.42, 1.45);
             });
+        } else if (templateKey === 'bestiary_werewolf') {
+            loadPromise = loadGltf('/assets/models/monsters/bestiary/werewolf.glb', () => this._ensureMonster3DTemplate('bestiary_wolf')).then(scene => {
+                this._enhanceBestiaryMeshQuality(scene, { smoothNormals: true, applyCreatureBump: true, bumpType: 'fur', bumpScale: 0.38, roughness: 0.54 });
+                return normalizeWrapper(scene, 1.75, true, 0.25, 1.55);
+            });
+        } else if (templateKey === 'bestiary_hellhound') {
+            loadPromise = loadGltf('/assets/models/monsters/bestiary/hellhound.glb', () => this._ensureMonster3DTemplate('bestiary_wolf')).then(scene => {
+                this._enhanceBestiaryMeshQuality(scene, { smoothNormals: true, applyCreatureBump: true, bumpType: 'fur', bumpScale: 0.36, roughness: 0.50 });
+                return normalizeWrapper(scene, 0.96, true, 0.42, 1.50);
+            });
         } else if (templateKey === 'bestiary_husky') {
-            loadPromise = loadGltf('/assets/models/monsters/bestiary/wolf.glb', () => this._ensureMonster3DTemplate('bestiary_wolf')).then(scene => {
+            loadPromise = loadGltf('/assets/models/monsters/bestiary/husky.glb', () => this._ensureMonster3DTemplate('bestiary_wolf')).then(scene => {
                 this._enhanceBestiaryMeshQuality(scene, { smoothNormals: true, applyCreatureBump: true, bumpType: 'fur', bumpScale: 0.34, roughness: 0.54 });
-                return normalizeWrapper(scene, 0.78, true, 0.42, 1.35);
+                return normalizeWrapper(scene, 0.82, true, 0.42, 1.38);
             });
         } else if (templateKey === 'bestiary_shiba') {
-            loadPromise = loadGltf('/assets/models/monsters/bestiary/Fox.glb', () => this._ensureMonster3DTemplate('bestiary_fox')).then(scene => {
+            loadPromise = loadGltf('/assets/models/monsters/bestiary/shiba.glb', () => this._ensureMonster3DTemplate('bestiary_fox')).then(scene => {
                 this._enhanceBestiaryMeshQuality(scene, { smoothNormals: true, applyCreatureBump: true, bumpType: 'fur', bumpScale: 0.32, roughness: 0.52 });
-                return normalizeWrapper(scene, 0.62, true, 0.42, 1.15);
+                return normalizeWrapper(scene, 0.66, true, 0.42, 1.18);
             });
         } else if (templateKey === 'bestiary_flamingo') {
             loadPromise = loadGltf('/assets/models/monsters/bestiary/Flamingo.glb', () => this._ensureMonster3DTemplate('bestiary_stork')).then(scene => {
@@ -11658,7 +11846,7 @@ class Dungeon3D {
                         if (c.material) {
                             const mats = Array.isArray(c.material) ? c.material : [c.material];
                             for (const m of mats) {
-                                if (hasVColor) m.vertexColors = true;
+                                if (hasVColor && !m.map) m.vertexColors = true;
                                 m.skinning = Boolean(c.isSkinnedMesh);
                                 m._sharedMaterial = true;
                             }
@@ -11723,12 +11911,15 @@ class Dungeon3D {
                 return normalizeWrapper(scene, 0.58, true, 0.15, 1.05);
             });
         } else if (templateKey === 'env_tanglethorn' || templateKey === 'env_bush_dead') {
-            loadPromise = loadGltf('/assets/polyhaven/models/pine_roots/pine_roots.gltf', () => loadGltf('/assets/polyhaven/models/pachira_aquatica_01/pachira_aquatica_01.gltf')).then(scene => {
+            loadPromise = loadGltf('/assets/models/items/bush_pbr.glb', () => loadGltf('/assets/polyhaven/models/pine_roots/pine_roots.gltf')).then(scene => {
                 return normalizeWrapper(scene, 1.15, true, 0.25, 1.20);
             });
-        } else if (templateKey === 'env_tree') {
-            loadPromise = loadGltf('/assets/polyhaven/models/pachira_aquatica_01/pachira_aquatica_01.gltf', () => loadGltf('/assets/polyhaven/models/pine_roots/pine_roots.gltf')).then(scene => {
-                return normalizeWrapper(scene, 1.65, true, 0.25, 1.40);
+        } else if (templateKey === 'env_tree' || templateKey === 'bestiary_treeman') {
+            const primaryTreeUrl = templateKey === 'bestiary_treeman'
+                ? '/assets/models/monsters/bestiary/treeman.glb'
+                : '/assets/models/items/tree_pbr.glb';
+            loadPromise = loadGltf(primaryTreeUrl, () => loadGltf('/assets/polyhaven/models/pachira_aquatica_01/pachira_aquatica_01.gltf')).then(scene => {
+                return normalizeWrapper(scene, templateKey === 'bestiary_treeman' ? 2.15 : 1.65, true, 0.25, 1.45);
             });
         } else if (templateKey === 'bestiary_vortex') {
             loadPromise = loadGltf('/assets/models/monsters/bestiary/vortex_elemental.glb', () => loadGltf('/assets/models/monsters/bestiary/GhostArmature.glb', () => this._ensureMonster3DTemplate('bestiary_wraith'))).then(scene => {
@@ -11754,9 +11945,17 @@ class Dungeon3D {
             loadPromise = loadGltf('/assets/models/monsters/bestiary/bear.glb', () => loadGltf('/assets/models/monsters/bestiary/wolf.glb', () => this._ensureMonster3DTemplate('bestiary_wolf'))).then(scene => {
                 return normalizeWrapper(scene, 1.05, true, 0.25, 1.45);
             });
+        } else if (templateKey === 'bestiary_bear_armored') {
+            loadPromise = loadGltf('/assets/models/monsters/bestiary/bear_armored.glb', () => this._ensureMonster3DTemplate('bestiary_bear')).then(scene => {
+                return normalizeWrapper(scene, 1.28, true, 0.25, 1.55);
+            });
         } else if (templateKey === 'bestiary_lizard') {
             loadPromise = loadGltf('/assets/models/monsters/bestiary/lizard.glb', () => this._ensureMonster3DTemplate('obj_frog')).then(scene => {
                 return normalizeWrapper(scene, 0.54, true, 0.20, 1.35);
+            });
+        } else if (templateKey === 'bestiary_kraken') {
+            loadPromise = loadGltf('/assets/models/monsters/bestiary/kraken.glb', () => this._ensureMonster3DTemplate('bestiary_aquatic')).then(scene => {
+                return normalizeWrapper(scene, 1.45, true, 0.25, 1.65);
             });
         } else if (templateKey === 'bestiary_aquatic') {
             loadPromise = loadGltf('/assets/models/monsters/bestiary/aquatic.glb', () => loadGltf('/assets/models/monsters/bestiary/lizard.glb', () => this._ensureMonster3DTemplate('obj_frog'))).then(scene => {
@@ -11782,6 +11981,14 @@ class Dungeon3D {
     }
 
     _resolveCanine3DConfig(lowerName, colorHex, seed) {
+        if (/\b(lycanthrope|wolfman)\b/.test(lowerName)) {
+            return {
+                templateKey: 'bestiary_werewolf',
+                scale: /alpha|lord|king/.test(lowerName) ? 1.32 : 1.08,
+                tintHex: colorHex,
+                seed
+            };
+        }
         if (/\bfox|kitsune|vixen\b/.test(lowerName)) {
             const foxCoats = ['#d97706', '#ea580c', '#e2e8f0', '#b45309'];
             return {
@@ -11807,10 +12014,13 @@ class Dungeon3D {
         else if (/\b(acid|venom|poison|water|nexus)\b/.test(lowerName)) emissiveHex = '#a3e635';
         else if (/\b(aether|chaos|ether|time|gravity|inertia|mana|nether|tindalos|spirit)\b/.test(lowerName)) emissiveHex = '#c084fc';
 
-        const isHuskyBreed = /\b(husky|winter wolf|frost|cold|ice|blink dog|silver|white wolf|zephyr|hound)\b/.test(lowerName) && !/\b(warg|dire|carcharoth|draugluin|werewolf)\b/.test(lowerName);
-        const templateKey = isHuskyBreed
-            ? ((/\bhound\b/.test(lowerName) && seed % 2 === 1) ? 'bestiary_wolf' : 'bestiary_husky')
-            : ((seed % 4 === 3 && !/\b(warg|dire|carcharoth|draugluin)\b/.test(lowerName)) ? 'bestiary_husky' : 'bestiary_wolf');
+        const isHellHoundBreed = /\b(hell hound|hellhound|cerberus|fire hound|plasma hound|lava hound)\b/.test(lowerName);
+        const isHuskyBreed = /\b(husky|winter wolf|frost|cold|ice|blink dog|silver|white wolf|zephyr|hound)\b/.test(lowerName) && !/\b(warg|dire|carcharoth|draugluin|werewolf|hell|fire|plasma)\b/.test(lowerName);
+        const templateKey = isHellHoundBreed
+            ? 'bestiary_hellhound'
+            : (isHuskyBreed
+                ? ((/\bhound\b/.test(lowerName) && seed % 2 === 1) ? 'bestiary_wolf' : 'bestiary_husky')
+                : ((seed % 4 === 3 && !/\b(warg|dire|carcharoth|draugluin)\b/.test(lowerName)) ? 'bestiary_husky' : 'bestiary_wolf'));
         const isBossCanine = /\b(carcharoth|gorthaur|draugluin|cerberus|fenrir|huan)\b/.test(lowerName);
         const isLargeCanine = isBossCanine || /\b(warg|dire|hell hound|alpha|pack leader|emperor)\b/.test(lowerName);
         return {
@@ -11842,6 +12052,9 @@ class Dungeon3D {
         const seed = Math.abs(seedNum);
 
         const resolveCanine = (ln, cHex, s) => {
+            if (/\b(lycanthrope|wolfman)\b/.test(ln)) {
+                return { templateKey: 'bestiary_werewolf', scale: /alpha|lord|king/.test(ln) ? 1.32 : 1.08, tintHex: cHex, seed: s };
+            }
             if (/\bfox|kitsune|vixen\b/.test(ln)) {
                 const foxCoats = ['#d97706', '#ea580c', '#e2e8f0', '#b45309'];
                 return { templateKey: 'bestiary_fox', scale: /kitsune|nine-tailed/.test(ln) ? 1.24 : 0.92, tintHex: cHex || foxCoats[s % foxCoats.length], seed: s };
@@ -11856,8 +12069,11 @@ class Dungeon3D {
             else if (/\b(energy|lightning|thunder|spark|storm)\b/.test(ln)) emissiveHex = '#fde047';
             else if (/\b(acid|venom|poison|water|nexus)\b/.test(ln)) emissiveHex = '#a3e635';
             else if (/\b(aether|chaos|ether|time|gravity|inertia|mana|nether|tindalos|spirit)\b/.test(ln)) emissiveHex = '#c084fc';
-            const isHuskyBreed = /\b(husky|winter wolf|blink dog|silver|zephyr|frost hound|cold hound|ice hound|water hound|air hound)\b/.test(ln) && !/\b(warg|dire|carcharoth|draugluin|werewolf|white wolf|timber wolf)\b/.test(ln);
-            const templateKey = isHuskyBreed ? 'bestiary_husky' : ((/\bhound\b/.test(ln) && s % 2 === 1 && !/\b(hell|carcharoth)\b/.test(ln)) ? 'bestiary_husky' : 'bestiary_wolf');
+            const isHellHoundBreed = /\b(hell hound|hellhound|cerberus|fire hound|plasma hound|lava hound)\b/.test(ln);
+            const isHuskyBreed = /\b(husky|winter wolf|blink dog|silver|zephyr|frost hound|cold hound|ice hound|water hound|air hound)\b/.test(ln) && !/\b(warg|dire|carcharoth|draugluin|werewolf|white wolf|timber wolf|hell|fire|plasma)\b/.test(ln);
+            const templateKey = isHellHoundBreed
+                ? 'bestiary_hellhound'
+                : (isHuskyBreed ? 'bestiary_husky' : ((/\bhound\b/.test(ln) && s % 2 === 1 && !/\b(hell|carcharoth)\b/.test(ln)) ? 'bestiary_husky' : 'bestiary_wolf'));
             const isBossCanine = /\b(carcharoth|gorthaur|draugluin|cerberus|fenrir|huan)\b/.test(ln);
             const isLargeCanine = isBossCanine || /\b(warg|dire|hell hound|alpha|pack leader|emperor)\b/.test(ln);
             return { templateKey, scale: isBossCanine ? 1.46 : (isLargeCanine ? 1.22 : 1.0), tintHex: cHex || (/white wolf/.test(ln) ? '#f8fafc' : null), emissiveHex, isBoss: isBossCanine, seed: s };
@@ -13320,7 +13536,8 @@ class Dungeon3D {
                 if (/eye|pupil|iris|teeth|tooth|fang|maw|bone|spore|core|pustule|snout|material\.001|^red$|superhero|regular/i.test(singleName + '_' + meshName)) {
                     return oldMat;
                 }
-                const poolKey = `${oldMat.uuid}_${cfg.tintHex || ''}_${cfg.emissiveHex || ''}_${Boolean(cfg.isOrcish)}_${Boolean(cfg.tunicOnlyTint)}_${Boolean(hasVColor)}`;
+                const hasTexMap = Boolean(oldMat.map);
+                const poolKey = `${oldMat.uuid}_${cfg.tintHex || ''}_${cfg.emissiveHex || ''}_${Boolean(cfg.isOrcish)}_${Boolean(cfg.tunicOnlyTint)}_${Boolean(hasVColor)}_${hasTexMap}`;
                 let pooledMat = this._tintedMatPool.get(poolKey);
                 if (!pooledMat) {
                     if (this._tintedMatPool.size >= 256) {
@@ -13335,7 +13552,10 @@ class Dungeon3D {
                         pooledMat.skinning = true;
                     }
                     if (pooledMat.color && tintCol) {
-                        if (cfg.isOrcish) {
+                        if (hasTexMap) {
+                            // Preserve true multi-channel 1K/2K PBR albedo on sculpted bestiary models; apply only a subtle atmospheric glaze
+                            pooledMat.color.lerp(tintCol, cfg.isBoss ? 0.22 : 0.14);
+                        } else if (cfg.isOrcish) {
                             const isSkin = meshName.includes('sphere.005') || meshName.includes('retopology') || meshName.includes('superhero');
                             pooledMat.color.lerp(isSkin ? tintCol : armorDarkCol, isSkin ? 0.68 : 0.58);
                         } else if (hasVColor) {
@@ -13346,7 +13566,10 @@ class Dungeon3D {
                     }
                     if (emissiveCol && pooledMat.emissive) {
                         pooledMat.emissive.copy(emissiveCol);
-                        pooledMat.emissiveIntensity = /belly|light|accent|stripe|mane|tail|ear/i.test(singleName) ? 0.85 : 0.32;
+                        pooledMat.emissiveIntensity = /belly|light|accent|stripe|mane|tail|ear/i.test(singleName) ? 0.85 : (hasTexMap ? 0.22 : 0.32);
+                    } else if (hasTexMap && tintCol && cfg.isBoss && pooledMat.emissive) {
+                        pooledMat.emissive.copy(tintCol);
+                        pooledMat.emissiveIntensity = 0.16;
                     }
                     this._tintedMatPool.set(poolKey, pooledMat);
                 }
@@ -13358,9 +13581,11 @@ class Dungeon3D {
                     if (cfg.tunicOnlyTint && !meshName.includes('peasant_body')) {
                         return;
                     }
-                    const hasVColor = Boolean(c.geometry && c.geometry.attributes && c.geometry.attributes.color);
+                    const firstMat = Array.isArray(c.material) ? c.material[0] : c.material;
+                    const hasTexMap = Boolean(firstMat && firstMat.map);
+                    const hasVColor = Boolean(!hasTexMap && c.geometry && c.geometry.attributes && c.geometry.attributes.color);
                     if (hasVColor && cfg.tintHex && c.geometry) {
-                        // Normalize vibrant multi-hue COLOR_0 (e.g., Parrot.glb red/blue/yellow) to luminance shading so tintHex applies cleanly
+                        // Normalize vibrant multi-hue COLOR_0 to luminance shading so tintHex applies cleanly on untextured vertex-colored meshes
                         if (!c.geometry._grayColorClone) {
                             const gClone = c.geometry.clone();
                             gClone._sharedGeometry = true;
@@ -14795,8 +15020,22 @@ class Dungeon3D {
             if (ft.elapsed >= ft.duration) {
                 this.scene.remove(ft.sprite);
                 ft.material.dispose();
-                if (ft.material.map) ft.material.map.dispose();
+                if (ft.material.map && !ft.material.map._cachedFloatingTex) {
+                    ft.material.map.dispose();
+                }
                 this.floatingTexts.splice(i, 1);
+            }
+        }
+
+        // Persistent pooled VFX flash PointLight decay (zero shader recompilation stalls)
+        if (this.vfxFlashLight && this._vfxFlashState && this._vfxFlashState.active) {
+            this._vfxFlashState.elapsed += delta;
+            const fFrac = Math.min(1.0, this._vfxFlashState.elapsed / this._vfxFlashState.duration);
+            if (fFrac >= 1.0) {
+                this.vfxFlashLight.intensity = 0;
+                this._vfxFlashState.active = false;
+            } else {
+                this.vfxFlashLight.intensity = this._vfxFlashState.maxIntensity * (1.0 - fFrac);
             }
         }
 
@@ -14865,15 +15104,23 @@ class Dungeon3D {
                     if (proj.coreMat) proj.coreMat.opacity = fade * 0.95;
                     if (proj.ringMat) proj.ringMat.opacity = fade * 0.88;
                     if (proj.pLight) proj.pLight.intensity = (1.0 - t) * 4.2;
-                } else if (proj.kind === 'slash' || proj.kind === 'crit_slash') {
-                    proj.group.rotation.z += delta * 6.5;
-                    const sc = 1.0 + t * 0.55;
+                } else if (proj.kind === 'slash' || proj.kind === 'crit_slash' || proj.kind === 'axe_cleave') {
+                    proj.group.rotation.z += delta * (proj.kind === 'axe_cleave' ? 8.2 : 6.5);
+                    const sc = 1.0 + t * (proj.kind === 'axe_cleave' ? 0.72 : 0.55);
                     proj.group.scale.set(sc, sc, sc);
                     const fade = Math.max(0, 1.0 - t);
                     if (proj.outerMat) proj.outerMat.opacity = fade * 0.95;
                     if (proj.innerMat) proj.innerMat.opacity = fade * 0.98;
                     if (proj.ringMat) proj.ringMat.opacity = fade * 0.85;
                     if (proj.pLight) proj.pLight.intensity = (1.0 - t) * 3.5;
+                } else if (proj.kind === 'whip_lash') {
+                    const fade = Math.max(0, 1.0 - t);
+                    if (proj.ringMat) proj.ringMat.opacity = fade * 0.90;
+                    if (proj.lines && proj.lines.length > 0) {
+                        for (const ln of proj.lines) {
+                            if (ln.material) ln.material.opacity = fade * 0.98;
+                        }
+                    }
                 } else if (proj.kind === 'blunt') {
                     const sc = 1.0 + t * 1.35;
                     proj.group.scale.set(sc, sc, sc);
