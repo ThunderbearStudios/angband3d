@@ -6,11 +6,28 @@ steps:
       - |
         if docker pull gcr.io/$PROJECT_ID/angband3d-cloud:latest; then
           cat << 'EOF' > Dockerfile.fast
-        FROM gcr.io/${PROJECT_ID}/angband3d-cloud:latest
+        FROM gcr.io/${PROJECT_ID}/angband3d-cloud:latest AS prev
+        FROM node:22-bookworm-slim
+        RUN apt-get update && apt-get install -y --no-install-recommends \
+            libncursesw6 \
+            libncurses6 \
+            libtinfo6 \
+            ca-certificates \
+            locales \
+            && rm -rf /var/lib/apt/lists/*
+        ENV LANG=C.UTF-8 \
+            LC_ALL=C.UTF-8 \
+            PORT=8080 \
+            ENGINE_EXE=/app/engine/angband \
+            SAVE_DIR=/data/save \
+            DIST_DIR=/app/dist \
+            WEB_DIR=/app/public \
+            NODE_ENV=production \
+            TRUST_PROXY=1
         WORKDIR /app
+        COPY --from=prev /app /app
         COPY server/src/ /app/server/src/
         COPY server/public/ /app/public/
-        RUN ln -sfn /app/public /app/server/public
         COPY variants/nethack/ /app/variants/nethack/
         COPY variants/rogue/ /app/variants/rogue/
         COPY variants/brogue/ /app/variants/brogue/
@@ -18,10 +35,14 @@ steps:
         COPY variants/ryod/ /app/variants/ryod/
         COPY engine-manifest.json /app/engine-manifest.json
         COPY CREDITS.md /app/CREDITS.md
+        RUN mkdir -p /data/save /app/dist /app/public && ln -sfn /app/public /app/server/public
+        VOLUME /data/save
         WORKDIR /app/server
+        EXPOSE 8080
+        CMD ["node", "src/server.js"]
         EOF
           sed -i "s/\${PROJECT_ID}/$PROJECT_ID/g" Dockerfile.fast
-          docker build --cache-from gcr.io/$PROJECT_ID/angband3d-cloud:latest -t gcr.io/$PROJECT_ID/angband3d-cloud:latest -f Dockerfile.fast .
+          docker build -t gcr.io/$PROJECT_ID/angband3d-cloud:latest -f Dockerfile.fast .
         else
           docker build -t gcr.io/$PROJECT_ID/angband3d-cloud:latest -f server/Dockerfile .
         fi
