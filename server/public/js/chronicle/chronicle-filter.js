@@ -70,11 +70,19 @@ function classifyWeaponArchetype(rawWeapon) {
         return { archetype: 'axe', name: clean, category: 'cleave' };
     }
     // 4. Hammers, Maces & Blunt
-    if (lower.includes('hammer') || lower.includes('mace') || lower.includes('flail') || lower.includes('morning star') || lower.includes('morningstar') || lower.includes('club') || lower.includes('cudgel') || lower.includes('quarterstaff') || lower.includes('staff') || lower.includes('maul') || lower.includes('war hammer') || lower.includes('ball-and-chain') || lower.includes('lead-filled')) {
+    if (lower.includes('hammer') || lower.includes('mace') || lower.includes('flail') || lower.includes('morning star') || lower.includes('morningstar') || lower.includes('club') || lower.includes('cudgel') || lower.includes('quarterstaff') || lower.includes('staff') || lower.includes('maul') || lower.includes('war hammer') || lower.includes('ball-and-chain') || lower.includes('lead-filled') || lower.includes('nunchaku') || lower.includes('jo ') || lower.includes('bo ')) {
         return { archetype: 'blunt', name: clean, category: 'crush' };
     }
-    // 5. Blades & Swords
-    if (lower.includes('sword') || lower.includes('blade') || lower.includes('scimitar') || lower.includes('rapier') || lower.includes('sabre') || lower.includes('saber') || lower.includes('katana') || lower.includes('cutlass') || lower.includes('claymore') || lower.includes('broadsword') || lower.includes('shortsword') || lower.includes('longsword') || lower.includes('foil') || lower.includes('falchion') || lower.includes('zweihander') || lower.includes('greatsword')) {
+    // 5. Whips, Lashes & Scourges (e.g. NetHack Archeologist bullwhip)
+    if (lower.includes('bullwhip') || lower.includes('whip') || lower.includes('scourge') || lower.includes('lash')) {
+        return { archetype: 'whip', name: clean, category: 'lash' };
+    }
+    // 6. Picks, Mattocks & Diggers
+    if (lower.includes('pick-axe') || lower.includes('pickaxe') || lower.includes('mattock') || lower.includes('shovel')) {
+        return { archetype: 'axe', name: clean, category: 'cleave' };
+    }
+    // 7. Blades & Swords
+    if (lower.includes('sword') || lower.includes('blade') || lower.includes('scimitar') || lower.includes('rapier') || lower.includes('sabre') || lower.includes('saber') || lower.includes('katana') || lower.includes('cutlass') || lower.includes('claymore') || lower.includes('broadsword') || lower.includes('shortsword') || lower.includes('longsword') || lower.includes('foil') || lower.includes('falchion') || lower.includes('zweihander') || lower.includes('greatsword') || lower.includes('tsurugi') || lower.includes('wakizashi') || lower.includes('naginata') || lower.includes('athame') || lower.includes('scalpel')) {
         return { archetype: 'blade', name: clean, category: 'slash' };
     }
     return { archetype: 'melee_weapon', name: clean, category: 'slash' };

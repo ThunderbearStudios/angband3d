@@ -2,6 +2,30 @@
    Angband3D Web Client — Dark Fantasy CSS & Glassmorphic HUD
    ============================================================================== */
 
+@font-face {
+    font-family: 'Cinzel';
+    font-style: normal;
+    font-weight: 500 900;
+    font-display: swap;
+    src: url('/assets/fonts/cinzel-latin.woff2') format('woff2');
+}
+
+@font-face {
+    font-family: 'Fira Code';
+    font-style: normal;
+    font-weight: 400 700;
+    font-display: swap;
+    src: url('/assets/fonts/fira-code-latin.woff2') format('woff2');
+}
+
+@font-face {
+    font-family: 'Outfit';
+    font-style: normal;
+    font-weight: 400 700;
+    font-display: swap;
+    src: url('/assets/fonts/outfit-latin.woff2') format('woff2');
+}
+
 :root {
     --bg-dark: #07080b;
     --gold-primary: #d4af37;

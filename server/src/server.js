@@ -731,12 +731,12 @@ const CACHED_APP_VERSION = readAppVersion();
 
 const CSP_DIRECTIVES = [
     "default-src 'self'",
-    "script-src 'self' 'wasm-unsafe-eval' blob: https://static.cloudflareinsights.com",
-    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-    "font-src 'self' https://fonts.gstatic.com data:",
-    "img-src 'self' data: blob: https://angband3d.com https://fonts.gstatic.com",
-    "media-src 'self' data: blob: https://angband3d.com",
-    "connect-src 'self' blob: data: ws: wss: https://fonts.googleapis.com https://fonts.gstatic.com https://cloudflareinsights.com https://generativelanguage.googleapis.com",
+    "script-src 'self' 'wasm-unsafe-eval' blob:",
+    "style-src 'self' 'unsafe-inline'",
+    "font-src 'self' data:",
+    "img-src 'self' data: blob:",
+    "media-src 'self' data: blob:",
+    "connect-src 'self' blob: data: ws: wss:",
     "worker-src 'self' blob:",
     "manifest-src 'self'",
     "object-src 'none'",
@@ -1234,16 +1234,17 @@ const server = http.createServer((req, res) => {
     
     if (guardMutation(req, res, isAllowedOrigin, host)) return;
 
-    // Industry-Standard Security Headers (Eliminates browser security warnings & MIME confusion)
+    // # ROOT-CAUSE: Strip third-party Google Fonts and Cloudflare beacon CSP origins and disable Privacy Sandbox APIs in Permissions-Policy.
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+    res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
     res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-    res.setHeader('Permissions-Policy', 'camera=(), microphone=(self), geolocation=(), payment=()');
+    res.setHeader('Permissions-Policy', 'attribution-reporting=(), browsing-topics=(), camera=(), geolocation=(), interest-cohort=(), join-ad-interest-group=(), microphone=(self), payment=(), private-aggregation=(), private-state-token-issuance=(), private-state-token-redemption=(), run-ad-auction=()');
     if (proto === 'https' || req.socket.encrypted) {
         res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
     }
 
-    // Modern Content Security Policy (permits WebGL Three.js, local shaders, Web Audio, Cloudflare Insights, and Google Fonts)
+    // Modern Content Security Policy (permits WebGL Three.js, local shaders, Web Audio, and self-hosted WOFF2 fonts)
     res.setHeader('Content-Security-Policy', CSP_DIRECTIVES);
 
     if (req.method === 'OPTIONS') {
@@ -2987,6 +2988,8 @@ const server = http.createServer((req, res) => {
                 '.wasm': 'application/wasm',
                 '.pck': 'application/octet-stream',
                 '.css': 'text/css; charset=utf-8',
+                '.woff2': 'font/woff2',
+                '.woff': 'font/woff',
                 '.png': 'image/png',
                 '.jpg': 'image/jpeg',
                 '.jpeg': 'image/jpeg',
@@ -3022,12 +3025,14 @@ const server = http.createServer((req, res) => {
             const posixPath = safePath.replace(/\\/g, '/');
             const hasVersionQuery = req.url && req.url.includes('?v=');
             let cacheControl = 'no-cache, must-revalidate';
-            if (posixPath === '/index.html' || posixPath === '/' || posixPath === '/sw.js' || posixPath === '/version.json') {
-                cacheControl = 'no-store, no-cache, must-revalidate, max-age=0';
+            if (posixPath === '/index.html' || posixPath === '/' || posixPath === '/sw.js' || posixPath === '/version.json' || ext === '.html') {
+                cacheControl = 'no-store, no-cache, must-revalidate, max-age=0, no-transform';
             } else if (['.mp4', '.webm', '.m4a'].includes(ext)) {
                 cacheControl = 'no-cache, no-store, must-revalidate';
             } else if (['.mp3', '.wav', '.ogg'].includes(ext)) {
                 cacheControl = 'public, max-age=604800, no-transform';
+            } else if (['.woff2', '.woff'].includes(ext)) {
+                cacheControl = 'public, max-age=31536000, immutable';
             } else if (['.png', '.jpg', '.jpeg', '.webp', '.obj', '.mtl', '.gltf', '.glb', '.bin', '.wasm', '.pck'].includes(ext)) {
                 cacheControl = 'public, max-age=604800, immutable';
             } else if (['.js', '.css'].includes(ext)) {

@@ -829,29 +829,31 @@ class ChronicleGrounder {
                 isF = (gender === 'female');
 
                 // 2. RACE & CREATURE ARCHETYPE DETECTION
+                // # ROOT-CAUSE: Strip status suffixes and match canines/beasts BEFORE dragons so NetHack 'd' canines never receive a dragon voice profile.
                 const rawRace = (entityOrMonster.race || entityOrMonster.name || (player ? player.race : ''));
-                const rLower = (rawRace || '').toLowerCase();
-                const nLower = (name || '').toLowerCase();
+                const rLower = String(rawRace || '').toLowerCase().replace(/\s*\([^)]*\)/g, '').trim();
+                const nLower = String(name || '').toLowerCase().replace(/\s*\([^)]*\)/g, '').trim();
 
-                if (rLower.includes('giant') || rLower.includes('titan') || rLower.includes('ogre') || rLower.includes('troll')) {
+                if (/\b(little dog|small dog|large dog|dog|puppy|wolf|hound|jackal|fox|coyote|dingo|warg|cat|kitten|housecat|panther|tiger|lion|pony|horse|warhorse|rat|mouse|bat|spider|scorpion|snake|viper|cobra|adder|lizard|newt|frog|toad|ooze|jelly|slime|mold|fungus|blob|pudding|vortex|bloat|eye|worm|beetle|ant|bee|grid bug|cockatrice|chickatrice|rust monster|aquator|mimic|xeroc|golem|statue|skeleton|zombie|mummy|ghoul)\b/i.test(nLower) ||
+                    /\b(hound|wolf|dog|beast|rat|cat|feline|canine|rodent|arachnid|insect|reptile|ooze|slime|construct)\b/i.test(rLower)) {
+                    raceArchetype = 'beast';
+                } else if (rLower.includes('giant') || rLower.includes('titan') || rLower.includes('ogre') || rLower.includes('troll')) {
                     raceArchetype = 'giant';
-                } else if (rLower.includes('dragon') || rLower.includes('drake') || rLower.includes('wyrm')) {
+                } else if ((rLower.includes('dragon') || rLower.includes('drake') || rLower.includes('wyrm')) && !rLower.includes('dragon fly') && !rLower.includes('dragonfly')) {
                     raceArchetype = 'dragon';
                 } else if (rLower.includes('undead') || rLower.includes('lich') || rLower.includes('ghost') || rLower.includes('spectre') || rLower.includes('wraith') || rLower.includes('vampire')) {
                     raceArchetype = 'undead';
-                } else if (rLower.includes('kobold') || rLower.includes('goblin') || rLower.includes('snaga') || rLower.includes('imp')) {
+                } else if (rLower.includes('kobold') || rLower.includes('goblin') || rLower.includes('snaga') || rLower.includes('imp') || rLower.includes('gnoll') || rLower.includes('leprechaun')) {
                     raceArchetype = 'kobold';
                 } else if (rLower.includes('orc') || rLower.includes('uruk')) {
                     raceArchetype = 'orc';
-                } else if (rLower.includes('hound') || rLower.includes('wolf') || rLower.includes('dog') || rLower.includes('beast') || rLower.includes('rat')) {
-                    raceArchetype = 'beast';
-                } else if (rLower.includes('elf') || rLower.includes('eldar')) {
+                } else if (rLower.includes('elf') || rLower.includes('eldar') || rLower.includes('dar ')) {
                     raceArchetype = 'elf';
-                } else if (rLower.includes('dwarf')) {
+                } else if (rLower.includes('dwarf') || rLower.includes('dwarven')) {
                     raceArchetype = 'dwarf';
                 } else if (rLower.includes('hobbit') || rLower.includes('halfling') || rLower.includes('gnome')) {
                     raceArchetype = 'hobbit';
-                } else if (nLower.includes('mage') || nLower.includes('wizard') || nLower.includes('sorcerer') || nLower.includes('priest') || nLower.includes('cleric') || nLower.includes('cultist') || nLower.includes('witch') || nLower.includes('warlock') || nLower.includes('druid') || nLower.includes('shaman') || nLower.includes('seer')) {
+                } else if (nLower.includes('mage') || nLower.includes('wizard') || nLower.includes('sorcerer') || nLower.includes('priest') || nLower.includes('cleric') || nLower.includes('cultist') || nLower.includes('witch') || nLower.includes('warlock') || nLower.includes('druid') || nLower.includes('shaman') || nLower.includes('seer') || nLower.includes('oracle') || nLower.includes('mind flayer')) {
                     raceArchetype = 'spellcaster';
                 } else if (nLower.includes('thief') || nLower.includes('rogue') || nLower.includes('assassin') || nLower.includes('bandit') || nLower.includes('brigand') || nLower.includes('cutpurse')) {
                     raceArchetype = 'rogue';
@@ -1085,14 +1087,103 @@ class ChronicleGrounder {
     }
 
     /**
-     * Comprehensive creature classification across all canon Angband monster families.
-     * Distinguishes sentient vocal beings from non-vocal beasts, vermin, slimes, and constructs.
+     * Formats dungeon depth in the active realm's canonical floor notation.
+     * # ROOT-CAUSE: Eliminate Angband-only '50ft (Lv.1)' depth labels in NetHack ('Dlvl 1'), DCSS ('D:1'), Brogue ('Depth 1'), Rogue ('Level 1'), Sil-Q ('-250ft'), and RYOD ('Floor 1').
      */
-    static classifyCreature(monster) {
-        const name = (monster && (monster.name || monster.race)) ? (monster.name || monster.race) : 'creature';
-        const lower = name.toLowerCase();
-        const glyph = monster ? monster.glyph : '';
-        const gender = this.detectCreatureGender(name, monster);
+    static formatRealmDepth(depth = 0, realmKey = 'angband', player = null) {
+        const rk = String(realmKey || (player && player.realm) || (typeof window !== 'undefined' && window.__activeRealm) || (typeof window !== 'undefined' && window.__app && typeof window.__app.getActiveRealm === 'function' ? window.__app.getActiveRealm() : 'angband')).toLowerCase();
+        const d = typeof depth === 'number' && !isNaN(depth) ? depth : 0;
+        if (d <= 0) {
+            if (rk === 'silq') return 'Gates of Angband';
+            if (rk === 'frogcomposband') return 'Outpost Wilderness';
+            if (rk === 'hengband') return 'Castle Town';
+            if (rk === 'ryod') return 'Sanctuary Plaza';
+            if (rk === 'nethack') return 'Dlvl 1 (Mazes of Menace)';
+            if (rk === 'dcss') return 'D:1';
+            if (rk === 'brogue') return 'Depth 1';
+            if (rk === 'rogue') return 'Level 1';
+            return 'Town Surface';
+        }
+        if (rk === 'nethack') {
+            const branch = (player && player.branch_name) ? `${player.branch_name} ` : '';
+            return `${branch}Dlvl ${d}`.trim();
+        }
+        if (rk === 'dcss') {
+            return (player && player.place_label) ? String(player.place_label) : `${(player && player.branch_name) || 'D'}:${d}`;
+        }
+        if (rk === 'brogue') return `Depth ${d}`;
+        if (rk === 'rogue') return `Level ${d}`;
+        if (rk === 'ryod') return `Floor ${d}`;
+        if (rk === 'silq') return `-${d * 50}ft (Level ${d})`;
+        return `${d * 50}ft (Lv.${d})`;
+    }
+
+    /**
+     * Detects creature attitude (tame companion, peaceful NPC, captive, shopkeeper, priest, oracle, guard) across all 9 realms.
+     */
+    static detectCreatureAttitude(monster, realmKey = null) {
+        if (!monster) {
+            return { isTame: false, isPeaceful: false, isCaptive: false, isShopkeeper: false, isPriest: false, isOracle: false, isGuard: false, cleanName: 'creature', rawName: 'creature' };
+        }
+        const rk = String(realmKey || monster.realm || (typeof window !== 'undefined' && window.__activeRealm) || (typeof window !== 'undefined' && window.__app && typeof window.__app.getActiveRealm === 'function' ? window.__app.getActiveRealm() : 'angband')).toLowerCase();
+        const rawName = String(monster.name || monster.race || 'creature').trim();
+        const cleanName = rawName
+            .replace(/\s*\((?:tame|pet|ally|companion|friendly|liberated|peaceful|unhostile|neutral|chatty|asleep|sleeping|unaware|unwary|chained|captive|caged|shackled|waiting|guarding|wandering|fleeing|stunned|confused|invisible|fast|slow|x\d+)\)/gi, '')
+            .replace(/^(?:the|a|an)\s+/i, '')
+            .trim() || rawName;
+        const lower = cleanName.toLowerCase();
+
+        const isCaptive = Boolean(
+            monster.captive || monster.chained ||
+            /\((?:chained|captive|caged|shackled)\)/i.test(rawName)
+        );
+        // # ROOT-CAUSE: Only mark creatures as tame when explicitly flagged (tame/pet/ally) or carrying a (tame)/(pet)/(ally) status suffix so feral NetHack dogs/horses remain wild non-vocal beasts.
+        const isTame = Boolean(
+            !isCaptive && (
+                monster.isPet || monster.pet || monster.tame || monster.friendly || monster.isAlly ||
+                /\((?:tame|pet|ally|companion|friendly|liberated)\)/i.test(rawName)
+            )
+        );
+        const isOracle = /\boracle\b/i.test(lower);
+        const isShopkeeper = /\b(shopkeeper|izchak|merchant|quartermaster|innkeeper|barkeep|arms-dealer|storekeeper|black marketeer)\b/i.test(lower);
+        const isPriest = /\b(aligned priest|temple priest|high priest|shrine maiden|sanctuary elder|town elder|abbot|monk of)\b/i.test(lower);
+        const isGuard = /\b(watchman|watch captain|watch sergeant|town guard|keystone kop|kop sergeant|kop lieutenant|kop kaptain|vault guard)\b/i.test(lower) && monster.hostile !== true && monster.is_hostile !== true;
+        const isPeaceful = Boolean(
+            !isTame && (
+                monster.peaceful || monster.isPeaceful ||
+                monster.hostile === false || monster.is_hostile === false ||
+                /\((?:peaceful|unhostile|neutral|chatty)\)/i.test(rawName) ||
+                isOracle || isShopkeeper || isPriest || isGuard
+            )
+        );
+
+        return {
+            rk,
+            rawName,
+            cleanName,
+            lower,
+            isTame,
+            isPeaceful,
+            isCaptive,
+            isShopkeeper,
+            isPriest,
+            isOracle,
+            isGuard
+        };
+    }
+
+    /**
+     * Comprehensive creature classification across all 9 realms (Angband, Sil-Q, FCB, Hengband, NetHack, DCSS, Brogue, Rogue, RYOD).
+     * Consults MasterBestiary and explicit species names BEFORE realm-contextual ASCII glyphs so cross-realm glyph collisions (e.g. NetHack 'd' canine vs Angband 'd' dragon) can never occur.
+     */
+    static classifyCreature(monster, realmKey = null) {
+        const att = this.detectCreatureAttitude(monster, realmKey);
+        const rk = att.rk;
+        const name = att.rawName;
+        const cleanName = att.cleanName;
+        const lower = att.lower;
+        const glyph = (monster && monster.glyph) ? String(monster.glyph).charAt(0) : '';
+        const gender = this.detectCreatureGender(cleanName, monster);
         const isF = (gender === 'female');
         const pr = {
             he: isF ? 'she' : 'he',
@@ -1104,9 +1195,498 @@ class ChronicleGrounder {
             man: isF ? 'woman' : 'man'
         };
 
-        // --- 1. SENTIENT VOCAL CREATURE FAMILIES (Priority check for spoken dialogue & barks) ---
+        let mb = (typeof window !== 'undefined' && window.MASTER_BESTIARY) || (typeof global !== 'undefined' && global.MASTER_BESTIARY) || null;
+        if (!mb && typeof require === 'function') {
+            try { mb = require('../master-bestiary.js'); } catch (_) {}
+        }
+        const mbResolved = (mb && typeof mb.resolve === 'function') ? mb.resolve(monster, glyph, rk) : null;
+        const mbTax = (mbResolved && mbResolved.taxonomy) ? String(mbResolved.taxonomy) : '';
 
-        // 1. Blubbering Idiots & Eccentric Town Vagrants (Glyph 't', idiot)
+        // --- 0. TAME COMPANIONS & LIBERATED ALLIES (Highest Priority) ---
+        if (att.isTame) {
+            const isCaninePet = /\b(little dog|small dog|large dog|dog|puppy|wolf|warg|hound|jackal|fox|coyote|dingo|pup|shiba|terrier)\b/i.test(lower) || /Canine/i.test(mbTax) || (rk === 'nethack' && glyph === 'd');
+            const isFelinePet = /\b(kitten|housecat|large cat|cat|panther|tiger|leopard|jaguar|lynx|cougar|lion)\b/i.test(lower) || /Feline/i.test(mbTax) || (rk === 'nethack' && glyph === 'f');
+            const isEquinePet = /\b(pony|horse|warhorse|steed|stallion|mare|unicorn|ki-rin|ram|goat)\b/i.test(lower) || /Equine|Quadruped/i.test(mbTax) || (rk === 'nethack' && glyph === 'u');
+            const isNonVocalBeastPet = isCaninePet || isFelinePet || isEquinePet ||
+                /\b(monkey|ape|bear|boar|rat|bat|raven|crow|falcon|hawk|eagle|spider|scorpion|snake|serpent|lizard|gecko|newt|frog|toad|eel|ooze|jelly|slime|blob|golem|skeleton|zombie)\b/i.test(lower) ||
+                /Canine|Feline|Equine|Quadruped|Rodent|Bat|Bird|Spider|Arachnid|Insect|Snake|Reptile|Jelly|Ooze|Mold|Eye|Golem|Skeleton|Zombie/i.test(mbTax);
+
+            if (isCaninePet) {
+                return {
+                    category: 'tame_canine',
+                    family: 'canine',
+                    gender,
+                    isVocal: false,
+                    isTame: true,
+                    isPeaceful: false,
+                    recommendedVoice: null,
+                    sleepNoise: `lies curled faithfully beside your boots, paws twitching softly in contented dog-dreams.`,
+                    ambientNoise: `*Wags its tail eagerly and lets out a bright, loyal bark: "Woof! Yip!"*`,
+                    combatNoise: (hp) => hp <= 0.35
+                        ? `*Your wounded ${cleanName} whimpers bravely at your side, refusing to abandon you: "Yip-whine... grrrr!"*`
+                        : `*Your faithful ${cleanName} lunges at your foe with fearless devotion: "Woof! Grrrr-bark!"*`,
+                    assaultProse: (pName) => `Darting loyally beside ${pName}, your faithful ${cleanName} snaps at the enemy's flank!`,
+                    assaultNoise: `*Barks loyally: "Woof! Yip!"*`
+                };
+            }
+            if (isFelinePet) {
+                return {
+                    category: 'tame_feline',
+                    family: 'feline',
+                    gender,
+                    isVocal: false,
+                    isTame: true,
+                    isPeaceful: false,
+                    recommendedVoice: null,
+                    sleepNoise: `lies curled in a warm ball near your lantern-light, purring softly in sleep.`,
+                    ambientNoise: `*Arches its back against your greaves with a warm, vibrating purr: "Mrow! Purrrr..."*`,
+                    combatNoise: (hp) => hp <= 0.35
+                        ? `*Your wounded ${cleanName} hisses defiantly beside your boots: "Mrow-hssss!"*`
+                        : `*Your agile ${cleanName} pounces alongside you with bared claws: "Mrow! Hssss-slash!"*`,
+                    assaultProse: (pName) => `Springing gracefully beside ${pName}, your faithful ${cleanName} rakes the foe with needle claws!`,
+                    assaultNoise: `*Purrs and meows: "Mrow! Purrrr..."*`
+                };
+            }
+            if (isEquinePet) {
+                return {
+                    category: 'tame_equine',
+                    family: 'equine',
+                    gender,
+                    isVocal: false,
+                    isTame: true,
+                    isPeaceful: false,
+                    recommendedVoice: null,
+                    sleepNoise: `rests on steady legs beside you, ears twitching gently in light slumber.`,
+                    ambientNoise: `*Lets out a soft, reassuring nicker and nudges your shoulder: "Whinny-huff..."*`,
+                    combatNoise: (hp) => hp <= 0.35
+                        ? `*Your wounded ${cleanName} snorts fiercely, stamping iron hooves in your defense: "Neigh-snort!"*`
+                        : `*Your loyal ${cleanName} rears up beside you and strikes out with heavy hooves: "Whinny-stomp!"*`,
+                    assaultProse: (pName) => `Charging loyally alongside ${pName}, your ${cleanName} batters the enemy with iron-shod hooves!`,
+                    assaultNoise: `*Nickers loyally: "Whinny-huff!"*`
+                };
+            }
+            if (isNonVocalBeastPet) {
+                return {
+                    category: 'tame_beast',
+                    family: 'beast',
+                    gender,
+                    isVocal: false,
+                    isTame: true,
+                    isPeaceful: false,
+                    recommendedVoice: null,
+                    sleepNoise: `rests quietly beside your boots, keeping close to your lantern's warmth.`,
+                    ambientNoise: `*Tilts its head affectionately toward you and chitters softly in loyal companionship.*`,
+                    combatNoise: () => `*Your loyal ${cleanName} lunges fiercely to defend your flank!*`,
+                    assaultProse: (pName) => `Fighting loyally beside ${pName}, your ${cleanName} harries the enemy!`,
+                    assaultNoise: `*Emits a loyal companion cry!*`
+                };
+            }
+            // Sentient vocal liberated ally (e.g., Brogue/RYOD Dar ally, Goblin ally, Ogre ally, Valkyrie ally)
+            const vAlly = this.pickCreatureVoice(monster, 'veteran');
+            return {
+                category: 'tame_ally',
+                family: 'ally',
+                gender,
+                isVocal: true,
+                isTame: true,
+                isPeaceful: false,
+                recommendedVoice: vAlly,
+                sleepNoise: `rests beside your camp, weapon across ${pr.his} knees in light slumber.`,
+                ambientBark: `"My blade is yours, friend. Lead on through the dark—I guard your flank!"`,
+                combatBark: (hp) => hp <= 0.35
+                    ? `"Wounded... yet I stand with you to the last breath!"`
+                    : `"Stand fast, comrade! Together we cleave a path through the deep!"`,
+                assaultProse: (pName) => `Fighting shoulder-to-shoulder with ${pName}, your ally ${cleanName} strikes the enemy!`,
+                assaultBark: () => `For our bond—strike them down!`
+            };
+        }
+
+        // --- 0b. PEACEFUL SPECIAL NPCs (Oracle of Delphi, Izchak & Shopkeepers, Temple Priests, Watchmen, Chained Captives) ---
+        if (att.isCaptive) {
+            const isBeastCaptive = /\b(monkey|ape|wolf|dog|hound|cat|horse|pony|bear|phoenix|griffin)\b/i.test(lower);
+            if (isBeastCaptive) {
+                return {
+                    category: 'captive_beast',
+                    family: 'beast',
+                    gender,
+                    isVocal: false,
+                    isTame: false,
+                    isPeaceful: true,
+                    isCaptive: true,
+                    recommendedVoice: null,
+                    sleepNoise: `slumps exhausted in heavy iron shackles.`,
+                    ambientNoise: `*Rattles its iron chains and gazes at you with pleading eyes, hoping to be freed.*`,
+                    combatNoise: () => `*Strains frantically against its iron manacles!*`,
+                    assaultProse: () => `The shackled ${cleanName} strains against its chains.`,
+                    assaultNoise: `*Rattles its iron chains pleads for freedom.*`
+                };
+            }
+            const vCap = this.pickCreatureVoice(monster, 'townsperson');
+            return {
+                category: 'captive',
+                family: 'humanoid',
+                gender,
+                isVocal: true,
+                isTame: false,
+                isPeaceful: true,
+                isCaptive: true,
+                recommendedVoice: vCap,
+                sleepNoise: `slumps unconscious within the iron cage.`,
+                ambientBark: `"Strike the cage lock or step on the pressure plate, traveler! Free me and I will fight at your side!"`,
+                combatBark: () => `"Spare me, friend! I am a captive here—free me from these chains!"`,
+                assaultProse: () => `The chained ${cleanName} rattles ${pr.his} manacles in the dim light.`,
+                assaultBark: () => `Free me from these irons and my blade is yours!`
+            };
+        }
+
+        if (att.isOracle) {
+            const vOr = this.pickCreatureVoice(monster, 'spellcaster');
+            return {
+                category: 'oracle',
+                family: 'oracle',
+                gender: 'female',
+                isVocal: true,
+                isTame: false,
+                isPeaceful: true,
+                recommendedVoice: vOr,
+                sleepNoise: `rests in prophetic trance amidst rising curls of Delphic incense.`,
+                ambientBark: `"Approach in peace, seeker. The mists of Delphi reveal the trials of Sokoban, Medusa's isle, and the Castle below."`,
+                combatBark: () => `"Foolish mortal! To strike the Oracle of Delphi is to call down the wrath of the cosmos!"`,
+                assaultProse: (pName) => `Arcane lightning crackles around the Oracle's dais before ${pName}!`,
+                assaultBark: () => `Do not profane the sanctum of Delphi with drawn steel!`
+            };
+        }
+
+        if (att.isShopkeeper || att.isPriest || att.isGuard) {
+            const vPeace = this.pickCreatureVoice(monster, att.isPriest ? 'spellcaster' : (att.isGuard ? 'veteran' : 'townsperson'));
+            const isIzchak = /\bizchak\b/i.test(lower);
+            return {
+                category: att.isPriest ? 'priest_npc' : (att.isGuard ? 'guard_npc' : 'shopkeeper_npc'),
+                family: 'townsperson',
+                gender,
+                isVocal: true,
+                isTame: false,
+                isPeaceful: true,
+                recommendedVoice: vPeace,
+                sleepNoise: `dozes lightly behind the counter, one eye still half-open for thieves.`,
+                ambientBark: isIzchak
+                    ? `"Welcome to Izchak's Lighting Shop! Brass lanterns, wax candles, and magic lamps—never face the dark unlit, young delver!"`
+                    : (att.isPriest
+                        ? `"Peace be upon you, pilgrim. Stand upon the consecrated altar to #pray, #offer sacrifices, or test your gear for curses."`
+                        : (att.isGuard
+                            ? `"Keep your weapon sheathed and pay for your goods, citizen. The Watch keeps order on this floor."`
+                            : `"Welcome, adventurer! Drop unidentified wares on my floor to appraise their value, or browse my stock in peace."`)),
+                combatBark: () => att.isPriest
+                    ? `"Sacrilege! The wrath of the temple deity strikes down defilers!"`
+                    : `"Thief! Murderer! You will pay in blood for attacking a peaceful ${cleanName}!"`,
+                assaultProse: (pName) => `Provoked to righteous fury, the ${cleanName} brings ${pr.his} full wrath to bear against ${pName}!`,
+                assaultBark: () => `You picked the wrong ${cleanName} to cross, outlaw!`
+            };
+        }
+
+        // --- 1. EXPLICIT NON-VOCAL ANIMALS, INSECTS, OOZES, PLANTS, EYES, MINDLESS UNDEAD & CONSTRUCTS ---
+        // (Checked BEFORE sentient vocal glyph checks so 'd', 'C', 'f', 'b', 'm', 'M', 's', 'S', 'w', 'g', 't' never misfire across realms!)
+
+        // # ROOT-CAUSE: Unbounded mbTax substring regexes (/Ant/i, /Bat/i) matched 'Giant' -> 'arachnid'; wrap all mbTax taxonomy patterns in \b(...)\b word boundaries.
+        // 1A. Canines (dogs, wolves, hounds, jackals, wargs, foxes, coyotes, dingoes, Carcharoth)
+        const isExplicitCanine = /\b(little dog|small dog|large dog|dog|dogs|puppy|wolf|wolves|hound|hounds|jackal|jackals|warg|wargs|fox|foxes|coyote|coyotes|dingo|dingoes|carcharoth|draugluin|huan|cerberus)\b/i.test(lower) ||
+            /\b(Canine)\b/i.test(mbTax) ||
+            (glyph === 'd' && rk === 'nethack') ||
+            (glyph === 'C' && rk !== 'nethack' && rk !== 'rogue' && rk !== 'dcss');
+        if (isExplicitCanine) {
+            return {
+                category: 'canine',
+                family: 'canine',
+                gender,
+                isVocal: false,
+                isTame: false,
+                isPeaceful: att.isPeaceful,
+                sleepNoise: 'lies curled upon the stones, chest rising and falling softly with muffled dog-snores.',
+                ambientNoise: att.isPeaceful
+                    ? '*Trots calmly across the flagstones, sniffing the air and wagging its tail: Woof!*'
+                    : '*Pants softly and sniffs the floor, growling low in its throat: Grrrr...*',
+                combatNoise: (hp) => hp <= 0.35
+                    ? `*The wounded ${cleanName} whimpers in pain, snapping frantically with bloodied jaws: Yip-whimper-snarl!*`
+                    : `*The ${cleanName} howls in savage fury, baring yellowed fangs: Grrrrr-bark!*`,
+                assaultProse: (pName) => `With bristling fur and bared yellow fangs, the ${cleanName} leaps from the gloom, snapping viciously at ${pName}'s throat!`,
+                assaultNoise: '*Snarls viciously: Grrrrr-bark!*'
+            };
+        }
+
+        // 1B. Felines (cats, kittens, panthers, tigers, leopards, lions, sabre-tooths)
+        const isExplicitFeline = /\b(kitten|housecat|large cat|cat|cats|panther|panthers|tiger|tigers|leopard|leopards|jaguar|cougar|lynx|lion|lions|sabre-tooth|saber-tooth|pussycat)\b/i.test(lower) ||
+            /\b(Feline)\b/i.test(mbTax) ||
+            (glyph === 'f' && rk !== 'dcss');
+        if (isExplicitFeline) {
+            return {
+                category: 'feline',
+                family: 'feline',
+                gender,
+                isVocal: false,
+                isTame: false,
+                isPeaceful: att.isPeaceful,
+                sleepNoise: 'lies curled into a tight ball, whiskers twitching softly in deep sleep.',
+                ambientNoise: att.isPeaceful
+                    ? '*Pads softly across the stones and lets out a quiet, curious purr: Mrow...*'
+                    : '*Paces in silence with padded steps, emitting a low warning hiss: Hssss...*',
+                combatNoise: (hp) => hp <= 0.35
+                    ? `*The wounded ${cleanName} yowls in agony, flattening its ears against its skull: Screeech-yowl!*`
+                    : `*The ${cleanName} spits furiously with bared razor claws: Hssss-screeech!*`,
+                assaultProse: (pName) => `Leaping soundlessly from the shadows, the ${cleanName} lashes out with razor-sharp claws at ${pName}!`,
+                assaultNoise: '*Spits and yowls: Hssss-screeech!*'
+            };
+        }
+
+        // 1C. Equines, Quadrupeds, Bears & Non-Vocal Monkeys/Apes
+        const isExplicitQuadruped = /\b(pony|horse|warhorse|unicorn|ki-rin|goat|yak|sheep|ram|boar|warthog|pig|deer|elk|ox|cattle|cow|bull|mumak|elephant|mastodon|bear|grizzly|polar bear|werebear|owlbear|leocrotta|catoblepas|baluchitherium|titanothere|monkey|ape|carnivorous ape|silverback|baboon|gorilla|lemure|sasquatch|yeti|wendigo)\b/i.test(lower) ||
+            /\b(Equine|Quadruped|Yeti)\b/i.test(mbTax);
+        if (isExplicitQuadruped) {
+            return {
+                category: 'quadruped',
+                family: 'beast',
+                gender,
+                isVocal: false,
+                isTame: false,
+                isPeaceful: att.isPeaceful,
+                sleepNoise: 'slumbers heavily upon the stone floor, flanks rising and falling in slow breaths.',
+                ambientNoise: /\b(pony|horse|warhorse|unicorn)\b/i.test(lower)
+                    ? '*Stamps a hoof upon the flagstones and snorts softly: Whinny-snort...*'
+                    : (/\b(monkey|ape|baboon)\b/i.test(lower)
+                        ? '*Chatters and bounds agilely across the stonework: Ooh-ooh-screech!*'
+                        : '*Snorts heavily in the dim light, muscles tensed: Huff-growl...*'),
+                combatNoise: (hp) => hp <= 0.35
+                    ? `*The wounded ${cleanName} bellows in pain and thrashes wildly!*`
+                    : `*The ${cleanName} roars with primal ferocity and charges forward!*`,
+                assaultProse: (pName) => `With raw animal power, the ${cleanName} lunges across the flagstones at ${pName}!`,
+                assaultNoise: '*Bellows with primal fury!*'
+            };
+        }
+
+        // 1D. Rodents & Small Burrowers
+        const isExplicitRodent = /\b(rat|rats|mouse|mice|rodent|rodents|rock mole|woodchuck|squirrel|rabbit|ferret|badger|marmot|vole|porcupine|wombat)\b/i.test(lower) ||
+            /\b(Rodent)\b/i.test(mbTax) ||
+            glyph === 'r';
+        if (isExplicitRodent) {
+            return {
+                category: 'rodent',
+                family: 'rodent',
+                gender,
+                isVocal: false,
+                isTame: false,
+                isPeaceful: att.isPeaceful,
+                sleepNoise: 'lies curled in a heap of rubble, twitching its whiskers in sleep.',
+                ambientNoise: '*Scuttles along the damp wall, sniffing nervously: Squeak-chitter...*',
+                combatNoise: (hp) => hp <= 0.35
+                    ? `*The wounded ${cleanName} squeals in shrill agony, thrashing frantically: Eeee-squeak!*`
+                    : `*The ${cleanName} gnashes yellowed incisors, chittering in rabid fury: Chitter-squeak!*`,
+                assaultProse: (pName) => `Darting through the gloom with frenzied haste, the ${cleanName} lunges to sink needle teeth into ${pName}!`,
+                assaultNoise: '*Squeaks sharply: Eeee-squeak!*'
+            };
+        }
+
+        // 1E. Arachnids & Insects (spiders, scorpions, ants, beetles, bees, wasps, flies, centipedes, grid bugs)
+        const isExplicitArachnidOrInsect = /\b(spider|scorpion|tarantula|ungoliant|shelob|arachnid|centipede|millipede|tick|flea|louse|mite|ant|ants|beetle|beetles|killer bee|queen bee|bumblebee|bee|wasp|hornet|dragon fly|dragonfly|fly|flies|moth|butterfly|caterpillar|grub|maggot|grid bug|xan|cockroach|locust|scarab|mantis|termite)\b/i.test(lower) ||
+            /\b(Spider|Arachnid|Insect|Ant|Centipede|Beetle|Grid Bug)\b/i.test(mbTax) ||
+            (glyph === 'a' && rk !== 'brogue') ||
+            (glyph === 'c' && rk !== 'nethack' && rk !== 'dcss');
+        if (isExplicitArachnidOrInsect) {
+            return {
+                category: 'arachnid',
+                family: 'arachnid',
+                gender,
+                isVocal: false,
+                isTame: false,
+                isPeaceful: att.isPeaceful,
+                sleepNoise: 'rests motionless in the dark, chitinous mandibles locked in torpor.',
+                ambientNoise: /grid bug/i.test(lower)
+                    ? '*Hum-crackles with geometric blue static as it shifts orthogonally: Bzzzt-click...*'
+                    : (/\b(bee|wasp|hornet|fly|dragon fly|moth)\b/i.test(lower)
+                        ? '*Drones through the subterranean air on rapid wings: Bzzzzz-hum...*'
+                        : '*Clicks its dark mandibles with an agitated chittering: tsk-tsk-click...*'),
+                combatNoise: (hp) => hp <= 0.35
+                    ? `*The wounded ${cleanName} convulses on cracked chitinous legs: Tsk-hiss-click!*`
+                    : `*The ${cleanName} rears up with clicking mandibles: Click-tsk-tsk-hiss!*`,
+                assaultProse: (pName) => `Skittering forward with chitinous speed, the ${cleanName} strikes viciously at ${pName}!`,
+                assaultNoise: '*Chitters aggressively: tsk-tsk-click!*'
+            };
+        }
+
+        // 1F. Serpents, Reptiles, Amphibians, Hydras, Worms & Cockatrices
+        const isExplicitReptile = /\b(snake|adder|viper|cobra|asp|python|boa|mamba|rattlesnake|serpent|garter snake|water moccasin|hydra|basilisk|cockatrice|chickatrice|pyrolisk|salamander|lizard|newt|gecko|iguana|chameleon|crocodile|alligator|turtle|tortoise|worm|worms|underworm|larva|toad|toads|frog|frogs|axolotl|dinichthys|raptor)\b/i.test(lower) ||
+            /\b(Snake|Serpent|Reptile|Amphibian|Hydra|Worm|Cockatrice)\b/i.test(mbTax) ||
+            glyph === 'J' || glyph === ':' || (glyph === 'w' && rk !== 'brogue');
+        if (isExplicitReptile) {
+            return {
+                category: 'reptile',
+                family: 'reptile',
+                gender,
+                isVocal: false,
+                isTame: false,
+                isPeaceful: att.isPeaceful,
+                sleepNoise: 'lies coiled tightly in a dark crevice, unmoving and slow of breath.',
+                ambientNoise: /cockatrice|chickatrice/i.test(lower)
+                    ? '*Ruffles its scaled feathers and emits a petrifying, stony hiss: Hssss-kreee...*'
+                    : '*Flicks a slender forked tongue, dry scales rasping against the stone: Sssss...*',
+                combatNoise: (hp) => hp <= 0.35
+                    ? `*The wounded ${cleanName} writhes violently, hissing through bloodied jaws: Sssss-gasp!*`
+                    : `*The ${cleanName} coils and rears to strike with a vicious hiss: Sssssss-hiss!*`,
+                assaultProse: (pName) => `With blinding speed, the ${cleanName} coils and strikes forward at ${pName}!`,
+                assaultNoise: '*Hisses violently: Sssssss-hiss!*'
+            };
+        }
+
+        // 1G. Avians & Bats (bats, birds, crows, ravens, crebain, eagles, kestrels, emus, owls)
+        const isExplicitAvian = /\b(bat|bats|doombat|bird|crow|crows|raven|ravens|crebain|eagle|eagles|vulture|hawk|falcon|owl|kestrel|emu|rooster|chicken|parrot|pelican|swan|albatross|roc|phoenix)\b/i.test(lower) ||
+            /\b(Bat|Bird|Avian)\b/i.test(mbTax) ||
+            (glyph === 'b' && rk !== 'nethack' && rk !== 'brogue') ||
+            (glyph === 'B' && rk !== 'dcss');
+        if (isExplicitAvian) {
+            return {
+                category: 'avian',
+                family: 'avian',
+                gender,
+                isVocal: false,
+                isTame: false,
+                isPeaceful: att.isPeaceful,
+                sleepNoise: 'roosts quietly in the dark rafters, feathers and wings folded tight.',
+                ambientNoise: '*Flutters wings with sharp, high-pitched cries: Skreeee...*',
+                combatNoise: (hp) => hp <= 0.35
+                    ? `*The wounded ${cleanName} flaps battered wings in distress: Skree-chert!*`
+                    : `*The ${cleanName} swoops in erratic arcs, shrieking sharply: Skreeee-chert!*`,
+                assaultProse: (pName) => `Buffeting the air with rapid wings, the ${cleanName} swoops down at ${pName}!`,
+                assaultNoise: '*Screeches piercingly: Skreeee-chert!*'
+            };
+        }
+
+        // 1H. Aquatic Creatures (eels, krakens, sharks, pirahnas, jellyfish, sea monsters)
+        const isExplicitAquatic = /\b(eel|electric eel|kraken|shark|piranha|fish|jellyfish|octopus|squid|sea monster|kelpie|bog monster|swamp monster|merfolk)\b/i.test(lower) ||
+            /\b(Aquatic)\b/i.test(mbTax) ||
+            glyph === ';';
+        if (isExplicitAquatic) {
+            return {
+                category: 'slime',
+                family: 'aquatic',
+                gender,
+                isVocal: false,
+                isTame: false,
+                isPeaceful: att.isPeaceful,
+                sleepNoise: 'drifts motionless beneath the dark surface of the water.',
+                ambientNoise: '*Breaks the dark water with a slick, churning ripple: Splash-glub...*',
+                combatNoise: () => `*The ${cleanName} thrashes the water into foam and lunges!*`,
+                assaultProse: (pName) => `Surging from the dark water, the ${cleanName} lashes out at ${pName}!`,
+                assaultNoise: '*Churns the water violently: Splash-hiss!*'
+            };
+        }
+
+        // 1I. Mindless Slimes, Oozes, Jellies, Blobs, Puddings, Molds, Fungi, Plants, Floating Eyes, Bloats & Vortices
+        const isExplicitSlimeOrPlantOrEye = /\b(ooze|slime|mold|mould|jelly|mushroom|fungus|fungi|shrieker|lichen|spore|pudding|blob|gelatinous cube|acid mound|vortex|cloud|quylthulg|floating eye|freezing sphere|flaming sphere|shocking sphere|blaming sphere|beholder|eye of|bloat|oklob|plant|bush|shrub|briar|thorn|bramble|vine|creeper|flytrap|treant|huorn|trapper|lurker above|yellow light|black light|icky thing|shoggoth)\b/i.test(lower) ||
+            /\b(Jelly|Ooze|Mold|Fungus|Floating Eye|Quylthulg|Acidic Blob|Plant|Vortex)\b/i.test(mbTax) ||
+            glyph === 'j' || glyph === 'e' || glyph === 'v' || glyph === ',' ||
+            (glyph === 'm' && rk !== 'nethack' && rk !== 'brogue' && rk !== 'silq') ||
+            (glyph === 'b' && (rk === 'nethack' || rk === 'brogue')) ||
+            (glyph === 'P' && rk === 'nethack') ||
+            (glyph === 'F' && (rk === 'nethack' || rk === 'rogue')) ||
+            (glyph === 'f' && rk === 'dcss');
+        if (isExplicitSlimeOrPlantOrEye) {
+            return {
+                category: 'slime',
+                family: 'slime',
+                gender,
+                isVocal: false,
+                isTame: false,
+                isPeaceful: att.isPeaceful,
+                sleepNoise: 'rests dormant and unmoving in the subterranean gloom.',
+                ambientNoise: /floating eye|eye|sphere/i.test(lower)
+                    ? '*Drifts silently in mid-air, its unblinking orb humming with paralyzing psychic tension...*'
+                    : (/bloat/i.test(lower)
+                        ? '*Floats taut and swollen with volatile subterranean gas, membrane creaking softly...*'
+                        : '*Bubbles and pulses with a wet, squelching rhythm: glub... plop...*'),
+                combatNoise: (hp) => hp <= 0.35
+                    ? `*The ${cleanName} shudders and spatters corrosive ichor across the stone: Squelch-hiss!*`
+                    : `*The ${cleanName} pulses aggressively in the gloom: Glub-squelch-blub!*`,
+                assaultProse: (pName) => `Surging forward across the flagstones, the ${cleanName} presses against ${pName}'s defenses!`,
+                assaultNoise: '*Squelches and hums: glub-blub!*'
+            };
+        }
+
+        // 1J. Mindless Undead (skeletons, skulls, zombies, mummies, ghouls, ghasts, mewlips)
+        const isExplicitMindlessUndead = /\b(skeleton|skeletal|skull|druj|osteon|zombie|mummy|mummified|ghoul|ghast|cadaver|corpse|rotter|shambler|walker|mewlip|crawling claw|necromorph)\b/i.test(lower) ||
+            /\b(Skeleton|Zombie|Mummy|Skull)\b/i.test(mbTax) ||
+            (glyph === 's' && rk !== 'silq' && rk !== 'nethack') ||
+            glyph === 'z' || glyph === 'Z' ||
+            (glyph === 'M' && rk === 'nethack');
+        if (isExplicitMindlessUndead) {
+            return {
+                category: 'mindless_undead',
+                family: 'mindless_undead',
+                gender,
+                isVocal: false,
+                isTame: false,
+                isPeaceful: att.isPeaceful,
+                sleepNoise: 'stands as an inert heap of bleached bones and burial dust, awaiting dark commands.',
+                ambientNoise: '*Drags hollow feet across the flagstones, dry bones and burial wrappings rattling softly: Clack... clatter...*',
+                combatNoise: (hp) => hp <= 0.35
+                    ? `*Shattered bone splinters upon the stone, its hollow jaw clicking: Clack-clack-rattle!*`
+                    : `*The ${cleanName} clatters its jaws in silent malice, swinging relentlessly: Clack-clack-clatter!*`,
+                assaultProse: (pName) => `Bleached bone and grave-dust flash in the gloom as the ${cleanName} lunges with tireless undead malice at ${pName}!`,
+                assaultNoise: '*Clatters dryly: clack-clack-clatter!*'
+            };
+        }
+
+        // 1K. Constructs, Golems, Statues, Mimics, Rust Monsters, Aquators & Earth Aberrations
+        const isExplicitConstruct = /\b(golem|statue|gargoyle|idol|automaton|construct|colossus|caryatid|sentinel|totem|turret|piercer|mimic|xeroc|creeping coins|animated|dancing sword|death sword|rust monster|disenchanter|aquator|xorn|umber hulk|zruty|silent watcher)\b/i.test(lower) ||
+            /\b(Golem|Statue|Construct|Mimic|Creeping Coins|Animated Weapon|Rust Monster)\b/i.test(mbTax) ||
+            (glyph === 'g' && rk !== 'silq' && rk !== 'nethack') ||
+            (glyph === 'm' && rk === 'nethack') ||
+            (glyph === 'R' && rk === 'nethack') ||
+            glyph === '$';
+        if (isExplicitConstruct) {
+            return {
+                category: 'construct',
+                family: 'construct',
+                gender,
+                isVocal: false,
+                isTame: false,
+                isPeaceful: att.isPeaceful,
+                sleepNoise: 'stands inert like a stone carving, joints locked in profound stillness.',
+                ambientNoise: /rust monster|aquator/i.test(lower)
+                    ? '*Twitches its feathery antennae toward your metal gear, clicking hungrily: Clack-sniff...*'
+                    : (/mimic|xeroc/i.test(lower)
+                        ? '*Shudders out of its inanimate disguise with a sticky, rasping snap!*'
+                        : '*Grinds heavy stone and iron joints with a low resonance: Groan-grind...*'),
+                combatNoise: (hp) => hp <= 0.35
+                    ? `*Cracked stone and sheared iron grind with a shrill screech: Screee-clank-grind!*`
+                    : `*The ${cleanName} advances with relentless mechanical tension: Clank-groan-thud!*`,
+                assaultProse: (pName) => `With unfeeling force, the ${cleanName} lunges directly at ${pName}!`,
+                assaultNoise: '*Grinds and clanks: Groan-screee-thud!*'
+            };
+        }
+
+        // 1L. Elementals & Sparks
+        const isExplicitElemental = /\b(elemental|spark|flame spirit|fire spirit|water spirit|air spirit|earth spirit|magma spirit|will-o-the-wisp)\b/i.test(lower) ||
+            /\b(Elemental)\b/i.test(mbTax) ||
+            (glyph === 'E' && rk !== 'rogue');
+        if (isExplicitElemental) {
+            return {
+                category: 'elemental',
+                family: 'elemental',
+                gender,
+                isVocal: false,
+                isTame: false,
+                isPeaceful: att.isPeaceful,
+                sleepNoise: 'flickers faintly as a dormant ember or still eddy in the gloom.',
+                ambientNoise: '*Crackles and hums with raw elemental power: Whooosh-crackle...*',
+                combatNoise: (hp) => hp <= 0.35
+                    ? `*The flickering form of the ${cleanName} sputters erratically: Whoosh-crackle-fizz!*`
+                    : `*The ${cleanName} flares with turbulent elemental fury: Roaaar-crackle!*`,
+                assaultProse: (pName) => `Raw subterranean power erupts as the ${cleanName} surges forward at ${pName}!`,
+                assaultNoise: '*Roars with turbulent fury: Roaaar-whoosh!*'
+            };
+        }
+
+        // --- 2. SENTIENT VOCAL CREATURE FAMILIES (Priority check for spoken dialogue & barks) ---
+
+        // 1. Blubbering Idiots & Eccentric Town Vagrants (idiot)
         if (lower.includes('idiot')) {
             const v = this.pickCreatureVoice(monster, 'idiot');
             return {
@@ -1265,8 +1845,9 @@ class ChronicleGrounder {
             };
         }
 
-        // 5. Peaceful Townsfolk & Merchants (t, merchant, peasant, etc.)
-        if (glyph === 't' || lower.includes('merchant') ||
+        // # ROOT-CAUSE: Sentient vocal glyph checks (t, L, d, P) lacked realm guards, duplicate non-vocal checks shadowed 1A-1L, and resolveCreatureState/resolveCreatureEncounter lacked tame companion & peaceful NPC awareness.
+        // 5. Peaceful Townsfolk & Merchants (t in Angband/FCB/Hengband, merchant, peasant, etc.)
+        if ((glyph === 't' && rk !== 'silq' && rk !== 'nethack' && rk !== 'dcss') || lower.includes('merchant') ||
             lower.includes('townsfolk') || lower.includes('peasant') || lower.includes('drunk') || lower.includes('sot')) {
             const v = this.pickCreatureVoice(monster, 'townsperson');
             return {
@@ -1346,7 +1927,7 @@ class ChronicleGrounder {
         }
 
         // 7. Kobolds & Troglodytes (k)
-        if (glyph === 'k' || lower.includes('kobold') || lower.includes('troglodyte')) {
+        if ((glyph === 'k' && rk !== 'silq') || lower.includes('kobold') || lower.includes('troglodyte')) {
             const v = this.pickCreatureVoice(monster, 'kobold');
             return {
                 category: 'kobold',
@@ -1416,10 +1997,32 @@ class ChronicleGrounder {
             };
         }
 
+        // 8b. Nymphs & Leprechauns (n, N in NetHack/Rogue, L in Rogue)
+        if ((glyph === 'L' && rk === 'rogue') || (glyph === 'N' && (rk === 'nethack' || rk === 'rogue')) ||
+            (glyph === 'n' && rk === 'nethack') || /\b(leprechaun|nymph|succubus|incubus|foocubus)\b/i.test(lower)) {
+            const isLep = /\bleprechaun\b/i.test(lower) || (glyph === 'L' && rk === 'rogue');
+            const v = this.pickCreatureVoice(monster, isLep ? 'rogue' : 'spellcaster');
+            return {
+                category: 'rogue',
+                gender: isLep ? 'male' : 'female',
+                isVocal: true,
+                recommendedVoice: v,
+                sleepNoise: 'slumbers lightly in a corner, a mischievous smile lingering upon the lips.',
+                ambientBark: isLep
+                    ? '"Hee-hee! Heavy pockets slow your step, traveler—let me lighten your gold!"'
+                    : '"Come closer, weary traveler... lay down your heavy steel and gaze into my mirror..."',
+                combatBark: (hp) => hp <= 0.35
+                    ? (isLep ? '"Me gold! Spare a poor leprechaun!"' : '"Cruel mortal! Wait until your eyes close..."')
+                    : (isLep ? '"Catch me if you can, slow-boots! Your gold is mine!"' : '"Such a lovely ring... such shiny armor... give them to me!"'),
+                assaultProse: (pName) => `With a mocking laugh, the ${name} darts inside ${pName}'s reach, nimble fingers reaching for gold and enchanted gear!`,
+                assaultBark: () => isLep ? 'Your gold is mine! Hee-hee!' : 'Give me that shiny trinket, mortal!'
+            };
+        }
+
         // 9. High Sentient Undead (W, V, L / wights, wraiths, vampires, liches, specters, nazgul)
-        if (glyph === 'W' || glyph === 'V' || glyph === 'L' || lower.includes('wight') || lower.includes('wraith') ||
+        if (glyph === 'W' || glyph === 'V' || (glyph === 'L' && rk !== 'rogue') || lower.includes('wight') || lower.includes('wraith') ||
             lower.includes('vampire') || lower.includes('lich') || lower.includes('spectre') || lower.includes('specter') ||
-            lower.includes('nazgul') || lower.includes('ringwraith')) {
+            lower.includes('nazgul') || lower.includes('ringwraith') || lower.includes('barrow')) {
             const v = this.pickCreatureVoice(monster, 'high_undead');
             return {
                 category: 'high_undead',
@@ -1452,8 +2055,10 @@ class ChronicleGrounder {
             };
         }
 
-        // 10. Dragons & Ancient Drakes (d, D / dragons, drakes, wyrms)
-        if (glyph === 'd' || glyph === 'D' || lower.includes('dragon') || lower.includes('drake') || lower.includes('wyrm')) {
+        // 10. Dragons & Ancient Drakes (D across realms, d ONLY in Angband/FCB/Hengband)
+        if ((glyph === 'D' || (glyph === 'd' && (rk === 'angband' || rk === 'frogcomposband' || rk === 'hengband')) ||
+            /\b(dragon|dragons|drake|drakes|wyrm|wyrms)\b/i.test(lower)) &&
+            !/\b(dragon\s*fly|dragonfly|komodo|dragon\s*turtle)\b/i.test(lower)) {
             const v = this.pickCreatureVoice(monster, 'dragon');
             return {
                 category: 'dragon',
@@ -1485,172 +2090,12 @@ class ChronicleGrounder {
             };
         }
 
-        // --- 2. NON-VOCAL CREATURE FAMILIES (Make appropriate text noises/sounds, cannot speak words) ---
-
-        // 9. Canines (C / dogs, wolves, hounds, jackals, wargs, foxes)
-        if (glyph === 'C' || lower.includes('wolf') || lower.includes('hound') ||
-            /\b(dog|dogs|jackal|jackals|warg|wargs|fox|foxes|coyote)\b/i.test(lower)) {
-            return {
-                category: 'canine',
-                isVocal: false,
-                sleepNoise: 'lies curled upon the stones, chest rising and falling softly with muffled dog-snores.',
-                ambientNoise: '*Pants softly and sniffs the floor, growling low in its throat: Grrrr...*',
-                combatNoise: (hp) => hp <= 0.35
-                    ? `*The wounded ${name} whimpers in pain, snapping frantically with bloodied jaws: Yip-whimper-snarl!*`
-                    : `*The ${name} howls in savage fury, baring yellowed fangs: Grrrrr-bark!*`,
-                assaultProse: (pName) => `With bristling fur and bared yellow fangs, the ${name} leaps from the gloom, snapping viciously at ${pName}'s throat!`,
-                assaultNoise: '*Snarls viciously: Grrrrr-bark!*'
-            };
-        }
-
-        // 10. Felines (f / cats, panthers, tigers, leopards)
-        if (glyph === 'f' || /\b(cat|cats|panther|panthers|tiger|tigers|leopard|leopards|jaguar|cougar)\b/i.test(lower)) {
-            return {
-                category: 'feline',
-                isVocal: false,
-                sleepNoise: 'lies curled into a tight ball, whiskers twitching softly in deep sleep.',
-                ambientNoise: '*Paces in silence with padded steps, emitting a low warning hiss: Hssss...*',
-                combatNoise: (hp) => hp <= 0.35
-                    ? `*The wounded ${name} yowls in agony, flattening its ears against its skull: Screeech-yowl!*`
-                    : `*The ${name} spits furiously with bared razor claws: Hssss-screeech!*`,
-                assaultProse: (pName) => `Leaping soundlessly from the high ledge, the ${name} lashes out with razor-sharp claws!`,
-                assaultNoise: '*Spits and yowls: Hssss-screeech!*'
-            };
-        }
-
-        // 11. Rodents (r / rats, mice)
-        if (glyph === 'r' || /\b(rat|rats|mouse|mice|rodent|rodents)\b/i.test(lower)) {
-            return {
-                category: 'rodent',
-                isVocal: false,
-                sleepNoise: 'lies curled in a filthy heap of rubbish, twitching its pink snout in sleep.',
-                ambientNoise: '*Scuttles along the damp wall, sniffing nervously: Squeak-chitter...*',
-                combatNoise: (hp) => hp <= 0.35
-                    ? `*The wounded ${name} squeals in shrill agony, thrashing frantically: Eeee-squeak!*`
-                    : `*The ${name} gnaws its yellowed incisors, chittering in rabid fury: Chitter-squeak!*`,
-                assaultProse: (pName) => `Darting through the refuse with frenzied haste, the ${name} lunges to sink needle teeth into ${pName}'s flesh!`,
-                assaultNoise: '*Squeaks sharply: Eeee-squeak!*'
-            };
-        }
-
-        // 12. Arachnids & Insects (S, a, c, I / spiders, scorpions, centipedes, ticks, tarantulas, ants, beetles)
-        if (glyph === 'S' || glyph === 'I' || glyph === 'a' || glyph === 'c' || lower.includes('spider') || lower.includes('scorpion') ||
-            lower.includes('centipede') || lower.includes('tick') || lower.includes('tarantula') ||
-            /\b(ant|ants|beetle|beetles|crawler|flea|fleas|louse|mite|mites)\b/i.test(lower)) {
-            return {
-                category: 'arachnid',
-                isVocal: false,
-                sleepNoise: 'hangs motionless in sticky webbing, dark mandibles locked in torpor.',
-                ambientNoise: '*Clicks its dark pedipalps with an agitated chittering: tsk-tsk-click...*',
-                combatNoise: (hp) => hp <= 0.35
-                    ? `*The wounded ${name} convulses on severed legs, dark ichor spurting with shrill hisses: Tsk-hiss-click!*`
-                    : `*The ${name} rears up on hairy chitinous legs, dripping venom: Click-tsk-tsk-hiss!*`,
-                assaultProse: (pName) => `Dropping from sticky webs above, the ${name} strikes with razor pedipalps, driving venomous fangs toward ${pName}!`,
-                assaultNoise: '*Chitters aggressively: tsk-tsk-click!*'
-            };
-        }
-
-        // 13. Serpents, Reptiles & Worms (J, R, w / snakes, adders, vipers, cobras, hydras, basilisks, lizards, worms)
-        if (glyph === 'J' || glyph === 'R' || glyph === 'w' || lower.includes('snake') || lower.includes('adder') || lower.includes('viper') ||
-            lower.includes('cobra') || lower.includes('hydra') || lower.includes('basilisk') || lower.includes('salamander') ||
-            lower.includes('lizard') || /\b(worm|worms|toad|toads|frog|frogs)\b/i.test(lower)) {
-            return {
-                category: 'reptile',
-                isVocal: false,
-                sleepNoise: 'lies coiled tightly in a dark crevice, unmoving and slow of breath.',
-                ambientNoise: '*Flicks a slender forked tongue, dry scales rasping against the stone: Sssss...*',
-                combatNoise: (hp) => hp <= 0.35
-                    ? `*The wounded ${name} wriths violently, venom spraying from broken fangs: Sssss-gasp!*`
-                    : `*The ${name} coils defensively, rearing to strike with a vicious hiss: Sssssss-hiss!*`,
-                assaultProse: (pName) => `With blinding speed, the ${name} coils and strikes forward, venom dripping from needle fangs toward ${pName}!`,
-                assaultNoise: '*Hisses violently: Sssssss-hiss!*'
-            };
-        }
-
-        // 14. Avians & Bats (b, B / bats, vampire bats, crows, ravens, eagles)
-        if (glyph === 'b' || glyph === 'B' || /\b(bat|bats|crow|crows|raven|ravens|eagle|eagles|vulture|hawk|owl)\b/i.test(lower)) {
-            return {
-                category: 'avian',
-                isVocal: false,
-                sleepNoise: 'hangs upside down from the cavern vault, folded tightly in leathery wings.',
-                ambientNoise: '*Flutters leathery wings with sharp, high-pitched clicks: Skreeee...*',
-                combatNoise: (hp) => hp <= 0.35
-                    ? `*The wounded ${name} flaps broken wings in distress, screeching hoarsely: Skree-chert!*`
-                    : `*The ${name} swoops in erratic circles, shrieking with shrill menace: Skreeee-chert!*`,
-                assaultProse: (pName) => `Buffeting the air with leathery wings, the ${name} swoops down from the vault rafters with bared fangs against ${pName}!`,
-                assaultNoise: '*Screeches piercingly: Skreeee-chert!*'
-            };
-        }
-
-        // 15. Mindless Slimes, Oozes, Jellies, Molds, Fungi & Vortices (j, m, e, v, ,)
-        if (glyph === 'j' || glyph === 'm' || glyph === 'e' || glyph === 'v' || glyph === ',' ||
-            lower.includes('ooze') || lower.includes('slime') || lower.includes('mold') || lower.includes('jelly') ||
-            lower.includes('mushroom') || lower.includes('fungus') || lower.includes('pudding') || lower.includes('blob') ||
-            lower.includes('vortex') || lower.includes('cloud') || lower.includes('quylthulg')) {
-            return {
-                category: 'slime',
-                isVocal: false,
-                sleepNoise: 'rests as a dormant gelatinous mound upon the stones, barely shimmering.',
-                ambientNoise: '*Bubbles and pulses with a wet, squelching rhythm: glub... plop...*',
-                combatNoise: (hp) => hp <= 0.35
-                    ? `*Severed chunks of the ${name} violently sizzle and dissolve in acidic spatter: Squelch-blub-blub!*`
-                    : `*The ${name} ripples aggressively, bubbling corrosive acid: Glub-squelch-blub!*`,
-                assaultProse: (pName) => `A foul, corrosive mass surges forward across the flagstones as the ${name} slumps against ${pName}'s defenses!`,
-                assaultNoise: '*Squelches and bubbles wetly: glub-blub!*'
-            };
-        }
-
-        // 16. Mindless Undead (s, z, M / skeletons, zombies, mummies, bone golems)
-        if (glyph === 's' || glyph === 'z' || glyph === 'M' || lower.includes('skeleton') || lower.includes('zombie') ||
-            lower.includes('mummy') || lower.includes('bone golem') || lower.includes('corpse')) {
-            return {
-                category: 'mindless_undead',
-                isVocal: false,
-                sleepNoise: 'stands as an inert heap of bleached bones and burial dust, awaiting dark commands.',
-                ambientNoise: '*Drags hollow feet across the flagstones, dry bones rattling softly: Clack... clatter...*',
-                combatNoise: (hp) => hp <= 0.35
-                    ? `*Shattered bone splinters upon the stone, its empty skull clicking hollowly: Clack-clack-rattle!*`
-                    : `*The ${name} clatters its jaws in silent rage, swinging its rusted weapon: Clack-clack-clatter!*`,
-                assaultProse: (pName) => `Bleached bone and rusted iron flash in the gloom as the ${name} swings a notched blade with tireless, soulless malice!`,
-                assaultNoise: '*Clatters dryly: clack-clack-clatter!*'
-            };
-        }
-
-        // 17. Constructs & Golems (g, x / iron, stone, clay, marble golems, statues, gargoyles)
-        if (glyph === 'g' || glyph === 'x' || lower.includes('golem') || lower.includes('statue') ||
-            lower.includes('gargoyle') || lower.includes('bronze') || lower.includes('marble')) {
-            return {
-                category: 'construct',
-                isVocal: false,
-                sleepNoise: 'stands inert like a stone carving, joints locked in profound stillness.',
-                ambientNoise: '*Grinds heavy stone joints with a low resonance: Groan-grind...*',
-                combatNoise: (hp) => hp <= 0.35
-                    ? `*Chipped stone and twisted iron shear off with a shrill screech: Screee-clank-grind!*`
-                    : `*The ${name} raises a massive fist, gears whining under immense tension: Clank-groan-thud!*`,
-                assaultProse: (pName) => `The stone flagstones groan and tremble under massive treads as the ${name} brings down a crushing fist upon ${pName}!`,
-                assaultNoise: '*Grinds with deafening resonance: Groan-screee-thud!*'
-            };
-        }
-
-        // 18. Elementals & Sparks (E / fire, water, air, earth elementals, sparks, vortex)
-        if (glyph === 'E' || lower.includes('elemental') || lower.includes('spark') || lower.includes('flame')) {
-            return {
-                category: 'elemental',
-                isVocal: false,
-                sleepNoise: 'flickers faintly as a gentle ember or stagnant pool, dormant and calm.',
-                ambientNoise: '*Crackles and hums with raw elemental power: Whooosh-crackle...*',
-                combatNoise: (hp) => hp <= 0.35
-                    ? `*The flickering form of the ${name} sputters erratically, hissing into steam: Whoosh-crackle-fizz!*`
-                    : `*The ${name} flares with turbulent fury, searing the cavern air: Roaaar-crackle!*`,
-                assaultProse: (pName) => `Raw subterranean power erupts as the ${name} surges forward in a swirling blast of elemental fury!`,
-                assaultNoise: '*Roars with turbulent fury: Roaaar-whoosh!*'
-            };
-        }
-
         // --- 3. LARGE SENTIENT HUMANOIDS (Trolls, Ogres & Giants) ---
-        // 19. Trolls, Ogres & Giants (T, O, P)
-        if (glyph === 'T' || glyph === 'O' || glyph === 'P' || lower.includes('troll') || lower.includes('ogre') ||
-            lower.includes('cyclops') || lower.includes('ettin') || /\b(giant|giants)\b/i.test(lower)) {
+        // 19. Trolls, Ogres & Giants (T, O, P in Angband, H in NetHack, C in DCSS, t in Sil-Q)
+        if (glyph === 'T' || glyph === 'O' || (glyph === 'P' && rk !== 'nethack' && rk !== 'rogue') ||
+            (glyph === 'H' && rk === 'nethack') || (glyph === 'C' && rk === 'dcss') || (glyph === 't' && rk === 'silq') ||
+            lower.includes('troll') || lower.includes('ogre') || lower.includes('minotaur') ||
+            lower.includes('cyclops') || lower.includes('ettin') || /\b(giant|giants|titan|titans)\b/i.test(lower)) {
             return {
                 category: 'giant',
                 isVocal: true,
@@ -1719,11 +2164,14 @@ class ChronicleGrounder {
      * Consumes strictly ZERO engine turns.
      * @param {Object} monster The monster data object
      * @param {Array} recentMessages Optional recent engine messages for real-time combat awareness
+     * @param {string} realmKey Optional realm key for cross-realm glyph disambiguation
      */
-    static resolveCreatureState(monster, recentMessages = []) {
-        if (!monster) return { state: 'unknown', canSpeak: false, observation: 'Shadow in the gloom' };
+    static resolveCreatureState(monster, recentMessages = [], realmKey = null) {
+        if (!monster) return { state: 'unknown', canSpeak: false, isTame: false, isPeaceful: false, observation: 'Shadow in the gloom' };
 
-        const name = monster.name || monster.race || 'creature';
+        const rk = String(realmKey || monster.realm || (typeof window !== 'undefined' && window.__app && typeof window.__app.getActiveRealm === 'function' ? window.__app.getActiveRealm() : 'angband')).toLowerCase();
+        const att = this.detectCreatureAttitude(monster, rk);
+        const name = att.cleanName || monster.name || monster.race || 'creature';
         const cleanName = name.toLowerCase().replace(/^(the|a|an)\s+/, '').trim();
         const recentStrings = (Array.isArray(recentMessages) ? recentMessages.slice(-12) : [])
             .map(m => (typeof m === 'string' ? m : (m && m.text ? m.text : '')).toLowerCase());
@@ -1743,8 +2191,10 @@ class ChronicleGrounder {
         const isConfused = !!(monster.confused || monster.is_confused) || recentStrings.some(s => s.includes(cleanName) && s.includes('appears confused'));
         const isFleeing = !!(monster.afraid || monster.is_fleeing || (monster.monfear > 0)) || recentStrings.some(s => s.includes(cleanName) && (s.includes('flees in terror') || s.includes('runs away')));
 
-        // Get creature archetype profile
-        const profile = this.classifyCreature(monster);
+        // Get creature archetype profile with realm & attitude awareness
+        const profile = this.classifyCreature(monster, rk);
+        const isTame = Boolean(profile.isTame || att.isTame);
+        const isPeaceful = Boolean(profile.isPeaceful || att.isPeaceful || isTame);
 
         // 1. SLEEPING STATE (Guaranteed contextual silence for ALL creatures including sleeping merchants)
         if (isAsleep) {
@@ -1753,10 +2203,14 @@ class ChronicleGrounder {
                 category: profile.category,
                 isVocal: profile.isVocal,
                 canSpeak: false,
+                isTame: isTame,
+                isPeaceful: isPeaceful,
                 bark: null,
                 noise: null,
                 recommendedVoice: profile.recommendedVoice,
-                observation: `The ${name} ${profile.sleepNoise} It cannot converse while asleep.`
+                observation: isTame
+                    ? `Your faithful ${name} ${profile.sleepNoise} It cannot respond while asleep.`
+                    : `The ${name} ${profile.sleepNoise} It cannot converse while asleep.`
             };
         }
 
@@ -1767,10 +2221,14 @@ class ChronicleGrounder {
                 category: profile.category,
                 isVocal: profile.isVocal,
                 canSpeak: false,
+                isTame: isTame,
+                isPeaceful: isPeaceful,
                 bark: null,
                 noise: profile.isVocal ? null : profile.ambientNoise,
                 recommendedVoice: profile.recommendedVoice,
-                observation: `The ${name} stumbles blindly in a stupor, snapping at empty air in delirium.`
+                observation: isTame
+                    ? `Your ${name} stumbles dizzily, shaking its head in temporary confusion.`
+                    : `The ${name} stumbles blindly in a stupor, snapping at empty air in delirium.`
             };
         }
 
@@ -1782,10 +2240,14 @@ class ChronicleGrounder {
                     category: profile.category,
                     isVocal: false,
                     canSpeak: false,
+                    isTame: isTame,
+                    isPeaceful: isPeaceful,
                     bark: null,
                     noise: profile.combatNoise(0.2),
                     recommendedVoice: null,
-                    observation: `Terrified of the light, the ${name} scrambles frantically into the shadows.`
+                    observation: isTame
+                        ? `Wounded and frightened, your ${name} whimpers and retreats behind your boots for safety.`
+                        : `Terrified of the light, the ${name} scrambles frantically into the shadows.`
                 };
             }
             let bark = '';
@@ -1801,6 +2263,8 @@ class ChronicleGrounder {
                 category: profile.category,
                 isVocal: true,
                 canSpeak: true,
+                isTame: isTame,
+                isPeaceful: isPeaceful,
                 bark: bark,
                 noise: null,
                 recommendedVoice: profile.recommendedVoice,
@@ -1808,7 +2272,42 @@ class ChronicleGrounder {
             };
         }
 
-        // 4. COMBAT & SPECIFIC LOG EVENT DETECTION
+        // 4. TAME COMPANION / LOYAL ALLY STATE (Pets & liberated allies never use hostile predatory observations)
+        if (isTame) {
+            const petInCombat = (maxHp > 0 && currentHp < maxHp * 0.85) || recentStrings.some(t => t.includes(cleanName) && (t.includes('bites') || t.includes('claws') || t.includes('attacks') || t.includes('hits') || t.includes('kicks')));
+            if (!profile.isVocal) {
+                const petNoise = petInCombat && typeof profile.combatNoise === 'function' ? profile.combatNoise(hpPercent) : profile.ambientNoise;
+                return {
+                    state: petInCombat ? 'loyal_companion_combat' : 'tame_companion',
+                    category: profile.category,
+                    isVocal: false,
+                    canSpeak: false,
+                    isTame: true,
+                    isPeaceful: true,
+                    bark: null,
+                    noise: petNoise,
+                    recommendedVoice: null,
+                    observation: petInCombat
+                        ? `Your faithful ${name} stands fiercely at your side, defending you against dungeon threats! ${petNoise}`
+                        : `Your faithful ${name} stays close to your lantern light, watching you with bright, devoted eyes. ${petNoise}`
+                };
+            }
+            const allyBark = petInCombat && typeof profile.combatBark === 'function' ? profile.combatBark(hpPercent) : profile.ambientBark;
+            return {
+                state: petInCombat ? 'loyal_companion_combat' : 'tame_companion',
+                category: profile.category,
+                isVocal: true,
+                canSpeak: true,
+                isTame: true,
+                isPeaceful: true,
+                bark: allyBark,
+                noise: null,
+                recommendedVoice: profile.recommendedVoice,
+                observation: `Your sworn ally ${name} stands vigilantly at your side, ready to advance into the depths.`
+            };
+        }
+
+        // 5. COMBAT & SPECIFIC LOG EVENT DETECTION
         const isDamaged = (maxHp > 0 && currentHp < maxHp);
         const wasRecentlyAttacked = !!monster.wasAttacked || (monster.lastAttackedTime && (Date.now() - monster.lastAttackedTime < 25000));
 
@@ -1816,7 +2315,7 @@ class ChronicleGrounder {
             return t.includes(cleanName) && (
                 t.includes('you hit') || t.includes('you slash') || t.includes('you crush') ||
                 t.includes('you smite') || t.includes('you shoot') || t.includes('you strike') ||
-                t.includes('you miss')
+                t.includes('you whip') || t.includes('you miss')
             );
         });
 
@@ -1841,6 +2340,8 @@ class ChronicleGrounder {
                 category: profile.category,
                 isVocal: true,
                 canSpeak: true,
+                isTame: false,
+                isPeaceful: isPeaceful,
                 bark: profile.beggingBark || '"Alms, noble traveler! A copper bit for bread, I beg of you!"',
                 noise: null,
                 recommendedVoice: profile.recommendedVoice,
@@ -1855,6 +2356,8 @@ class ChronicleGrounder {
                 category: profile.category,
                 isVocal: true,
                 canSpeak: true,
+                isTame: false,
+                isPeaceful: isPeaceful,
                 bark: profile.insultBark || '"Move along, soft-skin, before I show you what real steel looks like!"',
                 noise: null,
                 recommendedVoice: profile.recommendedVoice,
@@ -1871,6 +2374,8 @@ class ChronicleGrounder {
                     category: profile.category,
                     isVocal: false,
                     canSpeak: false,
+                    isTame: false,
+                    isPeaceful: false,
                     bark: null,
                     noise: combatNoise,
                     recommendedVoice: null,
@@ -1908,6 +2413,8 @@ class ChronicleGrounder {
                 category: profile.category,
                 isVocal: true,
                 canSpeak: true,
+                isTame: false,
+                isPeaceful: false,
                 bark: bark,
                 noise: null,
                 recommendedVoice: profile.recommendedVoice,
@@ -1915,39 +2422,53 @@ class ChronicleGrounder {
             };
         }
 
-        // 5. UNPROVOKED / PEACEFUL / ACTIVE ROAMING
+        // 6. UNPROVOKED / PEACEFUL / ACTIVE ROAMING
         if (!profile.isVocal) {
             return {
-                state: 'ambient',
+                state: isPeaceful ? 'peaceful_beast' : 'ambient',
                 category: profile.category,
                 isVocal: false,
                 canSpeak: false,
+                isTame: false,
+                isPeaceful: isPeaceful,
                 bark: null,
                 noise: profile.ambientNoise,
                 recommendedVoice: null,
-                observation: `The ${name} watches your movements with predatory instinct. ${profile.ambientNoise}`
+                observation: isPeaceful
+                    ? `The ${name} remains non-hostile, watching your lantern light without aggression. ${profile.ambientNoise}`
+                    : `The ${name} watches your movements with predatory instinct. ${profile.ambientNoise}`
             };
         }
 
         // Sentient vocal creature active
         let bark = profile.ambientBark;
-        if (isUnique) {
+        if (isUnique && !isPeaceful) {
             bark = `"${name.split(',')[0]} will brook no trespassing in this realm! Stand and face your doom!"`;
         }
-        let obs = `The ${name} stands before you, watching your movements with seasoned calculation.`;
+        let obs = isPeaceful
+            ? `The ${name} regards you peacefully, offering no hostility as you pass.`
+            : `The ${name} stands before you, watching your movements with seasoned calculation.`;
         if (profile.category === 'idiot') {
             obs = `The ${name} sits in the dirt, drooling softly and staring with vacant curiosity.`;
-        } else if (profile.category === 'townsperson') {
-            obs = `The ${name} glances at your gear with curiosity, going about their business.`;
+        } else if (profile.category === 'townsperson' || profile.category === 'shopkeeper_npc') {
+            obs = `The ${name} glances at your gear with friendly interest, tending to their wares and business.`;
+        } else if (profile.category === 'oracle' || profile.category === 'priest_npc') {
+            obs = `The ${name} stands serenely within the sacred sanctuary, robes illuminated by shrine light.`;
+        } else if (profile.category === 'guard_npc') {
+            obs = `The ${name} stands on alert watch, keeping a steady eye on the corridor.`;
+        } else if (profile.category === 'captive') {
+            obs = `Bound in heavy dungeon irons, the ${name} looks toward you in hope of liberation.`;
         } else if (profile.category === 'rogue') {
             obs = `The ${name} lurks in the alley shadows, thumbing the edge of a curved dagger and sizing you up.`;
         }
 
         return {
-            state: profile.category === 'idiot' ? 'ambient_idiot' : (profile.category === 'townsperson' ? 'townsperson' : (profile.category === 'rogue' ? 'hostile_rogue' : 'active')),
+            state: isPeaceful ? 'peaceful_npc' : (profile.category === 'idiot' ? 'ambient_idiot' : (profile.category === 'townsperson' ? 'townsperson' : (profile.category === 'rogue' ? 'hostile_rogue' : 'active'))),
             category: profile.category,
             isVocal: true,
             canSpeak: true,
+            isTame: false,
+            isPeaceful: isPeaceful,
             bark: bark,
             noise: null,
             recommendedVoice: profile.recommendedVoice,
@@ -1973,11 +2494,13 @@ class ChronicleGrounder {
         options = (options && typeof options === 'object') ? options : {};
         const isDryRun = Boolean(options.dryRun);
 
-        const rk = (realmKey || (typeof window !== 'undefined' && window.__app && typeof window.__app.getActiveRealm === 'function' ? window.__app.getActiveRealm() : 'angband')).toLowerCase();
+        const rk = (realmKey || monster.realm || (typeof window !== 'undefined' && window.__app && typeof window.__app.getActiveRealm === 'function' ? window.__app.getActiveRealm() : 'angband')).toLowerCase();
         const effLang = ((rk === 'hengband') ? (langMode || (typeof window !== 'undefined' && window.__langMode ? window.__langMode : 'en')) : 'en').toLowerCase();
-        const name = monster.name || monster.race || 'creature';
-        const profile = this.classifyCreature(monster);
-        const stateObj = this.resolveCreatureState(monster, recentMessages);
+        const att = this.detectCreatureAttitude(monster, rk);
+        const name = att.cleanName || monster.name || monster.race || 'creature';
+        const displayName = monster.name || monster.race || name;
+        const profile = this.classifyCreature(monster, rk);
+        const stateObj = this.resolveCreatureState(monster, recentMessages, rk);
         const pName = (hero && hero.name) ? hero.name : 'the traveler';
         const pRace = (hero && hero.race) ? hero.race.toLowerCase() : 'mortal';
         const pClass = (hero && hero.class) ? hero.class.toLowerCase() : 'warrior';
@@ -2054,6 +2577,8 @@ class ChronicleGrounder {
                     `Leaning in a dark doorway, the ${name} catches a thief's shallow nap.`
                 ];
                 prose = rogueSleepList[sSeed % rogueSleepList.length];
+            } else if (stateObj.isTame) {
+                prose = `Your faithful ${name} ${profile.sleepNoise}`;
             } else if (!profile.isVocal) {
                 prose = `The ${name} ${profile.sleepNoise}`;
             } else {
@@ -2068,7 +2593,9 @@ class ChronicleGrounder {
                 prose: prose,
                 text: null,
                 isDialogue: false,
-                speaker: name,
+                isTame: stateObj.isTame,
+                isPeaceful: stateObj.isPeaceful,
+                speaker: displayName,
                 recommendedVoice: profile.recommendedVoice,
                 observation: stateObj.observation,
                 isFemale: isF,
@@ -2077,10 +2604,82 @@ class ChronicleGrounder {
             };
         }
 
-        // 2. NON-VOCAL CREATURES (Animals, vermin, slimes, mindless undead, constructs)
+        // 2. NON-VOCAL CREATURES & TAME ANIMAL COMPANIONS (Pets, animals, vermin, slimes, mindless undead, constructs)
         if (!profile.isVocal || !stateObj.canSpeak) {
             let prose = '';
-            const noise = stateObj.noise || profile.ambientNoise;
+            let noise = stateObj.noise || profile.ambientNoise;
+
+            // 2A. TAME COMPANION BEASTS (Loyal dog, cat, pony, liberated monkey/hound)
+            if (stateObj.isTame || profile.isTame) {
+                const isPraising = /\b(praise|good|pet|pat|scratch|treat|food|tripe|love|friend|boy|girl)\b/i.test(query);
+                const isCheckingInstincts = /\b(instinct|curse|buc|altar|smell|scent|fetch|steal|shop|guard|track|tactic)\b/i.test(query);
+                if (profile.category === 'tame_canine') {
+                    if (isPraising) {
+                        prose = ChronicleGrounder.pickNonRepeatingBark('tame_canine_praise_prose', [
+                            `At your warm encouragement, your faithful ${name} thumps its tail against the dungeon flagstones and presses its muzzle affectionately against your knee.`,
+                            `Ears perking up happily, your ${name} bounds in a tight circle around your boots and gives your hand an eager, warm lick.`,
+                            `Your ${name} wags its tail with boundless devotion, bright eyes shining in the glow of your lantern.`
+                        ], encounterSeed, { dryRun: isDryRun });
+                        noise = '*Wags its tail eagerly and yips with pure joy: "Woof! Yip-woof!"*';
+                    } else if (isCheckingInstincts) {
+                        prose = ChronicleGrounder.pickNonRepeatingBark('tame_canine_instinct_prose', [
+                            `Nose lowered to the cold masonry, your ${name} sniffs carefully along the floor—instinctively recoiling from cursed gear while tracking unseen quarry in the dark.`,
+                            `Your ${name} pricks its ears toward the corridor ahead, ready to defend your flank or carry uncursed trinkets back to your feet.`
+                        ], encounterSeed, { dryRun: isDryRun });
+                        noise = '*Sniffs the flagstones intently and gives an alert, low bark: "Arf! Ruff!"*';
+                    } else {
+                        prose = ChronicleGrounder.pickNonRepeatingBark('tame_canine_ambient_prose', [
+                            `Trotting loyally beside your boots, your faithful ${name} wags its tail and watches the dungeon shadows with keen, protective eyes.`,
+                            `Your ${name} pads close to your lantern light, ears perked and tail swaying as it awaits your lead.`,
+                            `Staying faithfully at your heel, your ${name} tilts its head up toward you with bright, devoted eyes.`
+                        ], encounterSeed, { dryRun: isDryRun });
+                    }
+                } else if (profile.category === 'tame_feline') {
+                    if (isPraising) {
+                        prose = ChronicleGrounder.pickNonRepeatingBark('tame_feline_praise_prose', [
+                            `Arching its sleek back beneath your hand, your ${name} weaves gracefully between your ankles with a deep, vibrating purr.`,
+                            `Your ${name} blinks slowly in warm contentment, rubbing its cheek against your gauntlet before flicking its tail aloft.`
+                        ], encounterSeed, { dryRun: isDryRun });
+                        noise = '*Purrs warmly and gives a soft, affectionate trill: "Prrrrr... mrow!"*';
+                    } else if (isCheckingInstincts) {
+                        prose = ChronicleGrounder.pickNonRepeatingBark('tame_feline_instinct_prose', [
+                            `Whiskers twitching in the gloom, your ${name} stalks silently on padded paws—keenly attuned to rodents, hidden movement, and cursed floor items.`,
+                            `Your ${name} crouches with feline grace, slit pupils dilated to spot the slightest motion in the dark.`
+                        ], encounterSeed, { dryRun: isDryRun });
+                        noise = '*Twitches its whiskers and emits a soft, focused chirp: "Mrrp-purr..."*';
+                    } else {
+                        prose = ChronicleGrounder.pickNonRepeatingBark('tame_feline_ambient_prose', [
+                            `Pacing gracefully beside you on silent paws, your ${name} rubs against your shin and purrs in the lantern glow.`,
+                            `Tail held high like a banner, your faithful ${name} watches the corridor with luminous, attentive eyes.`,
+                            `Your ${name} pads softly at your side, ears swiveling toward every distant dungeon rustle.`
+                        ], encounterSeed, { dryRun: isDryRun });
+                    }
+                } else if (profile.category === 'tame_equine') {
+                    prose = ChronicleGrounder.pickNonRepeatingBark('tame_equine_ambient_prose', [
+                        `Tossing its mane proudly, your faithful ${name} stamps a shod hoof upon the flagstones and nudges your shoulder with its velvet nose.`,
+                        `Your ${name} stands steady and fearless beside your lantern, ears pricked forward at your command.`
+                    ], encounterSeed, { dryRun: isDryRun });
+                } else {
+                    prose = ChronicleGrounder.pickNonRepeatingBark('tame_beast_ambient_prose', [
+                        `Your loyal ${name} stays close at your side, watching your gestures with keen, devoted instinct.`,
+                        `Moving in step with your stride, your ${name} guards your flank through the subterranean gloom.`
+                    ], encounterSeed, { dryRun: isDryRun });
+                }
+
+                return {
+                    prose: prose,
+                    text: noise,
+                    isDialogue: false,
+                    isTame: true,
+                    isPeaceful: true,
+                    speaker: displayName,
+                    recommendedVoice: null,
+                    observation: stateObj.observation,
+                    isFemale: isF,
+                    gender: gender,
+                    modelGender: gender
+                };
+            }
 
             if (stateObj.state.includes('combat') || stateObj.state.includes('wounded')) {
                 if (profile.category === 'canine') {
@@ -2088,6 +2687,11 @@ class ChronicleGrounder {
                         `Yellow fangs bared, the wounded ${name} lunges across the bloodstained stones.`,
                         `Hackles raised, the ${name} snaps viciously at your throat.`,
                         `Pacing low, the bloodied ${name} snarls and circles for your heels.`
+                    ], encounterSeed, { dryRun: isDryRun });
+                } else if (profile.category === 'feline') {
+                    prose = ChronicleGrounder.pickNonRepeatingBark('feline_combat_prose', [
+                        `Ears flattened against its skull, the ${name} lashes out with unsheathed razor claws.`,
+                        `Crouching low, the ${name} spits in feral fury and springs toward your throat.`
                     ], encounterSeed, { dryRun: isDryRun });
                 } else if (profile.category === 'rodent') {
                     prose = ChronicleGrounder.pickNonRepeatingBark('rodent_combat_prose', [
@@ -2099,15 +2703,30 @@ class ChronicleGrounder {
                         `Rearing on chitinous legs, the ${name} clicks venom-dripping mandibles.`,
                         `The ${name} hisses from the dark, venomous fangs poised to strike.`
                     ], encounterSeed, { dryRun: isDryRun });
+                } else if (profile.category === 'reptile') {
+                    prose = ChronicleGrounder.pickNonRepeatingBark('reptile_combat_prose', [
+                        `Coiling its muscular length, the ${name} strikes forward with venom-dripping fangs.`,
+                        `Scales rasping against the stone, the ${name} hisses fiercely and lunges.`
+                    ], encounterSeed, { dryRun: isDryRun });
+                } else if (profile.category === 'avian') {
+                    prose = ChronicleGrounder.pickNonRepeatingBark('avian_combat_prose', [
+                        `Beating leathery wings in erratic arcs, the ${name} dives with bared talons.`,
+                        `The ${name} shrieks from the vault shadows, swooping at your lantern light.`
+                    ], encounterSeed, { dryRun: isDryRun });
                 } else if (profile.category === 'slime') {
                     prose = ChronicleGrounder.pickNonRepeatingBark('slime_combat_prose', [
                         `The ${name} quivers violently, lashing caustic pseudopods toward your boots.`,
                         `Hissing with digestive acid, the ${name} surges across the flagstones.`
                     ], encounterSeed, { dryRun: isDryRun });
-                } else if (profile.category === 'skeleton') {
+                } else if (profile.category === 'skeleton' || profile.category === 'mindless_undead') {
                     prose = ChronicleGrounder.pickNonRepeatingBark('skeleton_combat_prose', [
                         `Splintered bone clatters as the ${name} advances with hollow menace.`,
                         `Dry joints clicking, the ${name} swings with tireless undead malice.`
+                    ], encounterSeed, { dryRun: isDryRun });
+                } else if (profile.category === 'construct') {
+                    prose = ChronicleGrounder.pickNonRepeatingBark('construct_combat_prose', [
+                        `Heavy stone and iron joints grind together as the ${name} swings a crushing fist.`,
+                        `Unfeeling and relentless, the ${name} advances with earth-shaking tread.`
                     ], encounterSeed, { dryRun: isDryRun });
                 } else {
                     prose = ChronicleGrounder.pickNonRepeatingBark('beast_combat_prose', [
@@ -2122,6 +2741,11 @@ class ChronicleGrounder {
                         `Ears pricked forward, the ${name} watches your stride with hungry eyes.`,
                         `The ${name} paces the corridor shadow, a low rumble in its chest.`
                     ], encounterSeed, { dryRun: isDryRun });
+                } else if (profile.category === 'feline') {
+                    prose = ChronicleGrounder.pickNonRepeatingBark('feline_ambient_prose', [
+                        `Moving on silent padded paws, the ${name} stalks along the shadowed wall.`,
+                        `The ${name} crouches low, tail tip twitching as its eyes lock onto your lantern.`
+                    ], encounterSeed, { dryRun: isDryRun });
                 } else if (profile.category === 'rodent') {
                     prose = ChronicleGrounder.pickNonRepeatingBark('rodent_ambient_prose', [
                         `The ${name} scuttles along the damp wall, whiskers twitching in the gloom.`,
@@ -2132,15 +2756,30 @@ class ChronicleGrounder {
                         `The ${name} clings motionless to the stone, dark eyes glinting in torchlight.`,
                         `Poised upon a dusty web, the ${name} tracks the vibrations of your boots.`
                     ], encounterSeed, { dryRun: isDryRun });
+                } else if (profile.category === 'reptile') {
+                    prose = ChronicleGrounder.pickNonRepeatingBark('reptile_ambient_prose', [
+                        `Coiled in the cool masonry shadow, the ${name} tastes the air with a forked tongue.`,
+                        `Dry scales whisper against the flagstones as the ${name} watches your approach.`
+                    ], encounterSeed, { dryRun: isDryRun });
+                } else if (profile.category === 'avian') {
+                    prose = ChronicleGrounder.pickNonRepeatingBark('avian_ambient_prose', [
+                        `Fluttering beneath the cavern ceiling, the ${name} circles in rapid, darting arcs.`,
+                        `Perched high in the dark masonry, the ${name} cocks its head toward your light.`
+                    ], encounterSeed, { dryRun: isDryRun });
                 } else if (profile.category === 'slime') {
                     prose = ChronicleGrounder.pickNonRepeatingBark('slime_ambient_prose', [
                         `The ${name} undulates slowly, leaving an acidic sheen across the stone.`,
                         `A gelatinous mass quivers in the damp corner, dissolving stray bone.`
                     ], encounterSeed, { dryRun: isDryRun });
-                } else if (profile.category === 'skeleton') {
+                } else if (profile.category === 'skeleton' || profile.category === 'mindless_undead') {
                     prose = ChronicleGrounder.pickNonRepeatingBark('skeleton_ambient_prose', [
                         `The skeletal sentry stands rigid, hollow sockets fixed upon the dark hall.`,
                         `Rusted mail hangs from bleached ribs as the ${name} guards the passage.`
+                    ], encounterSeed, { dryRun: isDryRun });
+                } else if (profile.category === 'construct') {
+                    prose = ChronicleGrounder.pickNonRepeatingBark('construct_ambient_prose', [
+                        `Standing like a carved monument of stone and iron, the ${name} hums with ancient warding magic.`,
+                        `Runes glimmer faintly across the ${name}'s chassis as it guards the chamber.`
                     ], encounterSeed, { dryRun: isDryRun });
                 } else {
                     prose = ChronicleGrounder.pickNonRepeatingBark('beast_ambient_prose', [
@@ -2154,7 +2793,9 @@ class ChronicleGrounder {
                 prose: prose,
                 text: noise,
                 isDialogue: false,
-                speaker: name,
+                isTame: Boolean(stateObj.isTame),
+                isPeaceful: Boolean(stateObj.isPeaceful),
+                speaker: displayName,
                 recommendedVoice: null,
                 observation: stateObj.observation,
                 isFemale: isF,
@@ -2754,6 +3395,35 @@ class ChronicleGrounder {
                 '...your heartbeat echoes too loudly in our quiet dark...',
                 '...centuries pass like dust; lay down your heavy blade...'
             ], encounterSeed, { dryRun: isDryRun });
+        // # ROOT-CAUSE: resolveCreatureEncounter lacked peaceful NPC / liberated ally branches and resolveTacticalMonsterInsight only had 7 hardcoded Angband monsters instead of full 9-realm + MasterBestiary + Companion coverage.
+        } else if (profile.category === 'tame_ally') {
+            prose = `Standing vigilantly at your side, your sworn ally ${name} scans the corridor ahead with weapon ready.`;
+            text = ChronicleGrounder.pickNonRepeatingBark('tame_ally_ambient', [
+                'Lead the way, friend! My blade is yours through the deepest vaults.',
+                'Your flank is guarded—press forward and we shall break their line together!',
+                'Freed from those chains, I fight at your side to the bitter end!'
+            ], encounterSeed, { dryRun: isDryRun });
+        } else if (profile.category === 'oracle') {
+            prose = `Enthroned amidst swirling incense and crystalline waters, the ${name} gazes through time itself.`;
+            text = ChronicleGrounder.pickNonRepeatingBark('oracle_ambient', [
+                'Seek the Vibrating Square at the bottom of Gehennom, seeker—only Bell, Book, and Candle open the Sanctum.',
+                'Test every unknown scroll and ring upon an altar before you trust it to your flesh.',
+                'Guard your faithful companion well; the Dungeons of Doom are cruel to the solitary traveler.'
+            ], encounterSeed, { dryRun: isDryRun });
+        } else if (profile.category === 'shopkeeper_npc') {
+            prose = `Standing beside neatly stacked wares, ${name} appraises your pack and coinpurse with a practiced eye.`;
+            text = name.toLowerCase().includes('izchak')
+                ? '"Welcome to my lighting shop in Minetown, traveler! Never descend into the dark without a brass lantern or sacred candles."'
+                : '"Welcome to my emporium! Browse freely, drop goods to sell, and settle your tab before stepping past the doorway."';
+        } else if (profile.category === 'priest_npc') {
+            prose = `Robed in sacred vestments beside the consecrated altar, the ${name} raises a hand in solemn benediction.`;
+            text = '"Step before the altar with reverence, traveler. Offer worthy sacrifices or tithe gold to earn divine protection."';
+        } else if (profile.category === 'guard_npc') {
+            prose = `Clad in polished watchman's mail, the ${name} keeps a vigilant eye upon the doors and lanterns.`;
+            text = '"Keep the peace within these walls, adventurer, and the Watch will have no quarrel with you."';
+        } else if (profile.category === 'captive') {
+            prose = `Shackled to the damp cavern wall, the ${name} rattles heavy iron chains as your light approaches.`;
+            text = '"Strike these manacles or release the wall lever, traveler, and I will fight loyally at your side!"';
         } else {
             prose = `The ${name} stands poised in the gloom, watching your every step.`;
             text = ChronicleGrounder.pickNonRepeatingBark('general_ambient', [
@@ -2770,7 +3440,9 @@ class ChronicleGrounder {
             prose: prose,
             text: text,
             isDialogue: true,
-            speaker: name,
+            isTame: Boolean(stateObj.isTame),
+            isPeaceful: Boolean(stateObj.isPeaceful),
+            speaker: displayName,
             recommendedVoice: profile.recommendedVoice || (isF ? 'en-GB-SoniaNeural' : 'en-GB-ThomasNeural'),
             observation: stateObj.observation,
             isFemale: isF,
@@ -2780,32 +3452,119 @@ class ChronicleGrounder {
     }
 
     /**
-     * Resolves tactical monster memory vulnerabilities from canon Angband tables
+     * Resolves tactical monster memory vulnerabilities and companion/NPC guidance across all 9 realms
+     * using MasterBestiary and realm-specific mechanics.
      */
-    static resolveTacticalMonsterInsight(monsterName = '') {
-        const lower = monsterName.toLowerCase();
-        if (lower.includes('red dragon') || lower.includes('fire drake')) {
-            return 'Fire courses through its blood. Frost and cold steel bite deepest, but stand not directly before its cone of flame.';
+    static resolveTacticalMonsterInsight(monsterName = '', realmKey = null, monster = null) {
+        const rk = String(realmKey || (monster && monster.realm) || (typeof window !== 'undefined' && window.__app && typeof window.__app.getActiveRealm === 'function' ? window.__app.getActiveRealm() : 'angband')).toLowerCase();
+        const mObj = (monster && typeof monster === 'object') ? monster : { name: monsterName };
+        const att = this.detectCreatureAttitude(mObj, rk);
+        const lower = (att.cleanName || monsterName || '').toLowerCase();
+
+        // 1. Tame Companions & Liberated Allies
+        if (att.isTame) {
+            if (/\b(dog|puppy|hound|canine|wolf)\b/i.test(lower)) {
+                return 'Loyal canine companion: fights alongside you, grows into a powerful large dog through combat, and refuses to step onto cursed floor items (natural BUC detector). Keep tripe rations or meat treats handy!';
+            }
+            if (/\b(cat|kitten|feline|panther|lynx)\b/i.test(lower)) {
+                return 'Loyal feline companion: stalks rodents and dungeon pests, grows into a fierce large cat, and instinctively avoids cursed items on the floor (natural BUC detector).';
+            }
+            if (/\b(pony|horse|warhorse|steed)\b/i.test(lower)) {
+                return 'Loyal equine companion: delivers powerful kicking attacks, avoids cursed floor items, and can be saddled and ridden (#ride) once grown into a horse or warhorse.';
+            }
+            return 'Loyal companion ally: fights at your side, draws enemy aggro in corridors, and grows stronger as it survives battles. Avoid catching your ally in wand bolts or blast radii.';
         }
-        if (lower.includes('white dragon') || lower.includes('cold drake')) {
-            return 'A creature of glacial malice. It shivers before bright flame; strike with fire arrows or burning flasks.';
+
+        // 2. Peaceful NPCs & Captives
+        if (att.isCaptive) {
+            return 'Captive ally: step onto the cage/shackles or trigger the nearby wall plate to free them—once liberated, they join your party as a loyal companion!';
         }
-        if (lower.includes('orc') || lower.includes('goblin')) {
-            return 'Cowardly in solitude, savage in packs. Funnel them into a 1-tile corridor to deny them surrounding advantage.';
+        if (att.isShopkeeper) {
+            return 'Dungeon Merchant: drop items inside the shop to sell, pick up wares and press [p] to pay, and never teleport or dig with unpaid goods lest the shopkeeper and Kops hunt you down!';
         }
-        if (lower.includes('troll')) {
-            return 'Massive brute strength and stone-like regeneration. Do not trade blows in the open; sever its flesh with fire or acid.';
+        if (att.isOracle) {
+            return 'The Oracle of Delphi: peaceful seer of the Dungeons of Doom. Chat with her for prophetic counsel; never strike her lest terrible divine retribution fall upon you.';
         }
-        if (lower.includes('wight') || lower.includes('wraith') || lower.includes('vampire')) {
-            return 'Beings of the shadow that drain life force and mortal strength. Engage from range, or restore your vigor with Alchemy potions.';
+        if (att.isPriest) {
+            return 'Temple Priest: tends a consecrated altar. Chat or offer gold for divine blessings and protection; attacking a priest angers their deity directly.';
         }
-        if (lower.includes('spider')) {
-            return 'Quick of foot with venomous fangs. Keep an antidote vial at your belt before closing distance.';
+        if (att.isGuard) {
+            return 'Watchman / Guard: peaceful unless you commit theft, vandalism, or unprovoked assault within town or Minetown.';
         }
-        if (lower.includes('wormtongue')) {
-            return 'A craven infiltrator armed with a venomous needle. Fragile of body, but his strike slows your limbs.';
+
+        // 3. Signature Cross-Realm Hazards & Iconic Monsters
+        if (/\b(cockatrice|chickatrice|pyrolisk)\b/i.test(lower)) {
+            return lower.includes('pyrolisk')
+                ? 'Fiery gaze hazard: its gaze ignites flammable scrolls and potions unless you wear fire resistance or blindfold/reflection!'
+                : 'LETHAL PETRIFICATION HAZARD: its hiss or touch turns flesh to stone! Never fight barehanded, never touch its corpse without gloves, and keep a lizard corpse or acid potion ready!';
         }
-        return 'Conserve your vigor, strike from narrow doorways, and watch your flanks.';
+        if (/\b(floating eye)\b/i.test(lower)) {
+            return 'PARALYZING GAZE HAZARD: striking a Floating Eye in melee while sighted freezes you helplessly for many turns! Eliminate it from range with missiles/wands, or blindfold yourself before melee.';
+        }
+        if (/\b(rust monster|disenchanter|aquator)\b/i.test(lower)) {
+            return 'EQUIPMENT CORROSION HAZARD: corrodes metal weapons and armor on contact! Unequip valuable metal armor or strike from range with wands, bows, or backup wooden/artifact gear.';
+        }
+        if (/\b(grid bug)\b/i.test(lower)) {
+            return 'Orthogonal Electrical Pest: moves and attacks strictly along cardinal (N/S/E/W) lines—it cannot step or bite diagonally! Step diagonally to strike with impunity.';
+        }
+        if (/\b(nymph|leprechaun|monkey)\b/i.test(lower)) {
+            return 'Thieving Trickster: steals gold or equipped items and teleports away! Slay it from range before it closes to melee, and track it down to recover your stolen gear.';
+        }
+        if (/\b(mind flayer|master mind flayer)\b/i.test(lower)) {
+            return 'PSIONIC BRAIN-DRAIN HAZARD: psychic tentacles drain Intelligence and strip memory/amnesia! Keep helm protection (greased helm) and eliminate from maximum range.';
+        }
+        if (/\b(jelly|ooze|slime|pudding|mold|fungus|shrieker|spore|bloat)\b/i.test(lower)) {
+            if (lower.includes('shrieker')) return 'Noise Hazard: emits an ear-splitting shriek when struck that wakes and summons monsters across the floor! Slay swiftly or bypass.';
+            if (lower.includes('spore') || lower.includes('bloat')) return 'Volatile Detonation Hazard: explodes in a toxic or fiery cloud when killed! Trigger from maximum range with a dart, arrow, or wand.';
+            if (lower.includes('pudding') || lower.includes('slime')) return 'Splitting & Corrosive Hazard: iron blades can split puddings into two and corrode on impact! Use fire, cold, lightning, or ranged magic.';
+            return 'Acidic & Stationary/Slow Ooze: dissolves equipment in melee. Destroy from range with bolts, arrows, or elemental magic rather than trading melee blows.';
+        }
+        if (/\b(red dragon|fire drake|fire vortex|fire elemental|salamander)\b/i.test(lower)) {
+            return 'Fire courses through its blood. Frost and cold steel bite deepest, and fire resistance protects your scrolls from incineration.';
+        }
+        if (/\b(white dragon|cold drake|ice vortex|ice beast|simulacrum)\b/i.test(lower)) {
+            return 'A creature of glacial malice. It shivers before bright flame; guard your glass potions against shattering cold.';
+        }
+        if (/\b(blue dragon|lightning|storm drake|electric eel|shock)\b/i.test(lower)) {
+            return 'Crackles with high-voltage lightning that can explode wands and rings! Engage with lightning resistance or from cover.';
+        }
+        if (/\b(black dragon|acid drake|green dragon|poison drake)\b/i.test(lower)) {
+            return lower.includes('green') || lower.includes('poison')
+                ? 'Exhales choking clouds of lethal poison gas. Never fight without poison resistance or an immediate teleport escape.'
+                : 'Spits searing acid that melts armor class. Engage from range and repair or swap corroded armor promptly.';
+        }
+        if (/\b(hydra)\b/i.test(lower)) {
+            return rk === 'dcss'
+                ? 'Multi-Headed Menace: edged blades sever heads only to regrow TWO more unless the blade is flaming! Use blunt weapons, fire magic, acid, or ranged attacks.'
+                : 'Multi-Headed Menace: attacks multiple times per turn and breathes venom or flame. Fight from a 1-tile choke point with fire or ranged magic.';
+        }
+        if (/\b(orc|goblin|kobold|gnoll|hobgoblin|snaga|uruk)\b/i.test(lower)) {
+            return 'Pack-hunting humanoids: dangerous in open rooms where archers and priests can flank you. Funnel them into a 1-tile corridor to fight one at a time.';
+        }
+        if (/\b(troll|ogre|giant|ettin|minotaur|cyclops)\b/i.test(lower)) {
+            return 'Massive brute strength with crushing melee blows (and regeneration for trolls). Do not trade blows at low HP; kite from range or use fire/acid and narrow doorways.';
+        }
+        if (/\b(wight|wraith|vampire|lich|nazgul|ghost|shade|spectre|specter)\b/i.test(lower)) {
+            return 'Undead life-drainer: drains experience levels, mana, or strength on contact and casts cold/nether hexes. Engage with holy/fire magic or ranged weapons.';
+        }
+        if (/\b(skeleton|zombie|mummy|ghoul)\b/i.test(lower)) {
+            return lower.includes('ghoul')
+                ? 'Paralyzing Undead: ghoul claws can paralyze you on hit! Ensure Free Action or slay from distance before it closes.'
+                : 'Mindless Undead: immune to sleep, fear, and poison, and vulnerable to blunt weapons and fire/holy light.';
+        }
+        if (/\b(spider|scorpion|centipede|ant|bee|wasp|hornet|tarantula)\b/i.test(lower)) {
+            return 'Venomous Arthropod: fast-moving with poison stings that drain strength or constitution. Keep curing potions or unicorn horn ready and prevent surrounding swarms.';
+        }
+
+        // 4. Consult MasterBestiary if available
+        if (typeof window !== 'undefined' && window.MasterBestiary && typeof window.MasterBestiary.resolve === 'function') {
+            const mb = window.MasterBestiary.resolve(mObj, mObj.glyph || '', rk);
+            if (mb && mb.lore) {
+                return `${mb.lore} Fight from a 1-tile choke point and keep escape consumables ready.`;
+            }
+        }
+
+        return 'Conserve your vigor, fight one foe at a time in 1-tile doorways, and watch your flanks.';
     }
 
     /**
@@ -4022,6 +4781,7 @@ class ChronicleGrounder {
      * Generates atmospheric, race-attuned, rule-based Tolkien prose without needing any cloud API or AI model.
      * Guarantees 0ms latency and 100% reliability everywhere.
      */
+    // # ROOT-CAUSE: generateProceduralChapter hardcoded `${depth * 50}ft` instead of using formatRealmDepth(depth, rk, player) for NetHack/DCSS/Brogue/Rogue/RYOD/Sil-Q.
     static generateProceduralChapter(event, player, traditionKey = 'westmarch') {
         const rk = String((player && player.realm) || (typeof window !== 'undefined' && window.__activeRealm) || (typeof window !== 'undefined' && window.__app && typeof window.__app.getActiveRealm === 'function' ? window.__app.getActiveRealm() : 'angband')).toLowerCase();
         const isJpHeng = (rk === 'hengband' && typeof window !== 'undefined' && window.__langMode === 'jp');
@@ -4029,7 +4789,7 @@ class ChronicleGrounder {
         const name = (player && player.name) ? player.name : (isJpHeng ? '放浪の武芸者' : 'The Wanderer');
         const race = (player && player.race) ? player.race : (isJpHeng ? '武人' : 'Hero');
         const depth = (player && typeof player.depth === 'number') ? player.depth : (event.data && typeof event.data.depth === 'number' ? event.data.depth : 0);
-        const depthFt = `${depth * 50}ft`;
+        const depthFt = this.formatRealmDepth(depth, rk, player);
         const rawWeap = (player && player.weapon_item) ? player.weapon_item : ((player && player.equipped && player.equipped.weapon) ? player.equipped.weapon : null);
         const weapon = rawWeap ? rawWeap.replace(/\s*\([^)]*\)/g, '').replace(/\s*\[[^\]]*\]/g, '').trim() : (isJpHeng ? '己の拳' : 'bare fists');
         const bow = (player && player.bow_item) ? player.bow_item.replace(/\s*\([^)]*\)/g, '').replace(/\s*\[[^\]]*\]/g, '').trim() : null;
@@ -4946,6 +5706,14 @@ class ChronicleGrounder {
                                     `a decisive forward thrust! Your ${weapon} impales the flank of the ${ha.monsterName}`,
                                     `you jab your ${weapon} forward, scoring a deep wound upon the ${ha.monsterName}`
                                 ];
+                            // # ROOT-CAUSE: COMBAT_EXCHANGE and HERO_ATTACK lacked whip/lash combat phrases and omitted rk when classifying attackers/fleeing creatures.
+                            } else if (weaponArchetype === 'whip') {
+                                hitPhrases = [
+                                    `you snap your ${weapon} with a sharp sonic crack across the ${ha.monsterName}`,
+                                    `your coiled ${weapon} lashes out, biting across the flank of the ${ha.monsterName}`,
+                                    `with a flick of the wrist, your ${weapon} cracks against the ${ha.monsterName}`,
+                                    `a lightning lash of your ${weapon} strikes the ${ha.monsterName}, driving it back`
+                                ];
                             } else if (weaponArchetype === 'unarmed') {
                                 hitPhrases = [
                                     `ducking low, you plant a solid bare-knuckle punch into the gut of the ${ha.monsterName}`,
@@ -5000,11 +5768,11 @@ class ChronicleGrounder {
 
                 // Check for creature dialogue bark if sentient enemy involved
                 const vocalAttacker = inAttacks.find(a => {
-                    const profile = this.classifyCreature({ name: a.monsterName, glyph: a.glyph });
+                    const profile = this.classifyCreature({ name: a.monsterName, glyph: a.glyph }, rk);
                     return profile && profile.isVocal;
                 });
                 if (vocalAttacker) {
-                    const vProfile = this.classifyCreature({ name: vocalAttacker.monsterName, glyph: vocalAttacker.glyph });
+                    const vProfile = this.classifyCreature({ name: vocalAttacker.monsterName, glyph: vocalAttacker.glyph }, rk);
                     dialogue = {
                         speaker: vocalAttacker.monsterName,
                         text: (vProfile.assaultBark ? vProfile.assaultBark(vocalAttacker.action) : 'Die!').replace(/"/g, ''),
@@ -5189,6 +5957,12 @@ class ChronicleGrounder {
                             `The ringing scrape of iron against stone echoes as ${name}'s ${weapon} punches deep into the ${targetMon}!`,
                             `A decisive forward thrust! ${name} drives the steel tip of ${weapon} through the hide of the ${targetMon}.`
                         ];
+                    } else if (weaponArchetype === 'whip') {
+                        dungeonHits = [
+                            `With a sharp sonic crack at ${depthFt}, ${name} lashes ${weapon} across the ${targetMon}, drawing a searing welt!`,
+                            `Coiled leather unspools in the torchlight as ${name} snaps ${weapon} squarely into the ${targetMon}!`,
+                            `Keeping reach in the corridor at ${depthFt}, ${name} cracks ${weapon} against the ${targetMon} with pinpoint precision!`
+                        ];
                     } else if (weaponArchetype === 'unarmed') {
                         dungeonHits = [
                             `Stepping inside the brute's reach at ${depthFt}, ${name} drives a calloused fist hard into the gut of the ${targetMon}!`,
@@ -5214,7 +5988,7 @@ class ChronicleGrounder {
                 const fMon = (event.data && event.data.monsterName) ? event.data.monsterName : 'creature';
                 title = `Flight of the ${fMon}`;
                 const fDummy = { name: fMon, glyph: (event.data && event.data.glyph) ? event.data.glyph : '' };
-                const fProfile = this.classifyCreature(fDummy);
+                const fProfile = this.classifyCreature(fDummy, rk);
                 const turnSeed = Math.abs((player ? player.turn || 0 : 0) + fMon.length * 17);
 
                 if (fProfile.category === 'idiot' || fMon.toLowerCase().includes('idiot')) {
@@ -5503,16 +6277,25 @@ class ChronicleGrounder {
                 break;
             }
 
+            // # ROOT-CAUSE: COMPANION_ACTION assumed every companion event had a hostile targetMon, turning affectionate pet wags/purrs into "harries the foe".
             case 'COMPANION_ACTION': {
                 const petName = (event.data && event.data.petName) ? event.data.petName : 'faithful companion';
-                const targetMon = (event.data && event.data.monsterName) ? event.data.monsterName : 'foe';
+                const rawTarget = (event.data && event.data.monsterName) ? event.data.monsterName : '';
+                const rawAct = (event.data && (event.data.action || event.data.message)) ? String(event.data.action || event.data.message) : '';
                 const isPetKill = Boolean(event.data && event.data.isKill);
+                const isAffectionate = !rawTarget || /\b(wag|yip|woof|purr|meow|nicker|whinny|lick|rub|nuzzle)\b/i.test(rawAct);
                 if (isPetKill) {
+                    const targetMon = rawTarget || 'foe';
                     title = `Loyal Fang: ${targetMon} Felled`;
                     prose = `Darting fiercely alongside ${name} at ${depthFt}, the faithful ${petName} lunges past the ${targetMon}'s guard and drags the creature down upon the flagstones!`;
+                } else if (isAffectionate) {
+                    title = `Faithful Companion: ${petName}`;
+                    prose = `Staying close beside ${name}'s lantern at ${depthFt}, the faithful ${petName} ${/purr|meow|cat|kitten/i.test(petName + ' ' + rawAct) ? 'purrs warmly and weaves past your boots' : (/nicker|whinny|pony|horse/i.test(petName + ' ' + rawAct) ? 'nickers softly and stamps a steady hoof' : 'wags its tail and yips with devoted spirits')}, ready for whatever perils lie ahead.`;
+                    insight = 'Your tame companion fights at your side and instinctively avoids stepping on cursed floor items.';
                 } else {
+                    const targetMon = rawTarget || 'lurking foe';
                     title = `Faithful Companion`;
-                    prose = `Fighting loyally at ${name}'s side in the shadows of ${depthFt}, the faithful ${petName} harries the ${targetMon || 'lurking foe'} with fearless tenacity.`;
+                    prose = `Fighting loyally at ${name}'s side in the shadows of ${depthFt}, the faithful ${petName} harries the ${targetMon} with fearless tenacity.`;
                 }
                 break;
             }
@@ -6644,10 +7427,13 @@ class ChronicleGrounder {
         };
     }
 
+    // # ROOT-CAUSE: resolveParleyOutcome hardcoded 50ft depth, omitted realmKey in resolveCreatureState/resolveTacticalMonsterInsight, and treated tame pets as hostile foes on parley/challenge/praise.
     static resolveParleyOutcome(monster, stance = 'parley', hero = null, realmKey = 'angband', langMode = 'en', recentMessages = []) {
         const rk = String(realmKey || 'angband').toLowerCase();
         const realmCtx = this.getRealmContext(rk);
+        const att = this.detectCreatureAttitude(monster || {}, rk);
         const mName = (monster && monster.name) ? monster.name : 'the creature';
+        const cleanMName = att.cleanName || mName;
         const heroName = (hero && hero.name) ? hero.name : 'the traveler';
         const heroRace = (hero && hero.race) ? hero.race : 'Adventurer';
         const heroClass = (hero && (hero.class || hero.cls)) ? (hero.class || hero.cls) : 'Wayfarer';
@@ -6662,17 +7448,57 @@ class ChronicleGrounder {
         const mHpPct = Math.round((mCurHp / mMaxHp) * 100);
         const mWoundDesc = mHpPct <= 30 ? ' reeling from grievous wounds' : (mHpPct < 95 ? ' bearing fresh battle-scars' : '');
 
+        const depthLabel = this.formatRealmDepth(depth, rk, hero);
         const locationDesc = depth <= 0
-            ? (rk === 'silq' ? 'the threshold of the Iron Gates' : (rk === 'hengband' ? 'the lantern-lit town thoroughfare' : (rk === 'frogcomposband' ? 'the crossroads of the Outpost' : 'the cobblestone town square')))
-            : `the ${depth * 50}-foot stratum (${realmCtx.setting.split(',')[0]})`;
+            ? (rk === 'silq' ? 'the threshold of the Iron Gates' : (rk === 'hengband' ? 'the lantern-lit town thoroughfare' : (rk === 'frogcomposband' ? 'the crossroads of the Outpost' : (rk === 'ryod' ? 'the Sanctuary Plaza' : 'the cobblestone town square'))))
+            : `${depthLabel} (${realmCtx.setting.split(',')[0]})`;
 
-        const tactics = this.resolveTacticalMonsterInsight(mName);
-        const stateObj = this.resolveCreatureState(monster, Array.isArray(recentMessages) ? recentMessages : []);
-        const isTownNpc = depth === 0 && (stateObj.state === 'begging' || /veteran|towns|citizen|villager|mercenary|sailor|agent|farmer|mayor|urchin|shopkeeper/i.test(mName));
+        const tactics = this.resolveTacticalMonsterInsight(mName, rk, monster);
+        const stateObj = this.resolveCreatureState(monster, Array.isArray(recentMessages) ? recentMessages : [], rk);
+        const isTownNpc = (depth === 0 || stateObj.isPeaceful) && (stateObj.state === 'begging' || stateObj.isPeaceful || /veteran|towns|citizen|villager|mercenary|sailor|agent|farmer|mayor|urchin|shopkeeper|priest|oracle|watchman|guard|izchak/i.test(mName));
 
         let prose = '';
         let reply = '';
         let titlePrefix = '⚔️ Parley & Stance';
+
+        // Dedicated Tame Companion Interactions (Praise, Instincts, Study, Parley)
+        if (stateObj.isTame) {
+            if (stance === 'praise' || stance === 'parley') {
+                titlePrefix = '🐾 Companion Bond';
+                prose = `Kneeling briefly in ${locationDesc}, ${heroName} the ${heroRace} ${heroClass} offers warm praise and a reassuring pat to their faithful ${cleanMName}.`;
+                if (stateObj.canSpeak) {
+                    reply = `I stand with you through every shadow of ${locationDesc}, ${heroName}!`;
+                } else if (stateObj.category === 'tame_feline') {
+                    reply = `*Arching its back happily, your ${cleanMName} rubs against your shin and purrs: "Prrrrr... mrow!"*`;
+                } else if (stateObj.category === 'tame_equine') {
+                    reply = `*Tossing its mane, your ${cleanMName} nudges your shoulder affectionately: "Whinny-huff!"*`;
+                } else {
+                    reply = `*Tail wagging with boundless devotion, your ${cleanMName} licks your hand and yips happily: "Woof! Yip!"*`;
+                }
+            } else if (stance === 'instincts' || stance === 'challenge') {
+                titlePrefix = '🦴 Companion Instincts';
+                prose = `At ${heroName}'s signal in ${locationDesc}, the faithful ${cleanMName} lowers its nose to the flagstones, testing the dungeon air for cursed gear and unseen quarry.`;
+                reply = stateObj.canSpeak
+                    ? `My blade and eyes are sharp, ${heroName}—no ambush or cursed trap will catch us unawares!`
+                    : `*Sniffs the cold masonry intently—instinctively avoiding cursed items while standing ready to guard ${heroName}'s flank: "Arf! Ruff!"*`;
+            } else {
+                titlePrefix = '📜 Companion Lore & Care';
+                prose = `${heroName} checks the condition and readiness of their loyal ${cleanMName} across ${locationDesc} (${mHpPct}% vitality, Loyal Companion).`;
+                reply = `${tactics} [Lorekeeper ${realmCtx.lorekeeperName}: "Guard your companion well—pets grow stronger through battle and never step onto cursed items cleanly."]`;
+            }
+
+            return {
+                title: `${titlePrefix}: ${mName}`,
+                prose,
+                dialogue: {
+                    speaker: stance === 'study' ? 'Lorekeeper' : mName,
+                    text: reply,
+                    isNoise: !stateObj.canSpeak && stance !== 'study'
+                },
+                insight: tactics,
+                recommendedVoice: this.getLorekeeperVoice(rk)
+            };
+        }
 
         if (stance === 'challenge') {
             titlePrefix = '⚔️ Martial Challenge';
@@ -6680,13 +7506,13 @@ class ChronicleGrounder {
             if (stateObj.state === 'sleeping') {
                 reply = `*Startled from slumber by ${heroName}'s challenge, ${mName} stirs in the gloom!*`;
             } else if (isTownNpc) {
-                reply = `Easy with that blade, ${heroName}! Save thy wrath for the horrors waiting below the stairs.`;
+                reply = `Easy with that weapon, ${heroName}! Keep the peace here and save your wrath for the horrors waiting in the depths.`;
             } else if (stateObj.canSpeak) {
                 reply = rk === 'hengband'
                     ? `A worthy tachiai, ${heroRace}! Let our steel judge who walks from ${locationDesc} alive!`
                     : (rk === 'silq'
                         ? `By the Iron Crown of Bauglir, thy song ends here in the dark, ${heroName}!`
-                        : `Thy bold words shall be carved upon thy tomb at ${depth > 0 ? `${depth * 50} feet` : 'the gates'}, ${heroName}!`);
+                        : `Thy bold words shall be carved upon thy tomb at ${depthLabel}, ${heroName}!`);
             } else {
                 reply = `*${mName} bristles with primal fury${mWoundDesc}, baring fangs and coiling to strike!*`;
             }
@@ -6695,12 +7521,12 @@ class ChronicleGrounder {
             prose = `${heroName} studies the footwork, breathing, and vital seams of ${mName}${mWoundDesc} across ${locationDesc} (${mHpPct}% vitality, state: ${stateObj.state}).`;
             reply = `${tactics} [Lorekeeper ${realmCtx.lorekeeperName}: "${stateObj.state === 'sleeping' ? 'The foe slumbers—strike from stealth or slip past unseen.' : (mHpPct <= 35 ? 'Its strength falters; press the advantage while guarding your flanks.' : 'Control the sightline and never let multiple foes surround you.')}"]`;
         } else {
-            titlePrefix = isTownNpc ? '🗣️ Town Counsel' : '🗣️ Parley in the Deep';
-            prose = `${heroName} the ${heroRace} ${heroClass} (${heroHpPct}% HP) stays their hand in ${locationDesc}, addressing ${mName}${mWoundDesc}.`;
+            titlePrefix = isTownNpc ? '🗣️ Peaceful Counsel' : (stateObj.canSpeak ? '🗣️ Parley in the Deep' : '🔍 Field Observation');
+            prose = `${heroName} the ${heroRace} ${heroClass} (${heroHpPct}% HP) stays their hand in ${locationDesc}, observing ${mName}${mWoundDesc}.`;
             if (stateObj.state === 'sleeping') {
                 reply = `*${mName} breathes heavily in deep slumber, oblivious to ${heroName}'s quiet presence.*`;
             } else if (isTownNpc) {
-                reply = `Watch thy step below, ${heroName}. Keep healing draughts and a scroll of Phase Door on thy belt before descending the stairs.`;
+                reply = `Watch your step in ${locationDesc}, ${heroName}. Keep healing draughts and escape scrolls ready before pressing deeper.`;
             } else if (stateObj.canSpeak) {
                 reply = rk === 'frogcomposband'
                     ? `Shadows shift fast in these courts, ${heroName}. Speak your piece before steel settles the wager.`

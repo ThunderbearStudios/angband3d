@@ -3361,7 +3361,8 @@ class ChronicleManager {
             if (inventoryHighlights.length >= 5) break;
         }
 
-        // 4. Visible Monsters (distinguishing loyal pets/allies from hostiles) and Items
+        // # ROOT-CAUSE: buildHeroSketchContext lacked MasterBestiary visual descriptions, detectCreatureAttitude pet routing,formatRealmDepth labels, and class visual attire, while renderMasterworkCanvasSketch omitted companion heraldry.
+        // 4. Visible Monsters (distinguishing loyal pets/allies from hostiles via detectCreatureAttitude & MasterBestiary) and Items
         const visibleMonsters = [];
         const visibleAllies = [];
         const seenMonNames = new Set();
@@ -3373,19 +3374,36 @@ class ChronicleManager {
                     mName = window.HengTranslate.translateName(mName, 1, effLang) || mName;
                 } catch (_) {}
             }
-            mName = String(mName).replace(/^(?:a|an|the)\s+/i, '').trim();
-            if (!mName) return;
-            const key = mName.toLowerCase();
+            const att = (this.grounder && typeof this.grounder.detectCreatureAttitude === 'function')
+                ? this.grounder.detectCreatureAttitude(typeof rawM === 'object' ? rawM : { name: mName }, realm)
+                : { cleanName: String(mName).replace(/\s*\((?:tame|peaceful|ally|friendly|pet|chained|captive|sleeping|asleep)\)\s*/gi, '').trim(), isTame: /\b(ally|pet|tame)\b/i.test(mName), isPeaceful: /\b(peaceful)\b/i.test(mName) };
+            const cleanMName = String(att.cleanName || mName).replace(/^(?:a|an|the)\s+/i, '').trim();
+            if (!cleanMName) return;
+            const key = cleanMName.toLowerCase();
             if (seenMonNames.has(key)) return;
             seenMonNames.add(key);
 
+            // # ROOT-CAUSE: Use MasterBestiary.describeVisualAnatomy(m, glyph, realm) so visibleAllies and visibleMonsters carry exact 3D model anatomy descriptions.
             const glyph = (typeof rawM === 'object' && (rawM.glyph || rawM.char)) || 'm';
-            const isAlly = Boolean((typeof rawM === 'object' && (rawM.isPet || rawM.pet || rawM.friendly || rawM.tame)) || /\b(ally|pet|tame)\b/i.test(mName));
-            const state = isAlly ? 'loyal ally' : ((typeof rawM === 'object' && rawM.sleep) ? 'asleep' : ((typeof rawM === 'object' && rawM.afraid) ? 'fleeing in terror' : fallbackState));
+            const mbApi = (typeof window !== 'undefined' && (window.MasterBestiary || window.MASTER_BESTIARY)) || null;
+            const mbEntry = (mbApi && typeof mbApi.resolve === 'function')
+                ? mbApi.resolve({ name: cleanMName, glyph }, glyph, realm)
+                : null;
+            const visualDesc = (mbApi && typeof mbApi.describeVisualAnatomy === 'function')
+                ? mbApi.describeVisualAnatomy({ name: cleanMName, glyph }, glyph, realm)
+                : ((mbEntry && mbEntry.visualDesc) ? mbEntry.visualDesc : '');
+            const taxonomy = (mbEntry && mbEntry.taxonomy) ? mbEntry.taxonomy : '';
+            const isAlly = Boolean(att.isTame || (typeof rawM === 'object' && (rawM.isPet || rawM.pet || rawM.friendly || rawM.tame)) || /\b(ally|pet|tame)\b/i.test(mName));
+            const isPeaceful = Boolean(!isAlly && (att.isPeaceful || att.isShopkeeper || att.isOracle || att.isPriest || att.isGuard));
+            const state = isAlly
+                ? 'loyal companion'
+                : (isPeaceful
+                    ? 'peaceful NPC'
+                    : ((typeof rawM === 'object' && (rawM.sleep || rawM.asleep || rawM.is_asleep)) ? 'asleep' : ((typeof rawM === 'object' && (rawM.afraid || rawM.is_fleeing)) ? 'fleeing in terror' : fallbackState)));
             if (isAlly) {
-                visibleAllies.push({ name: mName, glyph, state });
+                visibleAllies.push({ name: cleanMName, glyph, state, visualDesc, taxonomy });
             } else if (visibleMonsters.length < 4) {
-                visibleMonsters.push({ name: mName, glyph, state });
+                visibleMonsters.push({ name: cleanMName, glyph, state, visualDesc, taxonomy, isPeaceful });
             }
         };
 
@@ -3420,7 +3438,7 @@ class ChronicleManager {
         if (mode === 'death' && killedBy && visibleMonsters.length === 0) {
             const cleanKiller = killedBy.replace(/^(?:a|an|the)\s+/i, '').trim();
             if (cleanKiller && !/starv|hunger|quit|lava|trap|poison|wounds/i.test(cleanKiller)) {
-                visibleMonsters.push({ name: cleanKiller, glyph: 'M', state: 'victorious slayer' });
+                pushMonsterCandidate({ name: cleanKiller, glyph: 'M' }, 'victorious slayer');
             }
         }
 
@@ -3442,17 +3460,22 @@ class ChronicleManager {
         if (realm === 'dcss') {
             locationLabel = p.place_label || `${p.branch_name || 'Dungeon'}:${depth || 1}`;
         } else if (realm === 'nethack') {
-            locationLabel = `${p.branch_name || 'Dungeons of Doom'} (DLvl ${depth || 1})`;
+            locationLabel = `${p.branch_name || 'Dungeons of Doom'} (Dlvl ${depth || 1})`;
         } else if (realm === 'brogue') {
             locationLabel = `Depth ${depth || 1} of the Dungeons of Doom`;
         } else if (realm === 'rogue') {
             locationLabel = `Level ${depth || 1} of the Dungeons of Doom`;
+        } else if (realm === 'ryod') {
+            const bp = (typeof window !== 'undefined' && window.__activeRyodBlueprint) || {};
+            locationLabel = depth === 0 ? `${bp.title || 'Rolled Realm'} Sanctuary` : `${bp.title || 'Rolled Realm'} (Floor ${depth})`;
         } else if (depth === 0) {
             if (realm === 'silq') locationLabel = 'Gates of Angband';
             else if (realm === 'frogcomposband') locationLabel = 'Outpost Wilderness';
             else if (realm === 'hengband') locationLabel = 'Town of Morivant';
             else locationLabel = 'Town of Angband';
-        } else if (realm === 'angband' || realm === 'silq') {
+        } else if (realm === 'silq') {
+            locationLabel = `-${depth * 50}ft (Level ${depth} of Angband)`;
+        } else if (realm === 'angband' || realm === 'frogcomposband' || realm === 'hengband') {
             locationLabel = `${depth * 50}ft (Level ${depth})`;
         } else {
             locationLabel = `Dungeon Level ${depth}`;
@@ -3487,7 +3510,7 @@ class ChronicleManager {
             if (clean.length < 5) continue;
             const lKey = clean.toLowerCase();
             if (seenDeedSet.has(lKey)) continue;
-            if (/kill|slain|destroy|hit|slash|crush|cast|breathe|found|artifact|level|stair|door|quaff|drink|read|pray|altar|fountain|sink|liberated|rune|amulet|vomit|drool|giggle|babble|beg|insult|mock|jeer|steal|stolen|purse|flee|panic|scream|shriek|trap|paralyz|blind|confus|terrifi|omens/i.test(clean)) {
+            if (/kill|slain|destroy|hit|slash|crush|cast|breathe|found|artifact|level|stair|door|quaff|drink|read|pray|altar|fountain|sink|liberated|rune|amulet|vomit|drool|giggle|babble|beg|insult|mock|jeer|steal|stolen|purse|flee|panic|scream|shriek|trap|paralyz|blind|confus|terrifi|omens|wag|yip|purr|woof/i.test(clean)) {
                 seenDeedSet.add(lKey);
                 notableDeeds.push(clean);
             }
@@ -3517,7 +3540,9 @@ class ChronicleManager {
             historyTimeline.push(mode === 'death' ? `Fell to ${killedBy || 'mortal wounds'}` : `Standing vigilant against the darkness`);
         }
 
-        const maxDepthLabel = maxDepth > 0 ? (realm === 'angband' || realm === 'silq' ? `${maxDepth * 50}ft` : `DLvl ${maxDepth}`) : 'Surface';
+        const maxDepthLabel = maxDepth > 0
+            ? (this.grounder && typeof this.grounder.formatRealmDepth === 'function' ? this.grounder.formatRealmDepth(maxDepth, realm, p) : `DLvl ${maxDepth}`)
+            : 'Surface';
         const storyArc = mode === 'death'
             ? `YASD Demise: Killed by ${killedBy || 'mortal wounds'} at ${locationLabel} • Deepest: ${maxDepthLabel}`
             : `Origin: ${originSummary.slice(0, 75)} • Deepest: ${maxDepthLabel} • Deeds: ${notableDeeds.slice(-2).join('; ').slice(0, 75)}`;
@@ -3554,16 +3579,37 @@ class ChronicleManager {
             realmAtmosphere = 'Brogue CE subterranean cavern, bioluminescent fungal glow, bubbling crimson lava fissures and deep subterranean lakes, iron captive cages, painterly chiaroscuro.';
         } else if (realm === 'rogue') {
             realmAtmosphere = '1980 Classic Rogue Dungeons of Doom, torchlit rectangular flagstone chambers and winding maze passages, vintage 1980s TSR Dungeons & Dragons fantasy module cover art style.';
+        } else if (realm === 'ryod') {
+            const bp = (typeof window !== 'undefined' && window.__activeRyodBlueprint) || {};
+            realmAtmosphere = `Custom Rolled Tabletop Fantasy Realm "${bp.title || 'The Rolled Dungeon'}", atmospheric stone vaults, glowing shrines, and dramatic dark-fantasy chiaroscuro.`;
         } else {
             realmAtmosphere = 'Tolkien Middle-earth Angband, deep stone dungeon vault, rough-hewn granite arches, flickering torchlight halo, ancient gothic masonry.';
         }
 
+        const clsLower = String(heroClass || '').toLowerCase();
+        let classVisualAttire = '';
+        if (clsLower.includes('archeolog')) {
+            classVisualAttire = 'wearing a weathered leather expedition fedora hat and rugged explorer jacket, carrying a coiled bullwhip, pick-axe, and glowing brass lantern';
+        } else if (clsLower.includes('tourist')) {
+            classVisualAttire = 'wearing an eccentric patterned traveler shirt, carrying a leather satchel and flashing magical camera box';
+        } else if (clsLower.includes('valkyrie')) {
+            classVisualAttire = 'wearing Nordic Valkyrie scale mail and a winged steel helm, wielding a gleaming spear and shield';
+        } else if (clsLower.includes('samurai') || clsLower.includes('剑') || clsLower.includes('武')) {
+            classVisualAttire = 'clad in traditional lacquered lamellar samurai yoroi armor with a curved katana and wakizashi at the sash';
+        } else if (clsLower.includes('monk')) {
+            classVisualAttire = 'clad in martial ascetic robes with wrapped hand-bindings and disciplined martial stance';
+        } else if (clsLower.includes('caveman') || clsLower.includes('cavewoman') || clsLower.includes('berserker')) {
+            classVisualAttire = 'clad in rugged fur pelts and leather straps, wielding a heavy club and primal might';
+        }
+
         const alliesDesc = visibleAllies.length > 0
-            ? `Accompanied by loyal companion ally: ${visibleAllies.map(a => a.name).join(', ')}.`
+            ? `Accompanied side-by-side by faithful companion pet/ally: ${visibleAllies.map(a => `${a.name}${a.visualDesc ? ` (depicted accurately as: ${a.visualDesc} — friendly loyal companion, NOT a monster or dragon)` : ' (friendly loyal companion)'}`).join(', ')}.`
             : '';
         const monstersDesc = visibleMonsters.length > 0
-            ? `Facing nearby threats: ${visibleMonsters.map(m => `${m.name} (${m.state})`).join(', ')}.`
-            : 'Surrounded by claustrophobic dungeon shadows, skeletal remains of past delvers, and flickering torchlight.';
+            ? `Facing nearby dungeon entities: ${visibleMonsters.map(m => `${m.name} (${m.state}${m.visualDesc ? `, anatomy: ${m.visualDesc}` : ''})`).join(', ')}.`
+            : (visibleAllies.length > 0
+                ? 'Sharing a quiet, atmospheric moment with their loyal companion in the flickering lantern light amidst ancient dungeon stonework.'
+                : 'Surrounded by claustrophobic dungeon shadows, skeletal remains of past delvers, and flickering torchlight.');
 
         // =====================================================================
         // Humor & Horror Scene Director (Matches Death Sketch Intensity!)
@@ -3575,7 +3621,7 @@ class ChronicleManager {
         const monsterNamesStr = visibleMonsters.map(m => m.name).join(', ');
         const combinedRecent = `${notableDeeds.join(' ')} ${narrativeText} ${monsterNamesStr} ${killedBy}`.toLowerCase();
 
-        const hasHumorousFoe = /\b(newt|grid bug|jackal|rat|kobold|bat|floating eye|mold|jelly|mushroom|urchin|beggar|drunk|squint-eyed|thief|cutpurse|vagabond|idiot|drool|filthy|hobbit|chicken|worm|cockroach|gecko|toad|frog|squirrel|kitten|puppy|leprechaun|nymph|monkey|imp|quasit|homunculus)\b/i.test(combinedRecent);
+        const hasHumorousFoe = /\b(newt|grid bug|jackal|rat|kobold|bat|floating eye|mold|jelly|mushroom|urchin|beggar|drunk|squint-eyed|thief|cutpurse|vagabond|idiot|drool|filthy|hobbit|chicken|worm|cockroach|gecko|toad|frog|squirrel|leprechaun|nymph|monkey|imp|quasit|homunculus)\b/i.test(combinedRecent);
         const hasBizarreOrTheft = /\b(vomit|drool|giggle|babble|weep|begs|insult|mock|jeer|steal|stolen|purse feels lighter|fountain|sink|quaff|stub|squeaky|hallucinat|unreal)\b/i.test(combinedRecent) ||
             (activeEv && ['CREATURE_BIZARRE_ACTION', 'CREATURE_THEFT', 'CREATURE_INSULT', 'CREATURE_BEG', 'SACRED_SHRINE'].includes(activeEv.type));
         const hasEldritchOrBossHorror = /\b(dragon|balrog|lich|nazgul|ringwraith|demon|vampire|wraith|phantom|ghost|horror|mind flayer|illithid|beholder|hydra|troll|ogre|giant|hound|sauron|morgoth|carcharoth|serpent|cyberdemon|arch-vile|yendor|ancient|greater|lord|prince|queen|king|unique|omens of death|murderous)\b/i.test(combinedRecent) ||
@@ -3596,6 +3642,11 @@ class ChronicleManager {
             sceneTone = 'victory';
             toneBadge = '👑 Immortal Ascension';
             situationalFocus = `Triumphant mythic ascension! Depict ${name} the ${race} ${heroClass} raising the ultimate relic aloft in golden celestial light as dungeon shadows recoil into the abyss.`;
+        } else if (visibleMonsters.length === 0 && visibleAllies.length > 0) {
+            sceneTone = 'humor_horror';
+            toneBadge = `🐾 Faithful ${visibleAllies[0].name}`;
+            const pet = visibleAllies[0];
+            situationalFocus = `Heartwarming yet atmospheric dark-fantasy dungeon bond! Depict ${name} the ${race} ${heroClass} in ${locationLabel} alongside their faithful companion ${pet.name}${pet.visualDesc ? ` (${pet.visualDesc})` : ''}, illuminated by warm brass lantern light against towering subterranean stone arches.`;
         } else if ((hasHumorousFoe || hasBizarreOrTheft) && (hasSeverePerilOrAffliction || hasEldritchOrBossHorror)) {
             sceneTone = 'humor_horror';
             toneBadge = '🎭 Peril & Dark Comedy';
@@ -3631,8 +3682,8 @@ class ChronicleManager {
             .map(g => g.replace(/^[^\w\u3000-\u9faf]+/, '').replace(/\([^)]*\)/g, '').replace(/\[[^\]]*\]/g, '').trim())
             .filter(Boolean);
         const gearDesc = cleanGearNames.length > 0
-            ? `Wielding and wearing: ${cleanGearNames.slice(0, 4).join(', ')}.`
-            : 'Clad in weathered adventurer armor and carrying a steel blade.';
+            ? `Wielding and wearing: ${cleanGearNames.slice(0, 4).join(', ')}${classVisualAttire ? ` (${classVisualAttire})` : ''}.`
+            : (classVisualAttire ? `Attire and gear: ${classVisualAttire}.` : 'Clad in weathered adventurer armor and carrying a steel blade.');
 
         const isIronicLowDepthDeath = (mode === 'death') && (
             depth <= 5 ||
@@ -3731,6 +3782,8 @@ class ChronicleManager {
             const loc = info.locationLabel || 'The Dungeons of Doom';
             const realm = String(info.realm || 'angband').toUpperCase();
             const quote = String(info.narrativeText || 'The shadows deepen around the torchlight...').replace(/\s+/g, ' ').trim();
+            const allies = Array.isArray(info.visibleAllies) ? info.visibleAllies : [];
+            const foes = Array.isArray(info.visibleMonsters) ? info.visibleMonsters : [];
 
             // 1. Dark Heraldic Parchment / Charcoal Engraving Plate
             const bg = ctx.createRadialGradient(384, 240, 40, 384, 240, 460);
@@ -3788,6 +3841,16 @@ class ChronicleManager {
             ctx.font = 'bold 24px "Cinzel", Georgia, serif';
             ctx.fillText(`${hero.name} — Lv.${hero.level || 1} ${hero.race || ''} ${hero.class || ''}`.trim(), 384, 102);
 
+            // Companion / Encounter Sub-Banner
+            if (allies.length > 0 || foes.length > 0) {
+                ctx.fillStyle = '#d4b872';
+                ctx.font = 'italic 13px Georgia, serif';
+                const subParts = [];
+                if (allies.length > 0) subParts.push(`🐾 Companion: ${allies.map(a => a.name).join(', ')}`);
+                if (foes.length > 0) subParts.push(`⚔ Encounter: ${foes.map(f => f.name).join(', ')}`);
+                ctx.fillText(subParts.join('  •  ').slice(0, 82), 384, 126);
+            }
+
             // Central Heraldic Crossed-Blades & Shield Emblem
             ctx.save();
             ctx.translate(384, 225);
@@ -3810,7 +3873,7 @@ class ChronicleManager {
             ctx.stroke();
             ctx.fillStyle = '#f5d77f';
             ctx.font = 'bold 26px "Cinzel", Georgia, serif';
-            ctx.fillText(info.mode === 'death' ? '☠' : (info.mode === 'victory' ? '👑' : '⚔'), 0, 10);
+            ctx.fillText(info.mode === 'death' ? '☠' : (info.mode === 'victory' ? '👑' : (allies.length > 0 && foes.length === 0 ? '🐾' : '⚔')), 0, 10);
             ctx.restore();
 
             // Narrative Inscription Footer
@@ -5056,13 +5119,17 @@ class ChronicleManager {
             }
         }
 
-        const stateObj = this.grounder.resolveCreatureState(monster, this.lastSeenMessages);
+        // # ROOT-CAUSE: interactWithCreature omitted activeRealm in resolveCreatureState/resolveTacticalMonsterInsight, hardcoded 50ft depth badge, and showed hostile Parley/Challenge buttons for tame companions.
+        const activeRealm = this.getActiveRealm();
+        const stateObj = this.grounder.resolveCreatureState(monster, this.lastSeenMessages, activeRealm);
 
         // Show Contextual Creature Target Pill
         if (this.targetPill && this.targetLabel) {
             this.targetPill.classList.remove('hidden');
             if (stateObj.state === 'sleeping') {
                 this.targetLabel.innerHTML = `😴 Target: <b>${escapeHtml(monster.name)}</b> <span style="font-size: 0.8rem; opacity: 0.8;">(Asleep)</span>`;
+            } else if (stateObj.isTame) {
+                this.targetLabel.innerHTML = `🐾 Companion: <b>${escapeHtml(monster.name)}</b> <span style="font-size: 0.8rem; opacity: 0.8;">(Loyal Ally)</span>`;
             } else if (stateObj.state === 'begging') {
                 this.targetLabel.innerHTML = `🤲 Target: <b>${escapeHtml(monster.name)}</b> <span style="font-size: 0.8rem; opacity: 0.8;">(Pleading)</span>`;
             } else if (!stateObj.canSpeak) {
@@ -5074,6 +5141,8 @@ class ChronicleManager {
         if (this.inputQuery) {
             if (stateObj.state === 'sleeping') {
                 this.inputQuery.placeholder = `${monster.name} is fast asleep...`;
+            } else if (stateObj.isTame) {
+                this.inputQuery.placeholder = stateObj.canSpeak ? `Speak with your ally ${monster.name}...` : `Praise or observe your ${monster.name}...`;
             } else if (stateObj.state === 'begging') {
                 this.inputQuery.placeholder = `Give coin or speak to ${monster.name}...`;
             } else if (!stateObj.canSpeak) {
@@ -5098,7 +5167,7 @@ class ChronicleManager {
             }
         }
         if (!res) {
-            res = this.grounder.resolveCreatureEncounter(monster, this.currentHero, this.lastSeenMessages, monster._interactTurn, '', this.getActiveRealm(), this.getLanguageMode());
+            res = this.grounder.resolveCreatureEncounter(monster, this.currentHero, this.lastSeenMessages, monster._interactTurn, '', activeRealm, this.getLanguageMode());
         }
 
         // Render Creature Card in Chronicle
@@ -5108,17 +5177,22 @@ class ChronicleManager {
 
             const heroRef = this.currentHero || {};
             const hDepth = typeof heroRef.depth === 'number' ? heroRef.depth : 0;
-            const locBadge = hDepth <= 0 ? 'Town Surface' : `Depth ${hDepth * 50}ft (Lv.${hDepth})`;
+            const locBadge = (this.grounder && typeof this.grounder.formatRealmDepth === 'function')
+                ? this.grounder.formatRealmDepth(hDepth, activeRealm, heroRef)
+                : (hDepth <= 0 ? 'Town Surface' : `Depth ${hDepth * 50}ft (Lv.${hDepth})`);
             const mCur = typeof monster.hp === 'number' ? monster.hp : 10;
             const mMax = typeof monster.hp_max === 'number' && monster.hp_max > 0 ? monster.hp_max : Math.max(1, mCur);
             const mPct = Math.max(0, Math.min(100, Math.round((mCur / mMax) * 100)));
             const tacNote = (this.grounder && typeof this.grounder.resolveTacticalMonsterInsight === 'function')
-                ? this.grounder.resolveTacticalMonsterInsight(monster.name || '')
+                ? this.grounder.resolveTacticalMonsterInsight(monster.name || '', activeRealm, monster)
                 : '';
+            const stateBadgeLabel = stateObj.isTame
+                ? `🐾 Loyal Companion • ${mPct}% HP`
+                : (stateObj.isPeaceful ? `🕊️ Peaceful • ${mPct}% HP` : `❤️ ${mPct}% HP • ${stateObj.state || 'awake'}`);
             let bodyHtml = `
                 <div class="chronicle-context-ribbon">
                     <span class="chronicle-context-pill">📍 ${escapeHtml(locBadge)}</span>
-                    <span class="chronicle-context-pill">❤️ ${mPct}% HP • ${escapeHtml(stateObj.state || 'awake')}</span>
+                    <span class="chronicle-context-pill">${escapeHtml(stateBadgeLabel)}</span>
                     ${heroRef.race || heroRef.class ? `<span class="chronicle-context-pill">🛡 ${escapeHtml((heroRef.race || '') + ' ' + (heroRef.class || heroRef.cls || ''))}</span>` : ''}
                 </div>
             `;
@@ -5143,7 +5217,25 @@ class ChronicleManager {
 
             const headingLabel = (stateObj.state === 'sleeping')
                 ? `Observation: ${escapeHtml(monster.name)} (Asleep)`
-                : (stateObj.state === 'begging' ? `Alms: ${escapeHtml(monster.name)}` : `Encounter: ${escapeHtml(monster.name)}`);
+                : (stateObj.isTame
+                    ? `🐾 Companion: ${escapeHtml(monster.name)}`
+                    : (stateObj.state === 'begging'
+                        ? `Alms: ${escapeHtml(monster.name)}`
+                        : (stateObj.isPeaceful ? `🕊️ Encounter: ${escapeHtml(monster.name)}` : `Encounter: ${escapeHtml(monster.name)}`)));
+
+            const actionBtnsHtml = stateObj.isTame
+                ? `
+                    <button type="button" class="chronicle-enc-btn" data-enc-act="praise" title="Praise and encourage your faithful companion">🐾 Praise</button>
+                    <button type="button" class="chronicle-enc-btn" data-enc-act="instincts" title="Check companion instincts and BUC scent">🦴 Instincts</button>
+                    <button type="button" class="chronicle-enc-btn" data-enc-act="study" title="Request Lorekeeper companion care & lore">📜 Companion Lore</button>
+                    <button type="button" class="chronicle-enc-btn" data-enc-act="vow" title="Swear a Mythic Vow in the Living Chronicle">🕯️ Swear Vow</button>
+                `
+                : `
+                    <button type="button" class="chronicle-enc-btn" data-enc-act="parley" title="${stateObj.canSpeak ? 'Parley or question creature in character' : 'Observe creature behavior and demeanor'}">${stateObj.canSpeak ? '🗣️ Parley' : '🔍 Observe'}</button>
+                    <button type="button" class="chronicle-enc-btn" data-enc-act="challenge" title="Issue a martial challenge">⚔️ Challenge</button>
+                    <button type="button" class="chronicle-enc-btn" data-enc-act="study" title="Request deep Lorekeeper tactical study">📜 Tactics</button>
+                    <button type="button" class="chronicle-enc-btn" data-enc-act="vow" title="Swear a Mythic Vow in the Living Chronicle">🕯️ Swear Vow</button>
+                `;
 
             card.innerHTML = `
                 <div class="chapter-header-row">
@@ -5153,10 +5245,7 @@ class ChronicleManager {
                 ${bodyHtml}
                 ${tacNote ? `<p class="chapter-insight" style="margin-top: 6px; font-size: 0.82rem; color: #93c5fd; opacity: 0.95;"><b>Lorekeeper Insight:</b> ${escapeHtml(tacNote)}</p>` : ''}
                 <div class="chronicle-encounter-actions">
-                    <button type="button" class="chronicle-enc-btn" data-enc-act="parley" title="Parley or question creature in character">🗣️ Parley</button>
-                    <button type="button" class="chronicle-enc-btn" data-enc-act="challenge" title="Issue a martial challenge">⚔️ Challenge</button>
-                    <button type="button" class="chronicle-enc-btn" data-enc-act="study" title="Request deep Lorekeeper tactical study">📜 Tactics</button>
-                    <button type="button" class="chronicle-enc-btn" data-enc-act="vow" title="Swear a Mythic Vow in the Living Chronicle">🕯️ Swear Vow</button>
+                    ${actionBtnsHtml}
                 </div>
             `;
             if (typeof card.querySelectorAll === 'function') {

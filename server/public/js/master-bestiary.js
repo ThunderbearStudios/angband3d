@@ -1261,12 +1261,55 @@
         };
     }
 
+    // # ROOT-CAUSE: Export both window.MASTER_BESTIARY and window.MasterBestiary and provide describeVisualAnatomy(m, glyph, realm) so Chronicle & Tome Sketch prompts get exact 3D model anatomy descriptions.
+    function describeVisualAnatomy(m, glyph, realm) {
+        const res = resolve(m, glyph, realm);
+        const tk = (res && res.templateKey) || '';
+        const tax = (res && res.taxonomy) || 'Dungeon Creature';
+        const name = cleanMonsterName((m && (m.name || m.race)) || '').toLowerCase();
+        if (/\b(little dog|small dog|large dog|dog|puppy|hound)\b/i.test(name) || tk === 'bestiary_husky') {
+            return 'alert white-and-charcoal terrier/husky hound with pointed ears, curled tail, and four paws';
+        }
+        if (/\b(kitten|cat|housecat|large cat)\b/i.test(name)) {
+            return 'sleek, agile feline cat with luminous eyes, whiskers, and upright tail';
+        }
+        if (/\b(pony|horse|warhorse)\b/i.test(name) || tk === 'bestiary_horse') {
+            return 'sturdy, muscular equine steed with flowing mane and shod hooves';
+        }
+        if (/floating eye|eye/i.test(name) || tk === 'bestiary_eye') {
+            return 'levitating disembodied spherical eyeball with a single hypnotic glowing iris';
+        }
+        if (/grid bug/i.test(name)) {
+            return 'crackling neon-violet geometric grid-lined bug with glowing electric carapace';
+        }
+        if (/cockatrice|chickatrice|pyrolisk/i.test(name) || tk === 'bestiary_flamingo') {
+            return 'serpent-tailed, bat-winged scaled cockatrice rooster with a petrifying gaze';
+        }
+        if (/rust monster|aquator/i.test(name)) {
+            return 'armadillo-shelled chitinous rust monster with two long feathery metal-sensing antennae and a propeller-tipped tail';
+        }
+        if (/mimic|xeroc/i.test(name)) {
+            return 'tooth-lined shapeshifting mimic chest with pseudopods and glowing eyes';
+        }
+        if (tk === 'env_ooze_mound' || /jelly|ooze|slime|blob|pudding/i.test(name)) {
+            return 'translucent, bubbling gelatinous ooze mound glistening on the stone floor';
+        }
+        if (tk === 'env_fungi_cluster' || /mold|mushroom|fungus|shrieker|spore/i.test(name)) {
+            return 'bioluminescent subterranean fungal mushroom cluster sprouting from damp stone';
+        }
+        if (tk === 'bestiary_dragon') {
+            return 'towering winged, horned wyrm with armoured scales and smoldering jaws';
+        }
+        return `${tax} (${tk.replace(/^(bestiary_|char_|obj_|env_|ph_)/, '').replace(/_/g, ' ')})`;
+    }
+
     // ---------------------------------------------------------------------------
     // 8. Public API & Universal Module Export
     // ---------------------------------------------------------------------------
     const MASTER_BESTIARY = {
         resolve,
         resolveInspectionTaxonomy,
+        describeVisualAnatomy,
         registerRealm,
         cleanMonsterName,
         normalizeRealm,
@@ -1279,6 +1322,7 @@
 
     if (typeof root !== 'undefined') {
         root.MASTER_BESTIARY = MASTER_BESTIARY;
+        root.MasterBestiary = MASTER_BESTIARY;
     }
     if (typeof module !== 'undefined' && module.exports) {
         module.exports = MASTER_BESTIARY;

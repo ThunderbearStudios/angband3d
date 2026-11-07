@@ -12742,7 +12742,9 @@ class Dungeon3D {
         }
 
         // Dragons & Drakes (d, D)
-        if (g === 'd' || g === 'D' || /\b(dragon|drake|wyrm)\b/i.test(lower)) {
+        // # ROOT-CAUSE: Gate legacy 'd' glyph fallback on active realm so NetHack canines ('d') and Brogue Dar ('d') never match dragon fallback.
+        const fallbackRealm = this._resolveActiveRealmKey();
+        if (g === 'D' || (g === 'd' && fallbackRealm !== 'nethack' && fallbackRealm !== 'brogue') || /\b(dragon|drake|wyrm)\b/i.test(lower)) {
             const isAncient = (g === 'D' || lower.includes('ancient') || lower.includes('wyrm'));
             return {
                 templateKey: 'bestiary_dragon',

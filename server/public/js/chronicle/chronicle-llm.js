@@ -438,7 +438,8 @@ Compose ${isFlowing ? 'flowing passage' : 'Chapter'}.`;
         const groundTruth = ChronicleGrounder.resolveCreatureEncounter(monster, player, recentMessages, turn, playerMessage, activeRealm, langMode);
 
         const name = monster.name || monster.race || 'creature';
-        const stateObj = ChronicleGrounder.resolveCreatureState(monster, recentMessages);
+        // # ROOT-CAUSE: Pass activeRealm into resolveCreatureState and enforce strict non-vocal & tame-companion guardrails so non-vocal pets never speak English sentences.
+        const stateObj = ChronicleGrounder.resolveCreatureState(monster, recentMessages, activeRealm);
         const gender = groundTruth.gender || (groundTruth.isFemale ? 'female' : 'male');
         const isF = (gender === 'female');
         const prSub = isF ? 'she' : 'he';
@@ -446,7 +447,7 @@ Compose ${isFlowing ? 'flowing passage' : 'Chapter'}.`;
         const prPoss = isF ? 'her' : 'his';
         const prObj = isF ? 'her' : 'him';
 
-        if (!this.isConfigured()) {
+        if (!this.isConfigured() || stateObj.isTame || !stateObj.canSpeak) {
             return groundTruth;
         }
 
@@ -463,7 +464,7 @@ Compose ${isFlowing ? 'flowing passage' : 'Chapter'}.`;
                 ? `asleep in slumber (${prSub} cannot converse)`
                 : `silent (${stateObj.observation || 'cannot speak'})`;
 
-            const realmKey = (window.__app && typeof window.__app.getActiveRealm === 'function') ? window.__app.getActiveRealm() : 'angband';
+            const realmKey = activeRealm || ((window.__app && typeof window.__app.getActiveRealm === 'function') ? window.__app.getActiveRealm() : 'angband');
             const realmCtx = (ChronicleGrounder && typeof ChronicleGrounder.getRealmContext === 'function')
                 ? ChronicleGrounder.getRealmContext(realmKey)
                 : { chronicler: 'The Master Chronicler', setting: 'the realm' };
@@ -478,7 +479,7 @@ Return ONLY raw JSON (prose max 16 words using "${prSub}"/"${prPoss}", dialogue 
                     this.recordUtterance(parsed.prose);
                     return {
                         prose: parsed.prose,
-                        text: null,
+                        text: groundTruth.text || null,
                         isDialogue: false,
                         speaker: name,
                         recommendedVoice: groundTruth.recommendedVoice,
@@ -500,6 +501,8 @@ Return ONLY raw JSON (prose max 16 words using "${prSub}"/"${prPoss}", dialogue 
         let combatGuidance = '';
         if (inCombat) {
             combatGuidance = `\nCOMBAT (HP ${monster.hp || 1}/${monster.hp_max || monster.hp || 1}, ${stateObj.observation}): Player is attacking! Townsperson/merchant: scream for guards or plead; Monster/orc: snarl combat taunt. Never offer peaceful greetings!`;
+        } else if (stateObj.isPeaceful) {
+            combatGuidance = `\nPEACEFUL NPC (${stateObj.observation}): Creature is friendly/peaceful toward the player. Speak in character as a peaceful merchant, priest, oracle, guard, or ally—never threaten the player!`;
         }
 
         const realmKey = (typeof window !== 'undefined' && window.__app && typeof window.__app.getActiveRealm === 'function') ? window.__app.getActiveRealm() : 'angband';

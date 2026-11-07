@@ -244,6 +244,7 @@ test('Dungeon3D and InputController support afar 3D floor item click inspection'
     assert.strictEqual(floatingEyeInspect.pillText, 'Passive (Gaze Hazard)', 'Floating eye must report Passive (Gaze Hazard)');
     assert(floatingEyeInspect.tactics.includes('Gaze paralyzes melee attackers'), 'Floating eye tactics must warn about gaze paralysis');
 
+    // # ROOT-CAUSE: Add WS64 Chronicle encounter, bestiary glyph disambiguation, companion state, and sketch accuracy assertions to the fast test suite.
     const swordInspect = ChronicleManager.prototype._buildCoreItemInspection(
         { name: 'a Long Sword of Westernesse (2d5) (+10,+12) (+2)', glyph: ')' },
         15,
@@ -254,6 +255,23 @@ test('Dungeon3D and InputController support afar 3D floor item click inspection'
     assert(swordInspect.prose.includes('Hit/Dam: (+10, +12)'), 'Sword core inspection must extract combat bonuses');
     assert.strictEqual(swordInspect.quote, '', 'Item core inspection must have zero fictional quote');
     assert(swordInspect.tactics.includes('Brand'), 'Sword core inspection must extract known core properties');
+
+    // WS64: Chronicle Encounter & Sketch Accuracy for NetHack little dog (tame) [d] & Cross-Realm Glyphs
+    require('../server/public/js/master-bestiary.js');
+    const nhDog = { name: 'little dog (tame)', glyph: 'd', hp: 10, hp_max: 10, isPet: true, tame: true };
+    const nhHero = { name: 'IZCHAK_NHCK_1107', race: 'Human', class: 'Archeologist', depth: 1, hp: 42, hp_max: 42, weapon_item: 'bullwhip' };
+    const dogProf = ChronicleGrounder.classifyCreature(nhDog, 'nethack');
+    assert.strictEqual(dogProf.category, 'tame_canine', 'NetHack little dog (tame) [d] must classify as tame_canine');
+    assert.strictEqual(dogProf.isVocal, false, 'NetHack little dog (tame) [d] must be non-vocal');
+    const dogEnc = ChronicleGrounder.resolveCreatureEncounter(nhDog, nhHero, [], 1, '', 'nethack');
+    assert.strictEqual(dogEnc.isDialogue, false, 'NetHack little dog encounter must be non-dialogue animal sound');
+    assert.strictEqual(dogEnc.isTame, true, 'NetHack little dog encounter must report isTame=true');
+    assert(!/wyrm|dragon|sulfurous|kindling/i.test(dogEnc.prose + ' ' + dogEnc.text), 'NetHack little dog encounter must never use dragon/wyrm prose');
+    const dogTac = ChronicleGrounder.resolveTacticalMonsterInsight('little dog (tame)', 'nethack', nhDog);
+    assert(dogTac.includes('canine companion') && dogTac.includes('BUC'), 'NetHack little dog tactical insight must describe canine companion & BUC detection');
+    assert.strictEqual(ChronicleGrounder.classifyCreature({ name: 'dar blademaster', glyph: 'd' }, 'brogue').category, 'humanoid', 'Brogue [d] dar blademaster must be humanoid');
+    assert.strictEqual(ChronicleGrounder.classifyCreature({ name: 'baby red dragon', glyph: 'd' }, 'angband').category, 'dragon', 'Angband [d] baby red dragon must be dragon');
+    assert.strictEqual(ChronicleGrounder.classifyCreature({ name: 'fire giant', glyph: 'C' }, 'dcss').category, 'giant', 'DCSS [C] fire giant must be giant');
 });
 
 console.log('All realm chronicles and inspection unit tests passed successfully!');
