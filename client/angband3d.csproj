@@ -5,8 +5,8 @@
     <Nullable>disable</Nullable>
     <RootNamespace>Angband3D</RootNamespace>
     <LangVersion>12</LangVersion>
-    <Version>11.8.5</Version>
-    <AssemblyVersion>11.8.5.0</AssemblyVersion>
-    <FileVersion>11.8.5.0</FileVersion>
+    <Version>11.8.6</Version>
+    <AssemblyVersion>11.8.6.0</AssemblyVersion>
+    <FileVersion>11.8.6.0</FileVersion>
   </PropertyGroup>
 </Project>

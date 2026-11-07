@@ -4047,15 +4047,22 @@ class ChronicleManager {
         ctx.lineWidth = 1;
         ctx.strokeRect(24, 24, 1152, 582);
 
-        // 2. Top Platform Header
+        // 2. Top Platform Header with Official YASD3D & Thunderbear Badges
+        // # ROOT-CAUSE: Render the official RGBA YASD3D icon badge and Thunderbear Studios emblem onto exported 1200x630 share cards.
+        try {
+            const loadBadge = (src) => new Promise((res) => { const im = new Image(); im.crossOrigin = 'anonymous'; im.onload = () => res(im); im.onerror = () => res(null); im.src = src; });
+            const [yBadge, tbBadge] = await Promise.all([loadBadge('/assets/yasd3d_badge.png'), loadBadge('/assets/thunderbear_logo.png')]);
+            if (yBadge && yBadge.width > 1) ctx.drawImage(yBadge, 44, 28, 25, 34);
+            if (tbBadge && tbBadge.width > 1) ctx.drawImage(tbBadge, 1130, 28, 26, 34);
+        } catch (_) {}
         ctx.fillStyle = '#f5d77f';
         ctx.font = 'bold 16px "Cinzel", Georgia, serif';
         ctx.textAlign = 'left';
-        ctx.fillText(isActionScene ? '⚔ YASD 3D • LIVING CHRONICLE SCENE (angband3d.com)' : '⚔ YASD 3D • YET ANOTHER STUPID DEATH (yasd3d.com)', 44, 56);
+        ctx.fillText(isActionScene ? 'YASD 3D • LIVING CHRONICLE SCENE (angband3d.com)' : 'YASD 3D • YET ANOTHER STUPID DEATH (yasd3d.com)', 76, 52);
         ctx.textAlign = 'right';
         ctx.fillStyle = '#c9a050';
         ctx.font = 'bold 13px "Cinzel", Georgia, serif';
-        ctx.fillText('POWERED BY YENDOR ENGINE™ • THUNDERBEAR STUDIOS™', 1156, 56);
+        ctx.fillText('POWERED BY YENDOR ENGINE™ • THUNDERBEAR STUDIOS™', 1122, 52);
 
         ctx.strokeStyle = 'rgba(212, 175, 55, 0.35)';
         ctx.beginPath();

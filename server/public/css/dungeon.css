@@ -9665,9 +9665,10 @@ body.grimoire-primary-open .viewport-edge-turn { display: none !important; }
 @media (min-width: 1024px) { #char-panel { width: clamp(188px, calc(208px * var(--hud-scale, 1)), 260px) !important; min-width: clamp(188px, calc(208px * var(--hud-scale, 1)), 260px) !important; max-width: clamp(188px, calc(208px * var(--hud-scale, 1)), 260px) !important; } #hud-footer .status-pill:not(.pill-reset-hud) { font-size: calc(10.5px * var(--hud-scale, 1)) !important; } }
 body.hud-immersion-minimal #message-feed-window:not(.expanded), body.hud-immersion-minimal #chronicle-window:not(.is-pinned), body.hud-immersion-minimal #touch-controls { display: none !important; }
 body.hud-immersion-cinematic #hud-overlay, body.hud-immersion-cinematic #top-right-bar, body.hud-immersion-cinematic #minimap-container, body.hud-immersion-cinematic #touch-controls, body.hud-immersion-cinematic #chronicle-window { display: none !important; }
+/* # ROOT-CAUSE: Adapt .splash-logo-main and .splash-card.splash-billboard-mode across all viewports to the 880x516 (16:9.4) widescreen hero graphic on #0b0e13 with CSS mask-image edge fade and matched twin heraldic badges. */
 @media (max-height: 820px) {
-    .splash-card.splash-billboard-mode, .main-menu-card, .pause-card { max-height: 96dvh !important; padding: clamp(8px, 1.4dvh, 14px) clamp(12px, 2vw, 22px) !important; gap: clamp(4px, 0.7dvh, 7px) !important; overflow-y: auto !important; }
-    .splash-logo-wrap.protected-crest .splash-logo-main { width: clamp(260px, 58dvh, 460px) !important; height: clamp(260px, 58dvh, 460px) !important; }
+    .splash-card.splash-billboard-mode, .main-menu-card, .pause-card { max-height: 96dvh !important; padding: clamp(8px, 1.3dvh, 14px) clamp(14px, 2vw, 24px) !important; gap: clamp(4px, 0.7dvh, 7px) !important; overflow-y: auto !important; }
+    .splash-logo-wrap.protected-crest .splash-logo-main { width: min(100%, 660px) !important; max-height: 50dvh !important; height: auto !important; aspect-ratio: 880 / 516 !important; }
     .splash-billboard-grid { gap: 8px !important; margin: 4px 0 6px !important; }
     .splash-billboard-pillar { padding: 8px 12px !important; }
     .main-menu-realm-strip { padding: 8px 12px !important; margin-top: 6px !important; gap: 5px !important; }
@@ -9677,27 +9678,36 @@ dialog[open], [popover]:popover-open { opacity: 1; transform: scale(1); transiti
 @media (prefers-reduced-motion: reduce) { *, ::before, ::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; } dialog[open], [popover]:popover-open { transform: none !important; } }
 
 /* Wave 9: Zero-Button Obsidian & Gold Showcase Billboard Splash & Main Menu Realm Command Deck */
-#splash-overlay, #main-menu-overlay { background: radial-gradient(ellipse at 50% 25%, rgba(8, 12, 22, 0.68) 0%, rgba(2, 4, 10, 0.92) 62%, rgba(1, 2, 6, 0.98) 100%) !important; padding: max(6px, var(--safe-top, 0px)) max(6px, var(--safe-right, 0px)) max(6px, var(--safe-bottom, 0px)) max(6px, var(--safe-left, 0px)) !important; }
-.splash-card.splash-billboard-mode { cursor: pointer; user-select: none; -webkit-user-select: none; width: min(95vw, 680px) !important; max-width: 680px !important; max-height: calc(100dvh - 12px) !important; overflow-y: auto !important; background: radial-gradient(circle at 50% 32%, #080f1a 0%, #02050c 54%, #010308 100%) !important; border: 1px solid rgba(148, 163, 184, 0.22) !important; border-radius: 8px !important; box-shadow: 0 28px 72px rgba(0, 0, 0, 0.98) !important; padding: clamp(10px, 1.6dvh, 18px) clamp(14px, 2.5vw, 26px) !important; gap: clamp(6px, 1dvh, 10px) !important; }
+#app-container:has(#splash-overlay:not(.hidden)) #sound-control-group,
+#app-container:has(#main-menu-overlay:not(.hidden)) #sound-control-group { opacity: 0 !important; pointer-events: none !important; }
+#splash-overlay, #main-menu-overlay { background: radial-gradient(ellipse at 50% 25%, rgba(11, 14, 19, 0.72) 0%, rgba(5, 7, 11, 0.94) 65%, rgba(2, 3, 6, 0.98) 100%) !important; padding: max(6px, var(--safe-top, 0px)) max(6px, var(--safe-right, 0px)) max(6px, var(--safe-bottom, 0px)) max(6px, var(--safe-left, 0px)) !important; }
+.splash-card.splash-billboard-mode { cursor: pointer; user-select: none; -webkit-user-select: none; width: min(95vw, 776px) !important; max-width: 776px !important; max-height: calc(100dvh - 12px) !important; overflow-y: auto !important; background: #0b0e13 !important; border: 1px solid rgba(212, 175, 55, 0.48) !important; border-radius: 12px !important; box-shadow: inset 0 0 0 1px rgba(212, 175, 55, 0.14), 0 28px 80px rgba(0, 0, 0, 0.96) !important; padding: clamp(10px, 1.5dvh, 16px) clamp(16px, 2.5vw, 28px) !important; gap: clamp(5px, 0.9dvh, 9px) !important; }
 .splash-ornament-corner, .main-menu-ornament-corner { display: none !important; }
-.splash-logo-wrap.protected-crest { width: 100%; height: auto; background: transparent !important; border: none; box-shadow: none; padding: 0; margin: 0 auto; display: flex !important; align-items: center; justify-content: center; }
-.splash-logo-wrap.protected-crest .splash-logo-main { width: clamp(300px, 60dvh, 520px) !important; height: clamp(300px, 60dvh, 520px) !important; max-width: calc(100vw - 44px) !important; max-height: calc(100vw - 44px) !important; aspect-ratio: 1 / 1 !important; object-fit: contain; border-radius: 0 !important; border: none !important; box-shadow: none !important; filter: none !important; animation: none !important; transform: none !important; user-select: none; -webkit-user-select: none; -webkit-user-drag: none; pointer-events: none; display: block; }
-.splash-subtitle { margin: 2px 0 0 !important; width: 100%; }
-.splash-realms-line { font-family: var(--font-title, 'Cinzel', serif); font-size: clamp(11px, 1.35vw, 13px); font-weight: 700; color: #d8be82; line-height: 1.45; letter-spacing: 0.55px; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.95); }
-.splash-features-line { font-family: var(--font-ui, 'Outfit', sans-serif); font-size: clamp(11px, 1.25vw, 12.5px); color: #94a3b8; margin-top: 3px; letter-spacing: 0.6px; }
-.splash-credits-footer { display: flex; align-items: center; justify-content: center; width: 100%; margin-top: 2px; border-top: 1px solid rgba(181, 142, 70, 0.18); padding-top: 8px; }
-.splash-studio-signature { display: inline-flex; align-items: center; gap: 10px; color: #d8be82; text-decoration: none; padding: 5px 14px; border-radius: 6px; background: rgba(7, 11, 18, 0.9); border: 1px solid rgba(181, 142, 70, 0.36); box-shadow: inset 0 1px 0 rgba(238, 210, 113, 0.10), 0 4px 10px rgba(0, 0, 0, 0.8); transition: border-color 0.15s ease, transform 0.15s ease; }
+.splash-logo-wrap.protected-crest { width: 100%; height: auto; background: transparent !important; border: none; box-shadow: none; padding: 0; margin: 0 auto -6px !important; display: flex !important; align-items: center; justify-content: center; }
+.splash-logo-wrap.protected-crest .splash-logo-main { width: min(100%, 720px) !important; height: auto !important; max-width: calc(100vw - 44px) !important; max-height: 54dvh !important; aspect-ratio: 880 / 516 !important; object-fit: contain; border-radius: 0 !important; border: none !important; box-shadow: none !important; filter: none !important; animation: none !important; transform: none !important; -webkit-mask-image: radial-gradient(ellipse 96% 94% at 50% 48%, #000 80%, rgba(0, 0, 0, 0.55) 92%, transparent 100%); mask-image: radial-gradient(ellipse 96% 94% at 50% 48%, #000 80%, rgba(0, 0, 0, 0.55) 92%, transparent 100%); user-select: none; -webkit-user-select: none; -webkit-user-drag: none; pointer-events: none; display: block; }
+.splash-domain-crest { display: flex; align-items: center; justify-content: center; gap: 14px; width: 100%; max-width: 580px; margin: 0 auto 1px; }
+.splash-domain-rule { flex: 1; height: 1px; background: linear-gradient(90deg, transparent 0%, rgba(212, 175, 55, 0.68) 100%); }
+.splash-domain-rule.right { background: linear-gradient(90deg, rgba(212, 175, 55, 0.68) 0%, transparent 100%); }
+.splash-domain-text { display: inline-flex; align-items: center; gap: 8px; font-family: var(--font-title, 'Cinzel', Georgia, serif); font-size: clamp(14px, 1.9vw, 18px); font-weight: 700; color: #e2c784; letter-spacing: 2px; text-shadow: 0 2px 6px rgba(0, 0, 0, 0.92); line-height: 1.1; }
+.splash-subtitle { margin: 0 !important; width: 100%; }
+.splash-realms-line { font-family: var(--font-title, 'Cinzel', serif); font-size: clamp(10.5px, 1.25vw, 12.5px); font-weight: 700; color: #d8be82; line-height: 1.42; letter-spacing: 0.45px; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.95); }
+.splash-features-line { font-family: var(--font-ui, 'Outfit', sans-serif); font-size: clamp(11px, 1.2vw, 12.5px); color: #9fb0c6; margin-top: 2px; letter-spacing: 0.55px; }
+.splash-credits-footer { display: flex; align-items: center; justify-content: center; gap: 14px; flex-wrap: wrap; width: 100%; margin-top: 2px; border-top: 1px solid rgba(212, 175, 55, 0.18); padding-top: 7px; }
+.splash-studio-signature { display: inline-flex; align-items: center; gap: 10px; color: #d8be82; text-decoration: none; padding: 4px 14px; border-radius: 6px; background: rgba(16, 21, 29, 0.72); border: 1px solid rgba(181, 142, 70, 0.34); transition: border-color 0.15s ease, transform 0.15s ease; }
 .splash-studio-signature:hover { border-color: #cab07d; color: #eed271; transform: translateY(-1px); }
 .splash-studio-badge { width: 26px !important; height: 34px !important; object-fit: contain; flex-shrink: 0; filter: none !important; }
+.splash-game-badge { width: 25px !important; height: 34px !important; object-fit: contain; flex-shrink: 0; filter: none !important; }
 .splash-studio-detail { display: flex; flex-direction: column; align-items: flex-start; text-align: left; line-height: 1.25; gap: 1px; }
 .splash-studio-detail strong { font-family: var(--font-title, 'Cinzel', serif); font-size: 11px; color: #d8be82; letter-spacing: 0.6px; }
-.splash-studio-detail small { font-family: var(--font-ui, 'Outfit', sans-serif); font-size: 10px; color: #8292a6; letter-spacing: 0.2px; }
+.splash-studio-detail small { font-family: var(--font-ui, 'Outfit', sans-serif); font-size: 10px; color: #8f9eb2; letter-spacing: 0.2px; }
 .main-menu-crest-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; }
 .main-menu-title-group { flex: 1; min-width: 0; text-align: center; }
-.main-menu-logo-primary { width: clamp(46px, 6.5vw, 56px); height: clamp(46px, 6.5vw, 56px); object-fit: contain; border-radius: 6px; border: 1px solid rgba(181, 142, 70, 0.45); flex-shrink: 0; filter: none; }
-.main-menu-studio-link { display: inline-flex; align-items: center; justify-content: center; padding: 4px 6px; border-radius: 6px; background: rgba(8, 12, 20, 0.82); border: 1px solid rgba(181, 142, 70, 0.32); flex-shrink: 0; transition: border-color 0.15s ease, transform 0.15s ease; }
+/* # ROOT-CAUSE: Match left YASD3D badge (.main-menu-logo-primary) and right Thunderbear badge (.main-menu-logo-secondary) to identical 34x45 content-box dimensions inside twin 4px 6px frames. */
+.main-menu-logo-primary { box-sizing: content-box !important; width: 34px !important; height: 45px !important; object-fit: contain; padding: 4px 6px !important; border-radius: 6px; background: rgba(8, 12, 20, 0.85); border: 1px solid rgba(181, 142, 70, 0.42); flex-shrink: 0; filter: none; }
+.main-menu-studio-link { display: inline-flex; align-items: center; justify-content: center; padding: 4px 6px !important; border-radius: 6px; background: rgba(8, 12, 20, 0.85); border: 1px solid rgba(181, 142, 70, 0.42); flex-shrink: 0; transition: border-color 0.15s ease, transform 0.15s ease; }
 .main-menu-studio-link:hover { border-color: #cab07d; transform: translateY(-1px); }
-.main-menu-logo-secondary { width: 26px; height: 34px; object-fit: contain; filter: none; }
+.main-menu-logo-secondary { width: 34px !important; height: 45px !important; object-fit: contain; filter: none; }
+.modal-crest-badge { width: 22px; height: 29px; object-fit: contain; vertical-align: -6px; margin: 0 6px; display: inline-block; pointer-events: none; }
 .save-realm-tag { color: #38bdf8; font-weight: 800; font-family: var(--font-terminal, monospace); font-size: 0.9em; margin-right: 4px; }
 .splash-billboard-sub { font-family: 'Cinzel', Georgia, serif; font-size: 11px; letter-spacing: 4.5px; color: #cab07d; text-transform: uppercase; margin-bottom: 1px; font-weight: 700; }
 .splash-billboard-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; width: 100%; margin: 8px 0 10px; text-align: left; pointer-events: none; }
@@ -9708,8 +9718,8 @@ dialog[open], [popover]:popover-open { opacity: 1; transform: scale(1); transiti
 .splash-pillar-title { font-family: var(--font-title, 'Cinzel', serif); font-size: 13.5px; font-weight: 700; color: #ebd59b; letter-spacing: 0.4px; margin: 0; }
 .splash-pillar-desc { font-size: 12px; color: #e2d9c5; line-height: 1.48; margin: 0; }
 .splash-pillar-desc strong { color: #fff6d6; }
-.splash-billboard-threshold { width: 100%; max-width: 520px; margin: 4px auto 2px; padding: clamp(9px, 1.4dvh, 11px) 16px; background: linear-gradient(180deg, #131924 0%, #090d14 100%); border: 1px solid #b58e46; border-top: 1px solid #d8be82; border-radius: 4px; color: #ebd59b; font-family: var(--font-title, 'Cinzel', serif); font-size: clamp(11px, 1.6vw, 13px); font-weight: 700; letter-spacing: clamp(1px, 0.35vw, 1.8px); text-transform: uppercase; box-shadow: inset 0 1px 0 rgba(238, 210, 113, 0.16), 0 6px 16px rgba(0, 0, 0, 0.85); animation: none !important; transition: border-color 0.15s ease, background 0.15s ease; }
-.splash-card.splash-billboard-mode:hover .splash-billboard-threshold { border-color: #eed271; background: linear-gradient(180deg, #19212f 0%, #0c111a 100%); color: #fff4d2; }
+.splash-billboard-threshold { width: 100%; max-width: 540px; min-height: 44px; display: flex; align-items: center; justify-content: center; margin: 3px auto 2px; padding: clamp(9px, 1.3dvh, 11px) 16px; background: linear-gradient(180deg, #161c26 0%, #0d1118 100%); border: 1px solid #b58e46; border-top: 1px solid #d8be82; border-radius: 5px; color: #e2c784; font-family: var(--font-title, 'Cinzel', serif); font-size: clamp(11px, 1.5vw, 13px); font-weight: 700; letter-spacing: clamp(1px, 0.35vw, 1.8px); text-transform: uppercase; box-shadow: inset 0 1px 0 rgba(238, 210, 113, 0.16), 0 6px 16px rgba(0, 0, 0, 0.85); animation: none !important; transition: border-color 0.15s ease, background 0.15s ease; }
+.splash-card.splash-billboard-mode:hover .splash-billboard-threshold { border-color: #eed271; background: linear-gradient(180deg, #1d2533 0%, #10151f 100%); color: #f0d78c; }
 
 /* ============================================================================
    Revision 6: Dark-Fantasy Realm Material Architecture, Field Compendium & Modern Web Guidance
@@ -9764,11 +9774,11 @@ body[data-realm="rogue"] { --realm-surface-top: #16130d; --realm-surface-bot: #0
     #command-palette-search, input[type="text"], input[type="search"], select { font-size: 16px !important; }
     .splash-title, .main-menu-title { white-space: normal !important; line-height: 1.18 !important; font-size: clamp(17px, 4.8vw, 24px) !important; letter-spacing: clamp(1px, 0.5vw, 2.5px) !important; }
     .splash-subtitle, .main-menu-subtitle { font-size: clamp(11px, 3vw, 12.5px) !important; line-height: 1.35 !important; }
-    .splash-logo-wrap.protected-crest .splash-logo-main { width: clamp(250px, 80vw, 400px) !important; height: clamp(250px, 80vw, 400px) !important; }
+    .splash-logo-wrap.protected-crest .splash-logo-main { width: min(100%, 460px) !important; height: auto !important; aspect-ratio: 880 / 516 !important; }
     .main-menu-card { width: calc(100vw - 12px) !important; max-height: calc(100dvh - 12px) !important; padding: 10px 10px !important; overflow-x: hidden !important; }
     .main-menu-crest-bar { gap: 8px; width: 100%; min-width: 0; }
-    .main-menu-logo-primary { width: 40px; height: 40px; }
-    .main-menu-logo-secondary { width: 22px; height: 28px; }
+    .main-menu-logo-primary { width: 30px; height: 40px; }
+    .main-menu-logo-secondary { width: 28px; height: 36px; }
     .main-menu-realm-select-row { gap: 6px !important; } .main-menu-realm-dropdown-wrap { flex: 1 1 100% !important; width: 100% !important; max-width: 100% !important; min-width: 0 !important; } .main-menu-realm-dropdown { width: 100% !important; max-width: 100% !important; min-width: 0 !important; font-size: 13px !important; padding: 6px 28px 6px 8px !important; } .main-menu-realm-actions { width: 100% !important; display: flex !important; gap: 6px !important; } .main-menu-realm-actions .menu-realm-badge-btn { flex: 1 1 auto !important; text-align: center !important; }
     .main-menu-secondary-dock { grid-template-columns: repeat(3, 1fr) !important; gap: 6px !important; }
     .menu-dock-btn { padding: 6px 4px !important; min-width: 0 !important; }
@@ -9778,7 +9788,7 @@ body[data-realm="rogue"] { --realm-surface-top: #16130d; --realm-surface-bot: #0
 @media (max-height: 540px) and (orientation: landscape) {
     .splash-card.splash-billboard-mode, .main-menu-card { max-height: calc(100dvh - 10px) !important; width: min(96vw, 760px) !important; padding: 6px 14px !important; gap: 3px !important; overflow-y: auto !important; }
     .splash-logo-wrap.protected-crest { display: flex !important; margin: 0 auto !important; }
-    .splash-logo-wrap.protected-crest .splash-logo-main { width: clamp(150px, 56dvh, 250px) !important; height: clamp(150px, 56dvh, 250px) !important; }
+    .splash-logo-wrap.protected-crest .splash-logo-main { width: clamp(200px, 52dvh, 380px) !important; height: auto !important; aspect-ratio: 880 / 516 !important; }
     .splash-billboard-threshold { padding: 6px 12px !important; font-size: 11px !important; margin: 2px auto !important; }
     .splash-credits-footer { margin-top: 2px !important; }
     .splash-studio-signature { padding: 4px 10px !important; }

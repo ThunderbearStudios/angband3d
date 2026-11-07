@@ -53,13 +53,14 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Fira+Code:wght@400;600&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet" crossorigin="anonymous">
+    <!-- # ROOT-CAUSE: Bind dedicated favicon.png and yasd3d_icon_192.png instead of the full widescreen splash graphic. -->
     <link rel="manifest" href="/manifest.json">
-    <link rel="preload" as="image" href="/assets/yasd3d_logo_fast.jpg?v=11.8.5" fetchpriority="high">
-    <link rel="apple-touch-icon" href="/assets/yasd3d_logo.png">
-    <link rel="icon" type="image/png" href="/assets/yasd3d_logo.png">
-    <link rel="stylesheet" href="/css/dungeon.css?v=11.8.5">
-    <link rel="stylesheet" href="css/hud-skin.css?v=11.8.5">
-    <link rel="stylesheet" href="/css/chronicle.css?v=11.8.5">
+    <link rel="preload" as="image" href="/assets/yasd3d_logo_fast.jpg?v=11.8.6" fetchpriority="high">
+    <link rel="apple-touch-icon" sizes="180x180" href="/assets/yasd3d_icon_192.png?v=11.8.6">
+    <link rel="icon" type="image/png" sizes="64x64" href="/assets/favicon.png?v=11.8.6">
+    <link rel="stylesheet" href="/css/dungeon.css?v=11.8.6">
+    <link rel="stylesheet" href="css/hud-skin.css?v=11.8.6">
+    <link rel="stylesheet" href="/css/chronicle.css?v=11.8.6">
 </head>
 <body>
     <div id="app-container">
@@ -612,7 +613,8 @@
         <div id="death-modal" class="hidden">
             <div class="death-panel">
                 <div class="death-header">
-                    <h1 class="death-title">☠ YOU HAVE PERISHED ☠</h1>
+                    <!-- # ROOT-CAUSE: Add official YASD3D.com icon badge (.modal-crest-badge) to modal headers with fetchpriority="low". -->
+                    <h1 class="death-title"><img src="/assets/yasd3d_badge.png?v=11.8.6" alt="" class="modal-crest-badge" width="22" height="29" fetchpriority="low" decoding="async"> YOU HAVE PERISHED <img src="/assets/yasd3d_badge.png?v=11.8.6" alt="" class="modal-crest-badge" width="22" height="29" fetchpriority="low" decoding="async"></h1>
                     <div id="death-epitaph" class="death-epitaph">Hero the Human Warrior (Level 1)</div>
                     <div id="death-cause" class="death-cause">Killed by mortal wounds in the Town.</div>
                     <div id="death-score" class="death-score">Gold: 0 AU &nbsp;•&nbsp; Experience: 0 &nbsp;•&nbsp; Deepest Level: 0 (Town)</div>
@@ -680,7 +682,13 @@
         <div id="splash-overlay" role="region" aria-label="YASD 3D Showcase Splash Screen" tabindex="0">
             <div class="splash-card splash-billboard-mode">
                 <div class="splash-logo-wrap protected-crest" oncontextmenu="return false;">
-                    <img src="/assets/yasd3d_logo_fast.jpg?v=11.8.5" alt="Yet Another Stupid Death Official Crest — yasd3d.com • Thunderbear Studios" class="splash-logo splash-logo-main" width="520" height="520" fetchpriority="high" decoding="async" draggable="false">
+                    <img src="/assets/yasd3d_logo_fast.jpg?v=11.8.6" alt="Yet Another Stupid Death Official Splash Art — yasd3d.com • Thunderbear Studios" class="splash-logo splash-logo-main" width="720" height="422" fetchpriority="high" decoding="async" draggable="false">
+                </div>
+
+                <div class="splash-domain-crest" aria-label="yasd3d.com">
+                    <span class="splash-domain-rule left" aria-hidden="true"></span>
+                    <span class="splash-domain-text">YASD3D.COM</span>
+                    <span class="splash-domain-rule right" aria-hidden="true"></span>
                 </div>
 
                 <div class="splash-subtitle">
@@ -703,11 +711,12 @@
 
                 <div class="splash-credits-footer">
                     <a href="https://thunderbearstudios.dev" target="_blank" rel="noopener noreferrer" class="splash-studio-signature" title="Thunderbear Studios™ — Official Studio Portal (thunderbearstudios.dev)">
-                        <img src="/assets/thunderbear_logo.png?v=11.8.5" alt="Thunderbear Studios Official Emblem" class="splash-studio-badge" width="28" height="36" draggable="false">
+                        <img src="/assets/thunderbear_logo.png?v=11.8.6" alt="Thunderbear Studios Official Emblem" class="splash-studio-badge" width="26" height="34" decoding="async" draggable="false">
                         <span class="splash-studio-detail">
-                            <strong>Thunderbear Studios&trade;</strong>
-                            <small>&copy; 2026 Thunderbear Studios &bull; All Rights Reserved</small>
+                            <strong>Thunderbear Studios&trade; &bull; thunderbearstudios.dev</strong>
+                            <small>&copy; 2026 Thunderbear Studios &bull; Official Yendor Engine&trade; Showcase</small>
                         </span>
+                        <img src="/assets/yasd3d_badge.png?v=11.8.6" alt="YASD3D.com Official Badge" class="splash-game-badge" width="25" height="34" decoding="async" draggable="false">
                     </a>
                 </div>
             </div>
@@ -718,13 +727,13 @@
             <div class="main-menu-card">
                 <div class="main-menu-header">
                     <div class="main-menu-crest-bar">
-                        <img src="/assets/yasd3d_logo_fast.jpg?v=11.8.5" alt="YASD 3D Emblem" class="main-menu-logo-primary" width="56" height="56" decoding="async" draggable="false">
+                        <img src="/assets/yasd3d_badge.png?v=11.8.6" alt="YASD3D.com Official Game Badge" class="main-menu-logo-primary" width="36" height="48" fetchpriority="low" decoding="async" draggable="false">
                         <div class="main-menu-title-group">
                             <h2 class="main-menu-title" id="main-menu-title">⚔ YASD 3D • YENDOR ENGINE ⚔</h2>
                             <div class="main-menu-subtitle" id="main-menu-subtitle">The Classic Tolkien Descent • Old British Scholar</div>
                         </div>
-                        <a href="https://thunderbearstudios.dev" target="_blank" rel="noopener noreferrer" class="main-menu-studio-link" title="Thunderbear Studios™">
-                            <img src="/assets/thunderbear_logo.png?v=11.8.5" alt="Thunderbear Studios" class="main-menu-logo-secondary" width="28" height="36" draggable="false">
+                        <a href="https://thunderbearstudios.dev" target="_blank" rel="noopener noreferrer" class="main-menu-studio-link" title="Thunderbear Studios™ (thunderbearstudios.dev)">
+                            <img src="/assets/thunderbear_logo.png?v=11.8.6" alt="Thunderbear Studios" class="main-menu-logo-secondary" width="31" height="40" fetchpriority="low" decoding="async" draggable="false">
                         </a>
                     </div>
                     <div class="main-menu-realm-strip" id="main-menu-realm-strip">
@@ -852,7 +861,7 @@
                 <div class="main-menu-ornament-corner bottom-right"></div>
 
                 <div class="main-menu-header">
-                    <h2 class="main-menu-title">⚔ LOAD SAVED GAME ⚔</h2>
+                    <h2 class="main-menu-title"><img src="/assets/yasd3d_badge.png?v=11.8.6" alt="" class="modal-crest-badge" width="22" height="29" fetchpriority="low" decoding="async"> LOAD SAVED GAME</h2>
                     <div class="main-menu-subtitle">Select an adventurer from your realm archive to continue the descent</div>
                 </div>
 
@@ -889,7 +898,7 @@
                 <div class="main-menu-ornament-corner bottom-right"></div>
 
                 <div class="main-menu-header">
-                    <h2 class="main-menu-title">⚔ GAME MENU ⚔</h2>
+                    <h2 class="main-menu-title"><img src="/assets/yasd3d_badge.png?v=11.8.6" alt="" class="modal-crest-badge" width="22" height="29" fetchpriority="low" decoding="async"> GAME MENU</h2>
                     <div class="main-menu-subtitle" id="pause-char-display">Current Character: Hero</div>
                 </div>
 
@@ -988,7 +997,7 @@
         <div id="guide-modal" class="hidden" role="dialog" aria-labelledby="guide-modal-title">
             <div class="guide-card">
                 <div class="guide-header">
-                    <h2 class="guide-title" id="guide-modal-title">YASD 3D — ADVENTURER'S SURVIVAL GUIDE &amp; REALM ENCYCLOPEDIA</h2>
+                    <h2 class="guide-title" id="guide-modal-title"><img src="/assets/yasd3d_badge.png?v=11.8.6" alt="" class="modal-crest-badge" width="22" height="29" fetchpriority="low" decoding="async"> YASD 3D — ADVENTURER'S SURVIVAL GUIDE &amp; REALM ENCYCLOPEDIA</h2>
                     <button id="btn-guide-close" class="btn-guide-close" title="Close [Esc]" aria-label="Close Adventurer's Guide">✕</button>
                 </div>
                 <div class="guide-realm-bar" id="guide-realm-bar" role="group" aria-label="Select Realm Guide">
@@ -1038,7 +1047,7 @@
                 <div class="main-menu-ornament-corner bottom-right"></div>
 
                 <div class="main-menu-header">
-                    <h2 class="main-menu-title" id="pwa-modal-title">⚔ INSTALL WEB APP (PWA) &amp; SAVE PORTABILITY ⚔</h2>
+                    <h2 class="main-menu-title" id="pwa-modal-title"><img src="/assets/yasd3d_badge.png?v=11.8.6" alt="" class="modal-crest-badge" width="22" height="29" fetchpriority="low" decoding="async"> INSTALL WEB APP (PWA) &amp; SAVE PORTABILITY</h2>
                     <div class="main-menu-subtitle" id="pwa-modal-subtitle">Full-screen browser app experience with universal .sav character portability</div>
                 </div>
 
@@ -1208,7 +1217,7 @@
                 <div class="main-menu-ornament-corner bottom-right"></div>
 
                 <div class="main-menu-header">
-                    <h2 class="main-menu-title">🌌 MULTI-REALM ARCHIVES &amp; LORE 🌌</h2>
+                    <h2 class="main-menu-title"><img src="/assets/yasd3d_badge.png?v=11.8.6" alt="" class="modal-crest-badge" width="22" height="29" fetchpriority="low" decoding="async"> MULTI-REALM ARCHIVES &amp; LORE</h2>
                     <div class="main-menu-subtitle">Select realm before starting or loading an adventure • Locked during active dungeon exploration</div>
                     <div class="realm-voice-audit-banner">
                         <span>🎙 <strong>Lorekeeper Guarantee:</strong> Authentic character-attuned vocal timbre (Old British scholar, Mythic Skald, Eastern chronicle) • Zero southern accents • 100% LLM hallucination-free</span>
@@ -1349,48 +1358,48 @@
     <script defer src="/js/vendor/GLTFLoader.js"></script>
 
     <!-- Client Subsystems -->
-    <script defer src="/js/safe-html.js?v=11.8.5"></script>
-    <script defer src="/js/realm-content-pool.js?v=11.8.5"></script>
-    <script defer src="/js/ryod-compiler.js?v=11.8.5"></script>
-    <script defer src="/js/ryod-forge.js?v=11.8.5"></script>
-    <script defer src="/js/realm-cartridge.js?v=11.8.5"></script>
-    <script defer src="/js/screen-modal-coordinator.js?v=11.8.5"></script>
-    <script defer src="/js/dungeon3d-lightmap.js?v=11.8.5"></script>
-    <script defer src="/js/dungeon3d-model-governor.js?v=11.8.5"></script>
-    <script defer src="/js/screen-context.js?v=11.8.5"></script>
-    <script defer src="/js/menu-router.js?v=11.8.5"></script>
-    <script defer src="/js/grimoire-deck.js?v=11.8.5"></script>
-    <script defer src="/js/quick-actions.js?v=11.8.5"></script>
-    <script defer src="/js/device.js?v=11.8.5"></script>
-    <script defer src="/js/action-catalog.js?v=11.8.5"></script>
-    <script defer src="/js/realm-keys.js?v=11.8.5"></script>
-    <script defer src="/js/command-dispatcher.js?v=11.8.5"></script>
-    <script defer src="/js/command-palette.js?v=11.8.5"></script>
-    <script defer src="/js/prompt-mirror.js?v=11.8.5"></script>
-    <script defer src="/js/item-sheet.js?v=11.8.5"></script>
-    <script defer src="/js/entity-menu.js?v=11.8.5"></script>
-    <script defer src="/js/gamepad.js?v=11.8.5"></script>
-    <script defer src="/js/radial-menu.js?v=11.8.5"></script>
-    <script defer src="/js/mobile-overlay.js?v=11.8.5"></script>
-    <script defer src="/js/audio.js?v=11.8.5"></script>
-    <script defer src="/js/terminal.js?v=11.8.5"></script>
-    <script defer src="/js/master-bestiary.js?v=11.8.5"></script>
-    <script defer src="/js/master-item-registry.js?v=11.8.5"></script>
-    <script defer src="/js/dungeon3d.js?v=11.8.5"></script>
-    <script defer src="/js/hud.js?v=11.8.5"></script>
-    <script defer src="/js/network.js?v=11.8.5"></script>
-    <script defer src="/js/local_bridge.js?v=11.8.5"></script>
-    <script defer src="/js/input.js?v=11.8.5"></script>
-    <script defer src="/js/demo-player.js?v=11.8.5"></script>
+    <script defer src="/js/safe-html.js?v=11.8.6"></script>
+    <script defer src="/js/realm-content-pool.js?v=11.8.6"></script>
+    <script defer src="/js/ryod-compiler.js?v=11.8.6"></script>
+    <script defer src="/js/ryod-forge.js?v=11.8.6"></script>
+    <script defer src="/js/realm-cartridge.js?v=11.8.6"></script>
+    <script defer src="/js/screen-modal-coordinator.js?v=11.8.6"></script>
+    <script defer src="/js/dungeon3d-lightmap.js?v=11.8.6"></script>
+    <script defer src="/js/dungeon3d-model-governor.js?v=11.8.6"></script>
+    <script defer src="/js/screen-context.js?v=11.8.6"></script>
+    <script defer src="/js/menu-router.js?v=11.8.6"></script>
+    <script defer src="/js/grimoire-deck.js?v=11.8.6"></script>
+    <script defer src="/js/quick-actions.js?v=11.8.6"></script>
+    <script defer src="/js/device.js?v=11.8.6"></script>
+    <script defer src="/js/action-catalog.js?v=11.8.6"></script>
+    <script defer src="/js/realm-keys.js?v=11.8.6"></script>
+    <script defer src="/js/command-dispatcher.js?v=11.8.6"></script>
+    <script defer src="/js/command-palette.js?v=11.8.6"></script>
+    <script defer src="/js/prompt-mirror.js?v=11.8.6"></script>
+    <script defer src="/js/item-sheet.js?v=11.8.6"></script>
+    <script defer src="/js/entity-menu.js?v=11.8.6"></script>
+    <script defer src="/js/gamepad.js?v=11.8.6"></script>
+    <script defer src="/js/radial-menu.js?v=11.8.6"></script>
+    <script defer src="/js/mobile-overlay.js?v=11.8.6"></script>
+    <script defer src="/js/audio.js?v=11.8.6"></script>
+    <script defer src="/js/terminal.js?v=11.8.6"></script>
+    <script defer src="/js/master-bestiary.js?v=11.8.6"></script>
+    <script defer src="/js/master-item-registry.js?v=11.8.6"></script>
+    <script defer src="/js/dungeon3d.js?v=11.8.6"></script>
+    <script defer src="/js/hud.js?v=11.8.6"></script>
+    <script defer src="/js/network.js?v=11.8.6"></script>
+    <script defer src="/js/local_bridge.js?v=11.8.6"></script>
+    <script defer src="/js/input.js?v=11.8.6"></script>
+    <script defer src="/js/demo-player.js?v=11.8.6"></script>
     <!-- Living Chronicle & Voiced Lorekeeper Modules -->
-    <script defer src="/js/chronicle/chronicle-store.js?v=11.8.5"></script>
-    <script defer src="/js/chronicle/chronicle-grounder.js?v=11.8.5"></script>
-    <script defer src="/js/chronicle/chronicle-filter.js?v=11.8.5"></script>
-    <script defer src="/js/chronicle/chronicle-story-weaver.js?v=11.8.5"></script>
-    <script defer src="/js/chronicle/chronicle-audio.js?v=11.8.5"></script>
-    <script defer src="/js/chronicle/chronicle-llm.js?v=11.8.5"></script>
-    <script defer src="/js/chronicle/chronicle-manager.js?v=11.8.5"></script>
-    <script defer src="/js/app.js?v=11.8.5"></script>
-    <script defer src="/js/boot.js?v=11.8.5"></script>
+    <script defer src="/js/chronicle/chronicle-store.js?v=11.8.6"></script>
+    <script defer src="/js/chronicle/chronicle-grounder.js?v=11.8.6"></script>
+    <script defer src="/js/chronicle/chronicle-filter.js?v=11.8.6"></script>
+    <script defer src="/js/chronicle/chronicle-story-weaver.js?v=11.8.6"></script>
+    <script defer src="/js/chronicle/chronicle-audio.js?v=11.8.6"></script>
+    <script defer src="/js/chronicle/chronicle-llm.js?v=11.8.6"></script>
+    <script defer src="/js/chronicle/chronicle-manager.js?v=11.8.6"></script>
+    <script defer src="/js/app.js?v=11.8.6"></script>
+    <script defer src="/js/boot.js?v=11.8.6"></script>
 </body>
 </html>

@@ -1,5 +1,5 @@
 // Angband3D Service Worker — v9.1.0 PWA & Multi-Realm Standalone Client Caching
-const CACHE_NAME = 'angband3d-v11.8.5';
+const CACHE_NAME = 'angband3d-v11.8.6';
 const SHELL_ASSETS = [
   '/',
   '/index.html',
@@ -40,6 +40,9 @@ const SHELL_ASSETS = [
   '/js/chronicle/chronicle-manager.js',
   '/js/local_bridge.js',
   '/js/engine-worker.js',
+  '/assets/favicon.png',
+  '/assets/yasd3d_badge.png',
+  '/assets/yasd3d_icon_192.png',
   '/assets/thunderbear_logo.png'
 ];
 

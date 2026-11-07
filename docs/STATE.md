@@ -1,12 +1,12 @@
 # Execution State (Read First, Update Last)
 
 ## Active Task
-**WS62 — `v11.8.5` Global 3-Layer Sculpted PBR Consecrated High Altars (`_`) & Sparkling Magic Fountains (`{`) Rework — COMPLETE**
+**WS63 — `v11.8.6` Official Art, Icon Badge Suite & Widescreen Splash Screen Overhaul — COMPLETE**
 
-- **Checklist** (`v11.8.5` Global High Altar, Dwarven Forge & Magic Fountain 3-Layer PBR Monument Architecture):
-  - [x] **Eliminated Broken `.gltf`/`.glb` Geometry Overrides (`server/public/js/dungeon3d.js`)**: Removed `_loadPolyHavenEnvironmentModels()` overwrites that replaced `this.fountainMesh.geometry` with `/assets/models/items/building_well_blue.gltf` (a pastel-blue hex-board miniature shed) and merged `high_altar_pbr.glb` + `shrine_candles.gltf` under incompatible UVs; bound Poly Haven `monastery_stone_floor` normal/roughness maps cleanly onto `this.altarMaterial` and `this.fountainMaterial`.
-  - [x] **Upgraded `createMergedBoxGeometry` & Built 3-Layer Consecrated High Altar, Dwarven Forge & Sparkling Magic Fountain (`server/public/js/dungeon3d.js`)**: Extended `createMergedBoxGeometry` with `lathe`, `cylinder`, `torus`, `cone`, and `sphere` primitives with smooth vertex normals; built `altarMesh` + `altarBrassMesh` + `altarFlameMesh` (stepped dais with crimson carpet runner, fluted marble colonnettes, crimson velvet antependium with gilded Solar Cross, 4 lathed altar horns, missal on lectern, baroque candlesticks, and central chalice with flickering sacred flame), `forgeMesh` (octagonal stone hearth & horned iron anvil), and `fountainMesh` + `fountainBrassMesh` + `fountainWaterMesh` (stepped octagonal foundation, hollowed buttressed lower marble basin, fluted central column, scalloped upper bowl with 4 bronze lion spouts, turned spire & bronze lotus crown nozzle, central geyser jet, 8 upper water arcs + 8 lower continuous tangent-aligned parabolic cascading water streams with frothy splash rings).
-  - [x] **Fixed `floorShade` Color Crushing & Added 60 FPS Sacred Flame / Water Pulse (`server/public/js/dungeon3d.js`)**: Replaced raw `floorShade` multiplication on altars/fountains with clamped `sanctuaryStone` (`>= 0.82`) and `pureWhite` (`1, 1, 1`) on brass/flame/water instanced meshes; animated `altarFlameMaterial` and `fountainWaterMaterial` emissive shimmer in `render()` with zero allocations.
+- **Checklist** (`v11.8.6` Official Art, Icon Badge & Widescreen Splash Screen Overhaul):
+  - [x] **Asset 1 (`Thunderbear Studios` Official Emblem — `/assets/thunderbear_logo.png`)**: Un-premultiplied luminance-alpha 32-bit RGBA (`522×675`, zero black bounding box) integrated into the Splash Footer signature, Main Menu right crest (`.main-menu-logo-secondary`), Demo Showcase footer strip, and exported `1200×630` Chronicle Share Cards.
+  - [x] **Asset 2 (`YASD3D.com` Official Game Icon Badge Suite — `/assets/yasd3d_badge.png`, `/assets/favicon.png`, `/assets/yasd3d_icon_192.png`, `/assets/yasd3d_icon_512.png`)**: Transparent RGBA badge (`382×512`) paired with Thunderbear emblem in `.main-menu-crest-bar`, modal headers (`.modal-crest-badge`), Splash footer, and Share Cards; dedicated `64×64` skull+weapons `favicon.png` and `192×192` / `512×512` PWA icons in `manifest.json` and `sw.js`.
+  - [x] **Asset 3 (Widescreen `16:10` Splash Hero — `/assets/yasd3d_logo_fast.jpg` & `/assets/yasd3d_logo.png`)**: C²-smooth spatial perimeter feathering into `#0b0e13` (`ΔE = 0.000` on all 4 borders) with CSS `mask-image` edge fade (`soft-edge-content-fade`), widescreen `776px` `#0b0e13` `.splash-card.splash-billboard-mode`, single-line 8-realm strip, and Two-Sided Contrast & Overflow audit (`minTextRatio: 6.57`, `maxHeadingRatio: 13.35`, `halationViolations: 0`, `horizontalOverflowPx: 0`).
 
 ## Completed Workstreams
 | WS | Scope | Status |
@@ -18,6 +18,7 @@
 | WS59 | RYOD ("Roll Your Own Dungeon") World Forge, Self-Hydrating Saves & Playability Bot (`v11.8.1`) | `[x]` |
 | WS60–WS61 | Main Menu Overhaul, Grey-Slate RYOD Forge, 8 Mutators & 9-Realm Chronicle (`v11.8.4`) | `[x]` |
 | WS62 | Global 3-Layer Sculpted PBR Consecrated High Altars & Sparkling Magic Fountains (`v11.8.5`) | `[x]` |
+| WS63 | Official Art, YASD3D.com Icon Badge Suite & Widescreen Splash Screen Overhaul (`v11.8.6`) | `[x]` |
 
 ## Mandatory Verification Gate (Web-Only Focus)
 Fresh server (`L13`): `Get-NetTCPConnection -LocalPort 8080 -State Listen | % { Stop-Process -Id $_.OwningProcess -Force }`; `cd server; node src/server.js`.
