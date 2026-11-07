@@ -2119,6 +2119,7 @@ class UniversalCartridgeEngine {
                 rows.push({ g: pad80(`  HP:  ${p.hp}/${p.hpMax}   Power/MP: ${p.pw}/${p.pwMax}   Gold: ${p.gold}`), a: attr80('0a') });
                 if (this.realm === 'dcss') rows.push({ g: pad80(`  Deity: ${p.deity} (Piety: ${'★'.repeat(Math.max(0, p.piety || 0))})   Runes: ${p.runes || 0}/3`), a: attr80('0e') });
                 if (this.realm === 'brogue') rows.push({ g: pad80(`  Enchantments: +${p.enchantments || 0}   Lumenstones: ${p.lumenstones || 0}`), a: attr80('0e') });
+                if (this.realm === 'ryod') rows.push({ g: pad80(`  World: ${this.spec.ryodHash || 'RYOD'} • Mutator: ${this.spec.mutatorId || 'balanced'} • Goal: ${this.spec.goalItemName || 'Relic'} (D:${this.spec.goalDepth || 15})`), a: attr80('0e') });
             } else if (this.state.menuMode === 'skills' || this.state.menuMode === 'spells' || this.state.menuMode === 'power_select') {
                 const avail = this.getAvailablePowers();
                 if (avail.length > 0) {
@@ -2166,6 +2167,11 @@ class UniversalCartridgeEngine {
                     rows.push({ g: pad80('  Aquator Hazard (A): Rusts metallic armor by -1 AC! Remove armor [T] first.'), a: attr80('0c') });
                     rows.push({ g: pad80('  Scare Monster Trick: DROP [d] Scroll of Scare Monster and stand on it!'), a: attr80('0a') });
                     rows.push({ g: pad80('  Goal: Descend to Level 26, grab the Amulet of Yendor (,), and climb [<] to L1.'), a: attr80('01') });
+                } else if (this.realm === 'ryod') {
+                    rows.push({ g: pad80(`  --- ROLL YOUR OWN DUNGEON (${this.spec.ryodHash || 'CUSTOM'}) SURVIVAL DOSSIER ---`), a: attr80('0b') });
+                    rows.push({ g: pad80(`  [m] Invoke Signature / Discipline Power   [t] Talk to Town Elder (Depth 0)`), a: attr80('0e') });
+                    rows.push({ g: pad80(`  [p] Buy Supplies from Quartermaster       [y] Free Chained Allies (&) or Pray (_)`), a: attr80('0a') });
+                    rows.push({ g: pad80(`  [G] God-Mode Floor Warp (when Immortal)   [C] Character Sheet & Blueprint ID`), a: attr80('01') });
                 }
                 rows.push({ g: pad80('  --------------------------------------------------------------------------'), a: attr80('02') });
                 rows.push({ g: pad80('  Click [? HELP] on the HUD or press [Ctrl+K] for full Realm Manuals & Spoilers.'), a: attr80('0b') });
@@ -2353,9 +2359,9 @@ class UniversalCartridgeEngine {
         return {
             t: 'frame',
             realm: this.realm,
-            ryodMeta,
             seq: this.seq,
             phase: this.state.phase,
+            ryodMeta,
             ui: {
                 overlay: isOverlay ? 3 : 0,
                 awaiting_command: !isOverlay,

@@ -17,6 +17,14 @@ function resolveInitialBlueprint(saveDir, user, explicitBlueprint = null) {
     if (explicitBlueprint && typeof explicitBlueprint === 'object') {
         return RyodCompiler.normalizeConfig(explicitBlueprint);
     }
+    if (process.env.RYOD_CONFIG_JSON) {
+        try {
+            const envBp = JSON.parse(process.env.RYOD_CONFIG_JSON);
+            if (envBp && typeof envBp === 'object') {
+                return RyodCompiler.normalizeConfig(envBp);
+            }
+        } catch (_) {}
+    }
     const cleanUser = String(user || 'Adventurer').replace(/\.sav$/i, '');
     if (saveDir && cleanUser) {
         const bpFile = path.join(saveDir, `${cleanUser}.ryod.json`);
@@ -78,6 +86,7 @@ if (require.main === module) {
     let user = 'Adventurer';
     for (let i = 2; i < argv.length; i++) {
         if (argv[i] === '-d' && argv[i + 1]) saveDir = argv[++i];
+        else if (argv[i].startsWith('-dsave=')) saveDir = argv[i].slice(7);
         else if (argv[i].startsWith('-d=')) saveDir = argv[i].slice(3);
         else if (argv[i] === '-u' && argv[i + 1]) user = argv[++i];
         else if (argv[i].startsWith('-u')) user = argv[i].slice(2);

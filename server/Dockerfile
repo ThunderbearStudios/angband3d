@@ -124,6 +124,7 @@ RUN mkdir -p /data/save /app/dist /app/public \
              /app/variants/dcss/lib/save \
              /app/variants/ryod/lib/save && \
     ln -sf /app/variants/hengband/bin/hengband /app/variants/hengband/bin/hengband-en && \
+    ln -sfn /app/public /app/server/public && \
     chmod +x /app/engine/angband \
              /app/variants/frogcomposband/bin/frogcomposband \
              /app/variants/silq/bin/silq \

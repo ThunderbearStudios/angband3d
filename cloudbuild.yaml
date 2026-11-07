@@ -10,6 +10,7 @@ steps:
         WORKDIR /app
         COPY server/src/ /app/server/src/
         COPY server/public/ /app/public/
+        RUN ln -sfn /app/public /app/server/public
         COPY variants/nethack/ /app/variants/nethack/
         COPY variants/rogue/ /app/variants/rogue/
         COPY variants/brogue/ /app/variants/brogue/

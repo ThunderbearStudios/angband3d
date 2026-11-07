@@ -3250,7 +3250,7 @@ to { opacity: 1; transform: translateY(0); }
 #app-container:has(#main-menu-overlay:not(.hidden)) #touch-controls,
 #app-container:has(#main-menu-overlay:not(.hidden)) #top-message-banner,
 #app-container:has(#main-menu-overlay:not(.hidden)) #message-feed-window,
-#app-container:has(#main-menu-overlay:not(.hidden)) #diegetic-reticle { opacity: 0 !important; visibility: hidden !important; pointer-events: none !important; }
+#app-container:has(#main-menu-overlay:not(.hidden)) #diegetic-reticle { opacity: 0 !important; pointer-events: none !important; }
 
 .splash-realm-card {
     position: relative;

@@ -331,7 +331,7 @@ class GameNetwork {
                         }
                     }
                     if (this.onFrame) this.onFrame(msg);
-                } else if (msg.t === 'ok' && msg.detail === 'saved') {
+                } else if ((msg.t === 'ok' && msg.detail === 'saved') || msg.t === 'saved') {
                     if (this._pendingSaveResolve) {
                         this._pendingSaveResolve();
                     }
@@ -441,7 +441,7 @@ class GameNetwork {
                     this._pendingSaveResolve = null;
                     resolve();
                 }
-            }, 1500);
+            }, 350);
 
             const prevResolve = this._pendingSaveResolve;
             this._pendingSaveResolve = () => {
@@ -460,10 +460,18 @@ class GameNetwork {
     }
 
     async saveAndDisconnect() {
+        const targetWs = this.ws;
         try {
             await this.saveGame();
         } catch (_) {}
-        this.disconnect();
+        if (targetWs && targetWs.readyState === WebSocket.OPEN) {
+            try { targetWs.send(JSON.stringify({ t: 'quit' })); } catch (_) {}
+        }
+        if (this.ws === targetWs) {
+            this.disconnect();
+        } else if (targetWs) {
+            try { targetWs.close(); } catch (_) {}
+        }
     }
 
     disconnect() {

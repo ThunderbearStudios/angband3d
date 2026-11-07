@@ -1520,9 +1520,12 @@ window.addEventListener('DOMContentLoaded', () => {
         rerollHero,
         startCustomHeroCreation,
         startNewRandomHero,
+        returnToMainMenu: () => returnToMainMenu(),
+        reloadLastSave: () => reloadLastSave(),
         get inPlay() { return currentPhase === 'play'; },
         isBirthReviewActive: () => birthReviewActive,
         get lastFrame() { return lastFrame; },
+        set lastFrame(v) { lastFrame = v; },
         getLastFrame: () => lastFrame,
         showRealmSelector,
         hideRealmSelector,
@@ -1538,6 +1541,9 @@ window.addEventListener('DOMContentLoaded', () => {
         getLanguageMode,
         startNewRyodGame: (slotName, bp, autoBirth = true) => {
             if (bp && window.RyodForge) window.RyodForge.applyBlueprintToRuntime(bp);
+            if (appState === 'game') appState = 'mainMenu';
+            setActiveRealm('ryod');
+            updateRealmUI();
             startGame({
                 charName: slotName || 'Adventurer',
                 saveFile: slotName || 'Adventurer',
@@ -3441,6 +3447,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
     function startNewCustomHero() {
         if (activeRealm === 'ryod' && window.RyodForge && typeof window.RyodForge.open === 'function') {
+            if (appState === 'pauseMenu') returnToMainMenu();
             return window.RyodForge.open();
         }
         const heroName = generateHeroName(activeRealm);
@@ -3571,26 +3578,10 @@ window.addEventListener('DOMContentLoaded', () => {
     async function returnToMainMenu() {
         if (audio) audio.playMenuOpen();
         cancelQuickBirth();
-        try {
-            const isDead = Boolean(hud && hud.isDeadInPlay) ||
-                           Boolean(network && network.isDead) ||
-                           Boolean(lastFrame && lastFrame.player && (lastFrame.player.dead || (lastFrame.player.hp !== undefined && lastFrame.player.hp <= 0 && lastFrame.player.hp_max > 0)));
-            if (currentPhase === 'play' && !isDead) {
-                if (network && typeof network.saveAndDisconnect === 'function') {
-                    await network.saveAndDisconnect();
-                } else if (network) {
-                    network.sendCommand('save');
-                    network.disconnect();
-                }
-            } else {
-                // If exiting during character creation / setup or after death, immediately terminate and discard session without saving
-                if (network && typeof network.leaveSession === 'function') {
-                    network.leaveSession();
-                } else if (network) {
-                    network.disconnect();
-                }
-            }
-        } catch (_) {}
+        const wasPlay = currentPhase === 'play';
+        const isDead = Boolean(hud && hud.isDeadInPlay) ||
+                       Boolean(network && network.isDead) ||
+                       Boolean(lastFrame && lastFrame.player && (lastFrame.player.dead || (lastFrame.player.hp !== undefined && lastFrame.player.hp <= 0 && lastFrame.player.hp_max > 0)));
         if (hud && typeof hud.hideDeathModal === 'function') {
             hud.hideDeathModal();
         }
@@ -3616,6 +3607,23 @@ window.addEventListener('DOMContentLoaded', () => {
         if (demoModal) demoModal.classList.add('hidden');
         if (window.demoPlayer && typeof window.demoPlayer.close === 'function') window.demoPlayer.close();
         showMainMenu();
+        try {
+            if (wasPlay && !isDead) {
+                if (network && typeof network.saveAndDisconnect === 'function') {
+                    await network.saveAndDisconnect();
+                } else if (network) {
+                    network.sendCommand('save');
+                    network.disconnect();
+                }
+            } else {
+                // If exiting during character creation / setup or after death, immediately terminate and discard session without saving
+                if (network && typeof network.leaveSession === 'function') {
+                    network.leaveSession();
+                } else if (network) {
+                    network.disconnect();
+                }
+            }
+        } catch (_) {}
     }
 
     // Fast Tactile Tap Helper for Mobile / Touch Devices with swipe cancellation and click suppression
@@ -4881,17 +4889,33 @@ window.addEventListener('DOMContentLoaded', () => {
         }
         const randLabel = document.querySelector('#btn-menu-random .menu-label');
         if (randLabel) {
-            if (activeRealm === 'ryod') randLabel.textContent = '⚡ Quick Randomize RYOD (Instant Drop-In)';
+            if (activeRealm === 'ryod') randLabel.textContent = '⚡ Quick Roll & Play RYOD';
             else if (isHengband && langMode === 'jp') randLabel.textContent = 'クイックスタート (ランダム英雄)';
             else if (isHengband && langMode === 'bilingual') randLabel.textContent = 'Quick Start (即時開始)';
             else randLabel.textContent = 'Quick Start (Random Hero)';
         }
+        const randDesc = document.querySelector('#btn-menu-random .menu-desc');
+        if (randDesc) {
+            randDesc.textContent = activeRealm === 'ryod' ? 'Roll all 6 dice & drop straight into 3D play' : 'Skip setup & dive straight in';
+        }
         const custLabel = document.querySelector('#btn-menu-custom .menu-label');
         if (custLabel) {
-            if (activeRealm === 'ryod') custLabel.textContent = '🎲 Open RYOD World Forge (6-Card Tabletop)';
+            if (activeRealm === 'ryod') custLabel.textContent = '🎲 Roll Your Own Dungeon Forge';
             else if (isHengband && langMode === 'jp') custLabel.textContent = 'キャラクター作成 (詳細)';
             else if (isHengband && langMode === 'bilingual') custLabel.textContent = 'Custom Hero (英雄作成)';
             else custLabel.textContent = 'Custom Hero (Character Wizard)';
+        }
+        const custDesc = document.getElementById('menu-custom-desc');
+        if (custDesc) {
+            custDesc.textContent = activeRealm === 'ryod' ? 'Roll or pick Biome, Foes, Plot, Avatar & Rules' : 'Choose race, class & stats';
+        }
+        const pauseRandLabel = document.querySelector('#btn-pause-random .menu-label');
+        if (pauseRandLabel) {
+            pauseRandLabel.textContent = activeRealm === 'ryod' ? '⚡ Quick Reroll RYOD Dungeon' : 'Start Over (Random Hero)';
+        }
+        const pauseCustLabel = document.querySelector('#btn-pause-custom .menu-label');
+        if (pauseCustLabel) {
+            pauseCustLabel.textContent = activeRealm === 'ryod' ? '🎲 Open RYOD Tabletop Forge...' : 'Start Over (Custom Hero)';
         }
     }
 
@@ -4960,7 +4984,11 @@ window.addEventListener('DOMContentLoaded', () => {
             const btn = card.querySelector('.btn-realm-select');
             if (btn) {
                 btn.className = isMatch ? 'btn-realm-select btn-gold' : 'btn-realm-select btn-gold-outline';
-                btn.textContent = isMatch ? '✓ Active Realm (Selected)' : 'Switch to Realm';
+                if (card.dataset.realm === 'ryod') {
+                    btn.textContent = isMatch ? '🎲 Open RYOD Forge (Active)' : '🎲 Open RYOD Forge';
+                } else {
+                    btn.textContent = isMatch ? '✓ Active Realm (Selected)' : 'Switch to Realm';
+                }
             }
         });
         const langSelect = document.getElementById('hengband-lang-select');
@@ -5044,13 +5072,24 @@ window.addEventListener('DOMContentLoaded', () => {
         const cards = document.querySelectorAll('.realm-card');
         cards.forEach((card) => {
             const realmKey = card.dataset.realm;
+            const activateCard = (e) => {
+                if (e && e.stopPropagation) e.stopPropagation();
+                if (realmKey === 'ryod') {
+                    selectRealm('ryod', false);
+                    hideRealmSelector();
+                    if (window.RyodForge && typeof window.RyodForge.open === 'function') {
+                        window.RyodForge.open();
+                    }
+                    return;
+                }
+                selectRealm(realmKey, true);
+            };
             const btn = card.querySelector('.btn-realm-select');
-            if (btn) {
-                bindFastTap(btn, (e) => {
-                    if (e && e.stopPropagation) e.stopPropagation();
-                    selectRealm(realmKey, true);
-                });
-            }
+            if (btn) bindFastTap(btn, activateCard);
+            bindFastTap(card, (e) => {
+                if (e && e.target && e.target.closest && e.target.closest('select, option, .btn-realm-select')) return;
+                activateCard(e);
+            });
         });
         const langSelect = document.getElementById('hengband-lang-select');
         if (langSelect) {
@@ -6111,6 +6150,8 @@ window.addEventListener('DOMContentLoaded', () => {
             rerollHero,
             startCustomHeroCreation,
             cancelQuickBirth,
+            returnToMainMenu,
+            reloadLastSave,
             isBirthReviewActive: () => birthReviewActive,
             getAppState: () => appState,
             setAppState: (s) => { appState = s; },

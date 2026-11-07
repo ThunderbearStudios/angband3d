@@ -564,9 +564,9 @@
                 const loc = state.depth === 0 ? 'Town' : `D:${state.depth}/${bp.goalDepth}`;
                 const godTag = bp.godMode ? ' [GOD]' : '';
                 if (bp.progressionMode === 'brogue_item') {
-                    return `${loc} (Act ${act.act})${godTag}  Au:${p.gold}  HP:${p.hp}/${p.hpMax}  ${disciplineSpec.resourceLabel}:${p.mana}/${p.manaMax}  STR:${p.str}  Ench:+${p.enchantments || 0}`;
+                    return `${loc} (Act ${act.act})${godTag}  Au:${p.gold}  HP:${p.hp}/${p.hpMax}  ${disciplineSpec.resourceLabel}:${p.pw}/${p.pwMax}  STR:${p.str}  Ench:+${p.enchantments || 0}`;
                 }
-                return `${loc} (Act ${act.act})${godTag}  Lv:${p.lev}  Au:${p.gold}  HP:${p.hp}/${p.hpMax}  ${disciplineSpec.resourceLabel}:${p.mana}/${p.manaMax}  AC:${p.ac}`;
+                return `${loc} (Act ${act.act})${godTag}  Lv:${p.level || 1}  Au:${p.gold}  HP:${p.hp}/${p.hpMax}  ${disciplineSpec.resourceLabel}:${p.pw}/${p.pwMax}  AC:${p.ac}`;
             }
         };
     }

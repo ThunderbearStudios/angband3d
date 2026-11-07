@@ -1193,6 +1193,15 @@ class InputController {
         const app = window.__app;
         if (!app) return false;
 
+        if (window.RyodForge && typeof window.RyodForge.isOpen === 'function' && window.RyodForge.isOpen()) {
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                window.RyodForge.close();
+                return true;
+            }
+            return true;
+        }
+
         if (appState === 'splash') {
             if (['Shift', 'Control', 'Alt', 'Meta', 'CapsLock', 'Tab'].includes(e.key)) return false;
             e.preventDefault();

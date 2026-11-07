@@ -167,159 +167,201 @@
             }
             .ryod-forge-overlay {
                 position: fixed; inset: 0; z-index: 10200;
-                background: rgba(5, 7, 12, 0.86); -webkit-backdrop-filter: blur(7px); backdrop-filter: blur(7px);
+                background: rgba(6, 8, 13, 0.88); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
                 display: flex; align-items: center; justify-content: center; padding: 8px;
             }
             .ryod-forge-overlay.hidden { display: none !important; }
             .ryod-forge-card {
-                width: min(920px, 96vw); max-height: 95vh;
-                background: linear-gradient(180deg, rgba(22, 18, 30, 0.99) 0%, rgba(11, 10, 16, 0.99) 100%);
-                border: 1px solid rgba(245, 158, 11, 0.6); border-radius: 12px;
-                box-shadow: 0 18px 50px rgba(0, 0, 0, 0.88), 0 0 24px rgba(245, 158, 11, 0.16);
-                display: flex; flex-direction: column; overflow: hidden; color: #e2e8f0;
-                font-family: var(--font-body, 'Outfit', sans-serif);
+                width: min(980px, 96vw); max-height: 95vh;
+                background: radial-gradient(120% 90% at 50% 0%, rgba(212, 175, 55, 0.08) 0%, transparent 58%), linear-gradient(180deg, rgba(18, 21, 30, 0.99) 0%, rgba(9, 11, 16, 0.99) 100%);
+                border: 1px solid rgba(212, 175, 55, 0.56); border-top: 2px solid #e5c158; border-radius: 10px;
+                box-shadow: 0 24px 64px rgba(0, 0, 0, 0.94), inset 0 1px 0 rgba(255, 236, 179, 0.18), inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+                display: flex; flex-direction: column; overflow: hidden; color: #dce0e8;
+                font-family: var(--font-ui, 'Outfit', sans-serif);
             }
             .ryod-forge-header {
                 display: flex; align-items: center; justify-content: space-between; gap: 8px;
-                padding: 8px 14px; border-bottom: 1px solid rgba(245, 158, 11, 0.28);
-                background: rgba(14, 11, 20, 0.95);
+                padding: 10px 16px; border-bottom: 1px solid rgba(212, 175, 55, 0.24);
+                background: linear-gradient(180deg, rgba(22, 26, 38, 0.96) 0%, rgba(13, 16, 24, 0.98) 100%);
             }
             .ryod-forge-title {
-                font-family: var(--font-title, 'Cinzel', serif); font-size: 1.02rem;
-                font-weight: 800; color: #fbbf24; letter-spacing: 0.6px; margin: 0;
+                font-family: var(--font-title, 'Cinzel', serif); font-size: 1.04rem;
+                font-weight: 800; color: #e5c158; letter-spacing: 0.9px; margin: 0;
+                text-shadow: 0 2px 8px rgba(0, 0, 0, 0.85);
             }
-            .ryod-forge-subtitle { font-size: 0.72rem; color: #94a3b8; }
+            .ryod-forge-subtitle { font-size: 0.73rem; color: #9ca3b2; margin-top: 1px; }
             .ryod-forge-body {
-                padding: 9px 14px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px;
+                padding: 10px 16px; overflow-y: auto; overflow-x: hidden; display: flex; flex-direction: column; gap: 9px;
             }
             .ryod-dice-tray {
                 display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap;
-                background: linear-gradient(90deg, rgba(44, 24, 68, 0.65) 0%, rgba(30, 22, 16, 0.75) 100%);
-                border: 1px solid rgba(251, 191, 36, 0.45); border-radius: 9px; padding: 6px 10px;
+                background: linear-gradient(180deg, rgba(22, 26, 38, 0.95) 0%, rgba(12, 15, 22, 0.98) 100%);
+                border: 1px solid rgba(212, 175, 55, 0.44); border-radius: 8px; padding: 7px 11px;
+                box-shadow: inset 0 1px 0 rgba(255, 236, 179, 0.1), 0 4px 14px rgba(0, 0, 0, 0.65);
             }
             .ryod-d20-badge {
                 display: inline-flex; align-items: center; gap: 6px;
-                background: rgba(15, 11, 24, 0.92); border: 1px solid #fbbf24;
-                color: #fde68a; font-weight: 800; font-size: 0.82rem;
-                padding: 5px 10px; border-radius: 8px; min-width: 124px; cursor: pointer;
-                box-shadow: inset 0 0 10px rgba(245, 158, 11, 0.2);
+                background: linear-gradient(180deg, #1b202e 0%, #0e121b 100%); border: 1px solid rgba(212, 175, 55, 0.65);
+                color: #f5d77f; font-weight: 800; font-size: 0.81rem;
+                padding: 6px 11px; border-radius: 6px; min-width: 124px; cursor: pointer;
+                box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 2px 6px rgba(0, 0, 0, 0.7);
+                transition: border-color 0.14s ease, transform 0.14s ease;
             }
+            .ryod-d20-badge:hover { border-color: #fde68a; color: #fff6d6; transform: translateY(-1px); }
             .ryod-rolling .ryod-d20-badge, .ryod-rolling .ryod-select-input {
                 animation: ryodDieTumble 0.26s ease;
             }
             .ryod-btn-roll-all {
-                background: linear-gradient(180deg, #f59e0b 0%, #b45309 100%);
-                color: #fff; font-weight: 800; border: 1px solid #fde68a;
-                border-radius: 7px; padding: 6px 13px; font-size: 0.81rem; cursor: pointer;
-                box-shadow: 0 2px 10px rgba(245, 158, 11, 0.35);
+                background: linear-gradient(180deg, #3b2a10 0%, #1c1306 100%);
+                color: #fde68a; font-weight: 800; border: 1px solid rgba(245, 215, 127, 0.82);
+                border-radius: 6px; padding: 6px 13px; font-size: 0.81rem; cursor: pointer;
+                box-shadow: inset 0 1px 0 rgba(255, 236, 179, 0.22), 0 2px 8px rgba(0, 0, 0, 0.75);
+                transition: transform 0.14s ease, border-color 0.14s ease, box-shadow 0.14s ease;
             }
-            .ryod-btn-roll-all:hover { filter: brightness(1.08); }
+            .ryod-btn-roll-all:hover {
+                border-color: #fff6d6; color: #ffffff; transform: translateY(-1px);
+                box-shadow: 0 4px 14px rgba(212, 175, 55, 0.35), inset 0 1px 0 rgba(255, 236, 179, 0.3);
+            }
             .ryod-prompt-mini {
-                flex: 1; min-width: 170px; background: rgba(9, 8, 14, 0.9);
-                border: 1px solid rgba(168, 85, 247, 0.4); color: #f8fafc;
-                border-radius: 6px; padding: 5px 9px; font-size: 0.76rem;
+                flex: 1; min-width: 170px; background: #0d1018;
+                border: 1px solid rgba(148, 163, 184, 0.36); color: #dce0e8;
+                border-radius: 6px; padding: 6px 10px; font-size: 0.77rem;
+                box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.8);
+            }
+            .ryod-prompt-mini:focus {
+                border-color: #e5c158; outline: none; box-shadow: 0 0 10px rgba(212, 175, 55, 0.28);
             }
             .ryod-dice-grid {
-                display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+                display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px; width: 100%;
             }
-            @media (max-width: 780px) { .ryod-dice-grid { grid-template-columns: repeat(2, 1fr); } }
-            @media (max-width: 540px) { .ryod-dice-grid { grid-template-columns: 1fr; } }
+            @media (max-width: 780px) { .ryod-dice-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+            @media (max-width: 540px) { .ryod-dice-grid { grid-template-columns: minmax(0, 1fr); } }
             .ryod-die-card {
-                background: rgba(17, 15, 26, 0.92); border: 1px solid rgba(212, 175, 55, 0.32);
-                border-radius: 9px; padding: 7px 9px; display: flex; flex-direction: column; gap: 5px;
+                min-width: 0; overflow: hidden;
+                background: linear-gradient(165deg, rgba(26, 31, 45, 0.96) 0%, rgba(14, 17, 26, 0.98) 100%);
+                border: 1px solid rgba(212, 175, 55, 0.34); border-left: 3px solid rgba(212, 175, 55, 0.68);
+                border-radius: 8px; padding: 8px 10px; display: flex; flex-direction: column; gap: 6px;
+                box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 4px 12px rgba(0, 0, 0, 0.65);
                 transition: border-color 0.15s ease, box-shadow 0.15s ease;
             }
+            .ryod-die-card:hover {
+                border-color: rgba(245, 215, 127, 0.65); border-left-color: #f5d77f;
+            }
             .ryod-die-card.locked {
-                border-color: rgba(56, 189, 248, 0.65);
-                box-shadow: inset 0 0 12px rgba(56, 189, 248, 0.12);
+                border-color: rgba(245, 215, 127, 0.88); border-left-color: #fde68a;
+                background: linear-gradient(165deg, rgba(38, 34, 26, 0.96) 0%, rgba(18, 21, 31, 0.98) 100%);
+                box-shadow: inset 0 0 14px rgba(212, 175, 55, 0.16), 0 4px 12px rgba(0, 0, 0, 0.7);
             }
             .ryod-die-top {
-                display: flex; align-items: center; justify-content: space-between; gap: 4px;
+                display: flex; align-items: center; justify-content: space-between; gap: 6px; min-width: 0;
             }
             .ryod-die-label {
-                font-family: var(--font-title, 'Cinzel', serif); font-size: 0.7rem;
-                font-weight: 800; color: #fbbf24; letter-spacing: 0.4px;
+                font-family: var(--font-title, 'Cinzel', serif); font-size: 0.69rem;
+                font-weight: 800; color: #e5c158; letter-spacing: 0.4px;
+                white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0;
             }
-            .ryod-die-actions { display: flex; align-items: center; gap: 3px; }
+            .ryod-die-actions { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
             .ryod-mini-btn {
-                background: rgba(30, 26, 44, 0.95); color: #fde68a;
-                border: 1px solid rgba(251, 191, 36, 0.4); border-radius: 5px;
-                padding: 2px 6px; font-size: 0.68rem; font-weight: 700; cursor: pointer;
+                background: linear-gradient(180deg, #23293a 0%, #131722 100%); color: #dce0e8;
+                border: 1px solid rgba(212, 175, 55, 0.42); border-radius: 5px;
+                padding: 2px 7px; font-size: 0.67rem; font-weight: 700; cursor: pointer;
+                white-space: nowrap; flex-shrink: 0;
+                transition: border-color 0.12s ease, color 0.12s ease, background 0.12s ease;
             }
-            .ryod-mini-btn:hover { background: rgba(245, 158, 11, 0.22); }
+            .ryod-mini-btn:hover { background: linear-gradient(180deg, #322918 0%, #1b160d 100%); border-color: #f5d77f; color: #fde68a; }
             .ryod-mini-btn.locked {
-                background: rgba(14, 116, 144, 0.35); color: #7dd3fc; border-color: #38bdf8;
+                background: linear-gradient(180deg, #3b2a10 0%, #1c1306 100%); color: #fde68a; border-color: #f5d77f;
             }
             .ryod-stepper-row {
+                min-width: 0; width: 100%; box-sizing: border-box;
                 display: flex; align-items: center; gap: 4px;
-                background: rgba(9, 8, 15, 0.92); border: 1px solid rgba(148, 163, 184, 0.25);
-                border-radius: 6px; padding: 3px 5px;
+                background: #0d1018; border: 1px solid rgba(148, 163, 184, 0.28);
+                border-radius: 6px; padding: 4px 6px;
+                box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.8);
             }
             .ryod-step-arrow {
-                background: transparent; border: none; color: #fbbf24;
-                font-size: 0.78rem; font-weight: 800; cursor: pointer; padding: 1px 4px;
+                background: transparent; border: none; color: #e5c158;
+                font-size: 0.78rem; font-weight: 800; cursor: pointer; padding: 1px 5px;
             }
+            .ryod-step-arrow:hover { color: #fde68a; }
             .ryod-select-input {
-                flex: 1; min-width: 0; background: transparent; border: none;
-                color: #f8fafc; font-size: 0.76rem; font-weight: 700;
+                flex: 1 1 0%; width: 0; min-width: 0; background: transparent; border: none;
+                color: #e8ecf4; font-size: 0.76rem; font-weight: 600;
                 cursor: pointer; outline: none; font-family: inherit;
+                overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
             }
             .ryod-select-input option {
-                background: #110f1a; color: #f8fafc; font-weight: 600;
+                background: #0e121b; color: #dce0e8; font-weight: 600; padding: 6px;
             }
             .ryod-die-subRow {
                 display: flex; align-items: center; justify-content: space-between; gap: 4px;
-                font-size: 0.67rem; color: #94a3b8; flex-wrap: wrap;
+                font-size: 0.68rem; color: #9ca3b2; flex-wrap: wrap;
             }
             .ryod-die-desc {
                 flex: 1; min-width: 80px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
             }
             .ryod-sub-pill {
-                background: rgba(30, 41, 59, 0.85); border: 1px solid rgba(148, 163, 184, 0.35);
-                color: #e2e8f0; border-radius: 99px; padding: 1px 6px; font-size: 0.65rem;
+                background: linear-gradient(180deg, #1e2434 0%, #111520 100%); border: 1px solid rgba(148, 163, 184, 0.36);
+                color: #cbd5e1; border-radius: 6px; padding: 2px 7px; font-size: 0.66rem;
                 font-weight: 600; cursor: pointer; white-space: nowrap;
+                transition: border-color 0.12s ease, color 0.12s ease;
             }
-            .ryod-sub-pill:hover { border-color: #fbbf24; color: #fde68a; }
+            .ryod-sub-pill:hover { border-color: #e5c158; color: #fde68a; }
             .ryod-summary-strip {
-                background: linear-gradient(90deg, rgba(30, 20, 12, 0.92) 0%, rgba(20, 15, 32, 0.92) 100%);
-                border: 1px solid rgba(251, 191, 36, 0.4); border-radius: 8px;
-                padding: 6px 11px; display: flex; flex-direction: column; gap: 3px;
+                background: linear-gradient(180deg, rgba(22, 26, 38, 0.95) 0%, rgba(12, 15, 22, 0.98) 100%);
+                border: 1px solid rgba(212, 175, 55, 0.42); border-radius: 8px;
+                padding: 7px 12px; display: flex; flex-direction: column; gap: 3px;
+                box-shadow: inset 0 1px 0 rgba(255, 236, 179, 0.08), 0 4px 12px rgba(0, 0, 0, 0.6);
             }
             .ryod-summary-top {
                 display: flex; align-items: center; justify-content: space-between; gap: 6px; flex-wrap: wrap;
             }
             .ryod-preview-title {
-                font-family: var(--font-title, 'Cinzel', serif); font-weight: 800; color: #fde68a; font-size: 0.84rem;
+                font-family: var(--font-title, 'Cinzel', serif); font-weight: 800; color: #f3d478; font-size: 0.84rem;
             }
             .ryod-hash-pill {
                 font-family: var(--font-terminal, monospace); font-size: 0.68rem;
-                background: rgba(245, 158, 11, 0.16); border: 1px solid rgba(245, 158, 11, 0.45);
-                color: #fbbf24; padding: 1px 7px; border-radius: 99px;
+                background: #0e121b; border: 1px solid rgba(212, 175, 55, 0.48);
+                color: #e5c158; padding: 2px 8px; border-radius: 5px;
             }
             .ryod-preview-premise {
-                font-size: 0.71rem; color: #cbd5e1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+                font-size: 0.72rem; color: #b8c0ce; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
             }
             .ryod-forge-footer {
                 display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap;
-                gap: 6px; padding: 8px 14px; border-top: 1px solid rgba(245, 158, 11, 0.28);
-                background: rgba(12, 10, 18, 0.96);
+                gap: 6px; padding: 9px 16px; border-top: 1px solid rgba(212, 175, 55, 0.24);
+                background: linear-gradient(180deg, rgba(16, 19, 28, 0.98) 0%, rgba(10, 12, 18, 0.99) 100%);
             }
-            .ryod-btn-row { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+            .ryod-btn-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
             .ryod-btn-primary {
-                background: linear-gradient(180deg, #10b981 0%, #047857 100%);
-                color: #fff; font-weight: 800; border: 1px solid #6ee7b7;
-                border-radius: 7px; padding: 6px 14px; font-size: 0.82rem; cursor: pointer;
-                box-shadow: 0 2px 10px rgba(16, 185, 129, 0.35);
+                background: linear-gradient(180deg, #d4af37 0%, #9a7418 100%);
+                color: #0b0d13; font-weight: 800; border: 1px solid #fde68a;
+                border-radius: 6px; padding: 7px 16px; font-size: 0.83rem; cursor: pointer;
+                box-shadow: 0 3px 12px rgba(212, 175, 55, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+                transition: transform 0.14s ease, filter 0.14s ease, box-shadow 0.14s ease;
+            }
+            .ryod-btn-primary:hover {
+                filter: brightness(1.08); transform: translateY(-1px);
+                box-shadow: 0 5px 16px rgba(212, 175, 55, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.45);
             }
             .ryod-btn-instant {
-                background: linear-gradient(180deg, #7c3aed 0%, #4c1d95 100%);
-                color: #f3e8ff; font-weight: 800; border: 1px solid #c084fc;
-                border-radius: 6px; padding: 5px 10px; font-size: 0.75rem; cursor: pointer;
+                background: linear-gradient(180deg, #252b3d 0%, #141824 100%);
+                color: #f3d478; font-weight: 800; border: 1px solid rgba(212, 175, 55, 0.65);
+                border-radius: 6px; padding: 6px 12px; font-size: 0.76rem; cursor: pointer;
+                box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 2px 6px rgba(0, 0, 0, 0.65);
+                transition: transform 0.14s ease, border-color 0.14s ease, color 0.14s ease;
+            }
+            .ryod-btn-instant:hover {
+                border-color: #fde68a; color: #fff6d6; transform: translateY(-1px);
             }
             .ryod-btn-outline {
-                background: rgba(24, 22, 34, 0.9); color: #fcd34d;
-                border: 1px solid rgba(251, 191, 36, 0.4); border-radius: 6px;
-                padding: 4px 8px; font-size: 0.71rem; cursor: pointer;
+                background: linear-gradient(180deg, #222838 0%, #131722 100%); color: #dce0e8;
+                border: 1px solid rgba(212, 175, 55, 0.42); border-radius: 6px;
+                padding: 5px 9px; font-size: 0.72rem; font-weight: 600; cursor: pointer;
+                transition: border-color 0.12s ease, color 0.12s ease;
+            }
+            .ryod-btn-outline:hover {
+                border-color: #f5d77f; color: #fde68a;
             }
         `;
         document.head.appendChild(style);
@@ -793,7 +835,7 @@
                         <input type="file" id="ryod-file-import" accept=".json,.ryod.json" style="display:none;">
                         <button type="button" id="btn-ryod-copy-link" class="ryod-btn-outline" title="Copy shareable URL permalink">🔗 Share Link</button>
                         <span id="ryod-saved-shelf" style="display:inline-flex; gap:4px; align-items:center;"></span>
-                        <span id="ryod-status-msg" style="font-size:0.72rem; color:#4ade80;"></span>
+                        <span id="ryod-status-msg" style="font-size:0.72rem; color:#f5d77f;"></span>
                     </div>
                     <div class="ryod-btn-row">
                         <button type="button" id="btn-ryod-launch" class="ryod-btn-primary">⚔️ Enter Rolled Dungeon</button>
@@ -928,20 +970,16 @@
         return bp;
     }
 
-    async function launchRyodAdventure(bp, instantRandom = true) {
+    function launchRyodAdventure(bp, instantRandom = true) {
         const activeBp = applyBlueprintToRuntime(bp || _currentBlueprint || initDefaultBlueprint());
         close();
         const heroSlug = String((activeBp && activeBp.heroOrigin) || 'Hero').replace(/[^a-zA-Z0-9]/g, '').slice(0, 8) || 'Hero';
         const hashSuffix = String((activeBp && activeBp.ryodHash) || 'RYOD').replace(/^RYOD[-_]/i, '').slice(0, 4);
-        const slotName = `${heroSlug}_RYOD_${hashSuffix}`;
-        await persistBlueprintToServer(activeBp, slotName);
-        if (typeof window !== 'undefined' && window.__app) {
-            if (typeof window.__app.selectRealm === 'function') {
-                window.__app.selectRealm('ryod', false);
-            }
-            if (typeof window.__app.startNewRyodGame === 'function') {
-                window.__app.startNewRyodGame(slotName, activeBp, instantRandom);
-            }
+        const randTag = Math.floor(100 + Math.random() * 900);
+        const slotName = `${heroSlug}_${hashSuffix}_${randTag}`;
+        persistBlueprintToServer(activeBp, slotName).catch(() => {});
+        if (typeof window !== 'undefined' && window.__app && typeof window.__app.startNewRyodGame === 'function') {
+            window.__app.startNewRyodGame(slotName, activeBp, instantRandom);
         }
     }
 
@@ -1097,6 +1135,15 @@
         }
 
         const weaveBtn = overlay.querySelector('#btn-ryod-weave-prompt');
+        const promptInput = overlay.querySelector('#ryod-architect-prompt');
+        if (promptInput && weaveBtn) {
+            promptInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    weaveBtn.click();
+                }
+            });
+        }
         if (weaveBtn) {
             weaveBtn.addEventListener('click', async () => {
                 const promptEl = overlay.querySelector('#ryod-architect-prompt');
