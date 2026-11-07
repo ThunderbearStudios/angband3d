@@ -3537,16 +3537,61 @@ class Dungeon3D {
         applyCeilingVertexAO(ceilingGeo, this.cellSize);
 
         // Helper to construct composite PBR geometries (1:1 with Godot SurfaceTool / BuildDoorMesh)
+        // # ROOT-CAUSE: Altars and fountains looked cheap and incorrect because _loadPolyHavenEnvironmentModels overwrote fountainMesh with low-poly cartoon building_well_blue.gltf and merged incompatible shrine_candles.gltf UVs into altarMesh, while createMergedBoxGeometry only supported flat BoxGeometry cubes on a single material darkened by floorShade.
         const createMergedBoxGeometry = (boxes) => {
             const geometries = boxes.map(b => {
-                const geo = new THREE.BoxGeometry(b.size[0], b.size[1], b.size[2]);
+                let geo;
+                if (b.type === 'lathe' && Array.isArray(b.points)) {
+                    const pts = b.points.map(p => new THREE.Vector2(p[0], p[1]));
+                    geo = new THREE.LatheGeometry(
+                        pts,
+                        b.segments || 20,
+                        b.phiStart || 0,
+                        b.phiLength !== undefined ? b.phiLength : Math.PI * 2
+                    );
+                    geo.computeVertexNormals();
+                } else if (b.type === 'cylinder') {
+                    geo = new THREE.CylinderGeometry(
+                        b.rTop !== undefined ? b.rTop : 0.5,
+                        b.rBottom !== undefined ? b.rBottom : 0.5,
+                        b.height !== undefined ? b.height : 1.0,
+                        b.segments || 16,
+                        b.heightSegments || 1,
+                        Boolean(b.openEnded)
+                    );
+                } else if (b.type === 'torus') {
+                    geo = new THREE.TorusGeometry(
+                        b.radius !== undefined ? b.radius : 0.5,
+                        b.tube !== undefined ? b.tube : 0.05,
+                        b.radialSegments || 10,
+                        b.tubularSegments || 24,
+                        b.arc !== undefined ? b.arc : Math.PI * 2
+                    );
+                } else if (b.type === 'cone') {
+                    geo = new THREE.ConeGeometry(
+                        b.radius !== undefined ? b.radius : 0.5,
+                        b.height !== undefined ? b.height : 1.0,
+                        b.segments || 16,
+                        b.heightSegments || 1,
+                        Boolean(b.openEnded)
+                    );
+                } else if (b.type === 'sphere') {
+                    geo = new THREE.SphereGeometry(
+                        b.radius !== undefined ? b.radius : 0.5,
+                        b.widthSegments || 14,
+                        b.heightSegments || 10
+                    );
+                } else {
+                    geo = new THREE.BoxGeometry(b.size[0], b.size[1], b.size[2]);
+                }
+                if (b.scale) geo.scale(b.scale[0], b.scale[1], b.scale[2]);
                 if (b.rotX) geo.rotateX(b.rotX);
                 if (b.rotY) geo.rotateY(b.rotY);
                 if (b.rotZ) geo.rotateZ(b.rotZ);
-                geo.translate(b.pos[0], b.pos[1], b.pos[2]);
-                const nonIndexed = geo.toNonIndexed();
+                if (b.pos) geo.translate(b.pos[0], b.pos[1], b.pos[2]);
+                const nonIndexed = geo.index ? geo.toNonIndexed() : geo;
                 if (b.color) nonIndexed._boxColor = b.color;
-                geo.dispose();
+                if (nonIndexed !== geo) geo.dispose();
                 return nonIndexed;
             });
             let totalVerts = 0;
@@ -3967,90 +4012,377 @@ class Dungeon3D {
         this.stairsUpMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
         this.scene.add(this.stairsUpMesh);
 
-        // 7. Consecrated High Altar (feat 43: '_') - Stepped stone dais, crimson runner, gilded mensa & sacred chalice
-        const altarGeo = createMergedBoxGeometry([
-            { pos: [0, 0.06, 0], size: [1.52, 0.12, 1.16], color: [0.76, 0.73, 0.68] },      // Lower ashlar step
-            { pos: [0, 0.18, 0], size: [1.30, 0.12, 0.96], color: [0.84, 0.81, 0.75] },      // Upper marble step
-            { pos: [0, 0.48, 0], size: [1.04, 0.48, 0.68], color: [0.90, 0.88, 0.82] },      // Sanctuary altar block
-            { pos: [0, 0.49, 0], size: [0.38, 0.50, 0.72], color: [0.82, 0.18, 0.16] },      // Crimson altar frontal cloth
-            { pos: [-0.48, 0.48, -0.30], size: [0.12, 0.50, 0.12], color: [0.95, 0.80, 0.36] }, // NW gilded corner pillar
-            { pos: [0.48, 0.48, -0.30], size: [0.12, 0.50, 0.12], color: [0.95, 0.80, 0.36] },  // NE gilded corner pillar
-            { pos: [-0.48, 0.48, 0.30], size: [0.12, 0.50, 0.12], color: [0.95, 0.80, 0.36] },  // SW gilded corner pillar
-            { pos: [0.48, 0.48, 0.30], size: [0.12, 0.50, 0.12], color: [0.95, 0.80, 0.36] },   // SE gilded corner pillar
-            { pos: [0, 0.71, 0], size: [1.18, 0.05, 0.80], color: [1.00, 0.82, 0.32] },      // Gilded cornice trim
-            { pos: [0, 0.78, 0], size: [1.24, 0.12, 0.86], color: [0.96, 0.94, 0.88] },      // Overhanging sacrificial mensa slab
-            { pos: [-0.54, 0.88, -0.35], size: [0.10, 0.12, 0.10], color: [1.00, 0.84, 0.35] }, // Sacred altar horn NW
-            { pos: [0.54, 0.88, -0.35], size: [0.10, 0.12, 0.10], color: [1.00, 0.84, 0.35] },  // Sacred altar horn NE
-            { pos: [-0.54, 0.88, 0.35], size: [0.10, 0.12, 0.10], color: [1.00, 0.84, 0.35] },  // Sacred altar horn SW
-            { pos: [0.54, 0.88, 0.35], size: [0.10, 0.12, 0.10], color: [1.00, 0.84, 0.35] },   // Sacred altar horn SE
-            { pos: [-0.36, 0.93, 0], size: [0.09, 0.18, 0.09], color: [0.95, 0.78, 0.28] },  // Left sanctuary candlestick
-            { pos: [-0.36, 1.06, 0], size: [0.08, 0.12, 0.08], rotY: 0.78, color: [1.00, 0.92, 0.45] }, // Left candle flame
-            { pos: [0.36, 0.93, 0], size: [0.09, 0.18, 0.09], color: [0.95, 0.78, 0.28] },   // Right sanctuary candlestick
-            { pos: [0.36, 1.06, 0], size: [0.08, 0.12, 0.08], rotY: 0.78, color: [1.00, 0.92, 0.45] },  // Right candle flame
-            { pos: [0, 0.89, 0], size: [0.22, 0.10, 0.22], color: [1.00, 0.84, 0.32] },      // Offering chalice pedestal
-            { pos: [0, 0.97, 0], size: [0.32, 0.08, 0.32], color: [1.00, 0.88, 0.40] },      // Golden offering bowl
-            { pos: [0, 1.06, 0], size: [0.18, 0.14, 0.18], rotY: 0.78, rotX: 0.45, color: [1.00, 0.96, 0.62] } // Sacred flame
-        ]);
+        // # ROOT-CAUSE: Replace flat single-material box stacks for High Altars and Magic Fountains with 3-layer sculpted PBR geometries (carved stone/marble + burnished brass/orichalcum + animated sacred flames / scrolling crystalline water).
+        // 7. Consecrated High Altar (feat 43: '_') - 3-Layer Sculpted Gothic Sanctuary Dais, Orichalcum Relics & Sacred Fire
+        const altarStoneParts = [
+            // Two-tier stepped sanctuary dais with beveled moldings & crimson stair runner
+            { pos: [0, 0.045, 0], size: [1.68, 0.09, 1.28], color: [0.76, 0.74, 0.69] },
+            { pos: [0, 0.10, 0], size: [1.60, 0.03, 1.20], color: [0.84, 0.81, 0.76] },
+            { pos: [0, 0.16, 0], size: [1.42, 0.09, 1.04], color: [0.86, 0.83, 0.78] },
+            { pos: [0, 0.165, 0], size: [0.46, 0.10, 1.06], color: [0.64, 0.09, 0.12] },
+            // Molded altar base plinth & carved Gothic stone chest
+            { pos: [0, 0.24, 0], size: [1.20, 0.08, 0.82], color: [0.82, 0.79, 0.74] },
+            { pos: [0, 0.50, 0], size: [1.08, 0.46, 0.68], color: [0.91, 0.88, 0.83] },
+            // Recessed dark-basalt Gothic arcade panels flanking the central frontal
+            { pos: [-0.35, 0.50, 0], size: [0.24, 0.34, 0.71], color: [0.30, 0.32, 0.37] },
+            { pos: [0.35, 0.50, 0], size: [0.24, 0.34, 0.71], color: [0.30, 0.32, 0.37] },
+            { pos: [0, 0.50, 0], size: [1.11, 0.34, 0.36], color: [0.30, 0.32, 0.37] },
+            // 4 Fluted marble corner colonnettes
+            { type: 'cylinder', rTop: 0.064, rBottom: 0.068, height: 0.46, segments: 12, pos: [-0.50, 0.50, -0.31], color: [0.96, 0.94, 0.89] },
+            { type: 'cylinder', rTop: 0.064, rBottom: 0.068, height: 0.46, segments: 12, pos: [0.50, 0.50, -0.31], color: [0.96, 0.94, 0.89] },
+            { type: 'cylinder', rTop: 0.064, rBottom: 0.068, height: 0.46, segments: 12, pos: [-0.50, 0.50, 0.31], color: [0.96, 0.94, 0.89] },
+            { type: 'cylinder', rTop: 0.064, rBottom: 0.068, height: 0.46, segments: 12, pos: [0.50, 0.50, 0.31], color: [0.96, 0.94, 0.89] },
+            // Overhanging sacrificial mensa slab & lower cyma molding
+            { pos: [0, 0.74, 0], size: [1.18, 0.04, 0.78], color: [0.88, 0.85, 0.80] },
+            { pos: [0, 0.81, 0], size: [1.30, 0.10, 0.88], color: [0.97, 0.95, 0.91] },
+            // Imperial crimson velvet antependium frontal & mensa cloth runner
+            { pos: [0, 0.51, 0], size: [0.42, 0.50, 0.73], color: [0.72, 0.10, 0.13] },
+            { pos: [0, 0.865, 0], size: [0.44, 0.02, 0.90], color: [0.76, 0.11, 0.14] },
+            // Open illuminated sanctuary missal on angled lectern (left side of mensa)
+            { pos: [-0.25, 0.88, 0.14], size: [0.22, 0.03, 0.18], rotX: 0.28, rotY: 0.18, color: [0.44, 0.15, 0.10] },
+            { pos: [-0.25, 0.895, 0.14], size: [0.20, 0.02, 0.16], rotX: 0.28, rotY: 0.18, color: [0.98, 0.95, 0.86] },
+            // Twin tall ivory beeswax sanctuary candles
+            { type: 'cylinder', rTop: 0.028, rBottom: 0.032, height: 0.22, segments: 12, pos: [-0.44, 1.09, 0], color: [0.98, 0.95, 0.85] },
+            { type: 'cylinder', rTop: 0.028, rBottom: 0.032, height: 0.22, segments: 12, pos: [0.44, 1.09, 0], color: [0.98, 0.95, 0.85] }
+        ];
+        const altarGeo = createMergedBoxGeometry(altarStoneParts);
         this.altarMaterial = new THREE.MeshStandardMaterial({
-            roughness: 0.38,
-            metalness: 0.26,
-            emissive: new THREE.Color(0x2e1f08),
-            emissiveIntensity: 0.45,
+            color: 0xffffff,
+            map: this.floorTex,
+            normalMap: this.wallNormal,
+            normalScale: new THREE.Vector2(1.15, 1.15),
+            roughness: 0.48,
+            metalness: 0.08,
+            emissive: new THREE.Color(0x1c1408),
+            emissiveIntensity: 0.28,
             vertexColors: true
         });
         this.altarMesh = new THREE.InstancedMesh(altarGeo, this.altarMaterial, 64);
         this.altarMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
         this.scene.add(this.altarMesh);
 
-        this.forgeMaterial = this.altarMaterial.clone();
-        this.forgeMesh = new THREE.InstancedMesh(altarGeo.clone(), this.forgeMaterial, 32);
+        // Layer 7B: Burnished Orichalcum / Gold Altar Relics (Candlesticks, Chalice, Altar Horns & Solar Medallions)
+        const candlestickProfile = [
+            [0.00, 0.00], [0.095, 0.00], [0.088, 0.022], [0.042, 0.042],
+            [0.026, 0.065], [0.052, 0.085], [0.025, 0.105], [0.076, 0.125],
+            [0.072, 0.135], [0.034, 0.132], [0.00, 0.130]
+        ];
+        const chaliceProfile = [
+            [0.00, 0.00], [0.135, 0.00], [0.125, 0.022], [0.055, 0.045],
+            [0.038, 0.075], [0.072, 0.102], [0.040, 0.128], [0.115, 0.155],
+            [0.168, 0.205], [0.180, 0.230], [0.162, 0.232], [0.130, 0.175], [0.00, 0.168]
+        ];
+        const hornProfile = [
+            [0.00, 0.00], [0.068, 0.00], [0.058, 0.035], [0.040, 0.085], [0.018, 0.135], [0.00, 0.155]
+        ];
+        const altarBrassParts = [
+            // Gilded cornice molding & antependium gold bullion fringe
+            { pos: [0, 0.755, 0], size: [1.22, 0.032, 0.82], color: [1.00, 0.84, 0.36] },
+            { pos: [0, 0.27, 0], size: [0.44, 0.032, 0.74], color: [1.00, 0.82, 0.32] },
+            { pos: [0, 0.862, 0], size: [0.46, 0.016, 0.91], color: [1.00, 0.84, 0.36] },
+            // 4 Column bases & 4 Corinthian capitals
+            { type: 'cylinder', rTop: 0.082, rBottom: 0.088, height: 0.04, segments: 12, pos: [-0.50, 0.29, -0.31], color: [0.96, 0.78, 0.30] },
+            { type: 'cylinder', rTop: 0.082, rBottom: 0.088, height: 0.04, segments: 12, pos: [0.50, 0.29, -0.31], color: [0.96, 0.78, 0.30] },
+            { type: 'cylinder', rTop: 0.082, rBottom: 0.088, height: 0.04, segments: 12, pos: [-0.50, 0.29, 0.31], color: [0.96, 0.78, 0.30] },
+            { type: 'cylinder', rTop: 0.082, rBottom: 0.088, height: 0.04, segments: 12, pos: [0.50, 0.29, 0.31], color: [0.96, 0.78, 0.30] },
+            { type: 'cylinder', rTop: 0.088, rBottom: 0.072, height: 0.045, segments: 12, pos: [-0.50, 0.71, -0.31], color: [1.00, 0.84, 0.36] },
+            { type: 'cylinder', rTop: 0.088, rBottom: 0.072, height: 0.045, segments: 12, pos: [0.50, 0.71, -0.31], color: [1.00, 0.84, 0.36] },
+            { type: 'cylinder', rTop: 0.088, rBottom: 0.072, height: 0.045, segments: 12, pos: [-0.50, 0.71, 0.31], color: [1.00, 0.84, 0.36] },
+            { type: 'cylinder', rTop: 0.088, rBottom: 0.072, height: 0.045, segments: 12, pos: [0.50, 0.71, 0.31], color: [1.00, 0.84, 0.36] },
+            // Front & Back Solar Cross Medallions on the crimson antependium
+            { type: 'torus', radius: 0.11, tube: 0.016, radialSegments: 10, tubularSegments: 20, pos: [0, 0.52, 0.37], color: [1.00, 0.86, 0.38] },
+            { pos: [0, 0.52, 0.37], size: [0.032, 0.25, 0.022], color: [1.00, 0.88, 0.42] },
+            { pos: [0, 0.52, 0.37], size: [0.25, 0.032, 0.022], color: [1.00, 0.88, 0.42] },
+            { type: 'torus', radius: 0.11, tube: 0.016, radialSegments: 10, tubularSegments: 20, pos: [0, 0.52, -0.37], color: [1.00, 0.86, 0.38] },
+            { pos: [0, 0.52, -0.37], size: [0.032, 0.25, 0.022], color: [1.00, 0.88, 0.42] },
+            { pos: [0, 0.52, -0.37], size: [0.25, 0.032, 0.022], color: [1.00, 0.88, 0.42] },
+            // 4 Consecrated Altar Horns at the corners of the mensa
+            { type: 'lathe', points: hornProfile, segments: 14, pos: [-0.56, 0.86, -0.36], rotZ: 0.18, rotX: -0.18, color: [1.00, 0.85, 0.36] },
+            { type: 'lathe', points: hornProfile, segments: 14, pos: [0.56, 0.86, -0.36], rotZ: -0.18, rotX: -0.18, color: [1.00, 0.85, 0.36] },
+            { type: 'lathe', points: hornProfile, segments: 14, pos: [-0.56, 0.86, 0.36], rotZ: 0.18, rotX: 0.18, color: [1.00, 0.85, 0.36] },
+            { type: 'lathe', points: hornProfile, segments: 14, pos: [0.56, 0.86, 0.36], rotZ: -0.18, rotX: 0.18, color: [1.00, 0.85, 0.36] },
+            // Twin Turned Brass Sanctuary Candlesticks & Central Sacrificial Chalice
+            { type: 'lathe', points: candlestickProfile, segments: 18, pos: [-0.44, 0.86, 0], color: [1.00, 0.84, 0.35] },
+            { type: 'lathe', points: candlestickProfile, segments: 18, pos: [0.44, 0.86, 0], color: [1.00, 0.84, 0.35] },
+            { type: 'lathe', points: chaliceProfile, segments: 24, pos: [0, 0.86, 0], color: [1.00, 0.88, 0.42] }
+        ];
+        const altarBrassGeo = createMergedBoxGeometry(altarBrassParts);
+        this.altarBrassMaterial = new THREE.MeshStandardMaterial({
+            color: 0xffdf80,
+            normalMap: this.floorNormal,
+            normalScale: new THREE.Vector2(0.38, 0.38),
+            roughness: 0.20,
+            metalness: 0.88,
+            emissive: new THREE.Color(0x3a2406),
+            emissiveIntensity: 0.38,
+            vertexColors: true
+        });
+        this.altarBrassMesh = new THREE.InstancedMesh(altarBrassGeo, this.altarBrassMaterial, 64);
+        this.altarBrassMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+        this.scene.add(this.altarBrassMesh);
+
+        // Layer 7C: Living Sacred Flames & Consecrated Floor Halo Ring
+        const chaliceFlameProfile = [
+            [0.00, 0.00], [0.095, 0.025], [0.105, 0.085], [0.068, 0.165], [0.024, 0.235], [0.00, 0.275]
+        ];
+        const candleFlameProfile = [
+            [0.00, 0.00], [0.028, 0.018], [0.032, 0.045], [0.018, 0.085], [0.00, 0.115]
+        ];
+        const altarFlameParts = [
+            // Central chalice glowing ember bed + outer amber flame + inner white-gold core
+            { type: 'cylinder', rTop: 0.145, rBottom: 0.125, height: 0.025, segments: 18, pos: [0, 1.05, 0], color: [1.00, 0.52, 0.12] },
+            { type: 'lathe', points: chaliceFlameProfile, segments: 18, pos: [0, 1.055, 0], color: [1.00, 0.78, 0.24] },
+            { type: 'cone', radius: 0.055, height: 0.19, segments: 14, pos: [0, 1.14, 0], color: [1.00, 0.98, 0.86] },
+            // Left & right candle flames
+            { type: 'lathe', points: candleFlameProfile, segments: 14, pos: [-0.44, 1.20, 0], color: [1.00, 0.88, 0.38] },
+            { type: 'cone', radius: 0.016, height: 0.075, segments: 10, pos: [-0.44, 1.235, 0], color: [1.00, 1.00, 0.92] },
+            { type: 'lathe', points: candleFlameProfile, segments: 14, pos: [0.44, 1.20, 0], color: [1.00, 0.88, 0.38] },
+            { type: 'cone', radius: 0.016, height: 0.075, segments: 10, pos: [0.44, 1.235, 0], color: [1.00, 1.00, 0.92] },
+            // Consecrated Sanctuary Floor Halo Ring
+            { type: 'torus', radius: 0.92, tube: 0.013, radialSegments: 8, tubularSegments: 32, rotX: Math.PI / 2, pos: [0, 0.022, 0], color: [1.00, 0.82, 0.32] }
+        ];
+        const altarFlameGeo = createMergedBoxGeometry(altarFlameParts);
+        this.altarFlameMaterial = new THREE.MeshStandardMaterial({
+            color: 0xfff6d6,
+            emissive: new THREE.Color(0xff9d1a),
+            emissiveIntensity: 2.25,
+            roughness: 0.12,
+            metalness: 0.0,
+            transparent: true,
+            opacity: 0.93,
+            vertexColors: true
+        });
+        this.altarFlameMesh = new THREE.InstancedMesh(altarFlameGeo, this.altarFlameMaterial, 64);
+        this.altarFlameMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+        this.scene.add(this.altarFlameMesh);
+
+        // Dwarven Smithing Forge & Horned Anvil (feat 60 / Sil-Q '0')
+        const forgeGeo = createMergedBoxGeometry([
+            { type: 'cylinder', rTop: 0.72, rBottom: 0.78, height: 0.12, segments: 8, pos: [0, 0.06, 0], color: [0.42, 0.40, 0.38] },
+            { type: 'cylinder', rTop: 0.38, rBottom: 0.42, height: 0.44, segments: 12, pos: [0, 0.34, 0], color: [0.46, 0.30, 0.18] },
+            { pos: [0, 0.64, 0], size: [0.42, 0.16, 0.28], color: [0.28, 0.30, 0.34] },
+            { pos: [0, 0.78, 0], size: [0.56, 0.14, 0.24], color: [0.36, 0.38, 0.42] },
+            { type: 'cone', radius: 0.11, height: 0.30, segments: 12, rotZ: -Math.PI / 2, pos: [0.40, 0.79, 0], color: [0.38, 0.40, 0.44] },
+            { pos: [-0.34, 0.79, 0], size: [0.18, 0.10, 0.22], color: [0.36, 0.38, 0.42] }
+        ]);
+        this.forgeMaterial = new THREE.MeshStandardMaterial({
+            color: 0xffffff,
+            normalMap: this.wallNormal,
+            normalScale: new THREE.Vector2(0.85, 0.85),
+            roughness: 0.42,
+            metalness: 0.62,
+            emissive: new THREE.Color(0x2e1204),
+            emissiveIntensity: 0.35,
+            vertexColors: true
+        });
+        this.forgeMesh = new THREE.InstancedMesh(forgeGeo, this.forgeMaterial, 32);
         this.forgeMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
         this.scene.add(this.forgeMesh);
 
-        // 8. Sparkling Magic Fountain (feat 44: '{') - Octagonal stone basin, tiered pedestal & cascading azure water
-        const fountainBoxes = [
-            { pos: [0, 0.05, 0], size: [1.28, 0.10, 1.28], color: [0.68, 0.72, 0.78] },                      // Octagonal base plinth A
-            { pos: [0, 0.05, 0], size: [1.28, 0.10, 1.28], rotY: Math.PI / 4, color: [0.68, 0.72, 0.78] },   // Octagonal base plinth B
-            { pos: [0, 0.33, 0], size: [0.94, 0.08, 0.94], color: [0.18, 0.76, 1.00] },                      // Lower basin azure water pool A
-            { pos: [0, 0.33, 0], size: [0.94, 0.08, 0.94], rotY: Math.PI / 4, color: [0.22, 0.80, 1.00] },   // Lower basin azure water pool B
-            { pos: [0, 0.54, 0], size: [0.28, 0.46, 0.28], color: [0.80, 0.84, 0.90] },                      // Central stone column shaft
-            { pos: [0, 0.76, 0], size: [0.58, 0.10, 0.58], color: [0.86, 0.90, 0.95] },                      // Upper catch-bowl A
-            { pos: [0, 0.76, 0], size: [0.58, 0.10, 0.58], rotY: Math.PI / 4, color: [0.86, 0.90, 0.95] },   // Upper catch-bowl B
-            { pos: [0, 0.81, 0], size: [0.46, 0.05, 0.46], color: [0.28, 0.88, 1.00] },                      // Upper catch-bowl water
-            { pos: [0, 0.90, 0], size: [0.16, 0.18, 0.16], color: [0.88, 0.92, 0.96] },                      // Fountain finial nozzle
-            { pos: [0, 1.06, 0], size: [0.22, 0.22, 0.22], rotY: 0.78, rotX: 0.60, color: [0.58, 0.96, 1.00] }, // Sparkling water plume crest
-            { pos: [0.26, 0.58, 0], size: [0.08, 0.36, 0.08], rotZ: -0.22, color: [0.45, 0.92, 1.00] },      // East cascading water stream
-            { pos: [-0.26, 0.58, 0], size: [0.08, 0.36, 0.08], rotZ: 0.22, color: [0.45, 0.92, 1.00] },      // West cascading water stream
-            { pos: [0, 0.58, 0.26], size: [0.08, 0.36, 0.08], rotX: 0.22, color: [0.45, 0.92, 1.00] },       // South cascading water stream
-            { pos: [0, 0.58, -0.26], size: [0.08, 0.36, 0.08], rotX: -0.22, color: [0.45, 0.92, 1.00] }      // North cascading water stream
+        // 8. Sparkling Magic Fountain (feat 44: '{') - 3-Layer Sculpted Hollowed Marble Basin, Bronze Gargoyle Spouts & Living Water
+        const lowerBasinProfile = [
+            [0.00, 0.14], [0.64, 0.14], [0.70, 0.18], [0.66, 0.24],
+            [0.68, 0.35], [0.75, 0.45], [0.77, 0.48], [0.74, 0.51],
+            [0.60, 0.51], [0.58, 0.47], [0.54, 0.22], [0.00, 0.22]
+        ];
+        const upperBowlProfile = [
+            [0.00, 0.82], [0.14, 0.82], [0.22, 0.88], [0.38, 0.96],
+            [0.44, 1.03], [0.42, 1.06], [0.35, 1.06], [0.32, 0.92], [0.00, 0.92]
+        ];
+        const centralPedestalProfile = [
+            [0.00, 0.20], [0.25, 0.20], [0.23, 0.27], [0.17, 0.33],
+            [0.15, 0.58], [0.18, 0.62], [0.14, 0.84], [0.00, 0.84]
+        ];
+        const spireFinialProfile = [
+            [0.00, 0.92], [0.12, 0.92], [0.09, 1.04], [0.11, 1.10], [0.06, 1.22], [0.00, 1.22]
+        ];
+        const fountainStoneParts = [
+            // Two-tier stepped octagonal stone foundation
+            { type: 'cylinder', rTop: 0.86, rBottom: 0.90, height: 0.07, segments: 8, pos: [0, 0.035, 0], color: [0.72, 0.76, 0.82] },
+            { type: 'cylinder', rTop: 0.76, rBottom: 0.80, height: 0.07, segments: 8, pos: [0, 0.105, 0], color: [0.80, 0.84, 0.89] },
+            // Hollowed lathed marble lower basin + fluted central pedestal + scalloped upper catch-bowl + spire
+            { type: 'lathe', points: lowerBasinProfile, segments: 24, pos: [0, 0, 0], color: [0.88, 0.91, 0.95] },
+            { type: 'lathe', points: centralPedestalProfile, segments: 20, pos: [0, 0, 0], color: [0.90, 0.93, 0.97] },
+            { type: 'lathe', points: upperBowlProfile, segments: 24, pos: [0, 0, 0], color: [0.92, 0.95, 0.98] },
+            { type: 'lathe', points: spireFinialProfile, segments: 18, pos: [0, 0, 0], color: [0.94, 0.96, 0.99] }
         ];
         for (let seg = 0; seg < 8; seg++) {
             const ang = seg * (Math.PI / 4);
-            const r = 0.56;
-            fountainBoxes.push({
-                pos: [Math.cos(ang) * r, 0.25, Math.sin(ang) * r],
-                size: [0.16, 0.34, 0.48],
+            const r = 0.71;
+            fountainStoneParts.push({
+                pos: [Math.cos(ang) * r, 0.32, Math.sin(ang) * r],
+                size: [0.11, 0.32, 0.16],
                 rotY: -ang,
-                color: [0.78, 0.82, 0.88]
-            });
-            fountainBoxes.push({
-                pos: [Math.cos(ang) * r, 0.44, Math.sin(ang) * r],
-                size: [0.20, 0.06, 0.52],
-                rotY: -ang,
-                color: [0.88, 0.91, 0.95]
+                color: [0.82, 0.86, 0.91]
             });
         }
-        const fountainGeo = createMergedBoxGeometry(fountainBoxes);
+        const fountainGeo = createMergedBoxGeometry(fountainStoneParts);
         this.fountainMaterial = new THREE.MeshStandardMaterial({
-            roughness: 0.26,
-            metalness: 0.16,
-            emissive: new THREE.Color(0x0a2e46),
-            emissiveIntensity: 0.50,
+            color: 0xffffff,
+            map: this.floorTex,
+            normalMap: this.wallNormal,
+            normalScale: new THREE.Vector2(1.10, 1.10),
+            roughness: 0.34,
+            metalness: 0.10,
+            emissive: new THREE.Color(0x081e30),
+            emissiveIntensity: 0.25,
             vertexColors: true
         });
         this.fountainMesh = new THREE.InstancedMesh(fountainGeo, this.fountainMaterial, 64);
         this.fountainMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
         this.scene.add(this.fountainMesh);
+
+        // Layer 8B: Cast-Bronze Spout Gargoyles, Column Collars & Lotus Finial Nozzle
+        const nozzleProfile = [
+            [0.00, 1.20], [0.075, 1.20], [0.042, 1.26], [0.068, 1.31], [0.032, 1.34], [0.00, 1.34]
+        ];
+        const fountainBrassParts = [
+            { type: 'lathe', points: nozzleProfile, segments: 18, pos: [0, 0, 0], color: [0.96, 0.80, 0.34] },
+            { type: 'torus', radius: 0.175, tube: 0.020, radialSegments: 10, tubularSegments: 20, rotX: Math.PI / 2, pos: [0, 0.50, 0], color: [0.94, 0.78, 0.32] },
+            { type: 'torus', radius: 0.155, tube: 0.018, radialSegments: 10, tubularSegments: 20, rotX: Math.PI / 2, pos: [0, 0.82, 0], color: [0.94, 0.78, 0.32] }
+        ];
+        for (let d = 0; d < 4; d++) {
+            const ang = d * (Math.PI / 2);
+            const ca = Math.cos(ang), sa = Math.sin(ang);
+            // 4 Cast-bronze lion/gargoyle spout masks & projecting nozzles on the upper bowl rim
+            fountainBrassParts.push({
+                type: 'sphere', radius: 0.052, widthSegments: 10, heightSegments: 8,
+                pos: [ca * 0.40, 1.00, sa * 0.40],
+                color: [0.98, 0.82, 0.36]
+            });
+            fountainBrassParts.push({
+                type: 'cylinder', rTop: 0.022, rBottom: 0.028, height: 0.08, segments: 10,
+                rotX: -Math.PI / 2.3, rotY: Math.PI / 2 - ang,
+                pos: [ca * 0.44, 0.99, sa * 0.44],
+                color: [1.00, 0.86, 0.40]
+            });
+        }
+        for (let seg = 0; seg < 8; seg++) {
+            const ang = seg * (Math.PI / 4);
+            fountainBrassParts.push({
+                pos: [Math.cos(ang) * 0.69, 0.515, Math.sin(ang) * 0.69],
+                size: [0.14, 0.025, 0.10],
+                rotY: -ang,
+                color: [0.94, 0.78, 0.32]
+            });
+        }
+        const fountainBrassGeo = createMergedBoxGeometry(fountainBrassParts);
+        this.fountainBrassMesh = new THREE.InstancedMesh(fountainBrassGeo, this.altarBrassMaterial, 64);
+        this.fountainBrassMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+        this.scene.add(this.fountainBrassMesh);
+
+        // Layer 8C: Animated Crystalline Azure Water Pools, Apex Geyser Plume, Parabolic Jets & Splash Crowns
+        // # ROOT-CAUSE: Align water stream cylinder segments along exact parabolic tangent (rotX = -atan2(dr, dy), rotY = PI/2 - ang) with 25% segment overlap so all 8 streams form continuous, gap-free water arcs.
+        const geyserPlumeProfile = [
+            [0.00, 1.33], [0.028, 1.34], [0.038, 1.41], [0.052, 1.47],
+            [0.036, 1.51], [0.00, 1.53]
+        ];
+        const fountainWaterParts = [
+            // Deep lower basin water surface + concentric foaming ripple rings
+            { type: 'cylinder', rTop: 0.59, rBottom: 0.57, height: 0.035, segments: 24, pos: [0, 0.44, 0], color: [0.22, 0.82, 1.00] },
+            { type: 'torus', radius: 0.27, tube: 0.011, radialSegments: 8, tubularSegments: 24, rotX: Math.PI / 2, pos: [0, 0.46, 0], color: [0.76, 0.96, 1.00] },
+            { type: 'torus', radius: 0.44, tube: 0.012, radialSegments: 8, tubularSegments: 28, rotX: Math.PI / 2, pos: [0, 0.46, 0], color: [0.72, 0.95, 1.00] },
+            // Upper catch-bowl brimming water meniscus + ripple ring
+            { type: 'cylinder', rTop: 0.36, rBottom: 0.34, height: 0.03, segments: 20, pos: [0, 1.01, 0], color: [0.30, 0.88, 1.00] },
+            { type: 'torus', radius: 0.22, tube: 0.010, radialSegments: 8, tubularSegments: 20, rotX: Math.PI / 2, pos: [0, 1.028, 0], color: [0.82, 0.98, 1.00] },
+            // Slender central apex geyser jet & frothy crown ring above bronze lotus nozzle
+            { type: 'lathe', points: geyserPlumeProfile, segments: 16, pos: [0, 0, 0], color: [0.84, 0.98, 1.00] },
+            { type: 'torus', radius: 0.055, tube: 0.012, radialSegments: 8, tubularSegments: 16, rotX: Math.PI / 2, pos: [0, 1.46, 0], color: [0.92, 1.00, 1.00] },
+            // Arcane mist floor halo ring
+            { type: 'torus', radius: 0.94, tube: 0.013, radialSegments: 8, tubularSegments: 32, rotX: Math.PI / 2, pos: [0, 0.022, 0], color: [0.35, 0.88, 1.00] }
+        ];
+        // 8 Upper arched water jets (lotus crown -> upper bowl) + 8 Lower parabolic cascading streams (upper bowl -> lower basin)
+        for (let seg = 0; seg < 8; seg++) {
+            const ang = seg * (Math.PI / 4);
+            const ca = Math.cos(ang), sa = Math.sin(ang);
+            const isCardinal = (seg % 2 === 0);
+            const uSteps = 5;
+            const uCurve = (t) => ({
+                r: 0.035 + 0.215 * t,
+                y: 1.45 - (1.45 - 1.02) * (t * t)
+            });
+            for (let u = 0; u < uSteps; u++) {
+                const p0 = uCurve(u / uSteps);
+                const p1 = uCurve((u + 1) / uSteps);
+                const dr = p1.r - p0.r;
+                const dy = p0.y - p1.y;
+                const segLen = Math.hypot(dr, dy) * 1.28;
+                const theta = Math.atan2(dr, dy);
+                const rm = (p0.r + p1.r) * 0.5;
+                const ym = (p0.y + p1.y) * 0.5;
+                fountainWaterParts.push({
+                    type: 'cylinder',
+                    rTop: 0.011,
+                    rBottom: 0.015,
+                    height: segLen,
+                    segments: 8,
+                    rotX: -theta,
+                    rotY: Math.PI / 2 - ang,
+                    pos: [ca * rm, ym, sa * rm],
+                    color: [0.78, 0.98, 1.00]
+                });
+            }
+            const rStart = isCardinal ? 0.44 : 0.39;
+            const rEnd = isCardinal ? 0.54 : 0.49;
+            const streamRadius = isCardinal ? 0.020 : 0.014;
+            const steps = 6;
+            const lCurve = (t) => ({
+                r: rStart + (rEnd - rStart) * t + Math.sin(t * Math.PI * 0.5) * 0.03,
+                y: 0.99 - (0.99 - 0.45) * (t * t)
+            });
+            for (let s = 0; s < steps; s++) {
+                const t0 = s / steps;
+                const t1 = (s + 1) / steps;
+                const p0 = lCurve(t0);
+                const p1 = lCurve(t1);
+                const dr = p1.r - p0.r;
+                const dy = p0.y - p1.y;
+                const segLen = Math.hypot(dr, dy) * 1.28;
+                const theta = Math.atan2(dr, dy);
+                const rm = (p0.r + p1.r) * 0.5;
+                const ym = (p0.y + p1.y) * 0.5;
+                fountainWaterParts.push({
+                    type: 'cylinder',
+                    rTop: streamRadius * (0.88 + 0.12 * t0),
+                    rBottom: streamRadius * (1.02 + 0.22 * t1),
+                    height: segLen,
+                    segments: 8,
+                    rotX: -theta,
+                    rotY: Math.PI / 2 - ang,
+                    pos: [ca * rm, ym, sa * rm],
+                    color: isCardinal ? [0.68, 0.96, 1.00] : [0.52, 0.92, 1.00]
+                });
+            }
+            // Frothy white-cyan splash impact crown where stream hits lower basin pool
+            fountainWaterParts.push({
+                type: 'torus',
+                radius: isCardinal ? 0.052 : 0.038,
+                tube: 0.012,
+                radialSegments: 8,
+                tubularSegments: 14,
+                rotX: Math.PI / 2,
+                pos: [ca * rEnd, 0.462, sa * rEnd],
+                color: [0.88, 0.99, 1.00]
+            });
+        }
+        const fountainWaterGeo = createMergedBoxGeometry(fountainWaterParts);
+        this.fountainWaterMaterial = new THREE.MeshStandardMaterial({
+            color: 0xffffff,
+            map: this.waterTex,
+            normalMap: this.waterNormal,
+            normalScale: new THREE.Vector2(1.25, 1.25),
+            emissive: new THREE.Color(0x10689e),
+            emissiveIntensity: 0.95,
+            roughness: 0.08,
+            metalness: 0.18,
+            transparent: true,
+            opacity: 0.88,
+            side: THREE.DoubleSide,
+            vertexColors: true
+        });
+        this.fountainWaterMesh = new THREE.InstancedMesh(fountainWaterGeo, this.fountainWaterMaterial, 64);
+        this.fountainWaterMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+        this.scene.add(this.fountainWaterMesh);
 
         // FrogComposBand Bottomless Pit (feat 41: '#') - Chasm cliff-shaft & abyssal void
         if (!this.dungeonGroup) {
@@ -4104,8 +4436,12 @@ class Dungeon3D {
         initInstancedColors(this.stairsMesh, 128);
         initInstancedColors(this.stairsUpMesh, 128);
         initInstancedColors(this.altarMesh, 64);
+        initInstancedColors(this.altarBrassMesh, 64);
+        initInstancedColors(this.altarFlameMesh, 64);
         initInstancedColors(this.forgeMesh, 32);
         initInstancedColors(this.fountainMesh, 64);
+        initInstancedColors(this.fountainBrassMesh, 64);
+        initInstancedColors(this.fountainWaterMesh, 64);
         initInstancedColors(this.trapMesh, 128);
         initInstancedColors(this.magmaMesh, 256);
         initInstancedColors(this.quartzMesh, 256);
@@ -4493,135 +4829,24 @@ class Dungeon3D {
             }
         }, undefined, () => {});
 
-        // 4. Sculpted 2K PBR High Altar + Votive Candles for High Altars (feat 43: '_')
-        const loadAltarWithFallback = (url, fallbackUrl) => {
-            loader.load(url, (gltf) => {
-                if (!gltf || !gltf.scene || !this.altarMesh) return;
-                gltf.scene.updateMatrixWorld(true);
-                const geos = [];
-                let shrineTex = null;
-                let shrineNorm = null;
-                gltf.scene.traverse((c) => {
-                    if (c.isMesh && c.geometry) {
-                        const g = c.geometry.clone();
-                        g.applyMatrix4(c.matrixWorld);
-                        if (c.material) {
-                            if (c.material.map && !shrineTex) shrineTex = c.material.map;
-                            if (c.material.normalMap && !shrineNorm) shrineNorm = c.material.normalMap;
-                        }
-                        const vCount = g.attributes.position ? g.attributes.position.count : 0;
-                        if (vCount > 0) {
-                            const colors = new Float32Array(vCount * 3).fill(1.0);
-                            g.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-                        }
-                        geos.push(g);
-                    }
-                });
-                const finalizeAltar = () => {
-                    if (geos.length === 0) return;
-                    const merged = this._mergeBufferGeometries(geos);
-                    merged.computeBoundingBox();
-                    const bbox = merged.boundingBox;
-                    const cx = (bbox.min.x + bbox.max.x) * 0.5;
-                    const cz = (bbox.min.z + bbox.max.z) * 0.5;
-                    const spanY = (bbox.max.y - bbox.min.y) || 1.0;
-                    const spanXZ = Math.max(bbox.max.x - bbox.min.x, bbox.max.z - bbox.min.z) || 1.0;
-                    merged.translate(-cx, -bbox.min.y, -cz);
-                    merged.scale(1.52 / spanXZ, 1.72 / spanY, 1.52 / spanXZ);
-                    merged.computeVertexNormals();
-                    if (this.altarMesh.geometry) this.altarMesh.geometry.dispose();
-                    this.altarMesh.geometry = merged;
-                    if (this.altarMaterial) {
-                        if (shrineTex) {
-                            if (typeof THREE.sRGBEncoding !== 'undefined') shrineTex.encoding = THREE.sRGBEncoding;
-                            this.altarMaterial.map = shrineTex;
-                        }
-                        if (shrineNorm) {
-                            this.altarMaterial.normalMap = shrineNorm;
-                            this.altarMaterial.normalScale = new THREE.Vector2(1.15, 1.15);
-                        }
-                        this.altarMaterial.color.setHex(0xffffff);
-                        this.altarMaterial.roughness = 0.58;
-                        this.altarMaterial.metalness = 0.18;
-                        this.altarMaterial.emissive.setHex(0x281a08);
-                        this.altarMaterial.emissiveIntensity = 0.32;
-                        this.altarMaterial.needsUpdate = true;
-                    }
-                    this._lastTerrainSig = null;
-                    if (this.lastFrame) this.updateDungeon(this.lastFrame);
-                };
-                loader.load('/assets/models/items/shrine_candles.gltf', (cGltf) => {
-                    if (cGltf && cGltf.scene) {
-                        cGltf.scene.updateMatrixWorld(true);
-                        cGltf.scene.traverse((c) => {
-                            if (c.isMesh && c.geometry) {
-                                const g = c.geometry.clone();
-                                g.applyMatrix4(c.matrixWorld);
-                                g.scale(0.85, 0.85, 0.85);
-                                g.translate(0, 0.02, 0.46);
-                                const vCount = g.attributes.position ? g.attributes.position.count : 0;
-                                if (vCount > 0) {
-                                    const colors = new Float32Array(vCount * 3).fill(1.0);
-                                    g.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-                                }
-                                geos.push(g);
-                            }
-                        });
-                    }
-                    finalizeAltar();
-                }, undefined, finalizeAltar);
-            }, undefined, () => {
-                if (fallbackUrl) loadAltarWithFallback(fallbackUrl, null);
-            });
-        };
-        loadAltarWithFallback('/assets/models/items/high_altar_pbr.glb', '/assets/models/items/shrine.gltf');
-
-        // 5. Sculpted Medieval Stone Well / Fountain (feat 44: '{')
-        loader.load('/assets/models/items/building_well_blue.gltf', (gltf) => {
-            if (!gltf || !gltf.scene || !this.fountainMesh) return;
-            gltf.scene.updateMatrixWorld(true);
-            const geos = [];
-            let wellTex = null;
-            gltf.scene.traverse((c) => {
-                if (c.isMesh && c.geometry) {
-                    const g = c.geometry.clone();
-                    g.applyMatrix4(c.matrixWorld);
-                    if (c.material && c.material.map && !wellTex) wellTex = c.material.map;
-                    const vCount = g.attributes.position ? g.attributes.position.count : 0;
-                    if (vCount > 0) {
-                        const colors = new Float32Array(vCount * 3).fill(1.0);
-                        g.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-                    }
-                    geos.push(g);
+        // # ROOT-CAUSE: Preserve the 3-layer sculpted Gothic High Altar and 3-layer Tiered Marble Fountain geometries instead of overwriting them with broken shrine_candles.gltf UV merges or low-poly cartoon building_well_blue.gltf.
+        // 4 & 5. Bind 2K PBR Carved Stone Normal & Roughness Maps to Sculpted High Altars (feat 43) & Magic Fountains (feat 44)
+        this.loadPolyHavenSet('monastery_stone_floor', 2, 2, (stoneSet) => {
+            if (stoneSet && stoneSet.nor) {
+                if (this.altarMaterial) {
+                    this.altarMaterial.normalMap = stoneSet.nor;
+                    if (stoneSet.arm) this.altarMaterial.roughnessMap = stoneSet.arm;
+                    this.altarMaterial.normalScale = new THREE.Vector2(1.20, 1.20);
+                    this.altarMaterial.needsUpdate = true;
                 }
-            });
-            if (geos.length > 0) {
-                const merged = this._mergeBufferGeometries(geos);
-                merged.computeBoundingBox();
-                const bbox = merged.boundingBox;
-                const cx = (bbox.min.x + bbox.max.x) * 0.5;
-                const cz = (bbox.min.z + bbox.max.z) * 0.5;
-                const spanXZ = Math.max(bbox.max.x - bbox.min.x, bbox.max.z - bbox.min.z) || 1.0;
-                const spanY = (bbox.max.y - bbox.min.y) || 1.0;
-                merged.translate(-cx, -bbox.min.y, -cz);
-                merged.scale(1.42 / spanXZ, 1.38 / spanY, 1.42 / spanXZ);
-                merged.computeVertexNormals();
-                if (this.fountainMesh.geometry) this.fountainMesh.geometry.dispose();
-                this.fountainMesh.geometry = merged;
-                if (wellTex && this.fountainMaterial) {
-                    if (typeof THREE.sRGBEncoding !== 'undefined') wellTex.encoding = THREE.sRGBEncoding;
-                    this.fountainMaterial.map = wellTex;
-                    this.fountainMaterial.color.setHex(0xffffff);
-                    this.fountainMaterial.roughness = 0.45;
-                    this.fountainMaterial.metalness = 0.15;
-                    this.fountainMaterial.emissive.setHex(0x0c2d48);
-                    this.fountainMaterial.emissiveIntensity = 0.42;
+                if (this.fountainMaterial) {
+                    this.fountainMaterial.normalMap = stoneSet.nor;
+                    if (stoneSet.arm) this.fountainMaterial.roughnessMap = stoneSet.arm;
+                    this.fountainMaterial.normalScale = new THREE.Vector2(1.15, 1.15);
                     this.fountainMaterial.needsUpdate = true;
                 }
-                this._lastTerrainSig = null;
-                if (this.lastFrame) this.updateDungeon(this.lastFrame);
             }
-        }, undefined, () => {});
+        });
 
         // 6. Sculpted Iron-Strapped Wooden Doors, Stone Arch Frames & Stepped Stone Staircases
         loader.load('/assets/models/items/Door_4_Flat.gltf', (gltf) => {
@@ -7031,12 +7256,13 @@ class Dungeon3D {
             if (row.a && x * 2 + 1 < row.a.length) {
                 attr = (parseInt(row.a[x * 2], 16) << 4) | (parseInt(row.a[x * 2 + 1], 16) || 0);
             }
-            if (this.realm === 'nethack') {
+            if (this.realm === 'nethack' || this.realm === 'dcss' || this.realm === 'ryod') {
+                // # ROOT-CAUSE: Ensure '_' and '{' reliably resolve to feat 43 (High Altar) and feat 44 (Magic Fountain) across NetHack, DCSS, and RYOD.
                 if (g === '_') feat = 43;      // Consecrated High Altar
                 else if (g === '{') feat = 44; // Sparkling Magic Fountain
-                else if (g === '+') feat = 2;  // Closed Door
-                else if (g === "'") feat = 3;  // Open Door
-                if (feat === 2 || feat === 3) {
+                else if (this.realm === 'nethack' && g === '+') feat = 2;  // Closed Door
+                else if (this.realm === 'nethack' && g === "'") feat = 3;  // Open Door
+                if (this.realm === 'nethack' && (feat === 2 || feat === 3)) {
                     const isW = (ry, rx) => {
                         const r = map.rows[ry];
                         if (!r || !r.f || rx < 0 || rx * 2 + 1 >= r.f.length) return false;
@@ -8734,6 +8960,7 @@ class Dungeon3D {
                 }
 
                 // Consecrated High Altar (feat 43), Sil-Q Dwarven Forge (feat 60 / '0'), & Sparkling Magic Fountain (feat 44)
+                // # ROOT-CAUSE: Multiplying altars and fountains by raw floorShade crushed marble, gold, sacred fire, and water into dark grey mud, and secondary brass/flame/water instanced meshes were not updated.
                 const isSilQForge = (feat === 60 || (this.realm === 'silq' && glyph === '0'));
                 if (feat === 43 || feat === 44 || isSilQForge) {
                     this.dummy.position.set(wx, -0.05, wz);
@@ -8746,22 +8973,45 @@ class Dungeon3D {
                     this.dummy.position.set(wx, 0, wz);
                     this.dummy.rotation.set(0, 0, 0);
                     this.dummy.updateMatrix();
+                    const sanctuaryStone = this._sanctuaryStoneColor || (this._sanctuaryStoneColor = new THREE.Color(1, 1, 1));
+                    sanctuaryStone.setRGB(
+                        Math.min(1.0, Math.max(0.82, floorShade.r * 1.35)),
+                        Math.min(1.0, Math.max(0.82, floorShade.g * 1.35)),
+                        Math.min(1.0, Math.max(0.82, floorShade.b * 1.35))
+                    );
+                    const pureWhite = this._sanctuaryPureWhite || (this._sanctuaryPureWhite = new THREE.Color(1, 1, 1));
                     if (isSilQForge && this.forgeMesh) {
                         if (forgeCount < 32) {
                             this.forgeMesh.setMatrixAt(forgeCount, this.dummy.matrix);
-                            this.forgeMesh.setColorAt(forgeCount, floorShade);
+                            this.forgeMesh.setColorAt(forgeCount, sanctuaryStone);
                             forgeCount++;
                         }
                     } else if (feat === 43 || isSilQForge) {
                         if (altarCount < 64) {
                             this.altarMesh.setMatrixAt(altarCount, this.dummy.matrix);
-                            this.altarMesh.setColorAt(altarCount, floorShade);
+                            this.altarMesh.setColorAt(altarCount, sanctuaryStone);
+                            if (this.altarBrassMesh) {
+                                this.altarBrassMesh.setMatrixAt(altarCount, this.dummy.matrix);
+                                this.altarBrassMesh.setColorAt(altarCount, pureWhite);
+                            }
+                            if (this.altarFlameMesh) {
+                                this.altarFlameMesh.setMatrixAt(altarCount, this.dummy.matrix);
+                                this.altarFlameMesh.setColorAt(altarCount, pureWhite);
+                            }
                             altarCount++;
                         }
                     } else {
                         if (fountainCount < 64) {
                             this.fountainMesh.setMatrixAt(fountainCount, this.dummy.matrix);
-                            this.fountainMesh.setColorAt(fountainCount, floorShade);
+                            this.fountainMesh.setColorAt(fountainCount, sanctuaryStone);
+                            if (this.fountainBrassMesh) {
+                                this.fountainBrassMesh.setMatrixAt(fountainCount, this.dummy.matrix);
+                                this.fountainBrassMesh.setColorAt(fountainCount, pureWhite);
+                            }
+                            if (this.fountainWaterMesh) {
+                                this.fountainWaterMesh.setMatrixAt(fountainCount, this.dummy.matrix);
+                                this.fountainWaterMesh.setColorAt(fountainCount, pureWhite);
+                            }
                             fountainCount++;
                         }
                     }
@@ -8857,8 +9107,12 @@ class Dungeon3D {
         updateMesh(this.stairsMesh, stairsCount);
         updateMesh(this.stairsUpMesh, stairsUpCount);
         updateMesh(this.altarMesh, altarCount);
+        if (this.altarBrassMesh) updateMesh(this.altarBrassMesh, altarCount);
+        if (this.altarFlameMesh) updateMesh(this.altarFlameMesh, altarCount);
         if (this.forgeMesh) updateMesh(this.forgeMesh, forgeCount);
         updateMesh(this.fountainMesh, fountainCount);
+        if (this.fountainBrassMesh) updateMesh(this.fountainBrassMesh, fountainCount);
+        if (this.fountainWaterMesh) updateMesh(this.fountainWaterMesh, fountainCount);
         updateMesh(this.trapMesh, trapCount);
         if (this.chasmMesh) updateMesh(this.chasmMesh, chasmIdx);
         if (this.chasmVoidMesh) {
@@ -8986,9 +9240,10 @@ class Dungeon3D {
                 } else if (feat === 60 || (this.realm === 'silq' && glyph === '0')) {
                     stairsList.push({ gridX: x, gridY: y, x: x * this.cellSize, y: 1.45, z: y * this.cellSize, name: '[0] Dwarven Forge', color: '#ffaa33' });
                 } else if (feat === 43) {
-                    stairsList.push({ gridX: x, gridY: y, x: x * this.cellSize, y: 1.45, z: y * this.cellSize, name: '[_] High Altar', color: '#ffd866' });
+                    // # ROOT-CAUSE: Floating label y=1.45 intersected the tall chalice flame and fountain geyser; raise to y=1.68 above monument apex.
+                    stairsList.push({ gridX: x, gridY: y, x: x * this.cellSize, y: 1.68, z: y * this.cellSize, name: '[_] High Altar', color: '#ffd866' });
                 } else if (feat === 44) {
-                    stairsList.push({ gridX: x, gridY: y, x: x * this.cellSize, y: 1.45, z: y * this.cellSize, name: '[{] Magic Fountain', color: '#66ddff' });
+                    stairsList.push({ gridX: x, gridY: y, x: x * this.cellSize, y: 1.68, z: y * this.cellSize, name: '[{] Magic Fountain', color: '#66ddff' });
                 } else if (feat === 41) {
                     const playerX = px !== undefined ? px : (this.playerGridX !== undefined ? this.playerGridX : 0);
                     const playerY = py !== undefined ? py : (this.playerGridY !== undefined ? this.playerGridY : 0);
@@ -15446,8 +15701,15 @@ class Dungeon3D {
             this.deepWaterTex.offset.set((time * 0.014) % 1.0, Math.cos(time * 0.6) * 0.02);
         }
         if (this.lavaMaterial && (!window.GRAPHICS_CONFIG || window.GRAPHICS_CONFIG.surfaceBreathing)) {
+            // # ROOT-CAUSE: Animate consecrated altar sacred flames and sparkling fountain water emissive shimmer at 60 FPS with zero extra lights or allocations.
             const time = tNow * 0.001;
             this.lavaMaterial.emissiveIntensity = 2.15 + Math.sin(time * 2.8) * 0.45 + Math.cos(time * 6.3) * 0.20;
+            if (this.altarFlameMaterial) {
+                this.altarFlameMaterial.emissiveIntensity = 2.15 + Math.sin(time * 5.2) * 0.35 + Math.cos(time * 11.7) * 0.18;
+            }
+            if (this.fountainWaterMaterial) {
+                this.fountainWaterMaterial.emissiveIntensity = 0.92 + Math.sin(time * 3.8) * 0.22;
+            }
         }
 
         // High-Quality Celestial Star Canopy & Sky Dome: Lock to camera position (infinite distance illusion, 0 translation parallax)

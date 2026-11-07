@@ -1,13 +1,12 @@
 # Execution State (Read First, Update Last)
 
 ## Active Task
-**WS61 — `v11.8.4` RYOD Grey-Slate Tabletop Forge Aesthetics, Cloud Run Container Path Parity, Zero-Overflow 3×2 Grid, In-Game HUD `:has()` Visibility Fix & Full RYOD Menu/Launch Audit — COMPLETE**
+**WS62 — `v11.8.5` Global 3-Layer Sculpted PBR Consecrated High Altars (`_`) & Sparkling Magic Fountains (`{`) Rework — COMPLETE**
 
-- **Checklist** (`v11.8.4` RYOD Grey-Slate Aesthetics, Quick-Roll/Play Fix & Deep Menu Audit):
-  - [x] **RYOD Quick-Roll & Launch Fix (`server/src/cartridges/ryod-compiler.js`, `server/src/cartridges/realm-content-pool.js`, `variants/ryod/bin/ryod-bridge.js`, `server/src/cartridges/cartridge-core.js`, `cloudbuild.yaml`, `server/Dockerfile`)**: Fixed Cloud Run `/app/public/js` vs `/app/server/public/js` path resolution (`ln -sfn /app/public /app/server/public` + fallback resolution); hydrated `process.env.RYOD_CONFIG_JSON` and `-dsave=<path>` CLI flag in `ryod-bridge.js`; hoisted `seq` and `phase` ahead of `ryodMeta` in `cartridge-core.js:buildFrame` so `network.js` regex pre-parser matches on large frames.
-  - [x] **Grey-Slate & Burnished Gold RYOD Forge Aesthetics (`server/public/js/ryod-forge.js`)**: Replaced warm bronze/parchment styling with site-wide Grey-Slate & Burnished Gold plates (`#0d1018` / `#12151e` / `#181d2a` / `#222838`, `rgba(212, 175, 55, 0.56)` brass borders, `#e5c158` headers, `#dce0e8` text); fixed `3×2` CSS Grid horizontal overflow (`repeat(3, minmax(0, 1fr))`, `.ryod-die-card { min-width: 0; overflow: hidden; }`, `.ryod-select-input { flex: 1 1 0%; width: 0; min-width: 0; }`) — verified `fitsViewport: true`, `hasHorizontalOverflow: false`.
-  - [x] **Deep RYOD Menu, HUD & WebSocket Lifecycle Audit (`server/public/js/app.js`, `server/public/js/input.js`, `server/public/js/network.js`, `server/public/js/ryod-compiler.js`, `server/public/css/dungeon.css`)**: Added `window.RyodForge.isOpen()` keyboard guard in `input.js`; wired `.realm-card[data-realm="ryod"]` click to attune `'ryod'`, close `#realm-selector-modal`, and open `RyodForge`; fixed `returnToMainMenu` + `saveAndDisconnect` (`{ t: 'quit' }`) so rapid relaunches never clobber new sockets or leave zombie sessions; fixed `Lv:1`/`MANA:20/20` status line (`hasUndefinedInTerminal: false`), added RYOD `C` and `?` modal rows, and removed `visibility: hidden !important` from `#app-container:has(...) #hud-overlay` in `dungeon.css` to cure Chromium `:has()` container-query visibility inheritance on `#char-panel` and `#hud-footer`.
-  - [x] **Automated & Headless Browser Verification (`probe_ryod_play.js`, `tools/run_tests.js`)**: Verified all 3 RYOD launch paths (`#btn-ryod-quick-dropin`, `#btn-menu-ryod-quick`, `#btn-ryod-launch`), `34/34` fast suites, `259/259` RYOD engine/handshake assertions, and headless Chrome CDP (`0` console errors).
+- **Checklist** (`v11.8.5` Global High Altar, Dwarven Forge & Magic Fountain 3-Layer PBR Monument Architecture):
+  - [x] **Eliminated Broken `.gltf`/`.glb` Geometry Overrides (`server/public/js/dungeon3d.js`)**: Removed `_loadPolyHavenEnvironmentModels()` overwrites that replaced `this.fountainMesh.geometry` with `/assets/models/items/building_well_blue.gltf` (a pastel-blue hex-board miniature shed) and merged `high_altar_pbr.glb` + `shrine_candles.gltf` under incompatible UVs; bound Poly Haven `monastery_stone_floor` normal/roughness maps cleanly onto `this.altarMaterial` and `this.fountainMaterial`.
+  - [x] **Upgraded `createMergedBoxGeometry` & Built 3-Layer Consecrated High Altar, Dwarven Forge & Sparkling Magic Fountain (`server/public/js/dungeon3d.js`)**: Extended `createMergedBoxGeometry` with `lathe`, `cylinder`, `torus`, `cone`, and `sphere` primitives with smooth vertex normals; built `altarMesh` + `altarBrassMesh` + `altarFlameMesh` (stepped dais with crimson carpet runner, fluted marble colonnettes, crimson velvet antependium with gilded Solar Cross, 4 lathed altar horns, missal on lectern, baroque candlesticks, and central chalice with flickering sacred flame), `forgeMesh` (octagonal stone hearth & horned iron anvil), and `fountainMesh` + `fountainBrassMesh` + `fountainWaterMesh` (stepped octagonal foundation, hollowed buttressed lower marble basin, fluted central column, scalloped upper bowl with 4 bronze lion spouts, turned spire & bronze lotus crown nozzle, central geyser jet, 8 upper water arcs + 8 lower continuous tangent-aligned parabolic cascading water streams with frothy splash rings).
+  - [x] **Fixed `floorShade` Color Crushing & Added 60 FPS Sacred Flame / Water Pulse (`server/public/js/dungeon3d.js`)**: Replaced raw `floorShade` multiplication on altars/fountains with clamped `sanctuaryStone` (`>= 0.82`) and `pureWhite` (`1, 1, 1`) on brass/flame/water instanced meshes; animated `altarFlameMaterial` and `fountainWaterMaterial` emissive shimmer in `render()` with zero allocations.
 
 ## Completed Workstreams
 | WS | Scope | Status |
@@ -17,8 +16,8 @@
 | WS48–WS56 | 8-Realm Cartridges, PBR Bestiary/Altars, Action VFX, Cloud & Sketch (`v11.6.1`) | `[x]` |
 | WS57–WS58 | Universal 4-Tier Master Bestiary, Item Registry, Menu/Action/VFX Abstraction (`v11.7.1`) | `[x]` |
 | WS59 | RYOD ("Roll Your Own Dungeon") World Forge, Self-Hydrating Saves & Playability Bot (`v11.8.1`) | `[x]` |
-| WS60 | Main Menu Overhaul, 6-Card Hybrid RYOD Forge, 8 Mutators & 9-Realm Chronicle (`v11.8.3`) | `[x]` |
-| WS61 | RYOD Grey-Slate Aesthetics, Cloud Path Parity, HUD `:has()` Fix & Deep Menu Audit (`v11.8.4`) | `[x]` |
+| WS60–WS61 | Main Menu Overhaul, Grey-Slate RYOD Forge, 8 Mutators & 9-Realm Chronicle (`v11.8.4`) | `[x]` |
+| WS62 | Global 3-Layer Sculpted PBR Consecrated High Altars & Sparkling Magic Fountains (`v11.8.5`) | `[x]` |
 
 ## Mandatory Verification Gate (Web-Only Focus)
 Fresh server (`L13`): `Get-NetTCPConnection -LocalPort 8080 -State Listen | % { Stop-Process -Id $_.OwningProcess -Force }`; `cd server; node src/server.js`.

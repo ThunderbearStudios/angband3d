@@ -12,7 +12,7 @@
 
 ---
 
-> ### 🌟 Official Live Links & Instant Play (`v11.8.4`)
+> ### 🌟 Official Live Links & Instant Play (`v11.8.5`)
 > - ⚔ **Play Now in Browser**: **[https://yasd3d.com](https://yasd3d.com)** & **[https://angband3d.com](https://angband3d.com)** *(Instant 60 FPS 3D roguelike across Desktop, iOS & Android — zero install or 1-click PWA install)*
 > - 📖 **System Architecture & Wire Protocol**: **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** *(C99 & Universal Cartridge bridge specification, 60 FPS dirty-state gating & automated test matrix)*
 > - 🏛 **Official Studio & Architecture Overview**: **[https://thunderbearstudios.dev](https://thunderbearstudios.dev)** *(Thunderbear Studios frameworks & Cloud Run proving ground)*
