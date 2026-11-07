@@ -91,6 +91,10 @@ class ChronicleGrounder {
             case 'dcss': return 'zot';
             case 'brogue': return 'bioluminescent';
             case 'rogue': return 'original1980';
+            case 'ryod': {
+                const bp = (typeof window !== 'undefined' && window.__activeRyodBlueprint) || null;
+                return (bp && bp.story && bp.story.tradition) || 'westmarch';
+            }
             case 'angband':
             default:
                 return this.getTraditionForRace(race);
@@ -106,6 +110,10 @@ class ChronicleGrounder {
             case 'dcss': return 'The Archivist of Zot';
             case 'brogue': return 'The Warden of the Caverns';
             case 'rogue': return 'The Master of the Dungeons of Doom';
+            case 'ryod': {
+                const bp = (typeof window !== 'undefined' && window.__activeRyodBlueprint) || null;
+                return (bp && bp.story && bp.story.lorekeeperName) || 'The Sovereign Architect';
+            }
             case 'angband':
             default:
                 return 'Master Elrond';
@@ -121,6 +129,10 @@ class ChronicleGrounder {
             case 'dcss': return 'High Archivist of the Ecumenical Temple & Keeper of the Runes';
             case 'brogue': return 'Keeper of the Bioluminescent Vaults & Lumenstone Sage';
             case 'rogue': return '1980 Dungeon Master of the Original Dungeons of Doom';
+            case 'ryod': {
+                const bp = (typeof window !== 'undefined' && window.__activeRyodBlueprint) || null;
+                return (bp && bp.story && bp.story.lorekeeperTitle) || 'Keeper of the Forged Realm & World-Spine';
+            }
             case 'angband':
             default:
                 return 'Master of Rivendell & Chronicler of the Elder Days';
@@ -239,6 +251,28 @@ class ChronicleGrounder {
                     recommendedVoice: 'en-GB-RyanNeural',
                     geminiVoice: 'Enceladus'
                 };
+            case 'ryod': {
+                const bp = (typeof window !== 'undefined' && window.__activeRyodBlueprint) || null;
+                const s = (bp && bp.story) || {};
+                const wTitle = (bp && bp.title) || 'The Forged Sanctuary';
+                const lkName = s.lorekeeperName || 'The Sovereign Architect';
+                const lkTitle = s.lorekeeperTitle || 'Keeper of the Forged Realm & World-Spine';
+                const tradKey = s.tradition || 'westmarch';
+                const tradObj = this.TRADITIONS[tradKey] || this.TRADITIONS.westmarch;
+                return {
+                    realm: 'ryod',
+                    chronicler: `${lkName}, ${lkTitle}`,
+                    lorekeeperName: lkName,
+                    lorekeeperTitle: lkTitle,
+                    setting: `${wTitle} — ${s.premise || 'an ancient subterranean dungeon forged across realms'}`,
+                    traditionKey: tradKey,
+                    style: tradObj.style,
+                    dialogueStyle: 'Immersive mythic fantasy grounded in the forged world spine, its faction threats, and the final relic quest',
+                    voice: 'en-GB-RyanNeural',
+                    recommendedVoice: 'en-GB-RyanNeural',
+                    geminiVoice: 'Enceladus'
+                };
+            }
             case 'angband':
             default:
                 return {
@@ -1355,17 +1389,17 @@ class ChronicleGrounder {
                 isVocal: true,
                 recommendedVoice: v,
                 sleepNoise: 'hovers in an unnatural, meditative trance, murmuring dark incantations in slumber.',
-                ambientBark: '"You dare step into the sanctum of the Black Enemy? Your soul belongs to Morgoth!"',
+                ambientBark: '"You dare step into the sanctum of the Dark Powers? Your soul is forfeit!"',
                 combatBark: (hp) => hp <= 0.35
                     ? ChronicleGrounder.pickNonRepeatingBark('caster_low_combat', [
-                        '"The Dark Lord... will avenge my blood... curse you..."',
+                        '"The Abyss... will avenge my blood... curse you..."',
                         '"My flesh fails, but my curse is sealed in the Nether!"',
                         '"The dark rites cannot be broken by mortal steel... curse you!"',
                         '"The abyss... reclaims me... but your soul is forfeit..."'
                     ], Math.floor(Math.random() * 1000))
                     : ChronicleGrounder.pickNonRepeatingBark('caster_high_combat', [
                         '"Feel the icy hand of the Nether realms! Burn in dark fire!"',
-                        '"Morgoth\'s shadow stretches over all—perish in agony!"',
+                        '"The shadow of the abyss stretches over all—perish in agony!"',
                         '"Your weak prayers will not save you from the Nether!"',
                         '"Behold the dark power of the deeps! Weave your shroud!"',
                         '"Your life essence shall feed my ancient rituals!"'
@@ -1375,7 +1409,7 @@ class ChronicleGrounder {
                     'Burn in dark flames, mortal!',
                     'The Void hungers for your soul!',
                     'Perish in the cold shadow of the Nether!',
-                    'Morgoth\'s darkness shall consume your light!',
+                    'The abyssal dark shall consume your light!',
                     'Your blood shall fuel the ancient rite!',
                     'Kneel before the Black Arts, fool!'
                 ], Math.floor(Math.random() * 1000))
@@ -2794,16 +2828,60 @@ class ChronicleGrounder {
     }
 
     /**
-     * The 4th-Wall Aware Guide Engine: Answers gameplay and menu questions
-     * with authentic, diegetic reverent wit grounded in specific realm lore and mechanics.
+     * Builds a compact, deterministic 95-token brief of the active realm's exact controls,
+     * quest objective, and live hero situation for both LLM Lorekeeper prompts and offline Q&A.
+     */
+    static buildRealmControlAndSituationBrief(realmKey = 'angband', player = null, frame = null) {
+        const rk = String(realmKey || (typeof window !== 'undefined' && window.__app && typeof window.__app.getActiveRealm === 'function' ? window.__app.getActiveRealm() : 'angband')).toLowerCase();
+        const rKeys = (typeof window !== 'undefined' && window.RealmKeys && typeof window.RealmKeys.getCommands === 'function')
+            ? window.RealmKeys.getCommands(rk)
+            : null;
+        const keyMap = {};
+        if (Array.isArray(rKeys)) {
+            for (const c of rKeys) {
+                if (c && c.id && c.key) keyMap[c.id] = c.key;
+            }
+        }
+        const kStr = `Inv[${keyMap.inventory || 'i'}] Equip[${keyMap.equipment || 'e'}] Wield[${keyMap.wield || 'w'}] TakeOff[${keyMap.takeoff || 't'}] Quaff[${keyMap.quaff || 'q'}] Read[${keyMap.read || 'r'}] Eat[${keyMap.eat || 'E'}] Magic[${keyMap.magic || 'm'}] Pray[${keyMap.pray || 'p'}] Fire[${keyMap.fire || 'f'}] Rest[${keyMap.rest || 'R'}] Stairs[>/<] CRT[Tab]`;
+
+        const p = player || (typeof window !== 'undefined' && window.__lastFrame && window.__lastFrame.player) || {};
+        const name = p.name || 'Hero';
+        const depth = typeof p.depth === 'number' ? p.depth : 0;
+        const hp = typeof p.hp === 'number' ? p.hp : 30;
+        const hpMax = typeof p.hp_max === 'number' ? p.hp_max : (p.hpMax || 30);
+        const wep = (p.weapon_item && p.weapon_item.name) || p.weaponName || 'blade';
+
+        let questStr = 'Slay Sauron (DL99) & Morgoth (DL100)';
+        if (rk === 'nethack') questStr = 'Claim the Amulet of Yendor in Gehennom & offer it on the Astral Plane High Altar';
+        else if (rk === 'dcss') questStr = 'Collect 3 Runes of Zot, seize the Orb of Zot on Zot:5, and ascend to D:1';
+        else if (rk === 'brogue') questStr = 'Zero XP levels (empower gear via Enchant Scrolls); claim the Amulet of Yendor on D:26';
+        else if (rk === 'rogue') questStr = 'Retrieve the Amulet of Yendor on Level 26 and climb back to daylight';
+        else if (rk === 'silq') questStr = 'Descend to -1000ft, cut a Silmaril from Morgoth’s Crown, and escape (No shops, No mana potions, Songs=[S], Smithing at Forges)';
+        else if (rk === 'frogcomposband') questStr = 'Traverse the Wilderness ([<] at town border), evolve race/class, and slay the Serpent of Chaos on DL100';
+        else if (rk === 'hengband') questStr = 'Master Bushido/Magic ([m]), clear Castle Quests, and slay the Serpent of Chaos on DL100';
+        else if (rk === 'ryod') {
+            const bp = (typeof window !== 'undefined' && window.__activeRyodBlueprint) || {};
+            questStr = `World "${bp.title || 'Custom Realm'}" (${bp.goalDepth || 15}F, Mutator: ${bp.mutatorId || 'balanced'}, Mode: ${bp.victoryMode || 'boss_kill'}) — Vanquish ${bp.nemesisName || 'the Overlord'} & claim ${bp.goalItemName || 'the Relic'}`;
+        }
+
+        return `ACTIVE_REALM: ${rk.toUpperCase()} | QUEST: ${questStr} | KEYS: ${kStr} | HERO: ${name} (${p.race || 'Mortal'} ${p.class || 'Adventurer'}, HP ${hp}/${hpMax}, Depth ${depth}, Wielding ${wep})`;
+    }
+
+    /**
+     * The 4th-Wall Aware Guide Engine: Answers gameplay, realm story, situation, and control questions
+     * with authentic, diegetic Dungeon Master wit grounded in the active realm's exact mechanics.
      */
     static answerGuideQuery(query = '', player = null, realmKey = null) {
         const q = (query || '').toLowerCase().trim();
         const rk = (realmKey || (typeof window !== 'undefined' && window.__app && typeof window.__app.getActiveRealm === 'function' ? window.__app.getActiveRealm() : 'angband')).toLowerCase();
         const isJpHeng = (rk === 'hengband' && typeof window !== 'undefined' && window.__langMode === 'jp');
-        const heroClass = (player && player.class) ? player.class.toLowerCase() : 'warrior';
-        const pName = (player && player.name) ? player.name : (isJpHeng ? '武芸者' : 'Hero');
-        const pRace = (player && player.race) ? player.race.toLowerCase() : 'mortal';
+        const p = player || (typeof window !== 'undefined' && window.__lastFrame && window.__lastFrame.player) || {};
+        const heroClass = (p && p.class) ? String(p.class).toLowerCase() : 'warrior';
+        const pName = (p && p.name) ? p.name : (isJpHeng ? '武芸者' : 'Hero');
+        const depth = typeof p.depth === 'number' ? p.depth : 0;
+        const hp = typeof p.hp === 'number' ? p.hp : 30;
+        const hpMax = typeof p.hp_max === 'number' ? p.hp_max : (p.hpMax || 30);
+        const hpPct = hpMax > 0 ? Math.round((hp / hpMax) * 100) : 100;
 
         if (isJpHeng) {
             if (q.includes('potion') || q.includes('quaff') || q.includes('heal') || q.includes('drink') || q.includes('cure') || q.includes('薬') || q.includes('回復')) {
@@ -2812,61 +2890,164 @@ class ChronicleGrounder {
             if (q.includes('rest') || q.includes('sleep') || q.includes('recover') || q.includes('mana') || q.includes('休') || q.includes('眠')) {
                 return `広間で無防備に眠るは愚の骨頂なり。袋小路へ退き、扉を閉ざし（c）、『R』から『*』を押して体力と魔力が満ちるまで静養せよ。`;
             }
-            if (q.includes('spell') || q.includes('magic') || q.includes('cast') || q.includes('pray') || q.includes('book') || q.includes('魔法') || q.includes('術')) {
-                return `変愚蛮怒の術法は多彩なり。『m』キーにて魔法書・仙術書・忍術を紐解き、己の流派の技を放て。`;
+            if (q.includes('spell') || q.includes('magic') || q.includes('cast') || q.includes('pray') || q.includes('book') || q.includes('魔法') || q.includes('術') || q.includes('martial') || q.includes('stance')) {
+                return `変愚蛮怒の術法・武芸は多彩なり。『m』キーにて魔法書・仙術書・忍術・剣術の型を紐解き、己の流派の技を放て。`;
             }
-            if (q.includes('shop') || q.includes('store') || q.includes('town') || q.includes('buy') || q.includes('sell') || q.includes('店') || q.includes('町')) {
-                return `城下町には雑貨屋（1）、防具屋（2）、武器屋（3）、寺院（4）、錬金術店（5）、魔法店（6）、ブラックマーケット（7）、我が家（8）が並ぶ。扉を踏んで入店せよ。`;
+            if (q.includes('shop') || q.includes('store') || q.includes('town') || q.includes('buy') || q.includes('sell') || q.includes('店') || q.includes('町') || q.includes('castle') || q.includes('quest')) {
+                return `城下町には雑貨屋（1）から我が家（8）、さらに賞金首を扱う宿屋や王城クエストが並ぶ。扉を踏んで入店し、万全の備えを整えよ。`;
             }
             if (q.includes('escape') || q.includes('run') || q.includes('phase door') || q.includes('teleport') || q.includes('recall') || q.includes('逃') || q.includes('帰還')) {
                 return `退くもまた兵法なり。ショート・テレポートの巻物（r）やテレポートの巻物を常備し、帰還の巻物は発動まで十数ターンを要することを忘れるな。`;
             }
-            if (q.includes('wield') || q.includes('equip') || q.includes('wear') || q.includes('armor') || q.includes('weapon') || q.includes('gear') || q.includes('装備') || q.includes('武器')) {
-                return `武具を装備するには『w』、外すには『t』、現在の装備を検めるには『e』を押すがよい。`;
+            if (q.includes('wield') || q.includes('equip') || q.includes('wear') || q.includes('armor') || q.includes('weapon') || q.includes('gear') || q.includes('装備') || q.includes('武器') || q.includes('katana') || q.includes('dual')) {
+                return `武具を装備するには『w』、外すには『t』、現在の装備を検めるには『e』を押せ。二刀流や名刀の扱いは熟練度が命なり。`;
             }
-            return `宮本武蔵が授ける、${pName}よ。迷宮にて生き延びる要諦は、狭い一マスの通路に敵を誘い込み、常に退路と光源、そして帰還の巻物を絶やさぬことにある。心を静め、一太刀に魂を込めよ。`;
+            return `宮本武蔵が授ける、${pName}よ。迷宮にて生き延びる要諦は、狭い一マスの通路に敵を誘い込み、常に退路と光源、そして帰還の巻物を絶やさぬことにある。`;
         }
 
-        // 0. REALM-SPECIFIC MECHANIC QUERIES (NetHack, DCSS, Brogue, Rogue)
+        // 0A. LIVE SITUATION & TACTICAL STATUS QUERIES ("what should I do", "where am I", "status", "situation")
+        if (q.includes('where am i') || q.includes('status') || q.includes('situation') || q.includes('what should i do') || q.includes('right now') || q.includes('next step')) {
+            const bp = (typeof window !== 'undefined' && window.__activeRyodBlueprint) || {};
+            const locLabel = depth === 0
+                ? (rk === 'ryod' ? `Sanctuary Town of ${bp.title || 'your Rolled Realm'}` : 'the surface town')
+                : `Depth ${depth}`;
+            if (hpPct <= 35) {
+                return `Mind your lifeblood, ${pName}! You stand at ${locLabel} with only ${hp}/${hpMax} HP (${hpPct}%). Quaff a healing potion ('q'), blink or retreat into a 1-tile corridor, and do not trade another blow in the open!`;
+            }
+            if (depth === 0) {
+                if (rk === 'ryod') {
+                    return `You stand in the Sanctuary Town of ${bp.title || 'your Rolled Realm'} (${hp}/${hpMax} HP). Bump the Town Elder for a rumor and full mana, trade 20g/35g with the Quartermaster for healing or Enchant Scrolls, then step on '>' to begin your ${bp.goalDepth || 15}-floor quest against ${bp.nemesisName || 'the Overlord'}!`;
+                }
+                return `You stand safely in ${locLabel} (${hp}/${hpMax} HP). Visit the shops ('1' for torches & rations, '5' for cure potions), inspect your gear ('e'), and step onto the '>' stairs when ready to descend!`;
+            }
+            if (rk === 'ryod') {
+                return `You are delving ${bp.title || 'your Rolled Realm'} on Floor ${depth} of ${bp.goalDepth || 15} (${hp}/${hpMax} HP). Use [m] for your ${bp.resolvedDiscipline || 'signature'} powers, free chained allies, and press downward ('>') toward ${bp.nemesisName || 'the Overlord'} and the ${bp.goalItemName || 'Crown Relic'}!`;
+            }
+            return `You stand on ${locLabel} at ${hp}/${hpMax} HP (${hpPct}%). Funnel foes into 1-tile doorways, press 'm' for abilities or 'q' to heal, and descend ('>') once your supplies and health are secure.`;
+        }
+
+        // 0B. ROLL YOUR OWN DUNGEON (RYOD) SPECIFIC QUERIES
+        if (rk === 'ryod') {
+            const bp = (typeof window !== 'undefined' && window.__activeRyodBlueprint) || {};
+            const title = bp.title || 'your Rolled Dungeon';
+            const boss = bp.nemesisName || 'the Overlord';
+            const relic = bp.goalItemName || 'the Crown Relic';
+            const mutId = bp.mutatorId || 'balanced';
+            if (q.includes('goal') || q.includes('win') || q.includes('quest') || q.includes('boss') || q.includes('story') || q.includes('plot') || q.includes('act')) {
+                const modeDesc = bp.victoryMode === 'three_runes'
+                    ? `collect all 3 Abyssal Runes on the Act II, III, and IV milestone floors, then vanquish ${boss} on Floor ${bp.goalDepth || 15} and claim ${relic}`
+                    : (bp.victoryMode === 'ascension'
+                        ? `slay ${boss} on Floor ${bp.goalDepth || 15}, seize ${relic}, and ascend '<' all the way back to the surface`
+                        : `descend ${bp.goalDepth || 15} floors across 5 Mythic Acts and vanquish ${boss} to claim ${relic}`);
+                return `In "${title}", your quest is to ${modeDesc}! Watch for Act Guardians on milestone floors—each drops a guaranteed Scroll of Enchanting.`;
+            }
+            if (q.includes('mutator') || q.includes('twist') || q.includes('rule') || q.includes('fate') || q.includes('d20')) {
+                return `Your rolled realm "${title}" runs the '${mutId}' mutator with a d20=${bp.d20Fate || 15} Fate roll (${bp.progressionMode || 'hybrid'} progression, ${bp.difficulty || 'standard'} difficulty). Click the top-left Realm badge anytime to inspect your full 5-Act Quest Dossier!`;
+            }
+            if (q.includes('power') || q.includes('spell') || q.includes('magic') || q.includes('cast') || q.includes('ability') || q.includes('discipline')) {
+                return `Press 'm' to invoke your ${bp.resolvedDiscipline || 'active'} Discipline powers and your Hero/Avatar's innate signature technique! Pray at glowing altars ('p') or speak with the Town Elder to restore your power pool.`;
+            }
+            if (q.includes('shop') || q.includes('town') || q.includes('quartermaster') || q.includes('elder') || q.includes('gold') || q.includes('buy')) {
+                return `In RYOD Sanctuary Town (and Outposts on Floors 5, 10, and 15), bump into the Town Elder for a quest rumor and full power refill, or bump the Quartermaster with 20 gold for Healing + Rations (or 35 gold for a Scroll of Enchanting)!`;
+            }
+            if (q.includes('ally') || q.includes('pet') || q.includes('companion') || q.includes('captive')) {
+                return `Your companion pet fights adjacent hostiles automatically and follows you down stairs! Bump into chained captives on dungeon floors to shatter their chains and recruit them into your party.`;
+            }
+        }
+
+        // 0C. REALM-SPECIFIC MECHANIC & CHIP QUERIES (NetHack, DCSS, Brogue, Rogue, Sil-Q, FrogComposBand, Hengband)
         if (rk === 'nethack') {
             if (q.includes('altar') || q.includes('buc') || q.includes('bless') || q.includes('curse') || q.includes('beatitude')) {
-                return `In NetHack, every item is Blessed, Uncursed, or Cursed (BUC). Drop unknown gear onto a co-aligned High Altar ('d') to reveal its beatitude instantly, or let your pet walk over items—pets refuse to step on cursed objects unless forced!`;
+                return `In NetHack, every item is Blessed, Uncursed, or Cursed (BUC). Drop unknown gear onto a co-aligned High Altar ('d') to reveal its beatitude instantly, or let your pet walk over items—pets refuse to step on cursed objects!`;
             }
             if (q.includes('elbereth') || q.includes('engrave') || q.includes('scare')) {
                 return `Engraving 'Elbereth' upon the floor ('E', then '-' for fingers or a wand of fire/digging for permanent runes) causes most monsters to flee in terror! Stand squarely on the Elbereth tile and never attack from it, or you will smudge the dust.`;
             }
             if (q.includes('corpse') || q.includes('intrinsic') || q.includes('floating eye') || q.includes('eat')) {
-                return `Eat fresh corpses ('e') to gain permanent intrinsics: Floating Eyes grant Telepathy (kill them at range first!), Fire/Frost Beetles or Giants grant Fire/Cold/Strength, and Poisonous foes grant Poison Resistance. Never eat rotten corpses or Kobolds!`;
+                return `Eat fresh corpses ('e') to gain permanent intrinsics: Floating Eyes grant Telepathy (kill them at range first!), Fire/Frost Beetles grant elemental resistance, and Poisonous foes grant Poison Resistance. Never eat old corpses or Kobolds!`;
             }
             if (q.includes('pray') || q.includes('god') || q.includes('water') || q.includes('dip')) {
-                return `Invoke '#pray' only in mortal peril (Weak/Fainting from hunger, <15% HP, or lethal trouble) and wait at least 1,000 turns between prayers! Praying while standing on a co-aligned altar blesses water into Holy Water, and '#dip'ping a long sword at XL5+ in a fountain can forge Excalibur!`;
+                return `Invoke '#pray' ('p') only in mortal peril (<15% HP, Weak/Fainting, or lethal trouble) and wait 1,000 turns between prayers! Praying on a co-aligned altar blesses water into Holy Water, and '#dip'ping a long sword at XL5+ in a fountain can forge Excalibur!`;
+            }
+            if (q.includes('pet') || q.includes('companion') || q.includes('shop') || q.includes('steal')) {
+                return `Your starting pet fights alongside you, tests floor items for curses, and can even fetch items inside shops if you wait outside! Feed it fresh meat treats to keep it tame and growing.`;
             }
         } else if (rk === 'dcss') {
             if (q.includes('god') || q.includes('altar') || q.includes('piety') || q.includes('religion') || q.includes('ecumenical')) {
-                return `In DCSS, claim a deity early at an altar or in the Ecumenical Temple (D:4–D:7)! Press '^' to inspect your God's powers and wrath, and 'a' to invoke divine abilities. Trog, Okawaru, and Vehumet are powerhouse choices for early survival.`;
+                return `In DCSS, claim a deity early at an altar or in the Ecumenical Temple (D:4–D:7)! Press 'p' to pray at an altar, '^' to inspect your God's powers, and 'a' to invoke divine abilities. Trog, Okawaru, and Vehumet excel for survival.`;
             }
             if (q.includes('skill') || q.includes('train') || q.includes('xp')) {
                 return `Press 'm' to open the DCSS Skill Training menu! Switch to Manual training ('/') and focus on 1–2 skills at a time: train your primary weapon to Mindelay first, backed by Fighting and Dodging/Armour.`;
             }
-            if (q.includes('rune') || q.includes('branch') || q.includes('lair') || q.includes('zot') || q.includes('win') || q.includes('goal')) {
-                return `To win DCSS, follow the golden branch order: Dungeon (D:1–11) -> Lair (L:1–5) -> Orcish Mines (1–2) -> Dungeon (D:12–15) -> Two Lair Branches (Swamp/Shoals/Snake/Spider) for 2 Runes -> Vaults (V:1–4) -> Depths (U:1–4) -> 3rd Rune -> Realm of Zot (Z:1–5) for the Orb of Zot!`;
+            if (q.includes('auto') || q.includes('explore') || q.includes('tab') || q.includes('rest')) {
+                return `Press 'o' to auto-explore the floor safely, '5' to rest until healed, and 'p' or 'a' to channel your patron deity when uniques appear! Remember: in our 3D engine, 'Tab' toggles the classic 80x24 CRT terminal.`;
+            }
+            if (q.includes('rune') || q.includes('branch') || q.includes('lair') || q.includes('zot') || q.includes('win') || q.includes('goal') || q.includes('orb')) {
+                return `To win DCSS, follow the branch order: Dungeon (D:1–11) -> Lair (L:1–5) -> Orcish Mines -> Two Lair Branches for 2 Runes -> Vaults (V:1–4) -> Depths -> 3rd Rune -> Realm of Zot (Z:1–5) to seize the Orb of Zot and ascend to D:1!`;
             }
         } else if (rk === 'brogue') {
             if (q.includes('enchant') || q.includes('build') || q.includes('level') || q.includes('xp') || q.includes('scroll')) {
-                return `Brogue has zero XP levels! Your entire character build comes from Scrolls of Enchantment ('r') and Potions of Strength/Life ('q'). Save your Enchantment scrolls in early depths until you discover a worthy runic weapon, heavy armor, powerful staff, or charm in a vault!`;
+                return `Brogue has zero XP levels! Your entire character build comes from Scrolls of Enchantment ('r') and Potions of Strength/Life ('q'). Save Enchantment scrolls until you discover a defining runic weapon, heavy armor, staff, or charm!`;
             }
             if (q.includes('ally') || q.includes('captive') || q.includes('cage') || q.includes('vault')) {
-                return `Chained monsters in Brogue become loyal AI companions when you step on their cage release plate! In Treasure Vaults, you may take 1 item—and you can always return later to swap it for another item in the same vault as your build takes shape.`;
+                return `Chained monsters in Brogue become loyal AI companions when you free them! In Treasure Vaults, you may take 1 item—and return later to swap it if your build pivots.`;
+            }
+            if (q.includes('potion') || q.includes('identif') || q.includes('detect') || q.includes('strength')) {
+                return `In Brogue, quaff Potions of Strength/Life ('q') and read Scrolls of Enchantment ('r') on cleared floors near water (to douse incineration) and away from chasms!`;
             }
             if (q.includes('lumenstone') || q.includes('amulet') || q.includes('win') || q.includes('goal')) {
-                return `Descend to Depth 26 of Brogue to claim the Amulet of Yendor and ascend to D1 for victory—or dive into the lethal Depths 27–40 to harvest up to 25 glowing Lumenstones for grandmaster mastery!`;
+                return `Descend to Depth 26 of Brogue to claim the Amulet of Yendor and ascend to D1 for victory—or dive into Depths 27–40 to harvest up to 25 glowing Lumenstones for grandmaster mastery!`;
             }
         } else if (rk === 'rogue') {
             if (q.includes('rust') || q.includes('aquator') || q.includes('armor')) {
-                return `Beware Aquators ('A') in Classic Rogue! Their touch never deals HP damage, but permanently rusts metal armor. Wear Leather Armor (which is immune to rust) or press 'T' to take off your enchanted plate mail before fighting an Aquator!`;
+                return `Beware Aquators ('A') in Classic Rogue! Their touch never deals HP damage, but permanently rusts metal armor. Wear Leather Armor or press 'T' to take off your enchanted plate mail before fighting an Aquator!`;
             }
             if (q.includes('scare') || q.includes('scroll')) {
                 return `In Classic Rogue 5.4, NEVER read ('r') a Scroll of Scare Monster! Instead, DROP ('d') it onto the floor and stand on top of it—no monster in the Dungeons of Doom can attack you while you stand on a Scroll of Scare Monster!`;
+            }
+            if (q.includes('food') || q.includes('hunger') || q.includes('ration') || q.includes('ring')) {
+                return `In 1980 Rogue, the food clock is ruthless! Press 'e' to eat rations when Hungry, and remove rings ('R') when exploring empty halls because wearing rings accelerates food consumption.`;
+            }
+        } else if (rk === 'silq') {
+            if (q.includes('smith') || q.includes('forge') || q.includes('anvil') || q.includes('craft')) {
+                return `In Sil-Q, there are no shops! Instead, invest XP into your Smithing skill and seek glowing Enchanted Forges in the dungeon to hammer custom Noldorin blades, rings, and mithril mail.`;
+            }
+            if (q.includes('stealth') || q.includes('percep') || q.includes('sneak') || q.includes('wake')) {
+                return `Sil-Q rewards shadow and silence: high Stealth lets you slip past sleeping Balrogs and Orc patrols without waking the floor! Close doors behind you and pair Stealth with Song of Silence.`;
+            }
+            if (q.includes('melee') || q.includes('weight') || q.includes('lb') || q.includes('critical') || q.includes('evasion')) {
+                return `In Sil-Q, weapon weight (lb) governs critical-hit thresholds while armor weight reduces Evasion (` + '`[-]`' + `) in exchange for Protection dice (` + '`[xd4]`' + `). Press 'w' to wield and 'r' to remove gear!`;
+            }
+        } else if (rk === 'frogcomposband') {
+            if (q.includes('monster') || q.includes('race') || q.includes('evolv') || q.includes('ring') || q.includes('dragon') || q.includes('beholder')) {
+                return `In FrogComposBand, you can play as a Monster Race—from a Red Dragon or Beholder to a sentient Ring! Monster characters evolve into higher tier forms as they gain XP instead of using standard class gear.`;
+            }
+            if (q.includes('wilderness') || q.includes('overworld') || q.includes('map') || q.includes('travel') || q.includes('town')) {
+                return `Step onto the edge of the Outpost town and press '<' to enter the vast overland Wilderness map! Use it to travel between towns, quest citadels, and distinct dungeon branches.`;
+            }
+            if (q.includes('quest') || q.includes('bounty') || q.includes('castle')) {
+                return `Visit the Town Hall and Quest buildings in FrogComposBand to accept fixed-depth quests and monster bounties—completing them rewards artifacts, stat potions, and fame!`;
+            }
+        } else if (rk === 'hengband') {
+            if (q.includes('castle') || q.includes('quest') || q.includes('bounty') || q.includes('shrine')) {
+                return `In Hengband, visit the Imperial Castle and Hunter's Office in town to accept royal quests and daily monster bounties for rare artifacts and stat rewards!`;
+            }
+            if (q.includes('martial') || q.includes('stance') || q.includes('ki') || q.includes('monk') || q.includes('samurai') || q.includes('bushido')) {
+                return `Press 'm' in Hengband to assume Samurai Bushido stances (iai,musou), channel Monk Ki, or cast Onmyo/Ninjutsu techniques!`;
+            }
+            if (q.includes('dual') || q.includes('katana') || q.includes('two') || q.includes('blade')) {
+                return `Hengband masters can dual-wield two blades ('w')! As you strike foes, your weapon proficiency rises from Unskilled to Master, erasing dual-wield penalties.`;
+            }
+        }
+
+        // 0D. EXPLICIT KEYBINDING / CONTROLS LOOKUP VIA RealmKeys
+        if (q.includes('control') || q.includes('keybind') || q.includes('keys') || q.includes('command')) {
+            const rKeys = (typeof window !== 'undefined' && window.RealmKeys && typeof window.RealmKeys.getCommands === 'function')
+                ? window.RealmKeys.getCommands(rk)
+                : null;
+            if (Array.isArray(rKeys) && rKeys.length > 0) {
+                const summary = rKeys.slice(0, 8).map(c => `${c.label}: [${c.key}]`).join(', ');
+                return `In ${rk.toUpperCase()}, your core commands are: ${summary}, Stairs: [> / <], and CRT Terminal: [Tab].`;
             }
         }
 
@@ -3842,7 +4023,7 @@ class ChronicleGrounder {
      * Guarantees 0ms latency and 100% reliability everywhere.
      */
     static generateProceduralChapter(event, player, traditionKey = 'westmarch') {
-        const rk = (typeof window !== 'undefined' && window.__app && typeof window.__app.getActiveRealm === 'function') ? window.__app.getActiveRealm() : 'angband';
+        const rk = String((player && player.realm) || (typeof window !== 'undefined' && window.__activeRealm) || (typeof window !== 'undefined' && window.__app && typeof window.__app.getActiveRealm === 'function' ? window.__app.getActiveRealm() : 'angband')).toLowerCase();
         const isJpHeng = (rk === 'hengband' && typeof window !== 'undefined' && window.__langMode === 'jp');
         const tradition = this.TRADITIONS[traditionKey] || this.TRADITIONS.westmarch;
         const name = (player && player.name) ? player.name : (isJpHeng ? '放浪の武芸者' : 'The Wanderer');
@@ -3903,56 +4084,138 @@ class ChronicleGrounder {
                 const locDesc = (depth === 0) ? 'upon the surface frontier' : `deep at ${depthFt}`;
                 title = `Epitaph: Fall of ${heroName}`;
 
-                if (traditionKey === 'khazad') {
-                    prose = `The great hammer shatters, and the dark mountain roots claim another child of Durin. Here falls ${heroName}, valiant ${raceClass}, brought low ${locDesc} by ${diedFrom}. May the ancestors carve their honor into the enduring granite, and grant solemn rest beneath the roots of the world.`;
-                } else if (traditionKey === 'noldor') {
-                    prose = `A song of deep sorrow rises toward the starry vault of heaven. ${heroName}, noble ${raceClass}, has perished ${locDesc}, vanquished by ${diedFrom}. The shadow of Morgoth lengthens across the deep, but the memory of their courage shall never fade from the Living Chronicle.`;
+                if (rk === 'nethack') {
+                    prose = `Here falls ${heroName}, valiant ${raceClass}, slain ${locDesc} by ${diedFrom} in the Mazes of Menace. Even the Oracle of Delphi pauses in solemn tribute.`;
+                    insight = "Another headstone rises in the Dungeons of Doom—test unknown items at altars and guard your pet on the next delve.";
+                } else if (rk === 'dcss') {
+                    prose = `Here falls ${heroName}, bold ${raceClass}, vanquished ${locDesc} by ${diedFrom} before the Orb of Zot could be claimed.`;
+                    insight = "In Stone Soup, retreating upstairs at the first sign of a deadly unique is the highest art of survival.";
+                } else if (rk === 'brogue') {
+                    prose = `The bioluminescent caverns grow still as ${heroName} falls ${locDesc} to ${diedFrom}, the Amulet of Yendor still waiting in the deep.`;
+                    insight = "In Brogue, every Scroll of Enchantment and terrain trap shapes your next run.";
+                } else if (rk === 'rogue') {
+                    prose = `A cold stone tombstone marks where ${heroName} fell ${locDesc}, slain by ${diedFrom} in the 1980 Dungeons of Doom.`;
+                    insight = "Rest in peace—watch your food clock and fight in 1-tile doorways on your next descent.";
+                } else if (rk === 'ryod') {
+                    const bp = (typeof window !== 'undefined' && window.__activeRyodBlueprint) || {};
+                    prose = `Here falls ${heroName}, brave ${raceClass}, slain ${locDesc} by ${diedFrom} within ${bp.title || 'the Rolled Realm'}.`;
+                    insight = "Roll the dice anew or re-enter your pinned blueprint to avenge this fall!";
+                } else if (traditionKey === 'khazad') {
+                    prose = `The great hammer shatters, and the dark mountain roots claim another child of Durin. Here falls ${heroName}, valiant ${raceClass}, brought low ${locDesc} by ${diedFrom}.`;
+                    insight = "Every fall sharpens the wisdom of the next adventurer. Rest thy weary blade.";
+                } else if (traditionKey === 'noldor' || rk === 'silq') {
+                    prose = `A song of deep sorrow rises toward the starry vault. ${heroName}, noble ${raceClass}, has perished ${locDesc}, vanquished by ${diedFrom}.`;
+                    insight = "Stealth and measured Song outlast raw force beneath Thangorodrim.";
                 } else {
-                    prose = `Here falls ${heroName}, brave ${raceClass}, slain ${locDesc} by ${diedFrom}. The torch flickers and dies upon the damp subterranean stone, yet their deeds and valor are sealed into the annals of the Living Chronicle for all ages.`;
+                    prose = `Here falls ${heroName}, brave ${raceClass}, slain ${locDesc} by ${diedFrom}. Their deeds are sealed into the Living Chronicle for all ages.`;
+                    insight = "Every fall sharpens the wisdom of the next adventurer. Rest thy weary blade, mortal.";
                 }
-                insight = "Death is not the end in Angband—every fall sharpens the wisdom of the next adventurer. Rest thy weary blade, mortal.";
                 break;
             }
 
             case 'ONBOARDING_TOWN_ARRIVAL': {
-                title = 'Arrival at the Frontier';
-                const backstory = ChronicleGrounder.formatBackstorySummary(player);
-                if (traditionKey === 'khazad') {
-                    prose = `${name} of the Seven Houses—${backstory}—stands upon the frontier above the Iron Hell. Before delving into the mountain roots, visit the General Store ('1') for torches and oil; an unprepared dwarf shames his ancestors.`;
+                if (rk === 'ryod') {
+                    const bp = (typeof window !== 'undefined' && window.__activeRyodBlueprint) || {};
+                    const wTitle = bp.title || 'the Rolled Realm';
+                    const boss = bp.nemesisName || 'the Overlord';
+                    const relic = bp.goalItemName || 'the Crown Relic';
+                    title = `Sanctuary of ${wTitle}`;
+                    prose = `Welcome to ${wTitle}, ${name}. Speak with the Elder, trade gold with the Quartermaster, then descend to vanquish ${boss} for the ${relic}.`;
+                    insight = `Bump the Town Elder for a rumor and full mana, or step on '>' to begin Act I of ${wTitle}!`;
+                } else if (rk === 'hengband') {
+                    title = 'Gates of the Castle Town';
+                    prose = `Welcome to the Castle Town of Hengband, ${name}. Ready your steel at the shops and shrine before descending into the Sengoku labyrinth.`;
+                    insight = "Visit General Store '1' for light and rations, or press 'm' to inspect your martial or arcane arts.";
+                } else if (rk === 'frogcomposband') {
+                    title = 'Crossroads of the Outpost';
+                    prose = `Welcome to the Outpost of Amber, ${name}. Stock supplies at the frontier stores or walk the wilderness border before plunging into Chaos.`;
+                    insight = "Step onto building doors ('1'–'8') to trade, or step onto '>' to descend into the dungeon.";
+                } else if (rk === 'silq') {
+                    title = 'Gates of Thangorodrim';
+                    prose = `Cold smoke coils around ${name} at the iron gates of Angband. Tread softly and ready your blade to wrest a Silmaril from Morgoth's crown.`;
+                    insight = "Press 'S' to weave Songs of Elbereth or Silence, and seek glowing Forges to craft Noldorin gear.";
+                } else if (rk === 'nethack') {
+                    title = 'Threshold of the Mazes';
+                    prose = `Welcome to the Dungeons of Doom, ${name}. Keep your faithful companion close, test unknown gear on altars, and seek the Amulet of Yendor.`;
+                    insight = "Press ',' to pick up items, 'e' to eat fresh corpses, and 'p' to pray at sacred altars.";
+                } else if (rk === 'dcss') {
+                    title = 'Threshold of Stone Soup';
+                    prose = `Welcome to the Dungeon of Stone Soup, ${name}. Focus your weapon skill with 'm', claim a deity at an altar, and hunt the Orb of Zot.`;
+                    insight = "Press 'm' to focus Skill Training, 'g' to pick up loot, and '>' to descend deeper.";
+                } else if (rk === 'brogue') {
+                    title = 'Mouth of the Caverns';
+                    prose = `Welcome to the Caverns of Doom, ${name}. Here zero XP exists—only Scrolls of Enchantment, Potions of Strength, and your wits can claim the Amulet.`;
+                    insight = "Save Scrolls of Enchantment ('r') for defining vault gear and free chained allies along the way!";
+                } else if (rk === 'rogue') {
+                    title = '1980 Dungeons of Doom';
+                    prose = `Welcome to Classic Rogue, ${name}. Watch your rations, guard your armor against Aquators, and descend twenty-six floors for the Amulet of Yendor.`;
+                    insight = "Fight in 1-tile doorways, eat ('e') when hungry, and drop Scrolls of Scare Monster to stand on them!";
+                } else if (traditionKey === 'khazad') {
+                    title = 'Arrival at the Frontier';
+                    prose = `${name} of the Seven Houses stands above the Iron Hell. Visit General Store '1' for torches and rations before delving into Angband.`;
+                    insight = "Press '1' to enter the General Store. Purchase torches ('p') and rations before descending.";
                 } else if (traditionKey === 'noldor') {
-                    prose = `The bitter frontier wind sighs as ${name}—${backstory}—pauses upon the precipice of Angband. Before descending into the Enemy's shadows, hasten to the town stores ('1') to stock light and sustaining draughts.`;
+                    title = 'Arrival at the Frontier';
+                    prose = `The frontier wind sighs as ${name} stands above Angband. Stock light and healing draughts in the town stores before descending ('>').`;
+                    insight = "Press '1' to enter the General Store. Purchase torches ('p') and rations before descending.";
                 } else {
-                    prose = `Welcome to the frontier of Angband, ${name}. ${backstory}, you stand at the threshold of the abyss. Before taking the iron stairs down ('>'), visit the General Store ('1') for torches and oil; in the dark below, forethought is your truest shield.`;
+                    title = 'Arrival at the Frontier';
+                    prose = `Welcome to the frontier of Angband, ${name}. Visit General Store '1' for torches and rations before taking the iron stairs down ('>').`;
+                    insight = "Press '1' to enter the General Store. Purchase torches ('p') and rations before descending.";
                 }
-                insight = "Press '1' to enter the General Store. Purchase torches ('p') and rations before descending.";
                 break;
             }
 
             case 'ONBOARDING_FIRST_DESCENT': {
-                title = 'Crossing the Threshold';
-                const backstory = ChronicleGrounder.formatBackstorySummary(player);
-                const rawFeel = (event.data && event.data.feelingText) ? String(event.data.feelingText).replace(/[.!]+$/, '').trim() : '';
-                const feelClause = rawFeel ? ` An initial premonition whispers through the stone—${rawFeel.charAt(0).toLowerCase() + rawFeel.slice(1)}.` : '';
-                if (traditionKey === 'delphic' || (player && player.realm === 'nethack')) {
-                    prose = `The cold stone steps echo beneath ${name}—${backstory}—as the descent into the Dungeons of Doom begins at fifty feet. Torchlight dances across ancient flagstones while a faithful companion trots vigilantly alongside, ready to brave the subterranean perils in pursuit of the Amulet of Yendor.${feelClause}`;
-                    insight = "Use #pray upon altars when in mortal peril, #dip or #offer at sacred shrines, and fight alongside your faithful companion!";
+                if (rk === 'ryod') {
+                    const bp = (typeof window !== 'undefined' && window.__activeRyodBlueprint) || {};
+                    const wTitle = bp.title || 'the Rolled Realm';
+                    const boss = bp.nemesisName || 'the Overlord';
+                    title = `Act I: ${wTitle}`;
+                    prose = `The stone stairs seal behind ${name} on Floor 1 of ${wTitle}. Ready your steel and press [m]—${boss} awaits in the deep.`;
+                    insight = "Press 'm' to invoke your Discipline powers, ',' or 'g' to gather loot, and free chained allies!";
+                } else if (rk === 'nethack' || traditionKey === 'delphic') {
+                    title = 'Into the Mazes of Menace';
+                    prose = `Torchlight dances across Dungeon Level 1 as ${name} and a faithful companion begin the quest for the Amulet of Yendor.`;
+                    insight = "Let your pet step on unknown items to spot curses, engrave 'Elbereth' ('E') in peril, and '#pray' on altars!";
+                } else if (rk === 'dcss') {
+                    title = 'Dungeon D:1 — The Descent Begins';
+                    prose = `The iron gates of Dungeon D:1 close behind ${name}. Train your weapon skill to mindelay and seek the Ecumenical Temple below.`;
+                    insight = "Press 'm' to manage Skills, 'p' at altars to worship a God, and retreat upstairs ('<') before HP drops low!";
+                } else if (rk === 'brogue') {
+                    title = 'Depth 1: The Bioluminescent Threshold';
+                    prose = `Glowing cave moss lights Depth 1 as ${name} steps into the Caverns of Doom in search of Enchantment Scrolls and the Amulet of Yendor.`;
+                    insight = "Brogue has zero XP levels: empower your build with Scrolls of Enchantment ('r') and Potions of Strength ('q')!";
+                } else if (rk === 'rogue') {
+                    title = 'Level 1: The Dungeons of Doom';
+                    prose = `Torchlight flickers across Level 1 of the 1980 Dungeons of Doom as ${name} begins the twenty-six-floor hunt for the Amulet of Yendor.`;
+                    insight = "Watch your food clock ('e' to eat), remove metal armor against Aquators, and fight in 1-tile doorways!";
+                } else if (rk === 'silq') {
+                    title = 'Beneath the Shadow of Thangorodrim';
+                    prose = `The bitter smoke of Thangorodrim closes above ${name} at -250 feet. Move in silence and weave your Song to steal a Silmaril.`;
+                    insight = "Press 'S' to sing, 'w' to wield, 'r' to remove gear, and use Enchanted Forges to craft arms!";
+                } else if (rk === 'frogcomposband') {
+                    title = 'Into the Shifting Vaults';
+                    prose = `The stairs creak behind ${name} as the multiverse warps into the first dungeon tier. Lure foes into narrow corridors and guard your flank.`;
+                    insight = "Press 'm' for magic or racial powers, and step back into 1-tile doorways against packs!";
+                } else if (rk === 'hengband') {
+                    title = 'First Step into the Sengoku Deep';
+                    prose = `Lantern light gleams on ${name}'s blade at fifty feet. Funnel lurking yōkai into narrow doorways and strike with decisive focus.`;
+                    insight = "Press 'm' to invoke Bushido stances or spells, and never fight surrounded in open rooms!";
                 } else {
-                    prose = `The iron stairs groan behind as ${name}—${backstory}—crosses the threshold into fifty feet. Ancient subterranean shadows press close against the flickering torchlight, reeking of damp stone, sulfur, and watchful eyes.${feelClause}`;
+                    title = 'Crossing the Threshold';
+                    prose = `The iron stairs groan behind ${name} at fifty feet. Damp stone and watchful eyes press close—funnel every foe into narrow doorways.`;
                     insight = "The Golden Rule: Never fight in the center of rooms. Step back into narrow 1-tile doorways!";
                 }
                 break;
             }
 
             case 'TAVERN_RESPITE': {
-                title = 'The Tavern Hearth';
-                const turnSeed = Math.abs((player ? player.turn || 0 : 0) + (name ? name.length * 19 : 0));
-                const tavernOptions = [
-                    `The iron cellar-doors of the deep slam shut, and the biting mountain air fills ${name}'s lungs. Stumbling into the warmth of the town tavern with boots caked in deep-dust and a pack heavy with spoils, the murmur of the patrons falls into hushed reverence.`,
-                    `Ascending from the dark abyss into the bitter frontier breeze, ${name} pushes open the oak timber doors of the tavern. Battered armor and notched steel bear witness to the trials below, drawing respectful nods from seasoned mercenaries as peat smoke and golden firelight banish the subterranean cold.`,
-                    `Leaving the harrowing terrors of the deep pit behind, ${name} steps across the threshold of the frontier inn. Shaking the subterranean grime from cloak and gear, the warmth of the hearth and the aroma of roasted boar offer hard-earned solace to a weary soul.`
-                ];
-                prose = tavernOptions[turnSeed % tavernOptions.length];
-                insight = "Visit Alchemy Shop '5' to replenish Potions of Cure Critical Wounds and Restore Life Levels.";
+                title = rk === 'ryod' ? 'Sanctuary Respite' : 'The Tavern Hearth';
+                prose = `Emerging from the deep with battered gear and hard-won spoils, ${name} breathes the cool sanctuary air and renews strength by the hearth.`;
+                insight = rk === 'ryod'
+                    ? "Trade 20g or 35g with the Quartermaster for healing potions and Scrolls of Enchanting!"
+                    : "Visit Alchemy Shop '5' to replenish Potions of Cure Critical Wounds and Restore Life Levels.";
                 break;
             }
 
@@ -3972,14 +4235,14 @@ class ChronicleGrounder {
 
             case 'MORTAL_PERIL':
                 title = 'The Brink of Doom';
-                prose = `A searing agony tears through ${name}'s side! With Hit Points draining and shield arm trembling under the assault, only desperate speed and quick wit will stay the cold hand of Mandos.`;
-                insight = "EMERGENCY: Quaff Cure Potions ('q') or read a Scroll of Phase Door ('r') immediately!";
+                prose = `Searing agony tears through ${name}'s side! With lifeblood draining fast, only immediate healing or escape will cheat the grave.`;
+                insight = "EMERGENCY: Quaff a Healing Potion ('q') or read an escape scroll ('r') immediately!";
                 break;
 
             case 'UNIQUE_SLAIN':
                 const uName = (event.data && event.data.name) ? event.data.name : 'A Unique Terror';
                 title = `The Fall of ${uName.split(',')[0]}`;
-                prose = `A final shudder convulses the chamber as ${uName} collapses lifeless upon the flagstones! The surrounding gloom lifts slightly, as if the Iron Hell itself groaned at the blow.`;
+                prose = `A final shudder convulses the chamber as ${uName} collapses lifeless upon the flagstones! The surrounding gloom lifts at the decisive blow.`;
                 insight = "A legendary victory! Unique foes never return once vanquished.";
                 break;
 
@@ -5896,6 +6159,71 @@ class ChronicleGrounder {
                     threatClause = ` The menacing growl of a ${monsters[0].name} breaks the silence ahead, claws scraping against the stone.`;
                 }
             }
+        } else if (rk === 'nethack') {
+            title = depth <= 1 ? '🔮 Tale of the Dungeons of Doom' : `🔮 Tale of Mazes Dlvl ${depth}`;
+            if (inPeril) {
+                opening = `Cornered on Dlvl ${Math.max(1, depth)} of the Mazes of Menace, ${name} bleeds upon the flagstones as hostile shadows close in.`;
+                adviceClause = `Engrave 'Elbereth' upon the dust ('E'), quaff a blessed healing potion ('q'), or offer a desperate '#pray' ('p') to your deity before the Reaper claims your amulet run!`;
+            } else {
+                opening = `Torchlight gleams across Dlvl ${Math.max(1, depth)} of the Dungeons of Doom as ${name} advances with measured caution.`;
+                adviceClause = `Let your faithful companion test unknown floor items for curses, test gear on co-aligned altars, and eat fresh corpses ('e') to build elemental intrinsics.`;
+            }
+            if (monsters.length > 0) {
+                threatClause = ` Ahead in the corridor, a ${monsters[0].name} blocks the stone passage.`;
+            }
+        } else if (rk === 'dcss') {
+            title = `🔮 Tale of Dungeon D:${Math.max(1, depth)}`;
+            if (inPeril) {
+                opening = `Battered and bleeding on Dungeon D:${Math.max(1, depth)}, ${name} stands on the razor's edge of Stone Soup permadeath.`;
+                adviceClause = `Never fight a lethal engagement to the last hit point! Read teleportation or blink immediately, quaff curing ('q'), and retreat up a known staircase ('<') to reset the fight.`;
+            } else {
+                opening = `Advancing through the branching vaults of Dungeon D:${Math.max(1, depth)}, ${name} weighs every tactical angle on the road to Zot.`;
+                adviceClause = `Focus your primary offensive skill to mindelay ('m'), claim a patron deity at an altar ('p'), and lure dangerous packs back toward cleared stairs.`;
+            }
+            if (monsters.length > 0) {
+                threatClause = ` A hostile ${monsters[0].name} prowls just within line of sight.`;
+            }
+        } else if (rk === 'brogue') {
+            title = `🔮 Tale of Caverns Depth ${Math.max(1, depth)}`;
+            if (inPeril) {
+                opening = `Wounded amidst the bioluminescent gloom of Depth ${Math.max(1, depth)}, ${name} backs toward a narrow stone choke point.`;
+                adviceClause = `Quaff a Potion of Life ('q') or empower a defensive charm or staff with a Scroll of Enchantment ('r')—in Brogue, clever item synergy is your only lifeline!`;
+            } else {
+                opening = `Glowing spores and subterranean pools shimmer across Depth ${Math.max(1, depth)} as ${name} explores the Caverns of Doom.`;
+                adviceClause = `Remember that Brogue grants zero XP from kills: save your Scrolls of Enchantment for a defining vault weapon, staff, or ally, and use terrain traps against foes.`;
+            }
+            if (monsters.length > 0) {
+                threatClause = ` Near the cavern edge, a ${monsters[0].name} stirs in the phosphorescent light.`;
+            }
+        } else if (rk === 'rogue') {
+            title = `🔮 Tale of Level ${Math.max(1, depth)} — Dungeons of Doom`;
+            if (inPeril) {
+                opening = `Bleeding on Level ${Math.max(1, depth)} of the 1980 Dungeons of Doom, ${name} braces in a narrow doorway.`;
+                adviceClause = `Quaff a healing potion ('q') or drop ('d') a Scroll of Scare Monster at your feet—no creature in Rogue can strike you while you stand upon that sacred parchment!`;
+            } else {
+                opening = `By flickering torchlight on Level ${Math.max(1, depth)}, ${name} searches the classic stone chambers for stairs and provisions.`;
+                adviceClause = `Keep a close eye on your food clock ('e' to eat rations), unequip metal armor before fighting Aquators, and fight one foe at a time in 1-tile doorways.`;
+            }
+            if (monsters.length > 0) {
+                threatClause = ` In the chamber ahead, a ${monsters[0].name} guards the passage.`;
+            }
+        } else if (rk === 'ryod') {
+            const bp = (typeof window !== 'undefined' && window.__activeRyodBlueprint) || {};
+            const wTitle = bp.title || 'the Rolled Realm';
+            const boss = bp.nemesisName || 'the Overlord';
+            title = depth === 0 ? `🔮 Tale of ${wTitle} Sanctuary` : `🔮 Tale of ${wTitle} — Floor ${depth}`;
+            if (inPeril) {
+                opening = `Hard-pressed on Floor ${depth} of ${wTitle}, ${name} reels under heavy blows as the shadows close in.`;
+                adviceClause = `Quaff a healing potion ('q'), invoke your [m] Discipline power, or retreat into a 1-tile doorway before ${boss}'s legions overwhelm your guard!`;
+            } else {
+                opening = depth === 0
+                    ? `Standing in the Sanctuary Town of ${wTitle}, ${name} prepares for the ${bp.goalDepth || 15}-floor quest against ${boss}.`
+                    : `Delving Floor ${depth} of ${wTitle}, ${name} presses forward toward ${boss} and the ${bp.goalItemName || 'Crown Relic'}.`;
+                adviceClause = `Invoke [m] for your ${bp.resolvedDiscipline || 'signature'} powers, shatter chains to recruit captive allies, and trade gold with the Quartermaster for Scrolls of Enchanting.`;
+            }
+            if (monsters.length > 0) {
+                threatClause = ` Nearby, ${monsters[0].name} stalks across the stone.`;
+            }
         } else {
             // Vanilla Angband
             if (inPeril) {
@@ -5974,6 +6302,63 @@ class ChronicleGrounder {
                 { maxDepth: 45, badge: '火之巻 • Scroll of Fire', title: 'Scroll of Fire (火之巻): Clash of Sengoku Spirits' },
                 { maxDepth: 75, badge: '風之巻 • Scroll of Wind', title: 'Scroll of Wind (風之巻): Secrets of the Ten Realms' },
                 { maxDepth: 999, badge: '空之巻 • Scroll of the Void', title: 'Scroll of the Void (空之巻): Beyond Life and Death' }
+            ]
+        },
+        nethack: {
+            realm: 'nethack',
+            collectionTitle: 'Tablets of the Delphic Oracle',
+            divisionUnit: 'Tablet',
+            divisions: [
+                { maxDepth: 4, badge: 'Tablet I • Dungeons of Doom', title: 'Tablet I: The Torchlit Mazes & Faithful Companion' },
+                { maxDepth: 12, badge: 'Tablet II • Sokoban & The Mines', title: 'Tablet II: Altars of Beatitude & Gnomish Vaults' },
+                { maxDepth: 22, badge: 'Tablet III • The Medusa & Castle', title: 'Tablet III: The Valley of the Dead' },
+                { maxDepth: 999, badge: 'Tablet IV • Gehennom & Ascension', title: 'Tablet IV: Sanctum of Moloch & The Astral Plane' }
+            ]
+        },
+        dcss: {
+            realm: 'dcss',
+            collectionTitle: 'Annals of the Orb of Zot',
+            divisionUnit: 'Codex',
+            divisions: [
+                { maxDepth: 7, badge: 'Codex I • The Ecumenical Threshold', title: 'Codex I: Altars of the Pantheon' },
+                { maxDepth: 14, badge: 'Codex II • Lair & Orcish Mines', title: 'Codex II: The Rune-Guarded Branches' },
+                { maxDepth: 22, badge: 'Codex III • Vaults & Depths', title: 'Codex III: The Three Runes of Zot' },
+                { maxDepth: 999, badge: 'Codex IV • Realm of Zot', title: 'Codex IV: Seizing the Orb & The Demonic Ascent' }
+            ]
+        },
+        brogue: {
+            realm: 'brogue',
+            collectionTitle: 'Journals of the Bioluminescent Deep',
+            divisionUnit: 'Folio',
+            divisions: [
+                { maxDepth: 6, badge: 'Folio I • Upper Caverns', title: 'Folio I: Enchanting Scrolls & Vault Keys' },
+                { maxDepth: 14, badge: 'Folio II • Goblin Warrens & Bog', title: 'Folio II: Liberated Allies & Caustic Gas' },
+                { maxDepth: 22, badge: 'Folio III • Lava Depths', title: 'Folio III: Runic Mastery & Dragonfire' },
+                { maxDepth: 999, badge: 'Folio IV • Sanctum of Yendor', title: 'Folio IV: The Amulet & Radiant Lumenstones' }
+            ]
+        },
+        rogue: {
+            realm: 'rogue',
+            collectionTitle: 'Parchments of the 1980 Guild',
+            divisionUnit: 'Parchment',
+            divisions: [
+                { maxDepth: 6, badge: 'Parchment I • Torchlit Entry', title: 'Parchment I: Kestrels, Kobolds & Rations' },
+                { maxDepth: 14, badge: 'Parchment II • The Rust Halls', title: 'Parchment II: Centaurs, Aquators & Nymphs' },
+                { maxDepth: 21, badge: 'Parchment III • Troll Labyrinths', title: 'Parchment III: Phantoms, Xerocs & Vampires' },
+                { maxDepth: 999, badge: 'Parchment IV • Floor 26', title: 'Parchment IV: Jabberwocks, Dragons & The Amulet of Yendor' }
+            ]
+        },
+        ryod: {
+            realm: 'ryod',
+            collectionTitle: 'Acts of the Rolled Realm',
+            divisionUnit: 'Act',
+            divisions: [
+                { maxDepth: 0, badge: 'Prologue • Sanctuary Outpost', title: 'Prologue: Rumors at the Threshold' },
+                { maxDepth: 3, badge: 'Act I • The Outer Threshold', title: 'Act I: Crossing the Rolled Frontier' },
+                { maxDepth: 7, badge: 'Act II • The Rising Shadow', title: 'Act II: Guardians of the First Seal' },
+                { maxDepth: 11, badge: 'Act III • The Crucible', title: 'Act III: Blood & Vaults in the Deep' },
+                { maxDepth: 14, badge: 'Act IV • Inner Sanctum', title: 'Act IV: The Overlord’s Vanguard' },
+                { maxDepth: 999, badge: 'Act V • The Final Reckoning', title: 'Act V: Throne of the Nemesis' }
             ]
         }
     };
@@ -6070,13 +6455,150 @@ class ChronicleGrounder {
                 summary: 'Harmonize Yin and Yang through talismans, divination, and elemental warding.',
                 counsel: 'Layer elemental resistances and enlightenment before descending into quest citadels.'
             }
+        ],
+        nethack: [
+            {
+                id: 'delphi_altar',
+                label: '⛩️ Covenant of the Co-Aligned Altar',
+                epithet: 'Consecrator of Sacred Stone',
+                summary: 'Test all unknown gear upon altars, brew Holy Water, and guard your pet.',
+                counsel: 'Drop items on altars to check BUC status and save #pray for true emergencies.'
+            },
+            {
+                id: 'elbereth_ward',
+                label: '✨ Inscription of Elbereth',
+                epithet: 'Scribe of the Warding Dust',
+                summary: 'Carve the sacred word of terror when cornered and harvest corpse intrinsics.',
+                counsel: 'Engrave Elbereth with E and never attack while standing on your warding rune.'
+            },
+            {
+                id: 'yendor_ascendant',
+                label: '🏆 Oath of the Astral Ascent',
+                epithet: 'Seeker of the Bell & Book',
+                summary: 'Descend to Gehennom, wrest the Amulet from Moloch’s priest, and ascend.',
+                counsel: 'Stockpile magic markers, genocide scrolls, and full elemental resistances.'
+            }
+        ],
+        dcss: [
+            {
+                id: 'mindelay',
+                label: '⚔️ Discipline of Mindelay Steel',
+                epithet: 'Tactician of the Choke Point',
+                summary: 'Focus-train primary weapon skill to mindelay before branching into support.',
+                counsel: 'Press m to focus 1-2 skills and pull every pack back to a known staircase.'
+            },
+            {
+                id: 'ecumenical',
+                label: '🙏 Zealot of the Ecumenical Temple',
+                epithet: 'Champion of Divine Piety',
+                summary: 'Claim a patron deity early and channel divine wrath in every boss fight.',
+                counsel: 'Pray at altars with p and invoke god powers before HP drops below 50%.'
+            },
+            {
+                id: 'three_runes',
+                label: '🔮 Hunter of the Three Runes',
+                epithet: 'Bearer of the Orb of Zot',
+                summary: 'Conquer Lair, Orc, Vaults, and Zot:5 with disciplined stair-dancing.',
+                counsel: 'Never fight two uniques at once; use Teleportation early when surrounded.'
+            }
+        ],
+        brogue: [
+            {
+                id: 'enchant_savant',
+                label: '📜 Savant of the Enchanted Scroll',
+                epithet: 'Architect of Runic Gear',
+                summary: 'Hoard Scrolls of Enchantment to forge one unstoppable weapon, staff, or charm.',
+                counsel: 'Commit your Enchantment scrolls to a single defining vault item.'
+            },
+            {
+                id: 'liberated_pack',
+                label: '⛓️ Liberator of the Chained',
+                epithet: 'Pack-Leader of the Deep',
+                summary: 'Free every captive monster and empower your allies through the deep caverns.',
+                counsel: 'Shatter chains on every floor and swap positions with wounded allies.'
+            },
+            {
+                id: 'lumen_delver',
+                label: '💎 Seeker of the Twenty-Five Lumenstones',
+                epithet: 'Walker of the Bioluminescent Abyss',
+                summary: 'Master gas traps, potions, and chasm bridges to claim the Amulet on Depth 26.',
+                counsel: 'Test unknown potions on cleared floors near water and away from lava.'
+            }
+        ],
+        rogue: [
+            {
+                id: 'doorway_duelist',
+                label: '🗡️ Duelist of the Stone Doorway',
+                epithet: 'Sentinel of the 1980 Grid',
+                summary: 'Hold every 1-tile doorway and never let the A-to-Z bestiary surround you.',
+                counsel: 'Step back into doorways so only one monster can strike you per turn.'
+            },
+            {
+                id: 'rust_warden',
+                label: '🛡️ Warden Against the Aquator',
+                epithet: 'Keeper of Unrusted Mail',
+                summary: 'Protect enchanted armor from Aquators and ration food across all 26 floors.',
+                counsel: 'Unequip metal armor before fighting Aquators and watch your hunger state.'
+            },
+            {
+                id: 'scare_scholar',
+                label: '📜 Master of the Dropped Scroll',
+                epithet: 'Archivist of Floor 26',
+                summary: 'Use Scrolls of Scare Monster and wands wisely to claim the Amulet of Yendor.',
+                counsel: 'Drop Scrolls of Scare Monster on the floor and stand on them in emergencies.'
+            }
+        ],
+        ryod: [
+            {
+                id: 'dice_sovereign',
+                label: '🎲 Sovereign of the Rolled Fate',
+                epithet: 'Champion of the Tabletop Forge',
+                summary: 'Master your chosen Power Discipline [m] and conquer all 5 Mythic Acts.',
+                counsel: 'Invoke [m] powers in tough rooms and slay Act Bosses for Enchant Scrolls.'
+            },
+            {
+                id: 'pack_liberator',
+                label: '🐾 Commander of the Loyal Pack',
+                epithet: 'Liberator of the Deep Vaults',
+                summary: 'Fight alongside your starting companion pet and liberate chained floor allies.',
+                counsel: 'Free captive allies on every floor and trade gold with the Quartermaster.'
+            },
+            {
+                id: 'relic_ascendant',
+                label: '🏆 Vanquisher of the Overlord',
+                epithet: 'Claimant of the Crown Relic',
+                summary: 'Adapt to your World Mutator and strike down the Nemesis on the final floor.',
+                counsel: 'Pray at glowing altars [p] to sanctify your weapon and restore full vigor.'
+            }
         ]
     };
 
     static getStoryArchitecture(realmKey = 'angband', depth = 0) {
         const rk = String(realmKey || 'angband').toLowerCase();
-        const arch = this.REALM_STORY_ARCHITECTURES[rk] || this.REALM_STORY_ARCHITECTURES.angband;
         const d = Math.max(0, Number(depth) || 0);
+        if (rk === 'ryod' && typeof window !== 'undefined' && window.__activeRyodBlueprint) {
+            const bp = window.__activeRyodBlueprint;
+            const goal = Math.max(5, Number(bp.goalDepth) || 15);
+            if (d === 0) {
+                return {
+                    realm: 'ryod',
+                    collectionTitle: bp.title || 'Acts of the Rolled Realm',
+                    divisionUnit: 'Act',
+                    currentDivision: `Prologue • ${bp.title || 'Sanctuary'}`,
+                    currentTitle: `Prologue: Sanctuary of ${bp.title || 'the Rolled Realm'}`
+                };
+            }
+            const actIdx = Math.min(4, Math.max(0, Math.floor(((d - 1) / goal) * 5)));
+            const actObj = (Array.isArray(bp.acts) && bp.acts[actIdx]) || { act: String(actIdx + 1), title: 'The Delve' };
+            return {
+                realm: 'ryod',
+                collectionTitle: bp.title || 'Acts of the Rolled Realm',
+                divisionUnit: 'Act',
+                currentDivision: `Act ${actObj.act || (actIdx + 1)} • ${actObj.title}`,
+                currentTitle: `Act ${actObj.act || (actIdx + 1)}: ${actObj.title}`
+            };
+        }
+        const arch = this.REALM_STORY_ARCHITECTURES[rk] || this.REALM_STORY_ARCHITECTURES.angband;
         const div = arch.divisions.find(item => d <= item.maxDepth) || arch.divisions[arch.divisions.length - 1];
         return {
             realm: arch.realm,

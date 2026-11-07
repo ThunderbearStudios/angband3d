@@ -2,8 +2,9 @@
  * tools/test_ui_surface_integrity.js
  * 
  * Automated Regression Sentinel: UI Surface & Feature Preservation Validator
- * Asserts 100% presence and integrity of all 126 existing interactive buttons 
- * and 10 core modal containers in server/public/index.html.
+ * Asserts 100% presence and integrity of all 128 canonical interactive buttons 
+ * and 13 core modal containers in server/public/index.html, plus v11.8.3
+ * Splash Deduplication and Main Menu Command Bar invariants.
  */
 
 const fs = require('fs');
@@ -17,7 +18,7 @@ if (!fs.existsSync(htmlPath)) {
 
 const html = fs.readFileSync(htmlPath, 'utf8');
 
-// The 126 Canonical Button IDs that must NEVER be deleted or renamed
+// The 128 Canonical Button IDs that must NEVER be deleted or renamed
 const EXPECTED_BUTTON_IDS = [
     // Terminal Toolbar & Zoom
     'btn-term-zoom-out', 'btn-term-zoom-reset', 'btn-term-zoom-in',
@@ -72,7 +73,7 @@ const EXPECTED_BUTTON_IDS = [
     'btn-queue-cancel'
 ];
 
-// The 10 Core Containers / Modals
+// The 13 Core Containers / Modals
 const EXPECTED_CONTAINER_IDS = [
     'terminal-container',
     'message-feed-window',
@@ -123,6 +124,25 @@ if (missingContainers.length === 0) {
     console.log(`ok    100% Modal/Container ID Integrity (${EXPECTED_CONTAINER_IDS.length}/${EXPECTED_CONTAINER_IDS.length} present)`);
 } else {
     console.error(`FAIL  Missing ${missingContainers.length} Container IDs:\n  - ${missingContainers.join('\n  - ')}`);
+}
+
+// Audit v11.8.3 Splash Deduplication & Main Menu Command Bar
+const splashStripMatch = html.match(/<div class="splash-realm-strip"[\s\S]*?<\/div>/);
+if (splashStripMatch && /Roll Your Own Dungeon/i.test(splashStripMatch[0])) {
+    console.error('FAIL  Roll Your Own Dungeon is still duplicated inside .splash-realm-strip');
+    failed++;
+} else if (!/Roll Your Own Dungeon/i.test(html)) {
+    console.error('FAIL  Roll Your Own Dungeon is missing from splash features line');
+    failed++;
+} else {
+    console.log('ok    Splash Screen Roll Your Own Dungeon deduplicated cleanly (1 canonical placement)');
+}
+
+if (!html.includes('main-menu-realm-actions') || !html.includes('btn-menu-ryod-forge') || !html.includes('btn-menu-ryod-quick')) {
+    console.error('FAIL  Main Menu consolidated Realm & RYOD Command Bar (.main-menu-realm-actions) missing');
+    failed++;
+} else {
+    console.log('ok    Main Menu consolidated Realm & RYOD Command Bar present');
 }
 
 console.log('\nAudit Summary: ' + (failed === 0 ? 'ALL PASSED (Zero Omissions)' : `${failed} FAILURES`));

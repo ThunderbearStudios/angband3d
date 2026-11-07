@@ -859,7 +859,7 @@ class ChronicleManager {
                     const query = chip.getAttribute('data-query');
                     if (query) {
                         if (this.inputQuery) this.inputQuery.value = query;
-                        this.submitUserQuery();
+                        this.submitUserQuery({ instantChip: true });
                     }
                 });
             });
@@ -1006,18 +1006,21 @@ class ChronicleManager {
             this.btnStoryPromptTome.textContent = isJp ? '📜 物語を紡ぐ' : '📜 Spin Tale';
         }
         if (this.quickChips && this.quickChips.length > 0) {
+            const activeRealm = this.getActiveRealm();
             const jpChips = [
                 { label: '🧪 薬と回復', query: '薬と回復について教えてくれ' },
                 { label: '🏕️ 休息の心得', query: '安全な休息の方法は？' },
                 { label: '⚔️ 通路の兵法', query: '通路での戦い方を教えてくれ' },
                 { label: '🏯 城下町の店', query: '城下町の店について教えてくれ' }
             ];
-            const enChips = [
-                { label: '🧪 Potions', query: 'How do I quaff potions and heal?' },
-                { label: '🏕️ Resting', query: 'How do I rest safely to recover HP and mana?' },
-                { label: '⚔️ Tactics', query: 'What is corridor funneling combat tactics?' },
-                { label: '🏪 Town Shops', query: 'What do the town shops sell?' }
-            ];
+            const enChips = (this.REALM_CHRONICLE_CHIPS && this.REALM_CHRONICLE_CHIPS[activeRealm])
+                || (this.REALM_CHRONICLE_CHIPS && this.REALM_CHRONICLE_CHIPS.angband)
+                || [
+                    { label: '🧪 Potions', query: 'How do I quaff potions and heal?' },
+                    { label: '🏕️ Resting', query: 'How do I rest safely to recover HP and mana?' },
+                    { label: '⚔️ Tactics', query: 'What is corridor funneling combat tactics?' },
+                    { label: '🏪 Town Shops', query: 'What do the town shops sell?' }
+                ];
             this.quickChips.forEach((chip, idx) => {
                 const cfg = isJp ? jpChips[idx % jpChips.length] : enChips[idx % enChips.length];
                 if (cfg) {
@@ -1026,6 +1029,24 @@ class ChronicleManager {
                 }
             });
         }
+    }
+
+    prewarmRealmOpening(realmKey = null, heroStub = null) {
+        if (!this.grounder || !this.audio || this._isAudioMuted() || typeof this.audio.prewarmUtterance !== 'function') return;
+        try {
+            const rk = String(realmKey || this.getActiveRealm() || 'angband').toLowerCase();
+            const noTownRealms = ['nethack', 'dcss', 'brogue', 'rogue', 'silq'];
+            const bp = (typeof window !== 'undefined' && window.__activeRyodBlueprint) || null;
+            const startsInDungeon = noTownRealms.includes(rk) || (rk === 'ryod' && bp && bp.hasTown === false);
+            const evType = startsInDungeon ? 'ONBOARDING_FIRST_DESCENT' : 'ONBOARDING_TOWN_ARRIVAL';
+            const stub = heroStub || this.currentHero || { name: 'Adventurer', race: 'Human', class: 'Warrior', realm: rk, depth: startsInDungeon ? 1 : 0 };
+            const trad = this.grounder.getTraditionForRealm(rk, stub.race || '');
+            const entry = this.grounder.generateProceduralChapter({ type: evType, priority: 'normal', isChapter: true, data: { player: stub } }, stub, trad);
+            if (entry && entry.prose) {
+                const narrProfile = this.grounder.resolveVoiceProfile(null, stub, evType, trad, false, rk, this.getLanguageMode());
+                this.audio.prewarmUtterance(entry.prose, 'narrator', '', null, { ...(narrProfile || {}), narrator: narrProfile, engine: this.audio.ttsEngine }).catch(() => {});
+            }
+        } catch (_) {}
     }
 
     showWindow() {
@@ -1086,6 +1107,7 @@ class ChronicleManager {
         this.currentBeatIndex = 0;
         this.isStoryPlaying = false;
         this.lorekeeperQueryCount = 0;
+        this._lastChronicleFrameSig = null;
 
         // 2. Wipe filter telemetry, combat trackers & action accumulators
         if (this.filter) this.filter.reset();
@@ -1128,51 +1150,55 @@ class ChronicleManager {
         if (hero && hero.race) {
             this.currentCharacterSignature = `${hero.name || 'Hero'}_${hero.race || ''}_${hero.class || ''}`;
         } else {
-            // Incomplete/partial hero stub from UI launch before engine frame 1; leave signature null
-            // so frame 1 triggers authoritative initialization once player.race and history are ready.
             this.currentCharacterSignature = null;
         }
         this.characterDied = false;
 
         // 7. Attune tradition to active realm and hero race best fit
         if (this.grounder) {
-            const realm = (window.__app && typeof window.__app.getActiveRealm === 'function') ? window.__app.getActiveRealm() : 'angband';
-            this.tradition = this.grounder.getTraditionForRealm(realm, hero?.race || '');
+            const activeR = (window.__app && typeof window.__app.getActiveRealm === 'function') ? window.__app.getActiveRealm() : 'angband';
+            this.tradition = this.grounder.getTraditionForRealm(activeR, hero?.race || '');
             if (this.audio) this.audio.setTradition(this.tradition);
             this.updateTraditionBadge();
         }
 
-        // 8. Speculative Pre-Warming: Immediately warm the opening town arrival prologue in the background!
-        // Guarantees zero-latency, instant vocal initiation when the player appears in town.
-        // Requires complete hero profile (hero.race) to avoid firing duplicate pre-warms on dummy UI stubs.
+        // 8. Speculative Pre-Warming: Warm the active realm's opening chapter + 4s stair-descent lookahead!
         if (hero && hero.race && this.grounder && this.audio && !this._isAudioMuted() && typeof this.audio.prewarmUtterance === 'function') {
             try {
-                const townArrivalEvent = {
-                    type: 'ONBOARDING_TOWN_ARRIVAL',
+                const activeR = this.getActiveRealm();
+                const heroWithRealm = { ...hero, realm: activeR };
+                const isDungeonStart = (typeof hero.depth === 'number' && hero.depth >= 1) || ['nethack', 'dcss', 'brogue', 'rogue', 'silq'].includes(activeR);
+                const openEvType = isDungeonStart ? 'ONBOARDING_FIRST_DESCENT' : 'ONBOARDING_TOWN_ARRIVAL';
+                const prologueEntry = this.grounder.generateProceduralChapter({
+                    type: openEvType,
                     priority: 'normal',
                     isChapter: true,
-                    data: { player: hero }
-                };
-                const prologueEntry = this.grounder.generateProceduralChapter(townArrivalEvent, hero, this.tradition);
+                    data: { player: heroWithRealm }
+                }, heroWithRealm, this.tradition);
                 if (prologueEntry && prologueEntry.prose) {
-                    const narrProfile = this.grounder.resolveVoiceProfile(null, hero, 'ONBOARDING_TOWN_ARRIVAL', this.tradition);
+                    const narrProfile = this.grounder.resolveVoiceProfile(null, heroWithRealm, openEvType, this.tradition, false, activeR, this.getLanguageMode());
                     const prewarmOpts = {
                         ...(narrProfile || {}),
                         narrator: narrProfile,
                         engine: this.audio.ttsEngine
                     };
                     this.audio.prewarmUtterance(prologueEntry.prose, 'narrator', '', null, prewarmOpts).catch(() => {});
-
-                    const clean = prologueEntry.prose.replace(/<[^>]*>/g, '').trim();
-                    const sentences = clean.match(/[^.!?]+[.!?]+(?:\s+|$)|[^.!?]+$/g)?.map(s => s.trim()).filter(Boolean) || [clean];
-                    if (sentences.length > 2 && clean.length > 240 && sentences[0].length >= 15) {
-                        const s1 = sentences[0];
-                        const remainder = sentences.slice(1).join(' ');
-                        if (s1 && remainder) {
-                            this.audio.prewarmUtterance(s1, 'narrator', '', null, prewarmOpts).catch(() => {});
-                            this.audio.prewarmUtterance(remainder, 'narrator', '', null, prewarmOpts).catch(() => {});
+                }
+                if (!isDungeonStart) {
+                    setTimeout(() => {
+                        if (this._isAudioMuted() || !this.grounder || !this.audio) return;
+                        const dHero = { ...(this.currentHero || heroWithRealm), realm: this.getActiveRealm(), depth: 1 };
+                        const dEntry = this.grounder.generateProceduralChapter({
+                            type: 'ONBOARDING_FIRST_DESCENT',
+                            priority: 'normal',
+                            isChapter: true,
+                            data: { player: dHero }
+                        }, dHero, this.tradition);
+                        if (dEntry && dEntry.prose) {
+                            const nProf = this.grounder.resolveVoiceProfile(null, dHero, 'ONBOARDING_FIRST_DESCENT', this.tradition, false, dHero.realm, this.getLanguageMode());
+                            this.audio.prewarmUtterance(dEntry.prose, 'narrator', '', null, { ...(nProf || {}), narrator: nProf, engine: this.audio.ttsEngine }).catch(() => {});
                         }
-                    }
+                    }, 4000);
                 }
             } catch (_) {}
         }
@@ -1184,11 +1210,21 @@ class ChronicleManager {
         // Track birth/setup phase transitions to force a fresh chronicle on next character
         if (frame.phase === 'birth' || frame.phase === 'setup') {
             this.characterDied = true;
+            this._lastChronicleFrameSig = null;
             return;
         }
 
         // Only evaluate during active gameplay or death sequence
         if ((frame.phase !== 'play' && frame.phase !== 'death') || !frame.player) return;
+
+        const msgs = frame.messages || [];
+        const lastMsgObj = msgs.length > 0 ? msgs[msgs.length - 1] : null;
+        const lastMsgTxt = lastMsgObj ? (lastMsgObj.text || String(lastMsgObj)) : '';
+        const frameSig = `${frame.phase}|${frame.player.name || ''}|${frame.player.turn ?? frame.turn ?? 0}|${frame.player.depth ?? frame.depth ?? 0}|${frame.player.hp ?? 0}|${msgs.length}|${lastMsgTxt}`;
+        if (!this.characterDied && this.activeChronicle && this._lastChronicleFrameSig === frameSig) {
+            return;
+        }
+        this._lastChronicleFrameSig = frameSig;
 
         this.lastFrame = frame;
 
@@ -2128,7 +2164,7 @@ class ChronicleManager {
                         pIndex: pIdx,
                         text: p.prose || '',
                         dialogue: p.dialogue || null,
-                        role: p.isLorekeeper ? 'mentor' : 'narrator'
+                        role: 'narrator'
                     });
                 });
             } else if (ch.prose) {
@@ -2139,7 +2175,7 @@ class ChronicleManager {
                     pIndex: 0,
                     text: ch.prose || '',
                     dialogue: ch.dialogue || null,
-                    role: ch.isLorekeeper ? 'mentor' : 'narrator'
+                    role: 'narrator'
                 });
             }
         });
@@ -2311,7 +2347,7 @@ class ChronicleManager {
                     mentorProfile.directorNote = 'An ancient scholar and lorekeeper reciting the living chronicle';
                 }
                 const mOpts = { ...(mentorProfile || {}), engine: this.audio.ttsEngine || 'gemini' };
-                this.audio.prewarmUtterance(beat.text, 'mentor', mentorName, null, mOpts).catch(() => {});
+                this.audio.prewarmUtterance(beat.text, 'narrator', mentorName, null, mOpts).catch(() => {});
             } else {
                 const narrProfile = this.grounder ? this.grounder.resolveVoiceProfile(null, this.currentHero, '', this.tradition) : null;
                 const speakOpts = { ...(narrProfile || {}), narrator: narrProfile, engine: this.audio.ttsEngine || 'gemini' };
@@ -2392,7 +2428,7 @@ class ChronicleManager {
                     mentorProfile.geminiTag = '[solemnly, with wise gravitas]';
                     mentorProfile.directorNote = 'An ancient scholar and lorekeeper reciting the living chronicle';
                 }
-                await this.audio.speakUtterance(beat.text, 'mentor', mentorName, null, mentorProfile || { engine: this.audio.ttsEngine });
+                await this.audio.speakUtterance(beat.text, 'narrator', mentorName, null, mentorProfile || { engine: this.audio.ttsEngine });
             } else {
                 const narrProfile = this.grounder ? this.grounder.resolveVoiceProfile(null, this.currentHero, '', this.tradition) : null;
                 if (beat.dialogue && this.grounder) {
@@ -5247,7 +5283,7 @@ class ChronicleManager {
                         this._isInteractiveVoiceActive = true;
                         const mentorProfile = this.grounder ? this.grounder.resolveVoiceProfile({ name: mentorName, race: 'Human' }, this.currentHero, 'counsel', this.tradition) : null;
                         const fullText = `${appraisal.prose}\n\n${mentorName} speaks: "${appraisal.dialogue}"`;
-                        this.audio.speakUtterance(fullText, 'mentor', mentorName, null, mentorProfile || { engine: this.audio.ttsEngine });
+                        this.audio.speakUtterance(fullText, 'narrator', mentorName, null, mentorProfile || { engine: this.audio.ttsEngine });
                     }
                 });
             }
@@ -5262,7 +5298,7 @@ class ChronicleManager {
             const mentorName = this.getLorekeeperName();
             const mentorProfile = this.grounder ? this.grounder.resolveVoiceProfile({ name: mentorName, race: 'Human' }, this.currentHero, 'counsel', this.tradition) : null;
             const fullText = `${appraisal.prose}\n\n${mentorName} speaks: "${appraisal.dialogue}"`;
-            this.audio.speakUtterance(fullText, 'mentor', mentorName, null, mentorProfile || { engine: this.audio.ttsEngine });
+            this.audio.speakUtterance(fullText, 'narrator', mentorName, null, mentorProfile || { engine: this.audio.ttsEngine });
         }
     }
 
@@ -5275,7 +5311,7 @@ class ChronicleManager {
         }
     }
 
-    async submitUserQuery() {
+    async submitUserQuery(options = {}) {
         if (!this.inputQuery) return;
         const text = this.inputQuery.value.trim();
         if (!text) return;
@@ -5378,7 +5414,7 @@ class ChronicleManager {
             const realm = this.getActiveRealm();
             let answer = '';
             try {
-                if (this.llm && this.llm.isConfigured()) {
+                if (!(options && options.instantChip) && this.llm && this.llm.isConfigured()) {
                     answer = await this.llm.consultLorekeeper(text, this.currentHero);
                 } else {
                     answer = this.grounder.answerSurvivalQuery(text, this.currentHero, realm);
@@ -5399,11 +5435,7 @@ class ChronicleManager {
 
     weaveLorekeeperCounsel(queryText, answer, player) {
         const q = (queryText || '').toLowerCase();
-        const pName = (player && player.name) ? player.name : 'Hero';
-        const pRace = (player && player.race) ? player.race : 'Human';
-        const pClass = (player && player.class) ? player.class : 'Warrior';
-        
-        // Determine topic for evocative narrative framing
+        // Determine topic for evocative narrative header
         let topic = 'the ways of survival';
         if (q.includes('potion') || q.includes('heal') || q.includes('quaff') || q.includes('cure')) topic = 'healing draughts and vials';
         else if (q.includes('rest') || q.includes('sleep') || q.includes('mana')) topic = 'safe rest and recovery';
@@ -5421,47 +5453,14 @@ class ChronicleManager {
         else if (q.includes('trap') || q.includes('disarm') || q.includes('search')) topic = 'hidden traps and subterranean snares';
         else if (q.includes('drain') || q.includes('stat') || q.includes('wight')) topic = 'dark drains of mortal vigor';
         else if (q.includes('feeling') || q.includes('level') || q.includes('danger')) topic = 'the foreboding sense of the deeps';
+        else if (q.includes('pray') || q.includes('altar') || q.includes('god') || q.includes('piety')) topic = 'divine altars and piety';
+        else if (q.includes('tab') || q.includes('explore') || q.includes('combat')) topic = 'tactical dungeon combat';
+        else if (q.includes('enchant') || q.includes('stave') || q.includes('staff')) topic = 'scrolls of enchantment';
+        else if (q.includes('song') || q.includes('keen') || q.includes('grace')) topic = 'First-Age songs and grace';
+        else if (q.includes('trump') || q.includes('chaos') || q.includes('recall')) topic = 'Chaos realms and recall';
+        else if (q.includes('forge') || q.includes('mutator') || q.includes('avatar') || q.includes('win')) topic = 'the Grand Architect Blueprint';
 
-        // Rotate narrative intros with character perspective (anti-repetitive hashing)
         this.lorekeeperQueryCount = (this.lorekeeperQueryCount || 0) + 1;
-        const turnSeed = this.lorekeeperQueryCount;
-        
-        let intro = '';
-        if (pRace.toLowerCase().includes('half-orc')) {
-            const orcIntros = [
-                `Pausing amidst the dank gloom, ${pName} turns over hard-learned street wisdom regarding ${topic}:`,
-                `Leaning against the rough masonry, ${pName} recalls the cynical counsel of elder scoundrels concerning ${topic}:`,
-                `With a sharp half-orc grin, ${pName} brings to mind the pragmatic secrets of survival regarding ${topic}:`,
-                `In the quiet between perils, ${pName} weighs what he knows of ${topic} against the cruel reality of the deeps:`
-            ];
-            intro = orcIntros[turnSeed % orcIntros.length];
-        } else if (pRace.toLowerCase().includes('elf')) {
-            const elfIntros = [
-                `The fair blood of ${pName} stirs with ancient recollections of the First Age, recalling the wise words of Imladris regarding ${topic}:`,
-                `Pausing in reverent stillness, ${pName} calls to mind the elven teachings of old concerning ${topic}:`,
-                `A quiet memory from elder annals surfaces in ${pName}'s thoughts, shedding light upon ${topic}:`,
-                `Listening to the whisper of stone and wind, ${pName} reflects upon the timeless nature of ${topic}:`
-            ];
-            intro = elfIntros[turnSeed % elfIntros.length];
-        } else if (pRace.toLowerCase().includes('dwarf')) {
-            const dwarfIntros = [
-                `Grasping iron and stone, ${pName} recalls the stern maxims hammered into dwarven memory concerning ${topic}:`,
-                `The time-tested wisdom of the Mountain Kings echoes in ${pName}'s thoughts, speaking plainly of ${topic}:`,
-                `With dwarven pragmatism, ${pName} considers the craft and counsel of ancestors regarding ${topic}:`,
-                `Pausing to inspect the dungeon masonry, ${pName} recollects the unyielding laws of ${topic}:`
-            ];
-            intro = dwarfIntros[turnSeed % dwarfIntros.length];
-        } else {
-            const generalIntros = [
-                `In the subterranean silence, ${pName} recalls elder counsel regarding ${topic}:`,
-                `Pausing in thought, the hero reflects upon ancient knowledge concerning ${topic}:`,
-                `The Chronicler dips quill in ink to record wisdom passed down through generations regarding ${topic}:`,
-                `A whisper of ancestral guidance illuminates the peril, laying bare the truth of ${topic}:`,
-                `Consulting the weathered marginalia of ancient lore, the mysteries of ${topic} are made plain:`,
-                `In the stillness before the next battle, the counsel of the Wise echoes in ${pName}'s mind concerning ${topic}:`
-            ];
-            intro = generalIntros[turnSeed % generalIntros.length];
-        }
 
         const mentorName = this.getLorekeeperName();
         const mentorProfile = this.grounder ? this.grounder.resolveVoiceProfile({ name: mentorName, race: 'Human' }, player, 'counsel', this.tradition) : null;
@@ -5471,9 +5470,9 @@ class ChronicleManager {
         }
 
         const entry = {
-            title: `Counsel of the Wise: ${topic}`,
+            title: `Counsel of ${mentorName}: ${topic}`,
             depth: (player && typeof player.depth === 'number') ? player.depth : 0,
-            prose: `${intro}\n\n"${answer}"`,
+            prose: answer,
             dialogue: null,
             insight: answer,
             isLorekeeper: true,
@@ -5493,22 +5492,20 @@ class ChronicleManager {
             this.renderFlowingParagraph(entry, true);
         }
 
-        // Voice immediately in the deep, warm Mentor voice speaking the full prose (matching card 100%)
+        // Voice immediately in the canonical British RP Storyteller ('Enceladus') voice speaking the counsel directly without preamble
         if (this.audio && this.audio.enabled) {
-            this.audio.speakUtterance(entry.prose, 'mentor', mentorName, null, mentorProfile || { engine: this.audio.ttsEngine });
+            this.audio.speakUtterance(entry.prose, 'narrator', mentorName, null, mentorProfile || { engine: this.audio.ttsEngine });
 
             this._highlightActiveCard(entry);
         }
     }
 
     weaveObjectCounsel(item, queryText, answer, player) {
-        const pName = (player && player.name) ? player.name : 'The hero';
         const itemName = (item && item.name) ? item.name : 'the relic';
         const mentorName = this.getLorekeeperName();
         const depth = (player && typeof player.depth === 'number') ? player.depth : 0;
 
-        const intro = `Pondering the virtues and hazards of ${itemName}, ${pName} consults ${mentorName} regarding "${queryText}":`;
-        const prose = `${intro}\n\n"${answer}"`;
+        const prose = answer;
 
         const mentorProfile = this.grounder ? this.grounder.resolveVoiceProfile({ name: mentorName, race: 'Human' }, player, 'counsel', this.tradition) : null;
         if (mentorProfile) {
@@ -5539,7 +5536,7 @@ class ChronicleManager {
         }
 
         if (this.audio && this.audio.enabled && !this._isAudioMuted()) {
-            this.audio.speakUtterance(entry.prose, 'mentor', mentorName, null, mentorProfile || { engine: this.audio.ttsEngine });
+            this.audio.speakUtterance(entry.prose, 'narrator', mentorName, null, mentorProfile || { engine: this.audio.ttsEngine });
             this._highlightActiveCard(entry);
         }
     }

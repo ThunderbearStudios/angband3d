@@ -154,6 +154,19 @@
             inventory: 'i', equipment: 'e', quiver: null, look: ';', target: ';', map: 'M',
             locate: '@', char_sheet: 'C', knowledge: '\\', messages: 'C-p', save: 'S',
             options: '=', help: '?', command_menu: 'enter', overland: null, quests: null
+        },
+        ryod: {
+            wield: 'w', takeoff: 'T', drop: 'd', ignore: 'k', quaff: 'q', read: 'r', eat: 'e',
+            aim: 'a', use_staff: 'a', zap: 'a', activate: 'a', use: 'a', play_horn: 'a',
+            fire: 'f', throw: 't', inscribe: '{', uninscribe: '}', refill: null, examine: 'I',
+            cast: 'm', browse: 'M', study: 'M', song: 'm', abilities: 'm', smithing: null,
+            power: 'm', pet: 'p', tunnel: 'T', open: 'o', close: 'c', bash: 'o', spike: null,
+            disarm: 'D', alter: '+', exchange: 'x', steal: null, rest: '.', pickup: 'g',
+            hold: '.', walk: ';', run: '.', search_mode: 's', search: 's', explore: 'Alt+E',
+            travel: '_', stairs_up: '<', stairs_down: '>', repeat: 'n', count: '0',
+            inventory: 'i', equipment: 'e', quiver: 'Q', look: 'x', target: 'x', map: 'M',
+            locate: '@', char_sheet: 'C', knowledge: '~', messages: 'C-p', save: 'S',
+            options: '=', help: '?', command_menu: 'enter', overland: null, quests: null
         }
     };
 
@@ -162,6 +175,7 @@
         if (k.dcss === undefined) k.dcss = (c.id in REALM_KEY_OVERRIDES.dcss) ? REALM_KEY_OVERRIDES.dcss[c.id] : (k.nethack !== undefined ? k.nethack : k.angband);
         if (k.brogue === undefined) k.brogue = (c.id in REALM_KEY_OVERRIDES.brogue) ? REALM_KEY_OVERRIDES.brogue[c.id] : k.angband;
         if (k.rogue === undefined) k.rogue = (c.id in REALM_KEY_OVERRIDES.rogue) ? REALM_KEY_OVERRIDES.rogue[c.id] : (k.nethack !== undefined ? k.nethack : k.angband);
+        if (k.ryod === undefined) k.ryod = (c.id in REALM_KEY_OVERRIDES.ryod) ? REALM_KEY_OVERRIDES.ryod[c.id] : k.angband;
         return Object.freeze({
             ...c,
             labels: Object.freeze({ ...c.labels }),
@@ -239,7 +253,7 @@
         }
 
         // In cartridge & NetHack realms, preserve any key that is already a native command in this realm
-        const isCartridgeRealm = (r === 'nethack' || r === 'dcss' || r === 'brogue' || r === 'rogue');
+        const isCartridgeRealm = (r === 'nethack' || r === 'dcss' || r === 'brogue' || r === 'rogue' || r === 'ryod');
         if (isCartridgeRealm && COMMANDS.some(c => c.keys[r] === vanillaKey)) {
             return vanillaKey;
         }

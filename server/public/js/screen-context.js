@@ -36,7 +36,8 @@
         nethack: { id: 'nethack', title: 'NetHack 3.6.7', hasTown: false, hasShops: true, statCount: 6, invenMode: 'select', hasPopupCommandMenu: false, features: { beatitudeBUC: true, extendedHashCommands: true, diagonalDoorwayBlocked: true, multiBranchGraph: true } },
         dcss: { id: 'dcss', title: 'Dungeon Crawl Stone Soup', hasTown: false, hasShops: true, statCount: 3, invenMode: 'select', hasPopupCommandMenu: false, features: { pantheonGods: true, skillTraining: true, multiBranchGraph: true } },
         brogue: { id: 'brogue', title: 'Brogue CE', hasTown: false, hasShops: false, statCount: 2, invenMode: 'select', hasPopupCommandMenu: false, features: { captiveAllies: true, lumenstones: true } },
-        rogue: { id: 'rogue', title: 'Classic Rogue 5.4', hasTown: false, hasShops: false, statCount: 2, invenMode: 'select', hasPopupCommandMenu: false, features: { diagonalDoorwayBlocked: true } }
+        rogue: { id: 'rogue', title: 'Classic Rogue 5.4', hasTown: false, hasShops: false, statCount: 2, invenMode: 'select', hasPopupCommandMenu: false, features: { diagonalDoorwayBlocked: true } },
+        ryod: { id: 'ryod', title: 'Roll Your Own Dungeon (RYOD)', hasTown: true, hasShops: true, statCount: 6, invenMode: 'select', hasPopupCommandMenu: false, features: { powers: true, captiveAllies: true, pantheonGods: true } }
     };
 
     function registerVariant(id, spec) {

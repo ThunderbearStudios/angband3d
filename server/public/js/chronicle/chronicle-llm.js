@@ -324,6 +324,21 @@ class ChronicleLLMBridge {
             locationText = isTown ? 'Outpost of Amber (shifting shadows, multiversal haven)' : `Chaotic Deep Depth ${depth * 50}ft (shifting vaults, wild corridors)`;
         } else if (realmKey === 'nethack') {
             locationText = (depth <= 1) ? 'Upper Dungeons of Doom (torchlit flagstone corridors)' : `Mazes of Menace Dlvl ${depth} (subterranean altars, Gehennom approaches)`;
+        } else if (realmKey === 'dcss') {
+            locationText = (depth <= 1) ? 'Dungeon D:1 (the Threshold of Stone Soup)' : `Dungeon D:${depth} (branching vaults toward the Realm of Zot)`;
+        } else if (realmKey === 'brogue') {
+            locationText = `Bioluminescent Caverns Depth ${Math.max(1, depth)} (subterranean lakes, chasm bridges, glowing spores)`;
+        } else if (realmKey === 'rogue') {
+            locationText = `1980 Dungeons of Doom Level ${Math.max(1, depth)} (torchlit stone chambers and corridors)`;
+        } else if (realmKey === 'ryod') {
+            const bp = (typeof window !== 'undefined' && window.__activeRyodBlueprint) || null;
+            const worldTitle = (bp && bp.title) ? bp.title : 'Custom Forged Realm';
+            const bossName = (bp && (bp.nemesisName || (bp.story && bp.story.finalBoss && bp.story.finalBoss.name))) || 'Overlord';
+            const relicName = (bp && (bp.goalItemName || (bp.story && bp.story.relicName))) || 'Crown Relic';
+            const mutId = (bp && bp.mutatorId) || 'balanced';
+            locationText = (depth === 0)
+                ? `Sanctuary Outpost of ${worldTitle}`
+                : `${worldTitle} Depth ${depth} [RYOD_WORLD: "${worldTitle}", Boss: "${bossName}", Relic: "${relicName}", Mutator: "${mutId}"]`;
         }
         const weaver = (typeof window !== 'undefined' && window.ChronicleStoryWeaver) ? window.ChronicleStoryWeaver : (typeof ChronicleStoryWeaver !== 'undefined' ? ChronicleStoryWeaver : null);
         let weaverSupplement = '';
@@ -540,15 +555,19 @@ Return ONLY raw JSON: {"prose":"max 15 words","dialogue":"max 14 words"}`;
             ? ChronicleGrounder.getRealmContext(realmKey)
             : { lorekeeperName: 'Elder Lorekeeper', chronicler: 'the ancient Lorekeeper of Angband', setting: 'Middle-earth in the Third Age' };
 
+        const liveBrief = (ChronicleGrounder && typeof ChronicleGrounder.buildRealmControlAndSituationBrief === 'function')
+            ? ChronicleGrounder.buildRealmControlAndSituationBrief(realmKey, player)
+            : '';
+
         const isJpHeng = (realmKey === 'hengband' && typeof window !== 'undefined' && window.__langMode === 'jp');
         const jpMandate = isJpHeng ? '\nCRITICAL JAPANESE MANDATE: Respond in 100% natural, literary Japanese (武士道・五輪書風の簡潔な日本語のみ). Do NOT use English.' : '';
         const systemPrompt = `You are ${realmCtx.lorekeeperName}, ${realmCtx.chronicler}.
-Setting: ${realmCtx.setting}.
-You know the complete body of mechanics, keybindings (roguelike and standard keysets), survival tactics, shop mechanics, item commands, and lore for this realm.
+Setting: ${realmCtx.setting}.${liveBrief ? `\n${liveBrief}` : ''}
+You know the complete body of mechanics, exact keybindings, survival tactics, shop mechanics, item commands, and lore for this realm.
 Rules:
-- Be diegetically wise, warm, and immediately helpful.
-- When explaining game mechanics (keys, commands, inventory, resting, shops, terminal), cross the fourth wall gracefully (e.g. "To quaff a potion, press 'q'...").
-- Extreme Brevity: Keep answers razor-sharp and direct—1 to 2 short sentences (maximum 25 words total)!${jpMandate}`;
+- Speak directly in first person with dry, witty Dungeon Master gravitas. Never refer to yourself in the third person.
+- Ground every answer in the active realm's exact controls, quest goal, and live hero situation above. Never confuse Angband/Morgoth with NetHack, DCSS, Brogue, Rogue, Sil-Q, FrogComposBand, Hengband, or RYOD.
+- Extreme Brevity: Keep answers razor-sharp and direct—1 to 2 short sentences (maximum 24 words total)!${jpMandate}`;
 
         try {
             const answer = await this.callLLM(systemPrompt, query);

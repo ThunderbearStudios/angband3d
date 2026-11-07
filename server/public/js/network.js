@@ -183,6 +183,8 @@ class GameNetwork {
             if (this.currentRealm === 'hengband') {
                 const langMode = window.__langMode || (typeof localStorage !== 'undefined' ? localStorage.getItem('angband3d_lang_mode') : null) || 'en';
                 wsUrl += `&lang=${encodeURIComponent(langMode)}`;
+            } else if (this.currentRealm === 'ryod' && isNew && typeof window !== 'undefined' && window.RyodCompiler && window.__activeRyodBlueprint) {
+                wsUrl += `&bp=${encodeURIComponent(window.RyodCompiler.encodePermalink(window.__activeRyodBlueprint))}`;
             }
         }
 

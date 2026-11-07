@@ -31,6 +31,25 @@ class ChronicleStore {
         } else if (rk === 'hengband') {
             title = `The Legend of ${name}`;
             rolling = `${name}, a disciplined ${race} ${heroClass}, embarked upon the path of Bushido and Eastern Mythos, seeking honor and vanquishing yokai beneath the earth.`;
+        } else if (rk === 'nethack') {
+            title = `The Delphic Scrolls of ${name}`;
+            rolling = `${name}, a ${race} ${heroClass}, descended into the Mazes of Menace alongside a faithful companion to claim the Amulet of Yendor for their deity.`;
+        } else if (rk === 'dcss') {
+            title = `The Zot Annals of ${name}`;
+            rolling = `${name}, a ${race} ${heroClass}, crossed the threshold of the Dungeon to gather three Runes of Zot and seize the Orb of Zot.`;
+        } else if (rk === 'brogue') {
+            title = `The Cavern Ledger of ${name}`;
+            rolling = `${name}, a lone ${race} delver, stepped into the bioluminescent Caverns of Doom to claim the Amulet of Yendor on Depth 26 through wit and enchantment.`;
+        } else if (rk === 'rogue') {
+            title = `The Doom Parchment of ${name}`;
+            rolling = `${name}, a ${race} ${heroClass}, entered the original 1980 Dungeons of Doom to retrieve the Amulet of Yendor from the twenty-sixth floor.`;
+        } else if (rk === 'ryod') {
+            const bp = (typeof window !== 'undefined' && window.__activeRyodBlueprint) || null;
+            const worldTitle = (bp && bp.title) ? bp.title : 'The Rolled Realm';
+            const bossName = (bp && bp.nemesisName) ? bp.nemesisName : 'the Overlord';
+            const relicName = (bp && bp.goalItemName) ? bp.goalItemName : 'the Crown Relic';
+            title = `${worldTitle}: Saga of ${name}`;
+            rolling = `${name}, a ${race} ${heroClass}, entered ${worldTitle} to vanquish ${bossName} and claim ${relicName}.`;
         } else {
             title = `The Chronicles of ${name}`;
             const backstory = (typeof ChronicleGrounder !== 'undefined' && ChronicleGrounder.formatBackstorySummary) ? ChronicleGrounder.formatBackstorySummary(hero) : '';

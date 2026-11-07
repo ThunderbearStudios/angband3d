@@ -39,36 +39,36 @@
 
     // Canonical keymaps for all 8 supported realms in YASD 3D / Yendor Engine.
     const TABLE = Object.freeze({
-        cast: Object.freeze({ angband: 'm', silq: 's', frogcomposband: 'm', hengband: 'm', nethack: 'Z', dcss: 'z', brogue: null, rogue: null }),
-        throw: Object.freeze({ angband: 'v', silq: 't', frogcomposband: 'v', hengband: 'v', nethack: 't', dcss: 'f', brogue: 't', rogue: 't' }),
-        fire: Object.freeze({ angband: 'f', silq: 'f', frogcomposband: 'f', hengband: 'f', nethack: 'f', dcss: 'f', brogue: 't', rogue: 't' }),
-        quaff: Object.freeze({ angband: 'q', silq: 'q', frogcomposband: 'q', hengband: 'q', nethack: 'q', dcss: 'q', brogue: 'q', rogue: 'q' }),
-        eat: Object.freeze({ angband: 'E', silq: 'E', frogcomposband: 'E', hengband: 'E', nethack: 'e', dcss: 'e', brogue: 'e', rogue: 'e' }),
-        read: Object.freeze({ angband: 'r', silq: null, frogcomposband: 'r', hengband: 'r', nethack: 'r', dcss: 'r', brogue: 'r', rogue: 'r' }),
-        rest: Object.freeze({ angband: 'R', silq: '%', frogcomposband: 'R', hengband: 'R', nethack: '.', dcss: '5', brogue: 'z', rogue: '.' }),
-        open: Object.freeze({ angband: 'o', silq: 'o', frogcomposband: 'o', hengband: 'o', nethack: 'o', dcss: 'O', brogue: 'o', rogue: 'o' }),
-        pickup: Object.freeze({ angband: 'g', silq: 'g', frogcomposband: 'g', hengband: 'g', nethack: ',', dcss: 'g', brogue: 'g', rogue: ',' }),
-        inven: Object.freeze({ angband: 'i', silq: 'i', frogcomposband: 'i', hengband: 'i', nethack: 'i', dcss: 'i', brogue: 'i', rogue: 'i' }),
-        equip: Object.freeze({ angband: 'e', silq: 'e', frogcomposband: 'e', hengband: 'e', nethack: 'e', dcss: 'e', brogue: 'e', rogue: 'e' }),
-        use: Object.freeze({ angband: 'U', silq: 'u', frogcomposband: null, hengband: null, nethack: 'a', dcss: 'a', brogue: 'a', rogue: 'z' }),
-        use_staff: Object.freeze({ angband: 'u', silq: 'a', frogcomposband: 'u', hengband: 'u', nethack: 'a', dcss: 'V', brogue: 'a', rogue: 'z' }),
-        hold: Object.freeze({ angband: ',', silq: 'z', frogcomposband: ',', hengband: ',', nethack: '.', dcss: '.', brogue: '.', rogue: '.' }),
-        browse: Object.freeze({ angband: 'b', silq: null, frogcomposband: 'b', hengband: 'b', nethack: 'r', dcss: 'I', brogue: null, rogue: null }),
-        study: Object.freeze({ angband: 'G', silq: null, frogcomposband: 'G', hengband: 'G', nethack: 'r', dcss: 'M', brogue: null, rogue: null }),
-        power: Object.freeze({ angband: null, silq: null, frogcomposband: 'U', hengband: 'U', nethack: '#', dcss: 'a', brogue: null, rogue: null }),
-        skills: Object.freeze({ angband: null, silq: 'tab', frogcomposband: null, hengband: null, nethack: null, dcss: 'm', brogue: null, rogue: null }),
-        quests: Object.freeze({ angband: null, silq: null, frogcomposband: null, hengband: null, nethack: null, dcss: null, brogue: null, rogue: null }),
-        overland: Object.freeze({ angband: null, silq: null, frogcomposband: null, hengband: null, nethack: null, dcss: null, brogue: null, rogue: null }),
-        search: Object.freeze({ angband: null, silq: null, frogcomposband: 'S', hengband: 'S', nethack: 's', dcss: 's', brogue: 's', rogue: 's' }),
-        steal: Object.freeze({ angband: 's', silq: null, frogcomposband: null, hengband: null, nethack: null, dcss: null, brogue: null, rogue: null }),
-        search_mode: Object.freeze({ angband: null, silq: 'S', frogcomposband: 'S', hengband: 'S', nethack: 's', dcss: 's', brogue: 's', rogue: 's' }),
-        takeoff: Object.freeze({ angband: 't', silq: 'r', frogcomposband: 't', hengband: 't', nethack: 'T', dcss: 'T', brogue: 'T', rogue: 'T' }),
-        examine: Object.freeze({ angband: 'I', silq: 'x', frogcomposband: 'I', hengband: 'I', nethack: ':', dcss: 'v', brogue: 'x', rogue: 'I' }),
-        char_sheet: Object.freeze({ angband: 'C', silq: '@', frogcomposband: 'C', hengband: 'C', nethack: 'C', dcss: '%', brogue: 'C', rogue: 'C' }),
-        options: Object.freeze({ angband: '=', silq: 'O', frogcomposband: '=', hengband: '=', nethack: 'O', dcss: '=', brogue: '=', rogue: '=' })
+        cast: Object.freeze({ angband: 'm', silq: 's', frogcomposband: 'm', hengband: 'm', nethack: 'Z', dcss: 'z', brogue: null, rogue: null, ryod: 'm' }),
+        throw: Object.freeze({ angband: 'v', silq: 't', frogcomposband: 'v', hengband: 'v', nethack: 't', dcss: 'f', brogue: 't', rogue: 't', ryod: 't' }),
+        fire: Object.freeze({ angband: 'f', silq: 'f', frogcomposband: 'f', hengband: 'f', nethack: 'f', dcss: 'f', brogue: 't', rogue: 't', ryod: 'f' }),
+        quaff: Object.freeze({ angband: 'q', silq: 'q', frogcomposband: 'q', hengband: 'q', nethack: 'q', dcss: 'q', brogue: 'q', rogue: 'q', ryod: 'q' }),
+        eat: Object.freeze({ angband: 'E', silq: 'E', frogcomposband: 'E', hengband: 'E', nethack: 'e', dcss: 'e', brogue: 'e', rogue: 'e', ryod: 'e' }),
+        read: Object.freeze({ angband: 'r', silq: null, frogcomposband: 'r', hengband: 'r', nethack: 'r', dcss: 'r', brogue: 'r', rogue: 'r', ryod: 'r' }),
+        rest: Object.freeze({ angband: 'R', silq: '%', frogcomposband: 'R', hengband: 'R', nethack: '.', dcss: '5', brogue: 'z', rogue: '.', ryod: '.' }),
+        open: Object.freeze({ angband: 'o', silq: 'o', frogcomposband: 'o', hengband: 'o', nethack: 'o', dcss: 'O', brogue: 'o', rogue: 'o', ryod: 'o' }),
+        pickup: Object.freeze({ angband: 'g', silq: 'g', frogcomposband: 'g', hengband: 'g', nethack: ',', dcss: 'g', brogue: 'g', rogue: ',', ryod: 'g' }),
+        inven: Object.freeze({ angband: 'i', silq: 'i', frogcomposband: 'i', hengband: 'i', nethack: 'i', dcss: 'i', brogue: 'i', rogue: 'i', ryod: 'i' }),
+        equip: Object.freeze({ angband: 'e', silq: 'e', frogcomposband: 'e', hengband: 'e', nethack: 'e', dcss: 'e', brogue: 'e', rogue: 'e', ryod: 'e' }),
+        use: Object.freeze({ angband: 'U', silq: 'u', frogcomposband: null, hengband: null, nethack: 'a', dcss: 'a', brogue: 'a', rogue: 'z', ryod: 'a' }),
+        use_staff: Object.freeze({ angband: 'u', silq: 'a', frogcomposband: 'u', hengband: 'u', nethack: 'a', dcss: 'V', brogue: 'a', rogue: 'z', ryod: 'a' }),
+        hold: Object.freeze({ angband: ',', silq: 'z', frogcomposband: ',', hengband: ',', nethack: '.', dcss: '.', brogue: '.', rogue: '.', ryod: '.' }),
+        browse: Object.freeze({ angband: 'b', silq: null, frogcomposband: 'b', hengband: 'b', nethack: 'r', dcss: 'I', brogue: null, rogue: null, ryod: 'M' }),
+        study: Object.freeze({ angband: 'G', silq: null, frogcomposband: 'G', hengband: 'G', nethack: 'r', dcss: 'M', brogue: null, rogue: null, ryod: 'M' }),
+        power: Object.freeze({ angband: null, silq: null, frogcomposband: 'U', hengband: 'U', nethack: '#', dcss: 'a', brogue: null, rogue: null, ryod: 'm' }),
+        skills: Object.freeze({ angband: null, silq: 'tab', frogcomposband: null, hengband: null, nethack: null, dcss: 'm', brogue: null, rogue: null, ryod: 'm' }),
+        quests: Object.freeze({ angband: null, silq: null, frogcomposband: null, hengband: null, nethack: null, dcss: null, brogue: null, rogue: null, ryod: null }),
+        overland: Object.freeze({ angband: null, silq: null, frogcomposband: null, hengband: null, nethack: null, dcss: null, brogue: null, rogue: null, ryod: null }),
+        search: Object.freeze({ angband: null, silq: null, frogcomposband: 'S', hengband: 'S', nethack: 's', dcss: 's', brogue: 's', rogue: 's', ryod: 's' }),
+        steal: Object.freeze({ angband: 's', silq: null, frogcomposband: null, hengband: null, nethack: null, dcss: null, brogue: null, rogue: null, ryod: null }),
+        search_mode: Object.freeze({ angband: null, silq: 'S', frogcomposband: 'S', hengband: 'S', nethack: 's', dcss: 's', brogue: 's', rogue: 's', ryod: 's' }),
+        takeoff: Object.freeze({ angband: 't', silq: 'r', frogcomposband: 't', hengband: 't', nethack: 'T', dcss: 'T', brogue: 'T', rogue: 'T', ryod: 'T' }),
+        examine: Object.freeze({ angband: 'I', silq: 'x', frogcomposband: 'I', hengband: 'I', nethack: ':', dcss: 'v', brogue: 'x', rogue: 'I', ryod: 'I' }),
+        char_sheet: Object.freeze({ angband: 'C', silq: '@', frogcomposband: 'C', hengband: 'C', nethack: 'C', dcss: '%', brogue: 'C', rogue: 'C', ryod: 'C' }),
+        options: Object.freeze({ angband: '=', silq: 'O', frogcomposband: '=', hengband: '=', nethack: 'O', dcss: '=', brogue: '=', rogue: '=', ryod: '=' })
     });
 
-    const REALMS = ['angband', 'silq', 'frogcomposband', 'hengband', 'nethack', 'dcss', 'brogue', 'rogue'];
+    const REALMS = ['angband', 'silq', 'frogcomposband', 'hengband', 'nethack', 'dcss', 'brogue', 'rogue', 'ryod'];
     const REALM_KEYS = Object.freeze(
         REALMS.reduce((acc, r) => {
             acc[r] = {};
@@ -88,7 +88,8 @@
         nethack: Object.freeze({ town: 'the Dungeons of Doom', depthUnit: 'f', feetPerLevel: 50 }),
         dcss: Object.freeze({ town: 'the Dungeon Entrance', depthUnit: 'f', feetPerLevel: 50 }),
         brogue: Object.freeze({ town: 'the Cavern Threshold', depthUnit: 'f', feetPerLevel: 50 }),
-        rogue: Object.freeze({ town: 'the Dungeons of Doom', depthUnit: 'f', feetPerLevel: 50 })
+        rogue: Object.freeze({ town: 'the Dungeons of Doom', depthUnit: 'f', feetPerLevel: 50 }),
+        ryod: Object.freeze({ town: 'the Sanctuary Outpost', depthUnit: 'f', feetPerLevel: 50 })
     });
 
     let currentActiveRealm = 'angband';

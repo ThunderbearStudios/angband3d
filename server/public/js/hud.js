@@ -2049,10 +2049,10 @@ class WebHUD {
         }
 
         // SP / Voice / Nutrition Bar (Brogue & Classic Rogue use Nutrition in the second crystal vial)
-        const isNutritionVial = (realm === 'brogue' || realm === 'rogue');
+        const isNutritionVial = (realm === 'brogue' || realm === 'rogue' || player.progression_mode === 'brogue_item' || player.power_discipline === 'none');
         const curSp = isNutritionVial ? (player.nutrition ?? 100) : (player.sp !== undefined ? player.sp : (player.csp !== undefined ? player.csp : 0));
         const maxSp = isNutritionVial ? (player.nutrition_max ?? (realm === 'brogue' ? 100 : 1300)) : (player.sp_max !== undefined ? player.sp_max : (player.max_sp !== undefined ? player.max_sp : (player.msp !== undefined ? player.msp : 0)));
-        const spSig = `${curSp}/${maxSp}:${realm}:${window.__langMode || 'en'}:${isSilQ}`;
+        const spSig = `${curSp}/${maxSp}:${realm}:${window.__langMode || 'en'}:${isSilQ}:${player.resource_label || ''}`;
         if (this._lastSpSig !== spSig) {
             this._lastSpSig = spSig;
             if (this.spLabel) {
@@ -2062,7 +2062,7 @@ class WebHUD {
                 } else if (realm === 'hengband' && lang === 'bilingual') {
                     this.spLabel.textContent = 'MANA (魔力)';
                 } else {
-                    this.spLabel.textContent = isNutritionVial ? 'NUTRITION' : (isSilQ ? 'VOICE' : 'MANA');
+                    this.spLabel.textContent = isNutritionVial ? 'NUTRITION' : (player.resource_label || (isSilQ ? 'VOICE' : 'MANA'));
                 }
             }
             const spPct = maxSp > 0 ? Math.max(0, Math.min(100, (curSp / maxSp) * 100)) : 0;
@@ -2598,7 +2598,8 @@ class WebHUD {
                     ['Voice', voice], ['XP (Pool)', xpPool]
                 ]);
             } else {
-                const maxD = (realm === 'brogue' || realm === 'rogue')
+                const isBrogueProg = (realm === 'brogue' || player.progression_mode === 'brogue_item');
+                const maxD = (realm === 'brogue' || realm === 'rogue' || realm === 'ryod')
                     ? `Depth ${player.max_depth || depth}`
                     : (realm === 'nethack'
                         ? `Dlvl ${player.max_depth || depth}`
@@ -2607,8 +2608,8 @@ class WebHUD {
                             : (player.max_depth ? `${player.max_depth * 50}ft (DL${player.max_depth})` : (depth > 0 ? `${depth * 50}ft (DL${depth})` : 'Town'))));
                 const spd = this._lastSpdStr || 'Normal (0)';
                 const turn = String(this.currentTurn || 0);
-                const xpLabel = realm === 'brogue' ? 'Enchantments' : 'XP';
-                const xp = realm === 'brogue'
+                const xpLabel = isBrogueProg ? 'Enchantments' : 'XP';
+                const xp = isBrogueProg
                     ? `+${player.enchantments || 0}${(player.lumenstones || 0) > 0 ? ` (${player.lumenstones} Lumen)` : ''}`
                     : `${(player.exp || 0).toLocaleString()}${player.exp_next ? ` / ${player.exp_next.toLocaleString()}` : ''}`;
                 const eqCount = (player.equipment && Array.isArray(player.equipment)) ? String(player.equipment.length) : (player.equip_count !== undefined ? String(player.equip_count) : (player.equip ? String(Object.keys(player.equip).length) : '--'));

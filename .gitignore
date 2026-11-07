@@ -21,6 +21,11 @@
 !/variants/dcss/bin/
 /variants/dcss/bin/*
 !/variants/dcss/bin/*.js
+!/variants/ryod/
+/variants/ryod/*
+!/variants/ryod/bin/
+/variants/ryod/bin/*
+!/variants/ryod/bin/*.js
 /client/tools/
 
 # Python

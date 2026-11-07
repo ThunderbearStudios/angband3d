@@ -14,6 +14,7 @@ steps:
         COPY variants/rogue/ /app/variants/rogue/
         COPY variants/brogue/ /app/variants/brogue/
         COPY variants/dcss/ /app/variants/dcss/
+        COPY variants/ryod/ /app/variants/ryod/
         COPY engine-manifest.json /app/engine-manifest.json
         COPY CREDITS.md /app/CREDITS.md
         WORKDIR /app/server

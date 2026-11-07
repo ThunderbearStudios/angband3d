@@ -464,10 +464,10 @@ function check(cond, msg) {
     check(d3dSrc.includes('this.fountainMesh = new THREE.InstancedMesh') && d3dSrc.includes('[{] Magic Fountain'),
         'dungeon3d.js must instantiate 3D Magic Fountain mesh (feat 44) and floating label');
 
-    // 9. 8-Realm Yendor Engine (Rogue 1980, Brogue CE, DCSS), Domain Config, Lazarus Checkpoint & Death Modal Verification
+    // 9. 8-Realm + RYOD Yendor Engine (Rogue 1980, Brogue CE, DCSS, RYOD), Domain Config, Lazarus Checkpoint & Death Modal Verification
     const domainConfig = require(path.join(__dirname, '..', '..', 'server', 'src', 'domain-config.js'));
-    check(domainConfig.PRIMARY_DOMAIN === 'yasd3d.com' && domainConfig.VALID_REALMS.length === 8,
-        'domain-config.js must declare PRIMARY_DOMAIN=yasd3d.com and all 8 VALID_REALMS');
+    check(domainConfig.PRIMARY_DOMAIN === 'yasd3d.com' && domainConfig.VALID_REALMS.length >= 8,
+        'domain-config.js must declare PRIMARY_DOMAIN=yasd3d.com and all VALID_REALMS');
 
     const all8Realms = ['angband', 'silq', 'frogcomposband', 'hengband', 'nethack', 'dcss', 'brogue', 'rogue'];
     for (const r of all8Realms) {

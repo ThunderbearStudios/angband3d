@@ -100,7 +100,7 @@ class ChronicleAudioRouter {
         // Decoded AudioBuffer In-Memory LRU Cache & Prewarm In-Flight Registry
         // Bypasses both network and Web Audio decodeAudioData CPU decompression (0.01ms playback)
         this.audioBufferCache = new Map();
-        this.MAX_AUDIO_BUFFER_CACHE = 150;
+        this.MAX_AUDIO_BUFFER_CACHE = 48;
         this._prewarmPromises = new Map();
 
         if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
@@ -113,10 +113,39 @@ class ChronicleAudioRouter {
         }
     }
 
+    _getAudioBufferCache(key) {
+        if (!this.audioBufferCache.has(key)) return null;
+        const buf = this.audioBufferCache.get(key);
+        this.audioBufferCache.delete(key);
+        this.audioBufferCache.set(key, buf);
+        return buf;
+    }
+
+    _setAudioBufferCache(key, buffer) {
+        if (!key || !buffer) return;
+        if (this.audioBufferCache.has(key)) {
+            this.audioBufferCache.delete(key);
+        } else if (this.audioBufferCache.size >= this.MAX_AUDIO_BUFFER_CACHE) {
+            const oldest = this.audioBufferCache.keys().next().value;
+            if (oldest !== undefined) this.audioBufferCache.delete(oldest);
+        }
+        this.audioBufferCache.set(key, buffer);
+    }
+
     setRealm(realmKey) {
         this.activeRealm = (realmKey || 'angband').toLowerCase();
-        // Always preserve the canonical British RP storyteller voice (Enceladus) across English realms
-        const defaults = { angband: 'Enceladus', silq: 'Enceladus', frogcomposband: 'Enceladus', hengband: 'Enceladus', nethack: 'Enceladus' };
+        // Always preserve the canonical British RP storyteller voice (Enceladus) across all 9 realms
+        const defaults = {
+            angband: 'Enceladus',
+            silq: 'Enceladus',
+            frogcomposband: 'Enceladus',
+            hengband: 'Enceladus',
+            nethack: 'Enceladus',
+            dcss: 'Enceladus',
+            brogue: 'Enceladus',
+            rogue: 'Enceladus',
+            ryod: 'Enceladus'
+        };
         this.narratorVoice = defaults[this.activeRealm] || 'Enceladus';
     }
 
@@ -721,9 +750,9 @@ class ChronicleAudioRouter {
             : (customVoice || (engine === 'gemini' ? (options.geminiVoice || options.voice) : (options.voice || options.geminiVoice)) || this.narratorVoice || '');
         const cacheKey = this.getAudioCacheKey(text, role, customVoice, options);
 
-        // 1. Direct in-memory hit
+        // 1. Direct in-memory hit (with LRU promotion)
         if (this.audioBufferCache.has(cacheKey)) {
-            return { audioBuffer: this.audioBufferCache.get(cacheKey), engine, cached: true };
+            return { audioBuffer: this._getAudioBufferCache(cacheKey), engine, cached: true };
         }
 
         // 2. Prewarm promise in flight
@@ -763,7 +792,8 @@ class ChronicleAudioRouter {
             director_note: directorNote,
             pitch,
             rate: rateParam,
-            gender
+            gender,
+            v: 'rp2'
         });
 
         const url = `/api/tts?${q.toString()}`;
@@ -791,11 +821,7 @@ class ChronicleAudioRouter {
                 }
 
                 if (audioBuffer) {
-                    if (this.audioBufferCache.size >= this.MAX_AUDIO_BUFFER_CACHE) {
-                        const oldest = this.audioBufferCache.keys().next().value;
-                        this.audioBufferCache.delete(oldest);
-                    }
-                    this.audioBufferCache.set(cacheKey, audioBuffer);
+                    this._setAudioBufferCache(cacheKey, audioBuffer);
                 }
 
                 return { audioBuffer, engine: usedEngine, fallbackReason, cached: false };
@@ -979,12 +1005,10 @@ class ChronicleAudioRouter {
             return { aborted: true };
         }
 
-        // Now that the new vocals are ready in RAM, perform the gentle handoff:
-        // Smooth 80ms fade down + 50ms natural breath pause
+        // Now that the new vocals are ready in RAM, perform the gentle handoff if audio is currently playing,
+        // or start immediately (0ms delay) on cold-start!
         if (isActivelyPlaying !== undefined ? isActivelyPlaying : (this.isSpeaking || this.currentSource || this.currentAudio || (typeof window !== 'undefined' && window.speechSynthesis && window.speechSynthesis.speaking))) {
             await this._gracefulHandoffCurrentAudio();
-        } else {
-            await new Promise(r => setTimeout(r, 40));
         }
 
         if (staging.aborted || this._activeStaging !== staging || !this.enabled) {
@@ -1430,7 +1454,7 @@ class ChronicleAudioRouter {
                 // --- INSTANT TIER 0: IN-MEMORY DECODED AUDIOBUFFER CACHE (0.01ms PLAYBACK) ---
                 if (this.ctx && this.voiceMasterGain && this.audioBufferCache.has(cacheKey)) {
                     try {
-                        const cachedBuffer = this.audioBufferCache.get(cacheKey);
+                        const cachedBuffer = this._getAudioBufferCache(cacheKey);
                         this._disconnectPhysicalSources({ preserveResolve: resolve });
                         this.activePlaybackResolve = resolve;
 
@@ -1553,11 +1577,7 @@ class ChronicleAudioRouter {
                             if (!audioBuffer) {
                                 audioBuffer = await this.ctx.decodeAudioData(arrayBuffer);
                             }
-                            if (this.audioBufferCache.size >= this.MAX_AUDIO_BUFFER_CACHE) {
-                                const oldest = this.audioBufferCache.keys().next().value;
-                                this.audioBufferCache.delete(oldest);
-                            }
-                            this.audioBufferCache.set(cacheKey, audioBuffer);
+                            this._setAudioBufferCache(cacheKey, audioBuffer);
                         }
 
                         if (this._playSessionId !== sessionId || this._activePlayToken !== playToken || !this.enabled) {
@@ -1921,7 +1941,7 @@ class ChronicleAudioRouter {
 
         const cacheKey = this.getAudioCacheKey(cleanText, role, customVoice, options);
         if (this.audioBufferCache.has(cacheKey)) {
-            return this.audioBufferCache.get(cacheKey);
+            return this._getAudioBufferCache(cacheKey);
         }
         if (this._prewarmPromises.has(cacheKey)) {
             return this._prewarmPromises.get(cacheKey);
@@ -1979,11 +1999,7 @@ class ChronicleAudioRouter {
                 if (!audioBuffer) {
                     audioBuffer = await this.ctx.decodeAudioData(arrayBuffer);
                 }
-                if (this.audioBufferCache.size >= this.MAX_AUDIO_BUFFER_CACHE) {
-                    const oldest = this.audioBufferCache.keys().next().value;
-                    this.audioBufferCache.delete(oldest);
-                }
-                this.audioBufferCache.set(cacheKey, audioBuffer);
+                this._setAudioBufferCache(cacheKey, audioBuffer);
                 return audioBuffer;
             } catch (_) {
                 return null;

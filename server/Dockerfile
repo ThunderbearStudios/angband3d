@@ -109,6 +109,7 @@ COPY variants/nethack/ /app/variants/nethack/
 COPY variants/rogue/ /app/variants/rogue/
 COPY variants/brogue/ /app/variants/brogue/
 COPY variants/dcss/ /app/variants/dcss/
+COPY variants/ryod/ /app/variants/ryod/
 COPY engine-manifest.json /app/engine-manifest.json
 COPY CREDITS.md /app/CREDITS.md
 
@@ -120,7 +121,8 @@ RUN mkdir -p /data/save /app/dist /app/public \
              /app/variants/nethack/lib/save \
              /app/variants/rogue/lib/save \
              /app/variants/brogue/lib/save \
-             /app/variants/dcss/lib/save && \
+             /app/variants/dcss/lib/save \
+             /app/variants/ryod/lib/save && \
     ln -sf /app/variants/hengband/bin/hengband /app/variants/hengband/bin/hengband-en && \
     chmod +x /app/engine/angband \
              /app/variants/frogcomposband/bin/frogcomposband \

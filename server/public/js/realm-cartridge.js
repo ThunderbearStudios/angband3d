@@ -836,6 +836,86 @@
                 speaker: 'Archivist of the 1980 Dungeons of Doom',
                 style: 'Classic tabletop dungeon master chronicling the original 26-floor quest for the Amulet of Yendor.'
             }
+        },
+        ryod: {
+            id: 'ryod',
+            schemaVersion: CARTRIDGE_SCHEMA_VERSION,
+            name: 'Roll Your Own Dungeon (RYOD)',
+            tagline: 'The Infinite Dungeon Forge',
+            menuGrammar: 'select-noun-then-verb',
+            heraldry: {
+                id: 'ryod',
+                crestTitle: 'THE INFINITE FORGE',
+                subtitle: 'Roll Your Own Dungeon',
+                accent: '#f59e0b',
+                svgCrest: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2l8 4.5v9L12 20l-8-4.5v-9L12 2z"/><circle cx="12" cy="11" r="2.2" fill="currentColor"/></svg>'
+            },
+            themeTokens: {
+                surfaceBg: '#121016',
+                panelGradient: 'linear-gradient(180deg, rgba(28, 20, 34, 0.96) 0%, rgba(14, 11, 18, 0.98) 100%)',
+                borderAccent: 'rgba(245, 158, 11, 0.55)',
+                crestColor: '#fbbf24',
+                glowAccent: 'rgba(245, 158, 11, 0.24)'
+            },
+            equipmentSlots: STANDARD_EQUIPMENT_SLOTS,
+            capabilities: {
+                inventorySlots: 'a-w',
+                maxInventoryVisible: 23,
+                hasQuiver: true,
+                beatitudeBUC: true,
+                diagonalDoorwayBlocked: false,
+                extendedHashCommands: false,
+                nutritionStates: ['Starving', 'Hungry', 'Fed', 'Full'],
+                encumbranceStates: ['Unencumbered', 'Burdened'],
+                multiBranchGraph: false,
+                hasTown: true,
+                hasShops: true,
+                statCount: 6,
+                invenMode: 'select',
+                hasPopupCommandMenu: false,
+                isBilingual: false
+            },
+            movement: Object.assign({}, DEFAULT_MOVEMENT, { restKey: '.' }),
+            verbs: {
+                wield: { id: 'wield', key: 'w', label: '⚔️ Wield' },
+                wear: { id: 'wear', key: 'w', label: '🛡️ Wear' },
+                takeoff: { id: 'takeoff', key: 'T', label: '🔓 Take Off' },
+                quaff: { id: 'quaff', key: 'q', label: '🧪 Quaff' },
+                read: { id: 'read', key: 'r', label: '📜 Read' },
+                eat: { id: 'eat', key: 'e', label: '🍞 Eat' },
+                aim: { id: 'aim', key: 'a', label: '🪄 Evoke / Use' },
+                zap: { id: 'zap', key: 'a', label: '⚡ Zap' },
+                use_staff: { id: 'use_staff', key: 'a', label: '🪄 Use Staff' },
+                activate: { id: 'activate', key: 'a', label: '✨ Activate' },
+                apply: { id: 'apply', key: 'a', label: '🔧 Apply' },
+                browse: { id: 'browse', key: 'M', label: '📖 Powers' },
+                cast: { id: 'cast', key: 'm', label: '✨ Cast / Power' },
+                study: { id: 'study', key: 'M', label: '📘 Powers' },
+                fire: { id: 'fire', key: 'f', label: '🏹 Fire' },
+                throw: { id: 'throw', key: 't', label: '🎯 Throw' },
+                drop: { id: 'drop', key: 'd', label: '⬇️ Drop' },
+                inspect: { id: 'inspect', key: 'I', label: '🔍 Inspect' },
+                open: { id: 'open', key: 'o', label: '🚪 Open' },
+                close: { id: 'close', key: 'c', label: '🚪 Close' },
+                disarm: { id: 'disarm', key: 'D', label: '⚙️ Disarm' },
+                search: { id: 'search', key: 's', label: '👁️ Search' },
+                pickup: { id: 'pickup', key: 'g', label: '✋ Pick Up' }
+            },
+            extendedCommands: [],
+            biomeBranches: {
+                sanctuary: { id: 'sanctuary', name: 'Sanctuary Outpost', minDepth: 0, maxDepth: 0, wallTint: 0x6e737b, floorTint: 0x484d56, fogColor: 0x2d3a50, ambientHex: 0x808aa8, torchHex: 0xffdc99 },
+                vaults: { id: 'vaults', name: 'Forged Dungeon', minDepth: 1, maxDepth: 50, wallTint: 0x5c5470, floorTint: 0x352f44, fogColor: 0x161224, ambientHex: 0x685a7a, torchHex: 0xffcf78 }
+            },
+            interactiveFeatures: {
+                door: [{ id: 'open', label: '🚪 Open Door', cmd: 'o' }, { id: 'close', label: '🔒 Close Door', cmd: 'c' }],
+                stairs: [{ id: 'ascend', label: '⬆️ Ascend (<)', cmd: '<' }, { id: 'descend', label: '⬇️ Descend (>)', cmd: '>' }],
+                altar: [{ id: 'pray', label: '⛩️ Pray at Altar (p)', cmd: 'p' }]
+            },
+            audioAcoustics: { reverbDecay: 2.3, lowpassHz: 2400, wetness: 0.28, mood: 'forged-mythic' },
+            chroniclePersona: {
+                speaker: 'The Sovereign Architect of the Forge',
+                style: 'Dynamic chronicler adapting to the forged world spine, biome, and five-act quest.'
+            }
         }
     };
 
@@ -1245,6 +1325,10 @@
         const mir = (typeof window !== 'undefined' && window.MASTER_ITEM_REGISTRY) || (typeof global !== 'undefined' && global.MASTER_ITEM_REGISTRY) || null;
         if (mir && typeof mir.registerRealm === 'function' && spec.items) {
             mir.registerRealm(key, spec.items);
+        }
+        const rcp = (typeof window !== 'undefined' && window.RealmContentPool) || (typeof global !== 'undefined' && global.RealmContentPool) || null;
+        if (rcp && typeof rcp.registerRealmContent === 'function' && key !== 'ryod') {
+            rcp.registerRealmContent(key, spec);
         }
         return CARTRIDGES[key];
     }

@@ -23,7 +23,8 @@ const VALID_REALMS = Object.freeze([
     'nethack',
     'rogue',
     'brogue',
-    'dcss'
+    'dcss',
+    'ryod'
 ]);
 
 const REALM_TO_MAGIC = Object.freeze({
@@ -34,7 +35,8 @@ const REALM_TO_MAGIC = Object.freeze({
     nethack: 'SaveNHCK',
     rogue: 'SaveROGU',
     brogue: 'SaveBROG',
-    dcss: 'SaveDCSS'
+    dcss: 'SaveDCSS',
+    ryod: 'SaveRYOD'
 });
 
 const MAGIC_TO_REALM = Object.freeze({
@@ -45,7 +47,8 @@ const MAGIC_TO_REALM = Object.freeze({
     SaveNHCK: 'nethack',
     SaveROGU: 'rogue',
     SaveBROG: 'brogue',
-    SaveDCSS: 'dcss'
+    SaveDCSS: 'dcss',
+    SaveRYOD: 'ryod'
 });
 
 const REALM_SHORT_TAG = Object.freeze({
@@ -56,7 +59,8 @@ const REALM_SHORT_TAG = Object.freeze({
     nethack: 'NHCK',
     rogue: 'ROGU',
     brogue: 'BROG',
-    dcss: 'DCSS'
+    dcss: 'DCSS',
+    ryod: 'RYOD'
 });
 
 const VALID_MAGICS = Object.freeze(Object.keys(MAGIC_TO_REALM));
@@ -109,13 +113,16 @@ function enrichSaveMetadata(meta, fallbackRealm = 'angband') {
     const downloadBase = hasTagInName && hasTimeInName
         ? cleanBase
         : (hasTagInName ? `${cleanBase}_${ts.compact}` : `${cleanBase}_${realmTag}_${ts.compact}`);
+    const ryodShortHash = meta.ryodHash ? String(meta.ryodHash).replace(/^(?:ryod_|RYOD-)/i, '').slice(0, 4).toUpperCase() : '';
+    const ryodBadge = (realm === 'ryod' && ryodShortHash) ? `RYOD:${ryodShortHash}` : realmTag;
+    const ryodTitlePart = (realm === 'ryod' && meta.ryodTitle) ? ` (${meta.ryodTitle})` : '';
     return {
         ...meta,
         realm,
-        realmTag,
+        realmTag: ryodBadge,
         timestamp: ts.display,
         timestampCompact: ts.compact,
-        displayName: `[${realmTag}] ${rawName} • ${ts.display}`,
+        displayName: `[${ryodBadge}] ${rawName}${ryodTitlePart} • ${ts.display}`,
         downloadFilename: `${downloadBase}.sav`
     };
 }

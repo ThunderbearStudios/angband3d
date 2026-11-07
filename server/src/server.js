@@ -204,6 +204,7 @@ const GEMINI_REALM_NARRATOR_MAP = {
     dcss: 'Enceladus',        // Venerable British chronicler of the Realm of Zot
     brogue: 'Enceladus',      // Venerable British chronicler of the Bioluminescent Caverns
     rogue: 'Enceladus',       // Venerable British 1980 Archivist of the Dungeons of Doom
+    ryod: 'Enceladus',        // Venerable British Grand Architect of Roll Your Own Dungeon
     default: 'Enceladus'
 };
 Object.freeze(GEMINI_REALM_NARRATOR_MAP);
@@ -211,7 +212,7 @@ Object.freeze(GEMINI_REALM_NARRATOR_MAP);
 // Curated 30 Character Archetype Casting Matrix for Gemini Native Audio (Free Tier Preview)
 const GEMINI_VOICE_MAP = {
     narrator: 'Enceladus',       // Expressive, venerable Old English male storyteller
-    mentor: 'Gacrux',           // Mature, raspy, ancient scholar
+    mentor: 'Enceladus',         // Locked to canonical British RP Storyteller ('Enceladus') across all realms
     idiot: 'Puck',              // Upbeat, blubbering, eccentric babbler
     female_townsperson: 'Aoede', // Breezy, lyrical, gentle townsfolk
     male_townsperson: 'Sulafat',
@@ -1042,11 +1043,46 @@ function readSaveMetadata(filePath) {
             }
 
             const baseNameNoExt = path.basename(filePath).replace(/\.sav$/i, '');
+            let ryodHash = null;
+            let ryodTitle = null;
+            let ryodArchetype = null;
+            if (detectedRealm === 'ryod') {
+                const bpCand1 = filePath.replace(/\.sav$/i, '') + '.ryod.json';
+                const bpCand2 = filePath + '.ryod.json';
+                const bpPath = fs.existsSync(bpCand1) ? bpCand1 : (fs.existsSync(bpCand2) ? bpCand2 : null);
+                if (bpPath) {
+                    try {
+                        const bp = JSON.parse(fs.readFileSync(bpPath, 'utf8'));
+                        ryodHash = bp.ryodHash || null;
+                        ryodTitle = bp.title || null;
+                        ryodArchetype = bp.archetype || null;
+                    } catch (_) {}
+                }
+                if (!ryodHash && blockName === 'description' && readLen >= 32) {
+                    const descSize = header.readUInt32LE(28);
+                    const jsonOffset = 36 + descSize;
+                    if (stat.size > jsonOffset && stat.size - jsonOffset <= 2 * 1024 * 1024) {
+                        try {
+                            const jsonBuf = Buffer.alloc(stat.size - jsonOffset);
+                            fs.readSync(fd, jsonBuf, 0, jsonBuf.length, jsonOffset);
+                            const parsedState = JSON.parse(jsonBuf.toString('utf8'));
+                            if (parsedState && parsedState.ryodBlueprint) {
+                                ryodHash = parsedState.ryodBlueprint.ryodHash || parsedState.ryodHash || null;
+                                ryodTitle = parsedState.ryodBlueprint.title || null;
+                                ryodArchetype = parsedState.ryodBlueprint.archetype || null;
+                            }
+                        } catch (_) {}
+                    }
+                }
+            }
             return enrichSaveMetadata({
                 filename: path.basename(filePath),
                 characterName: charName || baseNameNoExt,
                 description: description || baseNameNoExt,
                 realm: detectedRealm,
+                ryodHash,
+                ryodTitle,
+                ryodArchetype,
                 sizeBytes: stat.size,
                 lastModified: stat.mtime.toISOString(),
             }, detectedRealm);
@@ -1368,7 +1404,7 @@ const server = http.createServer((req, res) => {
                 if (!fs.existsSync(sDir)) continue;
                 const files = fs.readdirSync(sDir);
                 for (const file of files) {
-                    if (file.startsWith('.') || file.endsWith('.realm.json') || file.endsWith('.owner.json') || file.endsWith('.living.sav') || seenFiles.has(file)) continue;
+                    if (file.startsWith('.') || file.endsWith('.realm.json') || file.endsWith('.ryod.json') || file.endsWith('.owner.json') || file.endsWith('.living.sav') || seenFiles.has(file)) continue;
                     const fullPath = path.join(sDir, file);
                     try {
                         const stat = fs.statSync(fullPath);
@@ -2521,6 +2557,127 @@ const server = http.createServer((req, res) => {
         return;
     }
 
+    // REST: RYOD ("Roll Your Own Dungeon") Blueprint & AI Architect Endpoints
+    if ((pathname === '/api/ryod/blueprint' || pathname === '/api/ryod/architect' || (pathname.startsWith('/api/saves/') && pathname.endsWith('/blueprint'))) && (req.method === 'GET' || req.method === 'POST')) {
+        const RyodCompiler = require('./cartridges/ryod-compiler');
+        const ryodSaveDirs = getSaveDirsForRealm('ryod');
+        const ryodSaveDir = ryodSaveDirs[0] || path.resolve(__dirname, '../../variants/ryod/lib/save');
+        if (!fs.existsSync(ryodSaveDir)) {
+            try { fs.mkdirSync(ryodSaveDir, { recursive: true }); } catch (_) {}
+        }
+        const bpDir = path.join(ryodSaveDir, '.blueprints');
+        if (!fs.existsSync(bpDir)) {
+            try { fs.mkdirSync(bpDir, { recursive: true }); } catch (_) {}
+        }
+
+        if (req.method === 'GET') {
+            let saveOrUser = urlObj.searchParams.get('user') || urlObj.searchParams.get('save') || '';
+            if (pathname.startsWith('/api/saves/') && pathname.endsWith('/blueprint')) {
+                saveOrUser = pathname.slice('/api/saves/'.length, -'/blueprint'.length);
+            }
+            const reqHash = urlObj.searchParams.get('hash') || '';
+            const cleanName = sanitizeFilename(saveOrUser || '').replace(/\.sav$/i, '');
+            let blueprint = null;
+
+            if (reqHash) {
+                const hashFile = path.join(bpDir, `${sanitizeFilename(reqHash)}.ryod.json`);
+                if (fs.existsSync(hashFile)) {
+                    try { blueprint = JSON.parse(fs.readFileSync(hashFile, 'utf8')); } catch (_) {}
+                }
+            }
+            if (!blueprint && cleanName) {
+                const sidecar1 = path.join(ryodSaveDir, `${cleanName}.ryod.json`);
+                const sidecar2 = path.join(ryodSaveDir, `${cleanName}.sav.ryod.json`);
+                const sidecarPath = fs.existsSync(sidecar1) ? sidecar1 : (fs.existsSync(sidecar2) ? sidecar2 : null);
+                if (sidecarPath) {
+                    try { blueprint = JSON.parse(fs.readFileSync(sidecarPath, 'utf8')); } catch (_) {}
+                }
+                if (!blueprint) {
+                    const savCand1 = path.join(ryodSaveDir, cleanName);
+                    const savCand2 = path.join(ryodSaveDir, `${cleanName}.sav`);
+                    const savPath = fs.existsSync(savCand1) ? savCand1 : (fs.existsSync(savCand2) ? savCand2 : null);
+                    if (savPath) {
+                        try {
+                            const buf = fs.readFileSync(savPath);
+                            if (buf.length > 36 && buf.toString('ascii', 0, 8) === 'SaveRYOD') {
+                                const descLen = buf.readUInt32LE(28);
+                                const jsonStr = buf.toString('utf8', 36 + descLen);
+                                const parsed = JSON.parse(jsonStr);
+                                if (parsed && parsed.ryodBlueprint) blueprint = parsed.ryodBlueprint;
+                            }
+                        } catch (_) {}
+                    }
+                }
+            }
+            if (!blueprint && global.__latestRyodBlueprint) {
+                blueprint = global.__latestRyodBlueprint;
+            }
+            if (!blueprint) {
+                res.writeHead(404, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ ok: false, error: 'RYOD blueprint not found' }));
+                return;
+            }
+            const headers = { 'Content-Type': 'application/json; charset=utf-8' };
+            if (urlObj.searchParams.get('download') === '1') {
+                const dlSlug = String(blueprint.title || cleanName || 'custom_realm').replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 40);
+                headers['Content-Disposition'] = `attachment; filename="${dlSlug}.ryod.json"`;
+            }
+            res.writeHead(200, headers);
+            res.end(JSON.stringify({
+                ok: true,
+                ryodHash: blueprint.ryodHash,
+                permalink: `?realm=ryod&bp=${RyodCompiler.encodePermalink(blueprint)}`,
+                blueprint
+            }, null, 2));
+            return;
+        }
+
+        // POST /api/ryod/blueprint or /api/ryod/architect
+        let body = '';
+        req.on('data', chunk => {
+            if (body.length < 256 * 1024) body += chunk;
+        });
+        req.on('end', () => {
+            try {
+                const payload = body ? JSON.parse(body) : {};
+                let blueprint = null;
+                if (pathname === '/api/ryod/architect') {
+                    blueprint = RyodCompiler.rollCoherentBlueprint({
+                        prompt: String(payload.prompt || '').slice(0, 300),
+                        seed: payload.seed,
+                        archetype: payload.archetype
+                    });
+                } else {
+                    const rawCfg = payload.ryodConfig || payload.blueprint || payload;
+                    blueprint = RyodCompiler.normalizeConfig(rawCfg);
+                }
+                global.__latestRyodBlueprint = blueprint;
+                const saveName = sanitizeFilename(String(payload.saveName || payload.user || '')).replace(/\.sav$/i, '');
+                if (saveName && !isReservedFilename(saveName)) {
+                    try {
+                        fs.writeFileSync(path.join(ryodSaveDir, `${saveName}.ryod.json`), JSON.stringify(blueprint, null, 2), 'utf8');
+                    } catch (_) {}
+                }
+                if (blueprint.ryodHash) {
+                    try {
+                        fs.writeFileSync(path.join(bpDir, `${sanitizeFilename(blueprint.ryodHash)}.ryod.json`), JSON.stringify(blueprint, null, 2), 'utf8');
+                    } catch (_) {}
+                }
+                res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+                res.end(JSON.stringify({
+                    ok: true,
+                    ryodHash: blueprint.ryodHash,
+                    permalink: `?realm=ryod&bp=${RyodCompiler.encodePermalink(blueprint)}`,
+                    blueprint
+                }));
+            } catch (err) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ ok: false, error: 'Invalid RYOD payload: ' + err.message }));
+            }
+        });
+        return;
+    }
+
     // REST: Download single save
     if (pathname.startsWith('/api/saves/') && req.method === 'GET') {
         const rawSaveName = pathname.substring('/api/saves/'.length);
@@ -3566,9 +3723,38 @@ async function spawnGameSession(ws, request) {
     }
     if (isNew) {
         args.push(engineInfo.cli?.new_char_switch || '-n');
-        if (isCustomBirth && (realm === 'dcss' || realm === 'brogue' || realm === 'rogue' || realm === 'nethack')) {
+        if (isCustomBirth && (realm === 'dcss' || realm === 'brogue' || realm === 'rogue' || realm === 'nethack' || realm === 'ryod')) {
             args.push('-c');
         }
+    }
+
+    let ryodConfigEnvJson = '';
+    if (realm === 'ryod') {
+        try {
+            const RyodCompiler = require('./cartridges/ryod-compiler');
+            const bpParam = urlObj.searchParams.get('bp');
+            let bp = null;
+            if (bpParam) {
+                const decoded = RyodCompiler.decodePermalink(bpParam);
+                if (decoded) bp = RyodCompiler.normalizeConfig(decoded);
+            }
+            if (!bp && engineInfo.saveDir && rawUser) {
+                const rawSidecar = path.join(engineInfo.saveDir, `${rawUser.replace(/[^a-zA-Z0-9_-]/g, '')}.ryod.json`);
+                if (fs.existsSync(rawSidecar)) {
+                    bp = JSON.parse(fs.readFileSync(rawSidecar, 'utf8'));
+                }
+            }
+            if (!bp && global.__latestRyodBlueprint) {
+                bp = global.__latestRyodBlueprint;
+            }
+            if (bp) {
+                ryodConfigEnvJson = JSON.stringify(bp);
+                if (isNew && engineInfo.saveDir && targetSlot) {
+                    const slotSidecar = path.join(engineInfo.saveDir, `${targetSlot.replace(/\.sav$/i, '')}.ryod.json`);
+                    try { fs.writeFileSync(slotSidecar, JSON.stringify(bp, null, 2), 'utf8'); } catch (_) {}
+                }
+            }
+        } catch (_) {}
     }
 
     const engineDir = engineInfo.cwd;
@@ -3606,6 +3792,9 @@ async function spawnGameSession(ws, request) {
                 TERM: 'xterm-256color',
                 HOME: process.env.HOME || '/app',
             };
+            if (ryodConfigEnvJson) {
+                childEnv.RYOD_CONFIG_JSON = ryodConfigEnvJson;
+            }
             delete childEnv.GEMINI_API_KEY;
             const isNodeBridge = String(engineInfo.exe || '').endsWith('.js');
             const spawnExe = isNodeBridge ? process.execPath : engineInfo.exe;

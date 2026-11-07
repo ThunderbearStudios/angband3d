@@ -125,8 +125,12 @@
     function resolveMythicAct(depth = 0, realm = 'angband') {
         const d = Math.max(0, Number(depth) || 0);
         const r = String(realm || 'angband').toLowerCase();
-        // Scale Sil-Q's 20-floor delve and NetHack's 50-floor delve onto the 5-act curve
-        const scaledDepth = (r === 'silq') ? d * 4.5 : (r === 'nethack' ? d * 1.8 : d);
+        let ryodScale = 1.0;
+        if (r === 'ryod' && typeof window !== 'undefined' && window.__activeRyodBlueprint && window.__activeRyodBlueprint.goalDepth) {
+            ryodScale = 90 / Math.max(5, Number(window.__activeRyodBlueprint.goalDepth) || 12);
+        }
+        // Scale Sil-Q's 20-floor delve, NetHack's 50-floor delve, and RYOD's custom goalDepth onto the 5-act curve
+        const scaledDepth = (r === 'silq') ? d * 4.5 : (r === 'nethack' ? d * 1.8 : (r === 'ryod' ? d * ryodScale : d));
         for (let i = 0; i < MYTHIC_ACTS.length; i++) {
             const a = MYTHIC_ACTS[i];
             if (scaledDepth >= a.minDepth && scaledDepth <= a.maxDepth) {

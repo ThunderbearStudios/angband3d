@@ -54,12 +54,12 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Fira+Code:wght@400;600&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet" crossorigin="anonymous">
     <link rel="manifest" href="/manifest.json">
-    <link rel="preload" as="image" href="/assets/yasd3d_logo_fast.jpg?v=11.7.0" fetchpriority="high">
+    <link rel="preload" as="image" href="/assets/yasd3d_logo_fast.jpg?v=11.8.3" fetchpriority="high">
     <link rel="apple-touch-icon" href="/assets/yasd3d_logo.png">
     <link rel="icon" type="image/png" href="/assets/yasd3d_logo.png">
-    <link rel="stylesheet" href="/css/dungeon.css?v=11.7.0">
-    <link rel="stylesheet" href="css/hud-skin.css?v=11.7.0">
-    <link rel="stylesheet" href="/css/chronicle.css?v=11.7.0">
+    <link rel="stylesheet" href="/css/dungeon.css?v=11.8.3">
+    <link rel="stylesheet" href="css/hud-skin.css?v=11.8.3">
+    <link rel="stylesheet" href="/css/chronicle.css?v=11.8.3">
 </head>
 <body>
     <div id="app-container">
@@ -680,12 +680,12 @@
         <div id="splash-overlay" role="region" aria-label="YASD 3D Showcase Splash Screen" tabindex="0">
             <div class="splash-card splash-billboard-mode">
                 <div class="splash-logo-wrap protected-crest" oncontextmenu="return false;">
-                    <img src="/assets/yasd3d_logo_fast.jpg?v=11.7.0" alt="Yet Another Stupid Death Official Crest — yasd3d.com • Thunderbear Studios" class="splash-logo splash-logo-main" width="520" height="520" fetchpriority="high" decoding="async" draggable="false">
+                    <img src="/assets/yasd3d_logo_fast.jpg?v=11.8.3" alt="Yet Another Stupid Death Official Crest — yasd3d.com • Thunderbear Studios" class="splash-logo splash-logo-main" width="520" height="520" fetchpriority="high" decoding="async" draggable="false">
                 </div>
 
                 <div class="splash-subtitle">
                     <div class="splash-realms-line">NetHack &bull; DCSS &bull; Angband &bull; Brogue &bull; Rogue &bull; Sil-Q &bull; FrogComposBand &bull; Hengband</div>
-                    <div class="splash-features-line">First-Person 3D Roguelike Harness &nbsp;&bull;&nbsp; Voiced Living Chronicle</div>
+                    <div class="splash-features-line">First-Person 3D Roguelike Harness &nbsp;&bull;&nbsp; Voiced Living Chronicle &nbsp;&bull;&nbsp; <strong style="color: #f3d478; font-weight: 700;">Roll Your Own Dungeon</strong></div>
                 </div>
 
                 <div class="splash-billboard-threshold" id="splash-enter-prompt">
@@ -703,7 +703,7 @@
 
                 <div class="splash-credits-footer">
                     <a href="https://thunderbearstudios.dev" target="_blank" rel="noopener noreferrer" class="splash-studio-signature" title="Thunderbear Studios™ — Official Studio Portal (thunderbearstudios.dev)">
-                        <img src="/assets/thunderbear_logo.png?v=11.7.0" alt="Thunderbear Studios Official Emblem" class="splash-studio-badge" width="28" height="36" draggable="false">
+                        <img src="/assets/thunderbear_logo.png?v=11.8.3" alt="Thunderbear Studios Official Emblem" class="splash-studio-badge" width="28" height="36" draggable="false">
                         <span class="splash-studio-detail">
                             <strong>Thunderbear Studios&trade;</strong>
                             <small>&copy; 2026 Thunderbear Studios &bull; All Rights Reserved</small>
@@ -718,13 +718,13 @@
             <div class="main-menu-card">
                 <div class="main-menu-header">
                     <div class="main-menu-crest-bar">
-                        <img src="/assets/yasd3d_logo_fast.jpg?v=11.7.0" alt="YASD 3D Emblem" class="main-menu-logo-primary" width="56" height="56" decoding="async" draggable="false">
+                        <img src="/assets/yasd3d_logo_fast.jpg?v=11.8.3" alt="YASD 3D Emblem" class="main-menu-logo-primary" width="56" height="56" decoding="async" draggable="false">
                         <div class="main-menu-title-group">
                             <h2 class="main-menu-title" id="main-menu-title">⚔ YASD 3D • YENDOR ENGINE ⚔</h2>
                             <div class="main-menu-subtitle" id="main-menu-subtitle">The Classic Tolkien Descent • Old British Scholar</div>
                         </div>
                         <a href="https://thunderbearstudios.dev" target="_blank" rel="noopener noreferrer" class="main-menu-studio-link" title="Thunderbear Studios™">
-                            <img src="/assets/thunderbear_logo.png?v=11.7.0" alt="Thunderbear Studios" class="main-menu-logo-secondary" width="28" height="36" draggable="false">
+                            <img src="/assets/thunderbear_logo.png?v=11.8.3" alt="Thunderbear Studios" class="main-menu-logo-secondary" width="28" height="36" draggable="false">
                         </a>
                     </div>
                     <div class="main-menu-realm-strip" id="main-menu-realm-strip">
@@ -740,6 +740,7 @@
                                     <option value="silq">Sil-Q 1.5.0 — First Age Stealth &amp; Silmaril Heist (Songs of Power)</option>
                                     <option value="frogcomposband">FrogComposBand 7.1.1 — 50+ Classes, Monster Races &amp; Overland</option>
                                     <option value="hengband">Hengband 3.0.1 — Eastern Mythos &amp; Quest Citadels (EN / JP)</option>
+                                    <option value="ryod">🎲 Roll Your Own Dungeon (RYOD) — 6-Die Hybrid World, Plot, Avatar &amp; Mutator Forge</option>
                                 </select>
                             </div>
                             <div id="main-menu-hengband-lang-wrap" class="main-menu-lang-wrap hidden">
@@ -749,11 +750,15 @@
                                     <option value="jp">日本語 (JP)</option>
                                 </select>
                             </div>
-                            <button type="button" id="btn-menu-realms" class="menu-realm-badge-btn" title="Open Full 8-Realm Comparison Table [R]">📜 Compare Realms</button>
-                            <button type="button" id="btn-menu-switch-realm" class="menu-realm-badge-btn" style="display:none;" aria-hidden="true" title="Switch Realm">Switch Realm</button>
+                            <div class="main-menu-realm-actions">
+                                <button type="button" id="btn-menu-ryod-forge" class="menu-realm-badge-btn menu-realm-ryod-btn" title="Open Roll Your Own Dungeon (RYOD) 6-Die Hybrid World Forge">🎲 Roll Your Own Dungeon</button>
+                                <button type="button" id="btn-menu-ryod-quick" class="menu-realm-badge-btn menu-realm-quick-btn" title="Instant 1-Click Random RYOD Roll &amp; 3D Drop-In">⚡ Quick Roll</button>
+                                <button type="button" id="btn-menu-realms" class="menu-realm-badge-btn" title="Open Full Realm Comparison Table [R]">📜 Compare</button>
+                                <button type="button" id="btn-menu-switch-realm" class="menu-realm-badge-btn" style="display:none;" aria-hidden="true" title="Switch Realm">Switch Realm</button>
+                            </div>
                         </div>
                         <div class="main-menu-realm-meta-row">
-                            <div class="main-menu-realm-pills" id="main-menu-realm-pills">
+                            <div class="main-menu-realm-pills" id="main-menu-realm-pills" style="display:none;" aria-hidden="true">
                                 <button type="button" class="realm-pill-btn" data-switch-realm="nethack" title="Switch to NetHack 3.6.7">🏺 NetHack</button>
                                 <button type="button" class="realm-pill-btn" data-switch-realm="dcss" title="Switch to Dungeon Crawl Stone Soup">🐙 DCSS</button>
                                 <button type="button" class="realm-pill-btn active" data-switch-realm="angband" title="Switch to Vanilla Angband 4.2.6">⚔ Angband</button>
@@ -762,6 +767,7 @@
                                 <button type="button" class="realm-pill-btn" data-switch-realm="silq" title="Switch to Sil-Q 1.5.0">👑 Sil-Q</button>
                                 <button type="button" class="realm-pill-btn" data-switch-realm="frogcomposband" title="Switch to FrogComposBand 7.1.1">◈ FrogComposBand</button>
                                 <button type="button" class="realm-pill-btn" data-switch-realm="hengband" title="Switch to Hengband 3.0.1">⛩ Hengband</button>
+                                <button type="button" class="realm-pill-btn" data-switch-realm="ryod" title="Roll Your Own Dungeon (RYOD Forge)">🎲 RYOD</button>
                             </div>
                             <span id="main-menu-realm-badge" class="main-menu-realm-badge"><strong id="menu-active-realm-name" class="menu-realm-highlight" style="display:none;">Vanilla Angband 4.2.6</strong><span id="main-menu-realm-tagline" class="main-menu-realm-desc">100 Dungeon Levels • Bit-for-Bit 4.2.6 Rules</span></span>
                         </div>
@@ -770,30 +776,33 @@
 
                 <!-- Primary Gameplay Options -->
                 <div class="main-menu-options" id="main-menu-options">
-                    <button class="menu-option-btn selected" id="btn-menu-continue" data-index="0"><span class="menu-bullet">►</span>
- <span class="menu-num">[1]</span>
+                    <button class="menu-option-btn selected" id="btn-menu-continue" data-index="0"><span class="menu-bullet">▸</span>
+ <span class="menu-num">1</span>
  <div class="menu-text-col">
  <span class="menu-label" id="menu-continue-label">Continue Adventure</span>
  <span class="menu-desc" id="menu-continue-desc">Checking saved adventurers...</span>
  </div></button>
-                    <button class="menu-option-btn" id="btn-menu-load" data-index="1"><span class="menu-bullet">►</span>
- <span class="menu-num">[2]</span>
+                    <button class="menu-option-btn" id="btn-menu-load" data-index="1"><span class="menu-bullet">▸</span>
+ <span class="menu-num">2</span>
  <div class="menu-text-col">
  <span class="menu-label">Load Saved Character...</span>
  <span class="menu-desc">Choose an adventurer from your realm archive or upload a .sav file.</span>
  </div></button>
-                    <button class="menu-option-btn" id="btn-menu-random" data-index="2"><span class="menu-bullet">►</span>
- <span class="menu-num">[3]</span>
+                    <button class="menu-option-btn" id="btn-menu-random" data-index="2"><span class="menu-bullet">▸</span>
+ <span class="menu-num">3</span>
  <div class="menu-text-col">
  <span class="menu-label">Quick Start (Random Hero)</span>
- <span class="menu-desc">Generate a ready-to-play random adventurer and enter the 3D town immediately!</span>
+ <span class="menu-desc">Generate a ready-to-play random adventurer and enter the 3D realm immediately!</span>
  </div></button>
-                    <button class="menu-option-btn" id="btn-menu-custom" data-index="3"><span class="menu-bullet">►</span>
- <span class="menu-num">[4]</span>
+                    <button class="menu-option-btn" id="btn-menu-custom" data-index="3"><span class="menu-bullet">▸</span>
+ <span class="menu-num">4</span>
  <div class="menu-text-col">
  <span class="menu-label">Custom Hero (Character Wizard)</span>
- <span class="menu-desc">Choose race, class, and roll stats step-by-step in the classic terminal wizard.</span>
+ <span class="menu-desc" id="menu-custom-desc">Choose race, class, and roll stats step-by-step in the classic terminal wizard.</span>
  </div></button>
+                    <div id="main-menu-ryod-feature-row" class="hidden" style="display:none;" aria-hidden="true">
+                        <button type="button" id="btn-menu-ryod-main" class="btn-gold">🎲 Roll Your Own Dungeon</button>
+                    </div>
 
                     <!-- Preserved compatibility aliases for tests querying alternative ID schemes -->
                     <button id="btn-menu-load-save" class="hidden-test-alias" style="display:none;" aria-hidden="true">Load Save</button>
@@ -992,6 +1001,7 @@
                     <button type="button" class="guide-realm-pill" data-guide-realm="silq" aria-pressed="false">👑 Sil-Q 1.5+</button>
                     <button type="button" class="guide-realm-pill" data-guide-realm="frogcomposband" aria-pressed="false">🐸 FrogComposBand</button>
                     <button type="button" class="guide-realm-pill" data-guide-realm="hengband" aria-pressed="false">⛩ Hengband 3.0+</button>
+                    <button type="button" class="guide-realm-pill" data-guide-realm="ryod" aria-pressed="false">🎲 RYOD Forge</button>
                 </div>
                 <div class="guide-tabs" role="tablist" aria-label="Survival Guide Sections">
                     <button type="button" class="guide-tab active" data-tab="0" role="tab" aria-selected="true">1. Overview &amp; Goal</button>
@@ -1270,6 +1280,13 @@
                         </div>
                         <button type="button" class="btn-realm-select btn-gold-outline" data-realm="hengband">Switch to Realm</button>
                     </div>
+                    <div class="realm-card" data-realm="ryod">
+                        <div class="realm-card-badge" style="display:none;">ACTIVE REALM</div><div class="realm-card-icon">🎲</div><h3 class="realm-card-title">Roll Your Own Dungeon</h3>
+                        <div class="realm-card-tagline">6-Die Hybrid Roll-or-Pick Tabletop World Forge</div>
+                        <p class="realm-card-desc">Roll the bones or pick directly across 6 tabletop cards: 3D biomes, factions, 5-act plots, monster avatars, power disciplines, 8 world mutators, and d20 fate boons.</p>
+                        <div class="realm-card-features"><span class="realm-feat-chip">6-Card Roll-or-Pick</span><span class="realm-feat-chip">8 World Mutators</span><span class="realm-feat-chip">Portable .ryod.json</span></div>
+                        <button type="button" class="btn-realm-select btn-gold-outline" data-realm="ryod">Open RYOD Forge</button>
+                    </div>
                 </div>
 
                 <div class="main-menu-footer" style="display:flex; justify-content:space-between; align-items:center;">
@@ -1332,45 +1349,48 @@
     <script defer src="/js/vendor/GLTFLoader.js"></script>
 
     <!-- Client Subsystems -->
-    <script defer src="/js/safe-html.js?v=11.7.0"></script>
-    <script defer src="/js/realm-cartridge.js?v=11.7.0"></script>
-    <script defer src="/js/screen-modal-coordinator.js?v=11.7.0"></script>
-    <script defer src="/js/dungeon3d-lightmap.js?v=11.7.0"></script>
-    <script defer src="/js/dungeon3d-model-governor.js?v=11.7.0"></script>
-    <script defer src="/js/screen-context.js?v=11.7.0"></script>
-    <script defer src="/js/menu-router.js?v=11.7.0"></script>
-    <script defer src="/js/grimoire-deck.js?v=11.7.0"></script>
-    <script defer src="/js/quick-actions.js?v=11.7.0"></script>
-    <script defer src="/js/device.js?v=11.7.0"></script>
-    <script defer src="/js/action-catalog.js?v=11.7.0"></script>
-    <script defer src="/js/realm-keys.js?v=11.7.0"></script>
-    <script defer src="/js/command-dispatcher.js?v=11.7.0"></script>
-    <script defer src="/js/command-palette.js?v=11.7.0"></script>
-    <script defer src="/js/prompt-mirror.js?v=11.7.0"></script>
-    <script defer src="/js/item-sheet.js?v=11.7.0"></script>
-    <script defer src="/js/entity-menu.js?v=11.7.0"></script>
-    <script defer src="/js/gamepad.js?v=11.7.0"></script>
-    <script defer src="/js/radial-menu.js?v=11.7.0"></script>
-    <script defer src="/js/mobile-overlay.js?v=11.7.0"></script>
-    <script defer src="/js/audio.js?v=11.7.0"></script>
-    <script defer src="/js/terminal.js?v=11.7.0"></script>
-    <script defer src="/js/master-bestiary.js?v=11.7.0"></script>
-    <script defer src="/js/master-item-registry.js?v=11.7.0"></script>
-    <script defer src="/js/dungeon3d.js?v=11.7.0"></script>
-    <script defer src="/js/hud.js?v=11.7.0"></script>
-    <script defer src="/js/network.js?v=11.7.0"></script>
-    <script defer src="/js/local_bridge.js?v=11.7.0"></script>
-    <script defer src="/js/input.js?v=11.7.0"></script>
-    <script defer src="/js/demo-player.js?v=11.7.0"></script>
+    <script defer src="/js/safe-html.js?v=11.8.3"></script>
+    <script defer src="/js/realm-content-pool.js?v=11.8.3"></script>
+    <script defer src="/js/ryod-compiler.js?v=11.8.3"></script>
+    <script defer src="/js/ryod-forge.js?v=11.8.3"></script>
+    <script defer src="/js/realm-cartridge.js?v=11.8.3"></script>
+    <script defer src="/js/screen-modal-coordinator.js?v=11.8.3"></script>
+    <script defer src="/js/dungeon3d-lightmap.js?v=11.8.3"></script>
+    <script defer src="/js/dungeon3d-model-governor.js?v=11.8.3"></script>
+    <script defer src="/js/screen-context.js?v=11.8.3"></script>
+    <script defer src="/js/menu-router.js?v=11.8.3"></script>
+    <script defer src="/js/grimoire-deck.js?v=11.8.3"></script>
+    <script defer src="/js/quick-actions.js?v=11.8.3"></script>
+    <script defer src="/js/device.js?v=11.8.3"></script>
+    <script defer src="/js/action-catalog.js?v=11.8.3"></script>
+    <script defer src="/js/realm-keys.js?v=11.8.3"></script>
+    <script defer src="/js/command-dispatcher.js?v=11.8.3"></script>
+    <script defer src="/js/command-palette.js?v=11.8.3"></script>
+    <script defer src="/js/prompt-mirror.js?v=11.8.3"></script>
+    <script defer src="/js/item-sheet.js?v=11.8.3"></script>
+    <script defer src="/js/entity-menu.js?v=11.8.3"></script>
+    <script defer src="/js/gamepad.js?v=11.8.3"></script>
+    <script defer src="/js/radial-menu.js?v=11.8.3"></script>
+    <script defer src="/js/mobile-overlay.js?v=11.8.3"></script>
+    <script defer src="/js/audio.js?v=11.8.3"></script>
+    <script defer src="/js/terminal.js?v=11.8.3"></script>
+    <script defer src="/js/master-bestiary.js?v=11.8.3"></script>
+    <script defer src="/js/master-item-registry.js?v=11.8.3"></script>
+    <script defer src="/js/dungeon3d.js?v=11.8.3"></script>
+    <script defer src="/js/hud.js?v=11.8.3"></script>
+    <script defer src="/js/network.js?v=11.8.3"></script>
+    <script defer src="/js/local_bridge.js?v=11.8.3"></script>
+    <script defer src="/js/input.js?v=11.8.3"></script>
+    <script defer src="/js/demo-player.js?v=11.8.3"></script>
     <!-- Living Chronicle & Voiced Lorekeeper Modules -->
-    <script defer src="/js/chronicle/chronicle-store.js?v=11.7.0"></script>
-    <script defer src="/js/chronicle/chronicle-grounder.js?v=11.7.0"></script>
-    <script defer src="/js/chronicle/chronicle-filter.js?v=11.7.0"></script>
-    <script defer src="/js/chronicle/chronicle-story-weaver.js?v=11.7.0"></script>
-    <script defer src="/js/chronicle/chronicle-audio.js?v=11.7.0"></script>
-    <script defer src="/js/chronicle/chronicle-llm.js?v=11.7.0"></script>
-    <script defer src="/js/chronicle/chronicle-manager.js?v=11.7.0"></script>
-    <script defer src="/js/app.js?v=11.7.0"></script>
-    <script defer src="/js/boot.js?v=11.7.0"></script>
+    <script defer src="/js/chronicle/chronicle-store.js?v=11.8.3"></script>
+    <script defer src="/js/chronicle/chronicle-grounder.js?v=11.8.3"></script>
+    <script defer src="/js/chronicle/chronicle-filter.js?v=11.8.3"></script>
+    <script defer src="/js/chronicle/chronicle-story-weaver.js?v=11.8.3"></script>
+    <script defer src="/js/chronicle/chronicle-audio.js?v=11.8.3"></script>
+    <script defer src="/js/chronicle/chronicle-llm.js?v=11.8.3"></script>
+    <script defer src="/js/chronicle/chronicle-manager.js?v=11.8.3"></script>
+    <script defer src="/js/app.js?v=11.8.3"></script>
+    <script defer src="/js/boot.js?v=11.8.3"></script>
 </body>
 </html>

@@ -733,7 +733,10 @@ class SoundEngine {
     }
 
     getRealmMusicProfile(realm) {
-        const r = String(realm || 'angband').toLowerCase();
+        let r = String(realm || 'angband').toLowerCase();
+        if (r === 'ryod' && typeof window !== 'undefined' && window.__activeRyodBlueprint && window.__activeRyodBlueprint.audioTheme) {
+            r = String(window.__activeRyodBlueprint.audioTheme).toLowerCase();
+        }
         const profiles = {
             angband: {
                 town: ['town_cloudancer', 'town_theme', 'town_sorrow', 'oga_small_fire_tavern'],

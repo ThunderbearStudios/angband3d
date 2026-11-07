@@ -10,7 +10,7 @@ The **Yendor Engine™** executes each classical roguelike realm as an **indepen
 
 ## 2. Upstream Roguelike Engines & Creators
 
-We gratefully credit the original authors, maintainers, and contributors of the 8 legendary roguelike realms supported by the Yendor Engine™:
+We gratefully credit the original authors, maintainers, and contributors of the 8 legendary upstream roguelike realms and the 9th **Roll Your Own Dungeon (`RYOD`)** Universal World Forge supported by the Yendor Engine™:
 
 1. **Vanilla Angband 4.2.6 (`angband`)**
    - **Authors**: Robert Alan Koeneke, James E. Wilson, Ben Harrison, Andrew Sidwell, Nick McConnell, and the Angband DevTeam.
@@ -51,6 +51,10 @@ We gratefully credit the original authors, maintainers, and contributors of the 
    - **Authors**: Michael Toy, Glenn Wichman, Ken Arnold (UC Berkeley), and the Roguelike Restoration Project.
    - **License**: 3-Clause BSD License (`BSD-3-Clause`).
    - **Upstream**: `https://github.com/RoguelikeRestorationProject/rogue5.4`
+
+9. **Roll Your Own Dungeon — 6-Card Hybrid Tabletop World Forge (`ryod`)**
+   - **Authors**: **Thunderbear Studios™** (`https://thunderbearstudios.dev` / `https://yasd3d.com` / `https://angband3d.com`).
+   - **Architecture**: Deterministic `RYOD-XXXXXXXX` blueprint compiler (`ryod-compiler.js`), 6-Card Hybrid Roll-or-Pick Tabletop Forge (`ryod-forge.js`), 8 World Mutators, `d20` Starting Fate Boons, Playable 3D Creature Avatars, Floor 5/10/15 Subterranean Quartermaster Outposts, and Self-Hydrating `SaveRYOD` `.sav` Portability (`cartridge-core.js`).
 
 ---
 

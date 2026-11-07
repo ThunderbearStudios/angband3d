@@ -405,6 +405,56 @@
         "ui_badges": ["1980 BSD Canon", "A–Z Classic Bestiary", "26 Dungeons of Doom", "Amulet of Yendor"]
       },
       "lore": "Step back into 1980 where the roguelike genre was born. Face all 26 classic A-Z monsters from Aquator to Dragon and claim the Amulet of Yendor."
+    },
+    "ryod": {
+      "id": "ryod",
+      "name": "RYOD — Roll Your Own Dungeon",
+      "tagline": "Custom Cross-Realm Worlds, 5-Act Plots & Monster Avatars",
+      "version": "11.8.0",
+      "lineage": "Yendor Engine Universal Cross-Realm Synthesizer",
+      "binary": {
+        "win_x64": "variants/ryod/bin/ryod-bridge.js",
+        "linux_x64": "variants/ryod/bin/ryod-bridge.js"
+      },
+      "cli": {
+        "frontend_switch": "-mbridge",
+        "save_token_format": "-u{name}",
+        "save_dir_switch": "-dsave={path}",
+        "panic_dir_switch": null,
+        "new_char_switch": "-n",
+        "env_vars": {
+          "RYODDIR": "variants/ryod/lib"
+        }
+      },
+      "save_system": {
+        "magic_signature": "SaveRYOD",
+        "directory": "variants/ryod/lib/save",
+        "extension": ".sav"
+      },
+      "capabilities": {
+        "wilderness": false,
+        "multitown": false,
+        "stealth_engine": true,
+        "songs_of_power": true,
+        "monster_races": true,
+        "quests": true,
+        "mounts": false,
+        "depth_max": 30
+      },
+      "terminal": {
+        "default_width": 80,
+        "default_height": 24,
+        "supports_dynamic_resize": false
+      },
+      "theme": {
+        "primary_color": "#f59e0b",
+        "secondary_color": "#d97706",
+        "voice_profile": "Sovereign Dungeon Architect",
+        "voice_id": "en-GB-RyanNeural",
+        "tradition": "tolkien",
+        "ui_badges": ["Roll Your Own Dungeon", "5-Act Story Spine", "Monster Avatars", "Shareable .ryod.json"]
+      },
+      "lore": "Forge a custom dungeon across 8 realms with coherent 3D biomes, 5-Act dark-fantasy stories, playable monster avatars, persistent pets, and shareable blueprints."
     }
   }
 }

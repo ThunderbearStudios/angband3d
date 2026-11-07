@@ -485,7 +485,20 @@ const CONTEXTUAL_THEMES = {
 };
 
 function resolveContextualTheme(realm, depth, levelSeed = 0) {
-    const r = (realm || 'angband').toLowerCase();
+    let r = (realm || 'angband').toLowerCase();
+    if (r === 'ryod') {
+        const bp = (typeof window !== 'undefined' && window.__activeRyodBlueprint) || null;
+        const b = bp && bp.biome ? String(bp.biome).toLowerCase() : 'obsidian_vaults';
+        if (depth <= 0) {
+            if (b === 'eastern_keep') return CONTEXTUAL_THEMES['hengband_town'];
+            if (b === 'iron_crown_throne') return CONTEXTUAL_THEMES['silq_slag'];
+            return CONTEXTUAL_THEMES['angband_town'];
+        }
+        if (b === 'eastern_keep') return depth <= 6 ? CONTEXTUAL_THEMES['hengband_dungeon'] : CONTEXTUAL_THEMES['angband_crystal'];
+        if (b === 'iron_crown_throne') return depth <= 4 ? CONTEXTUAL_THEMES['silq_slag'] : (depth <= 8 ? CONTEXTUAL_THEMES['silq_armouries'] : CONTEXTUAL_THEMES['silq_throne']);
+        if (b === 'bioluminescent_caverns') return depth <= 5 ? CONTEXTUAL_THEMES['angband_flooded'] : CONTEXTUAL_THEMES['angband_crystal'];
+        if (b === 'gothic_crypts') return depth <= 5 ? CONTEXTUAL_THEMES['angband_crypts'] : (depth <= 10 ? CONTEXTUAL_THEMES['angband_sepulchre'] : CONTEXTUAL_THEMES['angband_catacombs']);
+    }
     if (depth <= 0) {
         if (r === 'silq') return CONTEXTUAL_THEMES['silq_slag'];
         if (r === 'hengband') return CONTEXTUAL_THEMES['hengband_town'];
@@ -5362,6 +5375,10 @@ class Dungeon3D {
         } else if (race.includes('high-elf') || race.includes('elf')) {
             targetEyeHeight = 1.76;
             heightRatio = 1.08;
+        }
+        if (player.avatarScale && Number(player.avatarScale) > 0) {
+            heightRatio = Number(player.avatarScale);
+            targetEyeHeight = 1.62 * heightRatio;
         }
 
         this.eyeHeight = Math.max(0.70, Math.min(2.35, targetEyeHeight));

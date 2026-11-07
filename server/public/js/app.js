@@ -178,6 +178,14 @@ window.addEventListener('DOMContentLoaded', () => {
             desc: 'Where the genre began in 1980. Battle all 26 classic A–Z monsters from Aquators to Dragons, manage your food rations, and retrieve the Amulet of Yendor on Level 26.',
             voiceAccent: '1980s Dungeon Master',
             lorekeeper: 'Master of the Original Dungeons of Doom'
+        },
+        ryod: {
+            name: 'Roll Your Own Dungeon (RYOD)',
+            shortName: 'RYOD Forge',
+            tagline: 'Roll the Realm Dice or Pick Directly • 3D Worlds • 5-Act Plots • Monster Avatars',
+            desc: 'Roll the dice or pick directly across 6 Tabletop Cards: 3D Biomes & Map Layouts, Bestiary Factions, 5-Act Plots, Monster Avatars & Pets, Power Disciplines, and World Mutators.',
+            voiceAccent: 'The Grand Architect (Enceladus)',
+            lorekeeper: 'The Grand Architect'
         }
     };
 
@@ -196,6 +204,21 @@ window.addEventListener('DOMContentLoaded', () => {
     window.__langMode = (activeRealm === 'hengband') ? langMode : 'en';
     window.activeRealm = activeRealm;
     window.__activeRealm = activeRealm;
+
+    window.updateRyodRealmMetadata = (bp) => {
+        if (!bp || !REALM_DATA.ryod) return;
+        const s = bp.story || {};
+        REALM_DATA.ryod.tagline = `${bp.title || 'Custom Forged Realm'} (${bp.goalDepth || 15} Floors • ${bp.mutatorName || 'Standard Rules'})`;
+        REALM_DATA.ryod.desc = bp.elderRumor || bp.subtitle || s.premise || REALM_DATA.ryod.desc;
+        REALM_DATA.ryod.lorekeeper = bp.chronicler || s.lorekeeperName || 'The Grand Architect';
+        if (activeRealm === 'ryod' && typeof updateRealmUI === 'function') {
+            try { updateRealmUI(); } catch (_) {}
+        }
+    };
+
+    if (window.RyodForge && typeof window.RyodForge.initDefaultBlueprint === 'function') {
+        window.RyodForge.initDefaultBlueprint();
+    }
 
     // WS5.1: Lazy Hengband language data loading
     let hengLangPromise = null;
@@ -1513,6 +1536,17 @@ window.addEventListener('DOMContentLoaded', () => {
         showRealmToast,
         toggleLanguageMode,
         getLanguageMode,
+        startNewRyodGame: (slotName, bp, autoBirth = true) => {
+            if (bp && window.RyodForge) window.RyodForge.applyBlueprintToRuntime(bp);
+            startGame({
+                charName: slotName || 'Adventurer',
+                saveFile: slotName || 'Adventurer',
+                realm: 'ryod',
+                isNew: true,
+                autoBirth: Boolean(autoBirth)
+            });
+        },
+        openRyodForge: () => window.RyodForge && typeof window.RyodForge.open === 'function' ? window.RyodForge.open() : null,
         setLanguageMode
     };
     let appState = 'splash';
@@ -1611,6 +1645,13 @@ window.addEventListener('DOMContentLoaded', () => {
             "Four Towns & Arena: Press [O] on the surface to travel between Outpost, Telmora, Morivant, and Zul, or challenge the Monster Arena for prizes!",
             "Bilingual & Kanji Mode: Press [Alt+L] at any time to switch seamlessly between English, Bilingual (EN/漢), and pure Japanese Kanji.",
             "Serpent of Chaos: Fulfill Royal Quests [Q], defeat Oberon at DL99, and vanquish Jörmungandr, the Serpent of Chaos, at DL100!"
+        ],
+        ryod: [
+            "Coherent World Spine: Every RYOD run binds a harmonious 3D Biome, 5-Act Mythic Story, Bestiary Faction, and Music Theme together.",
+            "Active Powers & Monster Avatars: Press [m] or [M] to unleash Arcane Spells, First-Age Songs, Divine Miracles, Martial Stances, or Dragon/Vampire/Lich Avatar powers!",
+            "Sanctuary Town (Depth 0): Pray [p] at the Temple Altar for healing & weapon blessing, trade gold with the Quartermaster, or ascend [<] from Depth 1 anytime.",
+            "Persistent Pets & Captive Allies: Your starting companion and any chained allies you rescue follow you faithfully across every staircase!",
+            "Portable Blueprints & Self-Hydrating Saves: Every SaveRYOD (.sav) file embeds its complete World Blueprint so your saves and worlds never desync."
         ]
     };
     const REALM_CHRONICLE_CHIPS = {
@@ -1669,6 +1710,13 @@ window.addEventListener('DOMContentLoaded', () => {
             { label: '🗺️ Towns & Quests', query: 'How do overland towns and quests work in Hengband?' },
             { label: '🌐 Kanji / EN', query: 'How do I toggle English and Japanese Kanji mode?' },
             { label: '🏆 Serpent of Chaos', query: 'How do I defeat Oberon and the Serpent of Chaos in Hengband?' }
+        ],
+        ryod: [
+            { label: '🎲 World Blueprint', query: 'What is the story, boss, and victory goal of this forged RYOD world?' },
+            { label: '✨ Powers [m]', query: 'How do my active powers and monster avatar abilities work?' },
+            { label: '🐾 Pets & Allies', query: 'How do starting pets and captive allies work across floors?' },
+            { label: '🏛️ Sanctuary Town', query: 'What can I do in the Depth 0 Sanctuary Town?' },
+            { label: '💾 Save & Export', query: 'How do SaveRYOD saves and .ryod.json blueprints work together?' }
         ]
     };
     let queueTipIndex = 0;
@@ -1888,11 +1936,12 @@ window.addEventListener('DOMContentLoaded', () => {
                 <div class="save-item-actions">
                     <button class="btn-save-load btn-gold">Load [Enter]</button>
                     <button class="btn-save-download btn-gold-outline" title="Download local copy of save (.sav)">📥 Download</button>
+                    ${(activeR === 'ryod' || save.realm === 'ryod' || String(realmBadge).startsWith('RYOD')) ? '<button class="btn-save-blueprint btn-gold-outline" title="Export embedded RYOD World Blueprint (.ryod.json)">🎲 Blueprint</button>' : ''}
                     <button class="btn-save-delete btn-danger-outline" title="Delete save file">🗑 Delete</button>
                 </div>
             `;
             card.addEventListener('click', (e) => {
-                if (e.target.closest('.btn-save-delete') || e.target.closest('.btn-save-download')) return;
+                if (e.target.closest('.btn-save-delete') || e.target.closest('.btn-save-download') || e.target.closest('.btn-save-blueprint')) return;
                 selectedSaveIndex = idx;
                 updateSaveSelectionUI();
                 loadSelectedSave(save);
@@ -1913,6 +1962,15 @@ window.addEventListener('DOMContentLoaded', () => {
                 btnDownload.addEventListener('click', (e) => {
                     e.stopPropagation();
                     downloadSave(save);
+                });
+            }
+            const btnBlueprint = card.querySelector('.btn-save-blueprint');
+            if (btnBlueprint) {
+                btnBlueprint.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const bpUrl = `/api/saves/${encodeURIComponent(save.filename)}/blueprint?realm=ryod`;
+                    const bpName = `${(save.characterName || save.filename || 'ryod_world').replace(/[^a-zA-Z0-9_-]/g, '_')}.ryod.json`;
+                    triggerFileDownload(bpUrl, bpName);
                 });
             }
             const btnDelete = card.querySelector('.btn-save-delete');
@@ -2068,8 +2126,27 @@ window.addEventListener('DOMContentLoaded', () => {
     async function uploadSave(file) {
         if (!file) return;
         const statusEl = document.getElementById('save-upload-status');
-        if (statusEl) statusEl.textContent = 'Validating savefile...';
+        if (statusEl) statusEl.textContent = 'Validating file...';
         try {
+            if (file.name && file.name.toLowerCase().endsWith('.json')) {
+                const rawJson = await file.text();
+                const parsed = JSON.parse(rawJson);
+                const bp = parsed.ryodBlueprint || parsed.blueprint || parsed;
+                if (window.RyodForge && typeof window.RyodForge.applyBlueprintToRuntime === 'function') {
+                    const compiled = window.RyodForge.applyBlueprintToRuntime(bp);
+                    if (typeof window.RyodForge.saveBlueprintToLibrary === 'function') {
+                        window.RyodForge.saveBlueprintToLibrary(compiled);
+                    }
+                    if (appState !== 'game') selectRealm('ryod', false);
+                    if (statusEl) {
+                        statusEl.textContent = `✓ Imported RYOD Blueprint '${compiled.title || 'Custom World'}' [${compiled.ryodHash}]!`;
+                        setTimeout(() => { if (statusEl) statusEl.textContent = ''; }, 4500);
+                    }
+                    showRealmToast(`🎲 Imported RYOD Blueprint: ${compiled.title || 'Custom World'} [RYOD:${String(compiled.ryodHash || '').slice(0, 4)}]`);
+                    if (typeof window.RyodForge.open === 'function') window.RyodForge.open();
+                    return;
+                }
+            }
             const buf = await file.arrayBuffer();
             if (buf.byteLength < 36) {
                 alert('Selected file is too small to be a valid Yendor Engine save file.');
@@ -2077,11 +2154,14 @@ window.addEventListener('DOMContentLoaded', () => {
                 return;
             }
             const header = new TextDecoder('ascii').decode(new Uint8Array(buf.slice(0, 8)));
-            const validHeaders = new Set(['SaveVNLA', 'SaveSILQ', 'SaveFROX', 'SaveHENG', 'SaveNHCK', 'SaveDCSS', 'SaveBROG', 'SaveROGU']);
+            const validHeaders = new Set(['SaveVNLA', 'SaveSILQ', 'SaveFROX', 'SaveHENG', 'SaveNHCK', 'SaveDCSS', 'SaveBROG', 'SaveROGU', 'SaveRYOD']);
             if (!validHeaders.has(header)) {
                 alert('Invalid savefile: Unrecognized realm magic header.');
                 if (statusEl) statusEl.textContent = '';
                 return;
+            }
+            if (header === 'SaveRYOD' && activeRealm !== 'ryod' && appState !== 'game') {
+                selectRealm('ryod', false);
             }
             const cleanName = file.name.replace(/\.[^/.]+$/, '').replace(/[^a-zA-Z0-9_-]/g, '_');
             if (engineMode === 'local' && window.LocalSaveManager) {
@@ -2097,7 +2177,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 return;
             }
             if (statusEl) statusEl.textContent = 'Uploading to realm...';
-            const realmParam = (window.__app && typeof window.__app.getActiveRealm === 'function') ? window.__app.getActiveRealm() : (activeRealm || 'angband');
+            const realmParam = header === 'SaveRYOD' ? 'ryod' : ((window.__app && typeof window.__app.getActiveRealm === 'function') ? window.__app.getActiveRealm() : (activeRealm || 'angband'));
             const ownerToken = localStorage.getItem(`angband3d_owner_${cleanName}`) || '';
             const res = await fetch(`/api/saves/upload?realm=${encodeURIComponent(realmParam)}`, {
                 method: 'POST',
@@ -2682,6 +2762,49 @@ window.addEventListener('DOMContentLoaded', () => {
                 { name: 'Hengband Official Portal (hengband.github.io)', url: 'https://hengband.github.io/en/', desc: 'Official English & Japanese portal for Hengband 3.0 releases, score ladders, and documentation.' },
                 { name: 'Hengband 3.0 Upstream GitHub Repository', url: 'https://github.com/hengband/hengband', desc: 'Source documentation, class guides, and bilingual help files for Hengband 3.0.1.26.' }
             ]
+        },
+        ryod: {
+            title: 'Roll Your Own Dungeon (RYOD) — Universal World Forge',
+            subtitle: 'Coherent 3-Layer World Spine • 7-Pillar Architect • Self-Hydrating Saves & Portable .ryod.json Blueprints',
+            victoryGoal: 'Descend through your forged 5-Act campaign to the Throne Depth (8, 15, or 26 floors) and vanquish the Act V Sovereign Boss—or claim the Sovereign Relic and ascend (<) back to Depth 0 in Ascension Mode!',
+            branches: [
+                { name: 'Sanctuary Town (Depth 0 — Optional)', desc: 'Safe surface haven with a Temple Altar (p to pray/bless), Quartermaster Shop, Ancient Forge (t to temper gear), Fountain ({), and Descent Stairs (>).' },
+                { name: 'Acts I–IV Descent (Depths 1..N-1)', desc: 'Biome-matched dungeon floors guarded by cohesive Faction cohorts (<=6 3D archetypes per floor) and Milestone Act Guardians.' },
+                { name: 'Act V Sovereign Sanctum (Goal Depth)', desc: 'Final confrontation against your campaign\'s Sovereign Boss (Morgoth, The Serpent of Chaos, Rodney, Carcharoth, or The Dragon King).' }
+            ],
+            mechanics: [
+                { icon: '🎲', title: '3-Layer Coherent World Spine', desc: 'Choose from 8 Campaign Archetypes or type a natural-language prompt into the AI Dungeon Architect. All 7 pillars default to Theme-Matched harmony unless you override them.' },
+                { icon: '🐉', title: 'Hero Classes & Playable Monster Avatars', desc: 'Play as classic mortal classes or monstrous avatars (Ancient Red Dragon, Vampire Lord, Iron Golem, Arch-Lich, Minotaur Berserker) with bespoke 3D eye-height and natural powers.' },
+                { icon: '🐾', title: 'Persistent Pets & Captive Allies', desc: 'Start with a Faithful Hound, Battle Cat, Mini-Dragon, or Arcane Familiar—and rescue chained allies on dungeon floors. Pets follow you across every staircase!' },
+                { icon: '💾', title: 'Self-Hydrating SaveRYOD & .ryod.json Blueprints', desc: 'Every SaveRYOD (.sav) file embeds its complete World Blueprint inside the save header so your saves and custom worlds never desync.' }
+            ],
+            commands: [
+                ['m / M', 'Open Active Power Drawer (Arcane Spells, Songs, Divine Miracles, Bushido Stances, or Monster Breath)'],
+                ['p / _ / {', 'Pray at Temple Altar / Drink from Magic Fountain'],
+                ['w / t / d', 'Wield or wear equipment / Temper at Forge or take off gear / Drop item'],
+                ['q / r / e', 'Quaff potion / Read scroll / Eat ration'],
+                ['z / f', 'Zap wand or rod / Fire ranged weapon'],
+                ['> / <', 'Descend deeper / Ascend stairs (or return to Depth 0 Sanctuary Town)']
+            ],
+            tips: [
+                { title: 'Use Active Powers Frequently [m]', body: 'Your MP regenerates naturally as you explore. Press [m] and [a]/[b]/[c] to cast Phase Blink, Arcane Bolt, Healing Song, or Dragon Breath in tough fights!' },
+                { title: 'Keep Your Pet Alive', body: 'Your companion attacks adjacent foes automatically every turn and scales its vitality as you descend deeper.' },
+                { title: 'Pray & Temper in Sanctuary Town', body: 'Before diving deep, visit Depth 0 to pray [p] at the Altar (`_`) for full healing + weapon blessing, and press [t] on the Forge (`0`) to temper your weapon.' },
+                { title: 'Export & Share Your Best Worlds', body: 'Open the RYOD Forge or Load Game menu anytime to download your `.ryod.json` World Blueprint or copy a `?realm=ryod&bp=...` shareable URL!' }
+            ],
+            statsAndMagic: {
+                title: '5 Power Schools, Monster Avatar Scaling & 5 Difficulty Pacts',
+                summary: 'RYOD synthesizes the best mechanics of all 8 classic realms into one cohesive, zero-bloat engine.',
+                items: [
+                    ['Arcane & Eldritch Sorcery', 'Mana Bolt, Phase Blink, and Cataclysm Nova for high-damage ranged control.'],
+                    ['Songs of the First Age', 'Song of Sharpness (+ToHit/Brand), Song of Slumber (AoE Sleep), and Song of Staying (Ward + Heal).'],
+                    ['Divine Pantheon & Miracles', 'Sanctuary Heal, Smite the Wicked, and Divine Aegis invulnerability blessing.'],
+                    ['Bushido & Martial Stances', 'Whirlwind Cleave (360° melee), Void Step Strike (blink + crit), and Kiai Battle Meditation.']
+                ]
+            },
+            refs: [
+                { name: 'Angband 3D Universal Cartridge Architecture', url: 'https://angband3d.com', desc: 'Powered by the Universal 8-Realm Content Pool and deterministic FNV-1a Blueprint Compiler.' }
+            ]
         }
     };
 
@@ -2855,9 +2978,9 @@ window.addEventListener('DOMContentLoaded', () => {
                     • <strong>OpenGameArt Dark-Fantasy Realm Expansion (10 Tracks)</strong> — <em>Destroyed Sanctuary</em> by Filtered (CC0), <em>Alandriel's Theme</em> &amp; <em>Dungeon Theme I</em> by Remaxim (CC-BY-SA 3.0), <em>The Elven Groves</em> by loyalty_freak_music (CC0), <em>A Small Fire Will Do</em> by syncopika (CC-BY 3.0), <em>Fantasy Night</em> &amp; <em>Dungeon of Agony</em> by Cleyton Kauffman (CC-BY-SA 3.0/4.0), <em>Dark Descent</em> by Phat Phrog Studios (CC0), <em>Throne Room</em> by Of Far Different Nature (CC-BY 4.0), and <em>Lament for a Warrior's Soul</em> by RandomMind (CC0).
                 </div>
                 <div class="guide-callout" style="margin-top: 10px;">
-                    <strong>⚔️ YASD 3D / Angband 3D Multi-Realm Engine</strong><br>
-                    Created by <strong>Thunderbear Studios (<a href="https://thunderbearstudios.dev" target="_blank" rel="noopener noreferrer" style="color:var(--yasd-gold-accent);">thunderbearstudios.dev</a>)</strong>.<br>
-                    Powered by authentic upstream open-source roguelike engines: NetHack 3.6.7, Dungeon Crawl Stone Soup 0.31, Vanilla Angband 4.2.6, Brogue CE 1.13, Classic Rogue 5.4.4, Sil-Q 1.5.0, FrogComposband 7.1, and Hengband 3.0.1.26.
+                    <strong>⚔️ YASD 3D / Angband 3D 9-Realm Engine &amp; RYOD Tabletop Forge (v11.8.3)</strong><br>
+                    Created by <strong>Thunderbear Studios (<a href="https://thunderbearstudios.dev" target="_blank" rel="noopener noreferrer" style="color:var(--yasd-gold-accent);">thunderbearstudios.dev</a> • <a href="https://yasd3d.com" target="_blank" rel="noopener noreferrer" style="color:var(--yasd-gold-accent);">yasd3d.com</a> • <a href="https://angband3d.com" target="_blank" rel="noopener noreferrer" style="color:var(--yasd-gold-accent);">angband3d.com</a>)</strong>.<br>
+                    Powered by 8 authentic upstream open-source roguelike engines (NetHack 3.6.7, Dungeon Crawl Stone Soup 0.31, Vanilla Angband 4.2.6, Brogue CE 1.13, Classic Rogue 5.4.4, Sil-Q 1.5.0, FrogComposband 7.1, Hengband 3.0.1.26) plus the 9th <strong>Roll Your Own Dungeon (RYOD) 6-Card Hybrid Tabletop World Forge</strong> and 9-Realm Voiced Living Chronicle (<em>Enceladus</em> Master Narrator &amp; Lorekeeper).
                 </div>
             `;
 
@@ -3129,12 +3252,13 @@ window.addEventListener('DOMContentLoaded', () => {
         dcss: ['Zot', 'Xom', 'Okawaru', 'Trog', 'SifMuna', 'Vehumet', 'Makhleb', 'Ashenzari', 'Nemelex', 'Cheibriados', 'Qazlal', 'Uskayaw'],
         brogue: ['Anya', 'Kael', 'Orin', 'Rowan', 'Sylas', 'Tarin', 'Vael', 'Wren', 'Bram', 'Cora'],
         rogue: ['Rodney', 'Kord', 'Morden', 'Gygax', 'Arneson', 'Tenser', 'Bigby', 'Melf', 'Otiluke', 'Drawmij'],
-        angband: ['Aragorn', 'Boromir', 'Faramir', 'Theoden', 'Eomer', 'Bard', 'Beren', 'Isildur', 'Elendil', 'Thorin', 'Gimli', 'Gloin', 'Dain', 'Frodo', 'Samwise']
+        angband: ['Aragorn', 'Boromir', 'Faramir', 'Theoden', 'Eomer', 'Bard', 'Beren', 'Isildur', 'Elendil', 'Thorin', 'Gimli', 'Gloin', 'Dain', 'Frodo', 'Samwise'],
+        ryod: ['Aethelgard', 'Vaelen', 'Kaelith', 'Thalor', 'Seraphina', 'Ignis', 'Nyx', 'Draven', 'Aurelius', 'Zephyr']
     };
 
     const CLIENT_REALM_TAGS = {
         angband: 'ANGB', silq: 'SILQ', frogcomposband: 'FROG', hengband: 'HENG',
-        nethack: 'NHCK', dcss: 'DCSS', brogue: 'BROG', rogue: 'ROGU'
+        nethack: 'NHCK', dcss: 'DCSS', brogue: 'BROG', rogue: 'ROGU', ryod: 'RYOD'
     };
 
     function generateHeroName(realmKey = 'angband', lang = 'en') {
@@ -3303,6 +3427,9 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 
     function startNewRandomHero() {
+        if (activeRealm === 'ryod' && window.RyodForge && typeof window.RyodForge.quickRandomizeAndLaunch === 'function') {
+            return window.RyodForge.quickRandomizeAndLaunch();
+        }
         const heroName = generateHeroName(activeRealm);
         startGame({
             charName: heroName,
@@ -3313,6 +3440,9 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 
     function startNewCustomHero() {
+        if (activeRealm === 'ryod' && window.RyodForge && typeof window.RyodForge.open === 'function') {
+            return window.RyodForge.open();
+        }
         const heroName = generateHeroName(activeRealm);
         startGame({
             charName: heroName,
@@ -3567,17 +3697,22 @@ window.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Keyboard shortcuts for splash screen: [Q] Quick Start, [L] Saved Chronicles (when not Hengband)
+    // Keyboard shortcuts for splash screen: [Q] Quick Start, [L] Saved Chronicles, or any key to enter Main Menu
     window.addEventListener('keydown', (e) => {
         if (appState === 'splash') {
             if (e.key === 'q' || e.key === 'Q') {
                 e.preventDefault();
                 const btnQuick = document.getElementById('btn-splash-quick-start');
                 if (btnQuick) btnQuick.click();
+                else showMainMenu();
             } else if ((e.key === 'l' || e.key === 'L') && activeRealm !== 'hengband') {
                 e.preventDefault();
                 const btnLoad = document.getElementById('btn-splash-load-save');
                 if (btnLoad) btnLoad.click();
+                else showMainMenu();
+            } else if (!e.ctrlKey && !e.altKey && !e.metaKey && !['Shift', 'Control', 'Alt', 'Meta', 'F5', 'F12'].includes(e.key)) {
+                e.preventDefault();
+                showMainMenu();
             }
         }
     });
@@ -3650,7 +3785,7 @@ window.addEventListener('DOMContentLoaded', () => {
         bindFastTap(btnMenuDemo, () => showDemoModal('mainMenu'));
     }
 
-    [['btn-menu-guide', () => showGuide(0, 'mainMenu')], ['btn-menu-credits', () => showGuide(6, 'mainMenu')], ['btn-menu-realms', () => showRealmSelector('mainMenu')]].forEach(([id, fn]) => {
+    [['btn-menu-guide', () => showGuide(0, 'mainMenu')], ['btn-menu-credits', () => showGuide(6, 'mainMenu')], ['btn-menu-realms', () => showRealmSelector('mainMenu')], ['btn-menu-ryod-forge', () => { if (activeRealm !== 'ryod') selectRealm('ryod', false); if (window.RyodForge && typeof window.RyodForge.open === 'function') window.RyodForge.open(); }], ['btn-menu-ryod-main', () => { if (activeRealm !== 'ryod') selectRealm('ryod', false); if (window.RyodForge && typeof window.RyodForge.open === 'function') window.RyodForge.open(); }], ['btn-menu-ryod-quick', () => { if (activeRealm !== 'ryod') selectRealm('ryod', false); if (window.RyodForge && typeof window.RyodForge.quickRandomizeAndLaunch === 'function') window.RyodForge.quickRandomizeAndLaunch(); }]].forEach(([id, fn]) => {
         const el = document.getElementById(id);
         if (el) bindFastTap(el, fn);
     });
@@ -4583,6 +4718,9 @@ window.addEventListener('DOMContentLoaded', () => {
                 if (typeof window.chronicleManager.updateTraditionBadge === 'function') {
                     window.chronicleManager.updateTraditionBadge();
                 }
+                if (typeof window.chronicleManager.prewarmRealmOpening === 'function') {
+                    window.chronicleManager.prewarmRealmOpening(realmKey);
+                }
             } catch (_) {}
         }
         if (audio) {
@@ -4633,7 +4771,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
     function cycleRealm(delta = 1) {
         if (appState === 'game') return;
-        const realms = ['nethack', 'dcss', 'angband', 'brogue', 'rogue', 'silq', 'frogcomposband', 'hengband'];
+        const realms = ['nethack', 'dcss', 'angband', 'brogue', 'rogue', 'silq', 'frogcomposband', 'hengband', 'ryod'];
         const currentIdx = realms.indexOf(activeRealm);
         const nextIdx = (currentIdx + delta + realms.length) % realms.length;
         selectRealm(realms[nextIdx], false);
@@ -4743,13 +4881,15 @@ window.addEventListener('DOMContentLoaded', () => {
         }
         const randLabel = document.querySelector('#btn-menu-random .menu-label');
         if (randLabel) {
-            if (isHengband && langMode === 'jp') randLabel.textContent = 'クイックスタート (ランダム英雄)';
+            if (activeRealm === 'ryod') randLabel.textContent = '⚡ Quick Randomize RYOD (Instant Drop-In)';
+            else if (isHengband && langMode === 'jp') randLabel.textContent = 'クイックスタート (ランダム英雄)';
             else if (isHengband && langMode === 'bilingual') randLabel.textContent = 'Quick Start (即時開始)';
             else randLabel.textContent = 'Quick Start (Random Hero)';
         }
         const custLabel = document.querySelector('#btn-menu-custom .menu-label');
         if (custLabel) {
-            if (isHengband && langMode === 'jp') custLabel.textContent = 'キャラクター作成 (詳細)';
+            if (activeRealm === 'ryod') custLabel.textContent = '🎲 Open RYOD World Forge (6-Card Tabletop)';
+            else if (isHengband && langMode === 'jp') custLabel.textContent = 'キャラクター作成 (詳細)';
             else if (isHengband && langMode === 'bilingual') custLabel.textContent = 'Custom Hero (英雄作成)';
             else custLabel.textContent = 'Custom Hero (Character Wizard)';
         }
@@ -4807,7 +4947,7 @@ window.addEventListener('DOMContentLoaded', () => {
         setTxt('load-active-realm-name', realm.name);
         setTxt('hud-realm-label', realm.name);
         const btnHud = document.getElementById('btn-hud-realm');
-        if (btnHud) btnHud.title = `Active Realm: ${realm.name} (Locked during gameplay. Return to Main Menu to switch).`;
+        if (btnHud) btnHud.title = `Active Realm: ${realm.name} (Click for Realm Quest Dossier).`;
         setTxt('realm-modal-active-title', realm.name);
         setTxt('realm-modal-active-voice', realm.voiceAccent);
         const btnReturn = document.getElementById('btn-realm-modal-return');
@@ -4840,16 +4980,20 @@ window.addEventListener('DOMContentLoaded', () => {
         if (chipsContainer && REALM_CHRONICLE_CHIPS) {
             const chips = REALM_CHRONICLE_CHIPS[activeRealm] || REALM_CHRONICLE_CHIPS.angband || [];
             chipsContainer.innerHTML = chips.map((c) =>
-                `<button type="button" class="chronicle-topic-chip" data-query="${escapeHtml(c.query)}">${escapeHtml(c.label)}</button>`
+                `<button type="button" class="chronicle-chip chronicle-topic-chip" data-query="${escapeHtml(c.query)}">${escapeHtml(c.label)}</button>`
             ).join('');
             chipsContainer.querySelectorAll('.chronicle-topic-chip').forEach((chip) => {
                 chip.addEventListener('click', () => {
                     const q = chip.getAttribute('data-query');
-                    const inputEl = document.getElementById('chronicle-ask-input');
-                    const sendBtn = document.getElementById('btn-chronicle-ask-send');
+                    const inputEl = document.getElementById('chronicle-query-input') || document.getElementById('chronicle-ask-input');
+                    const sendBtn = document.getElementById('btn-chronicle-send') || document.getElementById('btn-chronicle-ask-send');
                     if (inputEl && q) {
                         inputEl.value = q;
-                        if (sendBtn) sendBtn.click();
+                        if (window.chronicleManager && typeof window.chronicleManager.submitUserQuery === 'function') {
+                            window.chronicleManager.submitUserQuery({ instantChip: true });
+                        } else if (sendBtn) {
+                            sendBtn.click();
+                        }
                     }
                 });
             });
@@ -4858,8 +5002,13 @@ window.addEventListener('DOMContentLoaded', () => {
 
     function showRealmSelector(fromState = 'mainMenu') {
         if (fromState === 'game' || appState === 'game') {
+            if (activeRealm === 'ryod' && window.__activeRyodBlueprint) {
+                const bp = window.__activeRyodBlueprint;
+                showRealmToast(`🎲 RYOD Dossier: ${bp.title || 'Custom Forged Realm'} • Goal: ${bp.goalItemName || 'Sovereign Relic'} vs ${bp.nemesisName || 'Nemesis'} (Floor ${bp.goalDepth || 15}) • Mutator: ${bp.mutatorName || 'Standard'}`);
+                return;
+            }
             const realm = REALM_DATA[activeRealm] || REALM_DATA.angband;
-            showRealmToast(`Active Realm: ${realm.name} • Locked during active gameplay. Return to Main Menu to switch.`);
+            showRealmToast(`Active Realm: ${realm.name} • ${realm.tagline} (Return to Main Menu to switch realms).`);
             return;
         }
         realmPreviousState = fromState;
@@ -6404,6 +6553,19 @@ window.addEventListener('DOMContentLoaded', () => {
             if (frame.realm) {
                 window.activeRealm = frame.realm;
                 window.__activeRealm = frame.realm;
+            }
+            const incomingRyod = (frame.ryodMeta && frame.ryodMeta.ryodHash)
+                ? frame.ryodMeta
+                : ((frame.ryodBlueprint && frame.ryodBlueprint.ryodHash) ? frame.ryodBlueprint : null);
+            if (incomingRyod) {
+                if (!window.__activeRyodBlueprint || window.__activeRyodBlueprint.ryodHash !== incomingRyod.ryodHash) {
+                    window.__activeRyodBlueprint = Object.assign({}, window.__activeRyodBlueprint || {}, incomingRyod);
+                    if (window.RyodForge && typeof window.RyodForge.applyBlueprintToRuntime === 'function') {
+                        window.RyodForge.applyBlueprintToRuntime(window.__activeRyodBlueprint);
+                    } else if (typeof window.updateRyodRealmMetadata === 'function') {
+                        window.updateRyodRealmMetadata(window.__activeRyodBlueprint);
+                    }
+                }
             }
             if (window.__app) window.__app.lastFrame = frame;
             currentPhase = frame.phase || 'play';

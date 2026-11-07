@@ -191,28 +191,100 @@ class UniversalCartridgeEngine {
         const roles = this.spec.roles;
         const r = roles[roleIdx % roles.length] || roles[0];
         const inv = [];
-        if (r.weapon) inv.push({ ...r.weapon, kind: 'weapon', glyph: ')', equipped: 'weapon', count: 1 });
-        if (r.armor) inv.push({ ...r.armor, kind: 'armor', glyph: '[', equipped: 'body', count: 1 });
+        const defaultBeatitude = this.spec.beatitude ? 'blessed' : undefined;
+        if (r.weapon) inv.push({ beatitude: defaultBeatitude, ...r.weapon, kind: 'weapon', glyph: ')', equipped: 'weapon', count: 1 });
+        if (r.armor) inv.push({ beatitude: defaultBeatitude, ...r.armor, kind: 'armor', glyph: '[', equipped: 'body', count: 1 });
         if (r.extra) inv.push({ ...r.extra, count: r.extra.count || 1 });
-        inv.push({ kind: 'potion', name: this.spec.healingPotionName || 'potion of healing', glyph: '!', attr: 13, heal: 18, count: 2, weight: 15, tval: 71, sval: 38 });
+        inv.push({ kind: 'potion', name: this.spec.healingPotionName || 'potion of healing', glyph: '!', attr: 13, heal: 22, count: 2, weight: 15, tval: 71, sval: 38 });
         inv.push({ kind: 'food', name: this.spec.foodName || 'food ration', glyph: '%', attr: 3, nutrition: 800, count: 2, weight: 20, tval: 80, sval: 1 });
 
         const hasLevels = this.usesExpLevels();
+        const startDepth = this.spec.hasTown ? 0 : 1;
+        const initialMonsters = [];
+        const petTpl = r.pet || this.spec.startingPet;
+        const bpMutator = (this.realm === 'ryod' && this.spec.ryodBlueprint && this.spec.ryodBlueprint.mutatorId) || 'balanced';
+        const bpFate = (this.realm === 'ryod' && this.spec.ryodBlueprint && Number(this.spec.ryodBlueprint.d20Fate)) || 15;
+        const petBoost = bpMutator === 'packmaster' ? 1.4 : 1.0;
+        if (petTpl && petTpl.name) {
+            initialMonsters.push({
+                id: 9001,
+                race: petTpl.name,
+                glyph: petTpl.glyph || 'd',
+                attr: petTpl.attr || 15,
+                x: 11,
+                y: 10,
+                hp: Math.round((petTpl.hp || 26) * petBoost),
+                hp_max: Math.round((petTpl.hp || 26) * petBoost),
+                ac: petTpl.ac != null ? petTpl.ac : 5,
+                dmg: Math.round((petTpl.dmg || 8) * petBoost),
+                exp: 0,
+                speed: 115,
+                lore: petTpl.lore || 'Your faithful companion.',
+                isPet: true,
+                peaceful: true,
+                captive: false
+            });
+        }
+        if (bpMutator === 'packmaster') {
+            initialMonsters.push({
+                id: 9002,
+                race: 'warg',
+                glyph: 'C',
+                attr: 11,
+                x: 9,
+                y: 10,
+                hp: 38,
+                hp_max: 38,
+                ac: 4,
+                dmg: 12,
+                exp: 0,
+                speed: 115,
+                lore: 'Packmaster Crusade dire-wolf sworn to your banner.',
+                isPet: true,
+                peaceful: true,
+                captive: false
+            });
+        }
+        if (this.realm === 'ryod' && bpFate === 20) {
+            if (inv[0] && inv[0].kind === 'weapon') {
+                inv[0].bonus = (inv[0].bonus || 1) + 2;
+                inv[0].beatitude = 'blessed';
+            }
+            inv.push({ kind: 'scroll', name: 'scroll of enchanting', glyph: '?', attr: 14, enchantGain: 1, count: 1, weight: 5, tval: 70, sval: 15 });
+        } else if (this.realm === 'ryod' && bpFate >= 15) {
+            if (inv[0] && inv[0].kind === 'weapon') inv[0].bonus = (inv[0].bonus || 1) + 1;
+            inv.push({ kind: 'scroll', name: 'scroll of magic mapping', glyph: '?', attr: 14, count: 1, weight: 5, tval: 70, sval: 12 });
+        } else if (this.realm === 'ryod' && bpFate === 1) {
+            inv.push({ kind: 'scroll', name: 'scroll of enchanting', glyph: '?', attr: 14, enchantGain: 1, count: 1, weight: 5, tval: 70, sval: 15 });
+        }
+
         this.state = {
             realm: this.realm,
+            ryodHash: this.spec.ryodHash || null,
+            ryodBlueprint: this.spec.ryodBlueprint || null,
+            slainActBosses: {},
+            visitedActs: {},
             phase: 'setup',
             menuMode: 'none',
             pendingVerb: null,
             pendingPrompt: '',
             selectedRoleIdx: roleIdx,
-            depth: 1,
-            maxDepth: 1,
-            branchName: this.getBranchName(1),
+            depth: startDepth,
+            maxDepth: Math.max(1, startDepth),
+            branchName: this.getBranchName(startDepth),
             turn: 1,
             player: {
                 name: this.user || 'Adventurer',
                 race: r.race || 'Human',
                 class: r.id || 'Warrior',
+                originId: r.originId || null,
+                isMonsterAvatar: Boolean(r.isMonsterAvatar),
+                avatarMonsterName: r.avatarMonsterName || null,
+                innatePower: r.innatePower || null,
+                disciplinePowers: Array.isArray(r.disciplinePowers) ? r.disciplinePowers : null,
+                progressionMode: this.spec.progressionMode || (hasLevels ? 'xp' : 'brogue_item'),
+                powerDiscipline: this.spec.powerDiscipline || 'arcane',
+                godMode: Boolean(this.spec.godMode),
                 align: r.align || 'Neutral',
                 deity: r.deity || (this.spec.defaultDeity || 'Fate'),
                 piety: r.piety != null ? r.piety : 2,
@@ -225,11 +297,11 @@ class UniversalCartridgeEngine {
                 exp: 0,
                 maxExp: 0,
                 expNext: hasLevels ? this.getExpNextForLevel(1) : 0,
-                gold: 25,
+                gold: 35,
                 hp: r.hp || 18,
                 hpMax: r.hp || 18,
-                pw: r.pw != null ? r.pw : 4,
-                pwMax: r.pw != null ? r.pw : 4,
+                pw: r.pw != null ? r.pw : 8,
+                pwMax: r.pw != null ? r.pw : 8,
                 ac: r.ac != null ? r.ac : 4,
                 str: r.str || 16,
                 int: r.int || 12,
@@ -248,14 +320,14 @@ class UniversalCartridgeEngine {
                 inventory: inv
             },
             map: [],
-            monsters: [],
+            monsters: initialMonsters,
             objects: [],
             messages: [
                 { text: this.spec.welcomeMessage || `You enter ${this.spec.title}.`, count: 1, attr: 14 }
             ]
         };
         this.reindexInventory();
-        this.generateLevel(1);
+        this.generateLevel(startDepth);
     }
 
     getBranchName(depth) {
@@ -292,7 +364,150 @@ class UniversalCartridgeEngine {
         p.ev = Math.max(4, 10 + Math.floor(((p.dex || 12) - 10) / 2) - (body && (body.weight || 0) >= 250 ? 2 : 0));
     }
 
+    placeSurvivingPets(survivingPets, startMonId = 9000) {
+        if (!Array.isArray(survivingPets) || survivingPets.length === 0) return;
+        const p = this.state.player;
+        const map = this.state.map;
+        const offsets = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, 1], [1, -1], [-1, -1], [2, 0], [-2, 0]];
+        let nextId = startMonId;
+        for (const pet of survivingPets) {
+            let placed = false;
+            for (const [dx, dy] of offsets) {
+                const tx = p.x + dx;
+                const ty = p.y + dy;
+                if (tx <= 0 || ty <= 0 || tx >= MAP_W - 1 || ty >= MAP_H - 1) continue;
+                if (!map[ty] || !map[ty][tx] || !isWalkableFeat(map[ty][tx].feat)) continue;
+                if (this.state.monsters.some(m => m.x === tx && m.y === ty)) continue;
+                this.state.monsters.push({
+                    ...pet,
+                    id: nextId++,
+                    x: tx,
+                    y: ty,
+                    hp: Math.min(pet.hp_max || 26, (pet.hp || 10) + 4),
+                    isPet: true,
+                    peaceful: true,
+                    captive: false
+                });
+                placed = true;
+                break;
+            }
+            if (!placed) {
+                this.state.monsters.push({ ...pet, id: nextId++, x: Math.min(MAP_W - 2, p.x + 1), y: p.y, isPet: true, peaceful: true, captive: false });
+            }
+        }
+    }
+
+    generateTownLevel(survivingPets = []) {
+        this.state.depth = 0;
+        this.state.branchName = this.getBranchName(0);
+        const map = [];
+        for (let y = 0; y < MAP_H; y++) {
+            const row = [];
+            for (let x = 0; x < MAP_W; x++) {
+                const isBorder = (x === 0 || y === 0 || x === MAP_W - 1 || y === MAP_H - 1);
+                row.push({
+                    glyph: isBorder ? '#' : '.',
+                    attr: isBorder ? 1 : 2,
+                    feat: isBorder ? FEAT.PERM_WALL : FEAT.FLOOR,
+                    known: true,
+                    inView: false,
+                    roomLit: true
+                });
+            }
+            map.push(row);
+        }
+
+        // Carve 2 Sanctuary Buildings (West Temple & East Quartermaster Hall) with open doors
+        const carveBuilding = (x0, y0, x1, y1, doorX, doorY) => {
+            for (let y = y0; y <= y1; y++) {
+                for (let x = x0; x <= x1; x++) {
+                    const isEdge = (x === x0 || x === x1 || y === y0 || y === y1);
+                    if (x === doorX && y === doorY) {
+                        map[y][x] = { glyph: "'", attr: 3, feat: FEAT.OPEN_DOOR, known: true, inView: false, roomLit: true };
+                    } else if (isEdge) {
+                        map[y][x] = { glyph: '#', attr: 1, feat: FEAT.WALL, known: true, inView: false, roomLit: true };
+                    }
+                }
+            }
+        };
+
+        const cx = Math.floor(MAP_W / 2);
+        const cy = Math.floor(MAP_H / 2);
+        carveBuilding(cx - 14, cy - 6, cx - 6, cy - 1, cx - 6, cy - 3);
+        carveBuilding(cx + 6, cy - 6, cx + 14, cy - 1, cx + 6, cy - 3);
+
+        // West Building: Sanctuary Temple Altar (_)
+        const deity = this.spec.defaultDeity || 'The Pantheon';
+        map[cy - 3][cx - 10] = { glyph: '_', attr: 14, feat: FEAT.ALTAR, deity, known: true, inView: false, roomLit: true };
+
+        // Town Square Healing Fountain ({) & Dungeon Gatehouse Down Stair (>)
+        map[cy - 2][cx] = { glyph: '{', attr: 11, feat: FEAT.FOUNTAIN, known: true, inView: false, roomLit: true };
+        map[cy][cx] = { glyph: '>', attr: 14, feat: FEAT.DOWN_STAIR, known: true, inView: false, roomLit: true };
+
+        this.state.player.x = cx;
+        this.state.player.y = cy + 1;
+        this.state.map = map;
+
+        this.state.monsters = [
+            {
+                id: 8001,
+                race: 'Town Elder Chronicler',
+                glyph: 't',
+                attr: 14,
+                x: cx - 3,
+                y: cy + 1,
+                hp: 99,
+                hp_max: 99,
+                ac: 10,
+                dmg: 0,
+                exp: 0,
+                speed: 100,
+                lore: this.spec.elderRumor || 'Keeper of the Sanctuary Town chronicles. Bump to hear the Act I Omen.',
+                isPet: false,
+                peaceful: true,
+                captive: false,
+                townRole: 'elder'
+            },
+            {
+                id: 8002,
+                race: 'Sanctuary Quartermaster',
+                glyph: 'p',
+                attr: 11,
+                x: cx + 10,
+                y: cy - 3,
+                hp: 99,
+                hp_max: 99,
+                ac: 10,
+                dmg: 0,
+                exp: 0,
+                speed: 100,
+                lore: 'Master of supplies. Bump to trade 20 gold for Healing Potions & Rations.',
+                isPet: false,
+                peaceful: true,
+                captive: false,
+                townRole: 'quartermaster'
+            }
+        ];
+
+        this.state.objects = [
+            { kind: 'potion', name: 'potion of healing', glyph: '!', attr: 11, heal: 28, x: cx + 9, y: cy - 4, count: 1, weight: 10, tval: 71, sval: 28 },
+            { kind: 'scroll', name: 'scroll of enchanting', glyph: '?', attr: 14, enchantGain: 1, x: cx + 11, y: cy - 4, count: 1, weight: 5, tval: 70, sval: 15 }
+        ];
+
+        this.placeSurvivingPets(survivingPets, 9001);
+        this.updateVisibility();
+    }
+
     generateLevel(depth) {
+        const survivingPets = Array.isArray(this.state && this.state.monsters)
+            ? this.state.monsters.filter(m => m && m.isPet && m.hp > 0)
+            : [];
+
+        if (depth <= 0 && this.spec.hasTown) {
+            this.generateTownLevel(survivingPets);
+            return;
+        }
+
         this.state.depth = depth;
         if (depth > this.state.maxDepth) this.state.maxDepth = depth;
         this.state.branchName = this.getBranchName(depth);
@@ -315,10 +530,13 @@ class UniversalCartridgeEngine {
         }
 
         const rooms = [];
-        // Rogue 1980 uses its signature 3x3 9-sector grid; Brogue & DCSS use a 4x2 8-sector grid with varied dimensions
         const isRogue = this.realm === 'rogue';
-        const roomCols = isRogue ? 3 : 4;
-        const roomRows = isRogue ? 3 : 2;
+        const bpLayout = (this.realm === 'ryod' && this.spec.ryodBlueprint && this.spec.ryodBlueprint.mapLayout) || 'classic';
+        const isOrganicCavern = this.realm === 'brogue' || bpLayout === 'caverns' || (this.realm === 'ryod' && this.spec.ryodBlueprint && this.spec.ryodBlueprint.biome === 'bioluminescent' && bpLayout === 'classic');
+        const isLabyrinth = bpLayout === 'labyrinth';
+        const isArena = bpLayout === 'arena';
+        const roomCols = isRogue ? 3 : (isLabyrinth ? 5 : (isArena ? 3 : 4));
+        const roomRows = isRogue ? 3 : (isLabyrinth ? 3 : 2);
         const cellW = Math.floor((MAP_W - 4) / roomCols);
         const cellH = Math.floor((MAP_H - 2) / roomRows);
 
@@ -340,7 +558,6 @@ class UniversalCartridgeEngine {
                 };
                 room.cx = Math.floor((room.x0 + room.x1) / 2);
                 room.cy = Math.floor((room.y0 + room.y1) / 2);
-                // Rogue deeper floors have a chance of dark rooms; Brogue/DCSS vary ambient lighting
                 const darkChance = isRogue ? Math.min(55, (depth - 1) * 10) : 20;
                 const isLit = depth === 1 ? true : (this.rand(100) >= darkChance);
                 room.lit = isLit;
@@ -348,8 +565,7 @@ class UniversalCartridgeEngine {
 
                 for (let y = room.y0; y <= room.y1; y++) {
                     for (let x = room.x0; x <= room.x1; x++) {
-                        // Brogue organic cavern chambers soften extreme corners on larger rooms
-                        if (this.realm === 'brogue' && (room.x1 - room.x0 >= 7) && (room.y1 - room.y0 >= 5)) {
+                        if (isOrganicCavern && (room.x1 - room.x0 >= 7) && (room.y1 - room.y0 >= 5)) {
                             const isCorner = (x === room.x0 || x === room.x1) && (y === room.y0 || y === room.y1);
                             if (isCorner && this.rand(100) < 65) continue;
                         }
@@ -387,7 +603,6 @@ class UniversalCartridgeEngine {
             }
         };
 
-        // Connect shuffled spanning order + grid cross-links so every level has non-linear loops
         const shuffledRooms = this.shuffleArray(rooms);
         for (let i = 0; i < shuffledRooms.length - 1; i++) {
             carveCorridor(shuffledRooms[i], shuffledRooms[i + 1]);
@@ -401,7 +616,6 @@ class UniversalCartridgeEngine {
             }
         }
 
-        // Place Up & Down stairs in distinct randomized rooms
         const startRoom = shuffledRooms[0];
         const endRoom = shuffledRooms[shuffledRooms.length - 1];
         this.state.player.x = startRoom.cx;
@@ -415,17 +629,19 @@ class UniversalCartridgeEngine {
         map[endRoom.cy][endRoom.cx].feat = FEAT.DOWN_STAIR;
         map[endRoom.cy][endRoom.cx].attr = 14;
 
-        // Realm-specific procedural features in randomized non-endpoint rooms
-        if (this.realm === 'dcss' && shuffledRooms.length > 2) {
+        // Realm-specific & RYOD Synergy procedural features in randomized non-endpoint rooms
+        const wantsAltars = this.realm === 'dcss' || (this.realm === 'ryod' && (this.spec.powerDiscipline === 'piety' || this.spec.beatitude || depth % 3 === 0));
+        const wantsEnvHazards = this.realm === 'brogue' || (this.realm === 'ryod' && (this.spec.hazardDensity === 'abundant' || isOrganicCavern));
+
+        if (wantsAltars && shuffledRooms.length > 2) {
             const altarRoom = shuffledRooms[1];
-            const gods = (this.spec.gods && this.spec.gods.length > 0) ? this.spec.gods : ['Okawaru', 'Trog', 'Vehumet'];
+            const gods = (this.spec.gods && this.spec.gods.length > 0) ? this.spec.gods : [this.spec.defaultDeity || 'Okawaru', 'Trog', 'Vehumet'];
             const god = gods[(depth + this.rand(gods.length)) % gods.length];
             map[altarRoom.cy][altarRoom.cx].glyph = '_';
             map[altarRoom.cy][altarRoom.cx].feat = FEAT.ALTAR;
             map[altarRoom.cy][altarRoom.cx].attr = 14;
             map[altarRoom.cy][altarRoom.cx].deity = god;
-            // On Depth 4 (Ecumenical Temple), spawn multiple pantheon altars
-            if (depth === 4 && shuffledRooms.length > 4) {
+            if (this.realm === 'dcss' && depth === 4 && shuffledRooms.length > 4) {
                 for (let gIdx = 2; gIdx <= 3; gIdx++) {
                     const extraRoom = shuffledRooms[gIdx];
                     const extraGod = gods[(depth + gIdx + this.rand(gods.length)) % gods.length];
@@ -435,8 +651,7 @@ class UniversalCartridgeEngine {
                     map[extraRoom.cy][extraRoom.cx].deity = extraGod;
                 }
             }
-        } else if (this.realm === 'brogue' && shuffledRooms.length > 3) {
-            // Brogue environmental tiles: subterranean lake or lava pool with walkable center bridge
+        } else if (wantsEnvHazards && shuffledRooms.length > 3) {
             const envRoom = shuffledRooms[1];
             const isLava = depth >= 4;
             for (let x = envRoom.x0 + 1; x < envRoom.x1; x++) {
@@ -459,12 +674,16 @@ class UniversalCartridgeEngine {
         this.state.monsters = [];
         this.state.objects = [];
 
-        // Spawn realm monsters in non-starting rooms
-        const eligibleMons = this.spec.monsters.filter(m => (m.minDepth || 1) <= depth + 1);
+        // Per-Floor VRAM Cohort Selection (<= 5 regular archetypes per floor in RYOD)
+        const cohortMons = (this.spec.floorCohorts && Array.isArray(this.spec.floorCohorts[depth]) && this.spec.floorCohorts[depth].length > 0)
+            ? this.spec.floorCohorts[depth]
+            : this.spec.monsters.filter(m => (m.minDepth || 1) <= depth + 1);
+        const eligibleMons = cohortMons.length > 0 ? cohortMons : this.spec.monsters;
+
         let monId = 1;
         for (let i = 1; i < shuffledRooms.length; i++) {
             const rm = shuffledRooms[i];
-            const count = 1 + (this.rand(100) < 45 ? 1 : 0);
+            const count = 1 + (this.rand(100) < (this.spec.difficulty === 'nightmare' ? 65 : 45) ? 1 : 0);
             for (let c = 0; c < count; c++) {
                 const template = eligibleMons[this.rand(eligibleMons.length)] || this.spec.monsters[0];
                 const mx = rm.x0 + 1 + this.rand(Math.max(1, rm.x1 - rm.x0 - 1));
@@ -492,29 +711,68 @@ class UniversalCartridgeEngine {
             }
         }
 
-        // Brogue captive ally in a randomized chamber
-        if (this.realm === 'brogue' && shuffledRooms.length > 3 && this.spec.allies) {
+        // Captive ally in a randomized chamber (Brogue or RYOD with captiveAllies enabled)
+        if ((this.realm === 'brogue' || (this.realm === 'ryod' && this.spec.captiveAllies)) && shuffledRooms.length > 3 && Array.isArray(this.spec.allies) && this.spec.allies.length > 0) {
             const allyRoom = shuffledRooms[2];
             const allyTpl = this.spec.allies[(depth + this.rand(this.spec.allies.length)) % this.spec.allies.length];
-            this.state.monsters.push({
-                id: monId++,
-                race: `chained ${allyTpl.name}`,
-                allyBaseName: allyTpl.name,
-                glyph: allyTpl.glyph,
-                attr: 10,
-                x: allyRoom.cx,
-                y: allyRoom.cy,
-                hp: allyTpl.hp,
-                hp_max: allyTpl.hp,
-                ac: 6,
-                dmg: allyTpl.dmg,
-                exp: 0,
-                speed: 115,
-                lore: allyTpl.lore,
-                isPet: false,
-                peaceful: true,
-                captive: true
-            });
+            if (!this.state.monsters.some(m => m.x === allyRoom.cx && m.y === allyRoom.cy)) {
+                this.state.monsters.push({
+                    id: monId++,
+                    race: `chained ${allyTpl.name}`,
+                    allyBaseName: allyTpl.name,
+                    glyph: allyTpl.glyph,
+                    attr: 10,
+                    x: allyRoom.cx,
+                    y: allyRoom.cy,
+                    hp: allyTpl.hp,
+                    hp_max: allyTpl.hp,
+                    ac: 6,
+                    dmg: allyTpl.dmg,
+                    exp: 0,
+                    speed: 115,
+                    lore: allyTpl.lore,
+                    isPet: false,
+                    peaceful: true,
+                    captive: true
+                });
+            }
+        }
+
+        // 5-Act Milestone Boss & Narrative Banner (RYOD)
+        if (this.spec.actMilestones && this.spec.actMilestones[depth]) {
+            const milestone = this.spec.actMilestones[depth];
+            this.state.visitedActs = this.state.visitedActs || {};
+            if (!this.state.visitedActs[milestone.actNumber]) {
+                this.state.visitedActs[milestone.actNumber] = true;
+                this.addMessage(milestone.banner, 14);
+            }
+            const slainMap = this.state.slainActBosses || {};
+            if (milestone.boss && !slainMap[depth]) {
+                const bx = Math.max(endRoom.x0 + 1, Math.min(endRoom.x1 - 1, endRoom.cx - 1));
+                const by = endRoom.cy;
+                this.state.monsters = this.state.monsters.filter(m => !(m.x === bx && m.y === by));
+                this.state.monsters.push({
+                    id: monId++,
+                    race: milestone.boss.name,
+                    glyph: milestone.boss.glyph || 'P',
+                    attr: milestone.boss.attr || 13,
+                    x: bx,
+                    y: by,
+                    hp: milestone.boss.hp,
+                    hp_max: milestone.boss.hp,
+                    ac: milestone.boss.ac != null ? milestone.boss.ac : 0,
+                    dmg: milestone.boss.dmg || 16,
+                    exp: this.usesExpLevels() ? (milestone.boss.actNumber * 45) : 0,
+                    speed: 115,
+                    lore: milestone.boss.lore || `Guardian of ${milestone.title}.`,
+                    isPet: false,
+                    peaceful: false,
+                    captive: false,
+                    isBoss: true,
+                    isNemesis: Boolean(milestone.boss.isNemesis),
+                    actNumber: milestone.boss.actNumber
+                });
+            }
         }
 
         // Spawn floor items across shuffled rooms
@@ -533,7 +791,71 @@ class UniversalCartridgeEngine {
             }
         }
 
-        // Goal artifact on deep floors
+        // Synergy Guarantee: Metered Strength & Enchantment drops in Brogue / Hybrid progression modes
+        if ((this.spec.progressionMode === 'brogue_item' || this.spec.progressionMode === 'hybrid') && shuffledRooms.length > 1) {
+            const rm = shuffledRooms[1];
+            const progItem = (depth % 2 === 1)
+                ? { kind: 'scroll', name: 'scroll of enchanting', glyph: '?', attr: 11, enchantGain: 1, weight: 5, tval: 70, sval: 15, count: 1 }
+                : { kind: 'potion', name: 'potion of strength', glyph: '!', attr: 14, strengthGain: 2, heal: 15, weight: 12, tval: 71, sval: 40, count: 1 };
+            this.state.objects.push({ ...progItem, x: rm.cx, y: rm.cy });
+        }
+
+        // Midas Treasure Vaults mutator: bonus gilded chest + Scroll of Enchanting
+        if (this.spec.mutatorId === 'midas_vaults' && shuffledRooms.length > 2) {
+            const vRoom = shuffledRooms[2];
+            this.state.objects.push({ kind: 'gold', name: 'gilded vault hoard', glyph: '$', attr: 14, amount: 65 + depth * 10, x: vRoom.cx, y: vRoom.cy, count: 1 });
+            if (depth % 2 === 0) {
+                this.state.objects.push({ kind: 'scroll', name: 'scroll of enchanting', glyph: '?', attr: 14, enchantGain: 1, weight: 5, tval: 70, sval: 15, x: Math.min(vRoom.x1 - 1, vRoom.cx + 1), y: vRoom.cy, count: 1 });
+            }
+        }
+
+        // Three Runes Victory Mode: spawn Abyssal Runes on Act II, III, and IV milestone floors
+        if (this.spec.victoryMode === 'three_runes' && this.spec.actMilestones && this.spec.actMilestones[depth]) {
+            const ms = this.spec.actMilestones[depth];
+            if (ms.actNumber >= 2 && ms.actNumber <= 4) {
+                this.state.objects.push({
+                    kind: 'rune',
+                    name: `Abyssal Rune of ${ms.title || ('Act ' + ms.actRoman)}`,
+                    glyph: '}',
+                    attr: 11,
+                    x: Math.min(endRoom.x1 - 1, endRoom.cx + 1),
+                    y: endRoom.cy,
+                    count: 1,
+                    tval: 40,
+                    sval: 80 + ms.actNumber
+                });
+            }
+        }
+
+        // Subterranean Quartermaster Outpost on Floor 5 / 10 / 15 so deep & no-town runs can trade gold
+        if ((depth === 5 || depth === 10 || depth === 15) && depth < (this.spec.goalDepth || 15) && shuffledRooms.length > 1) {
+            const qRoom = shuffledRooms[1] || shuffledRooms[0];
+            const qx = Math.min(qRoom.x1 - 1, qRoom.cx + 1);
+            const qy = qRoom.cy;
+            this.state.monsters = this.state.monsters.filter(m => m.isBoss || m.isPet || !(m.x === qx && m.y === qy));
+            if (!this.state.monsters.some(m => m.x === qx && m.y === qy)) {
+                this.state.monsters.push({
+                    id: monId++,
+                    race: 'Wayfarer Quartermaster',
+                    glyph: '@',
+                    attr: 11,
+                    x: qx,
+                    y: qy,
+                    hp: 999,
+                    hp_max: 999,
+                    ac: 30,
+                    dmg: 0,
+                    exp: 0,
+                    speed: 110,
+                    lore: 'A subterranean supply factor trading scrolls and potions for gold.',
+                    isPet: false,
+                    peaceful: true,
+                    townRole: 'quartermaster'
+                });
+            }
+        }
+
+        // Goal artifact on final floor
         if (depth >= (this.spec.goalDepth || 15) && !this.state.player.hasAmulet) {
             this.state.objects.push({
                 kind: 'amulet',
@@ -549,6 +871,8 @@ class UniversalCartridgeEngine {
             });
         }
 
+        // Carry over surviving pets & liberated allies adjacent to the player!
+        this.placeSurvivingPets(survivingPets, monId + 100);
         this.updateVisibility();
     }
 
@@ -588,7 +912,7 @@ class UniversalCartridgeEngine {
                 map[y][x].inView = false;
             }
         }
-        const radius = 8;
+        const radius = (this.spec && this.spec.mutatorId === 'stygian_fog' && this.state.depth > 0) ? 4 : 8;
         for (let dy = -radius; dy <= radius; dy++) {
             for (let dx = -radius; dx <= radius; dx++) {
                 const tx = p.x + dx;
@@ -654,6 +978,9 @@ class UniversalCartridgeEngine {
             fs.writeFileSync(this.saveFile + '.living.sav', full);
             const sidecar = {
                 realm: this.realm,
+                ryodHash: this.state.ryodHash || this.spec.ryodHash || null,
+                ryodTitle: (this.state.ryodBlueprint && this.state.ryodBlueprint.title) || null,
+                ryodBiome: (this.state.ryodBlueprint && this.state.ryodBlueprint.biome) || null,
                 characterName: p.name,
                 level: p.level,
                 depth: this.state.depth,
@@ -683,6 +1010,9 @@ class UniversalCartridgeEngine {
             const jsonStr = buf.toString('utf8', 36 + descSize);
             const loaded = JSON.parse(jsonStr);
             if (loaded && loaded.player && loaded.map && !loaded.player.dead) {
+                if (loaded.ryodBlueprint && typeof this.spec.onBlueprintHydrate === 'function') {
+                    this.spec = this.spec.onBlueprintHydrate(loaded.ryodBlueprint) || this.spec;
+                }
                 this.state = loaded;
                 this.state.phase = 'play';
                 this.state.menuMode = 'none';
@@ -696,6 +1026,9 @@ class UniversalCartridgeEngine {
                 const lDesc = lBuf.readUInt32LE(28);
                 const lLoaded = JSON.parse(lBuf.toString('utf8', 36 + lDesc));
                 if (lLoaded && lLoaded.player && !lLoaded.player.dead) {
+                    if (lLoaded.ryodBlueprint && typeof this.spec.onBlueprintHydrate === 'function') {
+                        this.spec = this.spec.onBlueprintHydrate(lLoaded.ryodBlueprint) || this.spec;
+                    }
                     this.state = lLoaded;
                     this.state.phase = 'play';
                     this.state.menuMode = 'none';
@@ -854,6 +1187,20 @@ class UniversalCartridgeEngine {
                 }
                 return;
             }
+            if (this.state.menuMode === 'power_select' || this.state.menuMode === 'spells') {
+                const powers = this.getAvailablePowers();
+                if (lower === 'i' || lower === 'z') {
+                    this.openVerbPrompt('use', 'Use, zap, or evoke which item? [a-z or ESC]');
+                    return;
+                }
+                const numIdx = /^[1-9]$/.test(k) ? (parseInt(k, 10) - 1) : (/^[a-d]$/.test(lower) ? (lower.charCodeAt(0) - 97) : -1);
+                if (numIdx >= 0 && numIdx < powers.length) {
+                    this.state.menuMode = 'none';
+                    this.state.pendingPrompt = '';
+                    this.castActivePower(powers[numIdx]);
+                    return;
+                }
+            }
             this.state.menuMode = 'none';
             this.state.pendingVerb = null;
             this.state.pendingPrompt = '';
@@ -891,6 +1238,15 @@ class UniversalCartridgeEngine {
         }
         if (k === 'd') { this.openVerbPrompt('drop', 'Drop which item? [a-z or ESC]'); return; }
         if (k === 'I' || k === 'x') { this.openVerbPrompt('inspect', 'Examine which item? [a-z or ESC]'); return; }
+        if (k === 'G' && (p.godMode || this.spec.godMode)) {
+            const nextDepth = Math.min(this.spec.goalDepth || 15, (this.state.depth || 0) + 1);
+            p.hp = p.hpMax;
+            p.pw = p.pwMax;
+            this.generateLevel(nextDepth);
+            this.addMessage(`[GOD MODE] You warp directly to ${this.state.branchName} Level ${this.state.depth}!`, 14);
+            this.saveGame();
+            return;
+        }
         if (k === 'z' && this.realm === 'brogue') {
             if (p.hp < p.hpMax) p.hp = Math.min(p.hpMax, p.hp + 1);
             if (p.pw < p.pwMax && this.state.turn % 2 === 0) p.pw++;
@@ -902,6 +1258,10 @@ class UniversalCartridgeEngine {
                 this.invokeDeityPower();
                 return;
             }
+            if ((k === 'U' || k === 'Z') && p.innatePower) {
+                this.castActivePower(p.innatePower);
+                return;
+            }
             this.openVerbPrompt('use', 'Use, zap, or evoke which item/spell? [a-z or ESC]');
             return;
         }
@@ -909,6 +1269,11 @@ class UniversalCartridgeEngine {
             if (this.realm === 'dcss') {
                 this.state.menuMode = 'skills';
                 this.state.pendingPrompt = 'Skills & Training (Press ESC or Space to return)';
+            } else if (this.getAvailablePowers().length > 0) {
+                const powers = this.getAvailablePowers();
+                const labels = powers.map((pw, idx) => `[${idx + 1}/${String.fromCharCode(97 + idx)}] ${pw.name} (${pw.cost} ${this.spec.resourceLabel || 'MP'})`).join('  ');
+                this.state.menuMode = 'power_select';
+                this.state.pendingPrompt = `${this.spec.verbLabel || 'Invoke Power'}: ${labels}  [i] Item  [ESC]`;
             } else {
                 this.openVerbPrompt('use', 'Use or invoke which item/spell? [a-z or ESC]');
             }
@@ -916,7 +1281,7 @@ class UniversalCartridgeEngine {
         }
         if (k === 'M' || k === 'b') {
             this.state.menuMode = 'spells';
-            this.state.pendingPrompt = 'Spell Library & Abilities (Press ESC or Space to return)';
+            this.state.pendingPrompt = 'Spell Library & Abilities (Press 1-4 / a-d to Cast, or ESC to return)';
             return;
         }
         if (k === 'C' || k === '@' || k === '%') {
@@ -953,8 +1318,10 @@ class UniversalCartridgeEngine {
         if (k === '>') {
             const cell = this.state.map[p.y][p.x];
             if (cell.feat === FEAT.DOWN_STAIR) {
-                this.generateLevel(this.state.depth + 1);
-                this.addMessage(`You descend deeper into ${this.state.branchName} (Level ${this.state.depth}).`, 14);
+                const maxD = this.spec.goalDepth || 30;
+                const nextD = Math.min(maxD, this.state.depth + 1);
+                this.generateLevel(nextD);
+                this.addMessage(`You descend into ${this.state.branchName} (Level ${this.state.depth}).`, 14);
                 this.saveGame();
             } else if (this.realm === 'dcss' && cell.feat === FEAT.ALTAR) {
                 this.prayAtAltar();
@@ -966,13 +1333,15 @@ class UniversalCartridgeEngine {
         if (k === '<') {
             const cell = this.state.map[p.y][p.x];
             if (cell.feat === FEAT.UP_STAIR) {
+                const minDepth = this.spec.hasTown ? 0 : 1;
                 if (this.state.depth === 1 && p.hasAmulet) {
+                    if (this.spec.hasTown) this.generateLevel(0);
                     p.winner = true;
                     this.addMessage(`Glorious Victory! You ascend into the sunlight with the ${this.spec.goalItemName || 'Amulet of Yendor'}!`, 14);
                     this.saveGame();
-                } else if (this.state.depth > 1) {
+                } else if (this.state.depth > minDepth) {
                     this.generateLevel(this.state.depth - 1);
-                    this.addMessage(`You climb upward to Level ${this.state.depth}.`, 11);
+                    this.addMessage(this.state.depth === 0 ? `You return to Sanctuary Town (${this.state.branchName}).` : `You climb upward to Level ${this.state.depth}.`, 11);
                     this.saveGame();
                 } else {
                     this.addMessage('You cannot leave the dungeon empty-handed!');
@@ -1217,6 +1586,78 @@ class UniversalCartridgeEngine {
         this.advanceTurn();
     }
 
+    getAvailablePowers() {
+        const p = this.state && this.state.player;
+        if (!p) return [];
+        const out = [];
+        if (Array.isArray(p.disciplinePowers)) {
+            for (const dp of p.disciplinePowers) out.push(dp);
+        }
+        if (p.innatePower && p.innatePower.name) {
+            out.push({ ...p.innatePower, key: String(out.length + 1) });
+        }
+        return out;
+    }
+
+    castActivePower(power) {
+        if (!power) return;
+        const p = this.state.player;
+        const resLabel = this.spec.resourceLabel || 'MP';
+        const cost = (p.godMode || this.spec.godMode) ? 0 : (power.cost || 2);
+        if ((p.pw || 0) < cost) {
+            this.addMessage(`Insufficient ${resLabel} to invoke ${power.name} (needs ${cost} ${resLabel}).`, 12);
+            return;
+        }
+        p.pw = Math.max(0, (p.pw || 0) - cost);
+        if (power.heal) {
+            p.hp = Math.min(p.hpMax, p.hp + power.heal);
+        }
+        if (power.curePoison) {
+            p.poisoned = 0;
+        }
+        if (power.blink) {
+            for (let attempt = 0; attempt < 25; attempt++) {
+                const rx = 2 + this.rand(MAP_W - 4);
+                const ry = 2 + this.rand(MAP_H - 4);
+                const cell = this.state.map[ry] && this.state.map[ry][rx];
+                if (cell && cell.feat === FEAT.FLOOR && !this.state.monsters.some(m => m.x === rx && m.y === ry)) {
+                    p.x = rx;
+                    p.y = ry;
+                    this.updateVisibility();
+                    break;
+                }
+            }
+            this.addMessage(`You invoke ${power.name} and phase across the chamber!`, 11);
+            this.advanceTurn();
+            return;
+        }
+
+        const hostiles = this.state.monsters.filter(m => !m.isPet && !m.peaceful && !m.captive && this.state.map[m.y] && this.state.map[m.y][m.x] && this.state.map[m.y][m.x].inView);
+        const chaosBonus = (this.spec && this.spec.mutatorId === 'chaos_surge' && (this.state.turn % 2 === 0)) ? 6 : 0;
+        if (chaosBonus > 0) {
+            p.speedBoost = Math.max(p.speedBoost || 0, 8);
+        }
+        if (power.aoe && hostiles.length > 0) {
+            const dmg = (power.dmg || 16) + this.rand(6) + chaosBonus;
+            for (const foe of hostiles.slice()) {
+                foe.hp -= dmg;
+                if (foe.hp <= 0) this.handleMonsterKilled(foe);
+            }
+            this.addMessage(`You unleash ${power.name}${chaosBonus ? ' [CHAOS SURGE]' : ''}, blasting ${hostiles.length} foe(s) for ${dmg} damage!`, 14);
+        } else if (power.dmg && hostiles.length > 0) {
+            hostiles.sort((a, b) => Math.hypot(a.x - p.x, a.y - p.y) - Math.hypot(b.x - p.x, b.y - p.y));
+            const target = hostiles[0];
+            const dmg = (power.dmg || 15) + this.rand(6) + chaosBonus;
+            target.hp -= dmg;
+            this.addMessage(`You invoke ${power.name}${chaosBonus ? ' [CHAOS SURGE]' : ''} on ${target.race} for ${dmg} damage!`, 14);
+            if (target.hp <= 0) this.handleMonsterKilled(target);
+        } else {
+            p.speedBoost = Math.max(p.speedBoost || 0, 12);
+            this.addMessage(`You invoke ${power.name}! (${p.hp}/${p.hpMax} HP)`, 14);
+        }
+        this.advanceTurn();
+    }
+
     prayAtAltar() {
         const p = this.state.player;
         const cell = this.state.map[p.y][p.x];
@@ -1224,9 +1665,18 @@ class UniversalCartridgeEngine {
             p.deity = cell.deity;
             p.piety = Math.min(6, (p.piety || 2) + 1);
             p.hp = p.hpMax;
-            this.addMessage(`You kneel at the glowing altar of ${cell.deity}. Divine fervor fills your soul! (Piety: ${'★'.repeat(p.piety)})`, 14);
+            p.pw = p.pwMax;
+            p.poisoned = 0;
+            const wep = p.inventory.find(i => i.equipped === 'weapon');
+            if (wep && wep.beatitude !== 'blessed') {
+                wep.beatitude = 'blessed';
+                wep.bonus = (wep.bonus || 0) + 1;
+            }
+            p.inventory.forEach(it => { if (it.beatitude === 'cursed') it.beatitude = 'uncursed'; });
+            this.addMessage(`You kneel at the glowing altar of ${cell.deity}. Your vitality and gear are sanctified! (Piety: ${'★'.repeat(p.piety)})`, 14);
         } else {
-            p.hp = Math.min(p.hpMax, p.hp + 5);
+            p.hp = Math.min(p.hpMax, p.hp + 6);
+            p.pw = Math.min(p.pwMax, (p.pw || 0) + 3);
             this.addMessage(`You offer a fervent prayer to ${p.deity}.`, 11);
         }
         this.advanceTurn();
@@ -1257,14 +1707,22 @@ class UniversalCartridgeEngine {
             this.addMessage(`You pick up ${obj.amount || 15} gold pieces.`, 14);
         } else if (obj.kind === 'rune') {
             p.runes = (p.runes || 0) + 1;
-            this.addMessage(`You claim the ${obj.name}! (${p.runes}/3 Runes of Zot collected)`, 14);
+            this.addMessage(`You claim the ${obj.name}! (${p.runes}/3 Runes collected)`, 14);
         } else if (obj.kind === 'lumenstone') {
             p.lumenstones = (p.lumenstones || 0) + 1;
             this.addMessage(`You claim a radiant ${obj.name}! (${p.lumenstones} Lumenstones)`, 14);
         } else {
             if (obj.isGoalArtifact) {
                 p.hasAmulet = true;
-                this.addMessage(`You seize the ${obj.name}! Now ascend to Level 1 to claim immortal victory!`, 14);
+                if (this.spec.victoryMode === 'three_runes' && (p.runes || 0) < 3) {
+                    this.addMessage(`You seize the ${obj.name}, but you still need ${3 - (p.runes || 0)} more Abyssal Rune(s) before it awakens!`, 14);
+                } else if (this.spec.victoryMode === 'boss_kill' || (this.spec.victoryMode === 'three_runes' && (p.runes || 0) >= 3)) {
+                    p.winner = true;
+                    this.addMessage(`Glorious Victory! You claim the ${obj.name} and triumph over ${this.state.branchName}!`, 14);
+                } else {
+                    const dest = this.spec.hasTown ? 'Sanctuary Town (Level 0)' : 'Level 1';
+                    this.addMessage(`You seize the ${obj.name}! Now ascend to ${dest} to claim immortal victory!`, 14);
+                }
             } else {
                 this.addMessage(`You pick up ${formatItemDesc(obj)}.`, 11);
             }
@@ -1282,6 +1740,32 @@ class UniversalCartridgeEngine {
 
         const mon = this.state.monsters.find(m => m.x === tx && m.y === ty);
         if (mon) {
+            if (mon.townRole === 'elder') {
+                p.pw = p.pwMax;
+                this.addMessage(`The Town Elder speaks: "${this.spec.elderRumor || 'Beware the guardian of the deep floor!'}"`, 14);
+                this.advanceTurn();
+                return;
+            }
+            if (mon.townRole === 'quartermaster') {
+                if (p.gold >= 35) {
+                    p.gold -= 35;
+                    p.inventory.push({ kind: 'scroll', name: 'scroll of enchanting', glyph: '?', attr: 14, enchantGain: 1, count: 1, weight: 5, tval: 70, sval: 15 });
+                    p.inventory.push({ kind: 'potion', name: 'potion of extra healing', glyph: '!', attr: 4, heal: 40, count: 1, weight: 10, tval: 71, sval: 35 });
+                    this.reindexInventory();
+                    this.addMessage('The Quartermaster trades you a Scroll of Enchanting and a Potion of Extra Healing for 35 gold!', 14);
+                } else if (p.gold >= 20) {
+                    p.gold -= 20;
+                    p.inventory.push({ kind: 'potion', name: 'potion of extra healing', glyph: '!', attr: 4, heal: 40, count: 1, weight: 10, tval: 71, sval: 35 });
+                    p.inventory.push({ kind: 'food', name: 'iron ration', glyph: ':', attr: 3, nutrition: 900, count: 1, weight: 20, tval: 80, sval: 1 });
+                    this.reindexInventory();
+                    this.addMessage('The Quartermaster trades you a Potion of Extra Healing and an Iron Ration for 20 gold!', 14);
+                } else {
+                    p.hp = p.hpMax;
+                    this.addMessage('The Quartermaster bandages your wounds free of charge. (Bring 20g for supplies or 35g for an Enchant Scroll!)', 11);
+                }
+                this.advanceTurn();
+                return;
+            }
             if (mon.captive) {
                 mon.captive = false;
                 mon.isPet = true;
@@ -1314,7 +1798,8 @@ class UniversalCartridgeEngine {
                     for (let d = 0; d < nd; d++) baseRoll += 1 + this.rand(sd);
                 }
             }
-            const dmg = Math.max(2, baseRoll + strBonus + wepBonus);
+            const mutMult = (this.spec && this.spec.mutatorId === 'blood_moon') ? 1.35 : ((this.spec && this.spec.mutatorId === 'stygian_fog') ? 1.30 : 1.0);
+            const dmg = Math.max(2, Math.round((baseRoll + strBonus + wepBonus) * mutMult));
             mon.hp -= dmg;
             this.addMessage(`You strike the ${mon.race} with your ${p.weaponName}! (${dmg} dmg)`, 11);
             if (mon.hp <= 0) {
@@ -1368,13 +1853,45 @@ class UniversalCartridgeEngine {
     handleMonsterKilled(mon) {
         const p = this.state.player;
         this.state.monsters = this.state.monsters.filter(m => m.id !== mon.id);
+        if (this.spec && this.spec.mutatorId === 'blood_moon') {
+            p.hp = Math.min(p.hpMax, p.hp + 4);
+            p.pw = Math.min(p.pwMax, (p.pw || 0) + 1);
+        }
         if (this.usesExpLevels()) {
             const xpGain = mon.exp !== undefined ? mon.exp : 10;
             p.exp += xpGain;
-            this.addMessage(`You slay the ${mon.race}! (+${xpGain} XP)`, 10);
+            this.addMessage(`You slay ${mon.isBoss ? '' : 'the '}${mon.race}! (+${xpGain} XP)`, 10);
             this.checkExperience();
         } else {
-            this.addMessage(`You slay the ${mon.race}!`, 10);
+            this.addMessage(`You slay ${mon.isBoss ? '' : 'the '}${mon.race}!`, 10);
+        }
+        if (mon.isBoss) {
+            this.state.slainActBosses = this.state.slainActBosses || {};
+            this.state.slainActBosses[this.state.depth] = true;
+            this.state.objects.push({
+                kind: 'scroll',
+                name: 'scroll of enchanting',
+                glyph: '?',
+                attr: 14,
+                enchantGain: 1,
+                x: mon.x,
+                y: mon.y,
+                count: 1,
+                weight: 5,
+                tval: 70,
+                sval: 15
+            });
+            if (mon.isNemesis) {
+                if (this.spec.victoryMode === 'boss_kill' || (this.spec.victoryMode === 'three_runes' && (p.runes || 0) >= 3)) {
+                    p.hasAmulet = true;
+                    p.winner = true;
+                    this.addMessage(`GLORIOUS VICTORY! You have vanquished ${mon.race} and reclaimed the ${this.spec.goalItemName || 'Quest Artifact'}!`, 14);
+                } else {
+                    this.addMessage(`You have vanquished ${mon.race}! Claim the ${this.spec.goalItemName} and ascend to the surface!`, 14);
+                }
+            } else {
+                this.addMessage(`[ACT MILESTONE] ${mon.race} has fallen! A Scroll of Enchanting glimmers on the stones.`, 14);
+            }
         }
     }
 
@@ -1382,10 +1899,17 @@ class UniversalCartridgeEngine {
         const p = this.state.player;
         this.state.turn++;
         if (p.speedBoost > 0) p.speedBoost--;
-        if (p.nutrition > 0) p.nutrition--;
+        if (p.nutrition > 0 && !p.godMode && !this.spec.godMode) p.nutrition--;
+        if (p.godMode || this.spec.godMode) {
+            p.pw = p.pwMax;
+        }
+        if (this.spec && this.spec.mutatorId === 'cataclysm' && this.state.depth > 0 && this.state.turn % 18 === 0) {
+            this.state.objects.push({ kind: 'gold', name: 'tremor-shaken gold cache', glyph: '$', attr: 14, amount: 25, x: p.x, y: p.y, count: 1 });
+            this.addMessage('[CATACLYSM] Seismic tremors shake the ceiling, dislodging a cache of gold!', 14);
+        }
 
-        // Periodic wandering monster spawn (BSD Rogue wanderer() / DCSS / Brogue floor pressure)
-        if (this.state.turn % 35 === 0) {
+        // Periodic wandering monster spawn (skip in Town Depth 0)
+        if (this.state.depth > 0 && this.state.turn % 35 === 0) {
             const hostiles = this.state.monsters.filter(m => !m.isPet && !m.peaceful && !m.captive);
             if (hostiles.length < 8 && Array.isArray(this.spec.monsters) && this.spec.monsters.length > 0) {
                 const depth = this.state.depth || 1;
@@ -1422,7 +1946,7 @@ class UniversalCartridgeEngine {
         }
 
         for (const mon of this.state.monsters.slice()) {
-            if (mon.captive) continue;
+            if (mon.captive || mon.townRole) continue;
             if (mon.isPet) {
                 const adjFoe = this.state.monsters.find(f => !f.isPet && !f.peaceful && Math.hypot(f.x - mon.x, f.y - mon.y) <= 1.5);
                 if (adjFoe) {
@@ -1476,6 +2000,9 @@ class UniversalCartridgeEngine {
                 const acMitigation = this.realm === 'rogue' ? Math.max(0, Math.floor((10 - (p.ac ?? 7)) / 3)) : Math.max(0, Math.floor((p.ac || 2) / 4));
                 const dmg = Math.max(1, (mon.dmg || 4) - acMitigation - this.rand(2));
                 p.hp -= dmg;
+                if (p.godMode || this.spec.godMode) {
+                    p.hp = Math.max(1, p.hp);
+                }
                 const isProperName = Boolean(mon.isBoss || /^[A-Z]/.test(mon.race || ''));
                 const subjName = isProperName ? mon.race : `The ${mon.race}`;
                 const killerArticle = isProperName ? mon.race : (/^[aeiou]/i.test(mon.race || '') ? `an ${mon.race}` : `a ${mon.race}`);
@@ -1575,7 +2102,7 @@ class UniversalCartridgeEngine {
             return rows;
         }
 
-        if (this.state.menuMode === 'char' || this.state.menuMode === 'help' || this.state.menuMode === 'knowledge' || this.state.menuMode === 'skills' || this.state.menuMode === 'spells') {
+        if (this.state.menuMode === 'char' || this.state.menuMode === 'help' || this.state.menuMode === 'knowledge' || this.state.menuMode === 'skills' || this.state.menuMode === 'spells' || this.state.menuMode === 'power_select') {
             const rows = [];
             rows.push({ g: pad80(this.state.pendingPrompt || 'Character Overview (Press ESC or Space to return)'), a: attr80('0e') });
             rows.push({ g: pad80('=============================================================================='), a: attr80('02') });
@@ -1592,11 +2119,22 @@ class UniversalCartridgeEngine {
                 rows.push({ g: pad80(`  HP:  ${p.hp}/${p.hpMax}   Power/MP: ${p.pw}/${p.pwMax}   Gold: ${p.gold}`), a: attr80('0a') });
                 if (this.realm === 'dcss') rows.push({ g: pad80(`  Deity: ${p.deity} (Piety: ${'★'.repeat(Math.max(0, p.piety || 0))})   Runes: ${p.runes || 0}/3`), a: attr80('0e') });
                 if (this.realm === 'brogue') rows.push({ g: pad80(`  Enchantments: +${p.enchantments || 0}   Lumenstones: ${p.lumenstones || 0}`), a: attr80('0e') });
-            } else if (this.state.menuMode === 'skills' || this.state.menuMode === 'spells') {
-                rows.push({ g: pad80(`  a) Fighting & Melee Mastery       Lv ${p.level + 2}   (Active)`), a: attr80('01') });
-                rows.push({ g: pad80(`  b) Dodging & Armour Defense       Lv ${p.level + 1}   (Active)`), a: attr80('01') });
-                rows.push({ g: pad80(`  c) Arcane Evocations & Wands      Lv ${p.level}     (Active)`), a: attr80('01') });
-                if (this.realm === 'dcss') rows.push({ g: pad80(`  d) Invocations (${p.deity})       Piety ${p.piety || 1}/6`), a: attr80('0e') });
+            } else if (this.state.menuMode === 'skills' || this.state.menuMode === 'spells' || this.state.menuMode === 'power_select') {
+                const avail = this.getAvailablePowers();
+                if (avail.length > 0) {
+                    const resLbl = this.spec.resourceLabel || 'MP';
+                    avail.forEach((pw, idx) => {
+                        const letter = String.fromCharCode(97 + idx);
+                        rows.push({ g: pad80(`  ${idx + 1}/${letter}) ${pw.name.padEnd(28, ' ')} Cost: ${pw.cost} ${resLbl} — ${pw.desc || ''}`), a: attr80('0e') });
+                    });
+                    rows.push({ g: pad80(''), a: attr80('01') });
+                    rows.push({ g: pad80('  Press [1-4] or [a-d] to invoke a power, [i] to use an inventory item, or [ESC].'), a: attr80('0b') });
+                } else {
+                    rows.push({ g: pad80(`  a) Fighting & Melee Mastery       Lv ${p.level + 2}   (Active)`), a: attr80('01') });
+                    rows.push({ g: pad80(`  b) Dodging & Armour Defense       Lv ${p.level + 1}   (Active)`), a: attr80('01') });
+                    rows.push({ g: pad80(`  c) Arcane Evocations & Wands      Lv ${p.level}     (Active)`), a: attr80('01') });
+                    if (this.realm === 'dcss') rows.push({ g: pad80(`  d) Invocations (${p.deity})       Piety ${p.piety || 1}/6`), a: attr80('0e') });
+                }
             } else if (this.state.menuMode === 'knowledge') {
                 rows.push({ g: pad80(`  Discovered Items (${p.inventory.length} in pack) • Branch: ${this.state.branchName} ${this.state.depth}`), a: attr80('0b') });
                 p.inventory.slice(0, 14).forEach((it) => {
@@ -1608,7 +2146,7 @@ class UniversalCartridgeEngine {
                 rows.push({ g: pad80('  Movement: Arrow Keys / WASD / Vi-keys (hjklyubn) / Click Minimap'), a: attr80('01') });
                 rows.push({ g: pad80('  [i] Inventory   [e] Equipment   [g/,] Pick Up   [>/<] Stairs'), a: attr80('01') });
                 rows.push({ g: pad80('  [q] Quaff       [r] Read        [w/W] Equip     [T] Take Off'), a: attr80('01') });
-                rows.push({ g: pad80('  [f/t] Fire/Throw [a/z/V] Use/Zap [o/c] Door     [s/.] Search/Rest'), a: attr80('01') });
+                rows.push({ g: pad80('  [f/t] Fire/Throw [m/M] Powers   [o/c] Door      [s/.] Search/Rest'), a: attr80('01') });
                 rows.push({ g: pad80('  [C/@] Character [~/\\] Knowledge  [I/x] Examine  [d] Drop Item'), a: attr80('01') });
                 if (this.realm === 'dcss') {
                     rows.push({ g: pad80('  --- DCSS SPECIFIC COMMANDS & PANTHEON ---'), a: attr80('0b') });
@@ -1652,8 +2190,8 @@ class UniversalCartridgeEngine {
                 `INT: ${String(p.int).padStart(6, ' ')}`,
                 `AC:  ${String(p.ac).padStart(6, ' ')}`,
                 `HP: ${String(p.hp + '/' + p.hpMax).padStart(7, ' ')}`,
-                this.realm === 'brogue' ? `ENC: ${String(p.enchantments || 0).padStart(6, ' ')}` : `MP: ${String(p.pw + '/' + p.pwMax).padStart(7, ' ')}`,
-                this.realm === 'dcss' ? `GOD:${String(p.deity).slice(0, 7).padStart(7, ' ')}` : `$:  ${String(p.gold).padStart(7, ' ')}`,
+                (this.realm === 'brogue' || p.progressionMode === 'brogue_item') ? `ENC: ${String(p.enchantments || 0).padStart(6, ' ')}` : `${(this.spec.resourceLabel || 'MP').slice(0, 3)}: ${String(p.pw + '/' + p.pwMax).padStart(7, ' ')}`,
+                (this.realm === 'dcss' || p.powerDiscipline === 'piety') ? `GOD:${String(p.deity).slice(0, 7).padStart(7, ' ')}` : `$:  ${String(p.gold).padStart(7, ' ')}`,
                 `${this.state.branchName.slice(0, 6)}:${String(this.state.depth).padStart(4, ' ')}`
             ][y] || '';
             let mapChars = '';
@@ -1714,11 +2252,51 @@ class UniversalCartridgeEngine {
         else if (p.nutrition != null && p.nutrition < 150) statuses.push({ name: 'Weak', attr: 12, val: 2 });
         else if (p.nutrition != null && p.nutrition < 300) statuses.push({ name: 'Hungry', attr: 14, val: 1 });
         if (p.hasAmulet) statuses.push({ name: this.spec.goalBadge || 'Amulet', attr: 14, val: 1 });
-        if (this.realm === 'dcss' && p.deity) {
+        if ((this.realm === 'dcss' || p.powerDiscipline === 'piety') && p.deity) {
             statuses.push({ name: `${p.deity} (${'★'.repeat(Math.max(1, p.piety || 1))})`, attr: 14, val: p.piety || 1 });
         }
-        if (this.realm === 'brogue') {
+        if (this.realm === 'brogue' || p.progressionMode === 'brogue_item' || p.progressionMode === 'hybrid') {
             statuses.push({ name: `Str ${p.str} • +${p.enchantments || 0} Ench`, attr: 11, val: p.str });
+        }
+        if (p.godMode || this.spec.godMode) {
+            statuses.push({ name: 'GOD MODE', attr: 14, val: 1 });
+        }
+
+        let ryodMeta = null;
+        const bp = this.state.ryodBlueprint || this.spec.ryodBlueprint;
+        if (bp) {
+            const act = typeof this.spec.resolveActForDepth === 'function'
+                ? this.spec.resolveActForDepth(this.state.depth)
+                : { index: 0, act: 'I', title: 'Act I', lens: 'Omen', banner: '' };
+            ryodMeta = {
+                ryodHash: bp.ryodHash || this.state.ryodHash,
+                title: bp.title,
+                subtitle: bp.subtitle,
+                biome: bp.biome,
+                storyArc: bp.storyArc,
+                bestiary: bp.resolvedBestiary || bp.bestiary,
+                heroOrigin: bp.heroOrigin,
+                avatarMonsterName: p.avatarMonsterName || null,
+                powerDiscipline: p.powerDiscipline || bp.resolvedDiscipline,
+                resourceLabel: this.spec.resourceLabel || 'MANA',
+                verbLabel: this.spec.verbLabel || 'Cast Spell',
+                progressionMode: p.progressionMode || bp.progressionMode,
+                victoryMode: bp.victoryMode,
+                difficulty: bp.difficulty,
+                godMode: Boolean(p.godMode || bp.godMode),
+                hasTown: Boolean(bp.hasTown),
+                goalDepth: bp.goalDepth || 15,
+                goalItemName: bp.goalItemName,
+                nemesisName: bp.nemesisName,
+                chronicler: bp.chronicler,
+                traditionKey: bp.traditionKey,
+                audioTheme: bp.audioTheme,
+                actIndex: act.index,
+                actRoman: act.act,
+                actTitle: act.title,
+                actLens: act.lens,
+                actBanner: act.banner
+            };
         }
 
         const equipmentList = p.inventory.filter(it => Boolean(it.equipped)).map((it, idx) => ({
@@ -1770,11 +2348,12 @@ class UniversalCartridgeEngine {
         }));
         const promptKind = this.state.menuMode === 'direction'
             ? 'direction'
-            : (this.state.menuMode === 'spells' || this.state.menuMode === 'skills' ? 'spell' : 'item');
+            : (this.state.menuMode === 'spells' || this.state.menuMode === 'skills' || this.state.menuMode === 'power_select' ? 'spell' : 'item');
 
         return {
             t: 'frame',
             realm: this.realm,
+            ryodMeta,
             seq: this.seq,
             phase: this.state.phase,
             ui: {
@@ -1792,6 +2371,12 @@ class UniversalCartridgeEngine {
                 name: p.name,
                 race: p.race,
                 class: p.class,
+                isMonsterAvatar: Boolean(p.isMonsterAvatar),
+                avatarMonsterName: p.avatarMonsterName || null,
+                progression_mode: p.progressionMode || (this.usesExpLevels() ? 'xp' : 'brogue_item'),
+                power_discipline: p.powerDiscipline || 'arcane',
+                resource_label: this.spec.resourceLabel || 'MANA',
+                god_mode: Boolean(p.godMode || this.spec.godMode),
                 deity: p.deity,
                 piety: p.piety,
                 runes: p.runes || 0,
@@ -1800,7 +2385,7 @@ class UniversalCartridgeEngine {
                 nutrition: p.nutrition || 1000,
                 branch: this.state.branchName,
                 branch_name: this.state.branchName,
-                place_label: `${this.state.branchName === 'D' ? 'Dungeon' : (this.state.branchName || 'Dungeon')}:${this.state.depth || 1}`,
+                place_label: this.state.depth === 0 ? `${this.state.branchName || 'Sanctuary'}:Town` : `${this.state.branchName === 'D' ? 'Dungeon' : (this.state.branchName || 'Dungeon')}:${this.state.depth || 1}`,
                 god: p.god || p.deity || 'No God',
                 piety: p.piety || 0,
                 runes: Array.isArray(p.runes) ? p.runes.length : (p.runes || 0),
@@ -1873,7 +2458,10 @@ class UniversalCartridgeEngine {
                     pet: Boolean(m.isPet),
                     friendly: Boolean(m.isPet || m.peaceful),
                     peaceful: Boolean(m.peaceful || m.isPet),
-                    captive: Boolean(m.captive)
+                    captive: Boolean(m.captive),
+                    isBoss: Boolean(m.isBoss),
+                    isNemesis: Boolean(m.isNemesis),
+                    townRole: m.townRole || null
                 })),
             objects: this.state.objects
                 .filter(o => this.state.map[o.y] && this.state.map[o.y][o.x] && this.state.map[o.y][o.x].known)
