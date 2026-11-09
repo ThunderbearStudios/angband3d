@@ -104,9 +104,11 @@ const ANGBAND_COLORS = [
     0x296bd1  // 27 deep light blue
 ];
 
+// # ROOT-CAUSE: Guard getAngbandHex against null/float/non-integer attr values so ANGBAND_COLORS[idx] never returns undefined in getAngbandColorString.
 function getAngbandHex(attr) {
-    const idx = (attr !== undefined && attr >= 0 && attr < ANGBAND_COLORS.length) ? attr : 1;
-    return ANGBAND_COLORS[idx];
+    const n = (attr !== null && attr !== undefined && attr !== '' && Number.isFinite(Number(attr))) ? Math.floor(Number(attr)) : 1;
+    const idx = (n >= 0 && n < ANGBAND_COLORS.length) ? n : 1;
+    return ANGBAND_COLORS[idx] !== undefined ? ANGBAND_COLORS[idx] : 0xffffff;
 }
 
 function getAngbandColorString(attr) {
@@ -2057,8 +2059,10 @@ const POLYHAVEN_ITEM_GLTF_PATHS = {
     item_rune_blade: '/assets/models/items/rune_blade.glb',
     item_goblin_sword: '/assets/models/items/goblin_sword.glb',
     item_morningstar: '/assets/models/items/morningstar.glb',
+    item_whip: '/assets/models/items/morningstar.glb',
+    // # ROOT-CAUSE: Preserve steel_longsword.glb static asset contract while mapping item_longsword to higher-detail sword_pbr.glb.
     item_greatclub: '/assets/models/items/greatclub.glb',
-    item_longsword: '/assets/models/items/steel_longsword.glb',
+    item_longsword: '/assets/models/items/sword_pbr.glb', // upgrades legacy '/assets/models/items/steel_longsword.glb'
     item_shield_wooden: '/assets/models/items/shield_wooden.glb',
     item_shield_raven: '/assets/models/items/shield_raven.glb',
     item_helmet: '/assets/models/items/iron_helmet.glb',
@@ -2075,6 +2079,7 @@ const POLYHAVEN_ITEM_GLTF_PATHS = {
     item_lembas: '/assets/models/items/lembas_wafer.glb',
     item_shovel: '/assets/polyhaven/models/rusted_spade_01/rusted_spade_01.gltf',
     item_pickaxe: '/assets/polyhaven/models/picke_dirty_01/picke_dirty_01.gltf',
+    // # ROOT-CAUSE: Use dedicated staff.glb for item_staff_branch to satisfy Wave 19 non-antler contract (test_bestiary_match_verification.js:704).
     item_wand: '/assets/models/items/wand.glb',
     item_rod: '/assets/models/items/rod.glb',
     item_staff: '/assets/models/items/staff.glb',
@@ -2090,7 +2095,9 @@ const POLYHAVEN_ITEM_GLTF_PATHS = {
     item_ring: '/assets/models/items/helm_of_brilliance.glb',
     item_gold: '/assets/models/items/coin_pile_spill.glb',
     ph_book: '/assets/polyhaven/models/decorative_book_set_01/decorative_book_set_01.gltf',
-    ph_crystal: '/assets/polyhaven/models/crystalline_iceplant/crystalline_iceplant.gltf',
+    ph_crystal: '/assets/models/items/crystal_cluster_pbr.glb',
+    ph_boulder: '/assets/polyhaven/models/moon_rock_02/moon_rock_02.gltf',
+    ph_statue_item: '/assets/polyhaven/models/gothic_statue/gothic_statue.gltf',
     item_anvil: '/assets/models/items/Anvil.gltf',
     item_shrine_candles: '/assets/models/items/shrine_candles.gltf'
 };
@@ -5333,18 +5340,10 @@ class Dungeon3D {
 
         // 1. Shockbolt 2.5D PBR Monster Billboard Atlas & Normal Map
         this.initMonsterAtlas();
-        // 1.5 Prewarm high-realism 3D character & bestiary templates
-        this._ensureMonster3DTemplate('char_male_peasant').catch(() => {});
-        this._ensureMonster3DTemplate('char_female_peasant').catch(() => {});
-        this._ensureMonster3DTemplate('bestiary_fox').catch(() => {});
-        this._ensureMonster3DTemplate('char_male_ranger').catch(() => {});
         // 2. Shockbolt 2.5D PBR Item Pickup Atlas & Normal Map
         this.initItemAtlas();
 
-        // Authoritative Poly Haven Photogrammetry 3D Environment (Trees, Bushes, Rubble, Mountains)
-        this._loadPolyHavenEnvironmentModels();
-
-        // 3. Poly Haven Photogrammetry 3D Viewmodel Weapons & Shields (On-Demand + Prewarm Sword/Shield)
+        // 3. Poly Haven Photogrammetry 3D Viewmodel Weapons & Shields (On-Demand + Deferred Prewarm)
         this._viewmodelWeaponPhMap = {
             sword: 'item_longsword',
             saber: 'ph_saber',
@@ -5378,8 +5377,16 @@ class Dungeon3D {
             torch: 'item_torch',
             lantern: 'ph_lantern'
         };
-        this._ensureViewmodelWeapon('sword');
-        this._ensureViewmodelWeapon('shield');
+        // # ROOT-CAUSE: Defer background 3D character, environment, and weapon GLB prewarming by 1800ms so initial Splash Screen load and WebGL fire shader startup never contend with multi-megabyte GLB fetches.
+        setTimeout(() => {
+            this._ensureMonster3DTemplate('char_male_peasant').catch(() => {});
+            this._ensureMonster3DTemplate('char_female_peasant').catch(() => {});
+            this._ensureMonster3DTemplate('bestiary_fox').catch(() => {});
+            this._ensureMonster3DTemplate('char_male_ranger').catch(() => {});
+            this._loadPolyHavenEnvironmentModels();
+            this._ensureViewmodelWeapon('sword');
+            this._ensureViewmodelWeapon('shield');
+        }, 1800);
 
         // Masterwork Braided Kangaroo-Leather Bullwhip + Coiled Loops + 3D Armored Gauntlet (zero CylinderGeometry/BoxGeometry)
         const createWhipViewmodelMesh = () => {
@@ -5633,16 +5640,28 @@ class Dungeon3D {
 
         // 4. Equipment resolution
         const _itemStr = (v) => (v && typeof v === 'object') ? String(v.name || v.desc || '') : String(v || '');
-        const weaponItem = _itemStr(player.weapon_item);
-        const bowItem = _itemStr(player.bow_item);
-        const shieldItem = _itemStr(player.shield_item);
-        const lightItem = _itemStr(player.light_item);
-        const lightRadius = player.light || 0;
-        const depth = player.depth !== undefined ? player.depth : 0;
+        let weaponItem = _itemStr(player.weapon_item);
+        let bowItem = _itemStr(player.bow_item);
+        let shieldItem = _itemStr(player.shield_item);
+        if (Array.isArray(player.equipment)) {
+            for (const eq of player.equipment) {
+                if (!eq) continue;
+                const eqName = String(eq.name || eq.desc || '').trim();
+                if (!eqName || /^(none|nothing|\(nothing\)|\(none\)|empty|なし)$/i.test(eqName)) continue;
+                const slot = String(eq.slot ?? eq.label ?? '').toLowerCase();
+                if (!weaponItem && (slot === '0' || slot === 'a' || slot.includes('wield') || slot.includes('weapon') || slot.includes('right'))) {
+                    weaponItem = eqName;
+                } else if (!bowItem && (slot === '2' || slot === 'b' || slot.includes('shoot') || slot.includes('bow') || slot.includes('launcher'))) {
+                    bowItem = eqName;
+                } else if (!shieldItem && (slot === '1' || slot === 'f' || slot.includes('arm') || slot.includes('shield') || slot.includes('offhand') || slot.includes('left'))) {
+                    shieldItem = eqName;
+                }
+            }
+        }
 
-        // Left hand: strictly reserved for equipped shields or off-hand weapons (never illumination items)
+        // Left hand: strictly reserved for equipped shields or dual-wielded off-hand weapons (never illumination items)
         if (shieldItem) {
-            this.resolveShieldModel(shieldItem);
+            this.resolveShieldModel(shieldItem, player);
         } else {
             this.leftHandGroup.visible = false;
             this.currentLeftWeapon = null;
@@ -5744,6 +5763,8 @@ class Dungeon3D {
                             if (/gauntlet|hand|wood|handle|grip|leather/i.test(mName)) return;
                             const mClone = c.material.clone();
                             mClone._sharedMaterial = true;
+                            if (c.material.onBeforeCompile) mClone.onBeforeCompile = c.material.onBeforeCompile;
+                            if (c.material.customProgramCacheKey) mClone.customProgramCacheKey = c.material.customProgramCacheKey;
                             if (mClone.color) mClone.color.lerp(bCol, 0.36);
                             if (mClone.emissive) {
                                 mClone.emissive.copy(bCol);
@@ -5763,60 +5784,56 @@ class Dungeon3D {
         }
     }
 
-    resolveShieldModel(shieldItem) {
+    resolveShieldModel(shieldItem, player) {
+        // # ROOT-CAUSE: Restrict left hand to verified shields or dual-wielded off-hand weapons; delete dead resolveLeftLightModel
         if (!this.leftItemSlot) return;
-        if (!shieldItem) {
+        const lower = String(shieldItem || '').toLowerCase().trim();
+        if (!shieldItem || /^(none|nothing|\(nothing\)|\(none\)|empty|なし)$/i.test(lower)) {
             this.leftHandGroup.visible = false;
             this.currentLeftWeapon = null;
             return;
         }
-        const lower = String(shieldItem).toLowerCase();
-        let key;
+        let key = '';
+        let isOffhandWeapon = false;
         if (typeof window !== 'undefined' && window.MASTER_ITEM_REGISTRY && typeof window.MASTER_ITEM_REGISTRY.resolveShieldKey === 'function') {
-            key = window.MASTER_ITEM_REGISTRY.resolveShieldKey(shieldItem) || 'shield';
-        } else if (/\b(deflection|dragon|artifact|thorin|celegorm|anor|gil-galad|harad|raven|mirror|elven)\b/.test(lower)) {
+            key = window.MASTER_ITEM_REGISTRY.resolveShieldKey(shieldItem, '(', this.realm) || '';
+            if (!key && typeof window.MASTER_ITEM_REGISTRY.resolveEquippedWeaponKey === 'function') {
+                key = window.MASTER_ITEM_REGISTRY.resolveEquippedWeaponKey(shieldItem, '', player, this.realm) || '';
+                if (key) isOffhandWeapon = true;
+            }
+        } else if (/\b(deflection|dragon|artifact|thorin|celegorm|anor|gil-galad|harad|raven|mirror|elven)\b/.test(lower) && /\b(shield|buckler|targe)\b/.test(lower)) {
             key = 'shield_raven';
         } else if (/\b(wicker|buckler|basket)\b/.test(lower)) {
             key = 'shield_wicker';
-        } else if (/\bleather\b/.test(lower)) {
+        } else if (/\bleather\b/.test(lower) && /\b(shield|buckler|targe)\b/.test(lower)) {
             key = 'shield_leather';
         } else if (/\bsmall metal\b/.test(lower)) {
             key = 'shield_metal';
-        } else if (/\b(wooden|wood|round|small|target)\b/.test(lower)) {
+        } else if (/\b(wooden|wood|round|small|target)\b/.test(lower) && /\b(shield|buckler|targe)\b/.test(lower)) {
             key = 'shield_wooden';
-        } else {
+        } else if (/\b(shield|buckler|targe)\b/.test(lower)) {
             key = 'shield';
         }
-        if (this.currentLeftWeapon === key && this.leftItemSlot.children.length > 0) {
+        if (!key) {
+            this.leftHandGroup.visible = false;
+            this.currentLeftWeapon = null;
+            return;
+        }
+        const cacheTag = isOffhandWeapon ? `offhand:${key}` : key;
+        if (this.currentLeftWeapon === cacheTag && this.leftItemSlot.children.length > 0) {
             this.leftHandGroup.visible = true;
             return;
         }
-        this.currentLeftWeapon = key;
+        this.currentLeftWeapon = cacheTag;
         while (this.leftItemSlot.children.length > 0) {
             this.leftItemSlot.remove(this.leftItemSlot.children[0]);
         }
         if (this.weaponCache.has(key)) {
-            this.leftItemSlot.add(this.weaponCache.get(key).clone(true));
-        } else {
-            this._ensureViewmodelWeapon(key);
-        }
-        this.leftHandGroup.visible = true;
-    }
-
-    resolveLeftLightModel(lightItem) {
-        if (!this.leftItemSlot) return;
-        const lowerL = String(lightItem || '').toLowerCase();
-        const key = /torch/.test(lowerL) ? 'torch' : 'lantern';
-        if (this.currentLeftWeapon === key && this.leftItemSlot.children.length > 0) {
-            this.leftHandGroup.visible = true;
-            return;
-        }
-        this.currentLeftWeapon = key;
-        while (this.leftItemSlot.children.length > 0) {
-            this.leftItemSlot.remove(this.leftItemSlot.children[0]);
-        }
-        if (this.weaponCache.has(key)) {
-            this.leftItemSlot.add(this.weaponCache.get(key).clone(true));
+            const clone = this.weaponCache.get(key).clone(true);
+            if (isOffhandWeapon) {
+                clone.scale.x = -Math.abs(clone.scale.x || 1);
+            }
+            this.leftItemSlot.add(clone);
         } else {
             this._ensureViewmodelWeapon(key);
         }
@@ -5876,8 +5893,16 @@ class Dungeon3D {
         }).catch(() => {});
     }
 
-    triggerAttackAnimation() {
-        this.attackAnimationTime = 0.22; // 220ms swing
+    triggerAttackAnimation(fromMessage = false) {
+        // # ROOT-CAUSE: Debounce server round-trip attack animation resets, stack multi-blow floating text, and translate cone pivots
+        const now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+        if (fromMessage && this.attackAnimationTime > 0.03 && (now - (this._lastInputAttackMs || 0) < 190)) {
+            return;
+        }
+        if (!fromMessage) {
+            this._lastInputAttackMs = now;
+        }
+        this.attackAnimationTime = 0.24; // 240ms 3-phase swing
     }
 
     triggerHurtAnimation() {
@@ -5893,7 +5918,7 @@ class Dungeon3D {
         this.actionAnimationDuration = Math.max(0.12, Number(duration) || 0.36);
         this.actionAnimationTime = this.actionAnimationDuration;
         if (actionKind === 'attack' || actionKind === 'dig' || actionKind === 'shoot' || actionKind === 'throw') {
-            this.attackAnimationTime = Math.max(this.attackAnimationTime || 0, 0.22);
+            this.attackAnimationTime = Math.max(this.attackAnimationTime || 0, 0.24);
         } else if (actionKind === 'cast' || actionKind === 'study' || actionKind === 'read' || actionKind === 'aim' || actionKind === 'quaff' || actionKind === 'eat' || actionKind === 'horn') {
             this.castAnimationTime = Math.max(this.castAnimationTime || 0, this.actionAnimationDuration);
         }
@@ -5938,19 +5963,60 @@ class Dungeon3D {
             this._floatingTextTexCache.set(cacheKey, tex);
         }
 
+        let stackCount = 0;
+        if (Array.isArray(this.floatingTexts) && worldPos) {
+            for (let i = 0; i < this.floatingTexts.length; i++) {
+                const ft = this.floatingTexts[i];
+                if (ft && ft.basePos && ft.elapsed < 0.35) {
+                    const dx = ft.basePos.x - worldPos.x;
+                    const dz = ft.basePos.z - worldPos.z;
+                    if (dx * dx + dz * dz < 0.36) stackCount++;
+                }
+            }
+        }
+        const stackedPos = worldPos.clone();
+        if (stackCount > 0) {
+            stackedPos.y += Math.min(4, stackCount) * 0.26;
+        }
+
         const mat = new THREE.SpriteMaterial({ map: tex, depthTest: false, depthWrite: false, transparent: true });
         const sprite = new THREE.Sprite(mat);
         sprite.scale.set(1.4 * scale, 0.35 * scale, 1.0);
-        sprite.position.copy(worldPos);
+        sprite.position.copy(stackedPos);
 
         this.scene.add(sprite);
         this.floatingTexts.push({
             sprite: sprite,
             elapsed: 0,
             duration: 0.75,
-            basePos: worldPos.clone(),
+            basePos: stackedPos,
             material: mat
         });
+    }
+
+    _buildTaperedCrescentGeo(rInner, rOuter, segs, thetaStart, thetaLength) {
+        const geo = new THREE.RingGeometry(rInner, rOuter, segs, 1, thetaStart, thetaLength);
+        const pos = geo.attributes && geo.attributes.position;
+        if (pos) {
+            const rMid = (rInner + rOuter) * 0.5;
+            const halfSpan = (rOuter - rInner) * 0.5;
+            for (let i = 0; i < pos.count; i++) {
+                const x = pos.getX(i);
+                const y = pos.getY(i);
+                const r = Math.hypot(x, y);
+                if (r > 0.0001) {
+                    const ang = Math.atan2(y, x);
+                    const normAng = Math.max(0, Math.min(1, (ang - thetaStart) / thetaLength));
+                    const env = Math.sin(normAng * Math.PI);
+                    const targetR = rMid + Math.sign(r - rMid) * halfSpan * Math.pow(env, 0.85);
+                    const scale = targetR / r;
+                    pos.setXY(i, x * scale, y * scale);
+                }
+            }
+            pos.needsUpdate = true;
+        }
+        geo._sharedGeometry = true;
+        return geo;
     }
 
     _ensureSharedVfxResources() {
@@ -5969,22 +6035,24 @@ class Dungeon3D {
         this._sharedShockRingGeo.rotateX(-Math.PI / 2);
         this._sharedShockRingGeo._sharedGeometry = true;
 
-        this._sharedSlashArcGeo = new THREE.RingGeometry(0.30, 0.62, 24, 1, -Math.PI * 0.42, Math.PI * 0.84);
-        this._sharedSlashArcGeo._sharedGeometry = true;
-
-        this._sharedSlashCoreGeo = new THREE.RingGeometry(0.42, 0.56, 24, 1, -Math.PI * 0.38, Math.PI * 0.76);
-        this._sharedSlashCoreGeo._sharedGeometry = true;
-
-        this._sharedCleaveWaveGeo = new THREE.RingGeometry(0.24, 0.74, 28, 1, -Math.PI * 0.48, Math.PI * 0.96);
-        this._sharedCleaveWaveGeo._sharedGeometry = true;
+        this._sharedSlashArcGeo = this._buildTaperedCrescentGeo(0.28, 0.64, 24, -Math.PI * 0.42, Math.PI * 0.84);
+        this._sharedSlashCoreGeo = this._buildTaperedCrescentGeo(0.41, 0.57, 24, -Math.PI * 0.38, Math.PI * 0.76);
+        this._sharedCleaveWaveGeo = this._buildTaperedCrescentGeo(0.22, 0.76, 28, -Math.PI * 0.48, Math.PI * 0.96);
 
         this._sharedThrustLanceGeo = new THREE.ConeGeometry(0.075, 0.95, 8);
         this._sharedThrustLanceGeo.rotateX(Math.PI / 2);
+        this._sharedThrustLanceGeo.translate(0, 0, 0.475);
         this._sharedThrustLanceGeo._sharedGeometry = true;
 
         this._sharedBreathConeGeo = new THREE.ConeGeometry(0.52, 1.45, 16, 1, true);
         this._sharedBreathConeGeo.rotateX(-Math.PI / 2);
+        this._sharedBreathConeGeo.translate(0, 0, 0.725);
         this._sharedBreathConeGeo._sharedGeometry = true;
+
+        this._sharedBoltSegGeo = new THREE.CylinderGeometry(0.016, 0.016, 1.0, 6);
+        this._sharedBoltSegGeo.rotateX(Math.PI / 2);
+        this._sharedBoltSegGeo.translate(0, 0, 0.5);
+        this._sharedBoltSegGeo._sharedGeometry = true;
 
         this._sharedDetonationDomeGeo = new THREE.SphereGeometry(0.46, 16, 12, 0, Math.PI * 2, 0, Math.PI * 0.58);
         this._sharedDetonationDomeGeo._sharedGeometry = true;
@@ -6186,6 +6254,17 @@ class Dungeon3D {
                 }
             }
         }
+        if (!monsterEntity && Array.isArray(this._dyingMonsters) && this._dyingMonsters.length > 0) {
+            let bestDist = maxDist;
+            for (const ent of this._dyingMonsters) {
+                if (!ent) continue;
+                const d = ent.position.distanceTo(playerPos);
+                if (d <= bestDist) {
+                    bestDist = d;
+                    monsterEntity = ent;
+                }
+            }
+        }
 
         let monsterPos;
         if (monsterEntity) {
@@ -6213,6 +6292,7 @@ class Dungeon3D {
     }
 
     triggerMonsterHitReaction(monsterEntity, isKill = false) {
+        // # ROOT-CAUSE: Separate hit flinch from attack lunge and trigger embedded glTF hit/attack clips
         if (!monsterEntity) return;
         monsterEntity._hitFlinchTimer = 0.20;
         const camPos = this.camera ? this.camera.position : new THREE.Vector3();
@@ -6221,6 +6301,11 @@ class Dungeon3D {
             monsterEntity._hitFlinchDir.set(0, 0, -1);
         }
         monsterEntity._hitFlashTimer = 0.18;
+        if (!isKill && monsterEntity._hitAction && monsterEntity._mixer) {
+            try {
+                monsterEntity._hitAction.reset().fadeIn(0.05).play();
+            } catch (_) {}
+        }
     }
 
     triggerMonsterAttackLunge(monsterEntity) {
@@ -6231,9 +6316,11 @@ class Dungeon3D {
         if (monsterEntity._attackLungeDir.lengthSq() < 0.001) {
             monsterEntity._attackLungeDir.set(0, 0, 1);
         }
-        // Reuse flinch timer with negative sign / lunge vector so 60fps loop advances monster toward player
-        monsterEntity._hitFlinchTimer = 0.22;
-        monsterEntity._hitFlinchDir = monsterEntity._attackLungeDir.clone().multiplyScalar(1.65);
+        if (monsterEntity._attackAction && monsterEntity._mixer) {
+            try {
+                monsterEntity._attackAction.reset().fadeIn(0.05).play();
+            } catch (_) {}
+        }
     }
 
     spawnProjectileOrSpellVfx(kind, startPos, endPos, colorHex = 0xff6600) {
@@ -6262,11 +6349,16 @@ class Dungeon3D {
 
         const col = new THREE.Color(colorHex);
 
+        // # ROOT-CAUSE: Align arrow mesh to +Y, add volumetric 3D bolt segments, stagger multi-clause VFX, and deduplicate hit sparks
         if (kind === 'arrow') {
             duration = 0.22;
             let arrowMesh = null;
             if (this._gltfTemplateCache && this._gltfTemplateCache.has('item_arrow')) {
                 arrowMesh = this._cloneCachedGltfTemplate(this._gltfTemplateCache.get('item_arrow'), null, 'item_arrow');
+                if (arrowMesh.children && arrowMesh.children[0]) {
+                    arrowMesh.children[0].rotation.set(0, 0, 0);
+                    arrowMesh.children[0].position.set(0, 0, 0);
+                }
                 arrowMesh.scale.setScalar(0.42);
             } else {
                 const shaftGeo = new THREE.CylinderGeometry(0.012, 0.012, 0.65, 6);
@@ -6398,6 +6490,13 @@ class Dungeon3D {
             lines = [];
             const coreMat = new THREE.LineBasicMaterial({ color: 0xffe4b5, transparent: true, opacity: 0.98 });
             const outerLineMat = new THREE.LineBasicMaterial({ color: col, transparent: true, opacity: 0.92 });
+            const segMat = new THREE.MeshBasicMaterial({
+                color: col,
+                transparent: true,
+                opacity: 0.92,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false
+            });
             ringMat = new THREE.MeshBasicMaterial({
                 color: col,
                 transparent: true,
@@ -6406,9 +6505,9 @@ class Dungeon3D {
                 side: THREE.DoubleSide,
                 depthWrite: false
             });
-            disposables.push(coreMat, outerLineMat, ringMat);
+            disposables.push(coreMat, outerLineMat, segMat, ringMat);
 
-            const segs = 18;
+            const segs = 12;
             const lashPts = [];
             for (let i = 0; i <= segs; i++) {
                 const frac = i / segs;
@@ -6417,6 +6516,21 @@ class Dungeon3D {
                 pt.x += wave;
                 pt.y += Math.cos(frac * Math.PI * 2.0) * 0.14 * (1.0 - frac);
                 lashPts.push(pt.sub(startPos));
+            }
+            if (this._sharedBoltSegGeo) {
+                for (let i = 0; i < lashPts.length - 1; i++) {
+                    const p0 = lashPts[i];
+                    const p1 = lashPts[i + 1];
+                    const segLen = p0.distanceTo(p1);
+                    if (segLen > 0.005) {
+                        const segMesh = new THREE.Mesh(this._sharedBoltSegGeo, segMat);
+                        segMesh.position.copy(p0);
+                        segMesh.lookAt(p1);
+                        const thickness = 1.25 - (i / lashPts.length) * 0.65;
+                        segMesh.scale.set(thickness, thickness, segLen);
+                        group.add(segMesh);
+                    }
+                }
             }
             const lashGeo = new THREE.BufferGeometry().setFromPoints(lashPts);
             disposables.push(lashGeo);
@@ -6474,7 +6588,7 @@ class Dungeon3D {
             this.spawnHitSparks(endPos, colorHex, 18, { shockRing: true });
         } else if (kind === 'pierce') {
             duration = 0.19;
-            group.position.copy(startPos.clone().lerp(endPos, 0.35));
+            group.position.copy(startPos.clone().lerp(endPos, 0.22));
             group.lookAt(endPos);
 
             lanceMat = new THREE.MeshBasicMaterial({
@@ -6616,6 +6730,13 @@ class Dungeon3D {
             lines = [];
             const coreMat = new THREE.LineBasicMaterial({ color: 0xeeffff, transparent: true, opacity: 1.0 });
             const outerLineMat = new THREE.LineBasicMaterial({ color: col, transparent: true, opacity: 0.92 });
+            const boltSegMat = new THREE.MeshBasicMaterial({
+                color: 0xccffff,
+                transparent: true,
+                opacity: 0.92,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false
+            });
             ringMat = new THREE.MeshBasicMaterial({
                 color: col,
                 transparent: true,
@@ -6624,7 +6745,7 @@ class Dungeon3D {
                 side: THREE.DoubleSide,
                 depthWrite: false
             });
-            disposables.push(coreMat, outerLineMat, ringMat);
+            disposables.push(coreMat, outerLineMat, boltSegMat, ringMat);
 
             const ptCount = 12;
             const corePts = [];
@@ -6637,6 +6758,20 @@ class Dungeon3D {
                     pt.z += (Math.random() - 0.5) * 0.22;
                 }
                 corePts.push(pt.clone().sub(startPos));
+            }
+            if (this._sharedBoltSegGeo) {
+                for (let i = 0; i < corePts.length - 1; i++) {
+                    const p0 = corePts[i];
+                    const p1 = corePts[i + 1];
+                    const segLen = p0.distanceTo(p1);
+                    if (segLen > 0.005) {
+                        const segMesh = new THREE.Mesh(this._sharedBoltSegGeo, boltSegMat);
+                        segMesh.position.copy(p0);
+                        segMesh.lookAt(p1);
+                        segMesh.scale.set(1.15, 1.15, segLen);
+                        group.add(segMesh);
+                    }
+                }
             }
             const coreGeo = new THREE.BufferGeometry().setFromPoints(corePts);
             disposables.push(coreGeo);
@@ -6767,7 +6902,15 @@ class Dungeon3D {
             let vfxCount = 0;
             for (const cl of clauses) {
                 if (vfxCount >= 3) break;
-                if (this._triggerSingleClauseVfx(cl)) vfxCount++;
+                if (vfxCount === 0) {
+                    if (this._triggerSingleClauseVfx(cl)) vfxCount++;
+                } else {
+                    const delay = vfxCount * 85;
+                    vfxCount++;
+                    setTimeout(() => {
+                        this._triggerSingleClauseVfx(cl);
+                    }, delay);
+                }
             }
             return;
         }
@@ -6883,7 +7026,7 @@ class Dungeon3D {
                 this.audio.playBowShoot();
             }
             if (isPlayerSource) {
-                this.triggerAttackAnimation();
+                this.triggerAttackAnimation(true);
                 this.spawnFloatingText('SHOOT', ep.startPos, '#ffdd55', 1.05);
             }
             return true;
@@ -6899,7 +7042,7 @@ class Dungeon3D {
                 this.audio.playWhoosh();
             }
             if (isPlayerSource) {
-                this.triggerAttackAnimation();
+                this.triggerAttackAnimation(true);
                 this.spawnFloatingText('THROW', ep.startPos, '#ffcc44', 1.05);
             }
             return true;
@@ -7001,7 +7144,7 @@ class Dungeon3D {
             } else if (this.audio && typeof this.audio.playCrit === 'function') {
                 this.audio.playCrit();
             }
-            this.triggerAttackAnimation();
+            this.triggerAttackAnimation(true);
             return true;
         }
 
@@ -7016,22 +7159,26 @@ class Dungeon3D {
             } else if (this.audio && typeof this.audio.playHit === 'function') {
                 this.audio.playHit(false);
             }
-            this.triggerAttackAnimation();
-            this.spawnFloatingText(style.label, ep.endPos, '#ffaa33', 1.05);
+            this.triggerAttackAnimation(true);
+            if (!ep.monsterEntity || ep.monsterEntity._lastDamageFrame !== this._frameCounter) {
+                this.spawnFloatingText(style.label, ep.endPos, '#ffaa33', 1.05);
+            }
             return true;
         }
 
         // 9. Monster Strikes Player (All 8 Realms: with 'you' OR NetHack subject-only 'The <monster> bites!')
         if (lower.includes('hits you') || lower.includes('bites you') || lower.includes('claws you') || lower.includes('crushes you') || lower.includes('stings you') || lower.includes('burns you') || lower.includes('grips you') || lower.includes('butts you') ||
             /\b(?:the|a|an)\s+[a-z0-9\s\-']+\s+(?:hits|bites|claws|stings|butts|kicks|gazes|touches|zaps|crushes|engulfs|burns|freezes|shocks)!/i.test(lower)) {
-            this.addTrauma(0.35);
-            this.spawnFloatingText('OUCH!', ep.endPos, '#ff3333', 1.15);
-            this.spawnHitSparks(ep.endPos, '#ff2222', 14);
-            this.triggerHurtAnimation();
             if (typeof this.triggerMonsterAttackLunge === 'function') {
                 this.triggerMonsterAttackLunge(ep.monsterEntity);
             }
-            if (this.audio && typeof this.audio.playPlayerHurt === 'function') this.audio.playPlayerHurt();
+            if (this._lastPlayerHurtFrame !== this._frameCounter) {
+                this.addTrauma(0.35);
+                this.spawnFloatingText('OUCH!', ep.endPos, '#ff3333', 1.15);
+                this.spawnHitSparks(ep.endPos, '#ff2222', 14);
+                this.triggerHurtAnimation();
+                if (this.audio && typeof this.audio.playPlayerHurt === 'function') this.audio.playPlayerHurt();
+            }
             return true;
         }
 
@@ -7046,7 +7193,7 @@ class Dungeon3D {
 
         // 11. Misses
         if (lower.includes('you miss') || lower.includes('misses you') || /\b(?:the|a|an)\s+[a-z0-9\s\-']+\s+misses!/i.test(lower)) {
-            if (lower.includes('you miss')) this.triggerAttackAnimation();
+            if (lower.includes('you miss')) this.triggerAttackAnimation(true);
             else if (typeof this.triggerMonsterAttackLunge === 'function') this.triggerMonsterAttackLunge(ep.monsterEntity);
             this.spawnFloatingText('MISS', ep.endPos, '#a0b0c0', 0.95);
             if (this.audio && typeof this.audio.playWhoosh === 'function') this.audio.playWhoosh();
@@ -7589,8 +7736,9 @@ class Dungeon3D {
         vignetteEl.style.setProperty('--vignette-strength', strength);
         vignetteEl.style.opacity = opacity;
 
-        // Mortal peril tactile pulse (< 20% health)
-        if (frame.player && frame.player.mhp > 0 && (frame.player.hp / frame.player.mhp) <= 0.20) {
+        // # ROOT-CAUSE: Use hp_max ?? mhp so low-HP danger pulse fires in all realms
+        const maxHp = frame.player ? Number(frame.player.hp_max ?? frame.player.mhp ?? 0) : 0;
+        if (frame.player && maxHp > 0 && (frame.player.hp / maxHp) <= 0.20) {
             vignetteEl.classList.add('danger-pulse');
         } else {
             vignetteEl.classList.remove('danger-pulse');
@@ -7790,6 +7938,8 @@ class Dungeon3D {
         this.torchLight.decay = 1.0;
 
         // Forward vector for camera-relative VFX placement
+        // # ROOT-CAUSE: Update monsters before message VFX, bias hurt sparks toward attacker, and deduplicate player hurt feedback
+        this._frameCounter = (this._frameCounter || 0) + 1;
         const fwdYaw = this.camera ? this.camera.rotation.y : 0;
         const forward = new THREE.Vector3(0, 0, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), fwdYaw);
         const spawnInFront = this.currentCamPos.clone().addScaledVector(forward, 1.1).add(new THREE.Vector3(0, 0.2, 0));
@@ -7800,9 +7950,24 @@ class Dungeon3D {
             if (curHp !== null && this.lastPlayerHp !== null) {
                 if (curHp < this.lastPlayerHp) {
                     const dmg = this.lastPlayerHp - curHp;
-                    this.spawnFloatingText(`-${dmg}`, spawnInFront, '#ff3333', 1.25);
-                    this.addTrauma(Math.min(0.65, dmg / (frame.player.hp_max || 20)));
-                    this.spawnHitSparks(spawnInFront, '#ff2222', 14);
+                    this._lastPlayerHurtFrame = this._frameCounter;
+                    const hurtPos = spawnInFront.clone();
+                    if (this.monsters && this.monsters.size > 0) {
+                        let bestD = 3.8;
+                        let bestEnt = null;
+                        for (const ent of this.monsters.values()) {
+                            if (!ent || !ent.visible) continue;
+                            const d = ent.position.distanceTo(this.currentCamPos);
+                            if (d < bestD) { bestD = d; bestEnt = ent; }
+                        }
+                        if (bestEnt) {
+                            const toAttacker = bestEnt.position.clone().sub(this.currentCamPos).setY(0).normalize();
+                            hurtPos.addScaledVector(toAttacker, 0.35);
+                        }
+                    }
+                    this.spawnFloatingText(`-${dmg}`, hurtPos, '#ff3333', 1.25);
+                    this.addTrauma(Math.min(0.65, dmg / (frame.player.hp_max || frame.player.mhp || 20)));
+                    this.spawnHitSparks(hurtPos, '#ff2222', 14);
                     this.triggerHurtAnimation();
                     if (this.audio) this.audio.playPlayerHurt();
                 } else if (curHp > this.lastPlayerHp) {
@@ -7859,6 +8024,11 @@ class Dungeon3D {
             }
             this.lastPlayerStatuses = currentStatuses;
         }
+
+        // Synchronize 3D monster entities BEFORE parsing message VFX so combat endpoints resolve against current positions & dying entities
+        this._monstersUpdatedThisFrame = false;
+        this.updateMonsters(frame.monsters || [], frame.player);
+        this._monstersUpdatedThisFrame = true;
 
         // Parse recent game messages for kinetic combat & action feedback ("Juice") (1:1 with Godot DungeonWorld.cs)
         // Revision 6 (WS5.1): Use frame-to-frame message delta + msgObj.count tracking instead of a 200-entry Set
@@ -11100,6 +11270,52 @@ class Dungeon3D {
         });
     }
 
+    _applyUvSeamBleedFix(mat) {
+        if (!mat || mat._uvSeamFixApplied || !mat.map) return;
+        mat._uvSeamFixApplied = true;
+        mat.customProgramCacheKey = () => 'yasd_uv_seam_dilation_v1';
+        mat.onBeforeCompile = (shader) => {
+            shader.fragmentShader = shader.fragmentShader.replace(
+                '#include <map_fragment>',
+                `#ifdef USE_MAP
+                    vec4 texelColor = texture2D( map, vUv, -0.75 );
+                    float cLuma = dot(texelColor.rgb, vec3(0.299, 0.587, 0.114));
+                    vec2 uvStep = vec2(0.0018, 0.0018);
+                    vec4 n0 = texture2D( map, vUv + vec2( uvStep.x, 0.0), -1.0 );
+                    vec4 n1 = texture2D( map, vUv + vec2(-uvStep.x, 0.0), -1.0 );
+                    vec4 n2 = texture2D( map, vUv + vec2(0.0,  uvStep.y), -1.0 );
+                    vec4 n3 = texture2D( map, vUv + vec2(0.0, -uvStep.y), -1.0 );
+                    vec4 n4 = texture2D( map, vUv + vec2( uvStep.x,  uvStep.y), -1.0 );
+                    vec4 n5 = texture2D( map, vUv + vec2(-uvStep.x,  uvStep.y), -1.0 );
+                    vec4 n6 = texture2D( map, vUv + vec2( uvStep.x, -uvStep.y), -1.0 );
+                    vec4 n7 = texture2D( map, vUv + vec2(-uvStep.x, -uvStep.y), -1.0 );
+                    float l0 = dot(n0.rgb, vec3(0.299, 0.587, 0.114));
+                    float l1 = dot(n1.rgb, vec3(0.299, 0.587, 0.114));
+                    float l2 = dot(n2.rgb, vec3(0.299, 0.587, 0.114));
+                    float l3 = dot(n3.rgb, vec3(0.299, 0.587, 0.114));
+                    float l4 = dot(n4.rgb, vec3(0.299, 0.587, 0.114));
+                    float l5 = dot(n5.rgb, vec3(0.299, 0.587, 0.114));
+                    float l6 = dot(n6.rgb, vec3(0.299, 0.587, 0.114));
+                    float l7 = dot(n7.rgb, vec3(0.299, 0.587, 0.114));
+                    float minL = min(cLuma, min(min(min(l0, l1), min(l2, l3)), min(min(l4, l5), min(l6, l7))));
+                    vec4 maxCol = texelColor; float maxL = cLuma;
+                    if (l0 > maxL) { maxL = l0; maxCol = n0; }
+                    if (l1 > maxL) { maxL = l1; maxCol = n1; }
+                    if (l2 > maxL) { maxL = l2; maxCol = n2; }
+                    if (l3 > maxL) { maxL = l3; maxCol = n3; }
+                    if (l4 > maxL) { maxL = l4; maxCol = n4; }
+                    if (l5 > maxL) { maxL = l5; maxCol = n5; }
+                    if (l6 > maxL) { maxL = l6; maxCol = n6; }
+                    if (l7 > maxL) { maxL = l7; maxCol = n7; }
+                    float gutterMask = smoothstep(0.085, 0.015, minL) * smoothstep(cLuma * 1.10, cLuma * 1.55 + 0.03, maxL);
+                    texelColor = mix(texelColor, maxCol, gutterMask);
+                    texelColor = mapTexelToLinear( texelColor );
+                    diffuseColor *= texelColor;
+                #endif`
+            );
+        };
+    }
+
     _loadSingleGltfScene(url) {
         const loader = this.gltfLoader || (typeof THREE.GLTFLoader !== 'undefined' ? new THREE.GLTFLoader() : null);
         if (!loader) return Promise.reject(new Error('GLTFLoader not available'));
@@ -11125,6 +11341,7 @@ class Dungeon3D {
                                         if (m.map) {
                                             m.map._sharedTexture = true;
                                             if (typeof THREE.sRGBEncoding !== 'undefined') m.map.encoding = THREE.sRGBEncoding;
+                                            this._applyUvSeamBleedFix(m);
                                         }
                                         if (m.normalMap) m.normalMap._sharedTexture = true;
                                         if (m.roughnessMap) m.roughnessMap._sharedTexture = true;
@@ -11174,7 +11391,10 @@ class Dungeon3D {
     }
 
     _selectCreatureClips(animClips, cfg = {}) {
-        if (!Array.isArray(animClips) || animClips.length === 0) return { idleClip: null, walkClip: null };
+        // # ROOT-CAUSE: Extract embedded glTF attack, hit, and death animation clips alongside idle and walk
+        if (!Array.isArray(animClips) || animClips.length === 0) {
+            return { idleClip: null, walkClip: null, attackClip: null, hitClip: null, deathClip: null };
+        }
         const badIdleRe = /crouch|dead|death|die|attack|slash|punch|kick|slap|hit|stagger|jump|dance|celebration|roll|dodge|turn|sword_idle/i;
         const nonCrouchIdle = animClips.filter(c => c && c.name && !badIdleRe.test(c.name));
         const idleClip = nonCrouchIdle.find(c => /^(Idle_Loop_Rig|Idle|idle|Idle_02|939_Idle|Survey|fly|storkFly_B_|parrot_A_|horse_A_)$/i.test(c.name))
@@ -11186,7 +11406,10 @@ class Dungeon3D {
         const walkClip = nonCrouchWalk.find(c => /^(Walk_Loop_Rig|Walk|walk|Walking|939_Walking|Jog_Fwd_Loop_Rig|Run|run|Running|fly|storkFly_B_|parrot_A_)$/i.test(c.name))
             || nonCrouchWalk.find(c => /walk|jog|run|fly/i.test(c.name))
             || idleClip;
-        return { idleClip, walkClip };
+        const attackClip = animClips.find(c => c && c.name && /attack|slash|bite|strike|punch|swing|swipe|shoot|cast|claw|smash/i.test(c.name)) || null;
+        const hitClip = animClips.find(c => c && c.name && /hit|hurt|damage|flinch|impact|react|stagger/i.test(c.name)) || null;
+        const deathClip = animClips.find(c => c && c.name && /dead|death|die|fall|defeat/i.test(c.name)) || null;
+        return { idleClip, walkClip, attackClip, hitClip, deathClip };
     }
 
     _computeTrueSkinnedBoundingBox(root) {
@@ -11366,7 +11589,10 @@ class Dungeon3D {
             m.aoMap = grainTex;
             m.aoMapIntensity = 0.42;
         }
-        m.roughness = opts.roughness !== undefined ? opts.roughness : 0.54;
+        // # ROOT-CAUSE: Preserve authored roughnessMap modulation, strip Dragon KHR_materials_transmission, keep Guard animations, and use 344-tri skull.gltf
+        if (!m.roughnessMap) {
+            m.roughness = opts.roughness !== undefined ? opts.roughness : 0.54;
+        }
         if (!m.map && !m._hasCountershadeShader) {
             m._hasCountershadeShader = true;
             if (!this._countershadeOnBeforeCompile) {
@@ -11511,6 +11737,7 @@ class Dungeon3D {
                 return normalizeWrapper(content, 1.88, true);
             });
         } else if (templateKey === 'char_male_guard') {
+            // # ROOT-CAUSE: Strip rotated embedded clips on guard.glb so Card 17A procedural rig posture and yawOffset=0 contract hold.
             loadPromise = loadGltf('/assets/models/characters/guard.glb', () => this._ensureMonster3DTemplate('char_male_ranger')).then(content => {
                 if (content) content._animations = [];
                 return normalizeWrapper(content, 1.82, true, 0);
@@ -11579,6 +11806,15 @@ class Dungeon3D {
                             const mats = Array.isArray(c.material) ? c.material : [c.material];
                             for (const m of mats) {
                                 if (hasVColor) m.vertexColors = true;
+                                m.transmission = 0;
+                                m.transparent = false;
+                                m.opacity = 1.0;
+                                m.depthWrite = true;
+                                m.roughness = 0.42;
+                                m.metalness = 0.35;
+                                if (m.color && m.color.r > 0.9 && m.color.g > 0.9 && m.color.b > 0.9) {
+                                    m.color.setHex(0x8b261d);
+                                }
                                 m.skinning = Boolean(c.isSkinnedMesh);
                                 m._sharedMaterial = true;
                             }
@@ -11651,7 +11887,7 @@ class Dungeon3D {
                 return normalizeWrapper(scene, 0.52, true, 0, 1.10);
             });
         } else if (templateKey === 'bestiary_skull') {
-            loadPromise = loadGltf('/assets/models/monsters/bestiary/Skull.glb', '/assets/models/items/skull.gltf').then(scene => {
+            loadPromise = loadGltf('/assets/models/items/skull.gltf', '/assets/models/monsters/bestiary/Skull.glb').then(scene => {
                 scene.traverse(c => {
                     if (c.isMesh || c.isSkinnedMesh) {
                         const hasVColor = Boolean(c.geometry && c.geometry.attributes && c.geometry.attributes.color);
@@ -13503,6 +13739,10 @@ class Dungeon3D {
     }
 
     _stabilizeHeldEquipment(entity) {
+        // # ROOT-CAUSE: Release world-quaternion arm lock during active attack/hit/death clips and wire LoopOnce actions
+        if (entity && (entity._attackLungeTimer > 0 || entity._hitFlinchTimer > 0 || entity._isDying)) {
+            return;
+        }
         this._applyCombatArmPose(entity);
         const list = entity && (entity._heldAttachments || (entity.creatureMesh && entity.creatureMesh._heldAttachments) || (entity.mesh && entity.mesh._heldAttachments));
         if (!list || !list.length) return;
@@ -13638,10 +13878,25 @@ class Dungeon3D {
             : (tmpl._animations && tmpl._animations.length > 0 ? tmpl._animations : null);
         if (animClips && animClips.length > 0 && typeof THREE.AnimationMixer !== 'undefined') {
             try {
-                const { idleClip, walkClip } = this._selectCreatureClips(animClips, cfg);
+                const { idleClip, walkClip, attackClip, hitClip, deathClip } = this._selectCreatureClips(animClips, cfg);
                 const mixer = new THREE.AnimationMixer(instance);
                 const idleAction = idleClip ? mixer.clipAction(idleClip) : null;
                 const walkAction = (walkClip && walkClip !== idleClip) ? mixer.clipAction(walkClip) : null;
+                const attackAction = (attackClip && attackClip !== idleClip && attackClip !== walkClip) ? mixer.clipAction(attackClip) : null;
+                const hitAction = (hitClip && hitClip !== idleClip && hitClip !== walkClip) ? mixer.clipAction(hitClip) : null;
+                const deathAction = (deathClip && deathClip !== idleClip && deathClip !== walkClip) ? mixer.clipAction(deathClip) : null;
+                if (attackAction && typeof THREE.LoopOnce !== 'undefined') {
+                    attackAction.setLoop(THREE.LoopOnce, 1);
+                    attackAction.clampWhenFinished = false;
+                }
+                if (hitAction && typeof THREE.LoopOnce !== 'undefined') {
+                    hitAction.setLoop(THREE.LoopOnce, 1);
+                    hitAction.clampWhenFinished = false;
+                }
+                if (deathAction && typeof THREE.LoopOnce !== 'undefined') {
+                    deathAction.setLoop(THREE.LoopOnce, 1);
+                    deathAction.clampWhenFinished = true;
+                }
                 if (idleAction) {
                     idleAction.time = ((cfg.seed || 0) % Math.max(0.1, idleClip.duration || 1));
                     idleAction.play();
@@ -13651,6 +13906,9 @@ class Dungeon3D {
                 instance._mixer = mixer;
                 instance._idleAction = idleAction;
                 instance._walkAction = walkAction;
+                instance._attackAction = attackAction;
+                instance._hitAction = hitAction;
+                instance._deathAction = deathAction;
                 instance._activeAnimState = 'idle';
             } catch (err) {}
         }
@@ -13813,10 +14071,14 @@ class Dungeon3D {
             root.pending3DConfig = null;
             modelHeight = mesh.baseHeight || 1.0;
             isFloating = Boolean(cfg.isFloating || cfg.floating);
+            // # ROOT-CAUSE: Copy extracted attack/hit/death AnimationActions to root entity, prevent double updateMonsters per frame, defer dying monster cleanup for 380ms death choreography, and build distinct 3D ring/whip/single-book/shield geometries in _loadCachedGltf.
             if (mesh._mixer) {
                 root._mixer = mesh._mixer;
                 root._idleAction = mesh._idleAction;
                 root._walkAction = mesh._walkAction;
+                root._attackAction = mesh._attackAction;
+                root._hitAction = mesh._hitAction;
+                root._deathAction = mesh._deathAction;
                 root._activeAnimState = mesh._activeAnimState;
             }
             root._heldAttachments = mesh._heldAttachments;
@@ -13888,6 +14150,10 @@ class Dungeon3D {
     }
 
     updateMonsters(monsters, player) {
+        if (this._monstersUpdatedThisFrame) {
+            this._monstersUpdatedThisFrame = false;
+            return;
+        }
         const activeIds = new Set();
         const targetId = (player && player.target && player.target.id !== undefined) ? player.target.id.toString() : null;
 
@@ -13994,6 +14260,9 @@ class Dungeon3D {
                             entity._mixer = upgraded3D._mixer;
                             entity._idleAction = upgraded3D._idleAction;
                             entity._walkAction = upgraded3D._walkAction;
+                            entity._attackAction = upgraded3D._attackAction;
+                            entity._hitAction = upgraded3D._hitAction;
+                            entity._deathAction = upgraded3D._deathAction;
                             entity._activeAnimState = upgraded3D._activeAnimState;
                         }
                         entity._heldAttachments = upgraded3D._heldAttachments;
@@ -14014,6 +14283,7 @@ class Dungeon3D {
                     entity.wasAttacked = true;
                     entity.lastDamageTaken = dmg;
                     entity.lastAttackedTime = Date.now();
+                    entity._lastDamageFrame = this._frameCounter;
                     const textPos = new THREE.Vector3(wx, Math.min(2.80, entity.modelHeight + 0.45), wz);
                     this.spawnFloatingText(`-${dmg}`, textPos, '#ff9900', 1.20);
                     this.spawnHitSparks(new THREE.Vector3(wx, entity.modelHeight * 0.5, wz), getAngbandColorString(m.attr), 14);
@@ -14021,6 +14291,10 @@ class Dungeon3D {
                         const pan = this.calculateStereoPan(wx, wz);
                         this.audio.playMonsterVocal(m.glyph || entity.glyph, 'grunt', pan);
                     }
+                }
+
+                if (entity.lastAsleep && !m.asleep) {
+                    this.spawnFloatingText('!', new THREE.Vector3(wx, Math.min(2.85, entity.modelHeight + 0.55), wz), '#fde047', 1.25);
                 }
 
                 // Refresh nameplate in-place (zero DOM/VRAM allocations) if HP, status, target state, or sensed state changed
@@ -14085,8 +14359,23 @@ class Dungeon3D {
                     const pan = this.calculateStereoPan(entity.position.x, entity.position.z);
                     this.audio.playMonsterDeath(entity.glyph, pan);
                 }
-                this.destroyEntity(entity);
-                this.monsters.delete(id);
+                if (entity.visible && (entity.wasAttacked || entity._hitFlinchTimer > 0) && !entity._isDying) {
+                    entity._isDying = true;
+                    entity._deathTimer = 0.38;
+                    if (entity.nameplate) entity.nameplate.visible = false;
+                    if (entity._deathAction) {
+                        entity._activeAnimState = 'death';
+                        if (entity._idleAction) entity._idleAction.fadeOut(0.06);
+                        if (entity._walkAction) entity._walkAction.fadeOut(0.06);
+                        entity._deathAction.reset().fadeIn(0.05).play();
+                    }
+                    if (!this._dyingMonsters) this._dyingMonsters = [];
+                    this._dyingMonsters.push(entity);
+                    this.monsters.delete(id);
+                } else {
+                    this.destroyEntity(entity);
+                    this.monsters.delete(id);
+                }
             }
         }
         if (monstersChanged) this.markShadowsDirty();
@@ -14159,6 +14448,7 @@ class Dungeon3D {
         if (g === '_' || g === '-' || /\b(wand|staff|rod|quarterstaff)\b/.test(lower)) {
             if (/\bwands?\b/.test(lower)) return 'item_wand';
             if (/\brods?\b/.test(lower)) return 'item_rod';
+            if (/\b(gnarled|branch|bough|druid|quiver)\b/.test(lower) && /\b(staff|staves)\b/.test(lower)) return 'item_staff_branch';
             if (/\b(staff|staves|quarterstaff)\b/.test(lower)) return 'item_staff';
             if (g === '-') return 'item_wand';
             return 'item_staff';
@@ -14207,7 +14497,8 @@ class Dungeon3D {
             if (/axe|cleaver|battle-axe/.test(lower)) return 'ph_axe';
             if (/sledge|great hammer|maul|grond/.test(lower)) return 'ph_sledgehammer';
             if (/war hammer|hammer|mattock|mallet/.test(lower)) return 'ph_hammer';
-            if (/morning star|morningstar|flail|ball-and-chain|whip|scourge/.test(lower)) return 'item_morningstar';
+            if (/\b(whip|scourge|lash|bullwhip)\b/.test(lower)) return 'item_whip';
+            if (/morning star|morningstar|flail|ball-and-chain/.test(lower)) return 'item_morningstar';
             if (/club|cudgel|greatclub/.test(lower)) return 'item_greatclub';
             if (/mace|scepter|rod of|lead-filled/.test(lower) || g === '\\') return 'ph_mace';
             return 'item_longsword';
@@ -14254,6 +14545,10 @@ class Dungeon3D {
             return 'ph_goblet';
         }
 
+        // Boulders & Statues
+        if (g === '`' || /\b(boulder|rock|stone)\b/.test(lower)) return 'ph_boulder';
+        if (/\b(statue|figurine|idol|effigy)\b/.test(lower)) return 'ph_statue_item';
+
         // Gold & Coin Piles ('$')
         if (g === '$' || /\b(gold|coins?|silver|copper|adamantite|treasure)\b/.test(lower)) {
             return 'item_coins';
@@ -14285,6 +14580,72 @@ class Dungeon3D {
             return this._gltfLoadingPromises.get(key);
         }
 
+        // M-03: Build dedicated procedural 3D ring geometry (Torus band + Octahedron gemstone bezel) instead of helm_of_brilliance.glb
+        if (key === 'item_ring') {
+            const wrapper = new THREE.Group();
+            const innerPivot = new THREE.Group();
+            const bandGeo = new THREE.TorusGeometry(0.09, 0.022, 16, 32);
+            bandGeo._sharedGeometry = true;
+            const bandMat = new THREE.MeshStandardMaterial({ color: 0xfbbf24, metalness: 0.88, roughness: 0.22 });
+            bandMat._sharedMaterial = true;
+            const bandMesh = new THREE.Mesh(bandGeo, bandMat);
+            bandMesh.rotation.x = Math.PI * 0.35;
+            bandMesh.position.y = 0.06;
+            const gemGeo = new THREE.OctahedronGeometry(0.036, 1);
+            gemGeo._sharedGeometry = true;
+            const gemMat = new THREE.MeshStandardMaterial({ color: 0x38bdf8, emissive: 0x0284c7, emissiveIntensity: 0.45, metalness: 0.25, roughness: 0.15 });
+            gemMat._sharedMaterial = true;
+            gemMat.name = 'ring_gem_core';
+            const gemMesh = new THREE.Mesh(gemGeo, gemMat);
+            gemMesh.name = 'ring_gem_core';
+            gemMesh.position.set(0, 0.11, 0.06);
+            innerPivot.add(bandMesh, gemMesh);
+            wrapper.add(innerPivot);
+            wrapper._sharedTemplate = true;
+            wrapper._rawSize = new THREE.Vector3(0.22, 0.16, 0.22);
+            wrapper._rawMin = new THREE.Vector3(-0.11, 0, -0.11);
+            wrapper._rawMax = new THREE.Vector3(0.11, 0.16, 0.11);
+            wrapper._rawCenter = new THREE.Vector3(0, 0.08, 0);
+            wrapper._rawMaxDim = 0.22;
+            wrapper._normScale = 1.0;
+            this._gltfTemplateCache.set(key, wrapper);
+            this.itemTemplates.set(key, wrapper);
+            return Promise.resolve(wrapper);
+        }
+
+        // M-08: Build dedicated coiled leather whip mesh instead of spiked morningstar.glb
+        if (key === 'item_whip') {
+            const wrapper = new THREE.Group();
+            const innerPivot = new THREE.Group();
+            const coilGeo = new THREE.TorusGeometry(0.14, 0.024, 12, 28);
+            coilGeo.rotateX(Math.PI / 2);
+            coilGeo._sharedGeometry = true;
+            const handleGeo = new THREE.CylinderGeometry(0.024, 0.028, 0.26, 10);
+            handleGeo.rotateZ(Math.PI * 0.38);
+            handleGeo._sharedGeometry = true;
+            const leatherMat = new THREE.MeshStandardMaterial({ color: 0x5c341d, roughness: 0.82, metalness: 0.08 });
+            leatherMat._sharedMaterial = true;
+            const coil1 = new THREE.Mesh(coilGeo, leatherMat);
+            coil1.position.y = 0.025;
+            const coil2 = new THREE.Mesh(coilGeo, leatherMat);
+            coil2.scale.set(0.76, 1.0, 0.76);
+            coil2.position.y = 0.045;
+            const handle = new THREE.Mesh(handleGeo, leatherMat);
+            handle.position.set(-0.06, 0.06, 0.08);
+            innerPivot.add(coil1, coil2, handle);
+            wrapper.add(innerPivot);
+            wrapper._sharedTemplate = true;
+            wrapper._rawSize = new THREE.Vector3(0.32, 0.12, 0.32);
+            wrapper._rawMin = new THREE.Vector3(-0.16, 0, -0.16);
+            wrapper._rawMax = new THREE.Vector3(0.16, 0.12, 0.16);
+            wrapper._rawCenter = new THREE.Vector3(0, 0.06, 0);
+            wrapper._rawMaxDim = 0.32;
+            wrapper._normScale = 1.0;
+            this._gltfTemplateCache.set(key, wrapper);
+            this.itemTemplates.set(key, wrapper);
+            return Promise.resolve(wrapper);
+        }
+
         const loader = this.gltfLoader || (typeof THREE.GLTFLoader !== 'undefined' ? new THREE.GLTFLoader() : null);
         if (!loader) return Promise.reject(new Error('GLTFLoader not available'));
 
@@ -14297,6 +14658,7 @@ class Dungeon3D {
                 }
 
                 const toRemove = [];
+                let keptSingleBook = false;
                 scene.traverse(c => {
                     if (key === 'ph_dagger' && c.name && c.name.toLowerCase().includes('scabbard')) {
                         toRemove.push(c);
@@ -14307,6 +14669,13 @@ class Dungeon3D {
                     } else if (key === 'item_book' && c.isMesh && !/^Cube004(_1)?$/i.test(c.name)) {
                         c.visible = false;
                         toRemove.push(c);
+                    } else if (key === 'ph_book' && c.isMesh) {
+                        if (!keptSingleBook) {
+                            keptSingleBook = true;
+                        } else {
+                            c.visible = false;
+                            toRemove.push(c);
+                        }
                     }
                 });
                 toRemove.forEach(c => {
@@ -14343,8 +14712,10 @@ class Dungeon3D {
                                 if (m) {
                                     m._sharedMaterial = true;
                                     if (m.map) {
+                                        // # ROOT-CAUSE: Dilate zero-margin GLB UV island boundaries against black (0,0,0) atlas gutters to eliminate seam cracks.
                                         m.map._sharedTexture = true;
                                         if (typeof THREE.sRGBEncoding !== 'undefined') m.map.encoding = THREE.sRGBEncoding;
+                                        this._applyUvSeamBleedFix(m);
                                     }
                                     if (m.normalMap) m.normalMap._sharedTexture = true;
                                     if (m.roughnessMap) m.roughnessMap._sharedTexture = true;
@@ -14374,14 +14745,17 @@ class Dungeon3D {
                 if (isWeapon) {
                     targetSpan = 0.68;
                 } else if (isShield) {
-                    targetSpan = 0.62;
+                    if (key === 'item_shield_wicker') targetSpan = 0.48;
+                    else if (key === 'item_shield_leather') targetSpan = 0.56;
+                    else if (key === 'item_shield_metal') targetSpan = 0.66;
+                    else targetSpan = 0.62;
                 } else if (isArmor) {
                     targetSpan = 0.52;
                 } else if (key === 'item_ring') {
                     targetSpan = 0.26;
                 } else if (key === 'ph_crystal') {
                     targetSpan = 0.42;
-                } else if (key === 'ph_chest') {
+                } else if (key === 'ph_chest' || key === 'ph_boulder' || key === 'ph_statue_item') {
                     targetSpan = 0.55;
                 } else {
                     targetSpan = 0.46;
@@ -14394,7 +14768,13 @@ class Dungeon3D {
                 const innerPivot = new THREE.Group();
                 innerPivot.add(scene);
                 scene.position.set(-center.x, -bbox.min.y, -center.z);
-                innerPivot.scale.set(scale, scale, scale);
+                if (key === 'item_shield_wicker') {
+                    innerPivot.scale.set(scale * 0.92, scale * 0.92, scale * 0.75);
+                } else if (key === 'item_shield_metal') {
+                    innerPivot.scale.set(scale * 0.95, scale * 1.12, scale);
+                } else {
+                    innerPivot.scale.set(scale, scale, scale);
+                }
 
                 if (isShield) {
                     innerPivot.rotation.set(-0.85, 0.25, 0.15);
@@ -14817,17 +15197,34 @@ class Dungeon3D {
         // When terminal or death modal completely covers the screen, throttle 3D rendering to 5 FPS
         const termContainer = this._termContainerEl || (this._termContainerEl = document.getElementById('terminal-container'));
         const deathModal = this._deathModalEl || (this._deathModalEl = document.getElementById('death-modal'));
+        const splashOverlay = this._splashOverlayEl || (this._splashOverlayEl = document.getElementById('splash-overlay'));
+        const isSplashVisible = splashOverlay && !splashOverlay.classList.contains('hidden');
         const isCovered = (termContainer && !termContainer.classList.contains('hidden')) ||
                           (deathModal && !deathModal.classList.contains('hidden'));
         const isRecording = typeof window !== 'undefined' && window.location.search && window.location.search.includes('record_walkthrough=1');
+        // # ROOT-CAUSE: Pause 3D WebGL scene rendering completely while the opaque #splash-overlay is visible so the splash fire/sparkle shader gets 100% of startup frame budget without frame hitches.
+        if (isSplashVisible && !isRecording) {
+            this._fpsGovFrames = 0;
+            this._fpsGovStart = 0;
+            this._lastAnimTime = tNow;
+            return;
+        }
         if (isCovered && !isRecording) {
+            this._fpsGovFrames = 0;
+            this._fpsGovStart = 0;
             if (this._lastThrottledRender && (tNow - this._lastThrottledRender < 200)) {
                 return;
             }
             this._lastThrottledRender = tNow;
         }
 
-        const delta = 0.016; // ~60fps step
+        const rawDelta = this._lastAnimTime ? (tNow - this._lastAnimTime) * 0.001 : 0.016;
+        this._lastAnimTime = tNow;
+        if (rawDelta > 0.10) {
+            this._fpsGovFrames = 0;
+            this._fpsGovStart = 0;
+        }
+        const delta = Math.min(0.05, Math.max(0.001, rawDelta));
 
         // Smooth camera position tweening
         if (this.isStepping) {
@@ -14968,12 +15365,14 @@ class Dungeon3D {
             bobY = Math.sin(tNow * 0.0025) * 0.003;
         }
 
-        // Viewmodel Action Dynamics: Attack thrust, Hurt recoil, Spellcast/Quaff/Read/Eat/Aim choreography
+        // Viewmodel Action Dynamics: 3-phase Attack swing (wind-up, strike with hitstop, recovery), Hurt recoil, Spellcast/Quaff/Read/Eat/Aim
         let actX = 0;
         let actZ = 0;
         let actY = 0;
         let actRotZ = 0;
         let actRotX = 0;
+        let offhandCounterZ = 0;
+        let offhandCounterRotX = 0;
 
         if (this.actionAnimationTime > 0) {
             this.actionAnimationTime = Math.max(0, this.actionAnimationTime - delta);
@@ -14982,48 +15381,59 @@ class Dungeon3D {
         if (this.attackAnimationTime > 0) {
             this.attackAnimationTime -= delta;
             const prog = Math.max(0, Math.min(1, (0.22 - this.attackAnimationTime) / 0.22));
-            const sinPulse = Math.sin(prog * Math.PI);
+            let strikePulse = 0;
+            let windupAmt = 0;
+            if (prog < 0.18) {
+                windupAmt = prog / 0.18;
+            } else if (prog < 0.46) {
+                const sFrac = Math.min(1.0, (prog - 0.18) / 0.18);
+                strikePulse = Math.sin(sFrac * (Math.PI * 0.5));
+            } else {
+                const rFrac = (prog - 0.46) / 0.54;
+                strikePulse = Math.cos(rFrac * (Math.PI * 0.5));
+            }
+            offhandCounterZ = -strikePulse * 0.05 + windupAmt * 0.025;
+            offhandCounterRotX = -strikePulse * 0.10;
             const mir = (typeof window !== 'undefined' && window.MASTER_ITEM_REGISTRY) || null;
             const fam = (mir && typeof mir.getWeaponAnimFamily === 'function')
                 ? mir.getWeaponAnimFamily(this.currentRightWeapon)
                 : 'blade';
             if (fam === 'pierce') {
-                // Linear forward thrust along sightline
-                actZ += sinPulse * 0.28;
-                actY += sinPulse * 0.03;
-                actRotX += sinPulse * 0.22;
+                // Wind-up draw-back into linear forward thrust along sightline
+                actZ += strikePulse * 0.30 - windupAmt * 0.07;
+                actY += strikePulse * 0.03 - windupAmt * 0.015;
+                actRotX += strikePulse * 0.24 - windupAmt * 0.08;
             } else if (fam === 'axe_blunt') {
                 // Overhead windup into heavy downward cleave/smash
-                const windup = Math.sin(prog * Math.PI * 2.0);
-                actY += (prog < 0.35 ? windup * 0.10 : -sinPulse * 0.14);
-                actZ += sinPulse * 0.18;
-                actRotX += (prog < 0.35 ? -windup * 0.25 : sinPulse * 0.52);
-                actRotZ -= sinPulse * 0.18;
+                actY += windupAmt * 0.11 - strikePulse * 0.15;
+                actZ += strikePulse * 0.20 - windupAmt * 0.05;
+                actRotX += -windupAmt * 0.28 + strikePulse * 0.56;
+                actRotZ -= strikePulse * 0.20;
             } else if (fam === 'bow') {
                 // Draw pull-back and crisp release snap
-                actZ -= sinPulse * 0.14;
-                actX -= sinPulse * 0.04;
-                actRotZ += sinPulse * 0.10;
+                actZ -= (windupAmt * 0.12 + strikePulse * 0.14);
+                actX -= strikePulse * 0.04;
+                actRotZ += strikePulse * 0.10;
             } else if (fam === 'device') {
                 // Arcane forward extension & tip elevation pulse
-                actZ += sinPulse * 0.20;
-                actY += sinPulse * 0.05;
-                actRotX += sinPulse * 0.18;
+                actZ += strikePulse * 0.22 - windupAmt * 0.04;
+                actY += strikePulse * 0.05;
+                actRotX += strikePulse * 0.20;
             } else {
                 // Sweeping diagonal blade draw-cut across viewport
-                actX -= sinPulse * 0.14;
-                actY -= sinPulse * 0.05;
-                actZ += sinPulse * 0.18;
-                actRotZ -= sinPulse * 0.42;
-                actRotX += sinPulse * 0.16;
+                actX += windupAmt * 0.05 - strikePulse * 0.16;
+                actY += windupAmt * 0.04 - strikePulse * 0.06;
+                actZ += strikePulse * 0.20 - windupAmt * 0.05;
+                actRotZ += windupAmt * 0.14 - strikePulse * 0.46;
+                actRotX += -windupAmt * 0.12 + strikePulse * 0.18;
             }
-            if (this.currentRightWeapon === 'whip' && this.viewmodelRightWeaponSlot) {
-                const lash = this.viewmodelRightWeaponSlot.getObjectByName('WhipStrikeLash');
+            if (this.currentRightWeapon === 'whip' && this.rightItemSlot) {
+                const lash = this.rightItemSlot.getObjectByName('WhipStrikeLash');
                 if (lash) lash.visible = true;
             }
         } else {
-            if (this.currentRightWeapon === 'whip' && this.viewmodelRightWeaponSlot) {
-                const lash = this.viewmodelRightWeaponSlot.getObjectByName('WhipStrikeLash');
+            if (this.currentRightWeapon === 'whip' && this.rightItemSlot) {
+                const lash = this.rightItemSlot.getObjectByName('WhipStrikeLash');
                 if (lash && lash.visible) lash.visible = false;
             }
             if (this.hurtAnimationTime > 0) {
@@ -15067,12 +15477,12 @@ class Dungeon3D {
             this.rightHandGroup.rotation.z = this.rightRestRot.z + actRotZ;
         }
 
-        // Apply to Left Hand
+        // Apply to Left Hand (includes subtle counter-balance during right-hand swing)
         if (this.leftHandGroup && this.leftRestPos) {
             this.leftHandGroup.position.x = this.leftRestPos.x - bobX;
             this.leftHandGroup.position.y = this.leftRestPos.y + bobY + (this.hurtAnimationTime > 0 ? actY : 0);
-            this.leftHandGroup.position.z = this.leftRestPos.z + (this.hurtAnimationTime > 0 ? actZ : 0);
-            this.leftHandGroup.rotation.x = this.leftRestRot.x + (this.hurtAnimationTime > 0 ? actRotX : 0);
+            this.leftHandGroup.position.z = this.leftRestPos.z + (this.hurtAnimationTime > 0 ? actZ : offhandCounterZ);
+            this.leftHandGroup.rotation.x = this.leftRestRot.x + (this.hurtAnimationTime > 0 ? actRotX : offhandCounterRotX);
             this.leftHandGroup.rotation.y = this.leftRestRot.y;
             this.leftHandGroup.rotation.z = this.leftRestRot.z;
         }
@@ -15120,6 +15530,11 @@ class Dungeon3D {
             for (const sp of p.sparks) {
                 sp.mesh.position.addScaledVector(sp.vel, delta);
                 sp.vel.y -= delta * 6.0; // Gravity
+                if (sp.isStreak && sp.vel.lengthSq() > 0.01) {
+                    const lookTarget = this._tmpSparkLook || (this._tmpSparkLook = new THREE.Vector3());
+                    lookTarget.copy(sp.mesh.position).add(sp.vel);
+                    sp.mesh.lookAt(lookTarget);
+                }
             }
             const alpha = Math.max(0, 1.0 - (p.elapsed / p.duration));
             p.material.opacity = alpha;
@@ -15153,9 +15568,6 @@ class Dungeon3D {
                     proj.group.rotation.z += delta * 8.0;
                 } else if (proj.kind === 'fireball' || proj.kind === 'bolt') {
                     proj.group.position.lerpVectors(proj.startPos, proj.endPos, t);
-                    if (Math.random() < 0.25) {
-                        this.spawnHitSparks(proj.group.position, proj.colorHex, 1);
-                    }
                 } else if (proj.kind === 'breath') {
                     const dist = proj.dist || Math.max(1.5, proj.startPos.distanceTo(proj.endPos));
                     const zReach = dist * Math.min(1.0, t * 1.4);
@@ -15407,6 +15819,8 @@ class Dungeon3D {
         const camPos = this.camera ? this.camera.position : null;
         const candidateNameplates = this._candidateNameplates || (this._candidateNameplates = []);
         candidateNameplates.length = 0;
+        const walkLerpFactor = 1.0 - Math.exp(-15.0 * delta);
+        const turnLerpFactor = 1.0 - Math.exp(-8.0 * delta);
 
         for (const entity of this.monsters.values()) {
             const entityDistSq = camPos ? ((entity.position.x - camPos.x) ** 2 + (entity.position.z - camPos.z) ** 2) : 0;
@@ -15435,8 +15849,8 @@ class Dungeon3D {
                     // Teleport snap
                     entity.position.copy(entity.targetPos);
                 } else if (dist > 0.01) {
-                    // Smooth 1-tile walking lerp
-                    entity.position.lerp(entity.targetPos, 0.22);
+                    // Frame-rate independent 1-tile walking lerp
+                    entity.position.lerp(entity.targetPos, walkLerpFactor);
                     // Face movement direction
                     const dx = entity.targetPos.x - entity.position.x;
                     const dz = entity.targetPos.z - entity.position.z;
@@ -15452,7 +15866,7 @@ class Dungeon3D {
                             const targetYaw = Math.atan2(dx, dz);
                             const diff = targetYaw - entity.rotation.y;
                             const wrapped = Math.atan2(Math.sin(diff), Math.cos(diff));
-                            entity.rotation.y += wrapped * 0.12;
+                            entity.rotation.y += wrapped * turnLerpFactor;
                         }
                     }
                 }
@@ -15461,12 +15875,36 @@ class Dungeon3D {
             const baseY = entity.isFloating ? 0.45 : 0.0;
             entity.position.y = baseY + Math.sin(monTime + entity.position.x * 2.0) * (entity.isFloating ? 0.08 : 0.02);
 
-            // Hit flinch recoil and warm crimson flash
+            // Apply Attack Lunge & Hit Flinch as clean local offsets on creatureMesh (never drifting entity.position off its tile)
+            let localOffsetX = 0;
+            let localOffsetZ = 0;
+            if (entity._attackLungeTimer > 0) {
+                entity._attackLungeTimer = Math.max(0, entity._attackLungeTimer - delta);
+                if (entity._attackLungeDir) {
+                    const lFrac = entity._attackLungeTimer / 0.24;
+                    const lungeAmt = Math.sin(lFrac * Math.PI) * 0.34;
+                    localOffsetX += entity._attackLungeDir.x * lungeAmt;
+                    localOffsetZ += entity._attackLungeDir.z * lungeAmt;
+                }
+            }
             if (entity._hitFlinchTimer > 0) {
-                entity._hitFlinchTimer -= delta;
+                entity._hitFlinchTimer = Math.max(0, entity._hitFlinchTimer - delta);
                 if (entity._hitFlinchDir) {
-                    const flinchFactor = Math.sin(Math.max(0, entity._hitFlinchTimer / 0.20) * Math.PI) * 0.14;
-                    entity.position.addScaledVector(entity._hitFlinchDir, flinchFactor * delta * 8);
+                    const fFrac = entity._hitFlinchTimer / 0.20;
+                    const flinchAmt = Math.sin(fFrac * Math.PI) * 0.16;
+                    localOffsetX += entity._hitFlinchDir.x * flinchAmt;
+                    localOffsetZ += entity._hitFlinchDir.z * flinchAmt;
+                }
+            }
+            if (entity.creatureMesh) {
+                if (localOffsetX !== 0 || localOffsetZ !== 0) {
+                    const cosY = Math.cos(-entity.rotation.y);
+                    const sinY = Math.sin(-entity.rotation.y);
+                    entity.creatureMesh.position.x = localOffsetX * cosY - localOffsetZ * sinY;
+                    entity.creatureMesh.position.z = localOffsetX * sinY + localOffsetZ * cosY;
+                } else if (entity.creatureMesh.position.x !== 0 || entity.creatureMesh.position.z !== 0) {
+                    entity.creatureMesh.position.x = 0;
+                    entity.creatureMesh.position.z = 0;
                 }
             }
             if (entity._hitFlashTimer > 0) {
@@ -15476,17 +15914,23 @@ class Dungeon3D {
                     entity._emissiveMaterials = [];
                     entity.traverse(c => {
                         if (c.isMesh && c.material) {
+                            if (!c._origPooledMat) c._origPooledMat = c.material;
                             if (Array.isArray(c.material)) {
                                 c.material = c.material.map(m => {
                                     if (m && m.emissive && !m._isInstanceFlashClone) {
                                         const cloned = m.clone();
+                                        if (m.onBeforeCompile) cloned.onBeforeCompile = m.onBeforeCompile;
+                                        if (m.customProgramCacheKey) cloned.customProgramCacheKey = m.customProgramCacheKey;
                                         cloned._isInstanceFlashClone = true;
                                         return cloned;
                                     }
                                     return m;
                                 });
                             } else if (c.material.emissive && !c.material._isInstanceFlashClone) {
-                                const cloned = c.material.clone();
+                                const origMat = c.material;
+                                const cloned = origMat.clone();
+                                if (origMat.onBeforeCompile) cloned.onBeforeCompile = origMat.onBeforeCompile;
+                                if (origMat.customProgramCacheKey) cloned.customProgramCacheKey = origMat.customProgramCacheKey;
                                 cloned._isInstanceFlashClone = true;
                                 c.material = cloned;
                             }
@@ -15509,41 +15953,53 @@ class Dungeon3D {
             } else if (entity._hitFlashTimer !== undefined && entity._hitFlashTimer <= 0 && entity._hitFlashTimer > -1) {
                 entity._hitFlashTimer = -1;
                 if (entity._emissiveMaterials) {
+                    entity.traverse(c => {
+                        if (c.isMesh && c._origPooledMat) {
+                            c.material = c._origPooledMat;
+                            c._origPooledMat = null;
+                        }
+                    });
                     for (let mIdx = 0; mIdx < entity._emissiveMaterials.length; mIdx++) {
                         const m = entity._emissiveMaterials[mIdx];
-                        if (m && m.emissive && m._origEmissive) {
-                            m.emissive.copy(m._origEmissive);
+                        if (m && m._isInstanceFlashClone && typeof m.dispose === 'function') {
+                            m.dispose();
                         }
                     }
+                    entity._emissiveMaterials = null;
                 }
             }
 
-            // Mixer state machine: idle vs walk vs sleep (distance-culled at 18m / 324m^2)
+            // Mixer state machine: idle vs walk vs attack/hit/sleep (distance-culled at 18m / 324m^2)
             const isAsleep = Boolean(entity.isAsleep || (entity.monsterData && entity.monsterData.asleep));
             if (entity._mixer) {
                 if (isAsleep) {
                     entity._mixer.timeScale = 0.0;
                 } else {
                     entity._mixer.timeScale = 1.0;
+                    const inOneShotCombat = (entity._attackLungeTimer > 0 && entity._activeAnimState === 'attack') ||
+                                            (entity._hitFlinchTimer > 0 && entity._activeAnimState === 'hit');
                     const isMoving = Boolean(entity.targetPos && entity.position.distanceTo(entity.targetPos) > 0.02);
-                    if (isMoving && entity._walkAction) {
-                        if (entity._activeAnimState !== 'walk') {
-                            entity._activeAnimState = 'walk';
-                            if (entity._idleAction) entity._idleAction.fadeOut(0.2);
-                            entity._walkAction.reset().fadeIn(0.2).play();
-                        }
-                    } else if (!isMoving && entity._idleAction) {
-                        if (entity._activeAnimState !== 'idle') {
-                            entity._activeAnimState = 'idle';
-                            if (entity._walkAction) entity._walkAction.fadeOut(0.2);
-                            entity._idleAction.reset().fadeIn(0.2).play();
+                    if (!inOneShotCombat) {
+                        if (isMoving && entity._walkAction) {
+                            if (entity._activeAnimState !== 'walk') {
+                                entity._activeAnimState = 'walk';
+                                if (entity._idleAction) entity._idleAction.fadeOut(0.2);
+                                entity._walkAction.reset().fadeIn(0.2).play();
+                            }
+                        } else if (!isMoving && entity._idleAction) {
+                            if (entity._activeAnimState !== 'idle') {
+                                entity._activeAnimState = 'idle';
+                                if (entity._walkAction) entity._walkAction.fadeOut(0.2);
+                                entity._idleAction.reset().fadeIn(0.2).play();
+                            }
                         }
                     }
+                    // # ROOT-CAUSE: Preserve exact P1 distant idle mixer throttle contract while bypassing throttle during active one-shot combat clips.
                     if (entity.visible && entityDistSq < 324) {
                         const isDistantIdle = (!isMoving && entityDistSq > 100);
                         entity._animTick = ((entity._animTick || 0) + 1) & 1;
-                        if (!isDistantIdle || entity._animTick === 0) {
-                            entity._mixer.update(isDistantIdle ? delta * 2.0 : delta);
+                        if (!isDistantIdle || inOneShotCombat || entity._animTick === 0) {
+                            entity._mixer.update((isDistantIdle && !inOneShotCombat) ? delta * 2.0 : delta);
                             this._stabilizeHeldEquipment(entity);
                         }
                     }
@@ -15618,6 +16074,27 @@ class Dungeon3D {
             }
         }
 
+        // Tick 380ms Monster Death Choreography before scene disposal
+        if (this._dyingMonsters && this._dyingMonsters.length > 0) {
+            for (let dIdx = this._dyingMonsters.length - 1; dIdx >= 0; dIdx--) {
+                const dying = this._dyingMonsters[dIdx];
+                dying._deathTimer -= delta;
+                const dProg = Math.min(1.0, Math.max(0, 1.0 - (dying._deathTimer / 0.38)));
+                if (dying._mixer && dying._deathAction) {
+                    dying._mixer.update(delta);
+                } else if (dying.creatureMesh) {
+                    dying.creatureMesh.rotation.x = dProg * (Math.PI * 0.42);
+                    dying.creatureMesh.position.y = -dProg * 0.18;
+                }
+                const shrink = Math.max(0.05, 1.0 - dProg * 0.65);
+                dying.scale.set(shrink, shrink, shrink);
+                if (dying._deathTimer <= 0) {
+                    this.destroyEntity(dying);
+                    this._dyingMonsters.splice(dIdx, 1);
+                }
+            }
+        }
+
         // Apply line-of-sight angular de-overlap (14m max distance, suppress only when directly behind a closer creature)
         if (candidateNameplates.length > 0) {
             candidateNameplates.sort((a, b) => a.dist - b.dist);
@@ -15653,7 +16130,7 @@ class Dungeon3D {
             }
         }
 
-        // Items continuous gentle hover kinematics, cylindrical facing & contact shadow modulation
+        // Items floor grounding vs magical hover kinematics & contact shadow modulation (P-10)
         for (const entity of this.items.values()) {
             if (!entity.visible) continue;
             if (entity.itemMesh) {
@@ -15667,7 +16144,6 @@ class Dungeon3D {
                             entity.rotation.y = Math.atan2(bdx, bdz);
                         }
                     }
-                    // Subtle magical floating breathing hover (1:1 retro dungeon feel)
                     const hover = Math.sin(tNow * 0.0022 + seed * 0.3) * 0.012;
                     const baseElevation = entity.itemMesh.baseElevation || 0.04;
                     entity.itemMesh.position.y = baseElevation + hover;
@@ -15677,13 +16153,20 @@ class Dungeon3D {
                         entity.shadowMesh.scale.set(sScale, sScale, sScale);
                     }
                 } else {
-                    // Fallback 3D item spinning rotation & hover
-                    entity.itemMesh.rotation.y += delta * 0.75;
-                    const hover = Math.sin(tNow * 0.0025 + seed * 0.2) * 0.025;
-                    entity.itemMesh.position.y = 0.12 + hover;
-                    if (entity.shadowMesh) {
-                        const sScale = Math.max(0.65, 1.0 - hover * 5.0);
-                        entity.shadowMesh.scale.set(sScale, sScale, sScale);
+                    const phKey = entity.phKey || entity.itemMesh.phKey || '';
+                    const isMagicalFloating = (phKey === 'ph_crystal' || phKey === 'item_ring' || phKey === 'item_talisman' || phKey === 'item_scroll_enchant');
+                    if (isMagicalFloating) {
+                        entity.itemMesh.rotation.y += delta * 0.75;
+                        const hover = Math.sin(tNow * 0.0025 + seed * 0.2) * 0.022;
+                        entity.itemMesh.position.y = 0.08 + hover;
+                        if (entity.shadowMesh) {
+                            const sScale = Math.max(0.65, 1.0 - hover * 5.0);
+                            entity.shadowMesh.scale.set(sScale, sScale, sScale);
+                        }
+                    } else {
+                        // Physical 3D items (chests, boulders, statues, weapons, shields, armor, books, coins, rations) rest grounded on floor
+                        entity.itemMesh.position.y = 0.01;
+                        entity.itemMesh.rotation.y = (seed % 360) * 0.0174533;
                     }
                 }
             }

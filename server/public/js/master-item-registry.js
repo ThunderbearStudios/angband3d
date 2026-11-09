@@ -46,8 +46,9 @@
         item_rune_blade: '/assets/models/items/rune_blade.glb',
         item_goblin_sword: '/assets/models/items/goblin_sword.glb',
         item_morningstar: '/assets/models/items/morningstar.glb',
+        item_whip: '/assets/models/items/morningstar.glb',
         item_greatclub: '/assets/models/items/greatclub.glb',
-        item_longsword: '/assets/models/items/steel_longsword.glb',
+        item_longsword: '/assets/models/items/sword_pbr.glb',
         item_shield_wooden: '/assets/models/items/shield_wooden.glb',
         item_shield_raven: '/assets/models/items/shield_raven.glb',
         item_helmet: '/assets/models/items/iron_helmet.glb',
@@ -79,7 +80,9 @@
         item_ring: '/assets/models/items/helm_of_brilliance.glb',
         item_gold: '/assets/models/items/coin_pile_spill.glb',
         ph_book: '/assets/polyhaven/models/decorative_book_set_01/decorative_book_set_01.gltf',
-        ph_crystal: '/assets/polyhaven/models/crystalline_iceplant/crystalline_iceplant.gltf',
+        ph_crystal: '/assets/models/items/crystal_cluster_pbr.glb',
+        ph_boulder: '/assets/polyhaven/models/moon_rock_02/moon_rock_02.gltf',
+        ph_statue_item: '/assets/polyhaven/models/gothic_statue/gothic_statue.gltf',
         item_anvil: '/assets/models/items/Anvil.gltf',
         item_shrine_candles: '/assets/models/items/shrine_candles.gltf'
     });
@@ -210,7 +213,7 @@
             '/': { floorKey: 'item_wand', heldKey: 'item_wand', category: 'magical', subType: 'wand' },
             '$': { floorKey: 'item_coins', heldKey: 'item_coins', category: 'coins', subType: 'coins' },
             '*': { floorKey: 'ph_crystal', heldKey: 'ph_crystal', category: 'gem', subType: 'gem' },
-            '`': { floorKey: 'ph_crystal', heldKey: 'ph_crystal', category: 'boulder', subType: 'boulder' },
+            '`': { floorKey: 'ph_boulder', heldKey: 'ph_boulder', category: 'boulder', subType: 'boulder' },
             '_': { floorKey: 'item_morningstar', heldKey: 'item_morningstar', category: 'chain', subType: 'chain' },
             '0': { floorKey: 'ph_sledgehammer', heldKey: 'ph_sledgehammer', category: 'ball', subType: 'iron_ball' }
         },
@@ -460,7 +463,7 @@
         if (/\b(shovel|spade|trowel|entrenching tool)\b/i.test(lower)) {
             return { floorKey: 'item_shovel', heldKey: 'item_shovel', category: 'tool', subType: 'shovel' };
         }
-        if (/\b(key|skeleton key|lockpick|lock pick|credit card|stethoscope|tin opener|can-opener|pliers|tweezers|whistle|magic marker|leaguelock|expulsion|camera|mirror|bell|candelabrum|horn|flute|harp|bugle|drum|lenses|blindfold|towel|saddle|leash|figurine)\b/i.test(lower)) {
+        if (/\b(key|skeleton key|lockpick|lock pick|credit card|stethoscope|tin opener|can-opener|pliers|tweezers|whistle|magic marker|leaguelock|expulsion|camera|mirror|bell|candelabrum|horn|flute|harp|bugle|drum|lenses|blindfold|towel|saddle|leash)\b/i.test(lower)) {
             return { floorKey: 'item_key', heldKey: 'item_key', category: 'tool', subType: 'key' };
         }
 
@@ -471,7 +474,10 @@
         if (/\b(war hammer|warhammer|hammer|mallet|lucern hammer|bec de corbin)\b/i.test(lower)) {
             return { floorKey: 'ph_hammer', heldKey: 'ph_hammer', category: 'weapon', subType: 'hammer' };
         }
-        if (/\b(morning star|morningstar|flail|two-handed flail|spiked flail|dire flail|ball-and-chain|iron chain|whip|bullwhip|scourge|demon whip|sacred scourge|nunchaku|aklys|jo staff)\b/i.test(lower)) {
+        if (/\b(whip|bullwhip|scourge|demon whip|sacred scourge|cat-o'-nine-tails)\b/i.test(lower)) {
+            return { floorKey: 'item_whip', heldKey: 'item_whip', category: 'weapon', subType: 'whip' };
+        }
+        if (/\b(morning star|morningstar|flail|two-handed flail|spiked flail|dire flail|ball-and-chain|iron chain|nunchaku|aklys|jo staff)\b/i.test(lower)) {
             return { floorKey: 'item_morningstar', heldKey: 'item_morningstar', category: 'weapon', subType: 'morningstar' };
         }
         if (/\b(club|cudgel|greatclub|giant club|giant spiked club|shillelagh|boomerang)\b/i.test(lower)) {
@@ -492,7 +498,10 @@
         }
 
         // 12. Staves, Wands & Rods
-        if (/\b(quarterstaff|staff|staves|gnarled staff|mage staff|wizard's staff|bo staff)\b/i.test(lower)) {
+        if (/\b(gnarled staff|branch|druid staff|wooden staff)\b/i.test(lower)) {
+            return { floorKey: 'item_staff_branch', heldKey: 'item_staff_branch', category: 'magical', subType: 'staff_branch' };
+        }
+        if (/\b(quarterstaff|staff|staves|mage staff|wizard's staff|bo staff)\b/i.test(lower)) {
             return { floorKey: 'item_staff', heldKey: 'item_staff', category: 'magical', subType: 'staff' };
         }
         if (/\b(wand)\b/i.test(lower)) {
@@ -539,6 +548,18 @@
         }
 
         // 15. Potions, Scrolls, Books, Rings, Amulets, Gems, Chests, Lights, Food, Coins, Ammo
+        if (/\b(torch)\b/i.test(lower)) {
+            return { floorKey: 'item_torch', heldKey: 'item_torch', category: 'light', subType: 'torch' };
+        }
+        if (/\b(candle|candlestick|tallow candle|wax candle)\b/i.test(lower)) {
+            return { floorKey: 'ph_candle', heldKey: 'ph_candle', category: 'light', subType: 'candle' };
+        }
+        if (/\b(lantern|lamp|oil lamp|magic lamp|brass lantern|phial|feanor|galadriel|star of|aril|diya|palantir|arrier)\b/i.test(lower)) {
+            return { floorKey: 'ph_lantern', heldKey: 'ph_lantern', category: 'light', subType: 'lantern' };
+        }
+        if (/\b(flasks?\s+of\s+oil|oil\s+flask|lamp\s+oil)\b/i.test(lower) || /油つぼ/.test(lower)) {
+            return { floorKey: 'ph_potion_bottle', heldKey: 'ph_potion_bottle', category: 'fuel', subType: 'oil' };
+        }
         if (/\b(potion|elixir|draught|flask|tonic|water|booze|fruit juice|sake|ale|wine)\b/i.test(lower)) {
             if (/supreme|star|life|invulnerability|augmentation|experience|gain ability/i.test(lower)) return { floorKey: 'ph_potion_urn', heldKey: 'ph_potion_urn', category: 'potion', subType: 'urn' };
             if (/greater|critical|restore|mana|enlightenment|speed|healing|extra healing|full healing/i.test(lower)) return { floorKey: 'ph_potion_flask', heldKey: 'ph_potion_flask', category: 'potion', subType: 'flask' };
@@ -557,20 +578,17 @@
         if (/\b(amulet|talisman|pendant|necklace|periapt|charm)\b/i.test(lower)) {
             return { floorKey: 'item_talisman', heldKey: 'item_talisman', category: 'amulet', subType: 'amulet' };
         }
-        if (/\b(gem|jewel|diamond|ruby|emerald|sapphire|amethyst|topaz|opal|garnet|quartz|agate|jade|pearl|crystal|silmaril|lumenstone|arcanite|dilithium|luckstone|loadstone|touchstone|flint|glass|boulder|rock|statue|rune of zot|orb of zot)\b/i.test(lower)) {
+        if (/\b(boulder|rock)\b/i.test(lower) && !/\b(crystal|quartz|agate|lumenstone|luckstone|loadstone|touchstone|flint)\b/i.test(lower)) {
+            return { floorKey: 'ph_boulder', heldKey: 'ph_boulder', category: 'boulder', subType: 'boulder' };
+        }
+        if (/\b(statue|figurine|idol)\b/i.test(lower)) {
+            return { floorKey: 'ph_statue_item', heldKey: 'ph_statue_item', category: 'statue', subType: 'statue' };
+        }
+        if (/\b(gem|jewel|diamond|ruby|emerald|sapphire|amethyst|topaz|opal|garnet|quartz|agate|jade|pearl|crystal|silmaril|lumenstone|arcanite|dilithium|luckstone|loadstone|touchstone|flint|glass|rune of zot|orb of zot)\b/i.test(lower)) {
             return { floorKey: 'ph_crystal', heldKey: 'ph_crystal', category: 'gem', subType: 'crystal' };
         }
         if (/\b(chest|coffer|box|crate|trunk|ice box|sack|bag|oilskin sack|bag of holding)\b/i.test(lower)) {
             return { floorKey: 'ph_chest', heldKey: 'ph_chest', category: 'chest', subType: 'chest' };
-        }
-        if (/\b(torch)\b/i.test(lower)) {
-            return { floorKey: 'item_torch', heldKey: 'item_torch', category: 'light', subType: 'torch' };
-        }
-        if (/\b(candle|candlestick|tallow candle|wax candle)\b/i.test(lower)) {
-            return { floorKey: 'ph_candle', heldKey: 'ph_candle', category: 'light', subType: 'candle' };
-        }
-        if (/\b(lantern|lamp|oil lamp|magic lamp|brass lantern|phial|feanor|diya|palantir|arrier)\b/i.test(lower)) {
-            return { floorKey: 'ph_lantern', heldKey: 'ph_lantern', category: 'light', subType: 'lantern' };
         }
         if (/\b(waybread|lembas|wafer|cram)\b/i.test(lower)) {
             return { floorKey: 'item_lembas', heldKey: 'item_lembas', category: 'food', subType: 'lembas' };
@@ -693,6 +711,7 @@
                 ph_sledgehammer: 'sledgehammer',
                 ph_hammer: 'hammer',
                 item_morningstar: 'morningstar',
+                item_whip: 'whip',
                 item_greatclub: 'club',
                 ph_mace: 'mace',
                 item_spear: 'spear',
@@ -740,8 +759,10 @@
         resolveEquippedWeaponKey(weaponItem, bowItem, player, realm) {
             const lowerW = String(weaponItem || '').toLowerCase().trim();
             const lowerB = String(bowItem || '').toLowerCase().trim();
+            const isBare = /^(bare\s*hands?|unarmed|none|nothing|\(nothing\)|\(none\)|empty|素手|なし)$/i.test(lowerW);
+            const isNoBow = /^(none|nothing|\(nothing\)|\(none\)|empty|なし)$/i.test(lowerB);
             const wTval = player && Number(player.weapon_tval || 0);
-            if (lowerW.length > 0) {
+            if (lowerW.length > 0 && !isBare) {
                 if (lowerW.includes('whip') || lowerW.includes('bullwhip') || lowerW.includes('scourge') || lowerW.includes('cat-o')) return 'whip';
                 if (/\b(staff|quarterstaff)\b/.test(lowerW) || wTval === 55) {
                     return /\b(gnarled|branch|druid|wood)\b/.test(lowerW) ? 'staff_branch' : 'staff';
@@ -752,7 +773,7 @@
                 const res = this.resolveItem(weaponItem, ')', realm);
                 return (res && res.viewmodelKey) ? res.viewmodelKey : 'sword';
             }
-            if (lowerB.length > 0) {
+            if (lowerB.length > 0 && !isNoBow) {
                 return 'bow';
             }
             return '';
@@ -760,15 +781,17 @@
 
         resolveShieldKey(shieldName, glyph, realm) {
             if (!shieldName) return '';
-            const lower = String(shieldName).toLowerCase();
-            if (/\b(deflection|dragon|artifact|thorin|celegorm|anor|gil-galad|harad|raven|mirror|elven)\b/.test(lower)) return 'shield_raven';
+            const lower = String(shieldName).toLowerCase().trim();
+            if (/^(none|nothing|\(nothing\)|\(none\)|empty|なし)$/i.test(lower)) return '';
+            if (/\b(deflection|dragon|artifact|thorin|celegorm|anor|gil-galad|harad|raven|mirror|elven)\b/.test(lower) && /\b(shield|buckler|targe)\b/.test(lower)) return 'shield_raven';
             if (/\b(wicker|buckler|basket)\b/.test(lower)) return 'shield_wicker';
-            if (/\bleather\b/.test(lower)) return 'shield_leather';
+            if (/\bleather\b/.test(lower) && /\b(shield|buckler|targe)\b/.test(lower)) return 'shield_leather';
             if (/\bsmall metal\b/.test(lower)) return 'shield_metal';
-            if (/\b(wooden|wood|round|small|target)\b/.test(lower)) return 'shield_wooden';
+            if (/\b(wooden|wood|round|small|target)\b/.test(lower) && /\b(shield|buckler|targe)\b/.test(lower)) return 'shield_wooden';
             const res = this.resolveItem(shieldName, glyph || '(', realm);
             if (res && res.category === 'shield' && res.viewmodelKey) return res.viewmodelKey;
-            return 'shield';
+            if (/\b(shield|buckler|targe)\b/.test(lower) || /盾/.test(shieldName)) return 'shield';
+            return '';
         },
 
         resolveNpcWeaponKey(weaponName, glyph, realm) {
@@ -816,8 +839,14 @@
                 return 'b';
             }
 
-            // 2. Potions & Scrolls
-            if (glyph === '!' || /\b(potion|phial of|draught|elixir)\b/.test(label) || /薬/.test(label)) return 'q';
+            // 2. Lamp Fuel, Light Sources, Potions & Scrolls
+            if (/\b(flasks?\s+of\s+oil|oil\s+flask|lamp\s+oil)\b/.test(label) || /油つぼ/.test(label)) {
+                return (r === 'nethack' || r === 'brogue') ? 'a' : 'F';
+            }
+            if (/\b(phial|feanor|galadriel|star of|aril)\b/.test(label) || /ガラドリエル/.test(label)) {
+                return (r === 'nethack' || r === 'brogue') ? 'a' : 'A';
+            }
+            if (glyph === '!' || /\b(potion|draught|elixir)\b/.test(label) || /薬/.test(label)) return 'q';
             if (glyph === '?' || /\b(scroll|parchment)\b/.test(label) || /巻物/.test(label)) return r === 'silq' ? null : 'r';
 
             // 3. Food / Sustenance
@@ -885,7 +914,11 @@
             const equipKey = primaryKey || 'w';
 
             let categoryLabel = 'Dungeon Object';
-            if (g === '!' || /\b(potion|phial of|draught|elixir)\b/.test(lower)) categoryLabel = `Potion (Quaff [${primaryKey || 'q'}])`;
+            if (/\b(flasks?\s+of\s+oil|oil\s+flask|lamp\s+oil)\b/.test(lower) || /油つぼ/.test(itemName)) categoryLabel = `Lamp Oil (Refill [${primaryKey || 'F'}])`;
+            else if (/\b(torch|lantern|phial|feanor|galadriel|lamp)\b/.test(lower) || /ガラドリエル/.test(itemName) || g === '~') {
+                categoryLabel = r === 'nethack' ? 'Light Source (Apply [a])' : 'Light Source (Equip [w] / Fuel [F])';
+            }
+            else if (g === '!' || /\b(potion|draught|elixir)\b/.test(lower)) categoryLabel = `Potion (Quaff [${primaryKey || 'q'}])`;
             else if (g === '?' || /\bscroll\b/.test(lower)) categoryLabel = `Scroll (Read [${primaryKey || 'r'}])`;
             else if ((g === '+' && (r === 'nethack' || r === 'dcss')) || /\b(book|tome|grimoire|prayer|spellbook)\b/.test(lower) || (g === ':' && r !== 'rogue' && r !== 'brogue' && r !== 'nethack')) {
                 categoryLabel = r === 'nethack' ? 'Spellbook (Read [r] / Cast [Z])' : (r === 'dcss' ? 'Spellbook (Cast [z] / Memorise [M])' : 'Spellbook (Browse [b] / Cast [m])');

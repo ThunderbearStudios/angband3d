@@ -458,7 +458,7 @@ class SoundEngine {
             license,
             url
         });
-        const yasdUrl = 'https://yasd3d.com';
+        const yasdUrl = 'https://angband3d.com';
         const oga = (id, title, cat, file, artist, license, slug) => m(id, title, cat, file, artist, license, `https://opengameart.org/content/${slug}`);
         this._musicCatalog = [
             m('yasd_theme', 'YASD 3D Official Theme', 'theme', '/assets/audio/yasd_theme.mp3', 'Thunderbear Studios', 'Proprietary (© 2026 Thunderbear Studios)', yasdUrl),
@@ -547,6 +547,9 @@ class SoundEngine {
         this._initThemeDecks();
         this._currentMusicTrackId = entry.id;
         this._themeMode = (entry.id === 'yasd_theme' && this.musicMode === 'auto' && this._contextualMood === 'menu') ? 'menu' : 'jukebox';
+        if (this._themeMode !== 'menu' && this.ctx && !this._studioBankLoaded && !this._studioBankLoading) {
+            this.loadStudioSfxBank();
+        }
         this._themeCrossfading = false;
         if (this._standbyThemeDeck) {
             try { this._standbyThemeDeck.pause(); this._standbyThemeDeck.volume = 0; } catch (_) {}
@@ -1088,9 +1091,15 @@ class SoundEngine {
         if (this.ctx && this.ctx.state === 'suspended') {
             this.ctx.resume().then(() => {
                 this.unlocked = true;
+                if (this._themeMode !== 'menu' && !this._studioBankLoaded && !this._studioBankLoading) {
+                    this.loadStudioSfxBank();
+                }
             }).catch(() => {});
         } else if (this.ctx) {
             this.unlocked = true;
+            if (this._themeMode !== 'menu' && !this._studioBankLoaded && !this._studioBankLoading) {
+                this.loadStudioSfxBank();
+            }
         }
     }
 

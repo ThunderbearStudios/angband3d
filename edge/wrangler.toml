@@ -1,0 +1,9 @@
+name = "blue-art-588b"
+main = "worker.js"
+compatibility_date = "2026-10-25"
+workers_dev = true
+
+routes = [
+  { pattern = "angband3d.com", custom_domain = true },
+  { pattern = "www.angband3d.com", custom_domain = true }
+]

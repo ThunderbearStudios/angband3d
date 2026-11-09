@@ -534,6 +534,42 @@ class ChronicleManager {
             });
         }
 
+        const btnAskToggle = typeof document !== 'undefined' ? document.getElementById('btn-chronicle-ask-toggle') : null;
+        if (btnAskToggle && this.windowEl) {
+            btnAskToggle.addEventListener('click', () => {
+                const open = this.windowEl.classList.toggle('ask-drawer-open');
+                btnAskToggle.classList.toggle('active', open);
+                btnAskToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+                if (open && this.inputQuery) {
+                    setTimeout(() => { try { this.inputQuery.focus(); } catch (_) {} }, 30);
+                }
+            });
+        }
+
+        const btnArchiveToggle = typeof document !== 'undefined' ? document.getElementById('btn-chronicle-archive-toggle') : null;
+        if (btnArchiveToggle && this.windowEl) {
+            btnArchiveToggle.addEventListener('click', () => {
+                const open = this.windowEl.classList.toggle('archive-drawer-open');
+                btnArchiveToggle.classList.toggle('active', open);
+                btnArchiveToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+            });
+        }
+
+        if (this.windowEl) {
+            this.windowEl.addEventListener('click', (e) => {
+                const chip = e.target && typeof e.target.closest === 'function'
+                    ? e.target.closest('.quick-topic-chip, .chronicle-topic-chip')
+                    : null;
+                if (chip) {
+                    const query = chip.getAttribute('data-query') || chip.textContent.trim();
+                    if (query) {
+                        if (this.inputQuery) this.inputQuery.value = query;
+                        this.submitUserQuery({ instantChip: true });
+                    }
+                }
+            });
+        }
+
         if (this.btnMute) {
             this.btnMute.addEventListener('click', () => {
                 if (this.audio && typeof this.audio.unlock === 'function') this.audio.unlock();
@@ -1049,11 +1085,17 @@ class ChronicleManager {
         } catch (_) {}
     }
 
+    // # ROOT-CAUSE: Synchronize .is-panel-open and aria-pressed on #btn-toggle-chronicle whenever the Living Chronicle Tome opens or closes.
     showWindow() {
         if (this.windowEl) {
             this.windowEl.classList.add('active');
+            this.windowEl.classList.remove('minimized');
+            if (this.btnExpand) this.btnExpand.textContent = '▲ Min';
             this.visible = true;
-            if (this.navBtn) this.navBtn.classList.add('active');
+            if (this.navBtn) {
+                this.navBtn.classList.add('active', 'is-panel-open');
+                this.navBtn.setAttribute('aria-pressed', 'true');
+            }
             if (this.pauseNavBtn) this.pauseNavBtn.classList.add('active');
             this.renderAllChapters();
             this.buildStoryPlaylist();
@@ -1071,13 +1113,21 @@ class ChronicleManager {
         if (this.windowEl) {
             this.windowEl.classList.remove('active');
             this.visible = false;
-            if (this.navBtn) this.navBtn.classList.remove('active');
+            if (this.navBtn) {
+                this.navBtn.classList.remove('active', 'is-panel-open');
+                this.navBtn.setAttribute('aria-pressed', 'false');
+            }
             if (this.pauseNavBtn) this.pauseNavBtn.classList.remove('active');
         }
     }
 
     toggleWindow() {
         this._openedTransiently = false;
+        if (this.visible && this.windowEl && this.windowEl.classList.contains('minimized')) {
+            this.windowEl.classList.remove('minimized');
+            if (this.btnExpand) this.btnExpand.textContent = '▲ Min';
+            return;
+        }
         if (this.visible) this.hideWindow();
         else this.showWindow();
     }
@@ -1902,19 +1952,21 @@ class ChronicleManager {
             : [];
         const hasDangerousFoe = visibleHostiles.some(m => Boolean(m.unique || m.boss || /dragon|balrog|lich|nazgul|demon|vampire|wraith|troll|ogre|giant|hound|lord|king|queen|prince/i.test(m.name || '')));
         // Pre-warm YASD death sketch proactively at <= 65% HP or when a dangerous/unique foe is in sight (35s cooldown) so sudden lethal hits have a 0ms ready illustration
+        let firedDeathPreWarm = false;
         if (hp > 0 && (hpRatio <= 0.65 || hasDangerousFoe)) {
             if (!this._lastPerilPreWarmTime || (now - this._lastPerilPreWarmTime > 35000)) {
                 this._lastPerilPreWarmTime = now;
+                firedDeathPreWarm = true;
                 this.preWarmDeathSketch(frame, event || entry);
             }
         }
-        // Background pre-warm active scene sketch on depth transition or boss encounter (45s cooldown)
+        // Background pre-warm active scene sketch on depth transition or boss encounter (45s cooldown) — mutually exclusive with death pre-warm on the same turn
         const depth = Number(p.depth ?? 0);
         const evType = String((event && event.type) || '').toUpperCase();
         const isNotableScene = (this._lastPreWarmedDepth !== depth) ||
             hasDangerousFoe ||
             evType.includes('UNIQUE') || evType.includes('BOSS') || evType.includes('DEPTH') || evType.includes('ARTIFACT');
-        if (isNotableScene && (!this._lastScenePreWarmTime || (now - this._lastScenePreWarmTime > 45000))) {
+        if (!firedDeathPreWarm && isNotableScene && (!this._lastScenePreWarmTime || (now - this._lastScenePreWarmTime > 45000))) {
             this._lastPreWarmedDepth = depth;
             this._lastScenePreWarmTime = now;
             this.preWarmActiveSceneSketch(frame, entry || event);
@@ -2990,7 +3042,27 @@ class ChronicleManager {
         const title = p.title || '';
         const level = p.lev || p.level || 1;
         const depth = frame.depth ?? p.depth ?? 0;
-        const rawKilledBy = String(p.died_from || p.killed_by || (mode === 'death' ? 'mortal wounds' : '')).trim();
+        // # ROOT-CAUSE: C engines do not populate p.died_from in frame JSON, and termRows objects produced [object Object] in status regex
+        let rawKilledBy = String(p.died_from || p.killed_by || '').trim();
+        const termRows = (frame.term && Array.isArray(frame.term.rows)) ? frame.term.rows : [];
+        const termRowStrings = termRows.map(r => typeof r === 'string' ? r : (r && typeof r.g === 'string' ? r.g : ''));
+        if (!rawKilledBy && mode === 'death') {
+            const fullTermStr = termRowStrings.join('\n');
+            const tombMatch = fullTermStr.match(/(?:Slain|Killed|Destroyed)\s+by\s+([^\n\r.]+?)(?:\s+on\s+\d+|\s+at\s+\d+|\.|\s{2,}|$)/i);
+            if (tombMatch && tombMatch[1]) {
+                rawKilledBy = tombMatch[1].trim();
+            } else if (Array.isArray(frame.messages)) {
+                for (let mi = frame.messages.length - 1; mi >= 0; mi--) {
+                    const mText = String((frame.messages[mi] && frame.messages[mi].text) || frame.messages[mi] || '');
+                    const hitMatch = mText.match(/^(?:The|A|An)\s+([a-zA-Z0-9\s,'-]+?)\s+(?:hits|bites|claws|crushes|slaughters|breathes|casts|strikes|gazes|stings|touches|burns|freezes|poisons|shoots|slashes)/i);
+                    if (hitMatch && hitMatch[1]) {
+                        rawKilledBy = 'a ' + hitMatch[1].trim();
+                        break;
+                    }
+                }
+            }
+            if (!rawKilledBy) rawKilledBy = 'mortal wounds';
+        }
         const killedBy = rawKilledBy
             .replace(/^a\s+([A-Z][a-zA-Z]+)/, '$1')
             .replace(/^a\s+([aeiouAEIOU][a-z]+)/, 'an $1');
@@ -3009,10 +3081,9 @@ class ChronicleManager {
         let speedVal = p.speed ?? null;
 
         // 1. Scan terminal sidebar & screen rows (rows 0..22) for attributes, AC, Gold, Speed
-        const termRows = (frame.term && Array.isArray(frame.term.rows)) ? frame.term.rows : [];
         const parsedSidebarStats = {};
-        for (let r = 0; r < Math.min(termRows.length, 23); r++) {
-            const row = typeof termRows[r] === 'string' ? termRows[r] : (termRows[r] && typeof termRows[r].g === 'string' ? termRows[r].g : '');
+        for (let r = 0; r < Math.min(termRowStrings.length, 23); r++) {
+            const row = termRowStrings[r];
             if (!row) continue;
             // Match attributes / skills: STR, INT, WIS, DEX, CON, CHR, GRA, Mel, Arc, Eva, Stl, Per, Wil, Smt, Sng
             const statRegex = /\b(STR|INT|WIS|DEX|CON|CHR|GRA|Mel|Arc|Eva|Stl|Per|Wil|Smt|Sng)[\s:]+([0-9\/!+]+(?:\s*\([+-]?\d+\))?)/gi;
@@ -3188,8 +3259,9 @@ class ChronicleManager {
             ? 'battle-worn, battered, desperate stance'
             : (hpRatio < 0.7 ? 'weary, soot-stained, alert stance' : 'vigorous, heroic, poised stance');
 
-        const bottomText = termRows.slice(-5).join(' ');
-        const fullScreenText = termRows.join(' ');
+        // # ROOT-CAUSE: Use termRowStrings so object rows { g, a } do not join as [object Object]
+        const bottomText = termRowStrings.slice(-5).join(' ');
+        const fullScreenText = termRowStrings.join(' ');
         const testStatus = (re) => re.test(bottomText) || re.test(fullScreenText);
 
         const isPoisoned = Boolean(p.poisoned || p.status?.poisoned || p.timed?.poisoned || p.effects?.poisoned) || testStatus(/\b(Poisoned|Poison|Psn)\b/i);
@@ -3842,7 +3914,13 @@ class ChronicleManager {
             ctx.fillText(`${hero.name} — Lv.${hero.level || 1} ${hero.race || ''} ${hero.class || ''}`.trim(), 384, 102);
 
             // Companion / Encounter Sub-Banner
-            if (allies.length > 0 || foes.length > 0) {
+            // # ROOT-CAUSE: Death modal hid imgEl until Gemini finished (causing blank/laggy death sketch box) and lacked killer banner on 0ms engraving
+            if (info.mode === 'death') {
+                ctx.fillStyle = '#e87a7a';
+                ctx.font = 'bold 14px "Cinzel", Georgia, serif';
+                const killerLabel = String(info.killedBy || (hero && hero.killedBy) || 'mortal peril').toUpperCase();
+                ctx.fillText(`☠ SLAIN BY ${killerLabel} ☠`.slice(0, 82), 384, 128);
+            } else if (allies.length > 0 || foes.length > 0) {
                 ctx.fillStyle = '#d4b872';
                 ctx.font = 'italic 13px Georgia, serif';
                 const subParts = [];
@@ -4019,19 +4097,20 @@ class ChronicleManager {
                 return this._preWarmedDeathUrl;
             }
 
-            if (imgEl) {
-                imgEl.style.display = 'none';
-                imgEl.removeAttribute('src');
+            // 1b. Immediate 0ms Masterwork Canvas Engraving so the Death Modal never shows a blank/laggy box while Gemini paints!
+            const immediateEngravingUrl = this.renderMasterworkCanvasSketch(ctxData);
+            if (immediateEngravingUrl) {
+                bindDeathImage(immediateEngravingUrl, 'Chronicle Engraving');
             }
             if (loaderEl) {
-                loaderEl.style.display = 'flex';
+                loaderEl.style.display = 'none';
             }
             if (statusEl) {
                 statusEl.style.cursor = 'default';
                 statusEl.onclick = null;
                 statusEl.textContent = mode === 'victory'
-                    ? '✨ Illuminating Ascension Masterwork...'
-                    : '🎨 Illuminating YASD Scene...';
+                    ? '✨ Illuminating Ascension Masterwork... (Engraving Ready)'
+                    : '🎨 Painting AI Masterwork... (Engraving Ready — Click to Expand)';
             }
 
             // 2. If Critical-Peril Pre-Warm is currently in flight, await it first
@@ -4577,15 +4656,8 @@ class ChronicleManager {
         if (this.targetedCreature || this.targetedObject) {
             this.clearTargetCreature();
         }
-        if (!this.isPinned) {
-            if (this._openedTransiently && this.visible) {
-                this.hideWindow();
-            } else if (this.windowEl && this.windowEl.classList.contains('active') && !this.windowEl.classList.contains('minimized')) {
-                this.windowEl.classList.add('minimized');
-                if (this.btnExpand) this.btnExpand.textContent = '▼ Show';
-                const minBtn = typeof document !== 'undefined' ? document.getElementById('chronicle-minimize-btn') : null;
-                if (minBtn) minBtn.textContent = '▼ Expand';
-            }
+        if (!this.isPinned && this._openedTransiently && this.visible && (reason === 'outside_click' || reason === 'escape')) {
+            this.hideWindow();
         }
         if (this._isInteractiveVoiceActive) {
             this._isInteractiveVoiceActive = false;
@@ -5042,8 +5114,19 @@ class ChronicleManager {
             };
         }
 
+        // # ROOT-CAUSE: Wire #inspect-popover-voice-btn and #inspect-popover-vow-btn in the 3D Entity Inspect Popover and clamp popover coordinates above the bottom HUD bar.
         if (this.inspectVoiceBtn && this.inspectVoiceBtn.style) {
-            this.inspectVoiceBtn.style.display = 'none';
+            this.inspectVoiceBtn.style.display = 'inline-flex';
+            this.inspectVoiceBtn.onclick = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (this.audio && details && details.prose) {
+                    if (typeof this.audio.unlock === 'function') this.audio.unlock();
+                    if (typeof this.audio.speakUtterance === 'function') {
+                        this.audio.speakUtterance(details.prose, 'narrator', '', null, { emotion: 'solemn' }).catch(() => {});
+                    }
+                }
+            };
         }
 
         const parleyBtn = (typeof document !== 'undefined' && typeof document.getElementById === 'function')
@@ -5057,7 +5140,14 @@ class ChronicleManager {
             ? document.getElementById('inspect-popover-vow-btn')
             : null;
         if (vowBtn && vowBtn.style) {
-            vowBtn.style.display = 'none';
+            vowBtn.style.display = 'inline-flex';
+            vowBtn.onclick = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                this.dismissEntityPopover();
+                this.showWindow();
+                this.requestStoryPrompt();
+            };
         }
 
         this.inspectPopover.style.display = 'flex';
@@ -5071,13 +5161,16 @@ class ChronicleManager {
         if (typeof window !== 'undefined') {
             const vw = window.innerWidth || 1280;
             const vh = window.innerHeight || 720;
-            const popW = (this.inspectPopover && this.inspectPopover.offsetWidth) ? this.inspectPopover.offsetWidth : 350;
-            const popH = (this.inspectPopover && this.inspectPopover.offsetHeight) ? this.inspectPopover.offsetHeight : 240;
+            const rect = (this.inspectPopover && typeof this.inspectPopover.getBoundingClientRect === 'function')
+                ? this.inspectPopover.getBoundingClientRect()
+                : null;
+            const popW = (rect && rect.width) ? rect.width : ((this.inspectPopover && this.inspectPopover.offsetWidth) ? this.inspectPopover.offsetWidth : 340);
+            const popH = (rect && rect.height) ? rect.height : ((this.inspectPopover && this.inspectPopover.offsetHeight) ? this.inspectPopover.offsetHeight : 240);
 
             const rawX = (typeof clientX === 'number' && clientX > 0) ? (clientX + 16) : Math.round((vw - popW) * 0.5);
             const rawY = (typeof clientY === 'number' && clientY > 0) ? (clientY - 24) : 90;
             const clampedX = Math.max(12, Math.min(vw - popW - 12, rawX));
-            const clampedY = Math.max(52, Math.min(vh - popH - 12, rawY));
+            const clampedY = Math.max(52, Math.min(vh - popH - 96, rawY));
             this.inspectPopover.style.left = `${clampedX}px`;
             this.inspectPopover.style.top = `${clampedY}px`;
         }

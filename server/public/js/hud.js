@@ -11,6 +11,7 @@ class WebHUD {
         this.minimapHeader = document.getElementById('minimap-header');
 
         // Minimap sizing and zoom presets (Unified and responsive)
+        // # ROOT-CAUSE: Restore classic 168x168 Compact minimap preset and explicitly sync minimapCanvas.style.width/height in applyMinimapSize so preset resizing overrides any prior custom drag dimensions.
         this.minimapSizes = [
             { cls: 'standard', name: 'Standard', w: 260, h: 260 },
             { cls: 'expanded', name: 'Expanded', w: 360, h: 360 },
@@ -26,34 +27,18 @@ class WebHUD {
         this.applyMinimapSize();
 
         // Left Panel (Health, Mana, Attributes)
-        this.hpFill = document.getElementById('hp-fill');
-        this.hpGhostFill = document.getElementById('hp-ghost-fill');
-        this.hpText = document.getElementById('hp-text');
-        this.spFill = document.getElementById('sp-fill');
-        this.spGhostFill = document.getElementById('sp-ghost-fill');
-        this.spText = document.getElementById('sp-text');
+        this.hpFill = document.getElementById('hp-fill'); this.hpGhostFill = document.getElementById('hp-ghost-fill'); this.hpText = document.getElementById('hp-text');
+        this.spFill = document.getElementById('sp-fill'); this.spGhostFill = document.getElementById('sp-ghost-fill'); this.spText = document.getElementById('sp-text');
         this.charTitle = document.getElementById('char-title');
 
-        this.statStr = document.getElementById('stat-str');
-        this.statInt = document.getElementById('stat-int');
-        this.statWis = document.getElementById('stat-wis');
-        this.statDex = document.getElementById('stat-dex');
-        this.statCon = document.getElementById('stat-con');
-        this.statChr = document.getElementById('stat-chr');
-        this.statGra = document.getElementById('stat-gra');
+        this.statStr = document.getElementById('stat-str'); this.statInt = document.getElementById('stat-int'); this.statWis = document.getElementById('stat-wis');
+        this.statDex = document.getElementById('stat-dex'); this.statCon = document.getElementById('stat-con'); this.statChr = document.getElementById('stat-chr'); this.statGra = document.getElementById('stat-gra');
 
-        this.itemInt = document.getElementById('stat-item-int');
-        this.itemWis = document.getElementById('stat-item-wis');
-        this.itemChr = document.getElementById('stat-item-chr');
-        this.itemGra = document.getElementById('stat-item-gra');
-        this.itemGold = document.getElementById('stat-item-gold');
-
+        this.itemInt = document.getElementById('stat-item-int'); this.itemWis = document.getElementById('stat-item-wis'); this.itemChr = document.getElementById('stat-item-chr');
+        this.itemGra = document.getElementById('stat-item-gra'); this.itemGold = document.getElementById('stat-item-gold');
         this.spLabel = document.querySelector('.gauge-sp .gauge-header span:first-child');
 
-        this.depthVal = document.getElementById('val-depth');
-        this.goldVal = document.getElementById('val-gold');
-        this.acVal = document.getElementById('val-ac');
-        this.pingBadge = document.getElementById('ping-badge');
+        this.depthVal = document.getElementById('val-depth'); this.goldVal = document.getElementById('val-gold'); this.acVal = document.getElementById('val-ac'); this.pingBadge = document.getElementById('ping-badge');
 
         // Compass (1:1 with Godot Overlay.cs:1750-1791)
         this.compassCanvas = document.getElementById('compass-canvas');
@@ -61,40 +46,19 @@ class WebHUD {
         this.compassLabel = document.getElementById('compass-label');
 
         // Top Landscape Message Feed Window (Full message history with scrollback)
-        this.messageFeedWindow = document.getElementById('message-feed-window');
-        this.messageFeedList = document.getElementById('message-feed-list');
-        this.messageFeedScroll = document.getElementById('message-feed-scroll');
-        this.messageHistory = [];
-        this.userScrolledUp = false;
-        this.prevMessages = null;
-        this.lastTermRow0 = '';
-        this.currentTurn = 0;
-        this.isDeadInPlay = false;
+        this.messageFeedWindow = document.getElementById('message-feed-window'); this.messageFeedList = document.getElementById('message-feed-list'); this.messageFeedScroll = document.getElementById('message-feed-scroll');
+        this.messageHistory = []; this.userScrolledUp = false; this.prevMessages = null; this.lastTermRow0 = ''; this.currentTurn = 0; this.isDeadInPlay = false;
 
         // Detailed 3-Row Telemetry Footer (Matches Overlay.cs:1620-1740)
-        this.footerDiagonalHint = document.getElementById('footer-diagonal-hint');
-        this.footerStairsHint = document.getElementById('footer-stairs-hint');
-        this.footerLevel = document.getElementById('footer-level');
-        this.footerExp = document.getElementById('footer-exp');
-        this.footerPlace = document.getElementById('footer-place');
-        this.footerSpeed = document.getElementById('footer-speed');
-        this.footerLight = document.getElementById('footer-light');
-        this.footerFacing = document.getElementById('footer-facing');
-
-        this.footerTarget = document.getElementById('footer-target');
-        this.reticleTargetCard = document.getElementById('reticle-target-card');
-        this.footerBadges = document.getElementById('footer-badges');
-        this.footerGear = document.getElementById('footer-gear');
+        this.footerDiagonalHint = document.getElementById('footer-diagonal-hint'); this.footerStairsHint = document.getElementById('footer-stairs-hint');
+        this.footerLevel = document.getElementById('footer-level'); this.footerExp = document.getElementById('footer-exp'); this.footerPlace = document.getElementById('footer-place');
+        this.footerSpeed = document.getElementById('footer-speed'); this.footerLight = document.getElementById('footer-light'); this.footerFacing = document.getElementById('footer-facing');
+        this.footerTarget = document.getElementById('footer-target'); this.reticleTargetCard = document.getElementById('reticle-target-card');
+        this.footerBadges = document.getElementById('footer-badges'); this.footerGear = document.getElementById('footer-gear');
 
         // Death Screen Modal Elements (Matches Overlay.cs:840-935)
-        this.deathModal = document.getElementById('death-modal');
-        this.deathEpitaph = document.getElementById('death-epitaph');
-        this.deathCause = document.getElementById('death-cause');
-        this.deathScore = document.getElementById('death-score');
-        this.deathTabs = document.querySelectorAll('.death-tab');
-        this.deathContents = document.querySelectorAll('.death-tab-content');
-        this.activeDeathTab = 0;
-        this.deathTerminal = null;
+        this.deathModal = document.getElementById('death-modal'); this.deathEpitaph = document.getElementById('death-epitaph'); this.deathCause = document.getElementById('death-cause'); this.deathScore = document.getElementById('death-score');
+        this.deathTabs = document.querySelectorAll('.death-tab'); this.deathContents = document.querySelectorAll('.death-tab-content'); this.activeDeathTab = 0; this.deathTerminal = null;
 
         this.setupMinimapControls();
         this.setupCharacterPanelShortcuts();
@@ -118,8 +82,8 @@ class WebHUD {
 
         this.minimapCanvas.width = size.w;
         this.minimapCanvas.height = size.h;
-        this.minimapCanvas.style.width = '';
-        this.minimapCanvas.style.height = '';
+        this.minimapCanvas.style.width = `${size.w}px`;
+        this.minimapCanvas.style.height = `${size.h}px`;
 
         if (this.minimapContainer) {
             this.minimapContainer.classList.remove('compact', 'standard', 'expanded', 'tactical', 'command', 'minimap-size-compact');
@@ -536,8 +500,10 @@ class WebHUD {
         return currentList;
     }
 
+    // # ROOT-CAUSE: Clear angband_map_size from localStorage when cycling preset sizes, use 0 height for hidden minimap bars in setCustomMinimapSize, and wire #minimap-hint-text click to cycleMinimapSize(1).
     cycleMinimapSize(delta = 1) {
         this.minimapSizeIndex = (this.minimapSizeIndex + delta + this.minimapSizes.length) % this.minimapSizes.length;
+        try { localStorage.removeItem('angband_map_size'); } catch (_) {}
         if (this.audio) this.audio.playMenuNav();
         this.applyMinimapSize();
     }
@@ -571,7 +537,7 @@ class WebHUD {
     setCustomMinimapSize(w, h) {
         if (!this.minimapCanvas) return;
         const validW = Math.max(168, Math.min(680, Math.round(w)));
-        const validH = Math.max(190, Math.min(680, Math.round(h)));
+        const validH = Math.max(168, Math.min(680, Math.round(h)));
         if (this.minimapContainer) {
             this.minimapContainer.classList.remove('compact', 'standard', 'expanded', 'tactical', 'command', 'minimap-size-compact');
             this.minimapContainer.style.width = `${validW}px`;
@@ -579,10 +545,10 @@ class WebHUD {
         }
         const ctrlBar = document.getElementById('minimap-controls-bar');
         const tiltBar = document.getElementById('camera-tilt-bar');
-        const chromeH = (this.minimapHeader ? this.minimapHeader.offsetHeight : 26)
-            + (ctrlBar && ctrlBar.offsetParent !== null ? ctrlBar.offsetHeight : 28)
-            + (tiltBar && tiltBar.offsetParent !== null ? tiltBar.offsetHeight : 26);
-        const canvasH = Math.max(108, validH - chromeH - 4);
+        const chromeH = (this.minimapHeader && this.minimapHeader.offsetParent !== null ? this.minimapHeader.offsetHeight : 24)
+            + (ctrlBar && ctrlBar.offsetParent !== null ? ctrlBar.offsetHeight : 0)
+            + (tiltBar && tiltBar.offsetParent !== null ? tiltBar.offsetHeight : 0);
+        const canvasH = Math.max(108, validH - chromeH);
         this.minimapCanvas.width = validW;
         this.minimapCanvas.height = canvasH;
         this.minimapCanvas.style.width = `${validW}px`;
@@ -602,10 +568,17 @@ class WebHUD {
     }
 
     setupMinimapControls() {
-        // Minimap header is dedicated to window dragging/repositioning.
-        // Resizing is done via [ / ] keys, #btn-map-toggle-size button, or the bottom-right resize grip.
+        // Minimap header is dedicated to window dragging/repositioning, while clicking #minimap-hint-text cycles preset size.
         if (this.minimapHeader) {
             this.minimapHeader.style.cursor = 'grab';
+        }
+        const hintEl = document.getElementById('minimap-hint-text');
+        if (hintEl) {
+            hintEl.style.cursor = 'pointer';
+            hintEl.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.cycleMinimapSize(1);
+            });
         }
 
         if (this.minimapContainer) {
@@ -682,8 +655,17 @@ class WebHUD {
             this.minimapCanvas.addEventListener('touchcancel', endTouch, { passive: true });
 
             // Interactive Minimap Hover Tooltip & Click-to-Inspect
+            // # ROOT-CAUSE: Merge duplicate mousemove listeners on minimapCanvas into a single cell-coordinate-gated listener that updates #minimap-hover-pill without clobbering #minimap-hint-text, and wire #btn-map-tilt-toggle.
             this.minimapCanvas.addEventListener('mousemove', (e) => {
-                if (!this.lastFrame || !this.lastFrame.map || !this.lastFrame.player) return;
+                if (!this.lastFrame || !this.lastFrame.map || !this.lastFrame.player) {
+                    if (this._hoverMinimapPath) {
+                        this._hoverMinimapPath = null;
+                        this._lastHoverMx = null;
+                        this._lastHoverMy = null;
+                        this.updateMinimap(this.lastFrame);
+                    }
+                    return;
+                }
                 const rect = this.minimapCanvas.getBoundingClientRect();
                 if (!rect.width || !rect.height) return;
                 const scaleX = this.minimapCanvas.width / rect.width;
@@ -691,19 +673,50 @@ class WebHUD {
                 const cellSize = this._minimapCellSize || Math.max(4, Math.min(48, Math.round(12 * this.minimapZoom)));
                 const mx = (this._minimapOx || 0) + Math.floor(((e.clientX - rect.left) * scaleX) / cellSize);
                 const my = (this._minimapOy || 0) + Math.floor(((e.clientY - rect.top) * scaleY) / cellSize);
+                if (this._lastHoverMx === mx && this._lastHoverMy === my) {
+                    return;
+                }
+                this._lastHoverMx = mx;
+                this._lastHoverMy = my;
+
                 const label = this.describeMinimapCell(mx, my);
-                const hintEl = document.getElementById('minimap-hint-text');
-                if (hintEl && label) {
-                    hintEl.textContent = `${label} • Click to Travel`;
-                    hintEl.style.color = '#ffd700';
+                const pillEl = document.getElementById('minimap-hover-pill');
+                if (pillEl) {
+                    if (label) {
+                        pillEl.textContent = `${label} • Click to Travel`;
+                        pillEl.classList.remove('hidden');
+                    } else {
+                        pillEl.classList.add('hidden');
+                    }
                 }
                 this.minimapCanvas.title = label ? `${label} (Click to Auto-Navigate)` : 'Minimap Radar (Click to Auto-Navigate)';
+
+                const inp = (window.__app && window.__app.input) || null;
+                if (!inp || (inp._autoNav && inp._autoNav.active)) {
+                    if (this._hoverMinimapPath) {
+                        this._hoverMinimapPath = null;
+                        this.updateMinimap(this.lastFrame);
+                    }
+                    return;
+                }
+                if (typeof inp.computeMinimapPath === 'function') {
+                    const newPath = inp.computeMinimapPath(this.lastFrame, this.lastFrame.player.x, this.lastFrame.player.y, mx, my);
+                    this._hoverMinimapPath = (newPath && newPath.length > 0) ? newPath : null;
+                    this.updateMinimap(this.lastFrame);
+                }
             });
 
             this.minimapCanvas.addEventListener('mouseleave', () => {
-                const hintEl = document.getElementById('minimap-hint-text');
-                if (hintEl) hintEl.style.color = '';
-                this.updateMinimapHeader();
+                this._lastHoverMx = null;
+                this._lastHoverMy = null;
+                const pillEl = document.getElementById('minimap-hover-pill');
+                if (pillEl) pillEl.classList.add('hidden');
+                if (this._hoverMinimapPath) {
+                    this._hoverMinimapPath = null;
+                    if (this.lastFrame) {
+                        this.updateMinimap(this.lastFrame);
+                    }
+                }
             });
 
             this.minimapCanvas.addEventListener('click', (e) => {
@@ -734,56 +747,15 @@ class WebHUD {
                     inp.startMinimapAutoNav(mx, my, this.lastFrame);
                 }
             });
+        }
 
-            this.minimapCanvas.addEventListener('mousemove', (e) => {
-                if (!this.lastFrame || !this.lastFrame.player) {
-                    if (this._hoverMinimapPath) {
-                        this._hoverMinimapPath = null;
-                        this._lastHoverMx = null;
-                        this._lastHoverMy = null;
-                        this.updateMinimap(this.lastFrame);
-                    }
-                    return;
-                }
-                const inp = (window.__app && window.__app.input) || null;
-                if (!inp || (inp._autoNav && inp._autoNav.active)) {
-                    if (this._hoverMinimapPath) {
-                        this._hoverMinimapPath = null;
-                        this._lastHoverMx = null;
-                        this._lastHoverMy = null;
-                        this.updateMinimap(this.lastFrame);
-                    }
-                    return;
-                }
-                const rect = this.minimapCanvas.getBoundingClientRect();
-                const scaleX = this.minimapCanvas.width / rect.width;
-                const scaleY = this.minimapCanvas.height / rect.height;
-                const cellSize = this._minimapCellSize || Math.max(4, Math.min(48, Math.round(12 * this.minimapZoom)));
-                const mx = (this._minimapOx || 0) + Math.floor(((e.clientX - rect.left) * scaleX) / cellSize);
-                const my = (this._minimapOy || 0) + Math.floor(((e.clientY - rect.top) * scaleY) / cellSize);
-
-                if (this._lastHoverMx === mx && this._lastHoverMy === my) {
-                    return;
-                }
-                this._lastHoverMx = mx;
-                this._lastHoverMy = my;
-
-                if (typeof inp.computeMinimapPath === 'function') {
-                    const newPath = inp.computeMinimapPath(this.lastFrame, this.lastFrame.player.x, this.lastFrame.player.y, mx, my);
-                    this._hoverMinimapPath = (newPath && newPath.length > 0) ? newPath : null;
-                    this.updateMinimap(this.lastFrame);
-                }
-            });
-
-            this.minimapCanvas.addEventListener('mouseleave', () => {
-                this._lastHoverMx = null;
-                this._lastHoverMy = null;
-                if (this._hoverMinimapPath) {
-                    this._hoverMinimapPath = null;
-                    if (this.lastFrame) {
-                        this.updateMinimap(this.lastFrame);
-                    }
-                }
+        const btnTiltToggle = document.getElementById('btn-map-tilt-toggle');
+        if (btnTiltToggle && this.minimapContainer) {
+            btnTiltToggle.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const open = this.minimapContainer.classList.toggle('tilt-drawer-open');
+                btnTiltToggle.classList.toggle('active', open);
+                btnTiltToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
             });
         }
 
@@ -1636,6 +1608,7 @@ class WebHUD {
                 tCtx.font = `bold ${Math.max(8, Math.floor(cellSize * 1.02))}px monospace`;
                 tCtx.textAlign = 'center'; tCtx.textBaseline = 'middle';
             }
+            // # ROOT-CAUSE: Restore classic ASCII terminal glyph rendering (# / . / + / landmarks) in renderMinimap so the minimap is always the authentic window into the classic view.
             for (let rowIdx = 0; rowIdx < lines && (oy + rowIdx) < map.h; rowIdx++) {
                 const my = oy + rowIdx, row = map.rows[my];
                 if (!row || !row.g) continue;
@@ -1991,6 +1964,7 @@ class WebHUD {
         this.updateHengbandLanguageUI(realm, window.__langMode || 'en');
 
         // Character Name, Race, Class / House
+        const hasSubMeta = Boolean(this._charSubMetaEl || (typeof document !== 'undefined' && (this._charSubMetaEl = document.getElementById('char-sub-meta'))));
         if (player.name) {
             let r = player.race || '';
             let c = player.class || '';
@@ -2012,11 +1986,11 @@ class WebHUD {
                     else if (enToJp[c]) c = `${enToJp[c]} (${c})`;
                 }
             }
-            if (isSilQ) {
-                this.charTitle.textContent = `${player.name} (${r}${house ? ` - ${house}` : (c && c !== r ? ` - ${c}` : '')})`;
-            } else {
-                this.charTitle.textContent = `${player.name} (${r} ${c})`;
-            }
+            const fullTitle = isSilQ
+                ? `${player.name} (${r}${house ? ` - ${house}` : (c && c !== r ? ` - ${c}` : '')})`
+                : `${player.name} (${r} ${c})`;
+            this.charTitle.textContent = hasSubMeta ? player.name : fullTitle;
+            this.charTitle.title = fullTitle;
         } else {
             this.charTitle.textContent = isSilQ ? 'Hero of Beleriand' : 'Hero of Angband';
         }
@@ -2045,7 +2019,49 @@ class WebHUD {
                     this.hpGhostFill.style.setProperty('--vial-pct', `${hpPct}%`);
                 }
             }
+            // # ROOT-CAUSE: Toggle .low-hp-warning on #char-panel when HP <= 30% and populate #char-status-effects with color-coded status/hunger pills.
+            const charPanelEl = this._charPanelEl || (typeof document !== 'undefined' && (this._charPanelEl = document.getElementById('char-panel')));
+            if (charPanelEl && charPanelEl.classList) {
+                charPanelEl.classList.toggle('low-hp-warning', curHp > 0 && hpPct <= 30);
+            }
             this.hpText.textContent = `${curHp} / ${maxHp}`;
+        }
+
+        const statusStripEl = this._charStatusEffectsEl || (typeof document !== 'undefined' && (this._charStatusEffectsEl = document.getElementById('char-status-effects')));
+        if (statusStripEl) {
+            const rawStatuses = Array.isArray(player.statuses) ? player.statuses : [];
+            const pillSig = `${rawStatuses.map(s => (s && s.name) || s || '').join('|')}:${player.study || 0}:${player.word_recall || 0}:${player.stealth_mode ? 1 : 0}`;
+            if (this._lastCharStatusPillSig !== pillSig) {
+                this._lastCharStatusPillSig = pillSig;
+                statusStripEl.textContent = '';
+                const pills = [];
+                for (let i = 0; i < rawStatuses.length; i++) {
+                    const nm = String((rawStatuses[i] && rawStatuses[i].name) || rawStatuses[i] || '').trim();
+                    if (!nm) continue;
+                    let cls = 'pill-info';
+                    if (/poison|cut|bleed|blind|paraly|confus|stun|starv|faint|halluc|wound|knock/i.test(nm)) cls = 'pill-danger';
+                    else if (/hungr|weak|afraid|fear|slow|tired|burden|strained/i.test(nm)) cls = 'pill-warn';
+                    else if (/fast|haste|bless|hero|berserk|shield|protec|invuln|regen|sated|full/i.test(nm)) cls = 'pill-buff';
+                    pills.push({ text: nm, cls });
+                }
+                if (player.study > 0 && !pills.some(p => /^study/i.test(p.text))) {
+                    pills.push({ text: `Study (${player.study})`, cls: 'pill-info' });
+                }
+                if (player.word_recall > 0 && !pills.some(p => /^recall/i.test(p.text))) {
+                    pills.push({ text: `Recall (${player.word_recall}t)`, cls: 'pill-warn' });
+                }
+                if (pills.length === 0) {
+                    statusStripEl.classList.add('hidden');
+                } else {
+                    statusStripEl.classList.remove('hidden');
+                    for (let i = 0; i < pills.length; i++) {
+                        const sp = document.createElement('span');
+                        sp.className = `char-status-pill ${pills[i].cls}`;
+                        sp.textContent = pills[i].text;
+                        statusStripEl.appendChild(sp);
+                    }
+                }
+            }
         }
 
         // SP / Voice / Nutrition Bar (Brogue & Classic Rogue use Nutrition in the second crystal vial)
@@ -2349,6 +2365,32 @@ class WebHUD {
                 }
             }
         }
+        const expFillEl = this._expFillEl || (typeof document !== 'undefined' && (this._expFillEl = document.getElementById('exp-fill')));
+        const expTextEl = this._expTextEl || (typeof document !== 'undefined' && (this._expTextEl = document.getElementById('exp-text')));
+        const expLabelEl = this._expLabelEl || (typeof document !== 'undefined' && (this._expLabelEl = document.getElementById('exp-label')));
+        if (expFillEl && expTextEl) {
+            const plLev = Number(player.level !== undefined ? player.level : (player.lev !== undefined ? player.lev : 1));
+            const curExpNum = Number(player.exp !== undefined ? player.exp : (player.new_exp || 0));
+            const nextExpNum = Number(player.exp_next !== undefined ? player.exp_next : (player.exp_max || 0));
+            let expPct = 100;
+            if (realm === 'brogue') {
+                expPct = Math.min(100, Math.max(12, ((player.enchantments || 0) % 10) * 10 + 15));
+                if (expLabelEl) expLabelEl.textContent = 'ENCH';
+                expTextEl.textContent = `+${player.enchantments || 0}${(player.lumenstones || 0) > 0 ? ` • 💎${player.lumenstones}` : ''}`;
+            } else if (nextExpNum > 0) {
+                expPct = Math.max(8, Math.min(100, (curExpNum / Math.max(1, nextExpNum)) * 100));
+                if (expLabelEl) expLabelEl.textContent = realm === 'dcss' ? `XL ${plLev}` : `EXP`;
+                expTextEl.textContent = `${curExpNum.toLocaleString()} / ${nextExpNum.toLocaleString()}`;
+            } else {
+                expPct = plLev >= 20 ? 100 : Math.min(100, Math.max(14, (curExpNum % 1000) * 0.1));
+                if (expLabelEl) expLabelEl.textContent = isSilQ ? 'XP' : `LV.${plLev}`;
+                expTextEl.textContent = `${curExpNum.toLocaleString()} XP`;
+            }
+            expFillEl.style.width = `${expPct}%`;
+            if (typeof expFillEl.style.setProperty === 'function') {
+                expFillEl.style.setProperty('--vial-pct', `${expPct}%`);
+            }
+        }
         if (this.footerPlace) {
             const lang = window.__langMode || 'en';
             if (realm === 'hengband') {
@@ -2395,14 +2437,27 @@ class WebHUD {
             }
         }
         if (this.footerLight) {
-            const lightRadius = player.light !== undefined ? player.light : 0;
-            const hasLightItem = !!player.light_item;
-            const lightItemName = player.light_item || 'None';
-            const lightFuel = player.light_fuel || 0;
+            const lightRadius = player.cur_light !== undefined ? player.cur_light : (player.light !== undefined ? player.light : 0);
+            let lightItemName = (player.light_item && typeof player.light_item === 'object') ? String(player.light_item.name || player.light_item.desc || '') : String(player.light_item || '');
+            let lightFuel = typeof player.light_fuel === 'number' ? player.light_fuel : 0;
+            if (!lightItemName && Array.isArray(player.equipment)) {
+                const eqLight = player.equipment.find(it => it && (it.slot === 'light' || it.tval === 39 || it.tval === 40 || /\b(torch|lantern|lamp|phial|star of|aril|feanor)\b/i.test(String(it.name || it.desc || ''))));
+                if (eqLight) {
+                    lightItemName = String(eqLight.name || eqLight.desc || '');
+                }
+            }
+            if (!lightFuel && lightItemName) {
+                const fm = lightItemName.match(/\((\d+)\s*turns?\s*(?:of\s*light)?\)/i);
+                if (fm) lightFuel = parseInt(fm[1], 10) || 0;
+            }
+            const cleanLightName = lightItemName ? lightItemName.replace(/\s*\(\d+\s*turns?[^)]*\)/i, '').trim() : 'None';
+            const hasLightItem = Boolean(lightItemName && lightItemName !== 'None');
+            const isLowFuel = hasLightItem && lightFuel > 0 && lightFuel <= 500;
             const lang = window.__langMode || 'en';
+            const fuelIcon = isLowFuel ? '⚠️ ' : '🏮 ';
             let lightStr = depth === 0
-                ? (hasLightItem ? `☀️ ${lightItemName}` : '☀️ Daylight')
-                : (hasLightItem ? `🏮 ${lightItemName} (${lightFuel > 0 ? `${lightFuel}t` : `R:${lightRadius}`})` : (lightRadius > 0 ? `🏮 Light ${lightRadius}` : '🌑 Dark'));
+                ? (hasLightItem ? `☀️ ${cleanLightName}${lightFuel > 0 ? ` (${lightFuel}t)` : ''}` : '☀️ Daylight')
+                : (hasLightItem ? `${fuelIcon}${cleanLightName} (${lightFuel > 0 ? `${lightFuel}t` : `R:${lightRadius}`})` : (lightRadius > 0 ? `🏮 Light ${lightRadius}` : '🌑 Dark'));
             if (realm === 'hengband') {
                 if (lang === 'jp') {
                     if (lightStr.includes('Daylight')) lightStr = '☀️ 昼光';
@@ -2415,6 +2470,7 @@ class WebHUD {
                 }
             }
             this.footerLight.textContent = lightStr;
+            this.footerLight.style.color = isLowFuel ? '#fbbf24' : '';
         }
         if (this.footerFacing) {
             this.updateFooterFacing(yaw);
@@ -2504,9 +2560,20 @@ class WebHUD {
         // Gear summary on status bar
         const _hudItemStr = (v) => (v && typeof v === 'object') ? String(v.name || v.desc || '') : String(v || '');
         if (this.footerGear) {
-            const rawWeap = _hudItemStr(player.weapon_item);
-            const rawBow = _hudItemStr(player.bow_item);
-            const rawShield = _hudItemStr(player.shield_item);
+            let rawWeap = _hudItemStr(player.weapon_item);
+            let rawBow = _hudItemStr(player.bow_item);
+            let rawShield = _hudItemStr(player.shield_item);
+            if (Array.isArray(player.equipment)) {
+                for (const eqIt of player.equipment) {
+                    if (!eqIt) continue;
+                    const eqSlot = String(eqIt.slot_name || eqIt.slot || '').toLowerCase();
+                    const eqName = _hudItemStr(eqIt);
+                    if (!eqName || /^(nothing|none|\(nothing\)|\(none\)|empty)$/i.test(eqName.trim())) continue;
+                    if (!rawWeap && (eqSlot === 'weapon' || eqSlot === 'wield' || eqIt.slot === 0)) rawWeap = eqName;
+                    else if (!rawBow && (eqSlot === 'bow' || eqSlot === 'shooting' || eqSlot === 'launcher' || eqIt.tval === 19 || /\b(bow|crossbow|sling)\b/i.test(eqName))) rawBow = eqName;
+                    else if (!rawShield && (eqSlot === 'shield' || eqSlot === 'arm' || eqSlot === 'offhand' || eqIt.slot === 2 || /\b(shield|buckler|targe)\b/i.test(eqName))) rawShield = eqName;
+                }
+            }
             const lang = window.__langMode || 'en';
             const locItem = (name) => {
                 if (!name) return name;
@@ -2822,8 +2889,10 @@ class WebHUD {
         }
         this.renderCompass(this.currentCameraYaw);
 
-        // Check if player died: ALWAYS display death modal whenever player is dead or HP <= 0
-        const isDead = Boolean(player.dead || (player.hp !== undefined && player.hp <= 0 && player.hp_max > 0));
+        // Check if player died: C engines allow 0 HP (dead only when hp < 0 or player.dead); cartridges die at hp <= 0
+        const rHud = String(frame.realm || this.activeRealm || '').toLowerCase();
+        const isCEngineHud = rHud === 'angband' || rHud === 'silq' || rHud === 'frogcomposband' || rHud === 'hengband';
+        const isDead = Boolean(player.dead || (player.hp !== undefined && (isCEngineHud ? player.hp < 0 : player.hp <= 0) && player.hp_max > 0));
         if (isDead) {
             this.isDeadInPlay = true;
             this.showDeathModal(frame);

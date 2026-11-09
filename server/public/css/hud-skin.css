@@ -9,7 +9,7 @@
   --yasd-slate-canvas: #191d24;
   --yasd-slate-card: #212630;
   --yasd-slate-card-hover: #29303d;
-  --yasd-text-heading: #e2e6ef;
+  --yasd-text-heading: #dadfe9;
   --yasd-text-prose: #cad0dc;
   --yasd-text-muted: #8e97a8;
   --yasd-ruby-vial: #a82b35;
@@ -18,7 +18,7 @@
   --yasd-sapphire-glow: rgba(34, 88, 140, 0.35);
   --yasd-emerald-vial: #1f7246;
   --yasd-border-iron: #485060;
-  --yasd-border-control: #667084;
+  --yasd-border-control: #6c778c;
   --yasd-bone-highlight: #949eb0;
   --yasd-gold-accent: #e5b93c;
   --yasd-safe-top: env(safe-area-inset-top, 0px);
@@ -1189,6 +1189,954 @@ body:has(#command-palette-modal:not(.hidden)) #global-audio-bar {
 #death-term-toolbar {
   display: none !important;
 }
+
+#main-menu-overlay:not(.hidden) {
+  opacity: 1 !important;
+  visibility: visible !important;
+  transition: opacity 0.15s ease !important;
+}
+
+.menu-option-btn .menu-desc {
+  color: var(--yasd-text-prose) !important;
+}
+
+/* WebGL Per-Pixel Splash Crest Canvas & Ambient Menu Embers */
+.splash-logo-wrap.protected-crest {
+  position: relative !important;
+  width: min(100%, 720px, calc(54dvh * 880 / 516)) !important;
+  aspect-ratio: 880 / 516 !important;
+  height: auto !important;
+  margin: 0 auto -6px !important;
+}
+.splash-logo-wrap.protected-crest .splash-logo-main,
+.splash-logo-wrap.protected-crest .splash-shader-canvas {
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  max-height: none !important;
+  display: block !important;
+  -webkit-mask-image: radial-gradient(ellipse 96% 94% at 50% 48%, #000 80%, rgba(0, 0, 0, 0.55) 92%, transparent 100%);
+  mask-image: radial-gradient(ellipse 96% 94% at 50% 48%, #000 80%, rgba(0, 0, 0, 0.55) 92%, transparent 100%);
+}
+.splash-logo-wrap.protected-crest .splash-shader-canvas {
+  position: absolute !important;
+  inset: 0 !important;
+  pointer-events: none !important;
+  z-index: 2 !important;
+}
+@media (max-width: 768px) {
+  .splash-logo-wrap.protected-crest {
+    width: min(100%, 460px, calc(50dvh * 880 / 516)) !important;
+  }
+}
+@media (max-height: 540px) and (orientation: landscape) {
+  .splash-logo-wrap.protected-crest {
+    width: clamp(200px, calc(52dvh * 880 / 516), 380px) !important;
+  }
+}
+
+.menu-ember-backdrop-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.main-menu-card,
+.pause-card,
+.load-card,
+.guide-card,
+.realm-selector-card,
+.death-card {
+  position: relative;
+  z-index: 1;
+}
+
+/* Triad Alchemical HUD Vials (#hp-fill, #sp-fill, #exp-fill) driven by VIAL_FRAG_SRC WebGL shader */
+#hp-fill,
+#sp-fill,
+#exp-fill {
+  position: relative !important;
+  overflow: hidden !important;
+}
+
+#hp-fill .vial-fluid-canvas,
+#sp-fill .vial-fluid-canvas,
+#exp-fill .vial-fluid-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  pointer-events: none;
+  border-radius: inherit;
+  opacity: 0.92;
+}
+
+/* 3rd Living Alchemical Vial: Experience / Progression (#exp-fill) */
+#char-panel .gauge-exp {
+  position: relative !important;
+  width: 100% !important;
+  height: 16px !important;
+  display: block !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  background: none !important;
+  border: none !important;
+  border-radius: 4px !important;
+}
+
+#char-panel .gauge-exp .gauge-track {
+  width: 100% !important;
+  height: 100% !important;
+  border-radius: 4px !important;
+  position: relative !important;
+  overflow: hidden !important;
+  background: #0d1015 !important;
+  border: 1px solid rgba(212, 165, 78, 0.72) !important;
+  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.96), 0 1px 0 rgba(255, 220, 150, 0.16) !important;
+  margin: 0 !important;
+}
+
+#char-panel #exp-fill {
+  position: absolute !important;
+  top: 0 !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  height: 100% !important;
+  width: var(--vial-pct, 15%) !important;
+  background: linear-gradient(180deg, #fde047 0%, #d97706 55%, #78350f 100%) !important;
+  box-shadow: inset 0 1px 2px rgba(254, 249, 195, 0.72), 0 0 10px rgba(234, 179, 8, 0.45) !important;
+  border-right: 1.5px solid rgba(254, 240, 138, 0.95) !important;
+  transition: width 0.22s cubic-bezier(0.22, 1, 0.36, 1) !important;
+  z-index: 2 !important;
+}
+
+#char-panel .gauge-exp .gauge-header {
+  position: absolute !important;
+  inset: 0 !important;
+  z-index: 6 !important;
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  padding: 0 7px 0 8px !important;
+  pointer-events: none !important;
+  margin: 0 !important;
+}
+
+#char-panel #exp-label {
+  font-size: 8.5px !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.07em !important;
+  color: #fef08a !important;
+  text-shadow: 0 1px 2px #000, 0 0 5px #000 !important;
+  font-family: 'Cinzel', serif !important;
+  text-transform: uppercase !important;
+  margin: 0 !important;
+}
+
+#char-panel #exp-text {
+  font-size: 10px !important;
+  font-weight: 800 !important;
+  color: #ffffff !important;
+  text-shadow: 0 1px 2px #000, 0 0 5px #000 !important;
+  font-variant-numeric: tabular-nums !important;
+  line-height: 1.15 !important;
+  white-space: nowrap !important;
+  margin: 0 !important;
+}
+
+/* ==========================================================================
+   v11.9.3: Expert GUI & Audio Studio Overhaul
+   1. Character Info Panel (#char-panel): Zero Text Overrun & Clean Scaling
+   2. Action Bar (#action-bar): Zero Horizontal Truncation 2-Row Tactical Deck
+   3. Audio Configuration (#quick-volume-popover): Full-Width Living Fluid Meters
+   ========================================================================== */
+
+/* 1. Character Info Panel: Wider Desktop Footprint & Non-Overlapping Header */
+@media (min-width: 1024px) {
+  #char-panel {
+    width: var(--char-panel-w, clamp(244px, 20.5vw, 276px)) !important;
+    min-width: 236px !important;
+    max-width: 380px !important;
+    padding: 7px 9px !important;
+  }
+}
+
+#char-panel .char-panel-header {
+  display: grid !important;
+  grid-template-columns: auto minmax(0, 1fr) auto !important;
+  align-items: center !important;
+  gap: 6px !important;
+  padding: 3px 5px !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+#char-panel .char-header-main {
+  min-width: 0 !important;
+  width: 100% !important;
+  overflow: hidden !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 1px !important;
+}
+
+#char-panel #char-title,
+#char-panel .char-title {
+  display: block !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  font-size: 12px !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.04em !important;
+  line-height: 1.2 !important;
+  color: #f8e5a6 !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+#char-panel #char-sub-meta,
+#char-panel .char-sub-meta {
+  display: block !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  font-size: 10.5px !important;
+  line-height: 1.28 !important;
+  color: #cbd5e1 !important;
+  white-space: normal !important;
+  overflow-wrap: anywhere !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+}
+
+#char-panel .char-window-actions {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 3px !important;
+  flex-shrink: 0 !important;
+  position: static !important;
+  margin-left: 2px !important;
+  z-index: 2 !important;
+}
+
+/* 2. Action Bar (#action-bar): Zero-Truncation Responsive Tactical Command Deck */
+@media (min-width: 901px) {
+  #hud-center-column {
+    max-width: calc(100vw - 440px) !important;
+    width: auto !important;
+  }
+
+  #action-bar {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    justify-content: center !important;
+    align-items: center !important;
+    gap: 4px 5px !important;
+    padding: 5px 9px !important;
+    max-width: 100% !important;
+    overflow: visible !important;
+    box-sizing: border-box !important;
+  }
+
+  #action-bar .action-btn,
+  #action-bar .act-btn {
+    min-width: 0 !important;
+    height: 30px !important;
+    min-height: 30px !important;
+    padding: 2px 7px !important;
+    font-size: 10px !important;
+    gap: 4px !important;
+    flex: 0 1 auto !important;
+    white-space: nowrap !important;
+  }
+
+  #action-bar #btn-hero-action {
+    min-width: 82px !important;
+  }
+
+  #action-bar .action-cluster-sep {
+    height: 18px !important;
+    margin: 0 1px !important;
+  }
+}
+
+/* 3. HUD Global Mute Pill & Normal Full-Width Audio Menu Underneath */
+#top-right-bar #sound-control-group {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 2px !important;
+  padding: 2px 3px !important;
+  border-radius: 6px !important;
+  background: rgba(18, 22, 30, 0.92) !important;
+  border: 1px solid rgba(212, 175, 55, 0.45) !important;
+}
+
+/* Simplify HUD sound bar to Global Mute (#btn-sound) + Menu toggle (#btn-sound-config) */
+#top-right-bar #sound-control-group #btn-top-music,
+#top-right-bar #sound-control-group .volume-slider-wrap {
+  display: none !important;
+}
+
+#top-right-bar #sound-control-group #btn-sound {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 5px !important;
+  padding: 3px 8px !important;
+  border-radius: 4px !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+}
+
+#top-right-bar #sound-control-group #btn-sound-config {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-width: 24px !important;
+  height: 22px !important;
+  padding: 0 5px !important;
+  font-size: 12px !important;
+  border-radius: 4px !important;
+  background: rgba(30, 36, 48, 0.85) !important;
+  border: 1px solid rgba(212, 175, 55, 0.38) !important;
+  color: #f3cf7a !important;
+  transform: none !important;
+}
+
+#top-right-bar #sound-control-group #btn-sound-config:hover,
+#top-right-bar #sound-control-group #btn-sound-config.active {
+  background: rgba(212, 175, 55, 0.24) !important;
+  border-color: #ffd700 !important;
+  color: #ffffff !important;
+  transform: none !important;
+}
+
+/* Simplify #global-audio-bar on Splash/Main Menu to clean Global Mute + normal slider */
+#global-audio-bar #btn-global-music,
+#global-audio-bar #global-music-slider,
+#global-audio-bar #global-music-label {
+  display: none !important;
+}
+
+#quick-volume-popover {
+  position: fixed !important;
+  top: calc(max(42px, var(--safe-top, 0px) + 38px)) !important;
+  right: max(10px, var(--safe-right, 0px)) !important;
+  z-index: 9500 !important;
+  width: min(368px, calc(100vw - 20px)) !important;
+  min-width: min(340px, calc(100vw - 20px)) !important;
+  max-width: min(368px, calc(100vw - 20px)) !important;
+  padding: 14px 16px !important;
+  gap: 10px !important;
+  background:
+    var(--yasd-slate-grain),
+    linear-gradient(180deg, rgba(24, 28, 37, 0.98) 0%, rgba(14, 17, 23, 0.99) 100%) !important;
+  border: 1.5px solid rgba(212, 175, 55, 0.68) !important;
+  border-top: 2px solid #f5d77f !important;
+  border-radius: 10px !important;
+  box-shadow:
+    0 20px 52px rgba(0, 0, 0, 0.92),
+    0 0 24px rgba(212, 175, 55, 0.16),
+    inset 0 1px 0 rgba(255, 240, 195, 0.22) !important;
+  box-sizing: border-box !important;
+}
+
+#quick-volume-popover.hidden {
+  display: none !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+/* Hide redundant preset button strip inside popover */
+#quick-volume-popover .popover-presets {
+  display: none !important;
+}
+
+#quick-volume-popover .popover-slider-row {
+  display: grid !important;
+  grid-template-columns: auto minmax(0, 1fr) !important;
+  align-items: center !important;
+  gap: 10px !important;
+  width: 100% !important;
+  padding: 6px 8px !important;
+  background: rgba(10, 13, 19, 0.72) !important;
+  border: 1px solid rgba(212, 175, 55, 0.28) !important;
+  border-radius: 7px !important;
+  box-sizing: border-box !important;
+}
+
+#quick-volume-popover .popover-channels {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 8px !important;
+  width: 100% !important;
+}
+
+#quick-volume-popover .popover-channel-row {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  gap: 6px !important;
+  width: 100% !important;
+  padding: 8px 10px !important;
+  background: rgba(12, 15, 22, 0.78) !important;
+  border: 1px solid rgba(148, 163, 184, 0.22) !important;
+  border-left: 2.5px solid rgba(212, 175, 55, 0.65) !important;
+  border-radius: 7px !important;
+  box-sizing: border-box !important;
+}
+
+#quick-volume-popover .popover-channel-header {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 8px !important;
+  width: 100% !important;
+}
+
+/* Normal, clean, full-width static range sliders (zero fluid animation) */
+#quick-volume-popover .volume-range-slider,
+#quick-volume-popover .touch-slider,
+#sound-control-group #volume-slider,
+#global-audio-bar #global-volume-slider,
+.pause-audio-row .volume-range-slider {
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  display: block !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  height: 8px !important;
+  margin: 4px 0 !important;
+  padding: 0 !important;
+  border-radius: 999px !important;
+  background: linear-gradient(
+    90deg,
+    #c8963e 0%,
+    #e5be67 var(--slider-pct, 75%),
+    rgba(22, 27, 38, 0.95) var(--slider-pct, 75%)
+  ) !important;
+  border: 1px solid rgba(212, 175, 55, 0.45) !important;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.85) !important;
+  cursor: pointer !important;
+  box-sizing: border-box !important;
+}
+
+#global-audio-bar #global-volume-slider {
+  width: 84px !important;
+  min-width: 84px !important;
+  margin: 0 !important;
+}
+
+#quick-volume-popover .volume-range-slider::-webkit-slider-runnable-track {
+  height: 8px !important;
+  background: transparent !important;
+  border: none !important;
+}
+
+#quick-volume-popover .volume-range-slider::-webkit-slider-thumb,
+#sound-control-group #volume-slider::-webkit-slider-thumb,
+#global-audio-bar #global-volume-slider::-webkit-slider-thumb {
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  width: 16px !important;
+  height: 16px !important;
+  border-radius: 50% !important;
+  background: #f3cf7a !important;
+  border: 2px solid #ffffff !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.85) !important;
+  cursor: pointer !important;
+  margin-top: -5px !important;
+  transition: transform 0.1s ease, background-color 0.12s ease !important;
+}
+
+#quick-volume-popover .volume-range-slider::-webkit-slider-thumb:hover,
+#quick-volume-popover .volume-range-slider::-webkit-slider-thumb:active {
+  background: #ffe08a !important;
+  transform: scale(1.1) !important;
+}
+
+#quick-volume-popover .volume-range-slider::-moz-range-track {
+  height: 8px !important;
+  background: transparent !important;
+  border: none !important;
+}
+
+#quick-volume-popover .volume-range-slider::-moz-range-thumb,
+#sound-control-group #volume-slider::-moz-range-thumb,
+#global-audio-bar #global-volume-slider::-moz-range-thumb {
+  width: 16px !important;
+  height: 16px !important;
+  border-radius: 50% !important;
+  background: #f3cf7a !important;
+  border: 2px solid #ffffff !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.85) !important;
+  cursor: pointer !important;
+}
+
+@media (max-height: 500px) and (orientation: landscape) {
+  #char-panel .gauge-exp {
+    display: none !important;
+  }
+}
+
+/* ==========================================================================
+   v11.9.5: 5-Pillar World-Class GUI, HUD, Menu System Tree & Multi-Viewport Overhaul
+   ========================================================================== */
+
+/* --- PILLAR 1: Universal Display Scaling & Orientation Architecture --- */
+@media (min-width: 1024px) {
+  #hud-overlay {
+    grid-template-columns: clamp(236px, 19.5vw, 268px) minmax(0, 1fr) auto !important;
+  }
+  #char-panel {
+    width: var(--char-panel-w, clamp(236px, 19.5vw, 268px)) !important;
+    min-width: 232px !important;
+    max-width: 380px !important;
+  }
+  #hud-center-column {
+    max-width: calc(100vw - 470px) !important;
+    width: 100% !important;
+  }
+}
+
+/* Phone Landscape: Always keep HP & Mana bars visible as crisp compact tracks */
+@media (max-height: 520px) and (orientation: landscape) {
+  #char-panel .gauge-hp .gauge-track,
+  #char-panel .gauge-sp .gauge-track {
+    display: block !important;
+    width: 100% !important;
+    height: 14px !important;
+    min-height: 14px !important;
+  }
+  #char-panel .gauge-exp {
+    display: none !important;
+  }
+}
+
+/* Phone Portrait: Crisp rounded-square radar with non-overlapping zoom pills */
+@media (max-width: 767px) and (orientation: portrait) {
+  #minimap-container {
+    border-radius: 8px !important;
+    overflow: visible !important;
+  }
+  #minimap-canvas {
+    border-radius: 6px !important;
+  }
+  #mobile-map-zoom-group {
+    left: -28px !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+  }
+}
+
+/* --- PILLAR 2: Main Menu, Splash, Global Audio & System Modals --- */
+#pause-modal #btn-pause-invert {
+  display: none !important;
+}
+
+@media (min-width: 720px) {
+  #pause-menu-options {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 7px 10px !important;
+    align-items: stretch !important;
+  }
+  #pause-menu-options .menu-option-btn {
+    margin: 0 !important;
+    min-height: 50px !important;
+    padding: 7px 11px !important;
+  }
+  #pause-menu-options #btn-pause-quit {
+    grid-column: 1 / -1 !important;
+  }
+}
+
+/* Smooth Horizontal Scroll Strips for Guide Realm Bar & Guide Tabs on Compact Screens */
+@media (max-width: 900px) {
+  .guide-realm-bar,
+  .guide-tabs,
+  .death-tabs,
+  .cmd-category-tabs {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    -webkit-overflow-scrolling: touch !important;
+    scrollbar-width: thin !important;
+    gap: 5px !important;
+    padding-bottom: 4px !important;
+  }
+  .guide-realm-pill,
+  .guide-tab,
+  .death-tab,
+  .cmd-cat-pill {
+    flex: 0 0 auto !important;
+    white-space: nowrap !important;
+  }
+}
+
+/* Terminal Toolbar Audio Mute & Config Buttons */
+#btn-term-audio-mute,
+#btn-term-audio-config {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-width: 28px !important;
+  height: 26px !important;
+  padding: 0 6px !important;
+  border-radius: 4px !important;
+  background: rgba(24, 30, 42, 0.9) !important;
+  border: 1px solid rgba(212, 175, 55, 0.45) !important;
+  color: #f3cf7a !important;
+  font-size: 12px !important;
+  cursor: pointer !important;
+}
+#btn-term-audio-mute:hover,
+#btn-term-audio-config:hover {
+  background: rgba(212, 175, 55, 0.22) !important;
+  border-color: #ffd700 !important;
+  color: #ffffff !important;
+}
+
+/* --- PILLAR 3: In-Game Interaction Menu Systems (Item Sheet, Prompt Mirror, Entity Inspect) --- */
+#item-sheet {
+  background:
+    var(--yasd-slate-grain),
+    linear-gradient(180deg, rgba(24, 28, 38, 0.98) 0%, rgba(12, 15, 22, 0.99) 100%) !important;
+  border: 1.5px solid rgba(212, 175, 55, 0.62) !important;
+  border-top: 2px solid #f5d77f !important;
+  border-radius: 10px !important;
+  box-shadow: 0 20px 56px rgba(0, 0, 0, 0.92), 0 0 24px rgba(212, 175, 55, 0.14) !important;
+  padding: 12px 14px !important;
+  color: #e2e8f0 !important;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.item-sheet-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(212, 175, 55, 0.32);
+}
+
+.item-sheet-tabs {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+
+.item-sheet-tab {
+  background: rgba(26, 32, 44, 0.85);
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 6px;
+  color: #cbd5e1;
+  font-family: var(--font-title, 'Cinzel', serif);
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 5px 11px;
+  cursor: pointer;
+  transition: all 0.14s ease;
+}
+
+.item-sheet-tab:hover {
+  border-color: rgba(212, 175, 55, 0.65);
+  color: #f8fafc;
+}
+
+.item-sheet-tab.active {
+  background: linear-gradient(180deg, rgba(212, 175, 55, 0.28) 0%, rgba(146, 102, 21, 0.32) 100%);
+  border-color: #f5d77f;
+  color: #fff8dc;
+  box-shadow: 0 0 10px rgba(212, 175, 55, 0.25);
+}
+
+.item-sheet-close {
+  background: rgba(30, 36, 48, 0.85);
+  border: 1px solid rgba(212, 175, 55, 0.42);
+  border-radius: 6px;
+  color: #f3cf7a;
+  width: 28px;
+  height: 28px;
+  font-size: 13px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.14s ease;
+}
+
+.item-sheet-close:hover {
+  background: rgba(239, 68, 68, 0.22);
+  border-color: #f87171;
+  color: #ffffff;
+}
+
+.item-sheet-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow-y: auto;
+  max-height: calc(100% - 48px);
+  padding-right: 3px;
+}
+
+.item-sheet-empty {
+  padding: 20px 12px;
+  text-align: center;
+  color: #94a3b8;
+  font-style: italic;
+  font-size: 12.5px;
+  background: rgba(15, 19, 28, 0.65);
+  border: 1px dashed rgba(148, 163, 184, 0.28);
+  border-radius: 6px;
+}
+
+.item-sheet-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  background: linear-gradient(180deg, rgba(30, 36, 48, 0.88) 0%, rgba(19, 23, 32, 0.94) 100%);
+  border: 1px solid rgba(148, 163, 184, 0.26);
+  border-left: 3px solid rgba(212, 175, 55, 0.55);
+  border-radius: 6px;
+  transition: border-color 0.14s ease, background 0.14s ease, box-shadow 0.14s ease;
+}
+
+.item-sheet-card:hover,
+.item-sheet-card.is-selected {
+  border-color: #f5d77f;
+  background: linear-gradient(180deg, rgba(42, 50, 66, 0.94) 0%, rgba(25, 31, 44, 0.98) 100%);
+  box-shadow: 0 0 12px rgba(212, 175, 55, 0.2);
+}
+
+.item-sheet-info {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+
+.item-sheet-slot {
+  font-family: var(--font-terminal, monospace);
+  font-size: 12px;
+  font-weight: 800;
+  color: #ffd700;
+  background: rgba(212, 175, 55, 0.14);
+  border: 1px solid rgba(212, 175, 55, 0.4);
+  border-radius: 4px;
+  padding: 1px 6px;
+  flex-shrink: 0;
+}
+
+.item-sheet-name {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #f1f5f9;
+  flex: 1 1 auto;
+  min-width: 0;
+  word-break: break-word;
+}
+
+.item-sheet-badge {
+  font-family: var(--font-terminal, monospace);
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgba(56, 189, 248, 0.15);
+  border: 1px solid rgba(56, 189, 248, 0.38);
+  color: #7dd3fc;
+}
+
+.item-sheet-badge.buc-blessed {
+  background: rgba(34, 197, 94, 0.16);
+  border-color: rgba(34, 197, 94, 0.45);
+  color: #86efac;
+}
+
+.item-sheet-badge.buc-cursed {
+  background: rgba(239, 68, 68, 0.18);
+  border-color: rgba(239, 68, 68, 0.48);
+  color: #fca5a5;
+}
+
+.item-sheet-verbs {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+
+.item-verb-btn {
+  background: rgba(18, 23, 33, 0.92);
+  border: 1px solid rgba(212, 175, 55, 0.38);
+  border-radius: 5px;
+  color: #f3d478;
+  font-family: var(--font-ui, sans-serif);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 9px;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.item-verb-btn:hover {
+  background: rgba(212, 175, 55, 0.25);
+  border-color: #ffd700;
+  color: #ffffff;
+}
+
+/* Zero-CLS Fixed Floating Toast for #prompt-mirror */
+#prompt-mirror:not([hidden]):not(.hidden) {
+  position: fixed !important;
+  bottom: calc(104px + var(--safe-bottom, 0px)) !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  z-index: 44 !important;
+  margin: 0 !important;
+  width: min(560px, calc(100vw - 24px)) !important;
+  max-height: 40dvh !important;
+}
+
+/* Suppress duplicate direction button grid in prompt-mirror when 8-way aim rosette is active */
+#app-container:has(#directional-aim-rosette:not(.hidden)) #prompt-mirror .prompt-mirror-dir-grid {
+  display: none !important;
+}
+
+/* --- PILLAR 4: Minimap Hover Pill --- */
+#minimap-container {
+  position: absolute;
+}
+
+.minimap-hover-pill {
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  bottom: 54px;
+  z-index: 12;
+  background: rgba(10, 14, 22, 0.92);
+  border: 1px solid rgba(212, 175, 55, 0.55);
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-family: var(--font-terminal, monospace);
+  font-size: 10px;
+  font-weight: 600;
+  color: #fef08a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.75);
+}
+
+.minimap-hover-pill.hidden {
+  display: none !important;
+}
+
+/* --- PILLAR 5: HUD Menu, Indication & 60fps Performance System --- */
+#top-right-bar .icon-btn.is-panel-open {
+  border-bottom: 2px solid #f5d77f !important;
+  background:
+    var(--yasd-slate-grain),
+    linear-gradient(180deg, #323a4a 0%, #1e2430 100%) !important;
+  color: #fff6d6 !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5), inset 0 -1px 6px rgba(212, 175, 55, 0.22) !important;
+}
+
+/* Hero Status & Hunger Pill Strip inside #char-panel */
+.char-status-effects {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  margin: 4px 0 2px 0;
+  padding: 3px 4px;
+  background: rgba(12, 15, 22, 0.78);
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 4px;
+}
+
+.char-status-effects.hidden {
+  display: none !important;
+}
+
+.char-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-family: var(--font-terminal, monospace);
+  font-size: 9.5px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 3px;
+  letter-spacing: 0.03em;
+  line-height: 1.25;
+}
+
+.char-status-pill.pill-danger {
+  background: rgba(220, 38, 38, 0.24);
+  border: 1px solid rgba(248, 113, 113, 0.65);
+  color: #fca5a5;
+}
+
+.char-status-pill.pill-warn {
+  background: rgba(217, 119, 6, 0.22);
+  border: 1px solid rgba(251, 191, 36, 0.55);
+  color: #fde68a;
+}
+
+.char-status-pill.pill-buff {
+  background: rgba(22, 163, 74, 0.22);
+  border: 1px solid rgba(74, 222, 128, 0.55);
+  color: #86efac;
+}
+
+.char-status-pill.pill-info {
+  background: rgba(37, 99, 235, 0.22);
+  border: 1px solid rgba(96, 165, 250, 0.55);
+  color: #93c5fd;
+}
+
+/* Low-HP Heartbeat Warning on #char-panel */
+@keyframes lowHpBorderPulse {
+  0%, 100% {
+    border-color: rgba(220, 38, 38, 0.75);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.78), 0 0 12px rgba(220, 38, 38, 0.35);
+  }
+  50% {
+    border-color: #ef4444;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.78), 0 0 22px rgba(239, 68, 68, 0.65), inset 0 0 12px rgba(220, 38, 38, 0.25);
+  }
+}
+
+#char-panel.low-hp-warning {
+  animation: lowHpBorderPulse 1.4s ease-in-out infinite !important;
+}
+
+/* Context-Ready Highlight on Primary Action Button */
+#btn-hero-action.is-context-ready {
+  border-color: #ffd700 !important;
+  box-shadow: 0 0 14px rgba(212, 175, 55, 0.45), inset 0 1px 0 rgba(255, 240, 180, 0.35) !important;
+}
+
+
+
+
+
+
 
 
 

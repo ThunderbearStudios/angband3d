@@ -77,6 +77,8 @@ class GameNetwork {
         this.onQueue = null;
         this.onOfflineCommand = null;
         this.isInQueue = false;
+        this.manualDisconnect = true;
+        this.hasActiveGameSession = false;
         this.sessionHibernated = false;
         this.offlinePlayActive = false;
         this.offlineCommandQueue = [];
@@ -97,9 +99,17 @@ class GameNetwork {
             }
         } catch (_) {}
 
+        const isInActiveGameView = () => {
+            if (!this.hasActiveGameSession || this.manualDisconnect) return false;
+            if (typeof window !== 'undefined' && window.__app && typeof window.__app.getAppState === 'function') {
+                return window.__app.getAppState() === 'game';
+            }
+            return true;
+        };
+
         if (typeof document !== 'undefined' && typeof window !== 'undefined') {
             document.addEventListener('visibilitychange', () => {
-                if (document.visibilityState === 'visible' && !this.manualDisconnect) {
+                if (document.visibilityState === 'visible' && isInActiveGameView()) {
                     if (!this.ws || this.ws.readyState === WebSocket.CLOSED || this.ws.readyState === WebSocket.CLOSING) {
                         this.sessionHibernated = false;
                         this.reconnectAttempts = 0;
@@ -111,7 +121,7 @@ class GameNetwork {
                 }
             });
             window.addEventListener('online', () => {
-                if (!this.manualDisconnect && (!this.ws || this.ws.readyState !== WebSocket.OPEN)) {
+                if (isInActiveGameView() && (!this.ws || this.ws.readyState !== WebSocket.OPEN)) {
                     this.sessionHibernated = false;
                     this.reconnectAttempts = 0;
                     this.connect(this.currentChar, false, this.currentSave, this.currentRealm);
@@ -126,6 +136,7 @@ class GameNetwork {
             this.reconnectTimer = null;
         }
         this.manualDisconnect = false;
+        this.hasActiveGameSession = true;
         this.sessionHibernated = false;
         this.isInQueue = false;
         this.isDead = false;
@@ -476,6 +487,7 @@ class GameNetwork {
 
     disconnect() {
         this.manualDisconnect = true;
+        this.hasActiveGameSession = false;
         this.isInQueue = false;
         this.sessionId = null;
         if (this.reconnectTimer) {
@@ -495,6 +507,7 @@ class GameNetwork {
 
     leaveQueue() {
         this.manualDisconnect = true;
+        this.hasActiveGameSession = false;
         this.isInQueue = false;
         if (this.ws && this.ws.readyState === WebSocket.OPEN) {
             try { this.ws.send(JSON.stringify({ t: 'cancel' })); } catch (_) {}
@@ -504,6 +517,7 @@ class GameNetwork {
 
     leaveSession() {
         this.manualDisconnect = true;
+        this.hasActiveGameSession = false;
         this.isInQueue = false;
         this.isDead = false;
         if (this.ws && this.ws.readyState === WebSocket.OPEN) {

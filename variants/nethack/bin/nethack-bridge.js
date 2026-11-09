@@ -290,11 +290,75 @@ class NetHackEngine {
             messages: [
                 { text: `Welcome to NetHack 3.6.7! You are a ${role.align} ${role.race} ${role.id}.`, count: 1, attr: 11 },
                 { text: 'Your faithful little dog bounds alongside you into the Dungeons of Doom.', count: 1, attr: 1 }
-            ]
+            ],
+            statFocus: 'optimal',
+            kitBoon: 'signature',
+            _optimizedApplied: false,
+            weaponSkillLevel: 1,
+            spellSkillLevel: 1
         };
 
         this.populateStartingKit(role);
         this.generateDungeonLevel(1);
+        if (quickStart) {
+            this.applyStartingOptimization('optimal', 'signature');
+        }
+    }
+
+    applyStartingOptimization(statFocus = 'optimal', kitBoon = 'signature') {
+        if (!this.state || !this.state.player) return;
+        if (this.state._optimizedApplied && this.state.statFocus === statFocus && this.state.kitBoon === kitBoon) {
+            return;
+        }
+        this.state.statFocus = statFocus || 'optimal';
+        this.state.kitBoon = kitBoon || 'signature';
+        this.state._optimizedApplied = true;
+        const p = this.state.player;
+        const clsLower = String(p.class || '').toLowerCase();
+        if (statFocus === 'vanguard') {
+            p.str += 2;
+            p.con += 2;
+            p.hpMax += 4;
+            p.hp = p.hpMax;
+        } else if (statFocus === 'arcane') {
+            p.int += 2;
+            p.wis += 2;
+            p.pwMax += 4;
+            p.pw = p.pwMax;
+        } else if (statFocus === 'agile') {
+            p.dex += 3;
+            p.ac -= 1;
+        } else {
+            if (clsLower.includes('wizard') || clsLower.includes('priest')) {
+                p.int += 2;
+                p.wis += 1;
+                p.pwMax += 4;
+                p.pw = p.pwMax;
+            } else if (clsLower.includes('rogue') || clsLower.includes('ranger')) {
+                p.dex += 2;
+                p.str += 1;
+                p.hpMax += 2;
+                p.hp = p.hpMax;
+            } else {
+                p.str += 2;
+                p.con += 1;
+                p.hpMax += 3;
+                p.hp = p.hpMax;
+            }
+        }
+        const w = p.inventory.find(it => it.equipped === 'weapon');
+        const a = p.inventory.find(it => it.equipped === 'armor');
+        if (kitBoon === 'expedition') {
+            const healPot = p.inventory.find(it => it.name && it.name.includes('potion of healing'));
+            if (healPot) healPot.count = (healPot.count || 1) + 1;
+            p.gold += 50;
+        } else if (kitBoon === 'blessed') {
+            if (w) { w.buc = 'blessed'; w.bonus = (w.bonus || 0) + 1; }
+            if (a) { a.buc = 'blessed'; a.bonus = (a.bonus || 0) + 1; }
+            this.recalcPlayerAc();
+        } else {
+            if (w) w.bonus = (w.bonus || 0) + 1;
+        }
     }
 
     populateStartingKit(role) {
@@ -696,35 +760,66 @@ class NetHackEngine {
         if (!k) return;
 
         // 1. Setup / Birth screen
+        // # ROOT-CAUSE: NetHack setup needed post-randomization stat focus & kit boon controls and #enhance weapon/spell skill advancement
         if (this.state.phase === 'setup') {
             const lower = k.toLowerCase();
             if (lower === '*') {
                 const randIdx = this.rand(ROLES.length);
                 this.initNewState(true, randIdx);
+                this.applyStartingOptimization('optimal', 'signature');
                 this.saveGame();
                 return;
             }
+            if (lower === '1' || lower === 'f') {
+                const focuses = ['optimal', 'vanguard', 'arcane', 'agile'];
+                const cur = this.state.statFocus || 'optimal';
+                const kb = this.state.kitBoon || 'signature';
+                const nextFocus = focuses[(focuses.indexOf(cur) + 1) % focuses.length];
+                this.initNewState(false, this.state.selectedRoleIdx || 0);
+                this.applyStartingOptimization(nextFocus, kb);
+                return;
+            }
+            if (lower === '2' || lower === 'b') {
+                const boons = ['signature', 'expedition', 'blessed'];
+                const sf = this.state.statFocus || 'optimal';
+                const cur = this.state.kitBoon || 'signature';
+                const nextBoon = boons[(boons.indexOf(cur) + 1) % boons.length];
+                this.initNewState(false, this.state.selectedRoleIdx || 0);
+                this.applyStartingOptimization(sf, nextBoon);
+                return;
+            }
             if (lower === 'enter' || lower === 'return' || lower === 'space' || lower === 'y') {
+                this.applyStartingOptimization(this.state.statFocus || 'optimal', this.state.kitBoon || 'signature');
                 this.state.phase = 'play';
                 this.saveGame();
                 return;
             }
             const roleIdx = ROLES.findIndex(r => r.key === lower);
             if (roleIdx >= 0) {
+                const sf = this.state.statFocus || 'optimal';
+                const kb = this.state.kitBoon || 'signature';
                 this.initNewState(true, roleIdx);
+                this.applyStartingOptimization(sf, kb);
                 this.saveGame();
                 return;
             }
             if (lower === 'down' || lower === 'arrowdown' || lower === 'j') {
                 const next = (this.state.selectedRoleIdx + 1) % ROLES.length;
+                const sf = this.state.statFocus || 'optimal';
+                const kb = this.state.kitBoon || 'signature';
                 this.initNewState(false, next);
+                this.applyStartingOptimization(sf, kb);
                 return;
             }
             if (lower === 'up' || lower === 'arrowup' || lower === 'k') {
                 const prev = (this.state.selectedRoleIdx - 1 + ROLES.length) % ROLES.length;
+                const sf = this.state.statFocus || 'optimal';
+                const kb = this.state.kitBoon || 'signature';
                 this.initNewState(false, prev);
+                this.applyStartingOptimization(sf, kb);
                 return;
             }
+            this.applyStartingOptimization(this.state.statFocus || 'optimal', this.state.kitBoon || 'signature');
             this.state.phase = 'play';
             this.saveGame();
             return;
@@ -737,10 +832,10 @@ class NetHackEngine {
             return;
         }
 
-        // 2. Extended `#` Commands (`#pray`, `#dip`, `#offer`, `#loot`, `#untrap`, `#chat`, `#force`)
+        // 2. Extended `#` Commands (`#pray`, `#dip`, `#offer`, `#loot`, `#untrap`, `#chat`, `#force`, `#enhance`)
         if (k === '#') {
             this.state.menuMode = 'extended';
-            this.state.pendingPrompt = '# Extended command: [p]ray [d]ip [o]ffer [l]oot [u]ntrap [c]hat [f]orce (ESC)';
+            this.state.pendingPrompt = '# Extended command: [p]ray [d]ip [o]ffer [l]oot [u]ntrap [c]hat [f]orce [e]nhance (ESC)';
             return;
         }
         if (k.startsWith('#')) {
@@ -761,7 +856,7 @@ class NetHackEngine {
                 return;
             }
             if (this.state.menuMode === 'extended') {
-                const extMap = { p: '#pray', d: '#dip', o: '#offer', l: '#loot', u: '#untrap', c: '#chat', f: '#force' };
+                const extMap = { p: '#pray', d: '#dip', o: '#offer', l: '#loot', u: '#untrap', c: '#chat', f: '#force', e: '#enhance' };
                 const mapped = extMap[k.toLowerCase()];
                 this.state.menuMode = 'none';
                 this.state.pendingPrompt = '';
@@ -1488,9 +1583,26 @@ class NetHackEngine {
             }
             return;
         }
+        // # ROOT-CAUSE: NetHack #enhance command was missing from executeExtendedCommand
         if (cmd.includes('force')) {
             this.addMessage('You strike the lock with your weapon — click!', 11);
             this.advanceWorldTurn();
+            return;
+        }
+        if (cmd.includes('enhance')) {
+            const w = p.inventory.find(it => it.equipped === 'weapon') || p.inventory[0];
+            this.state.weaponSkillLevel = (this.state.weaponSkillLevel || 1) + 1;
+            this.state.spellSkillLevel = (this.state.spellSkillLevel || 1) + 1;
+            const rankLabels = ['Unskilled', 'Basic', 'Skilled', 'Expert', 'Master', 'Grand Master'];
+            const rank = rankLabels[Math.min(rankLabels.length - 1, this.state.weaponSkillLevel)];
+            if (w && (w.bonus || 0) < 5) w.bonus = (w.bonus || 0) + 1;
+            p.hpMax += 2;
+            p.hp = Math.min(p.hpMax, p.hp + 2);
+            p.pwMax += 2;
+            p.pw = Math.min(p.pwMax, p.pw + 2);
+            this.addMessage(`You hone your martial & arcane skills to [${rank}]! (${w ? w.name + ' +1, ' : ''}+2 HP, +2 Pw)`, 14);
+            this.advanceWorldTurn();
+            return;
         }
     }
 
@@ -1817,7 +1929,9 @@ class NetHackEngine {
                 });
             });
             rows.push({ g: pad80(''), a: attr80('01') });
-            rows.push({ g: pad80('  [*] Pick a role at random & enter the Dungeons of Doom immediately'), a: attr80('0b') });
+            // # ROOT-CAUSE: Display post-randomization stat focus & kit boon options on NetHack setup screen
+            rows.push({ g: pad80(`  [1/f] Stat Focus: ${(this.state.statFocus || 'optimal').toUpperCase().padEnd(10, ' ')} [2/b] Kit Boon: ${(this.state.kitBoon || 'signature').toUpperCase()}`), a: attr80('0a') });
+            rows.push({ g: pad80('  [*] Quick Start (Randomize & Auto-Optimize) or [Enter] Embark with Selection'), a: attr80('0b') });
             while (rows.length < TERM_H) rows.push({ g: pad80(''), a: attr80('01') });
             return rows;
         }

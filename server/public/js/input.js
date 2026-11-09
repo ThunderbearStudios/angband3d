@@ -934,8 +934,8 @@ class InputController {
         window.addEventListener('keydown', (e) => {
             if (this.audio && typeof this.audio.unlock === 'function') this.audio.unlock();
 
-            // 1. Text inputs -> browser default (WCAG 2.1.4)
-            if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) {
+            // 1. Text inputs & selects -> browser default (WCAG 2.1.4)
+            if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT')) {
                 if (e.key === 'Escape' || (e.key === '`' && !e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey)) {
                     e.target.blur();
                     if (window.chronicleManager && typeof window.chronicleManager.preemptForGameplay === 'function') {
@@ -957,6 +957,12 @@ class InputController {
                         return;
                     }
                 } else {
+                    return;
+                }
+            }
+
+            if (window.ItemSheet && typeof window.ItemSheet.isOpen === 'function' && window.ItemSheet.isOpen()) {
+                if (typeof window.ItemSheet.handleKeyDown === 'function' && window.ItemSheet.handleKeyDown(e)) {
                     return;
                 }
             }
@@ -992,26 +998,22 @@ class InputController {
                 this.toggleFullscreen();
                 return;
             }
+            // # ROOT-CAUSE: Route Alt+L to hud.resetHudLayout() outside Hengband (or with Shift in Hengband), support Tab 7 in #guide-modal, add [9] ryod to #realm-selector-modal, support 2D grid arrows in #pause-modal, and dismiss #quick-volume-popover first on Escape.
             if (e.altKey && !e.ctrlKey && !e.metaKey && (e.key === 'l' || e.key === 'L')) {
                 e.preventDefault();
-                if (window.__app && typeof window.__app.toggleLanguageMode === 'function') window.__app.toggleLanguageMode();
+                const curRealm = (window.__app && typeof window.__app.getActiveRealm === 'function') ? window.__app.getActiveRealm() : 'angband';
+                if (curRealm === 'hengband' && !e.shiftKey) {
+                    if (window.__app && typeof window.__app.toggleLanguageMode === 'function') window.__app.toggleLanguageMode();
+                } else if (this.hud && typeof this.hud.resetHudLayout === 'function') {
+                    this.hud.resetHudLayout();
+                } else if (window.__app && window.__app.hud && typeof window.__app.hud.resetHudLayout === 'function') {
+                    window.__app.hud.resetHudLayout();
+                }
                 return;
             }
-            if (e.altKey && !e.ctrlKey && !e.metaKey && (e.key === 'r' || e.key === 'R')) {
-                e.preventDefault();
-                this.toggleDpadRunMode();
-                return;
-            }
-            if (e.altKey && !e.ctrlKey && !e.metaKey && (e.key === 'e' || e.key === 'E')) {
-                e.preventDefault();
-                this.toggleAutoExplore();
-                return;
-            }
-            if (e.altKey && !e.ctrlKey && !e.metaKey && (e.key === 'w' || e.key === 'W')) {
-                e.preventDefault();
-                this.toggleWasdMode();
-                return;
-            }
+            if (e.altKey && !e.ctrlKey && !e.metaKey && (e.key === 'r' || e.key === 'R')) { e.preventDefault(); this.toggleDpadRunMode(); return; }
+            if (e.altKey && !e.ctrlKey && !e.metaKey && (e.key === 'e' || e.key === 'E')) { e.preventDefault(); this.toggleAutoExplore(); return; }
+            if (e.altKey && !e.ctrlKey && !e.metaKey && (e.key === 'w' || e.key === 'W')) { e.preventDefault(); this.toggleWasdMode(); return; }
             if (e.altKey && !e.ctrlKey && !e.metaKey && (e.key === 'i' || e.key === 'I')) {
                 e.preventDefault();
                 if (window.__app && typeof window.__app.toggleItemSheet === 'function') window.__app.toggleItemSheet();
@@ -1027,76 +1029,42 @@ class InputController {
             // 2. Client modal surface open -> modal handles keys; Escape closes it
             const deathModal = document.getElementById('death-modal');
             const isDeadModal = Boolean(deathModal && !deathModal.classList.contains('hidden'));
-            const lastFrame = (window.__app && typeof window.__app.getLastFrame === 'function')
-                ? window.__app.getLastFrame()
-                : (window.__app ? window.__app.lastFrame : null);
+            const lastFrame = (window.__app && typeof window.__app.getLastFrame === 'function') ? window.__app.getLastFrame() : (window.__app ? window.__app.lastFrame : null);
             const isDeadFrame = Boolean(lastFrame && lastFrame.player && (lastFrame.player.dead || (lastFrame.player.hp !== undefined && lastFrame.player.hp <= 0 && lastFrame.player.hp_max > 0)));
 
-            if (isDeadModal || isDeadFrame) {
-                this._handleDeathModalKey(e, lastFrame, isDeadModal);
-                return;
-            }
-
-            if (appState !== 'game') {
-                if (this._handleAppStateModalKey(e, appState)) return;
-            }
+            if (isDeadModal || isDeadFrame) { this._handleDeathModalKey(e, lastFrame, isDeadModal); return; }
+            if (appState !== 'game' && this._handleAppStateModalKey(e, appState)) return;
 
             if (window.__app && window.__app.isGuideOpen && window.__app.isGuideOpen()) {
                 if (e.key === 'Escape' || e.key === 'Enter') {
-                    e.preventDefault();
-                    if (this.audio) this.audio.playMenuNav();
-                    window.__app.hideGuide();
-                    return;
+                    e.preventDefault(); if (this.audio) this.audio.playMenuNav(); window.__app.hideGuide(); return;
                 }
-                if (e.key >= '1' && e.key <= '6') {
-                    e.preventDefault();
-                    window.__app.switchGuideTab(parseInt(e.key, 10) - 1);
-                    return;
-                }
-                if (e.key === 'Tab' || e.key === 'ArrowRight') {
-                    e.preventDefault();
-                    window.__app.cycleGuideTab(1);
-                    return;
-                }
-                if (e.key === 'ArrowLeft') {
-                    e.preventDefault();
-                    window.__app.cycleGuideTab(-1);
-                    return;
-                }
+                if (e.key >= '1' && e.key <= '7') { e.preventDefault(); window.__app.switchGuideTab(parseInt(e.key, 10) - 1); return; }
+                if (e.key === 'Tab' || e.key === 'ArrowRight') { e.preventDefault(); window.__app.cycleGuideTab(1); return; }
+                if (e.key === 'ArrowLeft') { e.preventDefault(); window.__app.cycleGuideTab(-1); return; }
             }
 
             // 3. Active CommandDispatcher plan or minimap auto-nav -> cancel on manual keydown
             const dispatcher = (this.app && this.app.dispatcher) || (window.__app && window.__app.dispatcher);
-            if (dispatcher && typeof dispatcher.cancel === 'function') {
-                dispatcher.cancel('user-key');
-            }
-            if (window.__app && window.__app.cancelQuickBirth) {
-                window.__app.cancelQuickBirth();
-            }
+            if (dispatcher && typeof dispatcher.cancel === 'function') dispatcher.cancel('user-key');
+            if (window.__app && window.__app.cancelQuickBirth) window.__app.cancelQuickBirth();
             if (this.isAutoNavigating && this.isAutoNavigating()) {
                 this.stopMinimapAutoNav('Manual key press');
-                if (e.key === 'Escape' || (e.key === '`' && !e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey)) {
-                    e.preventDefault();
-                    return;
-                }
-            }
-
-            if (e.key === 'Tab' && !e.ctrlKey && !e.altKey && !e.metaKey) {
-                const realm = (window.__app && window.__app.getActiveRealm) ? window.__app.getActiveRealm() : 'angband';
-                if (realm === 'silq') {
-                    e.preventDefault();
-                    if (this.audio) this.audio.playMenuOpen();
-                    this.network.sendKey('tab');
-                    return;
-                }
-                e.preventDefault();
-                if (this.audio) this.audio.playMenuNav();
-                if (this.toggleTerminalView) this.toggleTerminalView();
-                return;
+                if (e.key === 'Escape' || (e.key === '`' && !e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey)) { e.preventDefault(); return; }
             }
 
             const lastFrameEarly = (this.app && this.app.lastFrame) || (window.__app && window.__app.lastFrame) || null;
             const inPlayEarly = Boolean(lastFrameEarly && lastFrameEarly.phase === 'play' && (lastFrameEarly.map || (lastFrameEarly.player && lastFrameEarly.player.name)));
+            if (e.key === 'Tab' && !e.ctrlKey && !e.altKey && !e.metaKey) {
+                const realm = (window.__app && window.__app.getActiveRealm) ? window.__app.getActiveRealm() : 'angband';
+                if (realm === 'silq' || (!inPlayEarly && realm === 'frogcomposband')) {
+                    e.preventDefault(); if (this.audio) this.audio.playMenuOpen(); this.network.sendKey('tab'); return;
+                }
+                e.preventDefault(); if (this.audio) this.audio.playMenuNav();
+                if (this.toggleTerminalView) this.toggleTerminalView();
+                return;
+            }
+
             if (e.key === 'Escape' || (!inPlayEarly && e.key === '`' && !e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey)) {
                 this._handleEscapeKey(e, lastFrameEarly, inPlayEarly);
                 return;
@@ -1105,10 +1073,7 @@ class InputController {
             // 4. In Terminal Mode
             const termContainer = document.getElementById('terminal-container');
             const isTermVisible = Boolean(termContainer && !termContainer.classList.contains('hidden'));
-            if (this.inTerminal || isTermVisible) {
-                this.handleTerminalKey(e);
-                return;
-            }
+            if (this.inTerminal || isTermVisible) { this.handleTerminalKey(e); return; }
 
             // 5. In 3D World Exploration Mode
             this.handleWorldKey(e);
@@ -1193,6 +1158,19 @@ class InputController {
         const app = window.__app;
         if (!app) return false;
 
+        // # ROOT-CAUSE: Dismiss #quick-volume-popover first on Escape, support [9] ryod in #realm-selector-modal, support 2D arrow navigation in #pause-modal, and support Tab [7] in #guide-modal.
+        const qvPop = document.getElementById('quick-volume-popover');
+        if (e.key === 'Escape' && qvPop && !qvPop.classList.contains('hidden')) {
+            e.preventDefault();
+            qvPop.classList.add('hidden');
+            const cfgBtn = document.getElementById('btn-sound-config');
+            if (cfgBtn) {
+                cfgBtn.classList.remove('active');
+                cfgBtn.setAttribute('aria-expanded', 'false');
+            }
+            return true;
+        }
+
         if (window.RyodForge && typeof window.RyodForge.isOpen === 'function' && window.RyodForge.isOpen()) {
             if (e.key === 'Escape') {
                 e.preventDefault();
@@ -1256,8 +1234,8 @@ class InputController {
 
         if (appState === 'realmModal') {
             if (e.key === 'Escape' || e.key === 'Enter') { e.preventDefault(); app.hideRealmSelector?.(); return true; }
-            const realms = ['nethack', 'dcss', 'angband', 'brogue', 'rogue', 'silq', 'frogcomposband', 'hengband'];
-            if (e.key >= '1' && e.key <= '8') {
+            const realms = ['nethack', 'dcss', 'angband', 'brogue', 'rogue', 'silq', 'frogcomposband', 'hengband', 'ryod'];
+            if (e.key >= '1' && e.key <= '9') {
                 e.preventDefault();
                 const chosen = realms[parseInt(e.key, 10) - 1];
                 if (chosen) (app.selectRealm ? app.selectRealm(chosen, false) : app.setActiveRealm?.(chosen));
@@ -1287,16 +1265,19 @@ class InputController {
 
         if (appState === 'pauseMenu') {
             if (e.key === 'Escape' || (e.key === '`' && !e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey)) { e.preventDefault(); app.resumeGame?.(); return true; }
-            if (e.key === 'ArrowUp' || e.code === 'Numpad8') { e.preventDefault(); app.navigatePauseMenu?.(-1); return true; }
-            if (e.key === 'ArrowDown' || e.code === 'Numpad2') { e.preventDefault(); app.navigatePauseMenu?.(1); return true; }
+            const isTwoCol = typeof window !== 'undefined' && window.innerWidth >= 720;
+            if (e.key === 'ArrowLeft' || e.code === 'Numpad4') { e.preventDefault(); app.navigatePauseMenu?.(-1); return true; }
+            if (e.key === 'ArrowRight' || e.code === 'Numpad6') { e.preventDefault(); app.navigatePauseMenu?.(1); return true; }
+            if (e.key === 'ArrowUp' || e.code === 'Numpad8') { e.preventDefault(); app.navigatePauseMenu?.(isTwoCol ? -2 : -1); return true; }
+            if (e.key === 'ArrowDown' || e.code === 'Numpad2') { e.preventDefault(); app.navigatePauseMenu?.(isTwoCol ? 2 : 1); return true; }
             if (['1', '2', '3', '4', '5', '6', '7', '8', '9'].includes(e.key)) { e.preventDefault(); app.selectPauseMenuItem?.(parseInt(e.key, 10) - 1); app.activatePauseMenuItem?.(); return true; }
             if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); app.activatePauseMenuItem?.(); return true; }
             return true;
         }
 
         if (appState === 'guide') {
-            if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') { e.preventDefault(); app.hideGuide?.(); return true; }
-            if (['1', '2', '3', '4', '5', '6'].includes(e.key)) { e.preventDefault(); app.switchGuideTab?.(parseInt(e.key, 10) - 1); return true; }
+            if (e.key === 'Escape' || e.key === 'Enter') { e.preventDefault(); app.hideGuide?.(); return true; }
+            if (['1', '2', '3', '4', '5', '6', '7'].includes(e.key)) { e.preventDefault(); app.switchGuideTab?.(parseInt(e.key, 10) - 1); return true; }
             if (e.key === 'Tab' || e.key === 'ArrowRight') { e.preventDefault(); app.cycleGuideTab?.(1); return true; }
             if (e.key === 'ArrowLeft') { e.preventDefault(); app.cycleGuideTab?.(-1); return true; }
             if (e.key === 'w' || e.key === 'W') {
@@ -1305,7 +1286,7 @@ class InputController {
                 else window.open('https://angband.readthedocs.io/', '_blank');
                 return true;
             }
-            if (['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown'].includes(e.key)) {
+            if (['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', ' '].includes(e.key)) {
                 e.preventDefault();
                 const gb = document.getElementById('guide-body');
                 if (gb) gb.scrollTop += (e.key === 'ArrowUp' ? -40 : e.key === 'ArrowDown' ? 40 : e.key === 'PageUp' ? -200 : 200);
@@ -1321,6 +1302,16 @@ class InputController {
         e.preventDefault();
         if (this.audio && typeof this.audio.playMenuNav === 'function') this.audio.playMenuNav();
 
+        const qvPopover = document.getElementById('quick-volume-popover');
+        if (qvPopover && !qvPopover.classList.contains('hidden')) {
+            qvPopover.classList.add('hidden');
+            const cfgBtn = document.getElementById('btn-sound-config');
+            if (cfgBtn) {
+                cfgBtn.classList.remove('active');
+                cfgBtn.setAttribute('aria-expanded', 'false');
+            }
+            return;
+        }
         if (window.ItemSheet && typeof window.ItemSheet.isOpen === 'function' && window.ItemSheet.isOpen()) {
             window.ItemSheet.close();
             return;
@@ -2193,7 +2184,7 @@ class InputController {
                     }
                     const firstBtn = actionBar.querySelector('.action-btn:not(#btn-action-more)');
                     const btnHeight = (firstBtn && firstBtn.offsetHeight > 0) ? firstBtn.offsetHeight : 34;
-                    const maxTwoRowHeight = btnHeight * 2 + 10;
+                    const maxTwoRowHeight = btnHeight * 2 + 28;
 
                     if (actionBar.offsetHeight > 0 && actionBar.scrollHeight > maxTwoRowHeight) {
                         actionMoreBtn.classList.add('is-needed');

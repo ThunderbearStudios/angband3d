@@ -55,7 +55,7 @@
         aim: Object.freeze({ angband: 'a', silq: null, frogcomposband: 'a', hengband: 'a', nethack: 'z', dcss: 'V', brogue: 'a', rogue: 'z' }),
         use_staff: Object.freeze({ angband: 'u', silq: 'a', frogcomposband: 'u', hengband: 'u', nethack: 'a', dcss: 'V', brogue: 'a', rogue: 'z' }),
         zap: Object.freeze({ angband: 'z', silq: null, frogcomposband: 'z', hengband: 'z', nethack: 'z', dcss: 'V', brogue: 'a', rogue: 'z' }),
-        activate: Object.freeze({ angband: 'A', silq: null, frogcomposband: 'A', hengband: 'A', nethack: 'a', dcss: 'a', brogue: 'a', rogue: 'z' }),
+        activate: Object.freeze({ angband: 'A', silq: 'p', frogcomposband: 'A', hengband: 'A', nethack: 'a', dcss: 'a', brogue: 'a', rogue: 'z' }),
         use: Object.freeze({ angband: 'U', silq: 'u', frogcomposband: null, hengband: null, nethack: 'a', dcss: 'a', brogue: 'a', rogue: 'z' }),
         play_horn: Object.freeze({ angband: null, silq: 'p', frogcomposband: null, hengband: null, nethack: 'a', dcss: 'V', brogue: null, rogue: null }),
         throw: Object.freeze({ angband: 'v', silq: 't', frogcomposband: 'v', hengband: 'v', nethack: 't', dcss: 'f', brogue: 't', rogue: 't' }),

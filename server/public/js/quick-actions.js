@@ -68,7 +68,9 @@
     function classifyInventoryEntry(it, realm = 'angband') {
         const name = String((it && it.name) || ''), lower = name.toLowerCase(), tval = Number(it && it.tval) || 0;
         const isVanilla = String(realm || 'angband').toLowerCase() === 'angband';
-        if (/\b(potion|phial|draught|elixir)\b/.test(lower) || /(の薬|水薬|霊薬|丸薬|薬$)/.test(name) || (isVanilla ? tval === 26 : (tval === 75 || tval === 71))) {
+        // # ROOT-CAUSE: Exclude light sources (Phial of Galadriel, lanterns, torches) and oil flasks from potion classification
+        const isLightOrFuel = tval === 39 || tval === 40 || tval === 77 || /\b(phial|feanor|galadriel|star of|aril|torch|lantern|lamp|flasks?\s+of\s+oil|oil\s+flask)\b/.test(lower) || /(松明|ランタン|ランプ|油つぼ|ガラドリエル)/.test(name);
+        if (!isLightOrFuel && (/\b(potion|draught|elixir)\b/.test(lower) || /(の薬|水薬|霊薬|丸薬|薬$)/.test(name) || (isVanilla ? tval === 26 : (tval === 75 || tval === 71)))) {
             return { category: 'potion', isHeal: /\b(heal|cure|curing|life|restore|aid)\b/.test(lower) || /(治療|治癒|回復|傷|体力|生命)/.test(name), icon: '🧪' };
         }
         if (/\b(scroll|parchment|card|trump)\b/.test(lower) || /(の巻物|巻物|カード)/.test(name) || (isVanilla ? tval === 25 : (tval === 70 || tval === 50))) {

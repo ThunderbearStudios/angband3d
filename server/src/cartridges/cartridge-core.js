@@ -324,10 +324,76 @@ class UniversalCartridgeEngine {
             objects: [],
             messages: [
                 { text: this.spec.welcomeMessage || `You enter ${this.spec.title}.`, count: 1, attr: 14 }
-            ]
+            ],
+            statFocus: 'optimal',
+            kitBoon: 'signature',
+            _optimizedApplied: false
         };
         this.reindexInventory();
         this.generateLevel(startDepth);
+    }
+
+    // # ROOT-CAUSE: Cartridge birth setup and Quick Start needed post-randomization stat focus & starting kit boon optimization
+    applyStartingOptimization(statFocus = 'optimal', kitBoon = 'signature') {
+        if (!this.state || !this.state.player) return;
+        if (this.state._optimizedApplied && this.state.statFocus === statFocus && this.state.kitBoon === kitBoon) {
+            return;
+        }
+        this.state.statFocus = statFocus || 'optimal';
+        this.state.kitBoon = kitBoon || 'signature';
+        this.state._optimizedApplied = true;
+        const p = this.state.player;
+        const clsLower = String(p.class || '').toLowerCase();
+        if (statFocus === 'vanguard') {
+            p.str = (p.str || 14) + 2;
+            p.con = (p.con || 14) + 2;
+            p.hpMax = (p.hpMax || 18) + 6;
+            p.hp = p.hpMax;
+        } else if (statFocus === 'arcane') {
+            p.int = (p.int || 12) + 2;
+            p.wis = (p.wis || 12) + 2;
+            p.pwMax = (p.pwMax || 8) + 5;
+            p.pw = p.pwMax;
+        } else if (statFocus === 'agile') {
+            p.dex = (p.dex || 14) + 3;
+            p.ac = (p.ac || 4) + (this.realm === 'nethack' || this.realm === 'rogue' ? -2 : 2);
+        } else {
+            // 'optimal': auto-tailor to selected or randomized archetype
+            if (/mage|conjurer|wizard|necromancer|alchemist|scholar|mystic|transmuter|priest|healer/.test(clsLower)) {
+                p.int = (p.int || 12) + 2;
+                p.wis = (p.wis || 12) + 1;
+                p.pwMax = (p.pwMax || 8) + 4;
+                p.pw = p.pwMax;
+                p.hpMax = (p.hpMax || 16) + 2;
+                p.hp = p.hpMax;
+            } else if (/rogue|stalker|hunter|ranger|assassin|thief|tourist/.test(clsLower)) {
+                p.dex = (p.dex || 14) + 2;
+                p.str = (p.str || 14) + 1;
+                p.hpMax = (p.hpMax || 18) + 3;
+                p.hp = p.hpMax;
+            } else {
+                p.str = (p.str || 15) + 2;
+                p.con = (p.con || 14) + 1;
+                p.hpMax = (p.hpMax || 18) + 4;
+                p.hp = p.hpMax;
+            }
+        }
+
+        const w = p.inventory.find(it => it.equipped === 'weapon') || p.inventory[0];
+        const a = p.inventory.find(it => it.equipped === 'armor');
+        if (kitBoon === 'expedition') {
+            p.inventory.push({ kind: 'potion', name: 'potion of healing', glyph: '!', attr: 11, heal: 22, count: 1, weight: 10, tval: 71, sval: 38 });
+            p.inventory.push({ kind: 'scroll', name: 'scroll of magic mapping', glyph: '?', attr: 14, count: 1, weight: 5, tval: 70, sval: 12 });
+        } else if (kitBoon === 'blessed') {
+            if (w) { w.bonus = (w.bonus || 0) + 1; w.beatitude = 'blessed'; }
+            if (a) { a.bonus = (a.bonus || 0) + 1; a.beatitude = 'blessed'; }
+            p.piety = Math.min(6, (p.piety || 2) + 1);
+        } else {
+            // 'signature'
+            if (w) w.bonus = (w.bonus || 0) + 1;
+            if (this.realm === 'brogue') p.enchantments = (p.enchantments || 0) + 1;
+        }
+        this.reindexInventory();
     }
 
     getBranchName(depth) {
@@ -345,7 +411,11 @@ class UniversalCartridgeEngine {
             it.letter = String.fromCharCode(97 + (idx % 26));
         });
         const w = p.inventory.find(it => it.equipped === 'weapon');
+        const sh = p.inventory.find(it => it.equipped === 'shield');
+        const bw = p.inventory.find(it => it.equipped === 'bow');
         p.weaponName = w ? w.name : 'bare hands';
+        p.shieldName = sh ? sh.name : '';
+        p.bowName = bw ? bw.name : '';
         this.recalcPlayerDefenses();
     }
 
@@ -353,13 +423,15 @@ class UniversalCartridgeEngine {
         const p = this.state && this.state.player;
         if (!p || !Array.isArray(p.inventory)) return;
         const body = p.inventory.find(it => it.equipped === 'body' || it.equipped === 'armor');
+        const shield = p.inventory.find(it => it.equipped === 'shield');
         const ring = p.inventory.find(it => it.equipped === 'ring' && /protection|armor|defense/i.test(it.name || ''));
         const armorBase = body ? Number(body.ac != null ? body.ac : 4) : 0;
-        const armorBonus = (body ? Number(body.bonus || 0) : 0) + (ring ? Number(ring.bonus || 1) : 0);
+        const shieldAc = shield ? (Number(shield.ac != null ? shield.ac : 2) + Number(shield.bonus || 0)) : 0;
+        const armorBonus = (body ? Number(body.bonus || 0) : 0) + (ring ? Number(ring.bonus || 1) : 0) + shieldAc;
         if (this.realm === 'rogue') {
-            p.ac = body ? Math.max(-10, (body.ac != null ? body.ac : 7) - armorBonus) : 10;
+            p.ac = body ? Math.max(-10, (body.ac != null ? body.ac : 7) - armorBonus) : (10 - shieldAc);
         } else {
-            p.ac = Math.max(0, (body ? (armorBase + armorBonus) : 2) + Math.floor(((p.dex || 12) - 10) / 3));
+            p.ac = Math.max(0, (body ? (armorBase + armorBonus) : (2 + armorBonus)) + Math.floor(((p.dex || 12) - 10) / 3));
         }
         p.ev = Math.max(4, 10 + Math.floor(((p.dex || 12) - 10) / 2) - (body && (body.weight || 0) >= 250 ? 2 : 0));
     }
@@ -1052,28 +1124,58 @@ class UniversalCartridgeEngine {
             if (lower === '*') {
                 const randIdx = this.rand(this.spec.roles.length);
                 this.initNewState(randIdx);
+                this.applyStartingOptimization('optimal', 'signature');
                 this.state.phase = 'play';
                 this.saveGame();
                 return;
             }
+            // # ROOT-CAUSE: Read current statFocus & kitBoon before initNewState resets state
+            if (lower === '1' || lower === 'f') {
+                const focuses = ['optimal', 'vanguard', 'arcane', 'agile'];
+                const cur = this.state.statFocus || 'optimal';
+                const kb = this.state.kitBoon || 'signature';
+                const nextFocus = focuses[(focuses.indexOf(cur) + 1) % focuses.length];
+                this.initNewState(this.state.selectedRoleIdx || 0);
+                this.applyStartingOptimization(nextFocus, kb);
+                return;
+            }
+            if (lower === '2' || lower === 'b') {
+                const boons = ['signature', 'expedition', 'blessed'];
+                const sf = this.state.statFocus || 'optimal';
+                const cur = this.state.kitBoon || 'signature';
+                const nextBoon = boons[(boons.indexOf(cur) + 1) % boons.length];
+                this.initNewState(this.state.selectedRoleIdx || 0);
+                this.applyStartingOptimization(sf, nextBoon);
+                return;
+            }
             if (lower === 'enter' || lower === 'return' || lower === 'space' || lower === 'y') {
+                this.applyStartingOptimization(this.state.statFocus || 'optimal', this.state.kitBoon || 'signature');
                 this.state.phase = 'play';
                 this.saveGame();
                 return;
             }
             if (lower === 'down' || lower === 'arrowdown' || lower === 'j') {
                 const next = ((this.state.selectedRoleIdx || 0) + 1) % this.spec.roles.length;
+                const sf = this.state.statFocus || 'optimal';
+                const kb = this.state.kitBoon || 'signature';
                 this.initNewState(next);
+                this.applyStartingOptimization(sf, kb);
                 return;
             }
             if (lower === 'up' || lower === 'arrowup' || lower === 'k') {
                 const prev = ((this.state.selectedRoleIdx || 0) - 1 + this.spec.roles.length) % this.spec.roles.length;
+                const sf = this.state.statFocus || 'optimal';
+                const kb = this.state.kitBoon || 'signature';
                 this.initNewState(prev);
+                this.applyStartingOptimization(sf, kb);
                 return;
             }
             const idx = this.spec.roles.findIndex(r => r.key === lower);
             if (idx >= 0) {
+                const sf = this.state.statFocus || 'optimal';
+                const kb = this.state.kitBoon || 'signature';
                 this.initNewState(idx);
+                this.applyStartingOptimization(sf, kb);
                 this.state.phase = 'play';
                 this.saveGame();
             }
@@ -1187,11 +1289,41 @@ class UniversalCartridgeEngine {
                 }
                 return;
             }
-            if (this.state.menuMode === 'power_select' || this.state.menuMode === 'spells') {
+            if (this.state.menuMode === 'power_select' || this.state.menuMode === 'spells' || this.state.menuMode === 'skills') {
                 const powers = this.getAvailablePowers();
                 if (lower === 'i' || lower === 'z') {
                     this.openVerbPrompt('use', 'Use, zap, or evoke which item? [a-z or ESC]');
                     return;
+                }
+                if (this.state.menuMode === 'skills' && k === 'M') {
+                    this.state.menuMode = 'spells';
+                    this.state.pendingPrompt = `${this.spec.title || 'Realm'} — Spells & Powers ([1-4/a-d] Cast, [ESC] Close)`;
+                    return;
+                }
+                // # ROOT-CAUSE: menuMode === 'skills' previously checked powers.length === 0 which was never true when DEFAULT_DISCIPLINE_POWERS existed
+                if (this.state.menuMode === 'skills' && /^[a-d1-4]$/.test(lower)) {
+                    const keyMap = { '1': 'a', '2': 'b', '3': 'c', '4': 'd' };
+                    const effKey = keyMap[lower] || lower;
+                    const trainingDisciplines = {
+                        a: { id: 'fighting', name: 'Fighting & Melee Mastery', stat: 'str' },
+                        b: { id: 'dodging', name: 'Dodging & Armour Defense', stat: 'dex' },
+                        c: { id: 'evocations', name: 'Arcane Evocations & Wands', stat: 'int' },
+                        d: { id: 'invocations', name: 'Invocations & Stealth', stat: 'wis' }
+                    };
+                    const chosen = trainingDisciplines[effKey];
+                    if (chosen) {
+                        this.state.skillFocus = chosen.id;
+                        p.activeTrainingFocus = chosen.name;
+                        if (!p._trainedFocusOnce) {
+                            p._trainedFocusOnce = true;
+                            p[chosen.stat] = (p[chosen.stat] || 12) + 1;
+                            if (typeof this.recalcPlayerDefenses === 'function') this.recalcPlayerDefenses();
+                        }
+                        this.state.menuMode = 'none';
+                        this.state.pendingPrompt = '';
+                        this.addMessage(`Training focus set to ${chosen.name} (+1 ${chosen.stat.toUpperCase()} aptitude).`, 11);
+                        return;
+                    }
                 }
                 const numIdx = /^[1-9]$/.test(k) ? (parseInt(k, 10) - 1) : (/^[a-d]$/.test(lower) ? (lower.charCodeAt(0) - 97) : -1);
                 if (numIdx >= 0 && numIdx < powers.length) {
@@ -1549,7 +1681,13 @@ class UniversalCartridgeEngine {
             return;
         }
         if (verb === 'wield') {
-            const slot = item.kind === 'armor' ? 'body' : (item.kind === 'ring' ? 'ring' : (item.kind === 'amulet' ? 'amulet' : 'weapon'));
+            const lowerItem = String(item.name || '').toLowerCase();
+            let slot = 'weapon';
+            if (item.kind === 'shield' || /\b(shield|buckler|targe)\b/.test(lowerItem)) slot = 'shield';
+            else if (item.kind === 'bow' || /\b(bow|crossbow|sling)\b/.test(lowerItem)) slot = 'bow';
+            else if (item.kind === 'armor') slot = 'body';
+            else if (item.kind === 'ring') slot = 'ring';
+            else if (item.kind === 'amulet') slot = 'amulet';
             p.inventory.forEach(it => { if (it.equipped === slot) it.equipped = null; });
             item.equipped = slot;
             this.reindexInventory();
@@ -2081,7 +2219,9 @@ class UniversalCartridgeEngine {
                 });
             });
             rows.push({ g: pad80(''), a: attr80('01') });
-            rows.push({ g: pad80('  [*] Quick Start & enter the 3D dungeon immediately'), a: attr80('0b') });
+            // # ROOT-CAUSE: Cartridge birth screen needed visible post-randomization stat focus & kit boon controls and distinct skill training rows
+            rows.push({ g: pad80(`  [1/f] Stat Focus: ${(this.state.statFocus || 'optimal').toUpperCase().padEnd(10, ' ')} [2/b] Kit Boon: ${(this.state.kitBoon || 'signature').toUpperCase()}`), a: attr80('0a') });
+            rows.push({ g: pad80('  [*] Quick Start (Randomize & Auto-Optimize) or [Enter] Embark with Selection'), a: attr80('0b') });
             while (rows.length < TERM_H) rows.push({ g: pad80(''), a: attr80('01') });
             return rows;
         }
@@ -2120,7 +2260,16 @@ class UniversalCartridgeEngine {
                 if (this.realm === 'dcss') rows.push({ g: pad80(`  Deity: ${p.deity} (Piety: ${'★'.repeat(Math.max(0, p.piety || 0))})   Runes: ${p.runes || 0}/3`), a: attr80('0e') });
                 if (this.realm === 'brogue') rows.push({ g: pad80(`  Enchantments: +${p.enchantments || 0}   Lumenstones: ${p.lumenstones || 0}`), a: attr80('0e') });
                 if (this.realm === 'ryod') rows.push({ g: pad80(`  World: ${this.spec.ryodHash || 'RYOD'} • Mutator: ${this.spec.mutatorId || 'balanced'} • Goal: ${this.spec.goalItemName || 'Relic'} (D:${this.spec.goalDepth || 15})`), a: attr80('0e') });
-            } else if (this.state.menuMode === 'skills' || this.state.menuMode === 'spells' || this.state.menuMode === 'power_select') {
+            } else if (this.state.menuMode === 'skills') {
+                const sk = this.state.skills || { fighting: 2, dodging: 1, evocations: 1, invocations: 1 };
+                const focus = this.state.skillFocus || 'fighting';
+                rows.push({ g: pad80(`  a) Fighting & Melee Mastery       Lv ${(sk.fighting || 2) + Math.max(0, p.level - 1)}   ${focus === 'fighting' ? '[FOCUSED +]' : '(Active)'}`), a: attr80(focus === 'fighting' ? '0e' : '01') });
+                rows.push({ g: pad80(`  b) Dodging & Armour Defense       Lv ${(sk.dodging || 1) + Math.max(0, p.level - 1)}   ${focus === 'dodging' ? '[FOCUSED +]' : '(Active)'}`), a: attr80(focus === 'dodging' ? '0e' : '01') });
+                rows.push({ g: pad80(`  c) Arcane Evocations & Wands      Lv ${(sk.evocations || 1) + Math.floor(Math.max(0, p.level - 1) / 2)}   ${focus === 'evocations' ? '[FOCUSED +]' : '(Active)'}`), a: attr80(focus === 'evocations' ? '0e' : '01') });
+                rows.push({ g: pad80(`  d) Invocations (${p.deity || 'Pantheon'})       Lv ${(sk.invocations || 1)} (Piety ${p.piety || 1}/6) ${focus === 'invocations' ? '[FOCUSED +]' : '(Active)'}`), a: attr80(focus === 'invocations' ? '0e' : '01') });
+                rows.push({ g: pad80(''), a: attr80('01') });
+                rows.push({ g: pad80('  Press [a-d] or [1-4] to focus/train a skill, [M] for Spells/Powers, or [ESC].'), a: attr80('0b') });
+            } else if (this.state.menuMode === 'spells' || this.state.menuMode === 'power_select') {
                 const avail = this.getAvailablePowers();
                 if (avail.length > 0) {
                     const resLbl = this.spec.resourceLabel || 'MP';
@@ -2423,7 +2572,9 @@ class UniversalCartridgeEngine {
                 light: 2,
                 light_item: 'Dungeon Torch',
                 light_fuel: 1500,
-                weapon_item: p.weaponName || 'blade',
+                weapon_item: p.weaponName || 'bare hands',
+                shield_item: p.shieldName || '',
+                bow_item: p.bowName || '',
                 speed: p.speedBoost > 0 ? 120 : 110,
                 dead: p.dead,
                 winner: p.winner,
@@ -2431,7 +2582,7 @@ class UniversalCartridgeEngine {
                 turn: this.state.turn,
                 stats: {
                     str: { use: p.str, max: p.str, top: p.str, reduced: false },
-                    int: { use: p.int, max: p.int, top: p.str, reduced: false },
+                    int: { use: p.int, max: p.int, top: p.int, reduced: false },
                     wis: { use: p.wis, max: p.wis, top: p.wis, reduced: false },
                     dex: { use: p.dex, max: p.dex, top: p.dex, reduced: false },
                     con: { use: p.con, max: p.con, top: p.con, reduced: false }

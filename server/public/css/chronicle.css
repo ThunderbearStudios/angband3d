@@ -1625,3 +1625,147 @@ body.is-standalone #chronicle-window {
 }
 
 
+/* ==========================================================================
+   v11.9.5: Living Chronicle Tome De-Clutter, Collapsible Drawers & Inspect Footer
+   ========================================================================== */
+
+#chronicle-window.minimized {
+    height: auto !important;
+    min-height: 0 !important;
+}
+
+#chronicle-window.minimized #chronicle-scroll,
+#chronicle-window.minimized #chronicle-interactive-bar,
+#chronicle-window.minimized #chronicle-footer,
+#chronicle-window.minimized .chronicle-transport-deck,
+#chronicle-window.minimized #chronicle-resize-handle {
+    display: none !important;
+}
+
+/* Collapsible Ask & Archive Drawers: Closed by default to maximize story reading room */
+#chronicle-window:not(.ask-drawer-open):not(:has(#chronicle-target-pill:not(.hidden))) #chronicle-interactive-bar {
+    display: none !important;
+}
+
+#chronicle-window:not(.archive-drawer-open) #chronicle-footer {
+    display: none !important;
+}
+
+#btn-chronicle-ask-toggle[aria-expanded="true"],
+#btn-chronicle-archive-toggle[aria-expanded="true"],
+#btn-chronicle-pin[aria-pressed="true"] {
+    background: rgba(212, 175, 55, 0.28) !important;
+    border-color: #ffd700 !important;
+    color: #fff6d6 !important;
+    box-shadow: 0 0 8px rgba(212, 175, 55, 0.35);
+}
+
+/* Streamlined Transport & Action Bar */
+.chronicle-header {
+    padding: 5px 8px !important;
+    gap: 4px !important;
+}
+
+.chronicle-transport-deck {
+    flex-wrap: wrap;
+    padding: 3px 5px !important;
+    gap: 4px !important;
+}
+
+.chronicle-audio-toggles {
+    flex-wrap: wrap;
+    gap: 3px !important;
+}
+
+.chronicle-ctrl-btn {
+    height: 21px !important;
+    padding: 1px 6px !important;
+    font-size: 9.5px !important;
+}
+
+/* Chapter Header Row & Replay Button */
+.chapter-header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 6px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid rgba(212, 175, 55, 0.18);
+}
+
+.chapter-replay-btn {
+    background: rgba(24, 30, 44, 0.85);
+    border: 1px solid rgba(212, 175, 55, 0.38);
+    border-radius: 4px;
+    color: #f3d478;
+    font-family: var(--font-terminal, monospace);
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 7px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+    transition: all 0.15s ease;
+}
+
+.chapter-replay-btn:hover {
+    background: rgba(212, 175, 55, 0.24);
+    border-color: #ffd700;
+    color: #ffffff;
+}
+
+/* Suppress redundant duplicate catchup context banner */
+.catchup-context-banner {
+    display: none !important;
+}
+
+/* Unify both .quick-topic-chip and .chronicle-topic-chip */
+.quick-topic-chip,
+.chronicle-topic-chip {
+    background: rgba(30, 41, 59, 0.72);
+    border: 1px solid rgba(212, 175, 55, 0.28);
+    border-radius: 4px;
+    color: #cbd5e1;
+    font-size: 10px;
+    font-family: var(--font-terminal, monospace);
+    padding: 2px 7px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.quick-topic-chip:hover,
+.chronicle-topic-chip:hover {
+    background: rgba(212, 175, 55, 0.22);
+    border-color: #ffd700;
+    color: #ffffff;
+}
+
+/* Entity Inspect Popover: Compact 4-button Lorekeeper & Tactical Footer */
+.entity-inspect-popover .inspect-popover-actions {
+    display: grid !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    align-items: center !important;
+    gap: 5px !important;
+    margin-top: 2px !important;
+}
+
+.entity-inspect-popover .inspect-popover-btn {
+    font-size: 11px !important;
+    padding: 5px 6px !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    text-align: center !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 3px !important;
+}
+
+.entity-inspect-popover #inspect-popover-vow-btn,
+.entity-inspect-popover #inspect-popover-voice-btn {
+    display: inline-flex !important;
+}

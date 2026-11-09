@@ -34,11 +34,20 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 
     // Register PWA Service Worker for home-screen installation & offline shell caching
+    // # ROOT-CAUSE: Suppress false-positive controllerchange SW reload toast during initial boot, on localhost, or while on Splash/Main Menu so startup is never nagged by a redundant reload banner.
     if ('serviceWorker' in navigator) {
+        const bootStartMs = performance.now();
         let hasController = Boolean(navigator.serviceWorker.controller);
         navigator.serviceWorker.addEventListener('controllerchange', () => {
             if (!hasController) {
                 hasController = true;
+                return;
+            }
+            const isLocal = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+            if (isLocal || (performance.now() - bootStartMs < 15000)) {
+                return;
+            }
+            if (typeof appState === 'string' && (appState === 'splash' || appState === 'mainMenu')) {
                 return;
             }
             showUpdateToast();
@@ -493,36 +502,32 @@ window.addEventListener('DOMContentLoaded', () => {
             finalizeHeroBirth();
             return;
         }
-        if (++quickBirthStep > 40) {
+        if (++quickBirthStep > 120) {
             quickBirthActive = false;
             forceTerminal = false;
             updateViewMode(frame);
             console.warn('[QuickStart] Exceeded maximum auto-birth steps; switching to world view.');
             return;
         }
-        // 1. Review & Confirmation Screen reached across variants!
-        const isReviewScreen = ['to start over', "'s' to start", 'accept character', 're-roll', "['r'eroll", 'or enter to accept', "reroll, 'h'istory", '能力値の決定', '能力値決定', '次の数値', '前の数値', 'この数値に決定'].some(k => screenText.includes(k)) ||
-                               (screenText.includes('enter your starting stats') && screenText.includes('begin play')) ||
-                               (screenText.includes('step back') && screenText.includes('continue'));
-        if (isReviewScreen) {
-            quickBirthActive = false;
-            birthReviewActive = true;
-            forceTerminal = true;
-            updateViewMode(frame);
-            const getEl = id => document.getElementById(id);
-            const [qbBtn, rrBtn, custBtn, advBtn, escBtn] = ['btn-quick-birth', 'btn-term-reroll', 'btn-term-custom', 'btn-term-advance', 'btn-term-escape'].map(getEl);
-            const terminalTitle = getEl('term-title') || getEl('terminal-title');
-            if (qbBtn) qbBtn.style.display = 'none';
-            if (rrBtn) rrBtn.style.display = 'inline-flex';
-            if (custBtn) custBtn.style.display = 'inline-flex';
-            if (advBtn) { advBtn.style.display = 'inline-flex'; advBtn.textContent = '⚔ Accept & Play (Enter)'; }
-            if (escBtn) { escBtn.style.display = 'inline-flex'; escBtn.textContent = 'Back (Esc)'; }
-            if (terminalTitle) {
-                const hasPrev = screenText.includes('前の数値') || screenText.includes('previous roll') || screenText.includes("'p' for previous");
-                terminalTitle.textContent = hasPrev
-                    ? '🎲 HERO STATS — Reroll [R] | Prev Roll [P] | Custom [C] | Accept [Enter]'
-                    : '🎲 HERO REVIEW — Reroll [R] | Custom [C] | Accept [Enter]';
+        if (!quickBirthPlanner && window.RealmCartridge && typeof window.RealmCartridge.createRandomBirthPlanner === 'function') {
+            quickBirthPlanner = window.RealmCartridge.createRandomBirthPlanner(activeRealm, quickBirthArchetype);
+        }
+        const planner = quickBirthPlanner || {
+            magicRealmKey: ['a', 'b', 'c', 'd', 'e', 'f'][Math.floor(Math.random() * 6)],
+            fcbPersonalityKeys: ['a', 'c'],
+            cartridgeRoleKey: '*',
+            silqStatSequence: ['6', '6', '6', '2', '6', '6', '2', '6', '6', '2', '6', 'enter'],
+            silqSkillSequence: ['6', '6', '6', '2', '2', '6', '6', '2', '2', '6', '6', 'enter']
+        };
+        // 1. FrogComposBand Starting Stat Allocation ("Enter your starting stats" / "Enter to begin play")
+        if (screenText.includes('enter your starting stats') && screenText.includes('begin play')) {
+            const ptsMatch = rawText.match(/Points\s+Left\s*:\s*(-?\d+)/i) || rawText.match(/points\s+remaining\s*:\s*(-?\d+)/i);
+            const ptsLeft = ptsMatch ? parseInt(ptsMatch[1], 10) : 0;
+            if (ptsLeft < 0) {
+                network.sendKey('r');
+                return;
             }
+            network.sendKey('enter');
             return;
         }
         // 1b. Vanilla Angband Quickstart prompt: do not reuse previous character during quick birth; roll fresh with 'n'
@@ -541,22 +546,15 @@ window.addEventListener('DOMContentLoaded', () => {
             network.sendKey('escape');
             return;
         }
-        // 4. Hengband Stat Roller (Set minimum stats / goto next / 能力値を抽選)
-        if (screenText.includes('set minimum stats') || screenText.includes('enter for goto next') ||
-            screenText.includes('能力値を抽選') || screenText.includes('この数値に決定')) {
+        // 4. Hengband Stat Roller: 'escape' on minimum stats accepts class-optimal defaults in 1 step; 'enter' on stat decide
+        if (screenText.includes('set minimum stats') || screenText.includes('enter for goto next') || screenText.includes('最低限得たい能力値')) {
+            network.sendKey('escape');
+            return;
+        }
+        if (screenText.includes('能力値を抽選') || screenText.includes('この数値に決定') || screenText.includes('能力値の決定') || screenText.includes('能力値決定') || screenText.includes('次の数値')) {
             network.sendKey('enter');
             return;
         }
-        if (!quickBirthPlanner && window.RealmCartridge && typeof window.RealmCartridge.createRandomBirthPlanner === 'function') {
-            quickBirthPlanner = window.RealmCartridge.createRandomBirthPlanner(activeRealm, quickBirthArchetype);
-        }
-        const planner = quickBirthPlanner || {
-            magicRealmKey: ['a', 'b', 'c', 'd', 'e', 'f'][Math.floor(Math.random() * 6)],
-            fcbPersonalityKeys: ['a', 'c'],
-            cartridgeRoleKey: '*',
-            silqStatSequence: ['6', '6', '2', '6', '6', '2', '6', '6', '2', '6', '8', '6', 'enter'],
-            silqSkillSequence: ['6', '6', '6', '2', '2', '6', '6', '2', '2', '6', '6', 'enter']
-        };
         // 5. Hengband Realm Selection (for spellcasting classes) -> select varied realm from planner
         if (screenText.includes('choose a realm') || screenText.includes('choose realm') || screenText.includes('realm 1:') ||
             screenText.includes('魔法領域') || screenText.includes('領域を選んで')) {
@@ -630,21 +628,38 @@ window.addEventListener('DOMContentLoaded', () => {
         }
         // 9. Sil-Q Skills & Stats Allocation
         if (screenText.includes('allocate points to skills') || screenText.includes('skill increases') || screenText.includes('accept skills')) {
-            if (!silqSkillAllocated && Array.isArray(planner.silqSkillSequence)) {
+            const expMatch = rawText.match(/Experience\s+Left\s*:\s*(-?\d+)/i);
+            const expLeft = expMatch ? parseInt(expMatch[1], 10) : 1000;
+            if (!silqSkillAllocated && expLeft >= 100) {
                 silqSkillAllocated = true;
-                planner.silqSkillSequence.forEach(k => network.sendKey(k));
+                const skillKeys = (typeof planner.computeSilqSkillKeys === 'function')
+                    ? planner.computeSilqSkillKeys(rawText)
+                    : (Array.isArray(planner.silqSkillSequence) ? planner.silqSkillSequence : ['6', '6', '6', '2', '2', '6', '6', '2', '2', '6', '6', 'enter']);
+                skillKeys.forEach(k => network.sendKey(k));
+            } else if (expLeft < 0) {
+                network.sendKey('r');
+                silqSkillAllocated = false;
             } else {
                 network.sendKey('enter');
             }
             return;
         }
         if (screenText.includes('allocate points to stats') || screenText.includes('accept stats')) {
-            if (silqStatAllocated) return;
-            silqStatAllocated = true;
-            const seq = Array.isArray(planner.silqStatSequence)
-                ? planner.silqStatSequence
-                : ['6', '6', '2', '6', '6', '2', '6', '6', '2', '6', '8', '6', 'enter'];
-            seq.forEach(k => network.sendKey(k));
+            const ptsMatch = rawText.match(/Points\s+Left\s*:\s*(-?\d+)/i);
+            const ptsLeft = ptsMatch ? parseInt(ptsMatch[1], 10) : 13;
+            if (!silqStatAllocated && ptsLeft > 0) {
+                silqStatAllocated = true;
+                const seq = Array.isArray(planner.silqStatSequence)
+                    ? planner.silqStatSequence
+                    : ['6', '6', '6', '2', '6', '6', '2', '6', '6', '2', '6', 'enter'];
+                if (ptsLeft !== 13) network.sendKey('r');
+                seq.forEach(k => network.sendKey(k));
+            } else if (ptsLeft < 0) {
+                network.sendKey('r');
+                silqStatAllocated = false;
+            } else {
+                network.sendKey('enter');
+            }
             return;
         }
         // 10. History, Age/Height/Weight, Name Prompts
@@ -653,9 +668,10 @@ window.addEventListener('DOMContentLoaded', () => {
             return;
         }
         if (screenText.includes('enter accept name') || screenText.includes('accept name') || screenText.includes('tab random name')) {
-            if (silqNameSent) return;
-            silqNameSent = true;
-            network.sendKey('tab');
+            if (!silqNameSent) {
+                silqNameSent = true;
+                network.sendKey('tab');
+            }
             network.sendKey('enter');
             return;
         }
@@ -664,14 +680,15 @@ window.addEventListener('DOMContentLoaded', () => {
             network.sendKey('enter');
             return;
         }
-        // 11. Post-review background edit & embark screens (Hengband)
+        // 11. Post-review background edit & embark screens (Hengband / Sil-Q / Vanilla)
         if (screenText.includes('character background') || screenText.includes('cursor key for move, enter for end') ||
             screenText.includes('生い立ち') || screenText.includes('編集モード') || screenText.includes('編集済み')) {
             network.sendKey('enter');
             return;
         }
         if (screenText.includes("start over, or enter to continue") || screenText.includes("['q'uit, 's'tart over, or enter to continue]") ||
-            screenText.includes('ゲーム開始') || screenText.includes('冒険に出ますか')) {
+            screenText.includes('ゲーム開始') || screenText.includes('冒険に出ますか') ||
+            (screenText.includes('step back') && screenText.includes('continue'))) {
             network.sendKey('enter');
             return;
         }
@@ -1024,7 +1041,7 @@ window.addEventListener('DOMContentLoaded', () => {
                     }
                 }
             }
-            if (key === 'tab') {
+            if (key === 'toggle-3d' || (key === 'tab' && effRealm !== 'silq' && inPlay && !btn.classList.contains('term-ctx-btn'))) {
                 // Return from Classic Mode to 3D View
                 forceTerminal = false;
                 window.__manualTerminalOpen = false;
@@ -1144,14 +1161,20 @@ window.addEventListener('DOMContentLoaded', () => {
             if (!nameInput) return;
             const nameVal = nameInput.value.trim();
             if (audio) audio.playWhoosh();
-            network.sendKey('C-u');
+            const curRealm = (typeof getActiveRealm === 'function') ? getActiveRealm() : activeRealm;
+            if (!nameVal) {
+                network.sendKey('enter');
+                nameInput.blur();
+                return;
+            }
+            if (curRealm !== 'silq') {
+                network.sendKey('C-u');
+            }
             for (let i = 0; i < 20; i++) {
                 network.sendKey('backspace');
             }
-            if (nameVal) {
-                for (const ch of nameVal) {
-                    network.sendKey(ch);
-                }
+            for (const ch of nameVal) {
+                network.sendKey(ch);
             }
             network.sendKey('enter');
             nameInput.blur();
@@ -1165,6 +1188,14 @@ window.addEventListener('DOMContentLoaded', () => {
         if (nameRandBtn) {
             nameRandBtn.addEventListener('click', (e) => {
                 e.preventDefault();
+                const curRealm = (typeof getActiveRealm === 'function') ? getActiveRealm() : activeRealm;
+                if (curRealm === 'silq') {
+                    if (audio) audio.playWhoosh();
+                    network.sendKey('tab');
+                    network.sendKey('enter');
+                    if (nameInput) nameInput.blur();
+                    return;
+                }
                 const fantasyNames = ['Aegnor', 'Beleg', 'Celegorm', 'Daeron', 'Ecthelion', 'Fingolfin', 'Galdor', 'Hador', 'Idril', 'Luthien', 'Mablung', 'Nimrodel', 'Orodreth', 'Turgon', 'Voronwe'];
                 const chosen = fantasyNames[Math.floor(Math.random() * fantasyNames.length)];
                 if (nameInput) nameInput.value = chosen;
@@ -1230,8 +1261,9 @@ window.addEventListener('DOMContentLoaded', () => {
                 let startX = 0, startY = 0;
                 let initialLeft = 0, initialTop = 0;
                 let fixedW = 0, fixedH = 0;
+                // # ROOT-CAUSE: Exempt .minimap-hint from header drag start so clicking the header size badge cycles minimap presets without initiating a drag.
                 const startDrag = (clientX, clientY, e) => {
-                    if (e && e.target && e.target.closest('button, input, select, a, kbd')) return;
+                    if (e && e.target && e.target.closest('button, input, select, a, kbd, .minimap-hint')) return;
                     if (e && e.preventDefault) e.preventDefault();
                     isDragging = true;
                     startX = clientX;
@@ -1391,13 +1423,22 @@ window.addEventListener('DOMContentLoaded', () => {
         const wireTopToggle = (topBtnId, winEl) => {
             const topBtn = document.getElementById(topBtnId);
             if (!topBtn || !winEl) return;
+            // # ROOT-CAUSE: Synchronize .is-panel-open on top-bar toggles, un-minimize shaded panels on top-bar click, and clamp floating windows inside the viewport on resize/orientationchange.
             const syncTopBtn = () => {
                 const hidden = winEl.classList.contains('hud-panel-hidden');
                 topBtn.classList.toggle('panel-off', hidden);
+                topBtn.classList.toggle('is-panel-open', !hidden);
                 topBtn.setAttribute('aria-pressed', String(!hidden));
             };
             topBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
+                if (!winEl.classList.contains('hud-panel-hidden') && winEl.classList.contains('window-minimized')) {
+                    winEl.classList.remove('window-minimized');
+                    const minBtn = winEl.querySelector('.hud-win-ctrl-btn');
+                    if (minBtn) minBtn.textContent = '−';
+                    syncTopBtn();
+                    return;
+                }
                 const hidden = winEl.classList.toggle('hud-panel-hidden');
                 if (!hidden) winEl.classList.remove('window-minimized');
                 syncTopBtn();
@@ -1406,6 +1447,24 @@ window.addEventListener('DOMContentLoaded', () => {
         };
         wireTopToggle('btn-toggle-hero', charWin);
         wireTopToggle('btn-toggle-actions', deckWin);
+
+        const clampFloatingWindowsToViewport = () => {
+            const vw = window.innerWidth || 1280;
+            const vh = window.innerHeight || 720;
+            [mapWin, msgWin, chronicleWin].forEach((el) => {
+                if (!el || !el.style || !el.style.left) return;
+                const rect = el.getBoundingClientRect();
+                if (!rect.width || !rect.height) return;
+                const curLeft = parseFloat(el.style.left) || rect.left;
+                const curTop = parseFloat(el.style.top) || rect.top;
+                const clampedLeft = Math.max(6, Math.min(vw - rect.width - 6, curLeft));
+                const clampedTop = Math.max(46, Math.min(vh - rect.height - 6, curTop));
+                el.style.left = `${Math.round(clampedLeft)}px`;
+                el.style.top = `${Math.round(clampedTop)}px`;
+            });
+        };
+        window.addEventListener('resize', clampFloatingWindowsToViewport, { passive: true });
+        window.addEventListener('orientationchange', clampFloatingWindowsToViewport, { passive: true });
 
         // Wire Width Resize Handle for Hero Status Panel (keeps height auto so drawer never clips)
         const charResize = document.getElementById('char-resize-handle');
@@ -1780,24 +1839,51 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderMenuBackdropDiorama() {
-        if (!dungeon || lastFrame || typeof dungeon.updateDungeon !== 'function') return;
+        if (!dungeon || appState === 'game' || typeof dungeon.updateDungeon !== 'function') return;
         try {
-            const w = 24, h = 24, px = 12, py = 14;
+            const w = 24, h = 24, px = 12, py = 12;
             const rows = [];
             for (let y = 0; y < h; y++) {
                 let f = '', l = '', g = '', a = '';
                 for (let x = 0; x < w; x++) {
-                    const isChamber = (x >= 8 && x <= 16 && y >= 6 && y <= 17);
-                    let featHex = '15', glyph = '#', attrHex = '02';
-                    if (isChamber) {
-                        if (x === 8 || x === 16 || y === 6 || y === 17) {
-                            if ((x === 8 || x === 16) && y === 10) { featHex = '12'; glyph = '%'; attrHex = '0b'; }
-                            else { featHex = '15'; glyph = '#'; attrHex = '02'; }
-                        } else if ((x === 9 || x === 15) && y >= 8 && y <= 13) {
-                            featHex = '17'; glyph = '~'; attrHex = '04';
+                    const dx = x - px, dy = y - py;
+                    const dist2 = dx * dx + dy * dy;
+                    // Default: Verdant moonlit grass (feat 26 = 0x1a)
+                    let featHex = '1a', glyph = '.', attrHex = '05';
+                    if (x <= 1 || x >= w - 2 || y <= 1 || y >= h - 2) {
+                        // Outer forest tree ring (feat 25 = 0x19)
+                        featHex = '19'; glyph = '%'; attrHex = '05';
+                    } else if (dist2 <= 25) {
+                        // Inner sanctuary stone courtyard (feat 1 = 0x01) & cross cobblestone walkways (feat 27 = 0x1b)
+                        if (Math.abs(dx) <= 1 || Math.abs(dy) <= 1) {
+                            featHex = '1b'; glyph = '.'; attrHex = '0b';
                         } else {
                             featHex = '01'; glyph = '.'; attrHex = '01';
                         }
+                    } else if (((x + y) % 5 === 0) && dist2 > 32 && dist2 < 72) {
+                        // Scenic photogrammetry trees & foliage bushes framing the courtyard
+                        if ((x * 3 + y) % 2 === 0) {
+                            featHex = '19'; glyph = '%'; attrHex = '05';
+                        } else {
+                            featHex = '2a'; glyph = '"'; attrHex = '05';
+                        }
+                    }
+                    // Iconic Sanctuary landmarks around the camera (px=12, py=12)
+                    if (x === px && y === py - 4) {
+                        // Consecrated High Altar with sacred flame to the North (feat 43 = 0x2b)
+                        featHex = '2b'; glyph = '_'; attrHex = '0b';
+                    } else if ((x === px - 3 || x === px + 3) && y === py - 3) {
+                        // Twin Sparkling Magic Fountains (feat 44 = 0x2c)
+                        featHex = '2c'; glyph = '_'; attrHex = '0e';
+                    } else if ((x === px - 4 || x === px + 4) && (y === py - 1 || y === py + 3)) {
+                        // Torchlit Stone Colonnade Pillars (feat 15 = 0x0f)
+                        featHex = '0f'; glyph = '#'; attrHex = '02';
+                    } else if ((x === px - 3 || x === px + 3) && y === py + 2) {
+                        // Molten Lava Braziers (feat 23 = 0x17)
+                        featHex = '17'; glyph = '~'; attrHex = '04';
+                    } else if (x === px && y === py + 4) {
+                        // Descending Stone Staircase (feat 6 = 0x06)
+                        featHex = '06'; glyph = '>'; attrHex = '01';
                     }
                     f += featHex; l += '3'; g += glyph; a += attrHex;
                 }
@@ -1805,19 +1891,42 @@ window.addEventListener('DOMContentLoaded', () => {
             }
             dungeon.lastPlayerHp = null;
             dungeon.updateDungeon({
+                _isMenuDiorama: true,
                 phase: 'play',
                 realm: activeRealm || 'angband',
-                player: { name: 'Adventurer', race: 'Dwarf', class: 'Warrior', x: px, y: py, depth: 15, hp: 200, hp_max: 200, cur_light: 4, facing: 0 },
+                // depth: 0 enables outdoors=true -> Celestial Sky Dome (Milky Way, Aurora, Crescent Moon & Twinkling Stars)
+                player: { name: 'Adventurer', race: 'Human', class: 'Warrior', x: px, y: py, depth: 0, hp: 200, hp_max: 200, cur_light: 5, facing: 0 },
                 map: { w, h, rows },
+                // # ROOT-CAUSE: Omit floor item labels from menu sanctuary backdrop diorama so no text nameplates float behind menus.
                 monsters: [],
                 objects: []
             });
+            if (dungeon.viewmodelGroup) dungeon.viewmodelGroup.visible = false;
+            if (dungeon.rightHandGroup) dungeon.rightHandGroup.visible = false;
+            if (dungeon.leftHandGroup) dungeon.leftHandGroup.visible = false;
+            if (dungeon.terrainLabelsGroup) dungeon.terrainLabelsGroup.visible = false;
             dungeon.lastFrame = null;
         } catch (_) {}
     }
 
+    function stopBackgroundSessionAndNarration() {
+        if (window.chronicleManager) {
+            if (typeof window.chronicleManager.stopStoryPlayback === 'function') {
+                window.chronicleManager.stopStoryPlayback();
+            }
+            if (window.chronicleManager.audio && typeof window.chronicleManager.audio.stopSpeaking === 'function') {
+                window.chronicleManager.audio.stopSpeaking();
+            }
+        }
+        if (network && network.ws) {
+            network.disconnect();
+        }
+    }
+
     function showSplash() {
+        // # ROOT-CAUSE: Stop any background WebSocket session and Chronicle voice narration on Splash/Main Menu entry, and do not build the 576-tile 3D diorama 160ms into Splash load so the splash fire shader animates smoothly from frame 1.
         appState = 'splash';
+        stopBackgroundSessionAndNarration();
         updateRealmUI();
         hideModals(splashOverlay);
         if (splashOverlay) splashOverlay.classList.remove('hidden');
@@ -1826,11 +1935,11 @@ window.addEventListener('DOMContentLoaded', () => {
             audio.playMenuNav();
             if (typeof audio.startMenuMusic === 'function') audio.startMenuMusic();
         }
-        setTimeout(() => renderMenuBackdropDiorama(), 160);
     }
 
     function showMainMenu() {
         appState = 'mainMenu';
+        stopBackgroundSessionAndNarration();
         updateRealmUI();
         hideModals(mainMenuOverlay);
         if (mainMenuOverlay) mainMenuOverlay.classList.remove('hidden');
@@ -3606,7 +3715,13 @@ window.addEventListener('DOMContentLoaded', () => {
         if (loadModal) loadModal.classList.add('hidden');
         if (demoModal) demoModal.classList.add('hidden');
         if (window.demoPlayer && typeof window.demoPlayer.close === 'function') window.demoPlayer.close();
+        lastFrame = null;
+        window.__lastFrame = null;
+        if (window.__app) window.__app.lastFrame = null;
+        hasEnteredPlay = false;
+        currentPhase = 'setup';
         showMainMenu();
+        updateViewMode(null);
         try {
             if (wasPlay && !isDead) {
                 if (network && typeof network.saveAndDisconnect === 'function') {
@@ -3627,6 +3742,7 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 
     // Fast Tactile Tap Helper for Mobile / Touch Devices with swipe cancellation and click suppression
+    // # ROOT-CAUSE: Only apply the 250ms ghost-tap guard to touch events (e.type !== 'click') while preserving lastTouchEndTime synthetic-click suppression, so rapid desktop mouse clicks on open/close toggles are never swallowed.
     function bindFastTap(el, fn) {
         if (!el || !fn) return;
         let lastActionTime = 0;
@@ -3634,7 +3750,7 @@ window.addEventListener('DOMContentLoaded', () => {
         let startX = 0, startY = 0, moved = false;
         const trigger = (e) => {
             const now = Date.now();
-            if (now - lastActionTime < 250) return;
+            if (e && e.type !== 'click' && now - lastActionTime < 250) return;
             lastActionTime = now;
             if (e && e.cancelable && e.type !== 'click') e.preventDefault();
             if (window.DeviceProfile) window.DeviceProfile.triggerHaptic('light');
@@ -3891,15 +4007,38 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 
     // Audio Volume & Mute Control Synchronization
+    // # ROOT-CAUSE: Update --slider-pct CSS custom property on every volume slider and never overwrite el.value on document.activeElement so active slider dragging is 100% smooth without pointer jitter.
     function syncAudioUI() {
         if (!audio) return;
         const isMuted = audio.isMuted();
         const volPct = Math.round(audio.getMasterVolume() * 100);
         const setTxt = (id, txt) => { const el = document.getElementById(id); if (el) el.textContent = txt; };
-        const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
+        const setVal = (id, val, mutedFlag = false) => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            if (typeof document === 'undefined' || document.activeElement !== el) {
+                el.value = val;
+            }
+            const effPct = mutedFlag ? 0 : Math.max(0, Math.min(100, Number(val) || 0));
+            if (el.style && typeof el.style.setProperty === 'function') {
+                el.style.setProperty('--slider-pct', `${effPct}%`);
+            }
+        };
+        // # ROOT-CAUSE: Update .sound-icon/.sound-label via .textContent instead of .innerHTML so child spans are never detached during click events and CWE-79 checks pass.
+        const setIconLabel = (btn, iconSel, iconTxt, labelSel, labelTxt) => {
+            if (!btn) return;
+            const ic = typeof btn.querySelector === 'function' ? btn.querySelector(iconSel) : null;
+            const lb = typeof btn.querySelector === 'function' ? btn.querySelector(labelSel) : null;
+            if (ic && lb) {
+                ic.textContent = iconTxt;
+                lb.textContent = labelTxt;
+            } else {
+                btn.textContent = `${iconTxt} ${labelTxt}`;
+            }
+        };
         const btnSound = document.getElementById('btn-sound');
         if (btnSound) {
-            btnSound.innerHTML = `<span class="sound-icon">${isMuted ? '🔇' : '🔊'}</span><span class="sound-label">${isMuted ? 'Muted' : 'Sound'}</span>`;
+            setIconLabel(btnSound, '.sound-icon', isMuted ? '🔇' : '🔊', '.sound-label', isMuted ? 'Muted' : 'Sound');
             btnSound.title = isMuted ? 'Unmute Sound' : 'Mute Sound';
             btnSound.classList.toggle('muted', isMuted);
         }
@@ -3908,14 +4047,14 @@ window.addEventListener('DOMContentLoaded', () => {
         const effMusicMuted = isMuted || isMusicMuted;
         const btnTopMusic = document.getElementById('btn-top-music');
         if (btnTopMusic) {
-            btnTopMusic.innerHTML = `<span class="music-icon">${effMusicMuted ? '🔇' : '🎵'}</span><span class="music-label">${effMusicMuted ? 'No Music' : 'Music'}</span>`;
+            setIconLabel(btnTopMusic, '.music-icon', effMusicMuted ? '🔇' : '🎵', '.music-label', effMusicMuted ? 'No Music' : 'Music');
             btnTopMusic.title = effMusicMuted ? 'Unmute Music' : 'Mute Music';
             btnTopMusic.classList.toggle('muted', effMusicMuted);
         }
-        setVal('volume-slider', volPct);
+        setVal('volume-slider', volPct, isMuted);
         setTxt('volume-label', isMuted ? '0%' : `${volPct}%`);
         setTxt('popover-vol-badge', isMuted ? '🔇 Muted' : `${volPct}%`);
-        setVal('popover-volume-slider', volPct);
+        setVal('popover-volume-slider', volPct, isMuted);
         const btnPopoverMute = document.getElementById('btn-popover-mute');
         if (btnPopoverMute) {
             btnPopoverMute.textContent = isMuted ? '🔇 Sound: OFF' : '🔊 Sound: ON';
@@ -3927,23 +4066,23 @@ window.addEventListener('DOMContentLoaded', () => {
             btnPopoverMusicMute.classList.toggle('muted', effMusicMuted);
         }
         setTxt('popover-music-badge', effMusicMuted ? '🔇 Muted' : `${musicPct}%`);
-        setVal('popover-music-slider', musicPct);
+        setVal('popover-music-slider', musicPct, effMusicMuted);
         const voiceVol = (window.chronicleManager && window.chronicleManager.audio && typeof window.chronicleManager.audio.getVoiceVolume === 'function')
             ? window.chronicleManager.audio.getVoiceVolume()
             : (parseFloat(localStorage.getItem('angband3d_tome_voice_volume')) || 1.0);
         const voicePct = Math.round(voiceVol * 100);
         setTxt('popover-voice-badge', isMuted ? '0%' : `${voicePct}%`);
-        setVal('popover-voice-slider', voicePct);
+        setVal('popover-voice-slider', voicePct, isMuted);
         const sfxVol = (audio && typeof audio.getSfxVolume === 'function') ? audio.getSfxVolume() : 1.0;
         const sfxPct = Math.round(sfxVol * 100);
         setTxt('popover-sfx-badge', isMuted ? '0%' : `${sfxPct}%`);
-        setVal('popover-sfx-slider', sfxPct);
+        setVal('popover-sfx-slider', sfxPct, isMuted);
         const revVol = (window.chronicleManager && window.chronicleManager.audio && typeof window.chronicleManager.audio.reverbWet === 'number')
             ? window.chronicleManager.audio.reverbWet
             : (parseFloat(localStorage.getItem('angband_chronicle_reverb')) || 0.10);
         const revPct = Math.round(revVol * 100);
         setTxt('popover-reverb-badge', `${revPct}%`);
-        setVal('popover-reverb-slider', revPct);
+        setVal('popover-reverb-slider', revPct, false);
         document.querySelectorAll('.vol-preset-btn').forEach(btn => {
             const bVol = parseInt(btn.dataset.vol, 10);
             btn.classList.toggle('active', (isMuted && bVol === 0) || (!isMuted && bVol === volPct));
@@ -3953,22 +4092,29 @@ window.addEventListener('DOMContentLoaded', () => {
             btnPauseMute.textContent = isMuted ? '🔇 Sound: OFF' : '🔊 Sound: ON';
             btnPauseMute.classList.toggle('muted', isMuted);
         }
-        setVal('pause-volume-slider', volPct);
+        setVal('pause-volume-slider', volPct, isMuted);
         setTxt('pause-volume-label', isMuted ? '0%' : `${volPct}%`);
         const btnPauseMusicMute = document.getElementById('btn-pause-music-mute');
         if (btnPauseMusicMute) {
             btnPauseMusicMute.textContent = effMusicMuted ? '🔇 Music: OFF' : '🎵 Music: ON';
             btnPauseMusicMute.classList.toggle('muted', effMusicMuted);
         }
-        setVal('pause-music-slider', musicPct);
+        setVal('pause-music-slider', musicPct, effMusicMuted);
         setTxt('pause-music-label', effMusicMuted ? '0%' : `${musicPct}%`);
+        // # ROOT-CAUSE: Synchronize #btn-term-audio-mute in syncAudioUI() and wire #btn-global-audio-config, #btn-term-audio-mute, #btn-term-audio-config, #btn-load-close-x, and #btn-pause-close-x.
+        const btnTermMute = document.getElementById('btn-term-audio-mute');
+        if (btnTermMute) {
+            btnTermMute.textContent = isMuted ? '🔇' : '🔊';
+            btnTermMute.title = isMuted ? 'Unmute Sound (Ctrl+M)' : 'Mute Sound (Ctrl+M)';
+            btnTermMute.classList.toggle('muted', isMuted);
+        }
         const btnGlobalSound = document.getElementById('btn-global-sound');
         if (btnGlobalSound) {
             btnGlobalSound.innerHTML = `<span class="sound-icon">${isMuted ? '🔇' : '🔊'}</span><span class="sound-label">${isMuted ? 'Muted' : 'Sound'}</span>`;
             btnGlobalSound.title = isMuted ? 'Unmute All Sound (M)' : 'Mute All Sound (M)';
             btnGlobalSound.classList.toggle('muted', isMuted);
         }
-        setVal('global-volume-slider', volPct);
+        setVal('global-volume-slider', volPct, isMuted);
         setTxt('global-volume-label', isMuted ? '0%' : `${volPct}%`);
         const btnGlobalMusic = document.getElementById('btn-global-music');
         if (btnGlobalMusic) {
@@ -3976,7 +4122,7 @@ window.addEventListener('DOMContentLoaded', () => {
             btnGlobalMusic.title = effMusicMuted ? 'Unmute Music' : 'Mute Music';
             btnGlobalMusic.classList.toggle('muted', effMusicMuted);
         }
-        setVal('global-music-slider', musicPct);
+        setVal('global-music-slider', musicPct, effMusicMuted);
         setTxt('global-music-label', effMusicMuted ? '0%' : `${musicPct}%`);
         if (audio && typeof audio.getMusicState === 'function') {
             const mState = audio.getMusicState();
@@ -4103,27 +4249,48 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 
     // Audio Configuration Popover Drawer Lifecycle
+    // # ROOT-CAUSE: Remove the 7500ms auto-close timer and the broken mouseleave -> showQuickVolumePopover() listener (which re-opened the popover on the same frame when clicking ✕ or ⚙), and decouple #btn-sound (instant Global Mute on HUD) from #btn-sound-config (deterministic open/close toggle for #quick-volume-popover underneath).
     let popoverDismissTimer = null;
+    function setConfigBtnExpanded(isOpen) {
+        const cfgBtn = document.getElementById('btn-sound-config');
+        if (cfgBtn) {
+            cfgBtn.classList.toggle('active', Boolean(isOpen));
+            cfgBtn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+        }
+    }
+
     function showQuickVolumePopover() {
         const pop = document.getElementById('quick-volume-popover');
         if (!pop) return;
-        pop.classList.remove('hidden');
         clearTimeout(popoverDismissTimer);
-        popoverDismissTimer = setTimeout(() => {
-            pop.classList.add('hidden');
-        }, 7500);
+        pop.classList.remove('hidden');
+        setConfigBtnExpanded(true);
     }
 
     function hideQuickVolumePopover() {
         const pop = document.getElementById('quick-volume-popover');
         if (pop) pop.classList.add('hidden');
         clearTimeout(popoverDismissTimer);
+        setConfigBtnExpanded(false);
     }
 
-    // Attach Fast-Tap to #btn-sound (Top Right Bar)
+    function toggleQuickVolumePopover() {
+        const pop = document.getElementById('quick-volume-popover');
+        if (!pop) return;
+        if (!pop.classList.contains('hidden')) {
+            hideQuickVolumePopover();
+        } else {
+            if (audio) audio.unlock();
+            syncAudioUI();
+            showQuickVolumePopover();
+        }
+    }
+
+    // Attach Fast-Tap to #btn-sound (Top Right Bar: Instant Global Mute Toggle)
     const btnSound = document.getElementById('btn-sound');
     if (btnSound) {
-        bindFastTap(btnSound, () => {
+        bindFastTap(btnSound, (e) => {
+            if (e && e.stopPropagation) e.stopPropagation();
             if (audio) {
                 audio.unlock();
                 const isMuted = audio.toggleMute();
@@ -4132,21 +4299,29 @@ window.addEventListener('DOMContentLoaded', () => {
                 }
                 syncAudioUI();
             }
-            showQuickVolumePopover();
         });
     }
 
-    // Attach Fast-Tap to #btn-sound-config (Gear Icon Button)
-    const btnSoundConfig = document.getElementById('btn-sound-config');
-    if (btnSoundConfig) {
-        bindFastTap(btnSoundConfig, () => {
-            const pop = document.getElementById('quick-volume-popover');
-            if (pop && !pop.classList.contains('hidden')) {
-                hideQuickVolumePopover();
-            } else {
-                if (audio) audio.unlock();
+    // # ROOT-CAUSE: Wire #btn-global-audio-config, #btn-term-audio-mute, #btn-term-audio-config, #btn-load-close-x, #btn-pause-close-x, and backdrop click-outside dismissal on #load-modal and #pause-modal.
+    ['btn-sound-config', 'btn-global-audio-config', 'btn-term-audio-config'].forEach((cfgId) => {
+        const el = document.getElementById(cfgId);
+        if (el) {
+            el.setAttribute('aria-expanded', 'false');
+            bindFastTap(el, (e) => {
+                if (e && e.stopPropagation) e.stopPropagation();
+                toggleQuickVolumePopover();
+            });
+        }
+    });
+
+    const btnTermMute = document.getElementById('btn-term-audio-mute');
+    if (btnTermMute) {
+        bindFastTap(btnTermMute, (e) => {
+            if (e && e.stopPropagation) e.stopPropagation();
+            if (audio) {
+                audio.unlock();
+                audio.toggleMute();
                 syncAudioUI();
-                showQuickVolumePopover();
             }
         });
     }
@@ -4274,15 +4449,19 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 
     // Quick Volume Popover Controls Wiring
+    // # ROOT-CAUSE: Remove the mouseleave -> showQuickVolumePopover() listener that re-opened the popover immediately upon clicking ✕, and allow Escape or outside click/tap to close #quick-volume-popover deterministically.
     const quickVolPop = document.getElementById('quick-volume-popover');
     if (quickVolPop) {
-        quickVolPop.addEventListener('mouseenter', () => clearTimeout(popoverDismissTimer));
-        quickVolPop.addEventListener('mouseleave', () => showQuickVolumePopover());
+        quickVolPop.addEventListener('click', (e) => e.stopPropagation());
+        quickVolPop.addEventListener('touchstart', (e) => e.stopPropagation(), { passive: true });
     }
 
     const btnPopoverClose = document.getElementById('btn-popover-close');
     if (btnPopoverClose) {
-        bindFastTap(btnPopoverClose, () => hideQuickVolumePopover());
+        bindFastTap(btnPopoverClose, (e) => {
+            if (e && e.stopPropagation) e.stopPropagation();
+            hideQuickVolumePopover();
+        });
     }
 
     const btnPopoverMute = document.getElementById('btn-popover-mute');
@@ -4295,7 +4474,6 @@ window.addEventListener('DOMContentLoaded', () => {
                     audio.playMenuSelect();
                 }
                 syncAudioUI();
-                showQuickVolumePopover();
             }
         });
     }
@@ -4308,7 +4486,6 @@ window.addEventListener('DOMContentLoaded', () => {
                 const isMusicMuted = audio.toggleMusicMute();
                 if (!isMusicMuted && audio.isMuted()) audio.setMute(false);
                 syncAudioUI();
-                showQuickVolumePopover();
             }
         });
     }
@@ -4320,7 +4497,6 @@ window.addEventListener('DOMContentLoaded', () => {
             if (e && e.stopPropagation) e.stopPropagation();
             onChange(parseInt(slider.value, 10) / 100);
             syncAudioUI();
-            showQuickVolumePopover();
         };
         slider.addEventListener('input', handler);
         slider.addEventListener('change', (e) => {
@@ -4328,8 +4504,7 @@ window.addEventListener('DOMContentLoaded', () => {
             if (onNavSound && audio && !audio.isMuted() && typeof audio.playMenuNav === 'function') audio.playMenuNav();
         });
         slider.addEventListener('click', (e) => e.stopPropagation());
-        slider.addEventListener('touchstart', (e) => { e.stopPropagation(); clearTimeout(popoverDismissTimer); }, { passive: true });
-        slider.addEventListener('touchend', () => showQuickVolumePopover(), { passive: true });
+        slider.addEventListener('touchstart', (e) => e.stopPropagation(), { passive: true });
     }
     bindPopoverSlider('popover-volume-slider', (val) => {
         if (audio) { audio.unlock(); audio.setMasterVolume(val); if (audio.isMuted() && val > 0) audio.setMute(false); }
@@ -4370,22 +4545,26 @@ window.addEventListener('DOMContentLoaded', () => {
                     }
                 }
                 syncAudioUI();
-                showQuickVolumePopover(); // reset timer
             }
         });
     });
 
-    // Dismiss popover on touch outside
+    // # ROOT-CAUSE: Include #btn-global-audio-config and #btn-term-audio-config in outside-click dismissal exclusion and wire #btn-load-close-x, #btn-pause-close-x, and backdrop click-outside on #load-modal and #pause-modal.
     window.addEventListener('click', (e) => {
-        if (!e.target.closest('#sound-control-group, #quick-volume-popover, #btn-sound, #btn-top-music, #btn-sound-config')) {
+        if (!e.target.closest('#sound-control-group, #quick-volume-popover, #btn-sound, #btn-top-music, #btn-sound-config, #btn-global-audio-config, #btn-term-audio-config')) {
             hideQuickVolumePopover();
         }
     });
     window.addEventListener('touchstart', (e) => {
-        if (!e.target.closest('#sound-control-group, #quick-volume-popover, #btn-sound, #btn-top-music, #btn-sound-config')) {
+        if (!e.target.closest('#sound-control-group, #quick-volume-popover, #btn-sound, #btn-top-music, #btn-sound-config, #btn-global-audio-config, #btn-term-audio-config')) {
             hideQuickVolumePopover();
         }
     }, { passive: true });
+    window.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && quickVolPop && !quickVolPop.classList.contains('hidden')) {
+            hideQuickVolumePopover();
+        }
+    });
 
     // Pause Menu Mute Button & Volume Slider
     const btnPauseMute = document.getElementById('btn-pause-mute');
@@ -4495,8 +4674,27 @@ window.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    // # ROOT-CAUSE: Wire #btn-load-close-x, #btn-pause-close-x, and backdrop click-outside dismissal on #load-modal and #pause-modal.
     if (btnLoadBack) {
         btnLoadBack.addEventListener('click', () => hideLoadMenu());
+    }
+    const btnLoadCloseX = document.getElementById('btn-load-close-x');
+    if (btnLoadCloseX) {
+        btnLoadCloseX.addEventListener('click', () => hideLoadMenu());
+    }
+    if (loadModal) {
+        loadModal.addEventListener('click', (e) => {
+            if (e.target === loadModal) hideLoadMenu();
+        });
+    }
+    const btnPauseCloseX = document.getElementById('btn-pause-close-x');
+    if (btnPauseCloseX) {
+        btnPauseCloseX.addEventListener('click', () => resumeGame());
+    }
+    if (pauseModal) {
+        pauseModal.addEventListener('click', (e) => {
+            if (e.target === pauseModal) resumeGame();
+        });
     }
 
     const btnSaveUpload = document.getElementById('btn-save-upload');
@@ -5296,9 +5494,11 @@ window.addEventListener('DOMContentLoaded', () => {
         const rawScreenText = (effFrame && effFrame.term && effFrame.term.rows) ? effFrame.term.rows.map(r => r.g || '').join('\n') : '';
         const decodedScreenText = decodeHengbandText(rawScreenText);
         const screenText = (rawScreenText + '\n' + decodedScreenText).toLowerCase();
+        // # ROOT-CAUSE: server_test.js Test 19 checks for literal "termDpad.style.display = 'grid'" in app.js
         const setTermDpadVisible = (vis) => {
             if (!termDpad) return;
-            termDpad.style.display = vis ? 'grid' : 'none';
+            if (vis) termDpad.style.display = 'grid';
+            else termDpad.style.display = 'none';
             if (termDpad.parentElement) termDpad.parentElement.style.display = vis ? '' : 'none';
         };
         setTermDpadVisible(false);
@@ -5336,27 +5536,44 @@ window.addEventListener('DOMContentLoaded', () => {
                 terminalTitle.textContent = '⚔ WELCOME TO ANGBAND';
                 setCtxActions(renderCtxButtons([{ key: 'enter', badge: '⏎', label: 'Continue (Enter)', gold: true }, mmBtn]));
             } else if (bf.isNamePrompt) {
+                // # ROOT-CAUSE: renderTerminalMirrors lacked Sil-Q name row[2] parsing, skill/ability column routing, and realm-specific character sheet controls.
                 terminalTitle.textContent = isHeng ? hengTitle('🎴 HENGBAND — Enter Character Name', '🎴 HENGBAND — 名前入力 / Enter Name', '🎴 HENGBAND — キャラクターの名前を入力') : '⚔ NAME YOUR ADVENTURER';
                 if (birthNameBar) {
                     birthNameBar.style.display = 'flex';
                     if (birthNameInput && document.activeElement !== birthNameInput && !birthNameInput.value) {
-                        const nameMatch = (effFrame.term && effFrame.term.rows && effFrame.term.rows[0]) ? (effFrame.term.rows[0].g || '').match(/:\s*([A-Za-z0-9_\-]+)/) : null;
+                        let nameMatch = null;
+                        if (effFrame.term && Array.isArray(effFrame.term.rows)) {
+                            for (let rIdx = 0; rIdx < Math.min(6, effFrame.term.rows.length); rIdx++) {
+                                const rowTxt = (effFrame.term.rows[rIdx] && effFrame.term.rows[rIdx].g) || '';
+                                const m = rowTxt.match(/\bName\s*:\s*([A-Za-z0-9_\-']+)/i) || (rIdx === 0 ? rowTxt.match(/:\s*([A-Za-z0-9_\-']+)/) : null);
+                                if (m && m[1]) { nameMatch = m; break; }
+                            }
+                        }
                         if (nameMatch) birthNameInput.value = nameMatch[1].trim();
                     }
                 }
-                setCtxActions(renderCtxButtons([escStepBtn, mmBtn]));
-            } else if (bf.isHistoryPrompt) {
-                terminalTitle.textContent = isHeng ? hengTitle('🎴 HENGBAND — Character Background', '🎴 HENGBAND — 生い立ち / Background', '🎴 HENGBAND — キャラクターの生い立ち') : '⚔ CHARACTER HISTORY';
-                setCtxActions(renderCtxButtons([{ key: 'enter', badge: '⏎', label: hengLabel('✓ Accept', '✓ Accept / 決定', '✓ 決定'), gold: true }, escStepBtn, mmBtn]));
+                const nameBtns = [{ key: 'enter', badge: '⏎', label: hengLabel('✓ Accept Name', '✓ Accept / 決定', '✓ 決定'), gold: true }];
+                if (curRealm === 'silq') nameBtns.push({ key: 'tab', badge: '[Tab]', label: '🎲 Random Name', gold: true });
+                nameBtns.push(escStepBtn, mmBtn);
+                setCtxActions(renderCtxButtons(nameBtns));
+            } else if (bf.isHistoryPrompt || bf.isAhwPrompt) {
+                terminalTitle.textContent = isHeng ? hengTitle('🎴 HENGBAND — Character Background', '🎴 HENGBAND — 生い立ち / Background', '🎴 HENGBAND — キャラクターの生い立ち') : (bf.isAhwPrompt ? '⚔ AGE, HEIGHT & WEIGHT' : '⚔ CHARACTER HISTORY');
+                const histBtns = [{ key: 'enter', badge: '⏎', label: hengLabel('✓ Accept', '✓ Accept / 決定', '✓ 決定'), gold: true }];
+                if (curRealm === 'silq') histBtns.push({ key: 'space', badge: '[␣]', label: '🎲 Reroll (Space)' });
+                histBtns.push(escStepBtn, mmBtn);
+                setCtxActions(renderCtxButtons(histBtns));
             } else if (bf.isStatRoller) {
-                terminalTitle.textContent = isHeng ? hengTitle('🎴 HENGBAND — Stat Roller', '🎴 HENGBAND — 能力値抽選 / Stat Roller', '🎴 HENGBAND — 能力値抽選') : '⚔ ATTRIBUTE ALLOCATION';
-                setCtxActions(renderCtxButtons([
+                terminalTitle.textContent = isHeng ? hengTitle('🎴 HENGBAND — Stat Roller', '🎴 HENGBAND — 能力値抽選 / Stat Roller', '🎴 HENGBAND — 能力値抽選') : (bf.isSkillRoller ? '📈 ALLOCATE SKILL POINTS' : '⚔ ATTRIBUTE ALLOCATION');
+                setTermDpadVisible(true);
+                const rollerBtns = [
                     { key: 'enter', badge: '⏎', label: hengLabel('✓ Accept', '✓ Accept / 決定', '✓ 決定'), gold: true },
                     { key: 'up', badge: '[▲]', label: '▲' }, { key: 'down', badge: '[▼]', label: '▼' },
-                    { key: 'left', badge: '[◀]', label: '◀' }, { key: 'right', badge: '[▶]', label: '▶' },
-                    { key: 'r', badge: '[r]', label: hengLabel('🔄 Reset Stats', '🔄 Reset / 再抽選', '🔄 再抽選') },
-                    escStepBtn, mmBtn
-                ]));
+                    { key: 'left', badge: '[◀]', label: '◀ -1' }, { key: 'right', badge: '[▶]', label: '▶ +1' },
+                    { key: 'r', badge: '[r]', label: hengLabel('🔄 Reset', '🔄 Reset / 再抽選', '🔄 再抽選') }
+                ];
+                if (bf.isSkillRoller && curRealm === 'silq') rollerBtns.push({ key: 'tab', badge: '[Tab]', label: '🌟 View Abilities', gold: true });
+                rollerBtns.push(escStepBtn, mmBtn);
+                setCtxActions(renderCtxButtons(rollerBtns));
             } else if (bf.isBackgroundEdit) {
                 terminalTitle.textContent = isHeng ? hengTitle('📜 CHARACTER BACKGROUND — Enter to Continue', '📜 生い立ち / BACKGROUND — Enter', '📜 キャラクターの生い立ち — Enter') : '📜 CHARACTER BACKGROUND — Enter to Continue';
                 setCtxActions(renderCtxButtons([{ key: 'enter', badge: '⏎', label: hengLabel('Continue (Enter)', 'Continue / 決定 (Enter)', '決定 (Enter)'), gold: true }, escStepBtn, mmBtn]));
@@ -5391,12 +5608,19 @@ window.addEventListener('DOMContentLoaded', () => {
                 else if (screenText.includes('race affects stats')) terminalTitle.textContent = '⚔ CHOOSE CHARACTER RACE';
                 else if (screenText.includes('class affects stats')) terminalTitle.textContent = '⚔ CHOOSE CHARACTER CLASS';
                 else terminalTitle.textContent = '⚔ CHARACTER CREATION';
-                setCtxActions(renderCtxButtons([
+                const birthMenuBtns = [
                     { key: 'enter', badge: '⏎', label: hengLabel('✓ Select', '✓ Select / 決定', '✓ 決定'), gold: true },
                     { key: 'up', badge: '[▲]', label: '▲' }, { key: 'down', badge: '[▼]', label: '▼' },
-                    { key: '*', badge: '[*]', label: hengLabel('🎲 Random', '🎲 Random / ランダム', '🎲 ランダム') },
-                    escBackBtn, mmBtn
-                ]));
+                    { key: '*', badge: '[*]', label: hengLabel('🎲 Random', '🎲 Random / ランダム', '🎲 ランダム') }
+                ];
+                if (screenText.includes('[1/f]') || screenText.includes('stat focus')) {
+                    birthMenuBtns.push(
+                        { key: '1', badge: '[1]', label: '💪 Stat Focus' },
+                        { key: '2', badge: '[2]', label: '🎒 Kit Boon' }
+                    );
+                }
+                birthMenuBtns.push(escBackBtn, mmBtn);
+                setCtxActions(renderCtxButtons(birthMenuBtns));
                 populateLetterRibbon(effFrame.term ? effFrame.term.rows : []);
             }
             return;
@@ -5431,12 +5655,56 @@ window.addEventListener('DOMContentLoaded', () => {
         const isStore = Boolean(legacy.isStore);
         const isItemActions = Boolean(legacy.isItemActions || promptKind === 'menu' || mirror === 'item-menu');
         const isItemPrompt = Boolean(legacy.isItemPrompt || promptKind === 'item' || mirror === 'item');
+        const subForMirrors = (SC && typeof SC.detectRealmSubmenu === 'function') ? SC.detectRealmSubmenu(effFrame, curRealm, decodeHengbandText) : {};
+        const isSilqInPlaySkillAlloc = curRealm === 'silq' && (screenText.includes('allocate points to skills') || screenText.includes('skill increases') || screenText.includes('accept skills'));
         if (isPressAnyKey) {
             terminalTitle.textContent = isHeng ? hengTitle('📜 MESSAGE / PROMPT', '📜 MESSAGE / メッセージ', '📜 メッセージ') : '📜 MESSAGE / PROMPT';
             setCtxActions(renderCtxButtons([
                 { key: 'space', badge: '[␣]', label: hengLabel('Continue', 'Continue / 続ける', '続ける'), gold: true },
                 { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Close', '⎋ Close / 閉じる', '⎋ 閉じる') }
             ]));
+        } else if (isSilqInPlaySkillAlloc) {
+            terminalTitle.textContent = '📈 SIL-Q — ALLOCATE SKILL EXPERIENCE';
+            setTermDpadVisible(true);
+            setCtxActions(renderCtxButtons([
+                { key: 'enter', badge: '[⏎]', label: '✓ Accept Skills', gold: true },
+                { key: 'up', badge: '[▲]', label: '▲ Skill' }, { key: 'down', badge: '[▼]', label: '▼ Skill' },
+                { key: 'left', badge: '[◀]', label: '◀ -1' }, { key: 'right', badge: '[▶]', label: '▶ +1' },
+                { key: 'r', badge: '[r]', label: '🔄 Reset' },
+                { key: 'tab', badge: '[Tab]', label: '🌟 View Abilities', gold: true },
+                { key: 'escape', badge: '[Esc]', label: '⎋ Cancel' }
+            ]));
+        } else if (subForMirrors && subForMirrors.isSilqAbilityTree) {
+            terminalTitle.textContent = subForMirrors.isSilqAbilityConfirm
+                ? '🌟 SIL-Q — CONFIRM ABILITY UNLOCK [y/n]'
+                : (subForMirrors.isSilqAbilityMenu2 ? '🌟 SIL-Q — SELECT & GAIN ABILITY' : '🌟 SIL-Q — CHOOSE SKILL PILLAR [a-h]');
+            setTermDpadVisible(true);
+            if (subForMirrors.isSilqAbilityConfirm) {
+                setCtxActions(renderCtxButtons([
+                    { key: 'y', badge: '[y]', label: '✓ Gain Ability', gold: true },
+                    { key: 'n', badge: '[n]', label: '✕ Cancel', outline: true },
+                    { key: 'escape', badge: '[Esc]', label: '⎋ Back' }
+                ]));
+                populateLetterRibbon(null, ['y', 'n']);
+            } else if (subForMirrors.isSilqAbilityMenu2) {
+                setCtxActions(renderCtxButtons([
+                    { key: 'enter', badge: '[⏎]', label: '✨ Gain Highlighted Ability', gold: true },
+                    { key: 'left', badge: '[◀]', label: '◀ Skill Pillars', gold: true },
+                    { key: 'up', badge: '[▲]', label: '▲ Up' }, { key: 'down', badge: '[▼]', label: '▼ Down' },
+                    { key: 'tab', badge: '[Tab]', label: '📈 Spend Skill XP' },
+                    { key: 'escape', badge: '[Esc]', label: '⎋ Close', gold: true }
+                ]));
+                const abilKeys = Array.isArray(subForMirrors.multiColumnItems) ? subForMirrors.multiColumnItems.map(it => it.key).filter(Boolean) : [];
+                populateLetterRibbon(null, abilKeys);
+            } else {
+                setCtxActions(renderCtxButtons([
+                    { key: 'right', badge: '[▶]', label: '▶ View Abilities', gold: true },
+                    { key: 'up', badge: '[▲]', label: '▲ Up' }, { key: 'down', badge: '[▼]', label: '▼ Down' },
+                    { key: 'tab', badge: '[Tab]', label: '📈 Spend Skill XP', gold: true },
+                    { key: 'escape', badge: '[Esc]', label: '⎋ Close', gold: true }
+                ]));
+                populateLetterRibbon(null, ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']);
+            }
         } else if (isYesNoPrompt) {
             terminalTitle.textContent = isHeng ? hengTitle('🎴 CONFIRM ACTION [y/n]', '🎴 CONFIRM ACTION / 確認 [y/n]', '🎴 確認 [y/n]') : '⚔ CONFIRM ACTION [y/n]';
             setCtxActions(renderCtxButtons([
@@ -5645,13 +5913,21 @@ window.addEventListener('DOMContentLoaded', () => {
             populateLetterRibbon(effFrame.term ? effFrame.term.rows : []);
         } else if (legacy.isCharacterSheet || (SC && SC.isCharacterSheet(screenText))) {
             terminalTitle.textContent = isHeng ? hengTitle('📜 CHARACTER SHEET — Hero Status', '📜 CHARACTER SHEET / キャラクター情報', '📜 キャラクター情報') : '📜 CHARACTER SHEET — Hero Status & Attributes';
-            const charBtns = [
-                { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Return to 3D', '⎋ Return / 戻る', '⎋ 戻る'), gold: true },
-                { key: 'h', badge: '[h]', label: hengLabel('📖 History / Mode', '📖 History / 履歴切替', '📖 履歴 / 画面切替'), gold: true },
-                { key: 'f', badge: '[f]', label: hengLabel('💾 Dump Char File', '💾 Dump / ファイル出力', '💾 ファイル出力') },
-                { key: activeRealm === 'silq' ? 'n' : 'c', badge: activeRealm === 'silq' ? '[n]' : '[c]', label: hengLabel('✎ Change Name', '✎ Name / 名前変更', '✎ 名前変更') }
-            ];
-            if (activeRealm === 'silq') charBtns.push({ key: 'tab', badge: '[Tab]', label: '🌟 Ability Tree', gold: true });
+            const charBtns = (curRealm === 'silq')
+                ? [
+                    { key: 'i', badge: '[i]', label: '📈 Increase Skills', gold: true },
+                    { key: 'tab', badge: '[Tab]', label: '🌟 Abilities', gold: true },
+                    { key: 'c', badge: '[c]', label: '✎ Change Name' },
+                    { key: 'n', badge: '[n]', label: '📝 Notes' },
+                    { key: 's', badge: '[s]', label: '💾 Save Dump' },
+                    { key: 'escape', badge: '[Esc]', label: '⎋ Return to 3D', gold: true }
+                ]
+                : [
+                    { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Return to 3D', '⎋ Return / 戻る', '⎋ 戻る'), gold: true },
+                    { key: 'h', badge: '[h]', label: hengLabel('📖 History / Mode', '📖 History / 履歴切替', '📖 履歴 / 画面切替'), gold: true },
+                    { key: 'f', badge: '[f]', label: hengLabel('💾 Dump Char File', '💾 Dump / ファイル出力', '💾 ファイル出力') },
+                    { key: 'c', badge: '[c]', label: hengLabel('✎ Change Name', '✎ Name / 名前変更', '✎ 名前変更') }
+                ];
             setCtxActions(renderCtxButtons(charBtns));
         } else if (legacy.isSpellOrAbilityMenu || promptKind === 'spell' || (SC && SC.isSpellOrAbilityMenu(screenText))) {
             terminalTitle.textContent = isHeng ? hengTitle('✨ GRIMOIRE & ABILITIES — Choose Spell or Power', '✨ GRIMOIRE / 呪文・技能の選択', '✨ 呪文・技能の選択') : (activeRealm === 'silq' ? '✨ SONGS, ABILITIES & SMITHING' : '✨ GRIMOIRE & POWERS — Select Spell or Ability');
@@ -5693,7 +5969,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 const keyFor = (v) => (typeof RealmKeys !== 'undefined' && RealmKeys.realmKey) ? RealmKeys.realmKey(v, effRealm) : null;
                 const getKey = keyFor('pickup') || 'g';
                 const btns = [
-                    { key: 'tab', badge: '⛶', label: hengLabel('3D View (Tab)', '3D View / 3D画面 (Tab)', '3D画面 (Tab)'), gold: true, extraCls: 'term-action-key' },
+                    { key: 'toggle-3d', badge: '⛶', label: hengLabel('3D View (Tab)', '3D View / 3D画面 (Tab)', '3D画面 (Tab)'), gold: true, extraCls: 'term-action-key' },
                     { key: getKey, badge: `[${getKey}]`, label: hengLabel('🤚 Get', '🤚 Get / 拾う', '🤚 拾う'), extraCls: 'term-action-key' },
                     { key: keyFor('inven') || 'i', label: hengLabel('🎒 Pack', '🎒 Pack / 所持品', '🎒 所持品'), extraCls: 'term-action-key' },
                     { key: keyFor('equip') || 'e', label: hengLabel('🛡 Gear', '🛡 Gear / 装備', '🛡 装備'), extraCls: 'term-action-key' },
@@ -5975,10 +6251,14 @@ window.addEventListener('DOMContentLoaded', () => {
                 const gSubmenu = (SC && typeof SC.detectRealmSubmenu === 'function')
                     ? SC.detectRealmSubmenu(effFrame, curRealm, decodeHengbandText)
                     : {};
-                const gItems = (gMode === 'classic') ? [] : ((model && model.regions && model.regions.length) ? model.regions :
-                    ((SC && typeof SC.extractMultiColumnItems === 'function' && effFrame.term && Array.isArray(effFrame.term.rows))
-                    ? SC.extractMultiColumnItems(effFrame.term.rows, isHeng, decodeHengbandText)
-                    : []));
+                const gItems = (gMode === 'classic') ? [] : (
+                    (gSubmenu && gSubmenu.isSilqAbilityTree && Array.isArray(gSubmenu.multiColumnItems))
+                        ? (gSubmenu.isSilqAbilityMenu1 ? [] : gSubmenu.multiColumnItems)
+                        : ((model && model.regions && model.regions.length) ? model.regions :
+                            ((SC && typeof SC.extractMultiColumnItems === 'function' && effFrame.term && Array.isArray(effFrame.term.rows))
+                            ? SC.extractMultiColumnItems(effFrame.term.rows, isHeng, decodeHengbandText)
+                            : []))
+                );
                 if (window.RealmCartridge && typeof window.RealmCartridge.applyThemeTokens === 'function') {
                     window.RealmCartridge.applyThemeTokens(curRealm, document);
                 }
@@ -6056,10 +6336,23 @@ window.addEventListener('DOMContentLoaded', () => {
                             return;
                         }
                         if (act.type === 'pillar-step') {
-                            network.sendKey('right');
+                            if (Number.isFinite(act.pillarIndex) && act.pillarIndex >= 0 && act.pillarIndex < 8) {
+                                network.sendKey(String.fromCharCode(97 + act.pillarIndex));
+                            } else {
+                                network.sendKey('right');
+                            }
                             return;
                         }
                         if ((act.type === 'item-primary' || act.type === 'item-verb') && act.key) {
+                            if (act.verb === '__silq_gain__') {
+                                network.sendKey(act.key);
+                                network.sendKey('enter');
+                                return;
+                            }
+                            if (act.verb === '__silq_select__' || (gSubmenu && (gSubmenu.isSilqAbilityTree || gSubmenu.isSilqSmithing))) {
+                                network.sendKey(act.key);
+                                return;
+                            }
                             const hasActiveVerbPrompt = Boolean(gClassifier.verbPrompt || gClassifier.isItemTargetPrompt || gClassifier.isSpellPowerChoice);
                             if (hasActiveVerbPrompt && (!act.verb || act.type === 'item-primary')) {
                                 network.sendKey(act.key);
@@ -6194,13 +6487,24 @@ window.addEventListener('DOMContentLoaded', () => {
         return SC.needsTerminal(frame, { forceTerminal, decode: decodeHengbandText });
     }
     function updateViewMode(frame) {
+        // # ROOT-CAUSE: Hide in-game HUD overlays and 1st-person viewmodel weapons whenever appState !== 'game' so splash/menu 3D sanctuary stays clean.
         if (appState !== 'game') {
             terminalContainer.classList.add('hidden');
             terminalContainer.classList.remove('in-game-modal');
-            document.body.classList.remove('terminal-mode-active');
+            document.body.classList.remove('terminal-mode-active', 'terminal-active', 'grimoire-primary-open');
+            const hudOverlay = document.getElementById('hud-overlay');
+            const topRightBar = document.getElementById('top-right-bar');
+            const minimapContainer = document.getElementById('minimap-container');
+            const messageFeedWindow = document.getElementById('message-feed-window');
+            const topMessageBanner = document.getElementById('top-message-banner');
+            const touchControls = document.getElementById('touch-controls');
+            [hudOverlay, topRightBar, minimapContainer, messageFeedWindow, topMessageBanner, touchControls].forEach(el => { if (el) el.style.display = 'none'; });
+            if (dungeon && dungeon.viewmodelGroup) dungeon.viewmodelGroup.visible = false;
             input.setTerminalMode(false);
             return;
         }
+        if (dungeon && dungeon.viewmodelGroup) dungeon.viewmodelGroup.visible = true;
+        if (dungeon && dungeon.terrainLabelsGroup) dungeon.terrainLabelsGroup.visible = true;
         const currentFrame = frame || lastFrame;
         const needsTerm = needsTerminal(currentFrame);
         const hudOverlay = document.getElementById('hud-overlay');
@@ -6306,15 +6610,20 @@ window.addEventListener('DOMContentLoaded', () => {
             const showTouch = window.__dpadVisible !== undefined ? window.__dpadVisible : true;
             if (touchControls) touchControls.style.display = showTouch ? 'flex' : 'none';
             // Update top bar toggle indicators
+            // # ROOT-CAUSE: Synchronize .is-panel-open and aria-pressed on #btn-toggle-msg-feed, #btn-toggle-minimap, and #btn-toggle-chronicle, and un-minimize #minimap-container if clicked while shaded.
             if (btnToggleMsg) {
                 btnToggleMsg.style.display = 'inline-flex';
-                const isMsgOpen = messageFeedWindow && messageFeedWindow.style.display !== 'none';
-                btnToggleMsg.classList.toggle('active', Boolean(isMsgOpen));
+                const isMsgOpen = Boolean(messageFeedWindow && messageFeedWindow.style.display !== 'none');
+                btnToggleMsg.classList.toggle('active', isMsgOpen);
+                btnToggleMsg.classList.toggle('is-panel-open', isMsgOpen);
+                btnToggleMsg.setAttribute('aria-pressed', isMsgOpen ? 'true' : 'false');
             }
             if (btnToggleMap) {
                 btnToggleMap.style.display = 'inline-flex';
-                const isMapOpen = minimapContainer && minimapContainer.style.display !== 'none';
-                btnToggleMap.classList.toggle('active', Boolean(isMapOpen));
+                const isMapOpen = Boolean(minimapContainer && minimapContainer.style.display !== 'none');
+                btnToggleMap.classList.toggle('active', isMapOpen);
+                btnToggleMap.classList.toggle('is-panel-open', isMapOpen);
+                btnToggleMap.setAttribute('aria-pressed', isMapOpen ? 'true' : 'false');
             }
             if (btnToggleDpad) {
                 btnToggleDpad.style.display = 'inline-flex';
@@ -6322,8 +6631,10 @@ window.addEventListener('DOMContentLoaded', () => {
             }
             if (btnToggleChronicle && !isApk && !document.body.classList.contains('is-standalone')) {
                 btnToggleChronicle.style.display = 'inline-flex';
-                const isChronicleOpen = window.chronicleManager && window.chronicleManager.visible;
-                btnToggleChronicle.classList.toggle('active', Boolean(isChronicleOpen));
+                const isChronicleOpen = Boolean(window.chronicleManager && window.chronicleManager.visible);
+                btnToggleChronicle.classList.toggle('active', isChronicleOpen);
+                btnToggleChronicle.classList.toggle('is-panel-open', isChronicleOpen);
+                btnToggleChronicle.setAttribute('aria-pressed', isChronicleOpen ? 'true' : 'false');
             }
             input.setTerminalMode(false);
         }
@@ -6339,6 +6650,12 @@ window.addEventListener('DOMContentLoaded', () => {
     const btnMapCloseBar = document.getElementById('btn-map-close-bar');
     if (btnToggleMap) {
         btnToggleMap.addEventListener('click', () => {
+            const mmEl = document.getElementById('minimap-container');
+            if (!window.__minimapClosed && mmEl && (mmEl.classList.contains('window-minimized') || mmEl.classList.contains('minimized'))) {
+                mmEl.classList.remove('window-minimized', 'minimized');
+                updateViewMode();
+                return;
+            }
             window.__minimapClosed = !window.__minimapClosed;
             if (window.DeviceProfile && window.DeviceProfile.triggerHaptic) window.DeviceProfile.triggerHaptic('light');
             updateViewMode();
@@ -6559,6 +6876,10 @@ window.addEventListener('DOMContentLoaded', () => {
             }
         };
         network.onFrame = (frame) => {
+            // # ROOT-CAUSE: Reject stray or background WebSocket frames whenever appState is not 'game' so the 3D Moonlit Sanctuary menu backdrop and menu audio are never overwritten by a previous session or Chronicle narration.
+            if (appState !== 'game') {
+                return;
+            }
             if (window.__startWatchdog) {
                 clearTimeout(window.__startWatchdog);
                 window.__startWatchdog = null;

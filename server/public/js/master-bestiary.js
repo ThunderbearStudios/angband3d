@@ -158,8 +158,9 @@
             { regex: /\b(naugrim|mim|ibun|khim|azaghal)\b/i, config: { templateKey: 'char_male_ranger', scaleY: 0.78, scaleXZ: 1.12, weaponKey: 'ph_axe', shieldKey: 'ph_shield', taxonomy: 'Dwarf / Naugrim' } },
             { regex: /\b(crebain|gorcrow)\b/i, config: { templateKey: 'bestiary_bird', scale: 0.92, isFloating: true, taxonomy: 'Avian / Crebain' } },
             { regex: /\bbarrow[- ]?wight\b/i, config: { templateKey: 'bestiary_skeleton_knight', scale: 1.05, weaponKey: 'item_longsword', shieldKey: 'item_shield_wooden', taxonomy: 'Undead / Wight' } },
+            // # ROOT-CAUSE: Prevent Sil-Q 'Shadow spider' / 'Shadow mold' / 'Shadow bat' from matching the undead Shadow/Wraith pattern before head-noun species resolution.
             { regex: /\b(carcharoth|draugluin|huan|werewolf)\b/i, config: { templateKey: 'bestiary_wolf', scale: 1.46, isBoss: true, taxonomy: 'Great Wolf / Boss' } },
-            { regex: /\blurking horror\b/i, config: { templateKey: 'bestiary_wraith', scale: 1.15, isFloating: true, taxonomy: 'Horror / Wraith' } },
+            { regex: /\b(lurking horror|oathwraith)\b|^(shadow|phantom|shade|wraith)$/i, config: { templateKey: 'bestiary_wraith', scale: 1.12, isFloating: true, weaponKey: null, _seedWeapons: null, taxonomy: 'Horror / Wraith' } },
             { regex: /\bvampire lord\b/i, config: { templateKey: 'char_male_priest', scale: 1.12, weaponKey: 'item_staff', taxonomy: 'Undead / Vampire Lord' } },
             { regex: /\bgorlim\b/i, config: { templateKey: 'char_male_ranger', scale: 1.0, weaponKey: 'ph_dagger', isBoss: true, taxonomy: 'Human / Traitor' } },
             { regex: /\bthuringwethil\b/i, config: { templateKey: 'bestiary_bat', scale: 1.25, isFloating: true, isBoss: true, taxonomy: 'Vampire Bat / Boss' } },
@@ -175,7 +176,8 @@
         patterns: [
             { regex: /serpent of chaos/i, config: { templateKey: 'bestiary_dragon', scale: 1.90, isBoss: true, emissiveHex: '#a855f7', taxonomy: 'Chaos Dragon / Boss' } },
             { regex: /\b(cyberdemon|oremorj)\b/i, config: { templateKey: 'bestiary_imp', scale: 1.70, weaponKey: 'ph_sledgehammer', isBoss: true, taxonomy: 'Cyberdemon / Boss' } },
-            { regex: /\bcthulhu\b/i, config: { templateKey: 'bestiary_imp', scale: 1.82, isBoss: true, taxonomy: 'Great Old One / Boss' } }
+            { regex: /\bcthulhu\b/i, config: { templateKey: 'bestiary_imp', scale: 1.82, isBoss: true, taxonomy: 'Great Old One / Boss' } },
+            { regex: /\b(behir|basilisk|chameleon|iguana|alligator|crocodile|salamander|newt|dinosaur|tyrannosaur|raptor|komodo|monitor|gecko|tuatara)\b/i, config: { templateKey: 'bestiary_lizard', scale: 1.08, taxonomy: 'Reptile / Amphibian' } }
         ]
     };
 
@@ -194,6 +196,18 @@
             { regex: /野良犬|子犬|番犬/, config: { templateKey: 'bestiary_shiba', scale: 0.78, taxonomy: 'Canine / Dog' } },
             { regex: /犬|ハウンド|狼/, config: { templateKey: 'bestiary_wolf', scale: 1.0, taxonomy: 'Canine' } },
             { regex: /猫|虎|獅子|豹/, config: { templateKey: 'bestiary_lion', scale: 0.95, taxonomy: 'Feline' } },
+            { regex: /熊|ベア/, config: { templateKey: 'bestiary_bear', scale: 1.12, taxonomy: 'Bear' } },
+            { regex: /馬|ポニー|ユニコーン|一角獣/, config: { templateKey: 'bestiary_horse', scale: 1.05, taxonomy: 'Equine' } },
+            { regex: /蟻|アリ/, config: { templateKey: 'bestiary_ant', scale: 0.88, taxonomy: 'Ant / Insectoid' } },
+            { regex: /ムカデ|百足/, config: { templateKey: 'bestiary_centipede', scale: 0.92, taxonomy: 'Centipede' } },
+            { regex: /甲虫|ビートル/, config: { templateKey: 'bestiary_beetle', scale: 0.92, taxonomy: 'Killer Beetle' } },
+            { regex: /蜂|ハチ|蜻蛉|トンボ|蠅|ハエ/, config: { templateKey: 'obj_wasp', scale: 0.85, isFloating: true, taxonomy: 'Insect' } },
+            { regex: /ワーム|イモムシ|蛆/, config: { templateKey: 'bestiary_worm_mass', scale: 1.0, taxonomy: 'Worm' } },
+            { regex: /ヒドラ/, config: { templateKey: 'bestiary_hydra', scale: 1.28, taxonomy: 'Hydra' } },
+            { regex: /ナーガ/, config: { templateKey: 'bestiary_naga', scale: 1.08, weaponKey: 'ph_saber', taxonomy: 'Naga' } },
+            { regex: /コボルド/, config: { templateKey: 'bestiary_kobold', scale: 0.95, weaponKey: 'ph_dagger', taxonomy: 'Kobold' } },
+            { regex: /イーク/, config: { templateKey: 'bestiary_puglin', scale: 0.74, taxonomy: 'Yeek' } },
+            { regex: /町人|農夫|酔っ払い|乞食|無頼漢|吟遊詩人/, config: { templateKey: 'char_male_peasant', scale: 0.98, taxonomy: 'Townsperson' } },
             { regex: /竜|ドラゴン|ワイアーム/, config: { templateKey: 'bestiary_dragon', scale: 1.35, useAsciiTint: true, taxonomy: 'Dragon' } },
             { regex: /蜘蛛/, config: { templateKey: 'obj_spider', scale: 0.95, taxonomy: 'Spider' } },
             { regex: /蛇|巳/, config: { templateKey: 'obj_snake', scale: 0.95, taxonomy: 'Snake' } },
@@ -282,7 +296,8 @@
             { regex: /\b(executioner|pandemonium lord|tzitzimitl|balrug|hellion|tormentor|cacodemon|neqoxec|brimstone fiend|ice fiend|cerebov|lom lobon|mnoleg|gloorx vloq|asmodeus|ereskigal|dispater|antaeus)\b/i, config: { templateKey: 'bestiary_imp', scale: 1.48, weaponKey: 'ph_sledgehammer', taxonomy: 'Demon / Fiend' } },
             { regex: /\b(boulder beetle|boring beetle|radroach)\b/i, config: { templateKey: 'bestiary_beetle', scale: 1.05, taxonomy: 'Insect / Beetle' } },
             { regex: /\b(cane toad|blink frog|giant frog|bullfrog|prince ribbit)\b/i, config: { templateKey: 'obj_frog', scale: 0.98, taxonomy: 'Amphibian / Frog' } },
-            { regex: /\b(plant|bush|oklob plant|fungus|wandering mushroom|briar patch|thorn hunter|shambling mangrove)\b/i, config: { templateKey: 'env_tanglethorn', scale: 0.95, taxonomy: 'Flora / Plant' } }
+            { regex: /\b(fungus|wandering mushroom|spore|deathcap|ballistomycete)\b/i, config: { templateKey: 'env_fungi_cluster', scale: 0.95, useAsciiTint: true, taxonomy: 'Fungi / Mushroom' } },
+            { regex: /\b(plant|bush|oklob plant|briar patch|thorn hunter|shambling mangrove)\b/i, config: { templateKey: 'env_tanglethorn', scale: 0.95, taxonomy: 'Flora / Plant' } }
         ]
     };
 
@@ -296,7 +311,9 @@
             { regex: /\b(goblin totem|ogre totem|arrow turret|flame turret|spark turret|dart turret|sentinel|guardian)\b/i, config: { templateKey: 'bestiary_statue', scale: 1.15, taxonomy: 'Construct / Totem' } },
             { regex: /\bmonkey\b/i, config: { templateKey: 'bestiary_puglin', scale: 0.72, taxonomy: 'Beast / Monkey' } },
             { regex: /\btentacle horror\b/i, config: { templateKey: 'bestiary_horror', scale: 1.32, taxonomy: 'Aberration / Horror' } },
-            { regex: /\b(eel|kraken|bog monster|underworm)\b/i, config: { templateKey: 'bestiary_aquatic', scale: 1.22, isFloating: true, taxonomy: 'Aquatic Horror' } },
+            { regex: /\bunderworm\b/i, config: { templateKey: 'bestiary_worm_mass', scale: 1.18, taxonomy: 'Worm / Underworm' } },
+            { regex: /\bkraken\b/i, config: { templateKey: 'bestiary_kraken', scale: 1.35, isFloating: true, taxonomy: 'Aquatic / Kraken' } },
+            { regex: /\b(eel|bog monster)\b/i, config: { templateKey: 'bestiary_aquatic', scale: 1.22, isFloating: true, taxonomy: 'Aquatic Horror' } },
             { regex: /\bspectral blade\b/i, config: { templateKey: 'item_greatsword', scale: 1.12, isFloating: true, taxonomy: 'Animated Weapon' } },
             { regex: /\b(wisp|will-o-the-wisp)\b/i, config: { templateKey: 'bestiary_vortex', scale: 0.82, isFloating: true, emissiveHex: '#ff6b00', taxonomy: 'Elemental / Wisp' } },
             { regex: /\bpixie\b/i, config: { templateKey: 'char_female_peasant', scale: 0.65, isFloating: true, taxonomy: 'Fey / Pixie' } },
@@ -386,7 +403,7 @@
         'O': { templateKey: 'bestiary_ogre', scale: 1.25, weaponKey: 'item_greatclub', taxonomy: 'Ogre' },
         'p': { templateKey: 'char_male_ranger', scale: 1.0, weaponKey: 'item_longsword', taxonomy: 'Human' },
         'P': { templateKey: 'bestiary_cyclops', scale: 1.35, weaponKey: 'ph_sledgehammer', taxonomy: 'Giant' },
-        'q': { templateKey: 'bestiary_bear', scale: 1.12, taxonomy: 'Quadruped Beast' },
+        'q': { templateKey: 'bestiary_wolf', scale: 1.05, _seedTemplates: ['bestiary_wolf', 'bestiary_bear', 'bestiary_lion', 'bestiary_horse'], taxonomy: 'Quadruped Beast' },
         'Q': { templateKey: 'bestiary_quylthulg', scale: 0.95, useAsciiTint: true, taxonomy: 'Quylthulg' },
         'r': { templateKey: 'ph_street_rat', scale: 1.0, taxonomy: 'Rodent' },
         'R': { templateKey: 'bestiary_lizard', scale: 0.95, taxonomy: 'Reptile / Amphibian' },
@@ -407,10 +424,10 @@
         'z': { templateKey: 'bestiary_zombie', scale: 1.02, taxonomy: 'Zombie (Undead)' },
         'Z': { templateKey: 'bestiary_wolf', scale: 1.12, useAsciiTint: true, taxonomy: 'Zephyr Hound' },
         ',': { templateKey: 'env_fungi_cluster', scale: 0.92, useAsciiTint: true, taxonomy: 'Mushroom Patch' },
-        '$': { templateKey: 'ph_chest', scale: 0.95, taxonomy: 'Creeping Coins' },
+        '$': { templateKey: 'item_gold', scale: 1.0, taxonomy: 'Creeping Coins' },
         '!': { templateKey: 'ph_potion_flask', scale: 1.0, taxonomy: 'Potion Mimic' },
         '?': { templateKey: 'ph_book', scale: 1.0, taxonomy: 'Scroll Mimic' },
-        '=': { templateKey: 'ph_crystal', scale: 0.85, taxonomy: 'Ring Mimic' },
+        '=': { templateKey: 'item_ring', scale: 0.95, taxonomy: 'Ring Mimic' },
         '~': { templateKey: 'ph_chest', scale: 0.95, taxonomy: 'Chest Mimic' },
         '/': { templateKey: 'ph_sledgehammer', scale: 1.15, isFloating: true, floatHeight: 0.35, taxonomy: 'Animated Weapon' },
         '|': { templateKey: 'item_greatsword', scale: 1.15, isFloating: true, floatHeight: 0.35, taxonomy: 'Animated Blade' }
@@ -444,8 +461,8 @@
         'u': { templateKey: 'char_male_ranger', scale: 1.02, weaponKey: 'item_bow', taxonomy: 'Dark Elf / Glamhoth' },
         'v': { templateKey: 'char_male_priest', scale: 1.08, isFloating: true, taxonomy: 'Vampire' },
         'V': { templateKey: 'char_male_ranger', scale: 1.75, weaponKey: 'ph_sledgehammer', isMorgoth: true, isBoss: true, taxonomy: 'Valar / Morgoth' },
-        'w': { templateKey: 'bestiary_wraith', scale: 1.08, isFloating: true, taxonomy: 'Shadow / Phantom' },
-        'W': { templateKey: 'bestiary_wraith', scale: 1.15, isFloating: true, taxonomy: 'Wraith' },
+        'w': { templateKey: 'bestiary_wraith', scale: 1.08, isFloating: true, weaponKey: null, _seedWeapons: null, taxonomy: 'Shadow / Phantom' },
+        'W': { templateKey: 'bestiary_wraith', scale: 1.15, isFloating: true, weaponKey: null, _seedWeapons: null, taxonomy: 'Wraith' },
         'y': { templateKey: 'bestiary_bird', scale: 0.92, isFloating: true, taxonomy: 'Gorcrow / Crebain' },
         'z': { templateKey: 'bestiary_zombie', scale: 1.0, taxonomy: 'Mewlip (Undead)' },
         '&': { templateKey: 'env_tanglethorn', scale: 1.05, taxonomy: 'Thorn / Dead Bush' }
@@ -468,16 +485,16 @@
         'm': { templateKey: 'ph_chest', scale: 0.95, taxonomy: 'Mimic' },
         'n': { templateKey: 'char_female_peasant', scale: 0.95, taxonomy: 'Nymph' },
         'o': { templateKey: 'bestiary_orc', scale: 1.0, weaponKey: 'item_goblin_sword', shieldKey: 'item_shield_wooden', taxonomy: 'Orc' },
-        'p': { templateKey: 'bestiary_golem', scale: 0.88, taxonomy: 'Piercer' },
+        'p': { templateKey: 'bestiary_horror', scaleY: 1.35, scaleXZ: 0.65, taxonomy: 'Piercer' },
         'q': { templateKey: 'bestiary_bear', scale: 1.12, taxonomy: 'Quadruped / Leocrotta' },
         'r': { templateKey: 'ph_street_rat', scale: 1.0, taxonomy: 'Rodent' },
         's': { templateKey: 'obj_spider', scale: 0.92, taxonomy: 'Arachnid / Scorpion' },
-        't': { templateKey: 'bestiary_horror', scale: 1.25, taxonomy: 'Trapper / Lurker' },
+        't': { templateKey: 'bestiary_horror', scaleY: 0.28, scaleXZ: 1.35, taxonomy: 'Trapper / Lurker' },
         'u': { templateKey: 'bestiary_horse', scale: 1.08, taxonomy: 'Unicorn / Equine' },
         'v': { templateKey: 'bestiary_vortex', scale: 0.95, isFloating: true, useAsciiTint: true, taxonomy: 'Vortex / Cloud' },
         'w': { templateKey: 'bestiary_worm_mass', scale: 1.0, taxonomy: 'Worm' },
         'x': { templateKey: 'bestiary_beetle', scale: 0.76, taxonomy: 'Grid Bug / Xan' },
-        'y': { templateKey: 'bestiary_vortex', scale: 0.85, isFloating: true, taxonomy: 'Floating Light' },
+        'y': { templateKey: 'bestiary_vortex', scale: 0.85, isFloating: true, useAsciiTint: true, emissiveHex: '#fde047', taxonomy: 'Floating Light' },
         'z': { templateKey: 'bestiary_golem', scale: 1.15, taxonomy: 'Zruty' },
         'A': { templateKey: 'char_valkyrie', scale: 1.18, isFloating: true, taxonomy: 'Angel / Archon' },
         'B': { templateKey: 'bestiary_bat', scale: 0.85, isFloating: true, taxonomy: 'Bat / Bird' },
@@ -600,7 +617,7 @@
     // ---------------------------------------------------------------------------
     // 5. Tier 2 — Universal Morphological Species & Head-Noun Matcher
     // ---------------------------------------------------------------------------
-    function matchUniversalSpecies(lower) {
+    function matchUniversalSpecies(lower, normRealm) {
         // 1. Canines (Wolves, Dogs, Foxes, Hounds, Werewolves)
         if (/\b(wolf|wolves|warg|hound|jackal|coyote|fox|vixen|kitsune|dingo|canine|dog|puppy|shiba|terrier|husky|mastiff|pit bull|cerberus|fenrir|hellhound|hell hound|dhole|werewolf|wolfman|lycanthrope)\b/.test(lower)) {
             if (/\b(werewolf|wolfman|lycanthrope)\b/.test(lower)) {
@@ -772,7 +789,8 @@
         if (/\b(mimic|xeroc)\b/.test(lower)) {
             if (/potion/.test(lower)) return { templateKey: 'ph_potion_flask', scale: 1.0, taxonomy: 'Potion Mimic' };
             if (/scroll|book/.test(lower)) return { templateKey: 'ph_book', scale: 1.0, taxonomy: 'Scroll Mimic' };
-            if (/ring|crystal|orb/.test(lower)) return { templateKey: 'ph_crystal', scale: 0.85, taxonomy: 'Relic Mimic' };
+            if (/ring/.test(lower)) return { templateKey: 'item_ring', scale: 0.95, taxonomy: 'Ring Mimic' };
+            if (/crystal|orb/.test(lower)) return { templateKey: 'ph_crystal', scale: 0.85, taxonomy: 'Relic Mimic' };
             return { templateKey: 'ph_chest', scale: 0.95, taxonomy: 'Chest Mimic / Coins' };
         }
         if (/animated.*(?:axe|pike|staff|blade|sword)|death scythe|death sword|spectral blade|dancing sword/.test(lower)) {
@@ -815,11 +833,12 @@
         // 28. Wraiths, Spectres, Ghosts, Liches & Nazgul
         if (/\b(wraith|ghost|spectre|specter|shade|shadow|phantom|phantasm|apparition|poltergeist|banshee|eidolon|spirit|haunt|nightmare|dread|lich|archlich|nazgul|ringwraith)\b/.test(lower)) {
             const isLich = /\b(lich|archlich)\b/.test(lower);
+            const isArmedWraith = /\b(wraith|nazgul|ringwraith)\b/.test(lower) && normRealm !== 'silq';
             return {
                 templateKey: 'bestiary_wraith',
                 scale: isLich ? 1.10 : 1.05,
                 isFloating: true,
-                _seedWeapons: isLich ? ['item_staff', 'item_wand', 'item_rod'] : ['item_rune_blade', 'item_greatsword', 'ph_estoc'],
+                _seedWeapons: isLich ? ['item_staff', 'item_wand', 'item_rod'] : (isArmedWraith ? ['item_rune_blade', 'item_greatsword', 'ph_estoc'] : null),
                 taxonomy: isLich ? 'Lich (Undead)' : 'Wraith / Ghost (Undead)'
             };
         }
@@ -880,6 +899,7 @@
         if (/\b(orc|snaga)\b/.test(lower)) {
             return {
                 templateKey: 'bestiary_orc',
+                _seedTemplates: ['bestiary_orc', 'bestiary_orc', 'bestiary_orc_female'],
                 scale: 1.0,
                 _seedWeapons: ['item_goblin_sword', 'ph_saber', 'ph_axe', 'item_spear', 'item_morningstar', 'ph_mace'],
                 _seedShields: ['item_shield_wooden', 'item_shield_leather', 'item_shield_metal', null],
@@ -1099,7 +1119,7 @@
 
         // Tier 1: Pluggable Realm Manifest Overrides & Semantic Bridge Hints
         if (m && m.family) {
-            const famMatch = matchUniversalSpecies(String(m.family).toLowerCase());
+            const famMatch = matchUniversalSpecies(String(m.family).toLowerCase(), normRealm);
             if (famMatch) {
                 baseCfg = Object.assign({}, famMatch);
                 sourceTier = 1;
@@ -1125,7 +1145,7 @@
 
         // Tier 2: Universal Morphological Species & Head-Noun Matcher
         if (!baseCfg && cleanName.length > 0) {
-            const match = matchUniversalSpecies(lower);
+            const match = matchUniversalSpecies(lower, normRealm);
             if (match) {
                 baseCfg = Object.assign({}, match);
                 sourceTier = 2;

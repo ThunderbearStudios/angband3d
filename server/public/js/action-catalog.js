@@ -45,7 +45,7 @@
         { id: 'aim', group: 'items', icon: 'wand', labels: { en: 'Aim Wand', jp: '振る(魔法棒)' }, synonyms: ['wand', 'shoot_wand'], keys: { angband: 'a', silq: null, frogcomposband: 'a', hengband: 'a', nethack: 'z' }, target: 'item+dir', itemFilter: 'wand', primaryFor: ['wand'], needsIdle: true, atomic: false },
         { id: 'use_staff', group: 'items', icon: 'staff', labels: { en: 'Use Staff', jp: '使う(杖)' }, synonyms: ['staff', 'strike_staff'], keys: { angband: 'u', silq: 'a', frogcomposband: 'u', hengband: 'u', nethack: 'a' }, target: 'item', itemFilter: 'staff', primaryFor: ['staff'], needsIdle: true, atomic: false },
         { id: 'zap', group: 'items', icon: 'rod', labels: { en: 'Zap Rod', jp: '使う(ロッド)' }, synonyms: ['rod', 'discharge'], keys: { angband: 'z', silq: null, frogcomposband: 'z', hengband: 'z', nethack: 'z' }, target: 'item', itemFilter: 'rod', primaryFor: ['rod'], needsIdle: true, atomic: false },
-        { id: 'activate', group: 'items', icon: 'activate', labels: { en: 'Activate', jp: '始動する' }, synonyms: ['artifact', 'trigger', 'invoke'], keys: { angband: 'A', silq: null, frogcomposband: 'A', hengband: 'A', nethack: 'a' }, target: 'item', itemFilter: 'activatable', primaryFor: [], needsIdle: true, atomic: false },
+        { id: 'activate', group: 'items', icon: 'activate', labels: { en: 'Activate / Sound Horn', jp: '始動する' }, synonyms: ['artifact', 'trigger', 'invoke'], keys: { angband: 'A', silq: 'p', frogcomposband: 'A', hengband: 'A', nethack: 'a' }, target: 'item', itemFilter: 'activatable', primaryFor: [], needsIdle: true, atomic: false },
         { id: 'use', group: 'items', icon: 'use', labels: { en: 'Use Item', jp: '使う' }, synonyms: ['item', 'apply'], keys: { angband: 'U', silq: 'u', frogcomposband: null, hengband: null, nethack: 'a' }, target: 'item', itemFilter: null, primaryFor: [], needsIdle: true, atomic: false },
         { id: 'play_horn', group: 'items', icon: 'horn', labels: { en: 'Play Horn', jp: '角笛を吹く' }, synonyms: ['horn', 'instrument', 'play', 'music'], keys: { angband: null, silq: 'p', frogcomposband: null, hengband: null, nethack: 'a' }, target: 'item', itemFilter: 'horn', primaryFor: ['horn'], needsIdle: true, atomic: false },
         { id: 'fire', group: 'items', icon: 'bow', labels: { en: 'Fire', jp: '射撃' }, synonyms: ['shoot', 'bow', 'arrow', 'quiver', 'missile'], keys: { angband: 'f', silq: 'f', frogcomposband: 'f', hengband: 'f', nethack: 'f' }, target: 'item+dir', itemFilter: 'bow', primaryFor: ['bow', 'sling', 'crossbow'], needsIdle: true, atomic: false },
@@ -322,7 +322,9 @@
         const equipped = Boolean(isEquipped || item.equipped || (typeof item.slot === 'number' && item.slot >= 0 && item.slot <= 30 && item.slot_name));
         const candidateIds = [];
 
-        const isPotion = tval === 75 || tval === 71 || tval === 'potion' || name.includes('potion') || name.includes('draught') || name.includes('flask');
+        const isFuel = tval === 77 || tval === 'flask' || /\b(flasks?\s+of\s+oil|oil\s+flask)\b/.test(name) || /油つぼ|油のフラスコ/.test(name);
+        const isPhial = tval === 39 || tval === 40 || /\b(phial\s+of|galadriel|star\s+of|aril|feanor)\b/.test(name);
+        const isPotion = !isFuel && !isPhial && (tval === 75 || tval === 71 || tval === 'potion' || name.includes('potion') || name.includes('draught') || name.includes('elixir') || (name.includes('flask') && !name.includes('oil')));
         const isScroll = tval === 70 || tval === 'scroll' || name.includes('scroll') || name.includes('parchment');
         const isFood = tval === 80 || tval === 'food' || name.includes('ration') || name.includes('food') || name.includes('mushroom') || name.includes('bread') || name.includes('wafer') || name.includes('jerky') || name.includes('slime mold') || name.includes('mango');
         const isHorn = tval === 'horn' || name.includes('horn');
@@ -330,10 +332,12 @@
         const isStaff = tval === 55 || tval === 'staff' || name.includes('staff') || name.includes('stave');
         const isRod = tval === 66 || tval === 'rod' || name.includes('rod');
         const isBook = (typeof tval === 'number' && tval >= 90 && tval <= 115) || tval === 'book' || name.includes('book') || name.includes('tome') || name.includes('grimoire') || name.includes('spellbook') || /\[[^\]]+\]/.test(name);
-        const isLight = tval === 39 || tval === 40 || name.includes('lantern') || name.includes('torch') || name.includes('light');
+        const isLight = isFuel || isPhial || tval === 39 || tval === 40 || name.includes('lantern') || name.includes('torch') || name.includes('light') || name.includes('lamp');
 
         if (isHorn && r === 'silq') {
             candidateIds.push('play_horn', 'throw', 'drop', 'inscribe', 'ignore', 'examine');
+        } else if (isFuel) {
+            candidateIds.push('refill', 'throw', 'drop', 'inscribe', 'ignore', 'examine');
         } else if (isPotion) {
             candidateIds.push('quaff', 'throw', 'drop', 'inscribe', 'ignore', 'examine');
         } else if (isScroll) {
@@ -350,17 +354,17 @@
             candidateIds.push('browse', 'study', 'cast', 'drop', 'inscribe', 'ignore', 'examine');
         } else if (equipped) {
             candidateIds.push('takeoff', 'inscribe', 'examine');
-            if (item.activate || item.artifact || name.includes('ring') || name.includes('amulet')) {
+            if (item.activate || item.artifact || isPhial || name.includes('ring') || name.includes('amulet')) {
                 candidateIds.push('activate');
             }
         } else {
             candidateIds.push('wield', 'drop', 'throw', 'inscribe', 'ignore', 'examine');
-            if (item.activate || item.artifact) {
+            if (item.activate || item.artifact || isPhial) {
                 candidateIds.push('activate');
             }
         }
 
-        if (isLight) {
+        if (isLight && !candidateIds.includes('refill')) {
             candidateIds.push('refill');
         }
 
@@ -422,6 +426,8 @@
             (Array.isArray(p.statuses) && p.statuses.some(s => /hungry|weak|faint|starv/i.test(String(s && s.name ? s.name : s)))) ||
             (context && context.isHungry)
         );
+        const maxHp = Number(p.hp_max ?? p.mhp ?? 0);
+        const maxSp = Number(p.sp_max ?? p.msp ?? p.max_sp ?? 0);
 
         switch (cmd.id) {
             case 'quaff':
@@ -433,7 +439,7 @@
             case 'play_horn':
             case 'wield':
             case 'refill': {
-                const matches = findMatchingItems(cmd.id, 'inv');
+                const matches = cmd.id === 'refill' ? findMatchingItems(cmd.id, 'all') : findMatchingItems(cmd.id, 'inv');
                 available = matches.length > 0;
                 itemSample = matches[0] || null;
                 if (available) {
@@ -444,8 +450,15 @@
                     suggested = true;
                     badge = '✦ Hungry';
                 }
-                if (cmd.id === 'quaff' && available && typeof p.hp === 'number' && typeof p.mhp === 'number' && p.mhp > 0 && (p.hp / p.mhp) <= 0.45) {
+                if (cmd.id === 'quaff' && available && typeof p.hp === 'number' && maxHp > 0 && (p.hp / maxHp) <= 0.45) {
                     suggested = true;
+                }
+                if (cmd.id === 'refill' && available) {
+                    const fuelTurns = typeof p.light_fuel === 'number' ? p.light_fuel : 0;
+                    if (fuelTurns > 0 && fuelTurns <= 500) {
+                        suggested = true;
+                        badge = '✦ Low Fuel';
+                    }
                 }
                 break;
             }
@@ -516,7 +529,7 @@
             case 'cast': {
                 const books = findMatchingItems('cast', 'inv');
                 const isIntrinsicCaster = /mindcrafter|psion|warlock|berserker|mirror|blue[-\s]?mage|imitator|bard|monk|mystic|wild[-\s]?talent|possessor|red[-\s]?mage|samurai|ninja|force[-\s]?trainer/i.test(pClass);
-                available = books.length > 0 || isIntrinsicCaster || (typeof p.msp === 'number' && p.msp > 0 && books.length > 0);
+                available = books.length > 0 || isIntrinsicCaster || (maxSp > 0 && books.length > 0);
                 itemSample = books[0] || null;
                 break;
             }
@@ -552,7 +565,7 @@
                 break;
             }
             case 'rest': {
-                if (typeof p.hp === 'number' && typeof p.mhp === 'number' && p.mhp > 0 && (p.hp / p.mhp) < 0.75 && !(context && context.hasAdjacentMonster)) {
+                if (typeof p.hp === 'number' && maxHp > 0 && (p.hp / maxHp) < 0.75 && !(context && context.hasAdjacentMonster)) {
                     suggested = true;
                 }
                 break;

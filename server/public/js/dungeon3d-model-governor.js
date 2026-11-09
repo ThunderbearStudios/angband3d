@@ -71,14 +71,14 @@
      * as `REPLACE_POLY_GARBAGE` by `classifyModelQuality()`.
      */
     const ARCHIVAL_RELIC_REPLACEMENTS = Object.freeze({
-        chest:    { id: 'chest',    source: 'polyhaven_photogrammetry', refUrl: 'https://polyhaven.com/a/seadogs_compass',         glb: '/models/archival_relics/treasure_chest_ironbound_lod1.glb', targetHeight: 0.74, tris: 1850 },
-        boulder:  { id: 'boulder',  source: 'polyhaven_photogrammetry', refUrl: 'https://polyhaven.com/a/namaqualand_boulders_01', glb: '/models/archival_relics/granite_boulder_scan_lod1.glb',   targetHeight: 0.92, tris: 1420 },
-        light:    { id: 'light',    source: 'polyhaven_photogrammetry', refUrl: 'https://polyhaven.com/a/brass_diya_lantern',      glb: '/models/archival_relics/wrought_iron_lantern_lod1.glb',   targetHeight: 0.54, tris: 1380 },
-        barrel:   { id: 'barrel',   source: 'polyhaven_photogrammetry', refUrl: 'https://polyhaven.com/a/wooden_barrel',           glb: '/models/archival_relics/iron_hooped_barrel_lod1.glb',     targetHeight: 0.82, tris: 1240 },
-        weapon:   { id: 'weapon',   source: 'museum_arms_armor_cc0',    refUrl: 'https://sketchfab.com/tags/medieval-armor',       glb: '/models/archival_relics/forged_longsword_museum_lod1.glb', targetHeight: 0.80, tris: 1620 },
-        armor:    { id: 'armor',    source: 'museum_arms_armor_cc0',    refUrl: 'https://sketchfab.com/GhostPXL/collections/armor-f9d1f6052c4b41568a490d5564f945cb', glb: '/models/archival_relics/gothic_plate_cuirass_lod1.glb', targetHeight: 0.88, tris: 2450 },
-        altar:    { id: 'altar',    source: 'gothic_sanctum_fab',       refUrl: 'https://www.fab.com/listings/f4db8050-914c-4099-971e-097dd9c36215', glb: '/models/archival_relics/gothic_stone_altar_lod1.glb', targetHeight: 0.96, tris: 2100 },
-        potion:   { id: 'potion',   source: 'polyhaven_photogrammetry', refUrl: 'https://polyhaven.com/models',                    glb: '/models/archival_relics/alchemical_glass_vial_lod1.glb',   targetHeight: 0.40, tris: 1180 }
+        chest:    { id: 'chest',    source: 'polyhaven_photogrammetry', refUrl: 'https://polyhaven.com/a/seadogs_compass',         glb: '/models/archival_relics/treasure_chest_ironbound_lod1.glb', resolvedGlb: '/assets/models/items/Chest_Wood.gltf', targetHeight: 0.74, tris: 1850 },
+        boulder:  { id: 'boulder',  source: 'polyhaven_photogrammetry', refUrl: 'https://polyhaven.com/a/namaqualand_boulders_01', glb: '/models/archival_relics/granite_boulder_scan_lod1.glb',   resolvedGlb: '/assets/polyhaven/models/moon_rock_02/moon_rock_02.gltf', targetHeight: 0.92, tris: 1420 },
+        light:    { id: 'light',    source: 'polyhaven_photogrammetry', refUrl: 'https://polyhaven.com/a/brass_diya_lantern',      glb: '/models/archival_relics/wrought_iron_lantern_lod1.glb',   resolvedGlb: '/assets/models/items/torch_pbr.glb', targetHeight: 0.54, tris: 1380 },
+        barrel:   { id: 'barrel',   source: 'polyhaven_photogrammetry', refUrl: 'https://polyhaven.com/a/wooden_barrel',           glb: '/models/archival_relics/iron_hooped_barrel_lod1.glb',     resolvedGlb: '/assets/models/items/Chest_Wood.gltf', targetHeight: 0.82, tris: 1240 },
+        weapon:   { id: 'weapon',   source: 'museum_arms_armor_cc0',    refUrl: 'https://sketchfab.com/tags/medieval-armor',       glb: '/models/archival_relics/forged_longsword_museum_lod1.glb', resolvedGlb: '/assets/models/items/sword_pbr.glb', targetHeight: 0.80, tris: 1620 },
+        armor:    { id: 'armor',    source: 'museum_arms_armor_cc0',    refUrl: 'https://sketchfab.com/GhostPXL/collections/armor-f9d1f6052c4b41568a490d5564f945cb', glb: '/models/archival_relics/gothic_plate_cuirass_lod1.glb', resolvedGlb: '/assets/models/items/plate_armor.glb', targetHeight: 0.88, tris: 2450 },
+        altar:    { id: 'altar',    source: 'gothic_sanctum_fab',       refUrl: 'https://www.fab.com/listings/f4db8050-914c-4099-971e-097dd9c36215', glb: '/models/archival_relics/gothic_stone_altar_lod1.glb', resolvedGlb: '/assets/models/items/high_altar_pbr.glb', targetHeight: 0.96, tris: 2100 },
+        potion:   { id: 'potion',   source: 'polyhaven_photogrammetry', refUrl: 'https://polyhaven.com/models',                    glb: '/models/archival_relics/alchemical_glass_vial_lod1.glb',   resolvedGlb: '/assets/models/items/healing_potion.glb', targetHeight: 0.40, tris: 1180 }
     });
 
     const PROTECTED_MODEL_IDS = new Set();

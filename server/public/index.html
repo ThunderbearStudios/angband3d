@@ -53,12 +53,12 @@
     <link rel="preload" href="/assets/fonts/cinzel-latin.woff2" as="font" type="font/woff2" crossorigin>
     <!-- # ROOT-CAUSE: Bind dedicated favicon.png and yasd3d_icon_192.png instead of the full widescreen splash graphic. -->
     <link rel="manifest" href="/manifest.json">
-    <link rel="preload" as="image" href="/assets/yasd3d_logo_fast.jpg?v=11.8.7" fetchpriority="high">
-    <link rel="apple-touch-icon" sizes="180x180" href="/assets/yasd3d_icon_192.png?v=11.8.7">
-    <link rel="icon" type="image/png" sizes="64x64" href="/assets/favicon.png?v=11.8.7">
-    <link rel="stylesheet" href="/css/dungeon.css?v=11.8.7">
-    <link rel="stylesheet" href="css/hud-skin.css?v=11.8.7">
-    <link rel="stylesheet" href="/css/chronicle.css?v=11.8.7">
+    <link rel="preload" as="image" href="/assets/yasd3d_logo_fast.jpg?v=11.9.6" fetchpriority="high">
+    <link rel="apple-touch-icon" sizes="180x180" href="/assets/yasd3d_icon_192.png?v=11.9.6">
+    <link rel="icon" type="image/png" sizes="64x64" href="/assets/favicon.png?v=11.9.6">
+    <link rel="stylesheet" href="/css/dungeon.css?v=11.9.6">
+    <link rel="stylesheet" href="css/hud-skin.css?v=11.9.6">
+    <link rel="stylesheet" href="/css/chronicle.css?v=11.9.6">
 </head>
 <body>
     <div id="app-container">
@@ -152,6 +152,8 @@
                         <button type="button" id="btn-term-zoom-in" class="term-zoom-btn" title="Zoom In Classic Terminal [ + ]">🔍 +</button>
                     </div>
                     <div class="terminal-actions">
+                        <button type="button" id="btn-term-audio-mute" class="term-zoom-btn" title="Toggle Master Sound Mute [Ctrl-M]" aria-label="Toggle Sound Mute">🔊</button>
+                        <button type="button" id="btn-term-audio-config" class="term-zoom-btn" title="Open Audio &amp; Music Configuration" aria-label="Audio Configuration">⚙</button>
                         <button type="button" id="btn-term-grimoire-toggle" class="btn-gold-outline" style="display: none;" title="Toggle between Grimoire Cards and Classic Terminal [F10]">✨ Grimoire [F10]</button>
                         <button id="btn-quick-birth" class="btn-gold" style="display: none;" title="Quickly create a random hero and jump straight into the 3D dungeon!">⚔ Quick Start Hero (@)</button>
                         <button id="btn-term-reroll" class="btn-gold-outline" style="display: none;" title="Reroll this character with new random attributes">🎲 Reroll Hero (R)</button>
@@ -253,6 +255,8 @@
                     <div class="chronicle-audio-toggles">
                         <button id="btn-chronicle-prompt-tale" class="chronicle-ctrl-btn" title="Weave Tale: Spin an on-demand saga tale with tactical hints [Alt+T]">🔮 Tale</button>
                         <button id="chronicle-sketch-btn" class="chronicle-ctrl-btn chronicle-sketch-btn" title="Sketch Hero: Generate a lore-accurate action sketch of your character at this point in the story [Alt+K]" aria-label="Sketch Hero Action">🎨 Sketch</button>
+                        <button id="btn-chronicle-ask-toggle" class="chronicle-ctrl-btn" type="button" title="Ask the Lorekeeper or Consult Quick Topics" aria-expanded="false">💬 Ask</button>
+                        <button id="btn-chronicle-archive-toggle" class="chronicle-ctrl-btn" type="button" title="Export / Import Chronicle Story Archive" aria-expanded="false">📦</button>
                         <button id="btn-chronicle-mute" class="chronicle-ctrl-btn" title="Toggle Voice Narration">🔇 Muted</button>
                         <button id="btn-chronicle-speed" class="chronicle-ctrl-btn" title="Audiobook Speed (0.75x, 0.85x, 1.0x, 1.25x, 1.5x)">⚡ 1.0x</button>
                     </div>
@@ -394,7 +398,9 @@
                 <span id="val-depth" style="color:#ffd700;">Town</span>
                 <button id="btn-minimap-close" class="map-close-btn" title="Close Minimap">✕</button>
             </div>
+            <!-- # ROOT-CAUSE: Restore classic 168x168 compact minimap canvas dimensions and classic control bar without #btn-map-tilt-toggle so #map-resize-handle never overlaps control buttons. -->
             <canvas id="minimap-canvas" width="168" height="168"></canvas>
+            <div id="minimap-hover-pill" class="minimap-hover-pill hidden" aria-live="polite"></div>
             <!-- Mobile Minimap Floating Quick-Zoom Bar -->
             <div id="mobile-map-zoom-group" class="mobile-map-zoom-group">
                 <button id="btn-mobile-map-zoom-in" class="mobile-map-btn" title="Zoom In Minimap">+</button>
@@ -508,7 +514,19 @@
                             <div class="vial-neck-collar" aria-hidden="true"></div>
                         </div>
                     </div>
+                    <div class="gauge-container gauge-block gauge-exp">
+                        <div class="gauge-header">
+                            <span id="exp-label">EXP</span>
+                            <span id="exp-text" class="gauge-val">Lv.1 • 0</span>
+                        </div>
+                        <div class="gauge-track">
+                            <div id="exp-fill" class="gauge-fill" style="width: 15%;"></div>
+                            <div class="vial-glass-gloss" aria-hidden="true"></div>
+                            <div class="vial-neck-collar" aria-hidden="true"></div>
+                        </div>
+                    </div>
                 </div>
+                <div id="char-status-effects" class="char-status-effects hidden" aria-live="polite"></div>
                 <div id="char-extended-drawer" class="char-extended-drawer hidden"></div>
                 <div id="stats-strip">
                     <div class="stat-item" id="stat-item-str"><span class="stat-label">STR</span><span id="stat-str" class="stat-value">10</span></div>
@@ -612,7 +630,7 @@
             <div class="death-panel">
                 <div class="death-header">
                     <!-- # ROOT-CAUSE: Add official YASD3D.com icon badge (.modal-crest-badge) to modal headers with fetchpriority="low". -->
-                    <h1 class="death-title"><img src="/assets/yasd3d_badge.png?v=11.8.7" alt="" class="modal-crest-badge" width="22" height="29" fetchpriority="low" decoding="async"> YOU HAVE PERISHED <img src="/assets/yasd3d_badge.png?v=11.8.7" alt="" class="modal-crest-badge" width="22" height="29" fetchpriority="low" decoding="async"></h1>
+                    <h1 class="death-title"><img src="/assets/yasd3d_badge.png?v=11.9.6" alt="" class="modal-crest-badge" width="22" height="29" fetchpriority="low" decoding="async"> YOU HAVE PERISHED <img src="/assets/yasd3d_badge.png?v=11.9.6" alt="" class="modal-crest-badge" width="22" height="29" fetchpriority="low" decoding="async"></h1>
                     <div id="death-epitaph" class="death-epitaph">Hero the Human Warrior (Level 1)</div>
                     <div id="death-cause" class="death-cause">Killed by mortal wounds in the Town.</div>
                     <div id="death-score" class="death-score">Gold: 0 AU &nbsp;•&nbsp; Experience: 0 &nbsp;•&nbsp; Deepest Level: 0 (Town)</div>
@@ -674,13 +692,14 @@
             </button>
             <input type="range" id="global-music-slider" min="0" max="100" value="85" title="Music Volume" aria-label="Music Volume" style="width:62px; accent-color:#d4af37; cursor:pointer;">
             <span id="global-music-label" style="font-size:0.72rem; color:#c8ced8; min-width:26px; text-align:right; font-variant-numeric:tabular-nums;">85%</span>
+            <button type="button" id="btn-global-audio-config" class="btn-top-sound" title="Audio Configuration (Music Jukebox, Tome Voice, Effects &amp; Reverb)" aria-label="Audio Configuration" style="background:rgba(30,36,48,0.85); border:1px solid rgba(212,175,55,0.45); border-radius:4px; color:#f3cf7a; font-size:0.78rem; cursor:pointer; padding:2px 6px;">⚙</button>
         </div>
 
         <!-- Splash Screen Overlay (Zero-Button Obsidian Showcase Billboard) -->
         <div id="splash-overlay" role="region" aria-label="YASD 3D Showcase Splash Screen" tabindex="0">
             <div class="splash-card splash-billboard-mode">
                 <div class="splash-logo-wrap protected-crest" oncontextmenu="return false;">
-                    <img src="/assets/yasd3d_logo_fast.jpg?v=11.8.7" alt="Yet Another Stupid Death Official Splash Art — yasd3d.com • Thunderbear Studios" class="splash-logo splash-logo-main" width="720" height="422" fetchpriority="high" decoding="async" draggable="false">
+                    <img src="/assets/yasd3d_logo_fast.jpg?v=11.9.6" alt="Yet Another Stupid Death Official Splash Art — yasd3d.com • Thunderbear Studios" class="splash-logo splash-logo-main" width="720" height="422" fetchpriority="high" decoding="async" draggable="false">
                 </div>
 
                 <div class="splash-domain-crest" aria-label="yasd3d.com">
@@ -709,12 +728,12 @@
 
                 <div class="splash-credits-footer">
                     <a href="https://thunderbearstudios.dev" target="_blank" rel="noopener noreferrer" class="splash-studio-signature" title="Thunderbear Studios™ — Official Studio Portal (thunderbearstudios.dev)">
-                        <img src="/assets/thunderbear_logo.png?v=11.8.7" alt="Thunderbear Studios Official Emblem" class="splash-studio-badge" width="26" height="34" decoding="async" draggable="false">
+                        <img src="/assets/thunderbear_logo.png?v=11.9.6" alt="Thunderbear Studios Official Emblem" class="splash-studio-badge" width="26" height="34" decoding="async" draggable="false">
                         <span class="splash-studio-detail">
                             <strong>Thunderbear Studios&trade; &bull; thunderbearstudios.dev</strong>
                             <small>&copy; 2026 Thunderbear Studios &bull; Official Yendor Engine&trade; Showcase</small>
                         </span>
-                        <img src="/assets/yasd3d_badge.png?v=11.8.7" alt="YASD3D.com Official Badge" class="splash-game-badge" width="25" height="34" decoding="async" draggable="false">
+                        <img src="/assets/yasd3d_badge.png?v=11.9.6" alt="YASD3D.com Official Badge" class="splash-game-badge" width="25" height="34" decoding="async" draggable="false">
                     </a>
                 </div>
             </div>
@@ -725,13 +744,13 @@
             <div class="main-menu-card">
                 <div class="main-menu-header">
                     <div class="main-menu-crest-bar">
-                        <img src="/assets/yasd3d_badge.png?v=11.8.7" alt="YASD3D.com Official Game Badge" class="main-menu-logo-primary" width="36" height="48" fetchpriority="low" decoding="async" draggable="false">
+                        <img src="/assets/yasd3d_badge.png?v=11.9.6" alt="YASD3D.com Official Game Badge" class="main-menu-logo-primary" width="36" height="48" fetchpriority="low" decoding="async" draggable="false">
                         <div class="main-menu-title-group">
                             <h2 class="main-menu-title" id="main-menu-title">⚔ YASD 3D • YENDOR ENGINE ⚔</h2>
                             <div class="main-menu-subtitle" id="main-menu-subtitle">The Classic Tolkien Descent • Old British Scholar</div>
                         </div>
                         <a href="https://thunderbearstudios.dev" target="_blank" rel="noopener noreferrer" class="main-menu-studio-link" title="Thunderbear Studios™ (thunderbearstudios.dev)">
-                            <img src="/assets/thunderbear_logo.png?v=11.8.7" alt="Thunderbear Studios" class="main-menu-logo-secondary" width="31" height="40" fetchpriority="low" decoding="async" draggable="false">
+                            <img src="/assets/thunderbear_logo.png?v=11.9.6" alt="Thunderbear Studios" class="main-menu-logo-secondary" width="31" height="40" fetchpriority="low" decoding="async" draggable="false">
                         </a>
                     </div>
                     <div class="main-menu-realm-strip" id="main-menu-realm-strip">
@@ -852,14 +871,15 @@
 
         <!-- Load Saved Game Modal -->
         <div id="load-modal" class="hidden">
-            <div class="load-card">
+            <div class="load-card" style="position: relative;">
+                <button type="button" id="btn-load-close-x" class="btn-guide-close" title="Close [Esc]" aria-label="Close Load Saved Game Modal" style="position: absolute; top: 14px; right: 16px; font-size: 18px; color: #ffd700; background: none; border: none; cursor: pointer; z-index: 5;">✕</button>
                 <div class="main-menu-ornament-corner top-left"></div>
                 <div class="main-menu-ornament-corner top-right"></div>
                 <div class="main-menu-ornament-corner bottom-left"></div>
                 <div class="main-menu-ornament-corner bottom-right"></div>
 
                 <div class="main-menu-header">
-                    <h2 class="main-menu-title"><img src="/assets/yasd3d_badge.png?v=11.8.7" alt="" class="modal-crest-badge" width="22" height="29" fetchpriority="low" decoding="async"> LOAD SAVED GAME</h2>
+                    <h2 class="main-menu-title"><img src="/assets/yasd3d_badge.png?v=11.9.6" alt="" class="modal-crest-badge" width="22" height="29" fetchpriority="low" decoding="async"> LOAD SAVED GAME</h2>
                     <div class="main-menu-subtitle">Select an adventurer from your realm archive to continue the descent</div>
                 </div>
 
@@ -889,14 +909,15 @@
 
         <!-- In-Game Pause Menu Modal (Matches Godot OpenPauseMenu) -->
         <div id="pause-modal" class="hidden">
-            <div class="main-menu-card pause-card">
+            <div class="main-menu-card pause-card" style="position: relative;">
+                <button type="button" id="btn-pause-close-x" class="btn-guide-close" title="Resume Game [Esc]" aria-label="Close Pause Menu" style="position: absolute; top: 14px; right: 16px; font-size: 18px; color: #ffd700; background: none; border: none; cursor: pointer; z-index: 5;">✕</button>
                 <div class="main-menu-ornament-corner top-left"></div>
                 <div class="main-menu-ornament-corner top-right"></div>
                 <div class="main-menu-ornament-corner bottom-left"></div>
                 <div class="main-menu-ornament-corner bottom-right"></div>
 
                 <div class="main-menu-header">
-                    <h2 class="main-menu-title"><img src="/assets/yasd3d_badge.png?v=11.8.7" alt="" class="modal-crest-badge" width="22" height="29" fetchpriority="low" decoding="async"> GAME MENU</h2>
+                    <h2 class="main-menu-title"><img src="/assets/yasd3d_badge.png?v=11.9.6" alt="" class="modal-crest-badge" width="22" height="29" fetchpriority="low" decoding="async"> GAME MENU</h2>
                     <div class="main-menu-subtitle" id="pause-char-display">Current Character: Hero</div>
                 </div>
 
@@ -995,7 +1016,7 @@
         <div id="guide-modal" class="hidden" role="dialog" aria-labelledby="guide-modal-title">
             <div class="guide-card">
                 <div class="guide-header">
-                    <h2 class="guide-title" id="guide-modal-title"><img src="/assets/yasd3d_badge.png?v=11.8.7" alt="" class="modal-crest-badge" width="22" height="29" fetchpriority="low" decoding="async"> YASD 3D — ADVENTURER'S SURVIVAL GUIDE &amp; REALM ENCYCLOPEDIA</h2>
+                    <h2 class="guide-title" id="guide-modal-title"><img src="/assets/yasd3d_badge.png?v=11.9.6" alt="" class="modal-crest-badge" width="22" height="29" fetchpriority="low" decoding="async"> YASD 3D — ADVENTURER'S SURVIVAL GUIDE &amp; REALM ENCYCLOPEDIA</h2>
                     <button id="btn-guide-close" class="btn-guide-close" title="Close [Esc]" aria-label="Close Adventurer's Guide">✕</button>
                 </div>
                 <div class="guide-realm-bar" id="guide-realm-bar" role="group" aria-label="Select Realm Guide">
@@ -1045,7 +1066,7 @@
                 <div class="main-menu-ornament-corner bottom-right"></div>
 
                 <div class="main-menu-header">
-                    <h2 class="main-menu-title" id="pwa-modal-title"><img src="/assets/yasd3d_badge.png?v=11.8.7" alt="" class="modal-crest-badge" width="22" height="29" fetchpriority="low" decoding="async"> INSTALL WEB APP (PWA) &amp; SAVE PORTABILITY</h2>
+                    <h2 class="main-menu-title" id="pwa-modal-title"><img src="/assets/yasd3d_badge.png?v=11.9.6" alt="" class="modal-crest-badge" width="22" height="29" fetchpriority="low" decoding="async"> INSTALL WEB APP (PWA) &amp; SAVE PORTABILITY</h2>
                     <div class="main-menu-subtitle" id="pwa-modal-subtitle">Full-screen browser app experience with universal .sav character portability</div>
                 </div>
 
@@ -1215,7 +1236,7 @@
                 <div class="main-menu-ornament-corner bottom-right"></div>
 
                 <div class="main-menu-header">
-                    <h2 class="main-menu-title"><img src="/assets/yasd3d_badge.png?v=11.8.7" alt="" class="modal-crest-badge" width="22" height="29" fetchpriority="low" decoding="async"> MULTI-REALM ARCHIVES &amp; LORE</h2>
+                    <h2 class="main-menu-title"><img src="/assets/yasd3d_badge.png?v=11.9.6" alt="" class="modal-crest-badge" width="22" height="29" fetchpriority="low" decoding="async"> MULTI-REALM ARCHIVES &amp; LORE</h2>
                     <div class="main-menu-subtitle">Select realm before starting or loading an adventure • Locked during active dungeon exploration</div>
                     <div class="realm-voice-audit-banner">
                         <span>🎙 <strong>Lorekeeper Guarantee:</strong> Authentic character-attuned vocal timbre (Old British scholar, Mythic Skald, Eastern chronicle) • Zero southern accents • 100% LLM hallucination-free</span>
@@ -1303,7 +1324,8 @@
             </div>
         </div>
 
-        <dialog id="item-sheet" class="item-sheet-dialog" aria-label="Inventory & Equipment Item Sheet"></dialog>
+        <!-- # ROOT-CAUSE: Add hidden attribute and .hidden class on <dialog id="item-sheet"> so initial page load never treats the closed dialog as visible/open. -->
+        <dialog id="item-sheet" class="item-sheet-dialog hidden" hidden aria-label="Inventory & Equipment Item Sheet"></dialog>
 
         <!-- Roguelike Command Palette & Searchable Action Drawer -->
         <div id="command-palette-modal" class="hidden" role="dialog" aria-label="Command Palette">
@@ -1356,48 +1378,49 @@
     <script defer src="/js/vendor/GLTFLoader.js"></script>
 
     <!-- Client Subsystems -->
-    <script defer src="/js/safe-html.js?v=11.8.7"></script>
-    <script defer src="/js/realm-content-pool.js?v=11.8.7"></script>
-    <script defer src="/js/ryod-compiler.js?v=11.8.7"></script>
-    <script defer src="/js/ryod-forge.js?v=11.8.7"></script>
-    <script defer src="/js/realm-cartridge.js?v=11.8.7"></script>
-    <script defer src="/js/screen-modal-coordinator.js?v=11.8.7"></script>
-    <script defer src="/js/dungeon3d-lightmap.js?v=11.8.7"></script>
-    <script defer src="/js/dungeon3d-model-governor.js?v=11.8.7"></script>
-    <script defer src="/js/screen-context.js?v=11.8.7"></script>
-    <script defer src="/js/menu-router.js?v=11.8.7"></script>
-    <script defer src="/js/grimoire-deck.js?v=11.8.7"></script>
-    <script defer src="/js/quick-actions.js?v=11.8.7"></script>
-    <script defer src="/js/device.js?v=11.8.7"></script>
-    <script defer src="/js/action-catalog.js?v=11.8.7"></script>
-    <script defer src="/js/realm-keys.js?v=11.8.7"></script>
-    <script defer src="/js/command-dispatcher.js?v=11.8.7"></script>
-    <script defer src="/js/command-palette.js?v=11.8.7"></script>
-    <script defer src="/js/prompt-mirror.js?v=11.8.7"></script>
-    <script defer src="/js/item-sheet.js?v=11.8.7"></script>
-    <script defer src="/js/entity-menu.js?v=11.8.7"></script>
-    <script defer src="/js/gamepad.js?v=11.8.7"></script>
-    <script defer src="/js/radial-menu.js?v=11.8.7"></script>
-    <script defer src="/js/mobile-overlay.js?v=11.8.7"></script>
-    <script defer src="/js/audio.js?v=11.8.7"></script>
-    <script defer src="/js/terminal.js?v=11.8.7"></script>
-    <script defer src="/js/master-bestiary.js?v=11.8.7"></script>
-    <script defer src="/js/master-item-registry.js?v=11.8.7"></script>
-    <script defer src="/js/dungeon3d.js?v=11.8.7"></script>
-    <script defer src="/js/hud.js?v=11.8.7"></script>
-    <script defer src="/js/network.js?v=11.8.7"></script>
-    <script defer src="/js/local_bridge.js?v=11.8.7"></script>
-    <script defer src="/js/input.js?v=11.8.7"></script>
-    <script defer src="/js/demo-player.js?v=11.8.7"></script>
+    <script defer src="/js/safe-html.js?v=11.9.6"></script>
+    <script defer src="/js/realm-content-pool.js?v=11.9.6"></script>
+    <script defer src="/js/ryod-compiler.js?v=11.9.6"></script>
+    <script defer src="/js/ryod-forge.js?v=11.9.6"></script>
+    <script defer src="/js/realm-cartridge.js?v=11.9.6"></script>
+    <script defer src="/js/screen-modal-coordinator.js?v=11.9.6"></script>
+    <script defer src="/js/dungeon3d-lightmap.js?v=11.9.6"></script>
+    <script defer src="/js/dungeon3d-model-governor.js?v=11.9.6"></script>
+    <script defer src="/js/screen-context.js?v=11.9.6"></script>
+    <script defer src="/js/menu-router.js?v=11.9.6"></script>
+    <script defer src="/js/grimoire-deck.js?v=11.9.6"></script>
+    <script defer src="/js/quick-actions.js?v=11.9.6"></script>
+    <script defer src="/js/device.js?v=11.9.6"></script>
+    <script defer src="/js/action-catalog.js?v=11.9.6"></script>
+    <script defer src="/js/realm-keys.js?v=11.9.6"></script>
+    <script defer src="/js/command-dispatcher.js?v=11.9.6"></script>
+    <script defer src="/js/command-palette.js?v=11.9.6"></script>
+    <script defer src="/js/prompt-mirror.js?v=11.9.6"></script>
+    <script defer src="/js/item-sheet.js?v=11.9.6"></script>
+    <script defer src="/js/entity-menu.js?v=11.9.6"></script>
+    <script defer src="/js/gamepad.js?v=11.9.6"></script>
+    <script defer src="/js/radial-menu.js?v=11.9.6"></script>
+    <script defer src="/js/mobile-overlay.js?v=11.9.6"></script>
+    <script defer src="/js/audio.js?v=11.9.6"></script>
+    <script defer src="/js/terminal.js?v=11.9.6"></script>
+    <script defer src="/js/master-bestiary.js?v=11.9.6"></script>
+    <script defer src="/js/master-item-registry.js?v=11.9.6"></script>
+    <script defer src="/js/dungeon3d.js?v=11.9.6"></script>
+    <script defer src="/js/hud.js?v=11.9.6"></script>
+    <script defer src="/js/network.js?v=11.9.6"></script>
+    <script defer src="/js/local_bridge.js?v=11.9.6"></script>
+    <script defer src="/js/input.js?v=11.9.6"></script>
+    <script defer src="/js/demo-player.js?v=11.9.6"></script>
     <!-- Living Chronicle & Voiced Lorekeeper Modules -->
-    <script defer src="/js/chronicle/chronicle-store.js?v=11.8.7"></script>
-    <script defer src="/js/chronicle/chronicle-grounder.js?v=11.8.7"></script>
-    <script defer src="/js/chronicle/chronicle-filter.js?v=11.8.7"></script>
-    <script defer src="/js/chronicle/chronicle-story-weaver.js?v=11.8.7"></script>
-    <script defer src="/js/chronicle/chronicle-audio.js?v=11.8.7"></script>
-    <script defer src="/js/chronicle/chronicle-llm.js?v=11.8.7"></script>
-    <script defer src="/js/chronicle/chronicle-manager.js?v=11.8.7"></script>
-    <script defer src="/js/app.js?v=11.8.7"></script>
-    <script defer src="/js/boot.js?v=11.8.7"></script>
+    <script defer src="/js/chronicle/chronicle-store.js?v=11.9.6"></script>
+    <script defer src="/js/chronicle/chronicle-grounder.js?v=11.9.6"></script>
+    <script defer src="/js/chronicle/chronicle-filter.js?v=11.9.6"></script>
+    <script defer src="/js/chronicle/chronicle-story-weaver.js?v=11.9.6"></script>
+    <script defer src="/js/chronicle/chronicle-audio.js?v=11.9.6"></script>
+    <script defer src="/js/chronicle/chronicle-llm.js?v=11.9.6"></script>
+    <script defer src="/js/chronicle/chronicle-manager.js?v=11.9.6"></script>
+    <script defer src="/js/app.js?v=11.9.6"></script>
+    <script defer src="/js/splash-shader.js?v=11.9.6"></script>
+    <script defer src="/js/boot.js?v=11.9.6"></script>
 </body>
 </html>

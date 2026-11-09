@@ -29,9 +29,15 @@
         return null;
     }
 
+    // # ROOT-CAUSE: Track _selectedIndex and expose isOpen(), close(), and handleKeyDown() so keyboard navigation (1-3/Tab tabs, ArrowUp/ArrowDown, Enter, a-z item hotkeys, Escape) works seamlessly inside #item-sheet.
     let _lastSig = null;
     let _activeTab = 'pack';
     let _invokerEl = null;
+    let _selectedIndex = 0;
+    let _lastItems = [];
+    let _lastFrame = null;
+    let _lastRealm = 'angband';
+    let _lastDispatcher = null;
     const _quickSlots = [null, null, null, null];
 
     /**
@@ -131,42 +137,21 @@
                     }
                 }
 
-                validVerbs.push({
-                    id: cmd.id,
-                    key: verbKey,
-                    label,
-                    primary,
-                    disabled,
-                    reason
-                });
+                validVerbs.push({ id: cmd.id, key: verbKey, label, primary, disabled, reason });
             }
 
-            result.push({
-                slot,
-                letter,
-                name,
-                tval,
-                count,
-                inscription,
-                validVerbs,
-                raw
-            });
+            result.push({ slot, letter, name, tval, count, inscription, validVerbs, raw });
         }
 
         return result;
     }
 
     function bindQuickSlot(slotIndex, item, verb) {
-        if (slotIndex >= 1 && slotIndex <= 4) {
-            _quickSlots[slotIndex - 1] = { item, verb };
-            return true;
-        }
+        if (slotIndex >= 1 && slotIndex <= 4) { _quickSlots[slotIndex - 1] = { item, verb }; return true; }
         return false;
     }
 
-    function getQuickSlots() {
-        return _quickSlots.slice();
-    }
+    function getQuickSlots() { return _quickSlots.slice(); }
 
     function executeVerb(item, verb, realm, dispatcher) {
         if (!verb || verb.disabled) return;
@@ -187,9 +172,7 @@
         let c = document.getElementById('item-sheet') || document.getElementById('item-sheet-drawer');
         if (!c) {
             c = document.createElement('dialog');
-            c.id = 'item-sheet';
-            c.className = 'item-sheet-dialog hidden';
-            c.hidden = true;
+            c.id = 'item-sheet'; c.className = 'item-sheet-dialog hidden'; c.hidden = true;
             c.setAttribute('aria-label', 'Inventory and Equipment Sheet');
             document.body.appendChild(c);
         }
@@ -203,21 +186,21 @@
 
     function render(frame, realm, containerOrOpts) {
         if (typeof document === 'undefined') return;
-
         let opts = containerOrOpts || {};
-        if (containerOrOpts && containerOrOpts.nodeType) {
-            opts = { container: containerOrOpts };
-        }
-
+        if (containerOrOpts && containerOrOpts.nodeType) opts = { container: containerOrOpts };
         const container = opts.container || ensureContainer();
         if (!container) return;
 
-        const r = (realm || (frame && frame.realm) || 'angband').toLowerCase();
+        // # ROOT-CAUSE: Store _lastFrame/_lastRealm/_lastItems in render() and expose isOpen(), close(), and handleKeyDown() for full keyboard navigation inside #item-sheet.
+        const r = String(typeof realm === 'string' ? realm : ((frame && frame.realm) || 'angband')).toLowerCase();
         const tab = opts.tab || _activeTab;
         const lang = (typeof window !== 'undefined' && window.__langMode) || 'en';
         const items = buildItemViewModel(frame, r, tab, lang);
 
-        const sig = `${r}:${tab}:${lang}:${items.length}:${items.map((i) => `${i.letter || ''}:${i.name || ''}:${i.count || i.qty || 1}:${i.inscription || ''}`).join(';')}`;
+        _lastFrame = frame; _lastRealm = r; _lastDispatcher = opts.dispatcher || null; _lastItems = items;
+        _selectedIndex = items.length > 0 ? Math.max(0, Math.min(items.length - 1, _selectedIndex)) : 0;
+
+        const sig = `${r}:${tab}:${lang}:${_selectedIndex}:${items.length}:${items.map((i) => `${i.letter || ''}:${i.name || ''}:${i.count || i.qty || 1}:${i.inscription || ''}`).join(';')}`;
         if (sig === _lastSig) return;
         _lastSig = sig;
 
@@ -228,14 +211,9 @@
         // Header with tabs
         const header = document.createElement('div');
         header.className = 'item-sheet-header';
-
         const tabsWrap = document.createElement('div');
         tabsWrap.className = 'item-sheet-tabs';
-        const tabDefs = [
-            { id: 'pack', label: 'Pack' },
-            { id: 'gear', label: 'Gear' },
-            { id: 'quiver', label: 'Quiver' }
-        ];
+        const tabDefs = [{ id: 'pack', label: 'Pack' }, { id: 'gear', label: 'Gear' }, { id: 'quiver', label: 'Quiver' }];
 
         for (let t = 0; t < tabDefs.length; t++) {
             const td = tabDefs[t];
@@ -245,8 +223,7 @@
             tabBtn.textContent = td.label;
             tabBtn.setAttribute('data-tab', td.id);
             tabBtn.addEventListener('click', function () {
-                _activeTab = td.id;
-                _lastSig = null;
+                _activeTab = td.id; _selectedIndex = 0; _lastSig = null;
                 render(frame, r, { container, tab: td.id, dispatcher: opts.dispatcher });
             });
             tabsWrap.appendChild(tabBtn);
@@ -254,13 +231,9 @@
         header.appendChild(tabsWrap);
 
         const closeBtn = document.createElement('button');
-        closeBtn.type = 'button';
-        closeBtn.className = 'item-sheet-close';
-        closeBtn.textContent = '✕';
+        closeBtn.type = 'button'; closeBtn.className = 'item-sheet-close'; closeBtn.textContent = '✕';
         closeBtn.setAttribute('aria-label', 'Close Item Sheet');
-        closeBtn.addEventListener('click', function () {
-            hide();
-        });
+        closeBtn.addEventListener('click', function () { hide(); });
         header.appendChild(closeBtn);
         container.appendChild(header);
 
@@ -277,11 +250,14 @@
             for (let i = 0; i < items.length; i++) {
                 const item = items[i];
                 const card = document.createElement('div');
-                card.className = 'item-sheet-card';
+                card.className = `item-sheet-card${i === _selectedIndex ? ' is-selected' : ''}`;
+                card.addEventListener('click', function () {
+                    _selectedIndex = i; _lastSig = null;
+                    render(frame, r, { container, tab, dispatcher: opts.dispatcher });
+                });
 
                 const infoRow = document.createElement('div');
                 infoRow.className = 'item-sheet-info';
-
                 const badge = document.createElement('kbd');
                 badge.className = 'item-sheet-badge';
                 badge.textContent = item.letter ? `[${item.letter}]` : `[${i + 1}]`;
@@ -289,7 +265,6 @@
 
                 const nameWrap = document.createElement('div');
                 nameWrap.className = 'item-sheet-name-wrap';
-
                 const nameEl = document.createElement('span');
                 nameEl.className = 'item-sheet-name';
                 nameEl.textContent = item.count > 1 ? `${item.count}x ${item.name}` : item.name;
@@ -313,26 +288,16 @@
                     const vBtn = document.createElement('button');
                     vBtn.type = 'button';
                     vBtn.className = `item-verb-btn ${verb.primary ? 'primary' : ''} ${verb.disabled ? 'disabled' : ''}`;
-                    if (verb.disabled) {
-                        vBtn.setAttribute('aria-disabled', 'true');
-                        vBtn.title = verb.reason;
-                    }
-
+                    if (verb.disabled) { vBtn.setAttribute('aria-disabled', 'true'); vBtn.title = verb.reason; }
                     if (verb.key) {
                         const kbd = document.createElement('kbd');
-                        kbd.className = 'item-verb-kbd';
-                        kbd.textContent = `[${verb.key}]`;
+                        kbd.className = 'item-verb-kbd'; kbd.textContent = `[${verb.key}]`;
                         vBtn.appendChild(kbd);
                     }
-
                     const labelSpan = document.createElement('span');
                     labelSpan.textContent = verb.label;
                     vBtn.appendChild(labelSpan);
-
-                    vBtn.addEventListener('click', function (e) {
-                        e.stopPropagation();
-                        executeVerb(item, verb, r, opts.dispatcher);
-                    });
+                    vBtn.addEventListener('click', function (e) { e.stopPropagation(); executeVerb(item, verb, r, opts.dispatcher); });
                     verbsRow.appendChild(vBtn);
                 }
 
@@ -344,17 +309,64 @@
         container.appendChild(listEl);
     }
 
+    // # ROOT-CAUSE: Ensure isOpen() strictly checks c.open (or [open] attribute) on <dialog id="item-sheet"> so closed dialogs never intercept ArrowUp/ArrowDown/Tab/Enter in 3D gameplay.
+    function isOpen() {
+        const c = (typeof document !== 'undefined') ? (document.getElementById('item-sheet') || document.getElementById('item-sheet-drawer')) : null;
+        if (!c || c.hidden || c.classList.contains('hidden')) return false;
+        if (c.tagName === 'DIALOG') return Boolean(c.open || c.hasAttribute('open'));
+        return c.childNodes.length > 0;
+    }
+
+    function handleKeyDown(e) {
+        if (!isOpen() || !e) return false;
+        if (e.key === 'Escape') { e.preventDefault(); hide(); return true; }
+        if (!e.ctrlKey && !e.altKey && !e.metaKey) {
+            if (e.key === 'Tab' || e.key === '1' || e.key === '2' || e.key === '3') {
+                e.preventDefault();
+                const tabOrder = ['pack', 'gear', 'quiver'];
+                _activeTab = e.key === 'Tab' ? tabOrder[(tabOrder.indexOf(_activeTab) + (e.shiftKey ? 2 : 1)) % 3] : (tabOrder[parseInt(e.key, 10) - 1] || 'pack');
+                _selectedIndex = 0; _lastSig = null;
+                render(_lastFrame, _lastRealm, { tab: _activeTab, dispatcher: _lastDispatcher });
+                return true;
+            }
+            if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                e.preventDefault();
+                if (_lastItems.length > 0) {
+                    _selectedIndex = (_selectedIndex + (e.key === 'ArrowDown' ? 1 : -1) + _lastItems.length) % _lastItems.length;
+                    _lastSig = null;
+                    render(_lastFrame, _lastRealm, { tab: _activeTab, dispatcher: _lastDispatcher });
+                }
+                return true;
+            }
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                const item = _lastItems[_selectedIndex];
+                if (item && Array.isArray(item.validVerbs)) {
+                    const verb = item.validVerbs.find((v) => v.primary && !v.disabled) || item.validVerbs.find((v) => !v.disabled);
+                    if (verb) executeVerb(item, verb, _lastRealm, _lastDispatcher);
+                }
+                return true;
+            }
+            if (/^[a-zA-Z]$/.test(e.key)) {
+                const matched = _lastItems.find((it) => it && it.letter === e.key);
+                if (matched && Array.isArray(matched.validVerbs)) {
+                    e.preventDefault();
+                    const verb = matched.validVerbs.find((v) => v.primary && !v.disabled) || matched.validVerbs.find((v) => !v.disabled);
+                    if (verb) executeVerb(matched, verb, _lastRealm, _lastDispatcher);
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
     function show(frame, realm, invokerEl) {
-        _invokerEl = invokerEl || null;
+        _invokerEl = invokerEl || null; _selectedIndex = 0;
         const c = ensureContainer();
         if (c) {
-            c.hidden = false;
-            c.classList.remove('hidden');
-            if (typeof c.showModal === 'function' && !c.open) {
-                try { c.showModal(); } catch (_) { c.setAttribute('open', ''); }
-            } else {
-                c.setAttribute('open', '');
-            }
+            c.hidden = false; c.classList.remove('hidden');
+            if (typeof c.showModal === 'function' && !c.open) { try { c.showModal(); } catch (_) { c.setAttribute('open', ''); } }
+            else c.setAttribute('open', '');
             _lastSig = null;
             render(frame, realm, { container: c, tab: _activeTab });
         }
@@ -364,35 +376,14 @@
         _lastSig = null;
         const c = (typeof document !== 'undefined') ? (document.getElementById('item-sheet') || document.getElementById('item-sheet-drawer')) : null;
         if (c) {
-            if (typeof c.close === 'function' && c.open) {
-                try { c.close(); } catch (_) { c.removeAttribute('open'); }
-            } else {
-                c.removeAttribute('open');
-            }
-            c.hidden = true;
-            c.classList.add('hidden');
-            c.textContent = '';
+            if (typeof c.close === 'function' && c.open) { try { c.close(); } catch (_) { c.removeAttribute('open'); } }
+            else c.removeAttribute('open');
+            c.hidden = true; c.classList.add('hidden'); c.textContent = '';
         }
-        if (_invokerEl && typeof _invokerEl.focus === 'function') {
-            try { _invokerEl.focus(); } catch (_) {}
-            _invokerEl = null;
-        }
+        if (_invokerEl && typeof _invokerEl.focus === 'function') { try { _invokerEl.focus(); } catch (_) {} _invokerEl = null; }
     }
 
-    function toggle(frame, realm, invokerEl) {
-        const c = (typeof document !== 'undefined') ? (document.getElementById('item-sheet') || document.getElementById('item-sheet-drawer')) : null;
-        if (c && (c.open || (!c.hidden && !c.classList.contains('hidden')))) hide();
-        else show(frame, realm, invokerEl);
-    }
+    function toggle(frame, realm, invokerEl) { if (isOpen()) hide(); else show(frame, realm, invokerEl); }
 
-    return Object.freeze({
-        buildItemViewModel,
-        bindQuickSlot,
-        getQuickSlots,
-        executeVerb,
-        render,
-        show,
-        hide,
-        toggle
-    });
+    return Object.freeze({ buildItemViewModel, bindQuickSlot, getQuickSlots, executeVerb, render, show, hide, close: hide, toggle, isOpen, handleKeyDown });
 });

@@ -73,11 +73,71 @@ const DCSS_SPEC = {
         return `${state.branchName}:${state.depth}  ${xlStr}  HP:${p.hp}/${p.hpMax}  MP:${p.pw}/${p.pwMax}  AC:${p.ac}  Str:${p.str} Int:${p.int} Dex:${p.dex}  God:${p.deity || 'None'}[${stars}]`;
     },
     roles: [
-        { key: 'a', id: 'Berserker', race: 'Minotaur', deity: 'Trog', piety: 3, align: 'Chaotic', hp: 24, pw: 2, ac: 5, str: 20, int: 7, wis: 10, dex: 13, con: 18, weapon: { name: 'executioner’s axe', dmg: '2d9', bonus: 2, weight: 65, tval: 22, sval: 12 }, armor: { name: 'scale mail', ac: 6, bonus: 1, weight: 220, tval: 37, sval: 3 }, extra: { kind: 'potion', name: 'potion of might', glyph: '!', heal: 22, count: 2, weight: 15, tval: 71, sval: 38 } },
-        { key: 'b', id: 'Conjurer', race: 'Deep Elf', deity: 'Vehumet', piety: 3, align: 'Neutral', hp: 14, pw: 16, ac: 3, str: 8, int: 22, wis: 16, dex: 15, con: 11, weapon: { name: 'staff of conjuration', dmg: '1d7', bonus: 1, weight: 30, tval: 21, sval: 3 }, armor: { name: 'robe of archmagi', ac: 3, bonus: 2, weight: 40, tval: 36, sval: 2 }, extra: { kind: 'wand', name: 'wand of acid', glyph: '/', charges: 9, count: 1, weight: 10, tval: 65, sval: 5 } },
-        { key: 'c', id: 'Fighter', race: 'Gargoyle', deity: 'Okawaru', piety: 3, align: 'Lawful', hp: 20, pw: 5, ac: 10, str: 18, int: 11, wis: 12, dex: 14, con: 17, weapon: { name: 'eveningstar', dmg: '2d8', bonus: 2, weight: 50, tval: 21, sval: 10 }, armor: { name: 'plate armour', ac: 10, bonus: 2, weight: 350, tval: 37, sval: 10 }, extra: { kind: 'scroll', name: 'scroll of blinking', glyph: '?', count: 2, weight: 5, tval: 70, sval: 12 } },
-        { key: 'd', id: 'Chaos Knight', race: 'Demonspawn', deity: 'Xom', piety: 4, align: 'Chaotic', hp: 19, pw: 8, ac: 6, str: 16, int: 14, wis: 12, dex: 15, con: 16, weapon: { name: 'demon blade of chaos', dmg: '2d7', bonus: 3, weight: 40, tval: 23, sval: 18 }, armor: { name: 'troll leather armour', ac: 5, bonus: 2, weight: 160, tval: 36, sval: 6 }, extra: { kind: 'potion', name: 'potion of curing', glyph: '!', heal: 20, count: 2, weight: 15, tval: 71, sval: 38 } },
-        { key: 'e', id: 'Transmuter', race: 'Octopode', deity: 'Ashenzari', piety: 3, align: 'Neutral', hp: 17, pw: 10, ac: 4, str: 14, int: 16, wis: 14, dex: 18, con: 15, weapon: { name: 'trident of freezing', dmg: '1d11', bonus: 2, weight: 35, tval: 22, sval: 5 }, armor: { name: 'ring of protection +4', ac: 4, bonus: 4, weight: 5, tval: 45, sval: 2 }, extra: { kind: 'scroll', name: 'scroll of enchant weapon', glyph: '?', enchantGain: 1, count: 2, weight: 5, tval: 70, sval: 15 } }
+        {
+            key: 'a', id: 'Berserker', race: 'Minotaur', deity: 'Trog', piety: 3, align: 'Chaotic', hp: 24, pw: 6, ac: 5, str: 20, int: 7, wis: 10, dex: 13, con: 18,
+            weapon: { name: 'executioner’s axe', dmg: '2d9', bonus: 2, weight: 65, tval: 22, sval: 12 },
+            armor: { name: 'scale mail', ac: 6, bonus: 1, weight: 220, tval: 37, sval: 3 },
+            extra: { kind: 'potion', name: 'potion of might', glyph: '!', heal: 22, count: 2, weight: 15, tval: 71, sval: 38 },
+            innatePower: { name: 'Minotaur Headbutt Charge', cost: 2, dmg: 18, desc: 'Horns-first charge that crushes the nearest enemy.' },
+            disciplinePowers: [
+                { name: "Trog's Berserk Rage", cost: 2, dmg: 20, heal: 8, desc: 'Blood-frenzy cleave + surge of vitality.' },
+                { name: "Trog's Hand", cost: 2, heal: 16, curePoison: true, desc: 'Regeneration & magic resistance.' },
+                { name: 'Brothers in Arms', cost: 4, dmg: 26, aoe: true, desc: 'Summons wrathful berserker fury across all visible foes.' },
+                { name: 'Whirlwind Axe Cleave', cost: 2, dmg: 16, aoe: true, desc: 'Sweeping executioner arc hitting all visible enemies.' }
+            ]
+        },
+        {
+            key: 'b', id: 'Conjurer', race: 'Deep Elf', deity: 'Vehumet', piety: 3, align: 'Neutral', hp: 14, pw: 16, ac: 3, str: 8, int: 22, wis: 16, dex: 15, con: 11,
+            weapon: { name: 'staff of conjuration', dmg: '1d7', bonus: 1, weight: 30, tval: 21, sval: 3 },
+            armor: { name: 'robe of archmagi', ac: 3, bonus: 2, weight: 40, tval: 36, sval: 2 },
+            extra: { kind: 'wand', name: 'wand of acid', glyph: '/', charges: 9, count: 1, weight: 10, tval: 65, sval: 5 },
+            innatePower: { name: 'Deep Elf Mana Channel', cost: 1, heal: 10, desc: 'Converts arcane resonance into a protective ward.' },
+            disciplinePowers: [
+                { name: 'Magic Dart', cost: 1, dmg: 12, desc: 'Unerring bolt of pure conjuration force.' },
+                { name: 'Searing Ray', cost: 2, dmg: 19, desc: 'Focused beam of searing arcane energy.' },
+                { name: 'Iskenderun’s Mystic Blast', cost: 3, dmg: 22, aoe: true, desc: 'Detonates a shockwave of orb-force across the room.' },
+                { name: 'Fulminant Prism', cost: 4, dmg: 28, aoe: true, desc: 'Vehumet-blessed prism explosion.' }
+            ]
+        },
+        {
+            key: 'c', id: 'Fighter', race: 'Gargoyle', deity: 'Okawaru', piety: 3, align: 'Lawful', hp: 20, pw: 8, ac: 10, str: 18, int: 11, wis: 12, dex: 14, con: 17,
+            weapon: { name: 'eveningstar', dmg: '2d8', bonus: 2, weight: 50, tval: 21, sval: 10 },
+            armor: { name: 'plate armour', ac: 10, bonus: 2, weight: 350, tval: 37, sval: 10 },
+            extra: { kind: 'scroll', name: 'scroll of blinking', glyph: '?', count: 2, weight: 5, tval: 70, sval: 12 },
+            innatePower: { name: 'Gargoyle Stone Skin', cost: 2, heal: 14, curePoison: true, desc: 'Hardens stone hide and purges toxins.' },
+            disciplinePowers: [
+                { name: "Okawaru's Heroism", cost: 2, dmg: 16, heal: 10, desc: 'Grants +5 martial prowess and bolsters stamina.' },
+                { name: "Okawaru's Finesse", cost: 3, dmg: 24, desc: 'Doubles combat attack speed for a devastating flurry.' },
+                { name: 'Shield Slam', cost: 2, dmg: 18, desc: 'Crushing shield bash that staggers the nearest foe.' },
+                { name: 'Duelist’s Verdict', cost: 4, dmg: 28, desc: 'Precision execution strike.' }
+            ]
+        },
+        {
+            key: 'd', id: 'Chaos Knight', race: 'Demonspawn', deity: 'Xom', piety: 4, align: 'Chaotic', hp: 19, pw: 10, ac: 6, str: 16, int: 14, wis: 12, dex: 15, con: 16,
+            weapon: { name: 'demon blade of chaos', dmg: '2d7', bonus: 3, weight: 40, tval: 23, sval: 18 },
+            armor: { name: 'troll leather armour', ac: 5, bonus: 2, weight: 160, tval: 36, sval: 6 },
+            extra: { kind: 'potion', name: 'potion of curing', glyph: '!', heal: 20, count: 2, weight: 15, tval: 71, sval: 38 },
+            innatePower: { name: 'Demonic Hellfire Surge', cost: 2, dmg: 20, aoe: true, desc: 'Unleashes Demonspawn hellfire across visible foes.' },
+            disciplinePowers: [
+                { name: "Xom's Chaotic Translocation", cost: 2, blink: true, heal: 8, desc: 'Blinks through the Abyssal weave and mends wounds.' },
+                { name: 'Chaos Cleave', cost: 2, dmg: 19, desc: 'Inflicts random elemental & chaos brands.' },
+                { name: 'Pandemonium Nova', cost: 3, dmg: 23, aoe: true, desc: 'Erupts with Xom’s laughter, scorching all nearby enemies.' },
+                { name: 'Mutagenic Feast', cost: 3, heal: 18, curePoison: true, desc: 'Draws vitality from the warp.' }
+            ]
+        },
+        {
+            key: 'e', id: 'Transmuter', race: 'Octopode', deity: 'Ashenzari', piety: 3, align: 'Neutral', hp: 17, pw: 12, ac: 4, str: 14, int: 16, wis: 14, dex: 18, con: 15,
+            weapon: { name: 'trident of freezing', dmg: '1d11', bonus: 2, weight: 35, tval: 22, sval: 5 },
+            armor: { name: 'ring of protection +4', ac: 4, bonus: 4, weight: 5, tval: 45, sval: 2 },
+            extra: { kind: 'scroll', name: 'scroll of enchant weapon', glyph: '?', enchantGain: 1, count: 2, weight: 5, tval: 70, sval: 15 },
+            innatePower: { name: 'Octopode Constriction Crush', cost: 2, dmg: 19, desc: 'Eight-tentacle constriction crush.' },
+            disciplinePowers: [
+                { name: 'Beastly Appendage', cost: 1, dmg: 14, desc: 'Morphs natural talons & horns for a swift strike.' },
+                { name: 'Spider Form Leap', cost: 2, blink: true, desc: 'Venomous arachnid leap across the chamber.' },
+                { name: 'Ice Form Frost Nova', cost: 3, dmg: 21, aoe: true, desc: 'Freezes all visible foes in crystalline rime.' },
+                { name: 'Dragon Form Breath', cost: 4, dmg: 29, aoe: true, desc: 'Transmutes into a great wyrm and breathes fire.' }
+            ]
+        }
     ],
     monsters: [
         { name: 'goblin', glyph: 'g', attr: 3, minDepth: 1, hp: 6, ac: 9, dmg: 3, exp: 5, lore: 'Small, cruel dungeon scavenger.' },

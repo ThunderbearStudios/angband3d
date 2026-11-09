@@ -5691,7 +5691,11 @@ to { transform: translateY(0); }
         min-width: 55px !important;
     }
 
-#char-panel .gauge-track { display: none !important; }
+    #char-panel .gauge-track {
+        display: block !important;
+        height: 12px !important;
+        min-width: 52px !important;
+    }
 
 #char-panel .gauge-header { font-size: 10px !important; gap: 2px !important; }
 

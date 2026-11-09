@@ -1,0 +1,9 @@
+name = "yasd3d-edge"
+main = "worker.js"
+compatibility_date = "2026-10-25"
+workers_dev = true
+
+routes = [
+  { pattern = "yasd3d.com", custom_domain = true },
+  { pattern = "www.yasd3d.com", custom_domain = true }
+]

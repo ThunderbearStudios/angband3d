@@ -14,7 +14,7 @@
         toolbarFlags: ['inPlay', 'playerFeat', 'isStoreFeat', 'inOverlay', 'hasStoreText', 'isTargeting', 'isItemPrompt', 'isStore'],
         birthFlags: ['isTitleScreen', 'isHengInitialOpt', 'isHengSex', 'isHengRace', 'isHengClass', 'isHengPersonality',
             'isHengRealm', 'isHengStatRoller', 'isHengStatDecide', 'isHengName', 'isHengHistory', 'isHengEmbark',
-            'isNamePrompt', 'isHistoryPrompt', 'isStatRoller', 'isBackgroundEdit', 'isReadyPrompt', 'isChoiceMenu',
+            'isNamePrompt', 'isHistoryPrompt', 'isAhwPrompt', 'isSkillRoller', 'isStatRoller', 'isBackgroundEdit', 'isReadyPrompt', 'isChoiceMenu',
             'isReviewScreen'],
         promptFlags: ['isYesNoPrompt', 'isQuantityPrompt'],
         storeFlags: ['hasMore', 'isStoreContextMenu', 'isStoreBuy', 'isStoreSell', 'isStoreExamine'],
@@ -121,7 +121,9 @@
         const decode = opts && opts.decode;
         if (!frame || !frame.player) return true;
         if (frame.phase && frame.phase !== 'play') return true;
-        const isDead = Boolean(frame.player.dead || (frame.player.hp !== undefined && frame.player.hp <= 0 && frame.player.hp_max > 0));
+        const r = String(frame.realm || '').toLowerCase();
+        const isCEngine = r === 'angband' || r === 'silq' || r === 'frogcomposband' || r === 'hengband';
+        const isDead = Boolean(frame.player.dead || (frame.player.hp !== undefined && (isCEngine ? frame.player.hp < 0 : frame.player.hp <= 0) && frame.player.hp_max > 0));
         if (isDead) return false;
         if (forceTerminal) return true;
         const ui = frame.ui;
@@ -190,13 +192,20 @@
         const isHengEmbark = isHeng && (screenText.includes('ゲーム開始') || screenText.includes('冒険に出ますか'));
 
         const isNamePrompt = isHengName || ['enter a name for your character', 'enter a name', "enter character's name",
-            "enter your player's name", 'choose your name'].some(s => screenText.includes(s));
+            "enter your player's name", 'choose your name', 'enter accept name', 'tab random name', 'accept name'].some(s => screenText.includes(s));
 
         const isHistoryPrompt = isHengHistory || screenText.includes('accept character history') ||
+            screenText.includes('accept history') || screenText.includes('reroll history') ||
             (screenText.includes('[y/n]') && !screenText.includes('use as is') && !screenText.includes('to start over'));
 
-        const isStatRoller = isHengStatRoller || ['left/right to modify', 'to modify', 'total cost:', 'point-based',
-            'set minimum stats', 'enter for goto next', 'points left'].some(s => screenText.includes(s)) ||
+        const isAhwPrompt = screenText.includes('accept age/height/weight') ||
+            (screenText.includes('space reroll') && screenText.includes('enter accept') && !isHistoryPrompt);
+
+        const isSkillRoller = ['allocate points to skills', 'skill increases', 'accept skills'].some(s => screenText.includes(s)) ||
+            /tab\s+view\s+abilities/i.test(screenText);
+
+        const isStatRoller = isHengStatRoller || isSkillRoller || ['left/right to modify', 'to modify', 'total cost:', 'point-based',
+            'set minimum stats', 'enter for goto next', 'points left', 'allocate points to stats', 'accept stats'].some(s => screenText.includes(s)) ||
             ((screenText.includes('minimum') && screenText.includes('roller')) || screenText.includes("hit 'r' to reroll") || screenText.includes('previous roll')) ||
             /allocate.*points/i.test(screenText) || /tab.*abilities/i.test(screenText);
 
@@ -208,10 +217,12 @@
             'sex affects stats', 'choose sex', 'choose your sex', 'choose character sex', 'choose character race', 'choose character class',
             'choose a personality', 'choose personality', 'personality affects stats', 'choose realm', 'choose a realm',
             'choose first realm', 'choose second realm', 'first realm', 'second realm', 'choose a house', 'choose house',
-            'choose character background', 'choose background', 'choose subrace', 'choose a subrace', 'choose your role', 'choose your adventurer', '*でランダム', '* for random',
-            'escで戻る', 'esc to return', 'esc to step back', 'esc:戻る', 'escで前へ'].some(s => screenText.includes(s));
+            'choose character background', 'choose background', 'choose subrace', 'choose a subrace', 'choose your role', 'choose your adventurer',
+            'random menu item', '*でランダム', '* for random',
+            'escで戻る', 'esc to return', 'esc to step back', 'esc:戻る', 'escで前へ'].some(s => screenText.includes(s)) ||
+            (screenText.includes('character creation:') && screenText.includes('enter accept'));
 
-        const isReviewScreen = !isChoiceMenu && !isNamePrompt && !isHistoryPrompt && !isStatRoller && !isBackgroundEdit && !isReadyPrompt &&
+        const isReviewScreen = !isChoiceMenu && !isNamePrompt && !isHistoryPrompt && !isAhwPrompt && !isStatRoller && !isBackgroundEdit && !isReadyPrompt &&
             !screenText.includes('character traits') && !screenText.includes('affects stats') &&
             (['to start over', 'any other key to continue', 'use as is', 'accept character', 're-roll', 'r to reroll',
             "'s' to start", "['r'eroll", 'or enter to accept', "reroll, 'h'istory", 'enter to begin play', '能力値決定', '次の数値'].some(s => screenText.includes(s)) ||
@@ -221,14 +232,14 @@
         return {
             isTitleScreen, isHengInitialOpt, isHengSex, isHengRace, isHengClass, isHengPersonality,
             isHengRealm, isHengStatRoller, isHengStatDecide, isHengName, isHengHistory, isHengEmbark,
-            isNamePrompt, isHistoryPrompt, isStatRoller, isBackgroundEdit, isReadyPrompt, isChoiceMenu,
+            isNamePrompt, isHistoryPrompt, isAhwPrompt, isSkillRoller, isStatRoller, isBackgroundEdit, isReadyPrompt, isChoiceMenu,
             isReviewScreen
         };
     }
 
     function promptFlags(screenText) {
         screenText = screenText || '';
-        const isYesNoPrompt = ['[y/n]', '(y/n)', '[yn]', '(yn)', '[ynq]', '(ynq)', '[ynaq]', 'drink from the fountain', 'are you sure', 'really drop', 'really destroy'].some(s => screenText.includes(s));
+        const isYesNoPrompt = ['[y/n]', '(y/n)', '[yn]', '(yn)', '[ynq]', '(ynq)', '[ynaq]', 'drink from the fountain', 'are you sure', 'really drop', 'really destroy', 'wish to gain this ability'].some(s => screenText.includes(s));
         const isQuantityPrompt = ['how many', 'quantity', 'how much'].some(s => screenText.includes(s));
         return { isYesNoPrompt, isQuantityPrompt };
     }
@@ -283,23 +294,32 @@
 
     function inputEscapeReview(screenText, inPlay, isReviewActive) {
         screenText = screenText || '';
-        return Boolean(isReviewActive || (!inPlay && (['use as is', "'y': use", 'to start over', 'r to reroll', 'reroll',
+        if (screenText.includes('accept history') || screenText.includes('reroll history') ||
+            screenText.includes('accept age/height/weight') || screenText.includes('allocate points')) {
+            return false;
+        }
+        return Boolean(isReviewActive || (!inPlay && (['use as is', "'y': use", 'to start over', 'r to reroll', 're-roll', "['r'eroll",
             "'s' to start", 'accept character', '能力値の決定', 'step back', 'any other key to continue'].some(s => screenText.includes(s)) ||
             (screenText.includes('enter your starting stats') && screenText.includes('begin play')))));
     }
 
     function inputTerminalKeyFlags(screenText, inPlay, isReviewActive) {
         screenText = screenText || '';
-        const isChoiceMenu = !inPlay && ['性別', '種族', '職業', '性格', '魔法領域', '領域を選んで', 'choose sex', 'choose your sex',
+        const isChoiceMenu = !inPlay && (['性別', '種族', '職業', '性格', '魔法領域', '領域を選んで', 'choose sex', 'choose your sex',
             'sex affects stats', 'choose character sex', 'choose a race', 'choose race', 'race affects stats', 'choose character race',
             'choose a class', 'choose class', 'class affects stats', 'choose character class', 'choose a personality',
             'choose personality', 'personality affects stats', 'choose realm', 'choose a realm', 'choose first realm',
             'choose second realm', 'first realm', 'second realm', 'choose a house', 'choose house', 'choose character background',
-            'choose background', 'choose subrace', 'choose a subrace', 'choose your role', 'choose your adventurer', '*でランダム', '* for random', 'escで戻る', 'esc to return',
-            'esc to step back', 'esc:戻る', 'escで前へ'].some(s => screenText.includes(s));
-        const isNamePrompt = !inPlay && ['名前を入力', "character's name", 'enter a name', 'choose your name'].some(s => screenText.includes(s));
-        const isReviewScreen = !isChoiceMenu && !isNamePrompt && !inPlay && (
-            Boolean(isReviewActive) || ['use as is', "'y': use", 'to start over', 'r to reroll', 'reroll', "'s' to start",
+            'choose background', 'choose subrace', 'choose a subrace', 'choose your role', 'choose your adventurer',
+            'random menu item', '*でランダム', '* for random', 'escで戻る', 'esc to return',
+            'esc to step back', 'esc:戻る', 'escで前へ'].some(s => screenText.includes(s)) ||
+            (screenText.includes('character creation:') && screenText.includes('enter accept')));
+        const isNamePrompt = !inPlay && ['名前を入力', "character's name", 'enter a name', 'choose your name', 'enter accept name', 'tab random name', 'accept name'].some(s => screenText.includes(s));
+        const isSilqMidBirth = !inPlay && (screenText.includes('accept history') || screenText.includes('reroll history') ||
+            screenText.includes('accept age/height/weight') || screenText.includes('allocate points') ||
+            (screenText.includes('space reroll') && screenText.includes('enter accept')));
+        const isReviewScreen = !isChoiceMenu && !isNamePrompt && !isSilqMidBirth && !inPlay && (
+            Boolean(isReviewActive) || ['use as is', "'y': use", 'to start over', 'r to reroll', 're-roll', "['r'eroll", "reroll, 'h'istory", "'s' to start",
             'accept character', '能力値決定', '次の数値', 'この数値に決定'].some(s => screenText.includes(s)) ||
             (screenText.includes('enter your starting stats') && screenText.includes('begin play'))
         );
@@ -754,8 +774,10 @@
         return regions;
     }
 
-    function extractMultiColumnItems(rows, isHeng, decode) {
+    function extractMultiColumnItems(rows, isHeng, decode, filterOpts) {
         if (!rows || !Array.isArray(rows)) return [];
+        const minCol = (filterOpts && typeof filterOpts.minCol === 'number') ? filterOpts.minCol : 0;
+        const maxCol = (filterOpts && typeof filterOpts.maxCol === 'number') ? filterOpts.maxCol : Infinity;
         const seenKeys = new Set(), items = [];
         for (let r = 0; r < rows.length; r++) {
             const rawLine = rows[r] && rows[r].g ? rows[r].g : '';
@@ -763,6 +785,8 @@
             const regions = extractRowRegions(line);
             for (let c = 0; c < regions.length; c++) {
                 const reg = regions[c];
+                const startCol = typeof reg.startCol === 'number' ? reg.startCol : (typeof reg.col === 'number' ? reg.col : 0);
+                if (startCol < minCol || startCol > maxCol) continue;
                 if (reg.key && !seenKeys.has(reg.key)) {
                     seenKeys.add(reg.key);
                     items.push(Object.assign({ row: r, colIndex: c, colCount: regions.length }, reg));
@@ -779,7 +803,11 @@
         const silqSkillColumns = ['Melee', 'Archery', 'Evasion', 'Stealth', 'Perception', 'Will', 'Smithing', 'Song'];
         const isSilqAbilityTree = Boolean(realm === 'silq' && screenText.includes('melee') && screenText.includes('archery') &&
             screenText.includes('evasion') && screenText.includes('stealth') &&
-            (screenText.includes('will') || screenText.includes('perception') || screenText.includes('smithing') || screenText.includes('song')));
+            (screenText.includes('will') || screenText.includes('perception') || screenText.includes('smithing') || screenText.includes('song')) &&
+            !screenText.includes('allocate points to skills') && !screenText.includes('allocate points to stats'));
+        const isSilqAbilityMenu1 = Boolean(isSilqAbilityTree && screenText.includes('to view abilities'));
+        const isSilqAbilityMenu2 = Boolean(isSilqAbilityTree && (screenText.includes('to gain an ability') || screenText.includes('wish to gain this ability')));
+        const isSilqAbilityConfirm = Boolean(isSilqAbilityTree && screenText.includes('wish to gain this ability'));
 
         let activeSilqSkillCol = 0;
         if (isSilqAbilityTree) {
@@ -812,10 +840,12 @@
         const gearActiveTab = isEquip ? 'equip' : (isQuiver ? 'quiver' : (isInven ? 'inven' : null));
         const gearSwitchKey = (realm === 'frogcomposband' || realm === 'silq' || realm === 'hengband' || realm === 'nethack' || realm === 'dcss' || realm === 'brogue' || realm === 'rogue') ? '/' : (isEquip ? 'i' : 'e');
 
+        const filterOpts = isSilqAbilityMenu2 ? { minCol: 15 } : (isSilqAbilityMenu1 ? { maxCol: 14 } : null);
         return {
-            realm, isSilqAbilityTree, silqSkillColumns, activeSilqSkillCol, isSilqSmithing, isSilqSongMenu,
+            realm, isSilqAbilityTree, isSilqAbilityMenu1, isSilqAbilityMenu2, isSilqAbilityConfirm,
+            silqSkillColumns, activeSilqSkillCol, isSilqSmithing, isSilqSongMenu,
             isCharacterSheet: isCharSheet, isSpellBookOrPowerMenu: isSpellMenu, isMultiColumnMenu,
-            hasGearModeTabs, gearActiveTab, gearSwitchKey, multiColumnItems: extractMultiColumnItems(rows, isHeng, decode)
+            hasGearModeTabs, gearActiveTab, gearSwitchKey, multiColumnItems: extractMultiColumnItems(rows, isHeng, decode, filterOpts)
         };
     }
 

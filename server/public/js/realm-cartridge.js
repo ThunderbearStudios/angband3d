@@ -274,25 +274,28 @@
                 puton: { id: 'puton', key: 'w', label: '💍 Put On' },
                 remove: { id: 'remove', key: 'r', label: '💍 Remove' },
                 use: { id: 'use', key: 'u', label: '✨ Use Item' },
-                quaff: { id: 'quaff', key: 'u', label: '🧪 Quaff' },
+                quaff: { id: 'quaff', key: 'q', label: '🧪 Quaff' },
                 read: { id: 'read', key: 'u', label: '📜 Read' },
-                eat: { id: 'eat', key: 'u', label: '🍞 Eat' },
-                aim: { id: 'aim', key: 'u', label: '🪄 Use Staff' },
-                zap: { id: 'zap', key: 'u', label: '⚡ Sound Horn' },
-                use_staff: { id: 'use_staff', key: 'u', label: '🪄 Channel Staff' },
-                activate: { id: 'activate', key: 'u', label: '✨ Use' },
+                eat: { id: 'eat', key: 'E', label: '🍞 Eat' },
+                aim: { id: 'aim', key: 'a', label: '🪄 Use Staff' },
+                zap: { id: 'zap', key: 'p', label: '📯 Sound Horn' },
+                use_staff: { id: 'use_staff', key: 'a', label: '🪄 Channel Staff' },
+                activate: { id: 'activate', key: 'p', label: '📯 Sound Horn' },
                 apply: { id: 'apply', key: 'u', label: '🔨 Craft / Use' },
                 sing: { id: 'sing', key: 's', label: '🎵 Sing' },
-                abilities: { id: 'abilities', key: 't', label: '🌟 Abilities' },
+                abilities: { id: 'abilities', key: 'tab', label: '🌟 Abilities' },
+                increaseSkills: { id: 'increaseSkills', key: '@', label: '📈 Increase Skills' },
                 forge: { id: 'forge', key: '0', label: '🔨 Forge' },
+                fletchery: { id: 'fletchery', key: '-', label: '🏹 Fletchery' },
                 fire: { id: 'fire', key: 'f', label: '🏹 Fire' },
-                throw: { id: 'throw', key: 'v', label: '🎯 Throw' },
+                throw: { id: 'throw', key: 't', label: '🎯 Throw' },
                 drop: { id: 'drop', key: 'd', label: '⬇️ Drop' },
                 inspect: { id: 'inspect', key: 'x', label: '🔍 Inspect' },
                 open: { id: 'open', key: 'o', label: '🚪 Open' },
                 close: { id: 'close', key: 'c', label: '🚪 Close' },
                 disarm: { id: 'disarm', key: 'D', label: '⚙️ Disarm' },
-                search: { id: 'search', key: 's', label: '👁️ Perception' },
+                stealthMode: { id: 'stealthMode', key: 'S', label: '🌑 Stealth Mode' },
+                search: { id: 'search', key: 'S', label: '👁️ Stealth Mode' },
                 pickup: { id: 'pickup', key: 'g', label: '✋ Pick Up' }
             },
             extendedCommands: [],
@@ -1147,6 +1150,18 @@
                 { id: 'bind', label: lbl('⚡ Bind', '⚡ 登録', '⚡ Bind (登録)'), verb: '__bind_spell__', isBind: true }
             ];
         }
+        if (ctx.submenu && ctx.submenu.isSilqAbilityTree) {
+            if (ctx.submenu.isSilqAbilityMenu2) {
+                return [
+                    { id: 'gain', label: '✨ Gain Ability', verb: '__silq_gain__' },
+                    { id: 'select', label: '🔍 View Ability', verb: '__silq_select__' }
+                ];
+            }
+            return [{ id: 'select', label: '🌟 View Abilities', verb: '__silq_select__' }];
+        }
+        if (ctx.submenu && ctx.submenu.isSilqSmithing) {
+            return [{ id: 'forge', label: '🔨 Select / Forge', verb: '__silq_select__' }];
+        }
         if (ctx.isItemTargetPrompt) {
             return [{ id: 'select', label: lbl('✓ Choose Slot', '✓ 選択', '✓ Select (選択)'), verb: '' }];
         }
@@ -1367,7 +1382,23 @@
         const gold = p.gold || 0;
         const exp = p.exp || 0;
         const turns = p.turns || f.turn || 1;
-        const rawDiedFrom = String(p.died_from || p.killed_by || 'mortal wounds').trim();
+        let extractedDiedFrom = p.died_from || p.killed_by || '';
+        if (!extractedDiedFrom && f.term && Array.isArray(f.term.rows)) {
+            const termJoined = f.term.rows.map(row => (row && row.g) ? row.g : (typeof row === 'string' ? row : '')).join('\n');
+            const mTomb = termJoined.match(/(?:Slain|Killed|Destroyed)\s+by\s+([^\n\r.]+?)(?:\s+on\s+\d+|\s+at\s+\d+|\.|\s{2,}|$)/i);
+            if (mTomb && mTomb[1]) extractedDiedFrom = mTomb[1].trim();
+        }
+        if (!extractedDiedFrom && Array.isArray(f.messages)) {
+            for (let i = f.messages.length - 1; i >= 0; i--) {
+                const msg = String((f.messages[i] && f.messages[i].text) || f.messages[i] || '');
+                const mHit = msg.match(/\b([A-Z][a-zA-Z\s'-]{2,28}?)\s+(?:hits|slashes|bites|claws|crushes|burns|freezes|breathes|casts|strikes|stings|gores|smashes|shoots|zaps)\s+you\b/i);
+                if (mHit && mHit[1] && !/^(It|Something|You)\b/i.test(mHit[1])) {
+                    extractedDiedFrom = mHit[1].trim();
+                    break;
+                }
+            }
+        }
+        const rawDiedFrom = String(extractedDiedFrom || 'mortal wounds').trim();
         const diedFrom = rawDiedFrom
             .replace(/^a\s+([A-Z][a-zA-Z]+)/, '$1')
             .replace(/^a\s+([aeiouAEIOU][a-z]+)/, 'an $1');
@@ -1520,23 +1551,83 @@
         };
         const cartridgeRoleKey = (roleByArchetype[r] && roleByArchetype[r][archetype]) || '*';
 
-        // Coherent Sil-Q 30-point stat allocations (Str, Dex, Con, Gra)
+        // Exact Sil-Q 13-point stat allocations (Str, Dex, Con, Gra; triangular costs +1=1, +2=3, +3=6, +4=10 => 6+3+3+1=13)
         const silqStatsByArchetype = {
-            melee: ['6', '6', '6', '2', '6', '6', '6', '2', '6', '6', '6', 'enter'],
-            ranged: ['6', '6', '2', '6', '6', '6', '6', '2', '6', '6', '2', '6', 'enter'],
-            magic: ['6', '2', '6', '6', '2', '6', '6', '2', '6', '6', '6', '6', 'enter'],
-            stealth: ['6', '2', '6', '6', '6', '6', '2', '6', '6', '2', '6', '6', 'enter']
+            melee: ['6', '6', '6', '2', '6', '6', '2', '6', '6', '2', '6', 'enter'],
+            ranged: ['6', '2', '6', '6', '6', '2', '6', '6', '2', '6', '6', 'enter'],
+            magic: ['6', '6', '2', '6', '6', '2', '6', '2', '6', '6', '6', 'enter'],
+            stealth: ['6', '2', '6', '6', '6', '2', '6', '6', '2', '6', '6', 'enter']
         };
         const silqStatSequence = silqStatsByArchetype[archetype] || silqStatsByArchetype.melee;
 
-        // Coherent Sil-Q starting skill allocations (Melee, Archery, Evasion, Stealth, Perception, Will, Smithing, Song)
+        // Safe fallback Sil-Q skill sequences (guaranteed <= 1000 XP across all Race+House modifiers)
         const silqSkillsByArchetype = {
-            melee: ['6', '6', '6', '6', '2', '2', '6', '6', '6', '2', '2', '2', '6', '6', 'enter'],
-            ranged: ['6', '6', '2', '6', '6', '6', '6', '2', '6', '6', '6', '2', '2', '6', '6', 'enter'],
-            magic: ['6', '2', '2', '6', '6', '2', '2', '6', '6', '2', '6', '6', '6', '2', '6', '6', '6', 'enter'],
-            stealth: ['6', '6', '2', '2', '6', '6', '6', '2', '6', '6', '6', '6', '2', '6', '6', 'enter']
+            melee: ['6', '6', '2', '2', '6', '6', '2', '2', '2', '6', 'enter'],
+            ranged: ['2', '6', '6', '2', '6', '6', '2', '2', '6', 'enter'],
+            magic: ['2', '2', '6', '2', '2', '2', '6', '6', '2', '6', '6', 'enter'],
+            stealth: ['2', '2', '6', '2', '6', '6', '2', '6', '6', 'enter']
         };
         const silqSkillSequence = silqSkillsByArchetype[archetype] || silqSkillsByArchetype.melee;
+
+        function computeSilqSkillKeys(screenText) {
+            const txt = String(screenText || '');
+            const skillNames = ['Melee', 'Archery', 'Evasion', 'Stealth', 'Perception', 'Will', 'Smithing', 'Song'];
+            const bases = [0, 0, 0, 0, 0, 0, 0, 0];
+            for (let i = 0; i < skillNames.length; i++) {
+                const re = new RegExp(`\\b${skillNames[i]}\\s+(-?\\d+)`, 'i');
+                const m = txt.match(re);
+                if (m) bases[i] = parseInt(m[1], 10) || 0;
+            }
+            const expMatch = txt.match(/Experience\s+Left\s*:\s*(-?\d+)/i);
+            let expLeft = expMatch ? parseInt(expMatch[1], 10) : 1000;
+            if (!Number.isFinite(expLeft) || expLeft <= 0) expLeft = 1000;
+            const inc = [0, 0, 0, 0, 0, 0, 0, 0];
+            const priorityByArchetype = {
+                melee: [0, 2, 5, 4, 3, 1, 6, 7],
+                ranged: [1, 2, 4, 3, 0, 5, 6, 7],
+                magic: [7, 6, 5, 4, 2, 0, 3, 1],
+                stealth: [3, 2, 4, 0, 1, 5, 7, 6]
+            };
+            const prio = priorityByArchetype[archetype] || priorityByArchetype.melee;
+            let progress = true;
+            while (progress && expLeft >= 100) {
+                progress = false;
+                for (const idx of prio) {
+                    const nextStep = inc[idx] + 1;
+                    if (nextStep > 5) continue;
+                    const stepCost = Math.max(100, 100 * (bases[idx] + nextStep));
+                    if (stepCost <= expLeft) {
+                        inc[idx] = nextStep;
+                        expLeft -= stepCost;
+                        progress = true;
+                    }
+                }
+            }
+            const keys = [];
+            for (let i = 0; i < 8; i++) {
+                for (let c = 0; c < inc[i]; c++) keys.push('6');
+                if (i < 7 && inc.slice(i + 1).some(v => v > 0)) keys.push('2');
+            }
+            keys.push('enter');
+            return keys;
+        }
+
+        function nextKey(screenText) {
+            const st = String(screenText || '').toLowerCase();
+            if (st.includes('choose a realm') || st.includes('choose realm') || st.includes('魔法領域') || st.includes('領域を選んで')) {
+                return magicRealmKey || 'a';
+            }
+            if (st.includes('choose your adventurer') || st.includes('choose your role')) {
+                return cartridgeRoleKey || '*';
+            }
+            if (st.includes('enter accept name') || st.includes('tab random name')) {
+                return 'tab';
+            }
+            if (st.includes('accept history') || st.includes('reroll history') || st.includes('accept age/height/weight')) {
+                return 'space';
+            }
+            return '*';
+        }
 
         return {
             realmId: r,
@@ -1545,7 +1636,9 @@
             fcbPersonalityKeys,
             cartridgeRoleKey,
             silqStatSequence,
-            silqSkillSequence
+            silqSkillSequence,
+            computeSilqSkillKeys,
+            nextKey
         };
     }
 
