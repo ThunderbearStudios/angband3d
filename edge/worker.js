@@ -91,12 +91,26 @@ export default {
     headers.set("X-Forwarded-Host", url.hostname);
     headers.set("X-Forwarded-Proto", "https");
 
-    const upstreamResp = await fetch(targetUrl.toString(), {
+    const isCacheableStatic =
+      (request.method === "GET" || request.method === "HEAD") &&
+      (url.pathname.startsWith("/assets/") ||
+        url.pathname.startsWith("/js/vendor/") ||
+        ((url.pathname.startsWith("/js/") || url.pathname.startsWith("/css/")) && url.search.includes("v=")));
+
+    const fetchOpts = {
       method: request.method,
       headers,
       body: request.method !== "GET" && request.method !== "HEAD" ? request.body : undefined,
       redirect: "manual",
-    });
+    };
+    if (isCacheableStatic) {
+      fetchOpts.cf = {
+        cacheEverything: true,
+        cacheTtlByStatus: { "200-299": 604800, "404": 30, "500-599": 0 },
+      };
+    }
+
+    const upstreamResp = await fetch(targetUrl.toString(), fetchOpts);
 
     const outHeaders = new Headers(upstreamResp.headers);
     if (!url.pathname.startsWith("/api/")) {

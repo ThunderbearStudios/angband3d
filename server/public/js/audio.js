@@ -193,9 +193,9 @@ class SoundEngine {
                 a.volume = this._getThemeTargetVolume();
                 return bindDeckEvents(a, isPrimary);
             };
-            // Preload Deck A immediately; keep Deck B on 'none' until Deck A is playing (>= 4s)
-            // so initial splash load never downloads two 5MB audio streams simultaneously.
-            this._themeDeckA = createDeck(domDeckA, 'auto', true);
+            // Keep Deck A on 'metadata' on cold boot until startMenuMusic() or user unlock,
+            // preventing a 4.9MB audio stream from competing with core JS/WebSocket boot on slow Wi-Fi.
+            this._themeDeckA = createDeck(domDeckA, 'metadata', true);
             this._themeDeckB = createDeck(domDeckB, 'none', false);
             this._activeThemeDeck = this._themeDeckA;
             this._standbyThemeDeck = this._themeDeckB;
@@ -326,6 +326,9 @@ class SoundEngine {
         }
         if (this._activeThemeDeck) {
             try {
+                if (this._activeThemeDeck.preload !== 'auto') {
+                    this._activeThemeDeck.preload = 'auto';
+                }
                 if (this._activeThemeDeck.currentTime >= this._themeLoopEnd - 0.5) {
                     this._activeThemeDeck.currentTime = 0;
                 }
@@ -1282,27 +1285,65 @@ class SoundEngine {
         };
 
         const decodedByFile = new Map();
+        const MAX_CONCURRENT_SFX_FETCHES = 3;
+        let activeFetches = 0;
+        const waitSlotQueue = [];
+        const acquireSlot = () => new Promise(resolve => {
+            if (activeFetches < MAX_CONCURRENT_SFX_FETCHES) {
+                activeFetches++;
+                resolve();
+            } else {
+                waitSlotQueue.push(resolve);
+            }
+        });
+        const releaseSlot = () => {
+            activeFetches = Math.max(0, activeFetches - 1);
+            if (waitSlotQueue.length > 0 && activeFetches < MAX_CONCURRENT_SFX_FETCHES) {
+                activeFetches++;
+                const next = waitSlotQueue.shift();
+                next();
+            }
+        };
+        const waitIfCriticalBootBusy = async () => {
+            let guard = 0;
+            while (
+                typeof window !== 'undefined' &&
+                (window.gameNetworkConnecting || window.gameSceneAssetsLoading) &&
+                guard < 120
+            ) {
+                guard++;
+                await new Promise(r => setTimeout(r, 120));
+            }
+        };
+
         const loadFileBuffer = async (fileName) => {
             if (decodedByFile.has(fileName)) {
                 return decodedByFile.get(fileName);
             }
             const promise = (async () => {
+                await waitIfCriticalBootBusy();
+                await acquireSlot();
                 try {
-                    const res = await fetch(`/assets/audio/sfx/${fileName}`);
+                    const res = await fetch(`/assets/audio/sfx/${fileName}`, { priority: 'low' });
                     if (!res.ok) return null;
                     const ab = await res.arrayBuffer();
+                    if (typeof window !== 'undefined' && window.scheduler && typeof window.scheduler.yield === 'function') {
+                        try { await window.scheduler.yield(); } catch (_) {}
+                    }
                     return await new Promise((resolve, reject) => {
                         this.ctx.decodeAudioData(ab, resolve, reject);
                     });
                 } catch (e) {
                     return null;
+                } finally {
+                    releaseSlot();
                 }
             })();
             decodedByFile.set(fileName, promise);
             return promise;
         };
 
-        const allPoolPromises = Object.entries(STUDIO_SFX_POOLS).map(async ([poolKey, files]) => {
+        const hydratePool = async ([poolKey, files]) => {
             try {
                 const buffers = await Promise.all(files.map(f => loadFileBuffer(f)));
                 const valid = buffers.filter(Boolean);
@@ -1323,12 +1364,23 @@ class SoundEngine {
                     }
                 }
             } catch (_) {}
-        });
+        };
 
-        Promise.allSettled(allPoolPromises).then(() => {
+        const TIER_1_POOLS = new Set([
+            'step_stone', 'whoosh', 'slash', 'doorOpen', 'goldPickup', 'itemPickup', 'quaff', 'spell_magic'
+        ]);
+        const entries = Object.entries(STUDIO_SFX_POOLS);
+        const tier1Entries = entries.filter(([k]) => TIER_1_POOLS.has(k));
+        const tier2Entries = entries.filter(([k]) => !TIER_1_POOLS.has(k));
+
+        (async () => {
+            await Promise.allSettled(tier1Entries.map(hydratePool));
+            for (const entry of tier2Entries) {
+                await hydratePool(entry);
+            }
             this._studioBankLoaded = true;
             this._studioBankLoading = false;
-        });
+        })();
     }
 
     playPoolSample(poolKey, pitchScale = 1.0, volumeScale = 1.0, pan = 0.0, reverbAmount = 0.22, fallbackBufferKey = null) {

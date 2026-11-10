@@ -135,6 +135,13 @@ class GameNetwork {
             clearTimeout(this.reconnectTimer);
             this.reconnectTimer = null;
         }
+        if (this._handshakeFastRetryTimer) {
+            clearTimeout(this._handshakeFastRetryTimer);
+            this._handshakeFastRetryTimer = null;
+        }
+        if (typeof window !== 'undefined') {
+            window.gameNetworkConnecting = true;
+        }
         this.manualDisconnect = false;
         this.hasActiveGameSession = true;
         this.sessionHibernated = false;
@@ -226,7 +233,24 @@ class GameNetwork {
 
         this.ws = wsProtocols ? new WebSocket(wsUrl, wsProtocols) : new WebSocket(wsUrl);
 
+        if ((this._fastHandshakeRetries || 0) < 2) {
+            this._handshakeFastRetryTimer = setTimeout(() => {
+                this._handshakeFastRetryTimer = null;
+                if (!this.manualDisconnect && !this.sessionHibernated && this.ws && this.ws.readyState === WebSocket.CONNECTING) {
+                    this._fastHandshakeRetries = (this._fastHandshakeRetries || 0) + 1;
+                    console.warn(`[Network] Handshake still CONNECTING after 5.5s — fast retry #${this._fastHandshakeRetries}`);
+                    try { this.ws.close(); } catch (_) {}
+                    this.connect(this.currentChar, this.currentIsNew, this.currentSave, this.currentRealm, isCustomBirth);
+                }
+            }, 5500);
+        }
+
         this.ws.onopen = () => {
+            if (this._handshakeFastRetryTimer) {
+                clearTimeout(this._handshakeFastRetryTimer);
+                this._handshakeFastRetryTimer = null;
+            }
+            this._fastHandshakeRetries = 0;
             this.connected = true;
             this.reconnectAttempts = 0;
             if (this.onStatus) this.onStatus('Connected to Cloud Realm');
@@ -241,6 +265,9 @@ class GameNetwork {
                 const msg = JSON.parse(str);
 
                 if (msg.t === 'hello') {
+                    if (typeof window !== 'undefined') {
+                        window.gameNetworkConnecting = false;
+                    }
                     this.isInQueue = false;
                     this.reconnectAttempts = 0;
 
@@ -408,6 +435,13 @@ class GameNetwork {
         };
 
         this.ws.onclose = () => {
+            if (this._handshakeFastRetryTimer) {
+                clearTimeout(this._handshakeFastRetryTimer);
+                this._handshakeFastRetryTimer = null;
+            }
+            if (typeof window !== 'undefined') {
+                window.gameNetworkConnecting = false;
+            }
             this.connected = false;
             this.stopPingHeartbeat();
             if (this.manualDisconnect) {

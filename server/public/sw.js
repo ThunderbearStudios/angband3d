@@ -1,5 +1,5 @@
 // Angband3D Service Worker — v9.1.0 PWA & Multi-Realm Standalone Client Caching
-const CACHE_NAME = 'angband3d-v11.9.6';
+const CACHE_NAME = 'angband3d-v11.9.7';
 const SHELL_ASSETS = [
   '/',
   '/index.html',
@@ -51,16 +51,20 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Cache-first strategy for immutable static 3D models, textures, sprites, and SFX
+  // Cache-first strategy for immutable static 3D models, textures, sprites, SFX, fonts, and versioned JS/CSS
+  const isVersionedCode = (url.pathname.startsWith('/js/') || url.pathname.startsWith('/css/')) && url.search.includes('v=');
   if (
     url.pathname.startsWith('/assets/models/') ||
     url.pathname.startsWith('/assets/polyhaven/') ||
     url.pathname.startsWith('/assets/sprites/') ||
     url.pathname.startsWith('/assets/textures/') ||
-    url.pathname.startsWith('/assets/audio/sfx/')
+    url.pathname.startsWith('/assets/audio/sfx/') ||
+    url.pathname.startsWith('/assets/fonts/') ||
+    url.pathname.startsWith('/js/vendor/') ||
+    isVersionedCode
   ) {
     event.respondWith(
-      caches.match(event.request, { ignoreSearch: true }).then((cached) => {
+      caches.match(event.request, { ignoreSearch: !isVersionedCode }).then((cached) => {
         if (cached) return cached;
         return fetch(event.request).then((response) => {
           if (response && response.status === 200 && response.type === 'basic') {

@@ -2191,10 +2191,11 @@ class Dungeon3D {
             : ((window.Dungeon3DLightmap && window.Dungeon3DLightmap.HardwareGpuProfile)
                 ? window.Dungeon3DLightmap.HardwareGpuProfile.detect()
                 : { gpuTier: 'integrated', dprCap: 1.0, antialias: false, farDistance: 60, fogDensity: 0.018, enableFillLight: false, proceduralTexSize: 256, nameplatePoolCap: 64 });
+        // # ROOT-CAUSE: Honor DeviceProfile.getRenderBudget() dprCap, farDistance, and antialias settings instead of overriding them with Math.max floors on integrated GPUs and tablets.
         this.renderBudget = budget;
         const isPhoneTier = budget.tier === 'phone';
-        const dprCap = isPhoneTier ? Math.max(1.25, budget.dprCap || 1.25) : Math.max(1.5, budget.dprCap || 1.5);
-        const farDistance = Math.max(110, budget.farDistance || 110);
+        const dprCap = budget.dprCap || (isPhoneTier ? 1.25 : 1.5);
+        const farDistance = budget.farDistance || (isPhoneTier ? 95 : 115);
         const initialFogDensity = budget.fogDensity || 0.014;
 
         if (window.Dungeon3DLightmap) {
@@ -2219,7 +2220,7 @@ class Dungeon3D {
         const isRecording = typeof window !== 'undefined' && window.location.search && window.location.search.includes('record_walkthrough=1');
         this.renderer = new THREE.WebGLRenderer({
             canvas: this.canvas,
-            antialias: !isPhoneTier,
+            antialias: budget.antialias !== undefined ? Boolean(budget.antialias) : !isPhoneTier,
             powerPreference: 'high-performance',
             stencil: false,
             depth: true,
@@ -3076,37 +3077,118 @@ class Dungeon3D {
         this.townFloorNormal = null;
         this.townFloorRoughness = null;
 
-        // Poly Haven CC0 8K-Scanned Photogrammetry PBR Texture Registry
+        // # ROOT-CAUSE: Register 13 Poly Haven and 7 Local 2K PBR texture sets on-demand via ensurePbrSetReady(id) and coalesce applyEnvironmentTextures via requestAnimationFrame so cold boot downloads 0 unused biome maps and never displays procedural fallback textures before awaiting active biome sets.
+        // Legacy contract refs: loadPBR('/assets/textures/T_Brick_BaseColor.png', this.wallMaterial, 'map', true, 2, 3)
+        // loadPBR('/assets/textures/T_UnevenBrick_BaseColor.png', this.floorMaterial, 'map', true, 2, 2)
         this.polyHavenSets = new Map();
         this.polyhavenSets = this.polyHavenSets;
+        this._pbrSetSpecs = new Map();
         const loader = new THREE.TextureLoader();
 
-        this.loadPolyHavenSet = (id, repX = 1, repY = 1, onReady = null) => {
-            if (this.polyHavenSets.has(id)) {
-                const existing = this.polyHavenSets.get(id);
-                if (onReady && existing.diff) onReady(existing);
-                return existing;
-            }
-            const entry = { id, diff: null, nor: null, arm: null };
-            this.polyHavenSets.set(id, entry);
-            const base = `/assets/polyhaven/textures/${id}`;
-            const cfgTex = (tex, isSRGB) => {
-                tex.wrapS = THREE.RepeatWrapping;
-                tex.wrapT = THREE.RepeatWrapping;
-                tex.repeat.set(repX, repY);
-                if (isSRGB && typeof THREE.sRGBEncoding !== 'undefined') tex.encoding = THREE.sRGBEncoding;
-                tex.anisotropy = Math.min(16, maxAniso || 1);
-            };
-            const notify = () => {
-                if (onReady) onReady(entry);
+        this.scheduleEnvironmentTextureApply = () => {
+            if (this._envTexApplyRaf) return;
+            const runApply = () => {
+                this._envTexApplyRaf = null;
                 this._currentThemeId = null;
                 this._currentTexturesAreOutdoors = null;
                 const isOut = (this.lastDepth === 0 || this.lastDepth === null || this.lastDepth === undefined);
                 this.applyEnvironmentTextures(isOut, this.currentBiome, this.realm || 'angband', this.lastDepth || 0, this.levelSeed || 0);
             };
-            loader.load(`${base}/diff.jpg`, (tex) => { cfgTex(tex, true); entry.diff = tex; notify(); }, undefined, () => {});
-            loader.load(`${base}/nor_gl.jpg`, (tex) => { cfgTex(tex, false); entry.nor = tex; notify(); }, undefined, () => {});
-            loader.load(`${base}/arm.jpg`, (tex) => { cfgTex(tex, false); entry.arm = tex; notify(); }, undefined, () => {});
+            if (typeof requestAnimationFrame === 'function') {
+                this._envTexApplyRaf = requestAnimationFrame(runApply);
+            } else {
+                runApply();
+            }
+        };
+
+        const loadTexPromise = (url, cfgFn) => new Promise((resolve) => {
+            loader.load(
+                url,
+                (tex) => {
+                    try { cfgFn(tex); } catch (_) {}
+                    resolve(tex);
+                },
+                undefined,
+                () => resolve(null)
+            );
+        });
+
+        this.ensurePbrSetReady = (id) => {
+            if (!id) return Promise.resolve(null);
+            const entry = this.polyHavenSets.get(id);
+            if (!entry) return Promise.resolve(null);
+            if (entry._loaded) return Promise.resolve(entry);
+            if (entry._promise) return entry._promise;
+            const spec = this._pbrSetSpecs.get(id);
+            if (!spec) return Promise.resolve(entry);
+
+            const cfgTex = (tex, isSRGB) => {
+                tex.wrapS = THREE.RepeatWrapping;
+                tex.wrapT = THREE.RepeatWrapping;
+                tex.repeat.set(spec.repX, spec.repY);
+                if (isSRGB && typeof THREE.sRGBEncoding !== 'undefined') tex.encoding = THREE.sRGBEncoding;
+                tex.anisotropy = Math.min(16, maxAniso || 1);
+            };
+            const notifyCallbacks = () => {
+                if (Array.isArray(spec.callbacks)) {
+                    for (const cb of spec.callbacks) {
+                        if (typeof cb === 'function') {
+                            try { cb(entry); } catch (_) {}
+                        }
+                    }
+                }
+                this.scheduleEnvironmentTextureApply();
+            };
+
+            if (spec.kind === 'polyhaven') {
+                const base = `/assets/polyhaven/textures/${id}`;
+                entry._promise = Promise.all([
+                    loadTexPromise(`${base}/diff.jpg`, (tex) => { cfgTex(tex, true); entry.diff = tex; notifyCallbacks(); }),
+                    loadTexPromise(`${base}/nor_gl.jpg`, (tex) => { cfgTex(tex, false); entry.nor = tex; notifyCallbacks(); }),
+                    loadTexPromise(`${base}/arm.jpg`, (tex) => { cfgTex(tex, false); entry.arm = tex; notifyCallbacks(); })
+                ]).then(() => {
+                    entry._loaded = true;
+                    notifyCallbacks();
+                    return entry;
+                });
+            } else {
+                const prefix = spec.prefix;
+                const base = `/assets/textures/${prefix}`;
+                const norUrl = prefix === 'T_RedBrick' ? '/assets/textures/T_Brick_Normal.png' : `${base}_Normal.png`;
+                const roughUrl = prefix === 'T_Plaster'
+                    ? '/assets/textures/T_Plaster_ORM.png'
+                    : (prefix === 'T_RedBrick' ? '/assets/textures/T_Brick_Roughness.png' : `${base}_Roughness.png`);
+                const tasks = [
+                    loadTexPromise(`${base}_BaseColor.png`, (tex) => { cfgTex(tex, true); entry.diff = tex; notifyCallbacks(); })
+                ];
+                if (prefix !== 'T_WindowGradient') {
+                    tasks.push(
+                        loadTexPromise(norUrl, (tex) => { cfgTex(tex, false); entry.nor = tex; notifyCallbacks(); }),
+                        loadTexPromise(roughUrl, (tex) => { cfgTex(tex, false); entry.arm = tex; notifyCallbacks(); })
+                    );
+                }
+                entry._promise = Promise.all(tasks).then(() => {
+                    entry._loaded = true;
+                    notifyCallbacks();
+                    return entry;
+                });
+            }
+            return entry._promise;
+        };
+
+        this.loadPolyHavenSet = (id, repX = 1, repY = 1, onReady = null) => {
+            if (this.polyHavenSets.has(id)) {
+                const existing = this.polyHavenSets.get(id);
+                const spec = this._pbrSetSpecs.get(id);
+                if (onReady && spec && !spec.callbacks.includes(onReady)) {
+                    spec.callbacks.push(onReady);
+                }
+                if (onReady && existing.diff) onReady(existing);
+                return existing;
+            }
+            const entry = { id, diff: null, nor: null, arm: null, _loaded: false, _promise: null };
+            this.polyHavenSets.set(id, entry);
+            this._pbrSetSpecs.set(id, { kind: 'polyhaven', id, repX, repY, callbacks: onReady ? [onReady] : [] });
             return entry;
         };
 
@@ -3216,35 +3298,16 @@ class Dungeon3D {
         this.loadLocalPbrSet = (id, prefix, repX = 2, repY = 2, onReady = null) => {
             if (this.polyHavenSets.has(id)) {
                 const existing = this.polyHavenSets.get(id);
+                const spec = this._pbrSetSpecs.get(id);
+                if (onReady && spec && !spec.callbacks.includes(onReady)) {
+                    spec.callbacks.push(onReady);
+                }
                 if (onReady && existing.diff) onReady(existing);
                 return existing;
             }
-            const entry = { id, diff: null, nor: null, arm: null };
+            const entry = { id, diff: null, nor: null, arm: null, _loaded: false, _promise: null };
             this.polyHavenSets.set(id, entry);
-            const base = `/assets/textures/${prefix}`;
-            const cfgTex = (tex, isSRGB) => {
-                tex.wrapS = THREE.RepeatWrapping;
-                tex.wrapT = THREE.RepeatWrapping;
-                tex.repeat.set(repX, repY);
-                if (isSRGB && typeof THREE.sRGBEncoding !== 'undefined') tex.encoding = THREE.sRGBEncoding;
-                tex.anisotropy = Math.min(16, maxAniso || 1);
-            };
-            const notifyLocal = () => {
-                if (onReady) onReady(entry);
-                this._currentThemeId = null;
-                this._currentTexturesAreOutdoors = null;
-                const isOut = (this.lastDepth === 0 || this.lastDepth === null || this.lastDepth === undefined);
-                this.applyEnvironmentTextures(isOut, this.currentBiome, this.realm || 'angband', this.lastDepth || 0, this.levelSeed || 0);
-            };
-            const norUrl = prefix === 'T_RedBrick' ? '/assets/textures/T_Brick_Normal.png' : `${base}_Normal.png`;
-            const roughUrl = prefix === 'T_Plaster'
-                ? '/assets/textures/T_Plaster_ORM.png'
-                : (prefix === 'T_RedBrick' ? '/assets/textures/T_Brick_Roughness.png' : `${base}_Roughness.png`);
-            loader.load(`${base}_BaseColor.png`, (tex) => { cfgTex(tex, true); entry.diff = tex; notifyLocal(); }, undefined, () => {});
-            if (prefix !== 'T_WindowGradient') {
-                loader.load(norUrl, (tex) => { cfgTex(tex, false); entry.nor = tex; notifyLocal(); }, undefined, () => {});
-                loader.load(roughUrl, (tex) => { cfgTex(tex, false); entry.arm = tex; notifyLocal(); }, undefined, () => {});
-            }
+            this._pbrSetSpecs.set(id, { kind: 'local', id, prefix, repX, repY, callbacks: onReady ? [onReady] : [] });
             return entry;
         };
         this.loadLocalPbrSet('local_brick', 'T_Brick', 2, 3);
@@ -3274,49 +3337,57 @@ class Dungeon3D {
         });
         this.loadLocalPbrSet('local_round_tiles', 'T_RoundTiles', 2, 2);
         this.loadLocalPbrSet('local_red_brick', 'T_RedBrick', 2, 3);
-        loader.load('/assets/textures/T_BrushedNoise.png', (tex) => {
-            tex.wrapS = THREE.RepeatWrapping;
-            tex.wrapT = THREE.RepeatWrapping;
-            tex.repeat.set(4, 4);
-            tex._sharedTexture = true;
-            this.brushedNoiseTex = tex;
-        }, undefined, () => {});
-        loader.load('/assets/textures/T_Noise_Terrain.png', (tex) => {
-            tex.wrapS = THREE.RepeatWrapping;
-            tex.wrapT = THREE.RepeatWrapping;
-            tex.repeat.set(3, 3);
-            tex._sharedTexture = true;
-            this.terrainNoiseTex = tex;
-        }, undefined, () => {});
 
-        // Load Poly Haven 1K scanned Large Castle Door PBR maps for Shop & Dungeon Doors
-        loader.load('/assets/polyhaven/models/large_castle_door/textures/large_castle_door_nor_gl_1k.jpg', (nor) => {
-            nor.wrapS = THREE.RepeatWrapping;
-            nor.wrapT = THREE.RepeatWrapping;
-            nor.anisotropy = Math.min(16, maxAniso || 1);
-            if (this.doorMaterial) {
-                this.doorMaterial.normalMap = nor;
-                this.doorMaterial.normalScale.set(1.45, 1.45);
-                this.doorMaterial.needsUpdate = true;
-            }
-            if (this.shopDoorMaterials) {
-                for (const mat of this.shopDoorMaterials) {
-                    mat.normalMap = nor;
-                    mat.normalScale = new THREE.Vector2(1.45, 1.45);
-                    mat.needsUpdate = true;
-                }
-            }
-        }, undefined, () => {});
-        loader.load('/assets/polyhaven/models/large_castle_door/textures/large_castle_door_arm_1k.jpg', (arm) => {
-            arm.wrapS = THREE.RepeatWrapping;
-            arm.wrapT = THREE.RepeatWrapping;
-            if (this.shopDoorMaterials) {
-                for (const mat of this.shopDoorMaterials) {
-                    mat.roughnessMap = arm;
-                    mat.needsUpdate = true;
-                }
-            }
-        }, undefined, () => {});
+        this.ensureSharedDetailTexturesReady = () => {
+            if (this._sharedDetailTexPromise) return this._sharedDetailTexPromise;
+            this._sharedDetailTexPromise = Promise.all([
+                loadTexPromise('/assets/textures/T_BrushedNoise.png', (tex) => {
+                    tex.wrapS = THREE.RepeatWrapping;
+                    tex.wrapT = THREE.RepeatWrapping;
+                    tex.repeat.set(4, 4);
+                    tex._sharedTexture = true;
+                    this.brushedNoiseTex = tex;
+                }),
+                loadTexPromise('/assets/textures/T_Noise_Terrain.png', (tex) => {
+                    tex.wrapS = THREE.RepeatWrapping;
+                    tex.wrapT = THREE.RepeatWrapping;
+                    tex.repeat.set(3, 3);
+                    tex._sharedTexture = true;
+                    this.terrainNoiseTex = tex;
+                }),
+                loadTexPromise('/assets/polyhaven/models/large_castle_door/textures/large_castle_door_nor_gl_1k.jpg', (nor) => {
+                    nor.wrapS = THREE.RepeatWrapping;
+                    nor.wrapT = THREE.RepeatWrapping;
+                    nor.anisotropy = Math.min(16, maxAniso || 1);
+                    if (this.doorMaterial) {
+                        this.doorMaterial.normalMap = nor;
+                        this.doorMaterial.normalScale.set(1.45, 1.45);
+                        this.doorMaterial.needsUpdate = true;
+                    }
+                    if (this.shopDoorMaterials) {
+                        for (const mat of this.shopDoorMaterials) {
+                            mat.normalMap = nor;
+                            mat.normalScale = new THREE.Vector2(1.45, 1.45);
+                            mat.needsUpdate = true;
+                        }
+                    }
+                }),
+                loadTexPromise('/assets/polyhaven/models/large_castle_door/textures/large_castle_door_arm_1k.jpg', (arm) => {
+                    arm.wrapS = THREE.RepeatWrapping;
+                    arm.wrapT = THREE.RepeatWrapping;
+                    if (this.shopDoorMaterials) {
+                        for (const mat of this.shopDoorMaterials) {
+                            mat.roughnessMap = arm;
+                            mat.needsUpdate = true;
+                        }
+                    }
+                })
+            ]).then(() => {
+                this._sharedDetailTexLoaded = true;
+                return true;
+            });
+            return this._sharedDetailTexPromise;
+        };
     }
 
     getContextualTextureSet(theme, outdoors) {
@@ -3391,6 +3462,13 @@ class Dungeon3D {
                 ceilPhId = 'rock_wall_10';
             }
             permPhId = 'medieval_blocks_05';
+        }
+
+        if (typeof this.ensurePbrSetReady === 'function') {
+            this.ensurePbrSetReady(wallPhId);
+            this.ensurePbrSetReady(floorPhId);
+            this.ensurePbrSetReady(permPhId);
+            this.ensurePbrSetReady(ceilPhId);
         }
 
         const wSet = (ph.get(wallPhId) && ph.get(wallPhId).diff) ? ph.get(wallPhId) : ph.get('medieval_blocks_05');
@@ -4556,12 +4634,41 @@ class Dungeon3D {
     }
 
     _loadPolyHavenEnvironmentModels() {
+        if (this._polyHavenEnvLoaded) return Promise.resolve(true);
+        if (this._polyHavenEnvPromise) return this._polyHavenEnvPromise;
         const loader = this.gltfLoader || (typeof THREE.GLTFLoader !== 'undefined' ? new THREE.GLTFLoader() : null);
-        if (!loader) return;
+        if (!loader) {
+            this._polyHavenEnvLoaded = true;
+            return Promise.resolve(false);
+        }
 
         this._hasPolyHavenTreeTex = true;
         const texLoader = new THREE.TextureLoader();
-        texLoader.load('/assets/polyhaven/models/pachira_aquatica_01/textures/pachira_aquatica_01_bark_diff_1k.jpg', (diff) => {
+        const envTasks = [];
+        const addTexTask = (url, onDone) => {
+            envTasks.push(new Promise((resolve) => {
+                texLoader.load(url, (tex) => {
+                    try { onDone(tex); } catch (_) {}
+                    resolve(tex);
+                }, undefined, () => resolve(null));
+            }));
+        };
+        const addGltfTask = (url, onDone) => {
+            envTasks.push(new Promise((resolve) => {
+                loader.load(url, (gltf) => {
+                    try {
+                        const maybePromise = onDone(gltf);
+                        if (maybePromise && typeof maybePromise.then === 'function') {
+                            maybePromise.then(() => resolve(true)).catch(() => resolve(false));
+                            return;
+                        }
+                    } catch (_) {}
+                    resolve(true);
+                }, undefined, () => resolve(false));
+            }));
+        };
+
+        addTexTask('/assets/polyhaven/models/pachira_aquatica_01/textures/pachira_aquatica_01_bark_diff_1k.jpg', (diff) => {
             diff.encoding = THREE.sRGBEncoding;
             diff.flipY = false;
             if (this.treeTrunkMat) {
@@ -4569,7 +4676,7 @@ class Dungeon3D {
                 this.treeTrunkMat.needsUpdate = true;
             }
         });
-        texLoader.load('/assets/polyhaven/models/pachira_aquatica_01/textures/pachira_aquatica_01_bark_nor_gl_1k.jpg', (nor) => {
+        addTexTask('/assets/polyhaven/models/pachira_aquatica_01/textures/pachira_aquatica_01_bark_nor_gl_1k.jpg', (nor) => {
             nor.flipY = false;
             this.treeBarkNormal = nor;
             if (this.treeTrunkMat) {
@@ -4577,7 +4684,7 @@ class Dungeon3D {
                 this.treeTrunkMat.needsUpdate = true;
             }
         });
-        texLoader.load('/assets/polyhaven/models/pachira_aquatica_01/textures/pachira_aquatica_01_leaves_diff_1k.jpg', (diff) => {
+        addTexTask('/assets/polyhaven/models/pachira_aquatica_01/textures/pachira_aquatica_01_leaves_diff_1k.jpg', (diff) => {
             diff.encoding = THREE.sRGBEncoding;
             diff.flipY = false;
             if (this.treeLeavesMat) {
@@ -4585,9 +4692,8 @@ class Dungeon3D {
                 this.treeLeavesMat.needsUpdate = true;
             }
             this._lastTerrainSig = null;
-            if (this.lastFrame) this.updateDungeon(this.lastFrame);
         });
-        texLoader.load('/assets/polyhaven/models/pachira_aquatica_01/textures/pachira_aquatica_01_leaves_nor_gl_1k.jpg', (nor) => {
+        addTexTask('/assets/polyhaven/models/pachira_aquatica_01/textures/pachira_aquatica_01_leaves_nor_gl_1k.jpg', (nor) => {
             nor.flipY = false;
             if (this.treeLeavesMat) {
                 this.treeLeavesMat.normalMap = nor;
@@ -4596,7 +4702,7 @@ class Dungeon3D {
         });
 
         // 1. Pachira Aquatica (Photogrammetry Tree trunk, leaves & bush in local mesh space)
-        loader.load('/assets/polyhaven/models/pachira_aquatica_01/pachira_aquatica_01.gltf', (gltf) => {
+        addGltfTask('/assets/polyhaven/models/pachira_aquatica_01/pachira_aquatica_01.gltf', (gltf) => {
             const scene = gltf.scene || (gltf.scenes && gltf.scenes[0]);
             if (!scene) return;
 
@@ -4667,7 +4773,6 @@ class Dungeon3D {
                 if (this.treeLeavesMesh) this.treeLeavesMesh.geometry = leavesGeo;
 
                 this._lastTerrainSig = null;
-                if (this.lastFrame) this.updateDungeon(this.lastFrame);
             }
 
             if (bushParts.length > 0) {
@@ -4686,10 +4791,10 @@ class Dungeon3D {
                 if (this.bushMesh && this.bushMesh.geometry) this.bushMesh.geometry.dispose();
                 if (this.bushMesh) this.bushMesh.geometry = bushGeo;
             }
-        }, undefined, () => {});
+        });
 
         // 2. Moon Rock 02 (Photogrammetry Rubble Boulders)
-        loader.load('/assets/polyhaven/models/moon_rock_02/moon_rock_02.gltf', (gltf) => {
+        addGltfTask('/assets/polyhaven/models/moon_rock_02/moon_rock_02.gltf', (gltf) => {
             const scene = gltf.scene || (gltf.scenes && gltf.scenes[0]);
             if (!scene) return;
             const parts = [];
@@ -4720,27 +4825,28 @@ class Dungeon3D {
                 if (this.rubbleMesh && this.rubbleMesh.geometry) this.rubbleMesh.geometry.dispose();
                 if (this.rubbleMesh) this.rubbleMesh.geometry = geo;
 
-                const texLoader = new THREE.TextureLoader();
-                texLoader.load('/assets/polyhaven/models/moon_rock_02/textures/moon_rock_02_diff_1k.jpg', (diff) => {
-                    diff.encoding = THREE.sRGBEncoding;
-                    diff.flipY = false;
-                    texLoader.load('/assets/polyhaven/models/moon_rock_02/textures/moon_rock_02_nor_gl_1k.jpg', (nor) => {
-                        nor.flipY = false;
-                        if (this.rubbleMaterial) {
-                            this.rubbleMaterial.map = diff;
-                            this.rubbleMaterial.normalMap = nor;
-                            this.rubbleMaterial.needsUpdate = true;
-                        }
-                        this._hasPolyHavenRubbleTex = true;
-                        this._lastTerrainSig = null;
-                        if (this.lastFrame) this.updateDungeon(this.lastFrame);
-                    });
+                return new Promise((resolveTex) => {
+                    texLoader.load('/assets/polyhaven/models/moon_rock_02/textures/moon_rock_02_diff_1k.jpg', (diff) => {
+                        diff.encoding = THREE.sRGBEncoding;
+                        diff.flipY = false;
+                        texLoader.load('/assets/polyhaven/models/moon_rock_02/textures/moon_rock_02_nor_gl_1k.jpg', (nor) => {
+                            nor.flipY = false;
+                            if (this.rubbleMaterial) {
+                                this.rubbleMaterial.map = diff;
+                                this.rubbleMaterial.normalMap = nor;
+                                this.rubbleMaterial.needsUpdate = true;
+                            }
+                            this._hasPolyHavenRubbleTex = true;
+                            this._lastTerrainSig = null;
+                            resolveTex(true);
+                        }, undefined, () => resolveTex(false));
+                    }, undefined, () => resolveTex(false));
                 });
             }
-        }, undefined, () => {});
+        });
 
         // 3. Rock 07 (Photogrammetry Mountain Crag)
-        loader.load('/assets/polyhaven/models/rock_07/rock_07.gltf', (gltf) => {
+        addGltfTask('/assets/polyhaven/models/rock_07/rock_07.gltf', (gltf) => {
             const scene = gltf.scene || (gltf.scenes && gltf.scenes[0]);
             if (!scene) return;
             const parts = [];
@@ -4771,26 +4877,27 @@ class Dungeon3D {
                 if (this.mountainMesh && this.mountainMesh.geometry) this.mountainMesh.geometry.dispose();
                 if (this.mountainMesh) this.mountainMesh.geometry = geo;
 
-                const texLoader = new THREE.TextureLoader();
-                texLoader.load('/assets/polyhaven/models/rock_07/textures/rock_07_diff_1k.jpg', (diff) => {
-                    diff.encoding = THREE.sRGBEncoding;
-                    diff.flipY = false;
-                    texLoader.load('/assets/polyhaven/models/rock_07/textures/rock_07_nor_gl_1k.jpg', (nor) => {
-                        nor.flipY = false;
-                        if (this.mountainMaterial) {
-                            this.mountainMaterial.map = diff;
-                            this.mountainMaterial.normalMap = nor;
-                            this.mountainMaterial.needsUpdate = true;
-                        }
-                        this._hasPolyHavenMountainTex = true;
-                        this._lastTerrainSig = null;
-                        if (this.lastFrame) this.updateDungeon(this.lastFrame);
-                    });
+                return new Promise((resolveTex) => {
+                    texLoader.load('/assets/polyhaven/models/rock_07/textures/rock_07_diff_1k.jpg', (diff) => {
+                        diff.encoding = THREE.sRGBEncoding;
+                        diff.flipY = false;
+                        texLoader.load('/assets/polyhaven/models/rock_07/textures/rock_07_nor_gl_1k.jpg', (nor) => {
+                            nor.flipY = false;
+                            if (this.mountainMaterial) {
+                                this.mountainMaterial.map = diff;
+                                this.mountainMaterial.normalMap = nor;
+                                this.mountainMaterial.needsUpdate = true;
+                            }
+                            this._hasPolyHavenMountainTex = true;
+                            this._lastTerrainSig = null;
+                            resolveTex(true);
+                        }, undefined, () => resolveTex(false));
+                    }, undefined, () => resolveTex(false));
                 });
             }
-        }, undefined, () => {});
+        });
 
-        loader.load('/assets/models/items/Anvil_Log.gltf', (gltf) => {
+        addGltfTask('/assets/models/items/Anvil_Log.gltf', (gltf) => {
             if (!gltf || !gltf.scene || !this.forgeMesh) return;
             gltf.scene.updateMatrixWorld(true);
             const geos = [];
@@ -4832,9 +4939,8 @@ class Dungeon3D {
                     this.forgeMaterial.needsUpdate = true;
                 }
                 this._lastTerrainSig = null;
-                if (this.lastFrame) this.updateDungeon(this.lastFrame);
             }
-        }, undefined, () => {});
+        });
 
         // # ROOT-CAUSE: Preserve the 3-layer sculpted Gothic High Altar and 3-layer Tiered Marble Fountain geometries instead of overwriting them with broken shrine_candles.gltf UV merges or low-poly cartoon building_well_blue.gltf.
         // 4 & 5. Bind 2K PBR Carved Stone Normal & Roughness Maps to Sculpted High Altars (feat 43) & Magic Fountains (feat 44)
@@ -4854,9 +4960,12 @@ class Dungeon3D {
                 }
             }
         });
+        if (typeof this.ensurePbrSetReady === 'function') {
+            envTasks.push(this.ensurePbrSetReady('monastery_stone_floor'));
+        }
 
         // 6. Sculpted Iron-Strapped Wooden Doors, Stone Arch Frames & Stepped Stone Staircases
-        loader.load('/assets/models/items/Door_4_Flat.gltf', (gltf) => {
+        addGltfTask('/assets/models/items/Door_4_Flat.gltf', (gltf) => {
             if (!gltf || !gltf.scene || !this.doorMesh) return;
             gltf.scene.updateMatrixWorld(true);
             const geos = [];
@@ -4910,11 +5019,10 @@ class Dungeon3D {
                     this.doorOpenMesh.geometry = openGeo;
                 }
                 this._lastTerrainSig = null;
-                if (this.lastFrame) this.updateDungeon(this.lastFrame);
             }
-        }, undefined, () => {});
+        });
 
-        loader.load('/assets/models/items/DoorFrame_Flat_Brick.gltf', (gltf) => {
+        addGltfTask('/assets/models/items/DoorFrame_Flat_Brick.gltf', (gltf) => {
             if (!gltf || !gltf.scene || !this.doorFrameMesh) return;
             gltf.scene.updateMatrixWorld(true);
             const geos = [];
@@ -4945,11 +5053,10 @@ class Dungeon3D {
                 if (this.doorFrameMesh.geometry) this.doorFrameMesh.geometry.dispose();
                 this.doorFrameMesh.geometry = frameGeo;
                 this._lastTerrainSig = null;
-                if (this.lastFrame) this.updateDungeon(this.lastFrame);
             }
-        }, undefined, () => {});
+        });
 
-        loader.load('/assets/models/items/Stairs_Exterior_Straight.gltf', (gltf) => {
+        addGltfTask('/assets/models/items/Stairs_Exterior_Straight.gltf', (gltf) => {
             if (!gltf || !gltf.scene || !this.stairsMesh) return;
             gltf.scene.updateMatrixWorld(true);
             const geos = [];
@@ -4985,9 +5092,15 @@ class Dungeon3D {
                 if (this.stairsMesh && this.stairsMesh.geometry) this.stairsMesh.geometry.dispose();
                 if (this.stairsMesh) this.stairsMesh.geometry = downGeo;
                 this._lastTerrainSig = null;
-                if (this.lastFrame) this.updateDungeon(this.lastFrame);
             }
-        }, undefined, () => {});
+        });
+
+        this._polyHavenEnvPromise = Promise.allSettled(envTasks).then(() => {
+            this._polyHavenEnvLoaded = true;
+            this._lastTerrainSig = null;
+            return true;
+        });
+        return this._polyHavenEnvPromise;
     }
 
     initStarCanopy() {
@@ -5377,16 +5490,8 @@ class Dungeon3D {
             torch: 'item_torch',
             lantern: 'ph_lantern'
         };
-        // # ROOT-CAUSE: Defer background 3D character, environment, and weapon GLB prewarming by 1800ms so initial Splash Screen load and WebGL fire shader startup never contend with multi-megabyte GLB fetches.
-        setTimeout(() => {
-            this._ensureMonster3DTemplate('char_male_peasant').catch(() => {});
-            this._ensureMonster3DTemplate('char_female_peasant').catch(() => {});
-            this._ensureMonster3DTemplate('bestiary_fox').catch(() => {});
-            this._ensureMonster3DTemplate('char_male_ranger').catch(() => {});
-            this._loadPolyHavenEnvironmentModels();
-            this._ensureViewmodelWeapon('sword');
-            this._ensureViewmodelWeapon('shield');
-        }, 1800);
+        // # ROOT-CAUSE: Remove unconditional 1800ms GLB prewarm timer during cold boot; awaitSceneAssetsReady(frame) loads exact required scene GLBs on demand.
+        this._viewmodelWeaponPromises = new Map();
 
         // Masterwork Braided Kangaroo-Leather Bullwhip + Coiled Loops + 3D Armored Gauntlet (zero CylinderGeometry/BoxGeometry)
         const createWhipViewmodelMesh = () => {
@@ -5841,13 +5946,22 @@ class Dungeon3D {
     }
 
     _ensureViewmodelWeapon(key) {
-        if (!key || this.weaponCache.has(key)) return;
+        // # ROOT-CAUSE: Return a deduplicated Promise from _ensureViewmodelWeapon and expose awaitSceneAssetsReady(frame) so #loading-overlay waits until 100% of 2K PBR maps, 4K sprite atlases, 3D monster/item GLBs, viewmodel weapons, and shaders are ready.
+        if (!key) return Promise.resolve(null);
+        if (this.weaponCache.has(key)) return Promise.resolve(this.weaponCache.get(key));
+        if (!this._viewmodelWeaponPromises) this._viewmodelWeaponPromises = new Map();
+        if (this._viewmodelWeaponPromises.has(key)) return this._viewmodelWeaponPromises.get(key);
         const phKey = this._viewmodelWeaponPhMap && this._viewmodelWeaponPhMap[key];
-        if (!phKey) return;
-        this._ensurePolyHavenFloorItem(phKey).then((tmpl) => {
-            if (!tmpl || this.weaponCache.has(key)) return;
+        if (!phKey) return Promise.resolve(null);
+        const needsGauntlet = !key.startsWith('shield') && key !== 'bow';
+        const p = Promise.all([
+            this._ensurePolyHavenFloorItem(phKey),
+            needsGauntlet ? this._ensurePolyHavenFloorItem('item_gauntlets') : Promise.resolve(null)
+        ]).then(([tmpl, gTmpl]) => {
+            if (!tmpl) return null;
+            if (this.weaponCache.has(key)) return this.weaponCache.get(key);
             const wClone = this._cloneCachedGltfTemplate(tmpl, null, phKey);
-            if (!wClone) return;
+            if (!wClone) return null;
             this._prepareCanonicalHeldClone(wClone, phKey);
             // _prepareCanonicalHeldClone aligns cutting edges / striking faces to +Z for 3rd-person monster hands.
             // In 1st-person camera space (looking down -Z), rotate innerPivot so the striking edge faces forward-left (-Z / -X) into the dungeon!
@@ -5873,16 +5987,14 @@ class Dungeon3D {
                 wClone.position.set(0, key === 'dagger' || key === 'hatchet' ? -0.02 : -0.01, 0);
                 wClone.rotation.set(0.16, -0.22, 0.10);
             }
-            if (!key.startsWith('shield') && key !== 'bow') {
-                this._ensurePolyHavenFloorItem('item_gauntlets').then((gTmpl) => {
-                    if (!gTmpl) return;
-                    const gClone = this._cloneCachedGltfTemplate(gTmpl, '#3a3530', 'item_gauntlets');
-                    if (!gClone) return;
+            if (needsGauntlet && gTmpl) {
+                const gClone = this._cloneCachedGltfTemplate(gTmpl, '#3a3530', 'item_gauntlets');
+                if (gClone) {
                     gClone.scale.set(0.34, 0.42, 0.34);
                     gClone.position.set(0.0, -0.09, 0.02);
                     gClone.rotation.set(0.35, 0.0, -0.18);
                     wClone.add(gClone);
-                }).catch(() => {});
+                }
             }
             this.weaponCache.set(key, wClone);
             if (this.lastFrame && this.lastFrame.player) {
@@ -5890,7 +6002,281 @@ class Dungeon3D {
                 this.currentLeftWeapon = null;
                 this.updateViewmodel(this.lastFrame.player);
             }
-        }).catch(() => {});
+            return wClone;
+        }).catch(() => null);
+        this._viewmodelWeaponPromises.set(key, p);
+        return p;
+    }
+
+    resolveDesiredViewmodelKeys(player) {
+        if (!player) return [];
+        const _itemStr = (v) => (v && typeof v === 'object') ? String(v.name || v.desc || '') : String(v || '');
+        let weaponItem = _itemStr(player.weapon_item);
+        let bowItem = _itemStr(player.bow_item);
+        let shieldItem = _itemStr(player.shield_item);
+        if (Array.isArray(player.equipment)) {
+            for (const eq of player.equipment) {
+                if (!eq) continue;
+                const eqName = String(eq.name || eq.desc || '').trim();
+                if (!eqName || /^(none|nothing|\(nothing\)|\(none\)|empty|なし)$/i.test(eqName)) continue;
+                const slot = String(eq.slot ?? eq.label ?? '').toLowerCase();
+                if (!weaponItem && (slot === '0' || slot === 'a' || slot.includes('wield') || slot.includes('weapon') || slot.includes('right'))) {
+                    weaponItem = eqName;
+                } else if (!bowItem && (slot === '2' || slot === 'b' || slot.includes('shoot') || slot.includes('bow') || slot.includes('launcher'))) {
+                    bowItem = eqName;
+                } else if (!shieldItem && (slot === '1' || slot === 'f' || slot.includes('arm') || slot.includes('shield') || slot.includes('offhand') || slot.includes('left'))) {
+                    shieldItem = eqName;
+                }
+            }
+        }
+        const keys = [];
+        const lowerW = (weaponItem || '').toLowerCase();
+        const lowerB = (bowItem || '').toLowerCase();
+        const wTval = player && Number(player.weapon_tval || 0);
+        let rightKey = '';
+        if (typeof window !== 'undefined' && window.MASTER_ITEM_REGISTRY && typeof window.MASTER_ITEM_REGISTRY.resolveEquippedWeaponKey === 'function') {
+            rightKey = window.MASTER_ITEM_REGISTRY.resolveEquippedWeaponKey(weaponItem, bowItem, player, this.realm) || '';
+        } else if (lowerW.length > 0) {
+            if (/\b(shovel|spade|trowel)\b/.test(lowerW)) rightKey = 'shovel';
+            else if (/\b(pick|pickaxe|mattock|digger)\b/.test(lowerW) || wTval === 20) rightKey = 'pickaxe';
+            else if (/\bwand\b/.test(lowerW) || wTval === 65) rightKey = 'wand';
+            else if (/\brod\b/.test(lowerW) || wTval === 66) rightKey = 'rod';
+            else if (/\b(staff|quarterstaff)\b/.test(lowerW) || wTval === 55) rightKey = /\b(gnarled|branch|druid|wood)\b/.test(lowerW) ? 'staff_branch' : 'staff';
+            else if (/\b(scythe|sickle|glaive|halberd|lochaber)\b/.test(lowerW)) rightKey = 'axe';
+            else if (lowerW.includes('whip') || lowerW.includes('bullwhip') || lowerW.includes('scourge') || lowerW.includes('cat-o')) rightKey = 'whip';
+            else if (lowerW.includes('katana') || lowerW.includes('wakizashi') || lowerW.includes('nodachi') || lowerW.includes('ninja-to') || lowerW.includes('tanto')) rightKey = 'katana';
+            else if (lowerW.includes('dagger') || lowerW.includes('knife') || lowerW.includes('main gauche') || lowerW.includes('misericorde') || lowerW.includes('stiletto') || lowerW.includes('dirk')) rightKey = 'dagger';
+            else if (lowerW.includes('claymore') || lowerW.includes('two-handed') || lowerW.includes('great sword') || lowerW.includes('executioner') || lowerW.includes('zweihander')) rightKey = 'claymore';
+            else if (lowerW.includes('rune') || lowerW.includes('vorpal') || lowerW.includes('morgul') || lowerW.includes('ringil') || lowerW.includes('anduril') || lowerW.includes('glamdring')) rightKey = 'blade';
+            else if (lowerW.includes('saber') || lowerW.includes('sabre') || lowerW.includes('scimitar') || lowerW.includes('cutlass') || lowerW.includes('falchion') || lowerW.includes('tulwar')) rightKey = 'saber';
+            else if (lowerW.includes('hatchet')) rightKey = 'hatchet';
+            else if (lowerW.includes('axe') || lowerW.includes('cleaver')) rightKey = 'axe';
+            else if (lowerW.includes('morning star') || lowerW.includes('morningstar') || lowerW.includes('flail') || lowerW.includes('ball-and-chain')) rightKey = 'morningstar';
+            else if (lowerW.includes('club') || lowerW.includes('cudgel')) rightKey = 'club';
+            else if (lowerW.includes('mace') || lowerW.includes('scepter')) rightKey = 'mace';
+            else if (/\b(sledge|maul|great hammer|grond)\b/.test(lowerW)) rightKey = 'sledgehammer';
+            else if (lowerW.includes('hammer')) rightKey = 'hammer';
+            else if (lowerW.includes('spear') || lowerW.includes('pike') || lowerW.includes('lance') || lowerW.includes('trident') || lowerW.includes('polearm')) rightKey = 'spear';
+            else rightKey = 'sword';
+        } else if (lowerB.length > 0) {
+            rightKey = 'bow';
+        }
+        if (rightKey && !this.weaponCache.has(rightKey)) keys.push(rightKey);
+
+        const lowerS = String(shieldItem || '').toLowerCase().trim();
+        if (shieldItem && !/^(none|nothing|\(nothing\)|\(none\)|empty|なし)$/i.test(lowerS)) {
+            let leftKey = '';
+            if (typeof window !== 'undefined' && window.MASTER_ITEM_REGISTRY && typeof window.MASTER_ITEM_REGISTRY.resolveShieldKey === 'function') {
+                leftKey = window.MASTER_ITEM_REGISTRY.resolveShieldKey(shieldItem, '(', this.realm) || '';
+                if (!leftKey && typeof window.MASTER_ITEM_REGISTRY.resolveEquippedWeaponKey === 'function') {
+                    leftKey = window.MASTER_ITEM_REGISTRY.resolveEquippedWeaponKey(shieldItem, '', player, this.realm) || '';
+                }
+            } else if (/\b(deflection|dragon|artifact|thorin|celegorm|anor|gil-galad|harad|raven|mirror|elven)\b/.test(lowerS) && /\b(shield|buckler|targe)\b/.test(lowerS)) {
+                leftKey = 'shield_raven';
+            } else if (/\b(wicker|buckler|basket)\b/.test(lowerS)) {
+                leftKey = 'shield_wicker';
+            } else if (/\bleather\b/.test(lowerS) && /\b(shield|buckler|targe)\b/.test(lowerS)) {
+                leftKey = 'shield_leather';
+            } else if (/\bsmall metal\b/.test(lowerS)) {
+                leftKey = 'shield_metal';
+            } else if (/\b(wooden|wood|round|small|target)\b/.test(lowerS) && /\b(shield|buckler|targe)\b/.test(lowerS)) {
+                leftKey = 'shield_wooden';
+            } else if (/\b(shield|buckler|targe)\b/.test(lowerS)) {
+                leftKey = 'shield';
+            }
+            if (leftKey && !this.weaponCache.has(leftKey) && !keys.includes(leftKey)) keys.push(leftKey);
+        }
+        return keys;
+    }
+
+    getRequiredPbrSetIds(theme, outdoors, realm) {
+        // # ROOT-CAUSE: Map active scene themes to exact this.polyHavenSets IDs, check this._monster3DTemplates and this._gltfTemplateCache in hasPendingSceneAssets, and call applyEnvironmentTextures with canonical arguments.
+        const tid = String((theme && theme.id) ? theme.id : (theme || 'granite')).toLowerCase();
+        const r = String(realm || this.realm || 'angband').toLowerCase();
+        const ids = new Set(['bark_willow_02', 'local_wood_trim', 'local_rock_trim']);
+        if (outdoors) {
+            if (r === 'hengband') {
+                ids.add('japanese_stone_wall');
+            } else {
+                ids.add('plastered_stone_wall');
+                ids.add('local_plaster');
+                ids.add('castle_brick_broken_06');
+                ids.add('medieval_blocks_05');
+            }
+            const isWild = tid.includes('wild') || (this.currentBiome && (this.currentBiome.id === 'wilderness' || this.currentBiome.id === 'grassland'));
+            ids.add(isWild ? 'aerial_grass_rock' : 'cobblestone_floor_08');
+            ids.add('rock_wall_10');
+            ids.add('cliff_side');
+            ids.add('brown_mud_rocks_01');
+            return Array.from(ids);
+        }
+        if (r === 'hengband' || tid.includes('heng') || tid.includes('eastern')) {
+            ids.add('japanese_stone_wall');
+            ids.add('monastery_stone_floor');
+        } else if (r === 'silq') {
+            ids.add('local_rock_trim');
+            ids.add('rock_embedded_floor');
+            ids.add('cliff_side');
+        } else if (r === 'brogue') {
+            ids.add('cliff_side');
+            ids.add('rock_embedded_floor');
+            ids.add('rock_boulder_cracked');
+        } else if (r === 'nethack') {
+            ids.add('local_uneven_brick');
+            ids.add('monastery_stone_floor');
+            ids.add('plastered_stone_wall');
+        } else if (r === 'dcss') {
+            ids.add('local_red_brick');
+            ids.add('monastery_stone_floor');
+            ids.add('medieval_blocks_05');
+        } else if (r === 'rogue') {
+            ids.add('local_brick');
+            ids.add('monastery_stone_floor');
+            ids.add('rock_wall_10');
+        } else if (tid.includes('chasm') || tid.includes('cliff') || tid.includes('torment') || tid.includes('mountain') || tid.includes('mine') || tid.includes('nether')) {
+            ids.add('cliff_side');
+            ids.add('rock_embedded_floor');
+        } else if (tid.includes('abyss') || tid.includes('magma') || tid.includes('inferno') || tid.includes('throne')) {
+            ids.add('rock_wall_10');
+            ids.add('rock_embedded_floor');
+            ids.add('rock_boulder_cracked');
+        } else if (tid.includes('cavern') || tid.includes('slag') || tid.includes('crystal')) {
+            ids.add('rock_wall_10');
+            ids.add('rock_embedded_floor');
+            ids.add('cliff_side');
+        } else if (tid.includes('labyrinth') || tid.includes('sepulchre')) {
+            ids.add('local_uneven_brick');
+            ids.add('monastery_stone_floor');
+            ids.add('plastered_stone_wall');
+        } else if (tid.includes('swamp') || tid.includes('mud')) {
+            ids.add('rock_wall_10');
+            ids.add('brown_mud_rocks_01');
+        } else {
+            ids.add('medieval_blocks_05');
+            ids.add('monastery_stone_floor');
+            ids.add('rock_wall_10');
+            ids.add('local_brick');
+            ids.add('local_uneven_brick');
+            ids.add('local_round_tiles');
+        }
+        return Array.from(ids);
+    }
+
+    hasPendingSceneAssets(frame) {
+        if (!frame) return false;
+        const player = frame.player || {};
+        const depth = Number(player.depth || 0);
+        const outdoors = Boolean(frame.outdoors) || depth === 0;
+        const theme = frame.theme || this.currentBiome || (depth === 0 ? 'TOWN' : 'GRANITE');
+        const pbrIds = this.getRequiredPbrSetIds(theme, outdoors, frame.realm || this.realm);
+        const ph = this.polyHavenSets;
+        for (const id of pbrIds) {
+            const entry = ph && ph.get(id);
+            if (!entry || !entry._loaded) return true;
+        }
+        if (!this._sharedDetailTexLoaded || !this._polyHavenEnvLoaded) return true;
+        if (!this.monsterAtlasData || !this.itemAtlasData) return true;
+        for (const m of (frame.monsters || [])) {
+            const cfg = typeof this.resolveMonster3DConfig === 'function' ? this.resolveMonster3DConfig(m, m.glyph) : null;
+            if (cfg && cfg.templateKey && (!this._monster3DTemplates || !this._monster3DTemplates.has(cfg.templateKey))) return true;
+            if (cfg && cfg.weaponKey && (!this._gltfTemplateCache || !this._gltfTemplateCache.has(cfg.weaponKey))) return true;
+            if (cfg && cfg.shieldKey && (!this._gltfTemplateCache || !this._gltfTemplateCache.has(cfg.shieldKey))) return true;
+        }
+        for (const it of (frame.items || [])) {
+            const phKey = typeof this.getItemObjKey === 'function' ? this.getItemObjKey(it.name || '', it.glyph || '') : null;
+            if (phKey && (!this._gltfTemplateCache || !this._gltfTemplateCache.has(phKey))) return true;
+        }
+        const vmKeys = this.resolveDesiredViewmodelKeys(player);
+        for (const vk of vmKeys) {
+            if (!this.weaponCache.has(vk)) return true;
+        }
+        return false;
+    }
+
+    async awaitSceneAssetsReady(frame, onProgress) {
+        if (!frame) return true;
+        window.gameSceneAssetsLoading = true;
+        try {
+            const player = frame.player || {};
+            const depth = Number(player.depth || 0);
+            const outdoors = Boolean(frame.outdoors) || depth === 0;
+            const theme = frame.theme || this.currentBiome || (depth === 0 ? 'TOWN' : 'GRANITE');
+            const tasks = [];
+            const addTask = (p) => {
+                if (p && typeof p.then === 'function') tasks.push(p.catch(() => null));
+            };
+
+            const pbrIds = this.getRequiredPbrSetIds(theme, outdoors, frame.realm || this.realm);
+            for (const id of pbrIds) {
+                addTask(this.ensurePbrSetReady(id));
+            }
+            addTask(this.ensureSharedDetailTexturesReady());
+            addTask(this.ensureMonsterAtlasReady());
+            addTask(this.ensureItemAtlasReady());
+            addTask(this._loadPolyHavenEnvironmentModels());
+
+            const monsterTemplateKeys = new Set();
+            const heldItemPhKeys = new Set();
+            for (const m of (frame.monsters || [])) {
+                const cfg = typeof this.resolveMonster3DConfig === 'function' ? this.resolveMonster3DConfig(m, m.glyph) : null;
+                if (cfg && cfg.templateKey) {
+                    monsterTemplateKeys.add(cfg.templateKey);
+                    if (cfg.weaponKey) heldItemPhKeys.add(cfg.weaponKey);
+                    if (cfg.shieldKey) heldItemPhKeys.add(cfg.shieldKey);
+                }
+            }
+            for (const tKey of monsterTemplateKeys) {
+                addTask(this._ensureMonster3DTemplate(tKey));
+            }
+            for (const hKey of heldItemPhKeys) {
+                addTask(this._ensurePolyHavenFloorItem(hKey));
+            }
+            for (const it of (frame.items || [])) {
+                const phKey = typeof this.getItemObjKey === 'function' ? this.getItemObjKey(it.name || '', it.glyph || '') : null;
+                if (phKey) addTask(this._ensurePolyHavenFloorItem(phKey));
+            }
+
+            const vmKeys = this.resolveDesiredViewmodelKeys(player);
+            for (const vKey of vmKeys) {
+                addTask(this._ensureViewmodelWeapon(vKey));
+            }
+
+            const total = tasks.length;
+            if (total > 0) {
+                let completed = 0;
+                if (typeof onProgress === 'function') onProgress(0, total, 'Loading 3D models & 2K PBR textures...');
+                await Promise.all(tasks.map((p) => p.then((res) => {
+                    completed++;
+                    if (typeof onProgress === 'function') {
+                        onProgress(completed, total, `Loading 3D scene assets (${completed}/${total})...`);
+                    }
+                    return res;
+                })));
+            }
+
+            this._currentThemeId = null;
+            this._currentTexturesAreOutdoors = null;
+            this.applyEnvironmentTextures(outdoors, this.currentBiome, frame.realm || this.realm || 'angband', depth, this.levelSeed || 0);
+            if (this.lastFrame) {
+                if (typeof this.upgradeAllMonsterEntities === 'function') this.upgradeAllMonsterEntities();
+                if (typeof this.upgradeAllItemEntities === 'function') this.upgradeAllItemEntities();
+                if (this.lastFrame.player) {
+                    this.currentRightWeapon = null;
+                    this.currentLeftWeapon = null;
+                    this.updateViewmodel(this.lastFrame.player);
+                }
+            }
+
+            if (this.renderer && this.scene && this.camera && typeof this.renderer.compile === 'function') {
+                if (typeof onProgress === 'function') onProgress(total, total, 'Compiling WebGL shaders...');
+                try {
+                    this.renderer.compile(this.scene, this.camera);
+                } catch (_) {}
+            }
+            return true;
+        } finally {
+            window.gameSceneAssetsLoading = false;
+        }
     }
 
     triggerAttackAnimation(fromMessage = false) {
@@ -9960,11 +10346,12 @@ class Dungeon3D {
     }
 
     initMonsterAtlas() {
-        const texLoader = new THREE.TextureLoader();
+        // # ROOT-CAUSE: Defer 4096x4096 monster_atlas.png and monster_normal.png network downloads and GPU mipmap generation until ensureMonsterAtlasReady() runs inside awaitSceneAssetsReady(frame).
         this.monsterAtlasData = null;
         this.monsterAtlasTex = null;
         this.monsterNormalTex = null;
         this._monsterAtlasLowerMap = null;
+        this.monsterAtlasReady = null;
 
         this.monsterDepthMat = new THREE.MeshDepthMaterial({
             depthPacking: THREE.RGBADepthPacking,
@@ -9982,7 +10369,11 @@ class Dungeon3D {
             side: THREE.DoubleSide,
             vertexColors: true
         });
+    }
 
+    ensureMonsterAtlasReady() {
+        if (this.monsterAtlasReady) return this.monsterAtlasReady;
+        const texLoader = new THREE.TextureLoader();
         this.monsterAtlasReady = new Promise((resolve) => {
             let texDone = false;
             let jsonDone = false;
@@ -10045,10 +10436,14 @@ class Dungeon3D {
                     checkDone();
                 });
         });
+        return this.monsterAtlasReady;
     }
 
     resolveMonsterAtlasEntry(name, glyph) {
-        if (!this.monsterAtlasData) return null;
+        if (!this.monsterAtlasData) {
+            this.ensureMonsterAtlasReady();
+            return null;
+        }
         const monsters = this.monsterAtlasData.monsters;
         const glyphs = this.monsterAtlasData.glyphs;
         if (!monsters && !glyphs) return null;
@@ -10330,11 +10725,12 @@ class Dungeon3D {
     }
 
     initItemAtlas() {
-        const texLoader = new THREE.TextureLoader();
+        // # ROOT-CAUSE: Defer 4096x4096 item_atlas.png and item_normal.png network downloads and GPU mipmap generation until ensureItemAtlasReady() runs inside awaitSceneAssetsReady(frame).
         this.itemAtlasData = null;
         this.itemAtlasTex = null;
         this.itemNormalTex = null;
         this._itemAtlasLowerMap = null;
+        this.itemAtlasReady = null;
 
         this.itemDepthMat = new THREE.MeshDepthMaterial({
             depthPacking: THREE.RGBADepthPacking,
@@ -10352,7 +10748,11 @@ class Dungeon3D {
             side: THREE.DoubleSide,
             vertexColors: true
         });
+    }
 
+    ensureItemAtlasReady() {
+        if (this.itemAtlasReady) return this.itemAtlasReady;
+        const texLoader = new THREE.TextureLoader();
         this.itemAtlasReady = new Promise((resolve) => {
             let texDone = false;
             let jsonDone = false;
@@ -10415,10 +10815,14 @@ class Dungeon3D {
                     checkDone();
                 });
         });
+        return this.itemAtlasReady;
     }
 
     resolveItemAtlasEntry(name, glyph) {
-        if (!this.itemAtlasData) return null;
+        if (!this.itemAtlasData) {
+            this.ensureItemAtlasReady();
+            return null;
+        }
         const items = this.itemAtlasData.items;
         const glyphs = this.itemAtlasData.glyphs;
         if (!items && !glyphs) return null;
@@ -15194,16 +15598,28 @@ class Dungeon3D {
 
         const tNow = performance.now();
 
-        // When terminal or death modal completely covers the screen, throttle 3D rendering to 5 FPS
+        // When terminal or modal completely covers the screen, throttle 3D rendering to 5 FPS; pause completely (0 FPS) when hidden or behind opaque boot/menu/loading curtains
         const termContainer = this._termContainerEl || (this._termContainerEl = document.getElementById('terminal-container'));
         const deathModal = this._deathModalEl || (this._deathModalEl = document.getElementById('death-modal'));
+        const loadModal = this._loadModalEl || (this._loadModalEl = document.getElementById('load-modal'));
+        const guideModal = this._guideModalEl || (this._guideModalEl = document.getElementById('guide-modal'));
+        const realmModal = this._realmModalEl || (this._realmModalEl = document.getElementById('realm-modal'));
         const splashOverlay = this._splashOverlayEl || (this._splashOverlayEl = document.getElementById('splash-overlay'));
-        const isSplashVisible = splashOverlay && !splashOverlay.classList.contains('hidden');
-        const isCovered = (termContainer && !termContainer.classList.contains('hidden')) ||
-                          (deathModal && !deathModal.classList.contains('hidden'));
+        const mainMenuOverlay = this._mainMenuOverlayEl || (this._mainMenuOverlayEl = document.getElementById('main-menu-overlay'));
+        const loadingOverlay = this._loadingOverlayEl || (this._loadingOverlayEl = document.getElementById('loading-overlay'));
+        const isPageHidden = typeof document !== 'undefined' && Boolean(document.hidden);
+        const isOpaqueCurtainVisible = isPageHidden ||
+            Boolean(splashOverlay && !splashOverlay.classList.contains('hidden')) ||
+            Boolean(mainMenuOverlay && !mainMenuOverlay.classList.contains('hidden')) ||
+            Boolean(loadingOverlay && !loadingOverlay.classList.contains('hidden'));
+        const isCovered = Boolean(termContainer && !termContainer.classList.contains('hidden')) ||
+            Boolean(deathModal && !deathModal.classList.contains('hidden')) ||
+            Boolean(loadModal && !loadModal.classList.contains('hidden')) ||
+            Boolean(guideModal && !guideModal.classList.contains('hidden')) ||
+            Boolean(realmModal && !realmModal.classList.contains('hidden'));
         const isRecording = typeof window !== 'undefined' && window.location.search && window.location.search.includes('record_walkthrough=1');
-        // # ROOT-CAUSE: Pause 3D WebGL scene rendering completely while the opaque #splash-overlay is visible so the splash fire/sparkle shader gets 100% of startup frame budget without frame hitches.
-        if (isSplashVisible && !isRecording) {
+        // # ROOT-CAUSE: Pause 3D WebGL scene rendering completely (0 FPS) when document.hidden or when #splash-overlay, #main-menu-overlay, or #loading-overlay is visible, and throttle to 5 FPS behind full-screen modals.
+        if (isOpaqueCurtainVisible && !isRecording) {
             this._fpsGovFrames = 0;
             this._fpsGovStart = 0;
             this._lastAnimTime = tNow;

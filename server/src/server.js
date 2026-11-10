@@ -3128,11 +3128,68 @@ const server = http.createServer((req, res) => {
                 } catch (_) {}
             }
 
-        // Gzip compression for text & 3D scene/code payloads (.html, .js, .css, .json, .obj, .mtl, .svg, .gltf, .bin)
-        const compressible = ['.html', '.js', '.css', '.json', '.obj', '.mtl', '.svg', '.gltf', '.bin'].includes(ext);
+        // Brotli & Gzip compression for text & 3D scene/code payloads (.html, .js, .css, .json, .obj, .mtl, .svg, .gltf, .glb, .bin, .wasm)
+        const compressible = ['.html', '.js', '.css', '.json', '.obj', '.mtl', '.svg', '.gltf', '.glb', '.bin', '.wasm'].includes(ext);
         const acceptEncoding = req.headers['accept-encoding'] || '';
 
-        if (compressible && acceptEncoding.includes('gzip')) {
+        if (compressible && acceptEncoding.includes('br') && typeof zlib.brotliCompress === 'function') {
+            headers['Content-Encoding'] = 'br';
+            try {
+                const stat = fileStat;
+                const cacheKey = `br:${filePath}:${stat.mtimeMs}`;
+                const cached = staticGzipCache.get(cacheKey);
+                if (cached) {
+                    staticGzipCache.delete(cacheKey);
+                    staticGzipCache.set(cacheKey, cached);
+                    headers['Content-Length'] = cached.length;
+                    res.writeHead(200, headers);
+                    res.end(cached);
+                    return;
+                }
+                fs.promises.readFile(filePath).then((rawBuffer) => {
+                    zlib.brotliCompress(rawBuffer, {
+                        params: {
+                            [zlib.constants.BROTLI_PARAM_QUALITY]: 4,
+                            [zlib.constants.BROTLI_PARAM_SIZE_HINT]: rawBuffer.length
+                        }
+                    }, (err, compressed) => {
+                        if (!err && compressed) {
+                            if (staticGzipCache.size >= MAX_STATIC_CACHE_ITEMS) {
+                                const oldest = staticGzipCache.keys().next().value;
+                                staticGzipCache.delete(oldest);
+                            }
+                            staticGzipCache.set(cacheKey, compressed);
+                            headers['Content-Length'] = compressed.length;
+                            res.writeHead(200, headers);
+                            res.end(compressed);
+                        } else {
+                            res.writeHead(200, headers);
+                            const fallbackStream = fs.createReadStream(filePath);
+                            res.on('close', () => { fallbackStream.destroy(); });
+                            fallbackStream.pipe(zlib.createBrotliCompress({
+                                params: { [zlib.constants.BROTLI_PARAM_QUALITY]: 4 }
+                            })).pipe(res);
+                        }
+                    });
+                }).catch(() => {
+                    res.writeHead(200, headers);
+                    const fallbackStream = fs.createReadStream(filePath);
+                    res.on('close', () => { fallbackStream.destroy(); });
+                    fallbackStream.pipe(zlib.createBrotliCompress({
+                        params: { [zlib.constants.BROTLI_PARAM_QUALITY]: 4 }
+                    })).pipe(res);
+                });
+                return;
+            } catch (_) {
+                res.writeHead(200, headers);
+                const fallbackStream = fs.createReadStream(filePath);
+                res.on('close', () => { fallbackStream.destroy(); });
+                fallbackStream.pipe(zlib.createBrotliCompress({
+                    params: { [zlib.constants.BROTLI_PARAM_QUALITY]: 4 }
+                })).pipe(res);
+                return;
+            }
+        } else if (compressible && acceptEncoding.includes('gzip')) {
             headers['Content-Encoding'] = 'gzip';
             try {
                 const stat = fileStat;

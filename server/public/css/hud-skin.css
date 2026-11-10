@@ -2132,6 +2132,155 @@ body:has(#command-palette-modal:not(.hidden)) #global-audio-bar {
   box-shadow: 0 0 14px rgba(212, 175, 55, 0.45), inset 0 1px 0 rgba(255, 240, 180, 0.35) !important;
 }
 
+/* ==========================================================================
+   YASD 3D Animated Emblem Loading Curtain (Zero-Fallback Scene Gate)
+   ========================================================================== */
+#loading-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9500;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle at 50% 42%, rgba(22, 17, 12, 0.96) 0%, rgba(7, 7, 10, 0.99) 70%, #040406 100%);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  transition: opacity 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+#loading-overlay.hidden {
+  display: none !important;
+}
+
+.loading-emblem-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 32px 38px;
+  border-radius: 16px;
+  background: linear-gradient(180deg, rgba(24, 20, 16, 0.92) 0%, rgba(10, 9, 12, 0.96) 100%);
+  border: 1px solid rgba(212, 175, 55, 0.38);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.88), 0 0 38px rgba(212, 175, 55, 0.14), inset 0 1px 0 rgba(255, 236, 179, 0.18);
+  max-width: min(420px, 90vw);
+  text-align: center;
+}
+
+.loading-emblem-wheel {
+  position: relative;
+  width: 124px;
+  height: 124px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 4px;
+}
+
+.loading-rune-ring {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  will-change: transform;
+}
+
+.loading-rune-ring-outer {
+  inset: 0;
+  border: 2px solid rgba(212, 175, 55, 0.22);
+  border-top-color: #ffd700;
+  border-right-color: rgba(245, 158, 11, 0.78);
+  box-shadow: 0 0 22px rgba(212, 175, 55, 0.28), inset 0 0 14px rgba(212, 175, 55, 0.14);
+  animation: yasdRuneSpinCw 2.6s linear infinite;
+}
+
+.loading-rune-ring-inner {
+  inset: 11px;
+  border: 1.5px dashed rgba(251, 191, 36, 0.48);
+  border-bottom-color: rgba(255, 215, 0, 0.92);
+  animation: yasdRuneSpinCcw 4.2s linear infinite;
+}
+
+.loading-emblem-logo {
+  width: 72px;
+  height: 72px;
+  object-fit: contain;
+  filter: drop-shadow(0 0 14px rgba(212, 175, 55, 0.52));
+  animation: yasdEmblemPulse 2.2s ease-in-out infinite;
+}
+
+.loading-emblem-title {
+  margin: 0;
+  font-family: var(--font-display, 'Cinzel', serif);
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: 3.5px;
+  color: var(--gold-bright, #ffd700);
+  text-shadow: 0 2px 12px rgba(212, 175, 55, 0.45);
+}
+
+.loading-emblem-subtitle {
+  margin: 0;
+  min-height: 20px;
+  font-family: var(--font-sans, 'Outfit', sans-serif);
+  font-size: 13.5px;
+  color: rgba(226, 232, 240, 0.86);
+  letter-spacing: 0.3px;
+}
+
+.loading-progress-track {
+  width: min(280px, 74vw);
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(15, 15, 20, 0.92);
+  border: 1px solid rgba(212, 175, 55, 0.32);
+  overflow: hidden;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.85);
+}
+
+.loading-progress-fill {
+  height: 100%;
+  width: 12%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #b45309 0%, #eab308 55%, #fef08a 100%);
+  box-shadow: 0 0 12px rgba(234, 179, 8, 0.65);
+  transition: width 0.22s ease-out;
+}
+
+.loading-cancel-btn {
+  margin-top: 6px;
+  padding: 7px 16px;
+  border-radius: 8px;
+  font-family: var(--font-display, 'Cinzel', serif);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.8px;
+  color: rgba(253, 230, 138, 0.92);
+  background: rgba(30, 24, 18, 0.85);
+  border: 1px solid rgba(212, 175, 55, 0.42);
+  cursor: pointer;
+  transition: all 0.16s ease;
+}
+
+.loading-cancel-btn:hover {
+  background: rgba(212, 175, 55, 0.18);
+  border-color: #ffd700;
+  color: #ffffff;
+}
+
+@keyframes yasdRuneSpinCw {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes yasdRuneSpinCcw {
+  to { transform: rotate(-360deg); }
+}
+
+@keyframes yasdEmblemPulse {
+  0%, 100% { transform: scale(0.97); filter: drop-shadow(0 0 10px rgba(212, 175, 55, 0.38)); }
+  50% { transform: scale(1.03); filter: drop-shadow(0 0 18px rgba(255, 215, 0, 0.68)); }
+}
+
+
 
 
 

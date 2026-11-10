@@ -3568,6 +3568,50 @@ window.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // # ROOT-CAUSE: Hold the animated YASD 3D emblem loading curtain (#loading-overlay) across connection, hello, and initial 3D asset compilation until dungeon.awaitSceneAssetsReady(frame) completes with 0 fallback assets.
+    let loadingCancelTimer = null;
+    let sceneAssetGateSeq = 0;
+
+    function setLoadingCurtain(visible, stageText = null, progressPct = null) {
+        const overlay = loadingOverlay || document.getElementById('loading-overlay');
+        if (!overlay) return;
+        const stageEl = document.getElementById('loading-stage-text');
+        const fillEl = document.getElementById('loading-progress-fill');
+        const cancelBtn = document.getElementById('btn-loading-cancel');
+        if (cancelBtn && !cancelBtn.dataset.boundCancel) {
+            cancelBtn.dataset.boundCancel = '1';
+            cancelBtn.addEventListener('click', () => {
+                window.gameSceneAssetsLoading = false;
+                returnToMainMenu();
+            });
+        }
+        if (visible) {
+            overlay.classList.remove('hidden');
+            if (stageEl && stageText) {
+                stageEl.textContent = stageText;
+            }
+            if (fillEl && typeof progressPct === 'number') {
+                fillEl.style.width = `${Math.max(5, Math.min(100, Math.round(progressPct)))}%`;
+            }
+            if (!loadingCancelTimer && cancelBtn) {
+                cancelBtn.classList.add('hidden');
+                loadingCancelTimer = setTimeout(() => {
+                    loadingCancelTimer = null;
+                    if (overlay && !overlay.classList.contains('hidden') && cancelBtn) {
+                        cancelBtn.classList.remove('hidden');
+                    }
+                }, 6500);
+            }
+        } else {
+            if (loadingCancelTimer) {
+                clearTimeout(loadingCancelTimer);
+                loadingCancelTimer = null;
+            }
+            if (cancelBtn) cancelBtn.classList.add('hidden');
+            overlay.classList.add('hidden');
+        }
+    }
+
     async function startGame(options) {
         appState = 'game';
         hasEnteredPlay = false;
@@ -3579,7 +3623,7 @@ window.addEventListener('DOMContentLoaded', () => {
             audio.startMenuMusic();
         }
         hideModals();
-        if (loadingOverlay) loadingOverlay.classList.remove('hidden');
+        setLoadingCurtain(true, 'Connecting to Cloud Realm & Spawning Engine...', 14);
         if (window.__startWatchdog) clearTimeout(window.__startWatchdog);
         quickBirthActive = !!options.autoBirth;
         quickBirthStep = 0;
@@ -3607,7 +3651,7 @@ window.addEventListener('DOMContentLoaded', () => {
         window.__startWatchdog = setTimeout(() => {
             if (loadingOverlay && !loadingOverlay.classList.contains('hidden') && !lastFrame) {
                 console.warn('[Angband3D] Game start watchdog: engine response timed out after 20s.');
-                loadingOverlay.classList.add('hidden');
+                setLoadingCurtain(false);
                 showRealmToast(`⚠️ Connection timed out while starting realm "${chosenRealm}". Please check server.`);
                 returnToMainMenu();
             }
@@ -3707,10 +3751,13 @@ window.addEventListener('DOMContentLoaded', () => {
             clearTimeout(window.__startWatchdog);
             window.__startWatchdog = null;
         }
+        // # ROOT-CAUSE: Reset loading curtain and scene asset gate flags cleanly when returning to main menu.
+        window.gameSceneAssetsLoading = false;
+        sceneAssetGateSeq++;
         if (queueModal) queueModal.classList.add('hidden');
         stopQueueTipRotation();
         if (terminalContainer) terminalContainer.classList.add('hidden');
-        if (loadingOverlay) loadingOverlay.classList.add('hidden');
+        setLoadingCurtain(false);
         if (pauseModal) pauseModal.classList.add('hidden');
         if (loadModal) loadModal.classList.add('hidden');
         if (demoModal) demoModal.classList.add('hidden');
@@ -6802,6 +6849,7 @@ window.addEventListener('DOMContentLoaded', () => {
     // 2. Network Event Handlers
     function bindNetworkEventHandlers() {
         if (!network) return;
+        // # ROOT-CAUSE: Keep #loading-overlay visible across network.onHello and quick-birth transitions until dungeon.awaitSceneAssetsReady(frame) has loaded and compiled 100% of active biome PBR maps, 4K sprite atlases, 3D monster/item GLBs, and player viewmodel weapons.
         network.onHello = (msg) => {
             if (window.__startWatchdog) {
                 clearTimeout(window.__startWatchdog);
@@ -6812,9 +6860,7 @@ window.addEventListener('DOMContentLoaded', () => {
             if (queueModal) {
                 queueModal.classList.add('hidden');
             }
-            if (loadingOverlay) {
-                loadingOverlay.classList.add('hidden');
-            }
+            setLoadingCurtain(true, 'Synchronizing Realm State & Preparing 3D Scene...', 26);
             const topBanner = document.getElementById('top-message-banner');
             if (topBanner && msg.resumed) {
                 topBanner.classList.add('hidden');
@@ -6822,7 +6868,7 @@ window.addEventListener('DOMContentLoaded', () => {
             // Strict Invariant: Under NO circumstances load the wrong realm or a fallback
             if (msg.isFallback || (activeRealm && msg.realm && msg.realm !== activeRealm)) {
                 console.error(`[Angband3D] Strict Invariant Violation: Server returned realm "${msg.realm}" or fallback for requested "${activeRealm}". Aborting.`);
-                if (loadingOverlay) loadingOverlay.classList.add('hidden');
+                setLoadingCurtain(false);
                 if (network) network.disconnect();
                 showRealmToast(`❌ Error: Realm "${activeRealm}" could not be loaded. Fallbacks are disabled.`);
                 returnToMainMenu();
@@ -6837,7 +6883,7 @@ window.addEventListener('DOMContentLoaded', () => {
         };
         network.onQueue = (queueData) => {
             if (queueData.status === 'waiting') {
-                if (loadingOverlay) loadingOverlay.classList.add('hidden');
+                setLoadingCurtain(false);
                 if (queueModal) {
                     queueModal.classList.remove('hidden');
                     if (queuePosNum) queuePosNum.textContent = queueData.position;
@@ -6851,7 +6897,7 @@ window.addEventListener('DOMContentLoaded', () => {
             } else if (queueData.status === 'admitted') {
                 stopQueueTipRotation();
                 if (queueModal) queueModal.classList.add('hidden');
-                if (loadingOverlay) loadingOverlay.classList.remove('hidden');
+                setLoadingCurtain(true, 'Admitted to Realm • Spawning Engine...', 22);
                 if (audio) audio.playStairs();
                 if (hud && typeof hud.setStatus === 'function') {
                     hud.setStatus('Admitted • Spawning...');
@@ -6884,13 +6930,10 @@ window.addEventListener('DOMContentLoaded', () => {
                 clearTimeout(window.__startWatchdog);
                 window.__startWatchdog = null;
             }
-            if (loadingOverlay) {
-                loadingOverlay.classList.add('hidden');
-            }
             // Strict Invariant: Reject any frame that belongs to a different realm than active
             if (frame.realm && activeRealm && frame.realm !== activeRealm) {
                 console.error(`[Angband3D] Strict Invariant Violation: Frame received for wrong realm "${frame.realm}" (expected "${activeRealm}"). Aborting.`);
-                if (loadingOverlay) loadingOverlay.classList.add('hidden');
+                setLoadingCurtain(false);
                 if (network) network.disconnect();
                 showRealmToast(`❌ Error: Engine running wrong realm "${frame.realm}". Fallbacks are disabled.`);
                 returnToMainMenu();
@@ -6931,16 +6974,27 @@ window.addEventListener('DOMContentLoaded', () => {
             }
             if (window.__app) window.__app.lastFrame = frame;
             currentPhase = frame.phase || 'play';
+            if (currentPhase !== 'play') {
+                if (quickBirthActive || birthConfirming) {
+                    setLoadingCurtain(true, 'Forging Hero & Entering Realm...', 32);
+                } else {
+                    setLoadingCurtain(false);
+                }
+            }
+            let isFirstPlayTransition = false;
+            let isDepthChangedTransition = false;
             if (currentPhase === 'play' && frame.player && !birthReviewActive && !birthConfirming && audio && typeof audio.updateContextualMusic === 'function') {
                 audio.updateContextualMusic(frame, activeRealm);
                 syncAudioUI();
             }
             if (currentPhase === 'play' && frame.map && frame.player) {
                 const firstPlayTransition = !hasEnteredPlay;
+                isFirstPlayTransition = firstPlayTransition;
                 hasEnteredPlay = true;
                 quickBirthActive = false;
                 const curDepth = typeof frame.player.depth === 'number' ? frame.player.depth : 0;
                 const depthChanged = lastSnapshotDepth !== null && curDepth !== lastSnapshotDepth;
+                isDepthChangedTransition = depthChanged;
                 lastSnapshotDepth = curDepth;
                 const nowMs = Date.now();
                 if (firstPlayTransition || depthChanged) {
@@ -7085,12 +7139,46 @@ window.addEventListener('DOMContentLoaded', () => {
             if (frame.term && (needsTerm || currentPhase !== 'play')) {
                 terminal.render(frame.term);
             }
-            // Render 3D Dungeon World whenever in play phase with valid map
+            // Render 3D Dungeon World whenever in play phase with valid map (strictly gated by Zero-Fallback Scene Asset Gate)
             if (currentPhase === 'play' && frame.map && frame.player) {
-                try {
-                    dungeon.updateDungeon(frame);
-                } catch (err) {
-                    console.error('[Dungeon3D Error]', err);
+                const curtainCurrentlyVisible = Boolean(loadingOverlay && !loadingOverlay.classList.contains('hidden'));
+                const needsAssetGate = Boolean(
+                    dungeon &&
+                    typeof dungeon.awaitSceneAssetsReady === 'function' &&
+                    (isFirstPlayTransition ||
+                     isDepthChangedTransition ||
+                     curtainCurrentlyVisible ||
+                     (typeof dungeon.hasPendingSceneAssets === 'function' && dungeon.hasPendingSceneAssets(frame)))
+                );
+                if (needsAssetGate) {
+                    const gateToken = ++sceneAssetGateSeq;
+                    window.gameSceneAssetsLoading = true;
+                    if (isFirstPlayTransition || isDepthChangedTransition || curtainCurrentlyVisible) {
+                        setLoadingCurtain(true, 'Summoning 2K Photogrammetry & 3D Bestiary...', 38);
+                    }
+                    dungeon.awaitSceneAssetsReady(frame, (done, total, label) => {
+                        if (gateToken !== sceneAssetGateSeq) return;
+                        const pct = Math.min(98, 38 + Math.round((done / Math.max(1, total)) * 58));
+                        setLoadingCurtain(true, label || 'Compiling 3D Shaders & Lighting...', pct);
+                    }).then(() => {
+                        if (gateToken !== sceneAssetGateSeq) return;
+                        window.gameSceneAssetsLoading = false;
+                        setLoadingCurtain(false);
+                    }).catch((err) => {
+                        console.error('[Dungeon3D Asset Gate Error]', err);
+                        if (gateToken === sceneAssetGateSeq) {
+                            window.gameSceneAssetsLoading = false;
+                            setLoadingCurtain(false);
+                        }
+                    });
+                } else {
+                    window.gameSceneAssetsLoading = false;
+                    try {
+                        dungeon.updateDungeon(frame);
+                    } catch (err) {
+                        console.error('[Dungeon3D Error]', err);
+                    }
+                    setLoadingCurtain(false);
                 }
             }
             // Update HUD
