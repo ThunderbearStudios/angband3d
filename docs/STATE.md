@@ -1,32 +1,25 @@
 # Execution State (Read First, Update Last)
 
 ## Active Task
-**WS66 — `v11.9.6` Full GUI, HUD, Audio Menu, Chronicle Tome, Classic Minimap & 3D Input Overhaul — COMPLETE**
+**WS67 — `v11.9.7` 11-Layer Zero-Fallback Master Optimization Blueprint — COMPLETE**
 
-- **Checklist** (`v11.9.6` Release):
-  - [x] **5-Pillar GUI, HUD, Audio, Chronicle Tome & Multi-Viewport Overhaul**: Streamlined `#quick-volume-popover` with normal `250px` range sliders and single top-bar `#btn-sound` global mute (`audio.js`, `app.js`, `index.html`, `dungeon.css`, `hud-skin.css`); non-truncating 2-row `#action-bar` (`100dvh`/`env(safe-area-inset-*)`); two-tier `#char-panel` with `#char-sub-meta` & `#char-status-effects` pills; decluttered 2-mode (`Story` / `Compendium`) `#chronicle-window` (`chronicle-manager.js`, `chronicle.css`); full keyboard navigation in `<dialog id="item-sheet">` (`item-sheet.js`).
-  - [x] **3D Arrow Key Input & `<dialog id="item-sheet">` Guard (`item-sheet.js`, `index.html`)**: Fixed `ItemSheet.isOpen()` to strictly check `c.open || c.hasAttribute('open')` on `<dialog id="item-sheet">` and added `hidden` / `.hidden` on initial markup so closed dialogs never intercept `ArrowUp`, `ArrowDown`, `Tab`, `1–3`, or `Enter` in 3D gameplay (`⊢ PROVED`).
-  - [x] **Classic ASCII Minimap & Seamless Preset/Drag Resizing (`hud.js`, `app.js`, `index.html`, `hud-skin.css`, `dungeon3d.js`)**: Restored classic ASCII `#` / `.` / `+` / landmark terminal rendering in `WebHUD.renderMinimap()`, restored `168×168` Compact preset, synced `minimapCanvas.style.width/height` and cleared `angband_map_size` when cycling presets, fixed `setCustomMinimapSize()` `chromeH` calculation for hidden bars, wired `#minimap-hint-text` click to `cycleMinimapSize(1)`, and guarded `getAngbandHex()` against `null`/non-integer attributes (`⊢ PROVED`).
+- **Checklist** (`v11.9.7` Release):
+  - [x] **Transport, Edge & SW (`server.js`, `edge/worker.js`, `sw.js`, `index.html`, `network.js`)**: Native `zlib.brotliCompress` (`Content-Encoding: br`, quality `4`) + `.glb`/`.wasm` (`dungeon3d.js`: `855 KB -> 161 KB`); Cloudflare Edge `cacheEverything: true` (`7d` TTL); SW Cache-First on `/assets/fonts/`, `/js/vendor/`, and `?v=` bundles; `<link rel="preload">` hints; `5.5s` WS handshake fast-retry (`⊢ PROVED`).
+  - [x] **Lossless PNGs & Audio Yielding (`assets/textures/*.png`, `audio.js`)**: Lossless PNG recompression saving **14.23 MB** (`T_BrushedNoise.png` `12.45 MB -> 0.53 MB`, `T_Brick_Normal.png` `4.96 MB -> 4.30 MB`, `T_RoundTiles_BaseColor.png` `4.15 MB -> 3.07 MB`, `T_RoundTiles_Roughness.png` `1.38 MB -> 0.81 MB`); `_themeDeckA.preload = 'metadata'` on cold boot; 2-tier concurrency-capped (`MAX_CONCURRENT_SFX_FETCHES = 3`, `priority: 'low'`) `loadStudioSfxBank()` yielding while `gameNetworkConnecting` or `gameSceneAssetsLoading` is active (`⊢ PROVED`).
+  - [x] **Zero-Fallback 3D Asset Gate & Emblem Curtain (`dungeon3d.js`, `app.js`, `index.html`, `hud-skin.css`)**: Deferred all 20 2K PBR sets (`ensurePbrSetReady`), 4K sprite atlases (`ensureMonsterAtlasReady`/`ensureItemAtlasReady`), and GLB prewarming off cold boot (`0` heavy 3D/atlas requests during Splash/Menu); built `awaitSceneAssetsReady(frame, onProgress)` + `hasPendingSceneAssets(frame)` + `#loading-overlay` emblem wheel (`yasdRuneSpinCw`/`Ccw`, progress bar, `6.5s` escape button) holding curtain until 100% of active scene 2K PBR maps, 4K atlases, 3D GLBs, `updateDungeon(frame)`, and `renderer.compile(scene, camera)` complete; paused WebGL (`0 FPS`) behind opaque curtains (`⊢ PROVED`).
 
 ## Completed Workstreams
 | WS | Scope | Status |
 | :--- | :--- | :--- |
-| WS0–WS36 | Harness, ScreenContext, MenuRouter, RealmKeys, 8-Pillar 3D, Foley, Grimoire (`v10.2.0`) | `[x]` |
-| WS37–WS47 | Popover, Chronicle, Minimap, Command Unification, Zero-Flicker HUD (`v11.1.1`) | `[x]` |
-| WS48–WS58 | 8-Realm Cartridges, Universal 4-Tier Master Bestiary, Item Registry & Action VFX (`v11.7.1`) | `[x]` |
-| WS59–WS63 | RYOD World Forge, 8 Mutators, 9-Realm Chronicle, Sculpted Altars & Official Art (`v11.8.6`) | `[x]` |
-| WS64–WS65 | 30-Point Asset, Realm, Combat VFX, Animation & Performance Overhaul (`v11.8.8`) | `[x]` |
-| WS66 | Full GUI, HUD, Audio Menu, Chronicle Tome, Classic Minimap & 3D Input Overhaul (`v11.9.6`) | `[x]` |
+| WS0–WS63 | Harness, 8-Pillar 3D, Foley, Grimoire, 8-Realm Cartridges, RYOD Forge (`v11.8.6`) | `[x]` |
+| WS64–WS66 | 30-Point Asset/VFX Overhaul, GUI/HUD/Audio/Chronicle/Classic Minimap (`v11.9.6`) | `[x]` |
+| WS67 | 11-Layer Zero-Fallback Master Optimization Blueprint & Emblem Curtain (`v11.9.7`) | `[x]` |
 
 ## Mandatory Verification Gate (Web-Only Focus)
-Fresh server (`L13`): `Get-NetTCPConnection -LocalPort 8080 -State Listen | % { Stop-Process -Id $_.OwningProcess -Force }`; `cd server; node src/server.js`.
 1. `node --check server/src/server.js` 2. `node tools/run_tests.js --tier fast` → `33/33` 3. `python tools/smoke_test.py` → `11/11` 4. `node tools/check_loc_budget.js && node tools/check_version_sync.js` 5. `server/public` change → `node tools/bump_version.js <v>`.
 
-## Known Upstream Issues (not regressions)
-K1 FCB welcome `-more-` opens terminal · K2 Heng JP binary, client `lang` translates · K3 FCB/Heng boot `{"t":"error"}` · K4 Chrome profiles in `os.tmpdir()` · K5 restart server before CDP suite · K6 Vanilla direction prompt via row-0 match.
-
 ## In-Flight (Uncommitted) Files Inventory
-- Ready for `v11.9.6` release commit and Cloud Run deploy.
+- Clean working tree (`v11.9.7` deployed live to Cloud Run & Cloudflare Edge).
 
 ## Last Gate Results
-- **WS66 (`v11.9.6`, 2026-11-09)**: fast `33/33` (`0` failed) · `server_test.js` `22/22` · `smoke_test.py` `11/11` · CDP movement & minimap resize `PASS` (`0` exceptions) · LOC budget `PASS` (`0` exceeded) · version sync `PASS` (`11.9.6`).
+- **WS67 (`v11.9.7`, 2026-11-09)**: fast `33/33` · `server_test.js` `22/22` · `smoke_test.py` `11/11` · CDP zero-fallback & Brotli gate `PASS` · LOC budget `PASS` (`0` exceeded) · version sync `PASS` (`11.9.7`).
