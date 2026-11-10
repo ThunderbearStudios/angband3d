@@ -3568,15 +3568,64 @@ window.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // # ROOT-CAUSE: Hold the animated YASD 3D emblem loading curtain (#loading-overlay) across connection, hello, and initial 3D asset compilation until dungeon.awaitSceneAssetsReady(frame) completes with 0 fallback assets.
+    // # ROOT-CAUSE: Drive the 220px SVG arcane loading wheel and radial progress arc via requestAnimationFrame (bypassing prefers-reduced-motion CSS suppression) and gate #loading-overlay strictly on initial game entry and between-levels depth transitions, never during normal same-level gameplay.
     let loadingCancelTimer = null;
     let sceneAssetGateSeq = 0;
+    let loadingWheelRaf = null;
+    let loadingDisplayPct = 10;
+    let loadingTargetPct = 14;
+    let loadingLastTickMs = 0;
+    let loadingOuterDeg = 0;
+    let loadingInnerDeg = 0;
+
+    function applyLoadingWheelVisuals(pct, outerDeg, innerDeg) {
+        // # ROOT-CAUSE: Animate SVG rune rings via stroke-dashoffset and comet orb via exact (cx, cy) trig coordinates on r=92 so all rings stay 100% concentric around (110, 110) regardless of CSS transform-origin rules.
+        const clamped = Math.max(4, Math.min(100, pct));
+        const fillEl = document.getElementById('loading-progress-fill');
+        const arcEl = document.getElementById('loading-wheel-arc');
+        const cometEl = document.getElementById('loading-wheel-comet');
+        const pctEl = document.getElementById('loading-wheel-pct');
+        const outerEl = document.getElementById('loading-svg-ring-outer');
+        const innerEl = document.getElementById('loading-svg-ring-inner');
+        const circumference = 578.05; // 2 * Math.PI * 92
+        const rad = (clamped / 100) * Math.PI * 2;
+        if (fillEl) fillEl.style.width = `${Math.round(clamped)}%`;
+        if (arcEl) arcEl.setAttribute('stroke-dashoffset', (circumference * (1 - clamped / 100)).toFixed(2));
+        if (cometEl) {
+            cometEl.setAttribute('cx', (110 + 92 * Math.sin(rad)).toFixed(2));
+            cometEl.setAttribute('cy', (110 - 92 * Math.cos(rad)).toFixed(2));
+        }
+        if (pctEl) pctEl.textContent = `${Math.round(clamped)}%`;
+        if (outerEl) outerEl.setAttribute('stroke-dashoffset', (-outerDeg * 1.8).toFixed(1));
+        if (innerEl) innerEl.setAttribute('stroke-dashoffset', (-innerDeg * 1.4).toFixed(1));
+    }
+
+    function tickLoadingWheel(nowMs) {
+        const overlay = loadingOverlay || document.getElementById('loading-overlay');
+        if (!overlay || overlay.classList.contains('hidden')) {
+            loadingWheelRaf = null;
+            return;
+        }
+        const dt = loadingLastTickMs ? Math.min(0.1, Math.max(0.004, (nowMs - loadingLastTickMs) * 0.001)) : 0.016;
+        loadingLastTickMs = nowMs;
+        loadingOuterDeg = (loadingOuterDeg + dt * 68) % 360;
+        loadingInnerDeg = (loadingInnerDeg - dt * 44) % 360;
+
+        // Smoothly interpolate displayed percentage toward target, plus gentle sub-step creep while waiting on I/O
+        const softCeiling = Math.min(95, loadingTargetPct + 12);
+        if (loadingDisplayPct < loadingTargetPct) {
+            loadingDisplayPct += Math.max(0.35, (loadingTargetPct - loadingDisplayPct) * Math.min(1, dt * 8.5));
+        } else if (loadingDisplayPct < softCeiling) {
+            loadingDisplayPct += dt * 3.2;
+        }
+        applyLoadingWheelVisuals(loadingDisplayPct, loadingOuterDeg, loadingInnerDeg);
+        loadingWheelRaf = requestAnimationFrame(tickLoadingWheel);
+    }
 
     function setLoadingCurtain(visible, stageText = null, progressPct = null) {
         const overlay = loadingOverlay || document.getElementById('loading-overlay');
         if (!overlay) return;
         const stageEl = document.getElementById('loading-stage-text');
-        const fillEl = document.getElementById('loading-progress-fill');
         const cancelBtn = document.getElementById('btn-loading-cancel');
         if (cancelBtn && !cancelBtn.dataset.boundCancel) {
             cancelBtn.dataset.boundCancel = '1';
@@ -3586,12 +3635,21 @@ window.addEventListener('DOMContentLoaded', () => {
             });
         }
         if (visible) {
+            const wasHidden = overlay.classList.contains('hidden');
             overlay.classList.remove('hidden');
             if (stageEl && stageText) {
                 stageEl.textContent = stageText;
             }
-            if (fillEl && typeof progressPct === 'number') {
-                fillEl.style.width = `${Math.max(5, Math.min(100, Math.round(progressPct)))}%`;
+            if (typeof progressPct === 'number') {
+                if (wasHidden || progressPct < loadingTargetPct - 25) {
+                    loadingDisplayPct = Math.max(6, progressPct - 4);
+                }
+                loadingTargetPct = Math.max(6, Math.min(100, progressPct));
+            }
+            applyLoadingWheelVisuals(loadingDisplayPct, loadingOuterDeg, loadingInnerDeg);
+            if (!loadingWheelRaf && typeof requestAnimationFrame === 'function') {
+                loadingLastTickMs = performance.now();
+                loadingWheelRaf = requestAnimationFrame(tickLoadingWheel);
             }
             if (!loadingCancelTimer && cancelBtn) {
                 cancelBtn.classList.add('hidden');
@@ -3607,10 +3665,18 @@ window.addEventListener('DOMContentLoaded', () => {
                 clearTimeout(loadingCancelTimer);
                 loadingCancelTimer = null;
             }
+            if (loadingWheelRaf) {
+                cancelAnimationFrame(loadingWheelRaf);
+                loadingWheelRaf = null;
+            }
+            loadingDisplayPct = 100;
+            loadingTargetPct = 100;
+            applyLoadingWheelVisuals(100, loadingOuterDeg, loadingInnerDeg);
             if (cancelBtn) cancelBtn.classList.add('hidden');
             overlay.classList.add('hidden');
         }
     }
+    window.setLoadingCurtain = setLoadingCurtain;
 
     async function startGame(options) {
         appState = 'game';
@@ -7139,27 +7205,30 @@ window.addEventListener('DOMContentLoaded', () => {
             if (frame.term && (needsTerm || currentPhase !== 'play')) {
                 terminal.render(frame.term);
             }
-            // Render 3D Dungeon World whenever in play phase with valid map (strictly gated by Zero-Fallback Scene Asset Gate)
+            // Render 3D Dungeon World whenever in play phase with valid map (gated by Loading Curtain ONLY on initial play entry and between-levels depth transitions)
             if (currentPhase === 'play' && frame.map && frame.player) {
+                // # ROOT-CAUSE: Restrict #loading-overlay to initial game launch and between-levels depth transitions (isFirstPlayTransition || isDepthChangedTransition || curtainCurrentlyVisible) so the loading wheel never pops up during normal same-level gameplay.
                 const curtainCurrentlyVisible = Boolean(loadingOverlay && !loadingOverlay.classList.contains('hidden'));
                 const needsAssetGate = Boolean(
                     dungeon &&
                     typeof dungeon.awaitSceneAssetsReady === 'function' &&
-                    (isFirstPlayTransition ||
-                     isDepthChangedTransition ||
-                     curtainCurrentlyVisible ||
-                     (typeof dungeon.hasPendingSceneAssets === 'function' && dungeon.hasPendingSceneAssets(frame)))
+                    (isFirstPlayTransition || isDepthChangedTransition || curtainCurrentlyVisible)
                 );
                 if (needsAssetGate) {
                     const gateToken = ++sceneAssetGateSeq;
                     window.gameSceneAssetsLoading = true;
-                    if (isFirstPlayTransition || isDepthChangedTransition || curtainCurrentlyVisible) {
-                        setLoadingCurtain(true, 'Summoning 2K Photogrammetry & 3D Bestiary...', 38);
-                    }
-                    // # ROOT-CAUSE: Ensure dungeon.updateDungeon(lastFrame || frame) runs when awaitSceneAssetsReady resolves before lifting #loading-overlay so the 3D scene is never blank on first reveal.
+                    const newDepthNum = Number(frame.player.depth || 0);
+                    const initialStageLabel = isDepthChangedTransition
+                        ? (newDepthNum === 0
+                            ? 'Returning to Town — Loading 3D Architecture & Residents...'
+                            : `Entering Level ${newDepthNum} (${newDepthNum * 50} ft) — Loading 3D Dungeon & Bestiary...`)
+                        : 'Summoning 2K Photogrammetry & 3D Bestiary...';
+                    setLoadingCurtain(true, initialStageLabel, isDepthChangedTransition ? 18 : 38);
                     dungeon.awaitSceneAssetsReady(frame, (done, total, label) => {
                         if (gateToken !== sceneAssetGateSeq) return;
-                        const pct = Math.min(98, 38 + Math.round((done / Math.max(1, total)) * 58));
+                        const basePct = isDepthChangedTransition ? 18 : 38;
+                        const spanPct = isDepthChangedTransition ? 78 : 58;
+                        const pct = Math.min(97, basePct + Math.round((done / Math.max(1, total)) * spanPct));
                         setLoadingCurtain(true, label || 'Compiling 3D Shaders & Lighting...', pct);
                     }).then(() => {
                         if (gateToken !== sceneAssetGateSeq) return;
@@ -7184,7 +7253,6 @@ window.addEventListener('DOMContentLoaded', () => {
                     } catch (err) {
                         console.error('[Dungeon3D Error]', err);
                     }
-                    setLoadingCurtain(false);
                 }
             }
             // Update HUD

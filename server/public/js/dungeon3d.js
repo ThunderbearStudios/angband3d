@@ -6193,9 +6193,117 @@ class Dungeon3D {
         return false;
     }
 
+    getLevelPrewarmManifest(depth, outdoors) {
+        // # ROOT-CAUSE: Pre-stage level-wide monster and item GLB archetypes during initial/between-level loading and stream remaining bestiary GLBs silently in idle time so normal same-level gameplay never pops up #loading-overlay.
+        if (outdoors || depth === 0) {
+            return {
+                monsters: [
+                    'char_male_peasant',
+                    'char_male_peasant_bearded',
+                    'char_female_peasant',
+                    'char_male_ranger',
+                    'char_female_ranger',
+                    'char_male_rogue',
+                    'char_male_priest',
+                    'char_male_guard',
+                    'bestiary_fox',
+                    'bestiary_shiba',
+                    'bestiary_wolf',
+                    'ph_street_rat'
+                ],
+                items: [
+                    'ph_dagger',
+                    'ph_lantern',
+                    'item_staff_branch',
+                    'item_longsword',
+                    'item_bow',
+                    'ph_shield',
+                    'item_torch',
+                    'item_coins'
+                ]
+            };
+        }
+        return {
+            monsters: [
+                'char_male_ranger',
+                'char_female_ranger',
+                'char_male_rogue',
+                'char_male_priest',
+                'char_male_guard',
+                'bestiary_kobold',
+                'bestiary_goblin',
+                'bestiary_orc',
+                'bestiary_skeleton_warrior',
+                'bestiary_zombie',
+                'bestiary_wolf',
+                'obj_spider',
+                'obj_snake',
+                'bestiary_beetle',
+                'ph_street_rat'
+            ],
+            items: [
+                'item_longsword',
+                'ph_dagger',
+                'ph_axe',
+                'ph_mace',
+                'item_bow',
+                'ph_shield',
+                'item_torch',
+                'ph_lantern',
+                'item_coins',
+                'ph_chest'
+            ]
+        };
+    }
+
+    scheduleSilentBestiaryPrewarm() {
+        if (this._silentPrewarmStarted) return;
+        this._silentPrewarmStarted = true;
+        const backgroundMonsterKeys = [
+            'bestiary_puglin',
+            'bestiary_imp',
+            'bestiary_hobgoblin',
+            'bestiary_gnoll',
+            'bestiary_troll',
+            'bestiary_ogre',
+            'bestiary_wraith',
+            'bestiary_skeleton_knight',
+            'bestiary_hellhound',
+            'bestiary_husky',
+            'bestiary_werewolf',
+            'bestiary_lion',
+            'bestiary_scorpion',
+            'bestiary_centipede',
+            'bestiary_ant',
+            'obj_wasp',
+            'bestiary_golem',
+            'bestiary_dragon'
+        ];
+        let idx = 0;
+        const pumpNext = () => {
+            if (idx >= backgroundMonsterKeys.length) return;
+            if (window.gameSceneAssetsLoading || window.gameNetworkConnecting) {
+                setTimeout(pumpNext, 500);
+                return;
+            }
+            const key = backgroundMonsterKeys[idx++];
+            if (this._monster3DTemplates && this._monster3DTemplates.has(key)) {
+                setTimeout(pumpNext, 40);
+                return;
+            }
+            this._ensureMonster3DTemplate(key)
+                .catch(() => null)
+                .finally(() => {
+                    setTimeout(pumpNext, 180);
+                });
+        };
+        setTimeout(pumpNext, 800);
+    }
+
     async awaitSceneAssetsReady(frame, onProgress) {
         if (!frame) return true;
         window.gameSceneAssetsLoading = true;
+        const yieldFrame = () => new Promise((r) => (typeof requestAnimationFrame === 'function' ? requestAnimationFrame(r) : setTimeout(r, 16)));
         try {
             const player = frame.player || {};
             const depth = Number(player.depth || 0);
@@ -6215,8 +6323,9 @@ class Dungeon3D {
             addTask(this.ensureItemAtlasReady());
             addTask(this._loadPolyHavenEnvironmentModels());
 
-            const monsterTemplateKeys = new Set();
-            const heldItemPhKeys = new Set();
+            const prewarm = this.getLevelPrewarmManifest(depth, outdoors);
+            const monsterTemplateKeys = new Set(prewarm.monsters || []);
+            const heldItemPhKeys = new Set(prewarm.items || []);
             for (const m of (frame.monsters || [])) {
                 const cfg = typeof this.resolveMonster3DConfig === 'function' ? this.resolveMonster3DConfig(m, m.glyph) : null;
                 if (cfg && cfg.templateKey) {
@@ -6254,7 +6363,7 @@ class Dungeon3D {
                 })));
             }
 
-            // # ROOT-CAUSE: Build the 3D scene geometry via updateDungeon(frame) after all PBR maps, atlases, and GLBs resolve and before renderer.compile(scene, camera) and lifting #loading-overlay.
+            await yieldFrame();
             this._currentThemeId = null;
             this._currentTexturesAreOutdoors = null;
             this.applyEnvironmentTextures(outdoors, this.currentBiome, frame.realm || this.realm || 'angband', depth, this.levelSeed || 0);
@@ -6275,10 +6384,12 @@ class Dungeon3D {
 
             if (this.renderer && this.scene && this.camera && typeof this.renderer.compile === 'function') {
                 if (typeof onProgress === 'function') onProgress(total, total, 'Compiling WebGL shaders...');
+                await yieldFrame();
                 try {
                     this.renderer.compile(this.scene, this.camera);
                 } catch (_) {}
             }
+            this.scheduleSilentBestiaryPrewarm();
             return true;
         } finally {
             window.gameSceneAssetsLoading = false;
@@ -11065,10 +11176,12 @@ class Dungeon3D {
                     entity.add(upgraded3D);
                     entity.modelHeight = upgraded3D.baseHeight || 1.0;
                     entity.isFloating = Boolean(cfg.isFloating);
+                    // # ROOT-CAUSE: Unhide monster entity immediately once its real 3D GLB template attaches so creatures never display an empty shadow disc or nameplate before their 3D mesh is ready.
                     entity.isReal3DMonster = true;
                     entity.isBillboard = false;
                     entity.pending3DConfig = null;
                     entity.isFallback = false;
+                    entity.visible = true;
                     if (upgraded3D._mixer) {
                         entity._mixer = upgraded3D._mixer;
                         entity._idleAction = upgraded3D._idleAction;
@@ -14751,8 +14864,9 @@ class Dungeon3D {
                 }
             }
 
+            // # ROOT-CAUSE: Keep monster entity hidden while its 3D GLB template is still pending so normal same-level gameplay never flashes an empty shadow disc or floating nameplate before the 3D mesh attaches.
             // In Angband, all monsters emitted in frame.monsters are detected / sensed by the player
-            entity.visible = true;
+            entity.visible = Boolean(entity.isReal3DMonster || m.invisible || !entity.pending3DConfig);
             if (m.invisible) {
                 if (entity.creatureMesh) entity.creatureMesh.visible = false;
                 if (entity.foggyAura) entity.foggyAura.visible = true;
