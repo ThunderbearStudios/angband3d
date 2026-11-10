@@ -120,10 +120,10 @@
         item_torch:        { kind: 'openMmoX', span: 0.60, rotX: 0, rotY: 0, rotZ: 0, gripFrac: 0.22, edgeAxis: '+Z', tipAxis: '+Y' },
         item_shovel:       { kind: 'phY', span: 0.98, rotX: 0, rotY: 0,              rotZ: 0, gripFrac: 0.35, edgeAxis: '+Z', tipAxis: '+Y' },
         item_pickaxe:      { kind: 'phY', span: 0.88, rotX: 0, rotY: -Math.PI * 0.5, rotZ: 0, gripFrac: 0.30, edgeAxis: '+Z', tipAxis: '+Y' },
-        item_staff:        { kind: 'openMmoX', span: 1.45, rotX: 0, rotY: 0, rotZ: 0, gripFrac: 0.45, edgeAxis: '+Z', tipAxis: '+Y' },
+        item_staff:        { kind: 'phY', span: 1.45, rotX: 0, rotY: 0,              rotZ: 0, gripFrac: 0.45, edgeAxis: '+Z', tipAxis: '+Y' },
         item_staff_branch: { kind: 'phY', span: 1.40, rotX: 0, rotY: 0,              rotZ: 0, gripFrac: 0.45, edgeAxis: '+Z', tipAxis: '+Y' },
-        item_wand:         { kind: 'openMmoX', span: 0.48, rotX: 0, rotY: 0, rotZ: 0, gripFrac: 0.25, edgeAxis: '+Z', tipAxis: '+Y' },
-        item_rod:          { kind: 'openMmoX', span: 0.58, rotX: 0, rotY: 0, rotZ: 0, gripFrac: 0.25, edgeAxis: '+Z', tipAxis: '+Y' },
+        item_wand:         { kind: 'phY', span: 0.48, rotX: 0, rotY: 0,              rotZ: 0, gripFrac: 0.25, edgeAxis: '+Z', tipAxis: '+Y' },
+        item_rod:          { kind: 'phY', span: 0.58, rotX: 0, rotY: 0,              rotZ: 0, gripFrac: 0.25, edgeAxis: '+Z', tipAxis: '+Y' },
         ph_shield:         { kind: 'shield', span: 0.64, rotX: 0, rotY: 0, rotZ: 0, gripFrac: 0.50, edgeAxis: '+Z', tipAxis: '+Y' },
         item_shield_wooden:{ kind: 'shield', span: 0.64, rotX: 0, rotY: 0, rotZ: 0, gripFrac: 0.50, edgeAxis: '+Z', tipAxis: '+Y' },
         item_shield_raven: { kind: 'shield', span: 0.66, rotX: 0, rotY: 0, rotZ: 0, gripFrac: 0.50, edgeAxis: '+Z', tipAxis: '+Y' },
@@ -222,6 +222,7 @@
             '!': { floorKey: 'ph_potion_flask', heldKey: 'ph_potion_flask', category: 'potion', subType: 'potion' },
             '?': { floorKey: 'item_scroll', heldKey: 'item_scroll', category: 'scroll', subType: 'scroll' },
             ')': { floorKey: 'item_longsword', heldKey: 'item_longsword', category: 'weapon', subType: 'sword' },
+            '[': { floorKey: 'item_plate_armor', heldKey: 'item_plate_armor', category: 'armor', subType: 'plate' },
             ']': { floorKey: 'item_plate_armor', heldKey: 'item_plate_armor', category: 'armor', subType: 'plate' },
             '=': { floorKey: 'item_ring', heldKey: 'item_ring', category: 'ring', subType: 'ring' },
             '/': { floorKey: 'item_wand', heldKey: 'item_wand', category: 'magical', subType: 'wand' },
@@ -237,6 +238,7 @@
             '[': { floorKey: 'item_plate_armor', heldKey: 'item_plate_armor', category: 'armor', subType: 'plate' },
             '=': { floorKey: 'item_ring', heldKey: 'item_ring', category: 'ring', subType: 'ring' },
             '/': { floorKey: 'item_staff', heldKey: 'item_staff', category: 'magical', subType: 'staff' },
+            '\\': { floorKey: 'item_staff', heldKey: 'item_staff', category: 'magical', subType: 'staff' },
             '~': { floorKey: 'item_wand', heldKey: 'item_wand', category: 'magical', subType: 'wand' },
             '"': { floorKey: 'item_talisman', heldKey: 'item_talisman', category: 'amulet', subType: 'amulet' },
             '*': { floorKey: 'ph_crystal', heldKey: 'ph_crystal', category: 'gem', subType: 'lumenstone' },
@@ -540,7 +542,7 @@
         if (/\b(chain mail|chainmail|hauberk|scale mail|augmented chain|bar chain|double chain|ring mail|elven mithril-coat|dwarvish mithril-coat|mithril)\b/i.test(lower)) {
             return { floorKey: 'item_chainmail', heldKey: 'item_chainmail', category: 'armor', subType: 'chainmail' };
         }
-        if (/\b(plate armor|plate armour|plate mail|full plate|splint mail|brigandine|cuirass|banded mail|crystal plate|bronze plate|ribbed plate|dragon scale|dragon armour|dragon armor)\b/i.test(lower)) {
+        if (/\b(plate armor|plate armour|plate mail|full plate|splint mail|brigandine|cuirass|banded mail|crystal plate|bronze plate|ribbed plate|dragon scales?|dragon armour|dragon armor)\b/i.test(lower)) {
             return { floorKey: 'item_plate_armor', heldKey: 'item_plate_armor', category: 'armor', subType: 'plate' };
         }
         if (/\b(leather armor|leather armour|soft leather|hard leather|studded leather|robe|jerkin|tunic|filthy rag|shirt|Hawaiian shirt|T-shirt|jacket|leather|troll hide|animal skin)\b/i.test(lower)) {
@@ -599,11 +601,11 @@
         if (/\b(goblet|chalice|cup|grail|plate|bowl|jug|urn|pot)\b/i.test(lower)) {
             return { floorKey: 'ph_goblet', heldKey: 'ph_goblet', category: 'misc', subType: 'goblet' };
         }
-        if (/\b(gold|coins?|silver|copper|adamantite|mithril pieces|treasure|credits|zorkmid)\b/i.test(lower)) {
-            return { floorKey: 'item_coins', heldKey: 'item_coins', category: 'coins', subType: 'coins' };
-        }
         if (/\b(arrow|arrows|bolt|bolts|quarrel|dart|darts|shot|shots|pebbles|sling bullet|ya|needle)\b/i.test(lower)) {
             return { floorKey: 'item_arrow', heldKey: 'item_arrow', category: 'ammo', subType: 'arrow' };
+        }
+        if (/\b(gold|coins?|silver|copper|adamantite|mithril pieces|treasure|credits|zorkmid)\b/i.test(lower)) {
+            return { floorKey: 'item_coins', heldKey: 'item_coins', category: 'coins', subType: 'coins' };
         }
 
         return null;
@@ -771,7 +773,9 @@
                 if (wTval === 65) return 'wand';
                 if (wTval === 66) return 'rod';
                 const res = this.resolveItem(weaponItem, ')', realm);
-                return (res && res.viewmodelKey) ? res.viewmodelKey : 'sword';
+                if (res && res.viewmodelKey) return res.viewmodelKey;
+                if (res && res.category && res.category !== 'weapon' && res.category !== 'unknown') return '';
+                return 'sword';
             }
             if (lowerB.length > 0 && !isNoBow) {
                 return 'bow';
@@ -804,8 +808,10 @@
             return res ? res.floorKey : null;
         },
 
-        resolvePolyHavenFloorItemKey(it, g, lowerName) {
-            return this.getItemObjKey(it && it.name ? it.name : lowerName, g);
+        resolvePolyHavenFloorItemKey(it, g, lowerName, realm) {
+            const itemName = (typeof it === 'string') ? it : (it && it.name ? it.name : lowerName);
+            const effRealm = realm || ((typeof it === 'string' && typeof lowerName === 'string') ? lowerName : (it && it.realm ? it.realm : undefined));
+            return this.getItemObjKey(itemName, g, effRealm);
         },
 
         getWeaponAnimFamily(viewmodelKey, rawName = '') {

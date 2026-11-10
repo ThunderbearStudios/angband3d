@@ -507,10 +507,9 @@ async function main() {
     ['MESHY_GLB/creatures/alien_bug_purple.glb', [path.join(BESTIARY_DIR, 'beetle.glb')]],
     ['MESHY_GLB/monsters/creepy_little_animal_attackpose.glb', [path.join(BESTIARY_DIR, 'centipede.glb')]],
     ['MESHY_GLB/creatures/treeman.glb', [path.join(BESTIARY_DIR, 'treeman.glb')]],
-    // Items, Staves, Rods, Wands, Doors, Trees
+    // Items, Staves, Rods, Doors, Trees (Note: wand.glb uses dedicated canonical Summoner's Wand PBR asset, never crystals.glb)
     ['MESHY_GLB/tools/staff_magic.glb', [path.join(ITEMS_DIR, 'staff.glb')]],
     ['MESHY_GLB/tools/staff_orb_green.glb', [path.join(ITEMS_DIR, 'rod.glb')]],
-    ['MESHY_GLB/scene_props/crystals.glb', [path.join(ITEMS_DIR, 'wand.glb')]],
     ['MESHY_GLB/scene_props/wooden_door_stone_arc.glb', [path.join(ITEMS_DIR, 'door_stone_arc.glb')]],
     ['MESHY_GLB/foliage/tree1.glb', [path.join(ITEMS_DIR, 'tree_pbr.glb')]],
     ['MESHY_GLB/foliage/bonsai.glb', [path.join(ITEMS_DIR, 'bush_pbr.glb')]]

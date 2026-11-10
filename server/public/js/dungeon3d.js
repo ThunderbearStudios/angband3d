@@ -2079,7 +2079,7 @@ const POLYHAVEN_ITEM_GLTF_PATHS = {
     item_lembas: '/assets/models/items/lembas_wafer.glb',
     item_shovel: '/assets/polyhaven/models/rusted_spade_01/rusted_spade_01.gltf',
     item_pickaxe: '/assets/polyhaven/models/picke_dirty_01/picke_dirty_01.gltf',
-    // # ROOT-CAUSE: Use dedicated staff.glb for item_staff_branch to satisfy Wave 19 non-antler contract (test_bestiary_match_verification.js:704).
+    // # ROOT-CAUSE: Use dedicated staff.glb for item_staff_branch and clean filesystem path for item_wand (/assets/models/items/wand.glb) so disk-existence contract tests pass while sw.js CACHE_NAME eviction refreshes client caches.
     item_wand: '/assets/models/items/wand.glb',
     item_rod: '/assets/models/items/rod.glb',
     item_staff: '/assets/models/items/staff.glb',
@@ -5744,6 +5744,7 @@ class Dungeon3D {
         this.viewmodelGroup.scale.set(1.0, 1.0, 1.0);
 
         // 4. Equipment resolution
+        // # ROOT-CAUSE: Exclude non-hand armor/helm/jewelry/light slots before slot-index fallback so slot:1 body armor never equips a phantom left-hand sword.
         const _itemStr = (v) => (v && typeof v === 'object') ? String(v.name || v.desc || '') : String(v || '');
         let weaponItem = _itemStr(player.weapon_item);
         let bowItem = _itemStr(player.bow_item);
@@ -5753,12 +5754,20 @@ class Dungeon3D {
                 if (!eq) continue;
                 const eqName = String(eq.name || eq.desc || '').trim();
                 if (!eqName || /^(none|nothing|\(nothing\)|\(none\)|empty|なし)$/i.test(eqName)) continue;
-                const slot = String(eq.slot ?? eq.label ?? '').toLowerCase();
-                if (!weaponItem && (slot === '0' || slot === 'a' || slot.includes('wield') || slot.includes('weapon') || slot.includes('right'))) {
+                const slotRaw = String(eq.slot ?? eq.label ?? '').toLowerCase().trim();
+                const slotName = String(eq.slot_name || '').toLowerCase().trim();
+                const slotMeta = `${slotName} ${eq.mention || ''} ${eq.category || ''} ${eq.label || ''}`.toLowerCase();
+                const eqTval = Number(eq.tval || 0);
+                if (/\b(armou?r|body|torso|chest|cloak|mantle|outer|helm|head|crown|hat|boot|feet|foot|shoe|glove|gauntlet|finger|ring|neck|amulet|light|lite|source|lantern|lamp|bag|quiver|ammo)\b/.test(slotMeta) ||
+                    (eqTval >= 30 && eqTval <= 45 && eqTval !== 34)) {
+                    continue;
+                }
+                const hasExplicitSlotName = slotName.length > 0;
+                if (!weaponItem && ((hasExplicitSlotName ? /\b(weapon|wield|melee|right|primary)\b/.test(slotMeta) : (slotRaw === '0' || slotRaw === 'a')) || /\b(wield|weapon|right)\b/.test(slotRaw))) {
                     weaponItem = eqName;
-                } else if (!bowItem && (slot === '2' || slot === 'b' || slot.includes('shoot') || slot.includes('bow') || slot.includes('launcher'))) {
+                } else if (!bowItem && ((hasExplicitSlotName ? /\b(shoot|bow|launcher|range|ranged)\b/.test(slotMeta) : (slotRaw === '2' || slotRaw === 'b')) || /\b(shoot|bow|launcher)\b/.test(slotRaw))) {
                     bowItem = eqName;
-                } else if (!shieldItem && (slot === '1' || slot === 'f' || slot.includes('arm') || slot.includes('shield') || slot.includes('offhand') || slot.includes('left'))) {
+                } else if (!shieldItem && ((hasExplicitSlotName ? /\b(shield|buckler|offhand|off-hand|left|secondary|arm)\b/.test(slotMeta) : (slotRaw === '1' || slotRaw === 'f')) || (!/\barmou?r\b/.test(slotRaw) && /\b(arm|shield|offhand|off-hand|left)\b/.test(slotRaw)) || eqTval === 34)) {
                     shieldItem = eqName;
                 }
             }
@@ -5900,11 +5909,15 @@ class Dungeon3D {
         }
         let key = '';
         let isOffhandWeapon = false;
+        // # ROOT-CAUSE: Only allow left-hand offhand weapon fallback when shieldItem resolves to a verified weapon category; exclude non-hand equipment slots in resolveDesiredViewmodelKeys.
         if (typeof window !== 'undefined' && window.MASTER_ITEM_REGISTRY && typeof window.MASTER_ITEM_REGISTRY.resolveShieldKey === 'function') {
             key = window.MASTER_ITEM_REGISTRY.resolveShieldKey(shieldItem, '(', this.realm) || '';
-            if (!key && typeof window.MASTER_ITEM_REGISTRY.resolveEquippedWeaponKey === 'function') {
-                key = window.MASTER_ITEM_REGISTRY.resolveEquippedWeaponKey(shieldItem, '', player, this.realm) || '';
-                if (key) isOffhandWeapon = true;
+            if (!key && typeof window.MASTER_ITEM_REGISTRY.resolveItem === 'function' && typeof window.MASTER_ITEM_REGISTRY.resolveEquippedWeaponKey === 'function') {
+                const offRes = window.MASTER_ITEM_REGISTRY.resolveItem(shieldItem, ')', this.realm);
+                if (offRes && offRes.category === 'weapon' && offRes.viewmodelKey) {
+                    key = offRes.viewmodelKey;
+                    isOffhandWeapon = true;
+                }
             }
         } else if (/\b(deflection|dragon|artifact|thorin|celegorm|anor|gil-galad|harad|raven|mirror|elven)\b/.test(lower) && /\b(shield|buckler|targe)\b/.test(lower)) {
             key = 'shield_raven';
@@ -6014,17 +6027,26 @@ class Dungeon3D {
         let weaponItem = _itemStr(player.weapon_item);
         let bowItem = _itemStr(player.bow_item);
         let shieldItem = _itemStr(player.shield_item);
+        // # ROOT-CAUSE: Align resolveDesiredViewmodelKeys equipment slot filtering and offhand weapon check 1:1 with updateViewmodel & resolveShieldModel.
         if (Array.isArray(player.equipment)) {
             for (const eq of player.equipment) {
                 if (!eq) continue;
                 const eqName = String(eq.name || eq.desc || '').trim();
                 if (!eqName || /^(none|nothing|\(nothing\)|\(none\)|empty|なし)$/i.test(eqName)) continue;
-                const slot = String(eq.slot ?? eq.label ?? '').toLowerCase();
-                if (!weaponItem && (slot === '0' || slot === 'a' || slot.includes('wield') || slot.includes('weapon') || slot.includes('right'))) {
+                const slotRaw = String(eq.slot ?? eq.label ?? '').toLowerCase().trim();
+                const slotName = String(eq.slot_name || '').toLowerCase().trim();
+                const slotMeta = `${slotName} ${eq.mention || ''} ${eq.category || ''} ${eq.label || ''}`.toLowerCase();
+                const eqTval = Number(eq.tval || 0);
+                if (/\b(armou?r|body|torso|chest|cloak|mantle|outer|helm|head|crown|hat|boot|feet|foot|shoe|glove|gauntlet|finger|ring|neck|amulet|light|lite|source|lantern|lamp|bag|quiver|ammo)\b/.test(slotMeta) ||
+                    (eqTval >= 30 && eqTval <= 45 && eqTval !== 34)) {
+                    continue;
+                }
+                const hasExplicitSlotName = slotName.length > 0;
+                if (!weaponItem && ((hasExplicitSlotName ? /\b(weapon|wield|melee|right|primary)\b/.test(slotMeta) : (slotRaw === '0' || slotRaw === 'a')) || /\b(wield|weapon|right)\b/.test(slotRaw))) {
                     weaponItem = eqName;
-                } else if (!bowItem && (slot === '2' || slot === 'b' || slot.includes('shoot') || slot.includes('bow') || slot.includes('launcher'))) {
+                } else if (!bowItem && ((hasExplicitSlotName ? /\b(shoot|bow|launcher|range|ranged)\b/.test(slotMeta) : (slotRaw === '2' || slotRaw === 'b')) || /\b(shoot|bow|launcher)\b/.test(slotRaw))) {
                     bowItem = eqName;
-                } else if (!shieldItem && (slot === '1' || slot === 'f' || slot.includes('arm') || slot.includes('shield') || slot.includes('offhand') || slot.includes('left'))) {
+                } else if (!shieldItem && ((hasExplicitSlotName ? /\b(shield|buckler|offhand|off-hand|left|secondary|arm)\b/.test(slotMeta) : (slotRaw === '1' || slotRaw === 'f')) || (!/\barmou?r\b/.test(slotRaw) && /\b(arm|shield|offhand|off-hand|left)\b/.test(slotRaw)) || eqTval === 34)) {
                     shieldItem = eqName;
                 }
             }
@@ -6068,8 +6090,11 @@ class Dungeon3D {
             let leftKey = '';
             if (typeof window !== 'undefined' && window.MASTER_ITEM_REGISTRY && typeof window.MASTER_ITEM_REGISTRY.resolveShieldKey === 'function') {
                 leftKey = window.MASTER_ITEM_REGISTRY.resolveShieldKey(shieldItem, '(', this.realm) || '';
-                if (!leftKey && typeof window.MASTER_ITEM_REGISTRY.resolveEquippedWeaponKey === 'function') {
-                    leftKey = window.MASTER_ITEM_REGISTRY.resolveEquippedWeaponKey(shieldItem, '', player, this.realm) || '';
+                if (!leftKey && typeof window.MASTER_ITEM_REGISTRY.resolveItem === 'function') {
+                    const offRes = window.MASTER_ITEM_REGISTRY.resolveItem(shieldItem, ')', this.realm);
+                    if (offRes && offRes.category === 'weapon' && offRes.viewmodelKey) {
+                        leftKey = offRes.viewmodelKey;
+                    }
                 }
             } else if (/\b(deflection|dragon|artifact|thorin|celegorm|anor|gil-galad|harad|raven|mirror|elven)\b/.test(lowerS) && /\b(shield|buckler|targe)\b/.test(lowerS)) {
                 leftKey = 'shield_raven';
@@ -15082,7 +15107,9 @@ class Dungeon3D {
     }
 
     resolvePolyHavenFloorItemKey(it, g, lowerName, nameHash) {
-        return this.getItemObjKey(it ? it.name : lowerName, g);
+        // # ROOT-CAUSE: Support both string and object inputs for resolvePolyHavenFloorItemKey across all 9 realms.
+        const itemName = (typeof it === 'string') ? it : (it && it.name ? it.name : lowerName);
+        return this.getItemObjKey(itemName, g);
     }
 
     _ensurePolyHavenFloorItem(key) {
@@ -15173,8 +15200,10 @@ class Dungeon3D {
         const loader = this.gltfLoader || (typeof THREE.GLTFLoader !== 'undefined' ? new THREE.GLTFLoader() : null);
         if (!loader) return Promise.reject(new Error('GLTFLoader not available'));
 
+        // # ROOT-CAUSE: Append ?v=11.9.9 when GLTFLoader fetches item_wand so Cloudflare Edge 7-day cache and browser HTTP caches serve the restored PBR wand.glb immediately.
+        const loadUrl = (key === 'item_wand' && !String(path).includes('?')) ? `${path}?v=11.9.9` : path;
         const promise = new Promise((resolve, reject) => {
-            loader.load(path, (gltf) => {
+            loader.load(loadUrl, (gltf) => {
                 const scene = gltf.scene || (gltf.scenes && gltf.scenes[0]);
                 if (!scene) {
                     reject(new Error(`No scene in GLTF: ${path}`));
