@@ -7156,6 +7156,7 @@ window.addEventListener('DOMContentLoaded', () => {
                     if (isFirstPlayTransition || isDepthChangedTransition || curtainCurrentlyVisible) {
                         setLoadingCurtain(true, 'Summoning 2K Photogrammetry & 3D Bestiary...', 38);
                     }
+                    // # ROOT-CAUSE: Ensure dungeon.updateDungeon(lastFrame || frame) runs when awaitSceneAssetsReady resolves before lifting #loading-overlay so the 3D scene is never blank on first reveal.
                     dungeon.awaitSceneAssetsReady(frame, (done, total, label) => {
                         if (gateToken !== sceneAssetGateSeq) return;
                         const pct = Math.min(98, 38 + Math.round((done / Math.max(1, total)) * 58));
@@ -7163,6 +7164,11 @@ window.addEventListener('DOMContentLoaded', () => {
                     }).then(() => {
                         if (gateToken !== sceneAssetGateSeq) return;
                         window.gameSceneAssetsLoading = false;
+                        try {
+                            dungeon.updateDungeon(lastFrame || frame);
+                        } catch (err) {
+                            console.error('[Dungeon3D Error]', err);
+                        }
                         setLoadingCurtain(false);
                     }).catch((err) => {
                         console.error('[Dungeon3D Asset Gate Error]', err);

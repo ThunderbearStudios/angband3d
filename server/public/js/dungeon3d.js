@@ -6254,17 +6254,23 @@ class Dungeon3D {
                 })));
             }
 
+            // # ROOT-CAUSE: Build the 3D scene geometry via updateDungeon(frame) after all PBR maps, atlases, and GLBs resolve and before renderer.compile(scene, camera) and lifting #loading-overlay.
             this._currentThemeId = null;
             this._currentTexturesAreOutdoors = null;
             this.applyEnvironmentTextures(outdoors, this.currentBiome, frame.realm || this.realm || 'angband', depth, this.levelSeed || 0);
-            if (this.lastFrame) {
-                if (typeof this.upgradeAllMonsterEntities === 'function') this.upgradeAllMonsterEntities();
-                if (typeof this.upgradeAllItemEntities === 'function') this.upgradeAllItemEntities();
-                if (this.lastFrame.player) {
-                    this.currentRightWeapon = null;
-                    this.currentLeftWeapon = null;
-                    this.updateViewmodel(this.lastFrame.player);
+            if (typeof this.updateDungeon === 'function') {
+                try {
+                    this.updateDungeon(frame);
+                } catch (err) {
+                    console.error('[Dungeon3D updateDungeon in awaitSceneAssetsReady]', err);
                 }
+            }
+            if (typeof this.upgradeAllMonsterEntities === 'function') this.upgradeAllMonsterEntities();
+            if (typeof this.upgradeAllItemEntities === 'function') this.upgradeAllItemEntities();
+            if (frame.player) {
+                this.currentRightWeapon = null;
+                this.currentLeftWeapon = null;
+                this.updateViewmodel(frame.player);
             }
 
             if (this.renderer && this.scene && this.camera && typeof this.renderer.compile === 'function') {
