@@ -3106,7 +3106,15 @@ class Dungeon3D {
                 if (!tier1Set.has(id)) addBg(this.ensurePbrSetReady(id));
             }
             if (typeof this.ensureItemAtlasReady === 'function') addBg(this.ensureItemAtlasReady());
-            if (typeof this._loadPolyHavenEnvironmentModels === 'function') addBg(this._loadPolyHavenEnvironmentModels());
+            const mapRows = frame.map && Array.isArray(frame.map.rows) ? frame.map.rows : [];
+            let mapHasTrees = outdoors;
+            if (!mapHasTrees && mapRows.length > 0) {
+                for (let r = 0; r < mapRows.length; r++) {
+                    const fRow = mapRows[r] && mapRows[r].f;
+                    if (fRow && (fRow.includes('29') || fRow.includes('2a'))) { mapHasTrees = true; break; }
+                }
+            }
+            if (typeof this._loadPolyHavenEnvironmentModels === 'function') addBg(this._loadPolyHavenEnvironmentModels({ outdoors: mapHasTrees }));
 
             const prewarm = this.getLevelPrewarmManifest(depth, outdoors);
             const monsterTemplateKeys = new Set(prewarm.monsters || []);

@@ -1003,7 +1003,8 @@
   function loadAssets() {
     if (assetsPromise) return assetsPromise;
     if (typeof fetch === 'undefined') return Promise.resolve(false);
-    const v = (typeof window !== 'undefined' && window.__ASSET_V) ? ('?v=' + window.__ASSET_V) : '';
+    const ver = (typeof window !== 'undefined' && (window.__ASSET_V || window.ASSET_VERSION || window.APP_VERSION)) || '';
+    const v = ver ? ('?v=' + encodeURIComponent(ver)) : '';
     assetsPromise = Promise.all(['names', 'templates', 'kinds'].map(n =>
       fetch(`/js/heng/heng-${n}.json${v}`).then(r => {
         if (!r.ok) throw new Error(`HTTP ${r.status} fetching heng-${n}.json`);
@@ -1020,8 +1021,15 @@
   }
 
   if (typeof window !== 'undefined') {
-    window.loadHengLang = loadAssets;
-    loadAssets();
+    if (typeof window.loadHengLang !== 'function') {
+      window.loadHengLang = loadAssets;
+    }
+    const langPref = (() => {
+      try { return localStorage.getItem('angband3d_heng_lang') || 'en'; } catch (_) { return 'en'; }
+    })();
+    if (langPref !== 'jp') {
+      loadAssets();
+    }
   }
 
   function getCompiledBucket(key) {

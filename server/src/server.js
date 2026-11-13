@@ -88,9 +88,26 @@ const MAX_TTS_CACHE_BYTES = 48 * 1024 * 1024;
 // In-Flight TTS Request Deduplication (prevents redundant API syntheses during traffic spikes)
 const inFlightTTS = new Map();
 
-// In-Memory Static Gzip Cache (eliminates repeated compression CPU overhead on static assets)
+// In-Memory Static Gzip/Brotli Fallback Cache (bounded by item count AND 32MB total byte cap)
 const staticGzipCache = new Map();
+let staticGzipCacheBytes = 0;
 const MAX_STATIC_CACHE_ITEMS = 250;
+const MAX_STATIC_CACHE_BYTES = 32 * 1024 * 1024;
+function putStaticCompressedCache(key, buf) {
+    if (!buf || buf.length > 8 * 1024 * 1024) return;
+    if (staticGzipCache.has(key)) {
+        staticGzipCacheBytes -= staticGzipCache.get(key).length;
+        staticGzipCache.delete(key);
+    }
+    while ((staticGzipCache.size >= MAX_STATIC_CACHE_ITEMS || (staticGzipCacheBytes + buf.length) > MAX_STATIC_CACHE_BYTES) && staticGzipCache.size > 0) {
+        const oldestKey = staticGzipCache.keys().next().value;
+        const oldestBuf = staticGzipCache.get(oldestKey);
+        if (oldestBuf) staticGzipCacheBytes -= oldestBuf.length;
+        staticGzipCache.delete(oldestKey);
+    }
+    staticGzipCache.set(key, buf);
+    staticGzipCacheBytes += buf.length;
+}
 
 // In-Memory Living Chronicle Hero Action Sketch Cache (LRU up to 128 items) + In-Flight Deduplication Map
 const sketchCache = new Map();
@@ -2358,8 +2375,12 @@ const server = http.createServer((req, res) => {
                 '.jpg': 'image/jpeg',
                 '.jpeg': 'image/jpeg',
                 '.webp': 'image/webp',
+                '.avif': 'image/avif',
+                '.ktx2': 'image/ktx2',
+                '.basis': 'application/octet-stream',
                 '.svg': 'image/svg+xml',
                 '.json': 'application/json; charset=utf-8',
+                '.webmanifest': 'application/manifest+json; charset=utf-8',
                 '.obj': 'text/plain; charset=utf-8',
                 '.mtl': 'text/plain; charset=utf-8',
                 '.gltf': 'model/gltf+json',
@@ -2397,10 +2418,10 @@ const server = http.createServer((req, res) => {
                 cacheControl = 'public, max-age=604800, no-transform';
             } else if (['.woff2', '.woff'].includes(ext)) {
                 cacheControl = 'public, max-age=31536000, immutable';
-            } else if (['.png', '.jpg', '.jpeg', '.webp', '.obj', '.mtl', '.gltf', '.glb', '.bin', '.wasm', '.data', '.pck'].includes(ext)) {
-                cacheControl = hasVersionQuery ? 'public, max-age=604800, immutable' : 'public, max-age=3600, must-revalidate';
+            } else if (['.png', '.jpg', '.jpeg', '.webp', '.avif', '.ktx2', '.basis', '.obj', '.mtl', '.gltf', '.glb', '.bin', '.wasm', '.data', '.pck'].includes(ext)) {
+                cacheControl = hasVersionQuery ? 'public, max-age=31536000, immutable' : 'public, max-age=3600, must-revalidate';
             } else if (['.js', '.css'].includes(ext)) {
-                cacheControl = hasVersionQuery ? 'public, max-age=604800, immutable' : 'no-cache, must-revalidate';
+                cacheControl = hasVersionQuery ? 'public, max-age=31536000, immutable' : 'no-cache, must-revalidate';
             }
 
             const etag = `W/"${fileStat.size.toString(16)}-${Math.floor(fileStat.mtimeMs).toString(16)}"`;
@@ -2487,13 +2508,24 @@ const server = http.createServer((req, res) => {
 
         if (compressible && acceptEncoding.includes('br') && typeof zlib.brotliCompress === 'function') {
             headers['Content-Encoding'] = 'br';
+            headers['Vary'] = 'Accept-Encoding';
             try {
+                const brFilePath = filePath + '.br';
+                const brStat = fs.existsSync(brFilePath) ? fs.statSync(brFilePath) : null;
+                if (brStat && brStat.isFile() && brStat.mtimeMs >= fileStat.mtimeMs && brStat.size > 0) {
+                    headers['Content-Length'] = brStat.size;
+                    res.writeHead(200, headers);
+                    const brStream = fs.createReadStream(brFilePath);
+                    brStream.on('error', () => { if (!res.headersSent) res.writeHead(500); res.end(); });
+                    res.on('close', () => { brStream.destroy(); });
+                    brStream.pipe(res);
+                    return;
+                }
                 const stat = fileStat;
                 const cacheKey = `br:${filePath}:${stat.mtimeMs}`;
                 const cached = staticGzipCache.get(cacheKey);
                 if (cached) {
-                    staticGzipCache.delete(cacheKey);
-                    staticGzipCache.set(cacheKey, cached);
+                    putStaticCompressedCache(cacheKey, cached);
                     headers['Content-Length'] = cached.length;
                     res.writeHead(200, headers);
                     res.end(cached);
@@ -2502,16 +2534,12 @@ const server = http.createServer((req, res) => {
                 fs.promises.readFile(filePath).then((rawBuffer) => {
                     zlib.brotliCompress(rawBuffer, {
                         params: {
-                            [zlib.constants.BROTLI_PARAM_QUALITY]: 4,
+                            [zlib.constants.BROTLI_PARAM_QUALITY]: 5,
                             [zlib.constants.BROTLI_PARAM_SIZE_HINT]: rawBuffer.length
                         }
                     }, (err, compressed) => {
                         if (!err && compressed) {
-                            if (staticGzipCache.size >= MAX_STATIC_CACHE_ITEMS) {
-                                const oldest = staticGzipCache.keys().next().value;
-                                staticGzipCache.delete(oldest);
-                            }
-                            staticGzipCache.set(cacheKey, compressed);
+                            putStaticCompressedCache(cacheKey, compressed);
                             headers['Content-Length'] = compressed.length;
                             res.writeHead(200, headers);
                             res.end(compressed);
@@ -2544,13 +2572,13 @@ const server = http.createServer((req, res) => {
             }
         } else if (compressible && acceptEncoding.includes('gzip')) {
             headers['Content-Encoding'] = 'gzip';
+            headers['Vary'] = 'Accept-Encoding';
             try {
                 const stat = fileStat;
                 const cacheKey = `${filePath}:${stat.mtimeMs}`;
                 const cached = staticGzipCache.get(cacheKey);
                 if (cached) {
-                    staticGzipCache.delete(cacheKey);
-                    staticGzipCache.set(cacheKey, cached);
+                    putStaticCompressedCache(cacheKey, cached);
                     headers['Content-Length'] = cached.length;
                     res.writeHead(200, headers);
                     res.end(cached);
@@ -2559,11 +2587,7 @@ const server = http.createServer((req, res) => {
                 fs.promises.readFile(filePath).then((rawBuffer) => {
                     zlib.gzip(rawBuffer, { level: 6 }, (err, gzipped) => {
                         if (!err && gzipped) {
-                            if (staticGzipCache.size >= MAX_STATIC_CACHE_ITEMS) {
-                                const oldest = staticGzipCache.keys().next().value;
-                                staticGzipCache.delete(oldest);
-                            }
-                            staticGzipCache.set(cacheKey, gzipped);
+                            putStaticCompressedCache(cacheKey, gzipped);
                             headers['Content-Length'] = gzipped.length;
                             res.writeHead(200, headers);
                             res.end(gzipped);

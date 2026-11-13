@@ -72,31 +72,163 @@ Dungeon3DProto._mergeBufferGeometries = function _mergeBufferGeometries(geometri
     return merged;
 };
 
-Dungeon3DProto._loadPolyHavenEnvironmentModels = function _loadPolyHavenEnvironmentModels() {
+Dungeon3DProto._loadPolyHavenTreeModel = function _loadPolyHavenTreeModel() {
+    if (this._polyHavenTreeLoaded) return Promise.resolve(true);
+    if (this._polyHavenTreePromise) return this._polyHavenTreePromise;
+    if (typeof THREE.GLTFLoader === 'undefined') return Promise.resolve(false);
+
+    this._hasPolyHavenTreeTex = true;
+    const resolveAssetUrl = (u) => (typeof window !== 'undefined' && typeof window.__assetUrl === 'function') ? window.__assetUrl(u) : u;
+    const treeMgr = new THREE.LoadingManager();
+    treeMgr.setURLModifier(resolveAssetUrl);
+    const treeLoader = new THREE.GLTFLoader(treeMgr);
+
+    this._polyHavenTreePromise = new Promise((resolve) => {
+        treeLoader.load('/assets/polyhaven/models/pachira_aquatica_01/pachira_aquatica_01.gltf', (gltf) => {
+            const scene = gltf && (gltf.scene || (gltf.scenes && gltf.scenes[0]));
+            if (!scene) { resolve(false); return; }
+
+            const trunkParts = [];
+            const leafParts = [];
+            const bushParts = [];
+            let barkDiff = null, barkNor = null, leafDiff = null, leafNor = null;
+
+            scene.traverse((child) => {
+                if (child.isMesh && child.geometry) {
+                    const fullName = ((child.name || '') + ' ' + (child.parent ? child.parent.name || '' : '')).toLowerCase();
+                    const isBark = fullName.includes('bark_c') || fullName.includes('circle.001');
+                    const isLeavesB = fullName.includes('leaves_b') || fullName.includes('cylinder.118');
+                    const isLeavesC = fullName.includes('leaves_c') || fullName.includes('cylinder.092');
+                    if (child.material) {
+                        if (isBark) {
+                            if (!barkDiff && child.material.map) barkDiff = child.material.map;
+                            if (!barkNor && child.material.normalMap) barkNor = child.material.normalMap;
+                        } else if (isLeavesB || isLeavesC) {
+                            if (!leafDiff && child.material.map) leafDiff = child.material.map;
+                            if (!leafNor && child.material.normalMap) leafNor = child.material.normalMap;
+                        }
+                    }
+                    if (!isBark && !isLeavesB && !isLeavesC) return;
+
+                    const g = child.geometry.clone();
+                    if (g.attributes.color) g.deleteAttribute('color');
+                    const colArr = new Float32Array(g.attributes.position.count * 3);
+                    colArr.fill(1.0);
+                    g.setAttribute('color', new THREE.BufferAttribute(colArr, 3));
+
+                    if (isBark) {
+                        trunkParts.push(g);
+                    } else if (isLeavesB) {
+                        bushParts.push(g);
+                    } else if (isLeavesC) {
+                        if (g.index && g.index.count > 1800) {
+                            const srcIdx = g.index.array;
+                            const decimated = [];
+                            for (let ti = 0; ti + 2 < srcIdx.length; ti += 15) {
+                                decimated.push(srcIdx[ti], srcIdx[ti + 1], srcIdx[ti + 2]);
+                            }
+                            g.setIndex(decimated);
+                        }
+                        leafParts.push(g);
+                    }
+                }
+            });
+
+            if (barkDiff) {
+                barkDiff.encoding = THREE.sRGBEncoding;
+                barkDiff._sharedTexture = true;
+                if (this.treeTrunkMat) { this.treeTrunkMat.map = barkDiff; this.treeTrunkMat.needsUpdate = true; }
+            }
+            if (barkNor) {
+                barkNor._sharedTexture = true;
+                this.treeBarkNormal = barkNor;
+                if (this.treeTrunkMat) { this.treeTrunkMat.normalMap = barkNor; this.treeTrunkMat.needsUpdate = true; }
+            }
+            if (leafDiff) {
+                leafDiff.encoding = THREE.sRGBEncoding;
+                leafDiff._sharedTexture = true;
+                if (this.treeLeavesMat) { this.treeLeavesMat.map = leafDiff; this.treeLeavesMat.needsUpdate = true; }
+            }
+            if (leafNor) {
+                leafNor._sharedTexture = true;
+                if (this.treeLeavesMat) { this.treeLeavesMat.normalMap = leafNor; this.treeLeavesMat.needsUpdate = true; }
+            }
+
+            if (trunkParts.length > 0 && leafParts.length > 0) {
+                const trunkGeo = this._mergeBufferGeometries(trunkParts);
+                const leavesGeo = this._mergeBufferGeometries(leafParts);
+                const unionBox = new THREE.Box3();
+                if (trunkGeo.boundingBox) unionBox.union(trunkGeo.boundingBox);
+                if (leavesGeo.boundingBox) unionBox.union(leavesGeo.boundingBox);
+
+                const centerX = (unionBox.min.x + unionBox.max.x) * 0.5;
+                const centerZ = (unionBox.min.z + unionBox.max.z) * 0.5;
+                const spanXZ = Math.max(unionBox.max.x - unionBox.min.x, unionBox.max.z - unionBox.min.z) || 1.0;
+                const spanY = (unionBox.max.y - unionBox.min.y) || 1.0;
+
+                trunkGeo.translate(-centerX, -unionBox.min.y, -centerZ);
+                leavesGeo.translate(-centerX, -unionBox.min.y, -centerZ);
+
+                const scaleX = 2.35 / spanXZ;
+                const scaleY = 2.85 / spanY;
+                const scaleZ = 2.35 / spanXZ;
+                trunkGeo.scale(scaleX, scaleY, scaleZ);
+                leavesGeo.scale(scaleX, scaleY, scaleZ);
+
+                this._tanglethornTrunkGeo = trunkGeo.clone();
+                this._tanglethornLeavesGeo = leavesGeo.clone();
+
+                if (this.treeTrunkMesh && this.treeTrunkMesh.geometry) this.treeTrunkMesh.geometry.dispose();
+                if (this.treeLeavesMesh && this.treeLeavesMesh.geometry) this.treeLeavesMesh.geometry.dispose();
+                if (this.treeTrunkMesh) this.treeTrunkMesh.geometry = trunkGeo;
+                if (this.treeLeavesMesh) this.treeLeavesMesh.geometry = leavesGeo;
+            }
+
+            if (bushParts.length > 0) {
+                const bushGeo = this._mergeBufferGeometries(bushParts);
+                bushGeo.computeBoundingBox();
+                const bBox = bushGeo.boundingBox;
+                const bCenterX = (bBox.min.x + bBox.max.x) * 0.5;
+                const bCenterZ = (bBox.min.z + bBox.max.z) * 0.5;
+                const bSpanXZ = Math.max(bBox.max.x - bBox.min.x, bBox.max.z - bBox.min.z) || 1.0;
+                const bSpanY = (bBox.max.y - bBox.min.y) || 1.0;
+
+                bushGeo.translate(-bCenterX, -bBox.min.y, -bCenterZ);
+                bushGeo.scale(1.28 / bSpanXZ, 0.82 / bSpanY, 1.28 / bSpanXZ);
+                bushGeo.computeVertexNormals();
+
+                if (this.bushMesh && this.bushMesh.geometry) this.bushMesh.geometry.dispose();
+                if (this.bushMesh) this.bushMesh.geometry = bushGeo;
+            }
+
+            this._polyHavenTreeLoaded = true;
+            this._lastTerrainSig = null;
+            resolve(true);
+        }, undefined, () => resolve(false));
+    });
+    return this._polyHavenTreePromise;
+};
+
+Dungeon3DProto._loadPolyHavenEnvironmentModels = function _loadPolyHavenEnvironmentModels(opts) {
+    const needTrees = Boolean(opts && opts.outdoors);
+    if (needTrees) {
+        this._loadPolyHavenTreeModel();
+    }
     if (this._polyHavenEnvLoaded) return Promise.resolve(true);
     if (this._polyHavenEnvPromise) return this._polyHavenEnvPromise;
-    const loader = (typeof this._getGltfLoader === 'function') ? this._getGltfLoader() : (this.gltfLoader || (typeof THREE.GLTFLoader !== 'undefined' ? new THREE.GLTFLoader() : null));
-    if (!loader) {
+    if (typeof THREE.GLTFLoader === 'undefined') {
         this._polyHavenEnvLoaded = true;
         return Promise.resolve(false);
     }
 
-    this._hasPolyHavenTreeTex = true;
     const resolveAssetUrl = (u) => (typeof window !== 'undefined' && typeof window.__assetUrl === 'function') ? window.__assetUrl(u) : u;
-    const rawTexLoader = new THREE.TextureLoader();
-    const texLoader = { load: (u, ok, pr, er) => rawTexLoader.load(resolveAssetUrl(u), ok, pr, er) };
+    const envMgr = new THREE.LoadingManager();
+    envMgr.setURLModifier(resolveAssetUrl);
+    const loader = new THREE.GLTFLoader(envMgr);
     const envTasks = [];
-    const addTexTask = (url, onDone) => {
-        envTasks.push(new Promise((resolve) => {
-            texLoader.load(url, (tex) => {
-                try { onDone(tex); } catch (_) {}
-                resolve(tex);
-            }, undefined, () => resolve(null));
-        }));
-    };
     const addGltfTask = (url, onDone) => {
         envTasks.push(new Promise((resolve) => {
-            loader.load(resolveAssetUrl(url), (gltf) => {
+            loader.load(url, (gltf) => {
                 try {
                     const maybePromise = onDone(gltf);
                     if (maybePromise && typeof maybePromise.then === 'function') {
@@ -109,139 +241,19 @@ Dungeon3DProto._loadPolyHavenEnvironmentModels = function _loadPolyHavenEnvironm
         }));
     };
 
-    addTexTask('/assets/polyhaven/models/pachira_aquatica_01/textures/pachira_aquatica_01_bark_diff_1k.jpg', (diff) => {
-        diff.encoding = THREE.sRGBEncoding;
-        diff.flipY = false;
-        if (this.treeTrunkMat) {
-            this.treeTrunkMat.map = diff;
-            this.treeTrunkMat.needsUpdate = true;
-        }
-    });
-    addTexTask('/assets/polyhaven/models/pachira_aquatica_01/textures/pachira_aquatica_01_bark_nor_gl_1k.jpg', (nor) => {
-        nor.flipY = false;
-        this.treeBarkNormal = nor;
-        if (this.treeTrunkMat) {
-            this.treeTrunkMat.normalMap = nor;
-            this.treeTrunkMat.needsUpdate = true;
-        }
-    });
-    addTexTask('/assets/polyhaven/models/pachira_aquatica_01/textures/pachira_aquatica_01_leaves_diff_1k.jpg', (diff) => {
-        diff.encoding = THREE.sRGBEncoding;
-        diff.flipY = false;
-        if (this.treeLeavesMat) {
-            this.treeLeavesMat.map = diff;
-            this.treeLeavesMat.needsUpdate = true;
-        }
-        this._lastTerrainSig = null;
-    });
-    addTexTask('/assets/polyhaven/models/pachira_aquatica_01/textures/pachira_aquatica_01_leaves_nor_gl_1k.jpg', (nor) => {
-        nor.flipY = false;
-        if (this.treeLeavesMat) {
-            this.treeLeavesMat.normalMap = nor;
-            this.treeLeavesMat.needsUpdate = true;
-        }
-    });
-
-    // 1. Pachira Aquatica (Photogrammetry Tree trunk, leaves & bush in local mesh space)
-    addGltfTask('/assets/polyhaven/models/pachira_aquatica_01/pachira_aquatica_01.gltf', (gltf) => {
-        const scene = gltf.scene || (gltf.scenes && gltf.scenes[0]);
-        if (!scene) return;
-
-        const trunkParts = [];
-        const leafParts = [];
-        const bushParts = [];
-
-        scene.traverse((child) => {
-            if (child.isMesh && child.geometry) {
-                const fullName = ((child.name || '') + ' ' + (child.parent ? child.parent.name || '' : '')).toLowerCase();
-                const isBark = fullName.includes('bark_c') || fullName.includes('circle.001');
-                const isLeavesB = fullName.includes('leaves_b') || fullName.includes('cylinder.118');
-                const isLeavesC = fullName.includes('leaves_c') || fullName.includes('cylinder.092');
-                if (!isBark && !isLeavesB && !isLeavesC) return;
-
-                const g = child.geometry.clone();
-                if (g.attributes.color) g.deleteAttribute('color');
-                const colArr = new Float32Array(g.attributes.position.count * 3);
-                colArr.fill(1.0);
-                g.setAttribute('color', new THREE.BufferAttribute(colArr, 3));
-
-                if (isBark) {
-                    trunkParts.push(g);
-                } else if (isLeavesB) {
-                    bushParts.push(g);
-                } else if (isLeavesC) {
-                    if (g.index && g.index.count > 1800) {
-                        const srcIdx = g.index.array;
-                        const decimated = [];
-                        for (let ti = 0; ti + 2 < srcIdx.length; ti += 15) {
-                            decimated.push(srcIdx[ti], srcIdx[ti + 1], srcIdx[ti + 2]);
-                        }
-                        g.setIndex(decimated);
-                    }
-                    leafParts.push(g);
-                }
-            }
-        });
-
-        if (trunkParts.length > 0 && leafParts.length > 0) {
-            const trunkGeo = this._mergeBufferGeometries(trunkParts);
-            const leavesGeo = this._mergeBufferGeometries(leafParts);
-
-            const unionBox = new THREE.Box3();
-            if (trunkGeo.boundingBox) unionBox.union(trunkGeo.boundingBox);
-            if (leavesGeo.boundingBox) unionBox.union(leavesGeo.boundingBox);
-
-            const centerX = (unionBox.min.x + unionBox.max.x) * 0.5;
-            const centerZ = (unionBox.min.z + unionBox.max.z) * 0.5;
-            const spanXZ = Math.max(unionBox.max.x - unionBox.min.x, unionBox.max.z - unionBox.min.z) || 1.0;
-            const spanY = (unionBox.max.y - unionBox.min.y) || 1.0;
-
-            trunkGeo.translate(-centerX, -unionBox.min.y, -centerZ);
-            leavesGeo.translate(-centerX, -unionBox.min.y, -centerZ);
-
-            const scaleX = 2.35 / spanXZ;
-            const scaleY = 2.85 / spanY;
-            const scaleZ = 2.35 / spanXZ;
-            trunkGeo.scale(scaleX, scaleY, scaleZ);
-            leavesGeo.scale(scaleX, scaleY, scaleZ);
-
-            this._tanglethornTrunkGeo = trunkGeo.clone();
-            this._tanglethornLeavesGeo = leavesGeo.clone();
-
-            if (this.treeTrunkMesh && this.treeTrunkMesh.geometry) this.treeTrunkMesh.geometry.dispose();
-            if (this.treeLeavesMesh && this.treeLeavesMesh.geometry) this.treeLeavesMesh.geometry.dispose();
-            if (this.treeTrunkMesh) this.treeTrunkMesh.geometry = trunkGeo;
-            if (this.treeLeavesMesh) this.treeLeavesMesh.geometry = leavesGeo;
-
-            this._lastTerrainSig = null;
-        }
-
-        if (bushParts.length > 0) {
-            const bushGeo = this._mergeBufferGeometries(bushParts);
-            bushGeo.computeBoundingBox();
-            const bBox = bushGeo.boundingBox;
-            const bCenterX = (bBox.min.x + bBox.max.x) * 0.5;
-            const bCenterZ = (bBox.min.z + bBox.max.z) * 0.5;
-            const bSpanXZ = Math.max(bBox.max.x - bBox.min.x, bBox.max.z - bBox.min.z) || 1.0;
-            const bSpanY = (bBox.max.y - bBox.min.y) || 1.0;
-
-            bushGeo.translate(-bCenterX, -bBox.min.y, -bCenterZ);
-            bushGeo.scale(1.28 / bSpanXZ, 0.82 / bSpanY, 1.28 / bSpanXZ);
-            bushGeo.computeVertexNormals();
-
-            if (this.bushMesh && this.bushMesh.geometry) this.bushMesh.geometry.dispose();
-            if (this.bushMesh) this.bushMesh.geometry = bushGeo;
-        }
-    });
-
-    // 2. Moon Rock 02 (Photogrammetry Rubble Boulders)
+    // 1. Moon Rock 02 (Photogrammetry Rubble Boulders — reuse GLTF-parsed textures directly, zero duplicate downloads)
     addGltfTask('/assets/polyhaven/models/moon_rock_02/moon_rock_02.gltf', (gltf) => {
         const scene = gltf.scene || (gltf.scenes && gltf.scenes[0]);
         if (!scene) return;
         const parts = [];
+        let diff = null, nor = null;
         scene.traverse((c) => {
             if (c.isMesh && c.geometry) {
                 c.updateMatrixWorld(true);
+                if (c.material) {
+                    if (!diff && c.material.map) diff = c.material.map;
+                    if (!nor && c.material.normalMap) nor = c.material.normalMap;
+                }
                 const g = c.geometry.clone();
                 g.applyMatrix4(c.matrixWorld);
                 if (g.attributes.color) g.deleteAttribute('color');
@@ -265,35 +277,29 @@ Dungeon3DProto._loadPolyHavenEnvironmentModels = function _loadPolyHavenEnvironm
 
             if (this.rubbleMesh && this.rubbleMesh.geometry) this.rubbleMesh.geometry.dispose();
             if (this.rubbleMesh) this.rubbleMesh.geometry = geo;
-
-            return new Promise((resolveTex) => {
-                texLoader.load('/assets/polyhaven/models/moon_rock_02/textures/moon_rock_02_diff_1k.jpg', (diff) => {
-                    diff.encoding = THREE.sRGBEncoding;
-                    diff.flipY = false;
-                    texLoader.load('/assets/polyhaven/models/moon_rock_02/textures/moon_rock_02_nor_gl_1k.jpg', (nor) => {
-                        nor.flipY = false;
-                        if (this.rubbleMaterial) {
-                            this.rubbleMaterial.map = diff;
-                            this.rubbleMaterial.normalMap = nor;
-                            this.rubbleMaterial.needsUpdate = true;
-                        }
-                        this._hasPolyHavenRubbleTex = true;
-                        this._lastTerrainSig = null;
-                        resolveTex(true);
-                    }, undefined, () => resolveTex(false));
-                }, undefined, () => resolveTex(false));
-            });
+            if (this.rubbleMaterial && (diff || nor)) {
+                if (diff) { diff.encoding = THREE.sRGBEncoding; diff._sharedTexture = true; this.rubbleMaterial.map = diff; }
+                if (nor) { nor._sharedTexture = true; this.rubbleMaterial.normalMap = nor; }
+                this.rubbleMaterial.needsUpdate = true;
+                this._hasPolyHavenRubbleTex = true;
+            }
+            this._lastTerrainSig = null;
         }
     });
 
-    // 3. Rock 07 (Photogrammetry Mountain Crag)
+    // 2. Rock 07 (Photogrammetry Mountain Crag — reuse GLTF-parsed textures directly, zero duplicate downloads)
     addGltfTask('/assets/polyhaven/models/rock_07/rock_07.gltf', (gltf) => {
         const scene = gltf.scene || (gltf.scenes && gltf.scenes[0]);
         if (!scene) return;
         const parts = [];
+        let diff = null, nor = null;
         scene.traverse((c) => {
             if (c.isMesh && c.geometry) {
                 c.updateMatrixWorld(true);
+                if (c.material) {
+                    if (!diff && c.material.map) diff = c.material.map;
+                    if (!nor && c.material.normalMap) nor = c.material.normalMap;
+                }
                 const g = c.geometry.clone();
                 g.applyMatrix4(c.matrixWorld);
                 if (g.attributes.color) g.deleteAttribute('color');
@@ -317,24 +323,13 @@ Dungeon3DProto._loadPolyHavenEnvironmentModels = function _loadPolyHavenEnvironm
 
             if (this.mountainMesh && this.mountainMesh.geometry) this.mountainMesh.geometry.dispose();
             if (this.mountainMesh) this.mountainMesh.geometry = geo;
-
-            return new Promise((resolveTex) => {
-                texLoader.load('/assets/polyhaven/models/rock_07/textures/rock_07_diff_1k.jpg', (diff) => {
-                    diff.encoding = THREE.sRGBEncoding;
-                    diff.flipY = false;
-                    texLoader.load('/assets/polyhaven/models/rock_07/textures/rock_07_nor_gl_1k.jpg', (nor) => {
-                        nor.flipY = false;
-                        if (this.mountainMaterial) {
-                            this.mountainMaterial.map = diff;
-                            this.mountainMaterial.normalMap = nor;
-                            this.mountainMaterial.needsUpdate = true;
-                        }
-                        this._hasPolyHavenMountainTex = true;
-                        this._lastTerrainSig = null;
-                        resolveTex(true);
-                    }, undefined, () => resolveTex(false));
-                }, undefined, () => resolveTex(false));
-            });
+            if (this.mountainMaterial && (diff || nor)) {
+                if (diff) { diff.encoding = THREE.sRGBEncoding; diff._sharedTexture = true; this.mountainMaterial.map = diff; }
+                if (nor) { nor._sharedTexture = true; this.mountainMaterial.normalMap = nor; }
+                this.mountainMaterial.needsUpdate = true;
+                this._hasPolyHavenMountainTex = true;
+            }
+            this._lastTerrainSig = null;
         }
     });
 

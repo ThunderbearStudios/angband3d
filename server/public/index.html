@@ -1190,7 +1190,7 @@
                 <!-- Thunderbear Studios GitHub Link Strip Underneath -->
                 <div class="demo-footer-strip">
                     <a href="https://thunderbearstudios.dev" target="_blank" rel="noopener noreferrer" class="demo-github-link" title="Visit Thunderbear Studios Official Site">
-                        <img src="/assets/thunderbear_logo.png" alt="Thunderbear Studios" class="demo-footer-logo">
+                        <img src="/assets/thunderbear_logo.png?v=12.1.0" alt="Thunderbear Studios" class="demo-footer-logo" loading="lazy" decoding="async">
                         <span class="demo-github-text">Brought to you by <strong>Thunderbear Studios</strong> (thunderbearstudios.dev) ↗</span>
                     </a>
                     <a href="https://github.com/ThunderbearStudios/angband3d" target="_blank" rel="noopener noreferrer" class="demo-permalink-link" style="color: var(--gold-bright); font-size: 0.85rem; text-decoration: none; margin-left: 16px;" title="Open GitHub Repository">📦 View GPL-2.0 Source on GitHub ↗</a>
@@ -1392,14 +1392,17 @@
                         <div id="chronicle-sketch-timer" class="chronicle-sketch-timer">0.0s elapsed</div>
                         <button type="button" id="btn-sketch-bg-dismiss" class="btn-gold-outline">Continue Playing in Background [Esc]</button>
                     </div>
-                    <img id="chronicle-sketch-modal-img" class="chronicle-sketch-img" src="" alt="Hero Action Sketch" /><div id="chronicle-sketch-modal-status" class="death-sketch-status">✨ Illustrated Scene</div><div id="chronicle-sketch-modal-caption" class="chronicle-sketch-meta"></div><div id="chronicle-sketch-modal-gear" class="chronicle-sketch-gear-tags"></div>
+                    <img id="chronicle-sketch-modal-img" class="chronicle-sketch-img" alt="Hero Action Sketch" style="display:none;" /><div id="chronicle-sketch-modal-status" class="death-sketch-status">✨ Illustrated Scene</div><div id="chronicle-sketch-modal-caption" class="chronicle-sketch-meta"></div><div id="chronicle-sketch-modal-gear" class="chronicle-sketch-gear-tags"></div>
                 </div>
                 <div class="modal-footer" style="gap: 10px;"><button type="button" id="btn-share-sketch-card" class="death-btn btn-share-yasd" title="Download Shareable Scene Card (.PNG)">⚔ Share Scene Card</button><a id="btn-download-sketch-png" class="btn-primary" download="angband3d-hero-sketch.png" href="#">⬇ Download PNG</a></div>
             </div>
         </div>
         <!-- Initial Connection & Between-Levels Arcane Progress Wheel Curtain -->
-        <div id="loading-overlay" class="hidden" role="status" aria-live="polite"><div class="loading-emblem-card"><div class="loading-emblem-wheel" aria-hidden="true"><svg class="loading-wheel-svg" viewBox="0 0 220 220" width="220" height="220"><defs><linearGradient id="yasdLoadingGoldGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#b45309"/><stop offset="45%" stop-color="#f59e0b"/><stop offset="80%" stop-color="#ffd700"/><stop offset="100%" stop-color="#fef08a"/></linearGradient></defs><circle class="loading-svg-track" cx="110" cy="110" r="92"/><circle id="loading-svg-ring-outer" class="loading-svg-ring-outer" cx="110" cy="110" r="103"/><circle id="loading-svg-ring-inner" class="loading-svg-ring-inner" cx="110" cy="110" r="78"/><circle id="loading-wheel-arc" class="loading-wheel-arc" cx="110" cy="110" r="92" stroke="url(#yasdLoadingGoldGrad)" stroke-dasharray="578.05" stroke-dashoffset="508.68"/><circle id="loading-wheel-comet" class="loading-wheel-comet" cx="110" cy="18" r="5.5"/></svg><img class="loading-emblem-logo" src="/assets/yasd3d_badge.png" alt="" width="126" height="126" decoding="async" /><span id="loading-wheel-pct" class="loading-wheel-pct">12%</span></div><h2 class="loading-emblem-title">YASD 3D</h2><p id="loading-stage-text" class="loading-emblem-subtitle">Connecting to Cloud Realm &amp; Spawning Engine...</p><div class="loading-progress-track" aria-hidden="true"><div id="loading-progress-fill" class="loading-progress-fill" style="width: 12%;"></div></div><button type="button" id="btn-loading-cancel" class="loading-cancel-btn hidden">Return to Main Menu</button></div></div>
+        <div id="loading-overlay" class="hidden" role="status" aria-live="polite"><div class="loading-emblem-card"><div class="loading-emblem-wheel" aria-hidden="true"><svg class="loading-wheel-svg" viewBox="0 0 220 220" width="220" height="220"><defs><linearGradient id="yasdLoadingGoldGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#b45309"/><stop offset="45%" stop-color="#f59e0b"/><stop offset="80%" stop-color="#ffd700"/><stop offset="100%" stop-color="#fef08a"/></linearGradient></defs><circle class="loading-svg-track" cx="110" cy="110" r="92"/><circle id="loading-svg-ring-outer" class="loading-svg-ring-outer" cx="110" cy="110" r="103"/><circle id="loading-svg-ring-inner" class="loading-svg-ring-inner" cx="110" cy="110" r="78"/><circle id="loading-wheel-arc" class="loading-wheel-arc" cx="110" cy="110" r="92" stroke="url(#yasdLoadingGoldGrad)" stroke-dasharray="578.05" stroke-dashoffset="508.68"/><circle id="loading-wheel-comet" class="loading-wheel-comet" cx="110" cy="18" r="5.5"/></svg><img class="loading-emblem-logo" src="/assets/yasd3d_badge.png?v=12.1.0" alt="" width="126" height="126" loading="lazy" decoding="async" /><span id="loading-wheel-pct" class="loading-wheel-pct">12%</span></div><h2 class="loading-emblem-title">YASD 3D</h2><p id="loading-stage-text" class="loading-emblem-subtitle">Connecting to Cloud Realm &amp; Spawning Engine...</p><div class="loading-progress-track" aria-hidden="true"><div id="loading-progress-fill" class="loading-progress-fill" style="width: 12%;"></div></div><button type="button" id="btn-loading-cancel" class="loading-cancel-btn hidden">Return to Main Menu</button></div></div>
     </div>
+
+    <!-- Canonical Boot Version Stamp (Runs First, CSP-Clean) -->
+    <script defer src="/js/boot.js?v=12.1.0"></script>
 
     <!-- Three.js r128 & Loaders (Local Vendored) -->
     <script defer src="/js/vendor/three.min.js?v=12.1.0"></script>
@@ -1431,7 +1434,6 @@
     <script defer src="/js/entity-menu.js?v=12.1.0"></script>
     <script defer src="/js/gamepad.js?v=12.1.0"></script>
     <script defer src="/js/radial-menu.js?v=12.1.0"></script>
-    <script defer src="/js/mobile-overlay.js?v=12.1.0"></script>
     <script defer src="/js/audio-director.js?v=12.1.0"></script>
     <script defer src="/js/audio.js?v=12.1.0"></script>
     <script defer src="/js/terminal.js?v=12.1.0"></script>
@@ -1463,6 +1465,5 @@
     <script defer src="/js/chronicle/chronicle-manager.js?v=12.1.0"></script>
     <script defer src="/js/app.js?v=12.1.0"></script>
     <script defer src="/js/splash-shader.js?v=12.1.0"></script>
-    <script defer src="/js/boot.js?v=12.1.0"></script>
 </body>
 </html>

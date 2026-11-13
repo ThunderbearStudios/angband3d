@@ -14,6 +14,15 @@ const commandQueue = [];
 let currentChar = 'Adventurer';
 let wasmPlayerAlive = true;
 const CARTRIDGE_REALMS = new Set(['nethack', 'dcss', 'brogue', 'rogue', 'ryod']);
+const WORKER_VER = (() => {
+    try {
+        const m = self.location && self.location.search ? self.location.search.match(/[?&]v=([^&]+)/) : null;
+        return m ? decodeURIComponent(m[1]) : '';
+    } catch (_) {
+        return '';
+    }
+})();
+const V_SUFFIX = WORKER_VER ? ('?v=' + encodeURIComponent(WORKER_VER)) : '';
 
 function ensureCartridgesBundleLoaded() {
     if (typeof self.YendorWorkerCartridges !== 'undefined') return true;
@@ -21,12 +30,9 @@ function ensureCartridgesBundleLoaded() {
         ? self.location.origin + '/js/'
         : '/js/';
     for (const candidate of [
-        baseJs + 'cartridges-worker-bundle.js',
-        '/js/cartridges-worker-bundle.js',
-        './cartridges-worker-bundle.js',
-        baseJs + 'worker-cartridges.js',
-        '/js/worker-cartridges.js',
-        './worker-cartridges.js'
+        baseJs + 'cartridges-worker-bundle.js' + V_SUFFIX,
+        '/js/cartridges-worker-bundle.js' + V_SUFFIX,
+        './cartridges-worker-bundle.js' + V_SUFFIX
     ]) {
         try {
             importScripts(candidate);
@@ -86,6 +92,26 @@ self.onmessage = async (e) => {
     if (!data || !data.type) return;
 
     switch (data.type) {
+        case 'prewarm': {
+            const warmRealm = String(data.realm || 'angband').toLowerCase();
+            try {
+                if (CARTRIDGE_REALMS.has(warmRealm)) {
+                    if (ensureCartridgesBundleLoaded() && self.YendorWorkerCartridges.VFS) {
+                        await self.YendorWorkerCartridges.VFS.hydrateFromIndexedDB();
+                    }
+                } else if (warmRealm === 'angband' && typeof fetch === 'function') {
+                    const baseWasm = (self.location && self.location.origin) ? self.location.origin + '/wasm/' : '/wasm/';
+                    await Promise.allSettled([
+                        fetch(baseWasm + 'angband.js' + V_SUFFIX),
+                        fetch(baseWasm + 'angband.wasm' + V_SUFFIX),
+                        fetch(baseWasm + 'angband.data' + V_SUFFIX)
+                    ]);
+                }
+            } catch (_) {}
+            self.postMessage({ type: 'prewarm_done', realm: warmRealm });
+            break;
+        }
+
         case 'init': {
             const reqRealm = String(data.realm || 'angband').toLowerCase();
             activeRealm = reqRealm;
@@ -233,13 +259,13 @@ async function startEngine(charName, isNew, saveFile) {
         : '/wasm/';
 
     try {
-        importScripts(baseWasm + 'angband.js');
+        importScripts(baseWasm + 'angband.js' + V_SUFFIX);
     } catch (e) {
         try {
-            importScripts('/wasm/angband.js');
+            importScripts('/wasm/angband.js' + V_SUFFIX);
         } catch (e2) {
             try {
-                importScripts('../wasm/angband.js');
+                importScripts('../wasm/angband.js' + V_SUFFIX);
             } catch (e3) {
                 self.postMessage({ type: 'error', message: 'Could not load wasm/angband.js: ' + e3.message });
                 return;
@@ -257,9 +283,9 @@ async function startEngine(charName, isNew, saveFile) {
     const config = {
         locateFile: (path) => {
             if (typeof self !== 'undefined' && self.location && self.location.origin) {
-                return self.location.origin + '/wasm/' + path;
+                return self.location.origin + '/wasm/' + path + V_SUFFIX;
             }
-            return '/wasm/' + path;
+            return '/wasm/' + path + V_SUFFIX;
         },
         onAwaitingInput: function () {
             isAwaitingInput = true;

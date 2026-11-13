@@ -370,18 +370,21 @@ class LocalGameBridge {
             }
         }, 3500);
 
+        const verParam = (typeof window !== 'undefined' && (window.__ASSET_V || window.APP_VERSION))
+            ? ('?v=' + encodeURIComponent(window.__ASSET_V || window.APP_VERSION))
+            : '';
         const workerUrl = (typeof window !== 'undefined' && window.location && window.location.origin)
-            ? window.location.origin + '/js/engine-worker.js'
-            : '/js/engine-worker.js';
+            ? window.location.origin + '/js/engine-worker.js' + verParam
+            : '/js/engine-worker.js' + verParam;
 
         try {
             this.worker = new Worker(workerUrl);
         } catch (err) {
             try {
-                this.worker = new Worker('/js/engine-worker.js');
+                this.worker = new Worker('/js/engine-worker.js' + verParam);
             } catch (err2) {
                 try {
-                    this.worker = new Worker('js/engine-worker.js');
+                    this.worker = new Worker('js/engine-worker.js' + verParam);
                 } catch (err3) {
                     this._clearWatchdog();
                     const fatal = new Error(`Failed to instantiate Web Worker: ${err3.message}`);
@@ -629,6 +632,34 @@ class LocalGameBridge {
 
     async restoreCheckpoint(slot, kind = 'living', realm = null) {
         return LocalSaveManager.restoreCheckpoint(slot, kind, realm || this.currentRealm);
+    }
+
+    static prewarm(realm = 'angband') {
+        if (typeof Worker === 'undefined') return;
+        const rk = String(realm || 'angband').toLowerCase();
+        const localRealms = new Set(['angband', 'nethack', 'dcss', 'brogue', 'rogue', 'ryod']);
+        if (!localRealms.has(rk)) return;
+        if (!this._prewarmedRealms) this._prewarmedRealms = new Set();
+        const key = (rk === 'angband') ? 'wasm:angband' : 'cartridges';
+        if (this._prewarmedRealms.has(key)) return;
+        this._prewarmedRealms.add(key);
+
+        try {
+            const verParam = (typeof window !== 'undefined' && (window.__ASSET_V || window.APP_VERSION))
+                ? ('?v=' + encodeURIComponent(window.__ASSET_V || window.APP_VERSION))
+                : '';
+            const w = new Worker('/js/engine-worker.js' + verParam);
+            const done = () => { try { w.terminate(); } catch (_) {} };
+            const timer = setTimeout(done, 8000);
+            w.onmessage = (e) => {
+                if (e && e.data && e.data.type === 'prewarm_done') {
+                    clearTimeout(timer);
+                    done();
+                }
+            };
+            w.onerror = () => { clearTimeout(timer); done(); };
+            w.postMessage({ type: 'prewarm', realm: rk });
+        } catch (_) {}
     }
 }
 

@@ -56,9 +56,16 @@ window.addEventListener('DOMContentLoaded', () => {
             }
             showUpdateToast();
         });
-        navigator.serviceWorker.register('/sw.js').catch((err) => {
-            console.warn('[SW] Registration failed:', err);
-        });
+        const registerSwDeferred = () => {
+            navigator.serviceWorker.register('/sw.js').catch((err) => {
+                console.warn('[SW] Registration failed:', err);
+            });
+        };
+        if (document.readyState === 'complete') {
+            registerSwDeferred();
+        } else {
+            window.addEventListener('load', registerSwDeferred, { once: true });
+        }
     }
 
     // 1. Initialize Subsystems
@@ -281,7 +288,7 @@ window.addEventListener('DOMContentLoaded', () => {
     if (typeof window !== 'undefined') {
         window.loadHengLang = loadHengLang;
     }
-    if (activeRealm === 'hengband') {
+    if (activeRealm === 'hengband' && hengbandLangMode !== 'jp') {
         loadHengLang();
     }
 
@@ -1969,6 +1976,22 @@ window.addEventListener('DOMContentLoaded', () => {
             audio.playMenuNav();
             if (typeof audio.startMenuMusic === 'function') audio.startMenuMusic();
         }
+        ensureMenuDioramaLoop();
+    }
+
+    function scheduleLocalPrewarm() {
+        if (window.LocalGameBridge && typeof window.LocalGameBridge.prewarm === 'function') {
+            const runWarm = () => {
+                if (appState === 'mainMenu' || appState === 'splash') {
+                    window.LocalGameBridge.prewarm(activeRealm);
+                }
+            };
+            if (typeof requestIdleCallback === 'function') {
+                requestIdleCallback(runWarm, { timeout: 2000 });
+            } else {
+                setTimeout(runWarm, 600);
+            }
+        }
     }
 
     function showMainMenu() {
@@ -1989,6 +2012,8 @@ window.addEventListener('DOMContentLoaded', () => {
         checkSaves();
         updateMenuSelectionUI();
         renderMenuBackdropDiorama();
+        ensureMenuDioramaLoop();
+        scheduleLocalPrewarm();
     }
 
     // Load Menu Handler
@@ -7613,19 +7638,26 @@ window.addEventListener('DOMContentLoaded', () => {
     setupCommandPaletteEvents();
     // Live 3D Celestial Diorama: When in Splash or Main Menu and no gameplay frame has arrived,
     // gently tilt camera pitch upward and orbit yaw so the Celestial Sky Dome & Town diorama shine through.
+    // Pauses completely during active gameplay (zero idle rAF callbacks).
+    let menuDioramaRafId = 0;
     function tickMenuDiorama(time) {
-        if ((appState === 'splash' || appState === 'mainMenu') && !lastFrame) {
-            const dr = window.__dungeonRenderer || window.dungeon;
-            if (dr && dr.camera) {
-                // Gently tilt camera pitch upward towards the celestial dome & Milky Way
-                dr.userPitchOffset = 0.22 + Math.sin(time * 0.0006) * 0.05;
-                // Smoothly orbit yaw so Town masonry and constellations pan gently
-                dr.targetYaw = (dr.targetYaw || 0) + 0.0006;
-            }
+        if ((appState !== 'splash' && appState !== 'mainMenu') || lastFrame) {
+            menuDioramaRafId = 0;
+            return;
         }
-        requestAnimationFrame(tickMenuDiorama);
+        const dr = window.__dungeonRenderer || window.dungeon;
+        if (dr && dr.camera) {
+            dr.userPitchOffset = 0.22 + Math.sin(time * 0.0006) * 0.05;
+            dr.targetYaw = (dr.targetYaw || 0) + 0.0006;
+        }
+        menuDioramaRafId = requestAnimationFrame(tickMenuDiorama);
     }
-    requestAnimationFrame(tickMenuDiorama);
+    function ensureMenuDioramaLoop() {
+        if (!menuDioramaRafId && (appState === 'splash' || appState === 'mainMenu') && !lastFrame) {
+            menuDioramaRafId = requestAnimationFrame(tickMenuDiorama);
+        }
+    }
+    ensureMenuDioramaLoop();
     // 3. Initial Boot: Check URL query parameters
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('play') === '1' || urlParams.get('autoplay') === '1') {

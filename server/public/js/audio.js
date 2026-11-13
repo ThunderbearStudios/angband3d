@@ -193,9 +193,9 @@ class SoundEngine {
                 a.volume = this._getThemeTargetVolume();
                 return bindDeckEvents(a, isPrimary);
             };
-            // Keep Deck A on 'metadata' on cold boot until startMenuMusic() or user unlock,
-            // preventing a 4.9MB audio stream from competing with core JS/WebSocket boot on slow Wi-Fi.
-            this._themeDeckA = createDeck(domDeckA, 'metadata', true);
+            // Keep both decks on 'none' on cold boot until startMenuMusic() or user unlock,
+            // preventing a multi-MB audio stream from competing with core JS/WebSocket boot.
+            this._themeDeckA = createDeck(domDeckA, 'none', true);
             this._themeDeckB = createDeck(domDeckB, 'none', false);
             this._activeThemeDeck = this._themeDeckA;
             this._standbyThemeDeck = this._themeDeckB;
@@ -206,7 +206,8 @@ class SoundEngine {
 
     _getThemeTargetVolume() {
         if (!this.enabled || !this.musicEnabled) return 0.0;
-        return Math.max(0.0, Math.min(1.0, this.masterVolume * this.musicVolume));
+        const duck = typeof this._duckingMultiplier === 'number' ? this._duckingMultiplier : 1.0;
+        return Math.max(0.0, Math.min(1.0, this.masterVolume * this.musicVolume * duck));
     }
 
     _syncThemeVolume() {

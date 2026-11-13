@@ -60,6 +60,7 @@ const EXCLUDED_ANDROID_PREFIXES = [
 
 function isExcludedFromAndroid(relPath) {
     const norm = relPath.replace(/\\/g, '/');
+    if (norm.endsWith('.br')) return true;
     return EXCLUDED_ANDROID_PREFIXES.some(prefix => norm === prefix || norm.startsWith(prefix + '/'));
 }
 

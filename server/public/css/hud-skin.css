@@ -1105,13 +1105,13 @@
 #splash-overlay {
   background:
     radial-gradient(circle at 50% 28%, rgba(21, 24, 29, 0.62) 0%, rgba(12, 14, 18, 0.93) 72%, rgba(8, 10, 13, 0.98) 100%),
-    url('/assets/showcase/live_3d_combat_showcase.png') center center / cover no-repeat !important;
+    url('/assets/showcase/live_3d_combat_showcase.webp?v=12.1.0') center center / cover no-repeat !important;
 }
 
 #main-menu-overlay {
   background:
     radial-gradient(circle at 50% 24%, rgba(21, 24, 29, 0.68) 0%, rgba(12, 14, 18, 0.94) 74%, rgba(8, 10, 13, 0.98) 100%),
-    url('/assets/showcase/live_town_sky_stores.png') center center / cover no-repeat !important;
+    url('/assets/showcase/live_town_sky_stores.webp?v=12.1.0') center center / cover no-repeat !important;
 }
 
 /* Remove decorative corner trim on Splash & Main Menu */

@@ -170,9 +170,10 @@ export default {
       redirect: "manual",
     };
     if (isCacheableStatic) {
+      const ttl = url.searchParams.has("v") ? 31536000 : 86400;
       fetchOpts.cf = {
         cacheEverything: true,
-        cacheTtlByStatus: { "200-299": 86400, "404": 30, "500-599": 0 },
+        cacheTtlByStatus: { "200-299": ttl, "404": 30, "500-599": 0 },
       };
     } else if (isAnonymousRootGet && !reqCookie) {
       fetchOpts.cf = {
@@ -192,7 +193,10 @@ export default {
       outHeaders.set("Cross-Origin-Embedder-Policy", "credentialless");
     }
     if (isWasmOrAssets && upstreamResp.status >= 200 && upstreamResp.status < 300) {
-      outHeaders.set("Cache-Control", "public, max-age=86400");
+      outHeaders.set(
+        "Cache-Control",
+        url.searchParams.has("v") ? "public, max-age=31536000, immutable" : "public, max-age=86400"
+      );
     }
     outHeaders.set("X-Content-Type-Options", "nosniff");
     outHeaders.set("Referrer-Policy", "strict-origin-when-cross-origin");

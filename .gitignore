@@ -103,3 +103,6 @@ GEMINI.md
 .agent/
 
 /archive/
+
+# Build-time Brotli-11 precompressed static sidecars
+*.br

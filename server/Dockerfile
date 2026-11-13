@@ -115,6 +115,8 @@ COPY --from=engine-builder /src/variants/hengband-src/src/hengband-bridge /app/v
 # Copy server & web assets last (fastest invalidation layer)
 COPY server/src/ /app/server/src/
 COPY server/public/ /app/public/
+COPY tools/precompress_assets.js /app/tools/precompress_assets.js
+RUN node /app/tools/precompress_assets.js /app/public
 COPY variants/nethack/ /app/variants/nethack/
 COPY variants/rogue/ /app/variants/rogue/
 COPY variants/brogue/ /app/variants/brogue/

@@ -452,41 +452,44 @@
         return true;
     }
 
+    function disposeSplashWebGL() {
+        if (gl) {
+            try {
+                const lose = gl.getExtension('WEBGL_lose_context');
+                if (lose) lose.loseContext();
+            } catch (_) {}
+            gl = null;
+            prog = null;
+            uTimeLoc = null;
+            uTexelLoc = null;
+        }
+        if (glCanvas && glCanvas.parentNode) {
+            glCanvas.parentNode.removeChild(glCanvas);
+        }
+        glCanvas = null;
+    }
+
+    function paintStaticVial2D(ctx, stops) {
+        if (!ctx) return;
+        const grad = ctx.createLinearGradient(0, 0, 0, 20);
+        for (let i = 0; i < stops.length; i++) {
+            grad.addColorStop(stops[i][0], stops[i][1]);
+        }
+        ctx.clearRect(0, 0, 128, 20);
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, 128, 20);
+        const sheen = ctx.createLinearGradient(0, 0, 128, 0);
+        sheen.addColorStop(0, 'rgba(255,255,255,0.04)');
+        sheen.addColorStop(0.5, 'rgba(255,255,255,0.16)');
+        sheen.addColorStop(1, 'rgba(255,255,255,0.06)');
+        ctx.fillStyle = sheen;
+        ctx.fillRect(0, 1, 128, 4);
+    }
+
     function setupHudVialsWebGL() {
         const hpFill = document.getElementById('hp-fill');
         const spFill = document.getElementById('sp-fill');
         if (!hpFill || !spFill) return false;
-
-        if (!vialGlCanvas) {
-            vialGlCanvas = document.createElement('canvas');
-            vialGlCanvas.width = 128;
-            vialGlCanvas.height = 20;
-            vialGl = vialGlCanvas.getContext('webgl', { alpha: false, antialias: false, depth: false, stencil: false, preserveDrawingBuffer: true });
-            if (!vialGl) return false;
-
-            const vs = compileShader(vialGl, vialGl.VERTEX_SHADER, VERT_SRC);
-            const fs = compileShader(vialGl, vialGl.FRAGMENT_SHADER, VIAL_FRAG_SRC);
-            if (!vs || !fs) return false;
-
-            vialProg = vialGl.createProgram();
-            vialGl.attachShader(vialProg, vs);
-            vialGl.attachShader(vialProg, fs);
-            vialGl.linkProgram(vialProg);
-            if (!vialGl.getProgramParameter(vialProg, vialGl.LINK_STATUS)) return false;
-
-            vialGl.useProgram(vialProg);
-            const buf = vialGl.createBuffer();
-            vialGl.bindBuffer(vialGl.ARRAY_BUFFER, buf);
-            vialGl.bufferData(vialGl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), vialGl.STATIC_DRAW);
-
-            const aPos = vialGl.getAttribLocation(vialProg, 'aPos');
-            vialGl.enableVertexAttribArray(aPos);
-            vialGl.vertexAttribPointer(aPos, 2, vialGl.FLOAT, false, 0, 0);
-
-            vialUTimeLoc = vialGl.getUniformLocation(vialProg, 'uTime');
-            vialUKindLoc = vialGl.getUniformLocation(vialProg, 'uKind');
-            vialGl.viewport(0, 0, 128, 20);
-        }
 
         if (!hpCanvas) {
             hpCanvas = document.createElement('canvas');
@@ -496,6 +499,7 @@
             hpCanvas.setAttribute('aria-hidden', 'true');
             hpFill.appendChild(hpCanvas);
             hpCtx = hpCanvas.getContext('2d');
+            paintStaticVial2D(hpCtx, [[0, '#ef4444'], [0.35, '#b91c1c'], [0.8, '#7f1d1d'], [1, '#450a0a']]);
         }
 
         if (!spCanvas) {
@@ -506,6 +510,7 @@
             spCanvas.setAttribute('aria-hidden', 'true');
             spFill.appendChild(spCanvas);
             spCtx = spCanvas.getContext('2d');
+            paintStaticVial2D(spCtx, [[0, '#38bdf8'], [0.35, '#0284c7'], [0.8, '#075985'], [1, '#082f49']]);
         }
 
         const expFill = document.getElementById('exp-fill');
@@ -517,35 +522,14 @@
             expCanvas.setAttribute('aria-hidden', 'true');
             expFill.appendChild(expCanvas);
             expCtx = expCanvas.getContext('2d');
+            paintStaticVial2D(expCtx, [[0, '#fde047'], [0.35, '#d97706'], [0.8, '#92400e'], [1, '#451a03']]);
         }
 
         return true;
     }
 
-    function drawHudVials(elapsedSec) {
-        if (!vialGl || !vialProg || !hpCtx || !spCtx) return;
-        const uiLayer = document.getElementById('ui-layer');
-        if (uiLayer && uiLayer.classList.contains('hidden')) return;
-
-        vialGl.useProgram(vialProg);
-        vialGl.uniform1f(vialUTimeLoc, elapsedSec);
-
-        // Render HP Blood-Ruby fluid (uKind = 0.0)
-        vialGl.uniform1f(vialUKindLoc, 0.0);
-        vialGl.drawArrays(vialGl.TRIANGLE_STRIP, 0, 4);
-        hpCtx.drawImage(vialGlCanvas, 0, 0);
-
-        // Render SP Crystalline-Aether fluid (uKind = 1.0)
-        vialGl.uniform1f(vialUKindLoc, 1.0);
-        vialGl.drawArrays(vialGl.TRIANGLE_STRIP, 0, 4);
-        spCtx.drawImage(vialGlCanvas, 0, 0);
-
-        // Render EXP Liquid Sun-Gold fluid (uKind = 2.0)
-        if (expCtx) {
-            vialGl.uniform1f(vialUKindLoc, 2.0);
-            vialGl.drawArrays(vialGl.TRIANGLE_STRIP, 0, 4);
-            expCtx.drawImage(vialGlCanvas, 0, 0);
-        }
+    function drawHudVials() {
+        // Zero-WebGL 2D static meniscus painted once on setup — eliminates 3x 20Hz GPU->CPU readback stalls during 3D gameplay.
     }
 
     const REALM_EMBER_RGB = {
@@ -634,11 +618,19 @@
         }
     }
 
+    let cachedModalEls = null;
+    function getModalEls() {
+        if (!cachedModalEls) {
+            cachedModalEls = MODAL_IDS.map((id) => document.getElementById(id)).filter(Boolean);
+        }
+        return cachedModalEls;
+    }
+
     function getActiveModalOverlay() {
-        for (let i = 0; i < MODAL_IDS.length; i++) {
-            const el = document.getElementById(MODAL_IDS[i]);
-            if (el && !el.classList.contains('hidden')) {
-                return el;
+        const els = getModalEls();
+        for (let i = 0; i < els.length; i++) {
+            if (!els[i].classList.contains('hidden')) {
+                return els[i];
             }
         }
         return null;
@@ -691,38 +683,52 @@
         gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     }
 
-    let lastVialDrawNow = 0;
-
     function stepFrame(now) {
         if (!enabled) {
             rafId = 0;
             return;
         }
         if (typeof document !== 'undefined' && document.hidden) {
-            lastStepNow = now;
-            rafId = requestAnimationFrame(stepFrame);
+            rafId = 0;
             return;
         }
+        const splashVisible = Boolean(splashOverlayEl && !splashOverlayEl.classList.contains('hidden'));
+        const activeModal = splashVisible ? null : getActiveModalOverlay();
+
+        if (!splashVisible && gl) {
+            // Reclaim splash WebGL context and GPU texture as soon as #splash-overlay closes
+            disposeSplashWebGL();
+        }
+
+        if (!splashVisible && !activeModal) {
+            // Pause rAF loop completely during active 3D gameplay (0ms CPU/GPU overhead; MutationObserver wakes on modal open)
+            lastStepNow = 0;
+            rafId = 0;
+            return;
+        }
+
         const rawDt = lastStepNow > 0 ? (now - lastStepNow) * 0.001 : 0.016;
         lastStepNow = now;
         accumSec += Math.min(0.033, Math.max(0.001, rawDt));
         const elapsedSec = accumSec;
-        const splashVisible = splashOverlayEl && !splashOverlayEl.classList.contains('hidden');
 
         if (splashVisible) {
+            if (!gl) setupSplashWebGL();
             drawSplashAt(elapsedSec);
-        } else {
-            const activeModal = getActiveModalOverlay();
-            if (activeModal) {
-                drawMenuEmbers(elapsedSec, activeModal);
-            }
-            if (now - lastVialDrawNow >= 50) {
-                lastVialDrawNow = now;
-                drawHudVials(elapsedSec);
-            }
+        } else if (activeModal) {
+            drawMenuEmbers(elapsedSec, activeModal);
         }
 
         rafId = requestAnimationFrame(stepFrame);
+    }
+
+    function wakeIfOverlayVisible() {
+        if (!enabled || rafId || (typeof document !== 'undefined' && document.hidden)) return;
+        const splashVisible = Boolean(splashOverlayEl && !splashOverlayEl.classList.contains('hidden'));
+        if (splashVisible || getActiveModalOverlay()) {
+            lastStepNow = 0;
+            rafId = requestAnimationFrame(stepFrame);
+        }
     }
 
     function boot() {
@@ -733,15 +739,27 @@
             }
         } catch (_) {}
 
+        splashOverlayEl = document.getElementById('splash-overlay');
         setupHudVialsWebGL();
         setupMenuAtmosphere();
 
+        if (typeof MutationObserver !== 'undefined') {
+            const obs = new MutationObserver(wakeIfOverlayVisible);
+            if (splashOverlayEl) obs.observe(splashOverlayEl, { attributes: true, attributeFilter: ['class'] });
+            for (const el of getModalEls()) {
+                obs.observe(el, { attributes: true, attributeFilter: ['class'] });
+            }
+        }
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden) wakeIfOverlayVisible();
+        });
+
         const img = document.querySelector('.splash-logo-main');
         const startWhenLoaded = () => {
-            setupSplashWebGL();
-            if (enabled && !rafId) {
-                rafId = requestAnimationFrame(stepFrame);
+            if (splashOverlayEl && !splashOverlayEl.classList.contains('hidden')) {
+                setupSplashWebGL();
             }
+            wakeIfOverlayVisible();
         };
 
         if (img && img.complete && img.naturalWidth > 0) {
