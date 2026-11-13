@@ -1205,8 +1205,9 @@ class ChronicleManager {
             return;
         }
 
-        // Only evaluate during active gameplay or death sequence
+        // Only evaluate during active gameplay or death sequence (defer while 3D loading curtain is active)
         if ((frame.phase !== 'play' && frame.phase !== 'death') || !frame.player) return;
+        if (frame.phase === 'play' && typeof window !== 'undefined' && window.gameSceneAssetsLoading) { this.lastFrame = frame; return; }
 
         const msgs = frame.messages || [];
         const lastMsgObj = msgs.length > 0 ? msgs[msgs.length - 1] : null;

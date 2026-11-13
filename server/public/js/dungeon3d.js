@@ -2889,7 +2889,7 @@ class Dungeon3D {
                 this._tagViewmodelLayer(mesh);
                 this.rightItemSlot.add(mesh);
             }
-            this.rightHandGroup.visible = true;
+            this.rightHandGroup.visible = Boolean(mesh);
         }
     }
 
@@ -2909,6 +2909,7 @@ class Dungeon3D {
         }
         this.currentLeftWeapon = cacheTag;
         this._clearViewmodelSlot(this.leftItemSlot);
+        let hasClone = false;
         if (this.weaponCache.has(key)) {
             const clone = this.weaponCache.get(key).clone(true);
             const avatarVm = this.resolveAvatarViewmodel(player);
@@ -2922,10 +2923,11 @@ class Dungeon3D {
             }
             this._tagViewmodelLayer(clone);
             this.leftItemSlot.add(clone);
+            hasClone = true;
         } else {
             this._ensureViewmodelWeapon(key);
         }
-        this.leftHandGroup.visible = true;
+        this.leftHandGroup.visible = hasClone;
     }
 
     _ensureViewmodelWeapon(key) {
@@ -3162,10 +3164,11 @@ class Dungeon3D {
 
     async awaitSceneAssetsReady(frame, onProgress) {
         if (!frame) return true;
-        this.ensureGpuInitialized(frame.realm || (frame.player && frame.player.realm) || this.realm);
         window.gameSceneAssetsLoading = true;
-        const yieldFrame = () => new Promise((r) => (typeof requestAnimationFrame === 'function' ? requestAnimationFrame(r) : setTimeout(r, 16)));
+        const yieldFrame = () => new Promise((r) => setTimeout(r, 20));
         try {
+            await yieldFrame();
+            this.ensureGpuInitialized(frame.realm || (frame.player && frame.player.realm) || this.realm);
             const player = frame.player || {};
             const depth = Number(player.depth || 0);
             const outdoors = Boolean(frame.outdoors) || depth === 0;
@@ -3181,6 +3184,9 @@ class Dungeon3D {
                 addTier1(this.ensurePbrSetReady(id));
             }
             addTier1(this.ensureSharedDetailTexturesReady());
+            for (const vKey of this.resolveDesiredViewmodelKeys(player)) {
+                addTier1(this._ensureViewmodelWeapon(vKey));
+            }
 
             // Tier-2 non-blocking background stream: secondary PBR sets, 12MB item atlas, env props & bestiary GLBs
             const allPbrIds = this.getRequiredPbrSetIds(theme, outdoors, frame.realm || this.realm, false);
@@ -3219,9 +3225,6 @@ class Dungeon3D {
                 const phKey = typeof this.getItemObjKey === 'function' ? this.getItemObjKey(it.name || '', it.glyph || '') : null;
                 if (phKey) addBg(this._ensurePolyHavenFloorItem(phKey));
             }
-            for (const vKey of this.resolveDesiredViewmodelKeys(player)) {
-                addBg(this._ensureViewmodelWeapon(vKey));
-            }
 
             if (bgTasks.length > 0) {
                 Promise.all(bgTasks).then(() => {
@@ -3242,13 +3245,15 @@ class Dungeon3D {
                     }
                     return res;
                 })));
-                await Promise.race([gateAll, new Promise((r) => setTimeout(r, 450))]);
+                await Promise.race([gateAll, new Promise((r) => setTimeout(r, 3200))]);
             }
 
             await yieldFrame();
             this._currentThemeId = null;
             this._currentTexturesAreOutdoors = null;
-            this.applyEnvironmentTextures(outdoors, this.currentBiome, frame.realm || this.realm || 'angband', depth, this.levelSeed || 0);
+            const activeRealm = frame.realm || this.realm || 'angband';
+            const resolvedBiome = this.currentBiome || (typeof this.getBiomeProfile === 'function' ? this.getBiomeProfile(depth, this.levelSeed || 0, activeRealm) : null);
+            this.applyEnvironmentTextures(outdoors, resolvedBiome, activeRealm, depth, this.levelSeed || 0);
             if (typeof this.updateDungeon === 'function') {
                 try {
                     this.updateDungeon(frame);
@@ -13416,14 +13421,26 @@ class Dungeon3D {
             if (this.camera && this.camera.layers) this.camera.layers.set(0);
             this.renderer.autoClear = true;
             this.renderer.render(this.scene, this.camera);
-            const vmVisible = Boolean(this.viewmodelGroup && ((this.rightHandGroup && this.rightHandGroup.visible) || (this.leftHandGroup && this.leftHandGroup.visible)));
+            const rightHasMesh = Boolean(this.rightHandGroup && this.rightHandGroup.visible && this.rightItemSlot && this.rightItemSlot.children.length > 0);
+            const leftHasMesh = Boolean(this.leftHandGroup && this.leftHandGroup.visible && this.leftItemSlot && this.leftItemSlot.children.length > 0);
+            const vmVisible = Boolean(this.viewmodelGroup && (rightHasMesh || leftHasMesh));
             if (vmVisible && this.camera && this.camera.layers && typeof this.renderer.clearDepth === 'function') {
-                this.renderer.autoClear = false;
-                this.renderer.clearDepth();
-                this.camera.layers.set(1);
-                this.renderer.render(this.scene, this.camera);
-                this.camera.layers.set(0);
-                this.renderer.autoClear = true;
+                const prevBg = this.scene.background;
+                const prevAutoUpdate = this.scene.autoUpdate;
+                try {
+                    // # ROOT-CAUSE: Three.js r128 WebGLBackground forces a full color buffer clear whenever scene.background.isColor === true, even with autoClear=false. Null scene.background during the Layer-1 viewmodel overlay pass so Pass-1 world geometry is preserved.
+                    this.scene.background = null;
+                    this.scene.autoUpdate = false;
+                    this.renderer.autoClear = false;
+                    this.renderer.clearDepth();
+                    this.camera.layers.set(1);
+                    this.renderer.render(this.scene, this.camera);
+                } finally {
+                    this.scene.background = prevBg;
+                    this.scene.autoUpdate = prevAutoUpdate;
+                    this.camera.layers.set(0);
+                    this.renderer.autoClear = true;
+                }
             }
         }
     }

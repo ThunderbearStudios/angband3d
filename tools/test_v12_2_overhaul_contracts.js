@@ -242,4 +242,51 @@ assert.ok(
     'manifest.json must provide separate "any" and "maskable" icon entries'
 );
 
-console.log('[PASS] test_v12_2_overhaul_contracts.js: Waves 1-6 runtime & architecture contracts verified.');
+// ============================================================================
+// 7. v12.2.1 Hotfix Contracts: Layer-0 Color Preservation, Non-Cancelling Gate & Narrator Deferral
+// ============================================================================
+const animPassBlock = d3dSrc.slice(
+    d3dSrc.indexOf('this.camera.layers.set(1)') - 520,
+    d3dSrc.indexOf('this.camera.layers.set(1)') + 320
+);
+assert.ok(
+    animPassBlock.includes('this.scene.background = null') && animPassBlock.includes('this.scene.background = prevBg'),
+    'dungeon3d.js Layer-1 viewmodel pass must null scene.background during Pass 2 so Three.js r128 WebGLBackground never wipes Layer-0 world geometry'
+);
+
+const awaitAssetsBlock = d3dSrc.slice(
+    d3dSrc.indexOf('async awaitSceneAssetsReady('),
+    d3dSrc.indexOf('async awaitSceneAssetsReady(') + 700
+);
+assert.ok(
+    awaitAssetsBlock.indexOf('await yieldFrame()') > 0 &&
+    awaitAssetsBlock.indexOf('await yieldFrame()') < awaitAssetsBlock.indexOf('this.ensureGpuInitialized('),
+    'awaitSceneAssetsReady must yield a paint tick via setTimeout before synchronous ensureGpuInitialized()'
+);
+assert.strictEqual(
+    awaitAssetsBlock.includes('requestAnimationFrame'),
+    false,
+    'awaitSceneAssetsReady yieldFrame must use setTimeout rather than requestAnimationFrame so throttled tabs never stall at 96%'
+);
+
+assert.ok(
+    appSrc.includes('curtainCurrentlyVisible && !sceneAssetGateInFlight') && appSrc.includes('sceneAssetGateFailsafe'),
+    'app.js must guard in-flight asset gates against multi-frame self-cancellation (NetHack -more- startup race)'
+);
+const startGameBlock = appSrc.slice(
+    appSrc.indexOf('async function startGame('),
+    appSrc.indexOf('async function startGame(') + 1200
+);
+assert.strictEqual(
+    startGameBlock.includes('ensureGpuInitialized('),
+    false,
+    'startGame must paint #loading-overlay immediately without blocking on synchronous ensureGpuInitialized()'
+);
+
+const chronicleMgrSrc = read('server/public/js/chronicle/chronicle-manager.js');
+assert.ok(
+    chronicleMgrSrc.includes('window.gameSceneAssetsLoading') && appSrc.includes('!window.gameSceneAssetsLoading && window.chronicleManager'),
+    'Chronicle narration must stay deferred while #loading-overlay / gameSceneAssetsLoading is active'
+);
+
+console.log('[PASS] test_v12_2_overhaul_contracts.js: Waves 1-7 runtime, rendering & loading contracts verified.');

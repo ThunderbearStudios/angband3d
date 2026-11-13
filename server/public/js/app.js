@@ -3672,6 +3672,15 @@ window.addEventListener('DOMContentLoaded', () => {
     // # ROOT-CAUSE: Drive the 220px SVG arcane loading wheel and radial progress arc via requestAnimationFrame (bypassing prefers-reduced-motion CSS suppression) and gate #loading-overlay strictly on initial game entry and between-levels depth transitions, never during normal same-level gameplay.
     let loadingCancelTimer = null;
     let sceneAssetGateSeq = 0;
+    let sceneAssetGateInFlight = false;
+    let sceneAssetGateFailsafe = null;
+    function clearSceneAssetGateState() {
+        sceneAssetGateInFlight = false;
+        if (sceneAssetGateFailsafe) {
+            clearTimeout(sceneAssetGateFailsafe);
+            sceneAssetGateFailsafe = null;
+        }
+    }
     let loadingWheelRaf = null;
     let loadingDisplayPct = 10;
     let loadingTargetPct = 14;
@@ -3762,6 +3771,8 @@ window.addEventListener('DOMContentLoaded', () => {
                 }, 6500);
             }
         } else {
+            clearSceneAssetGateState();
+            window.gameSceneAssetsLoading = false;
             if (loadingCancelTimer) {
                 clearTimeout(loadingCancelTimer);
                 loadingCancelTimer = null;
@@ -3784,24 +3795,28 @@ window.addEventListener('DOMContentLoaded', () => {
         hasEnteredPlay = false;
         lastClientSnapshotMs = 0;
         lastSnapshotDepth = null;
+        clearSceneAssetGateState();
+        sceneAssetGateSeq++;
+        window.gameSceneAssetsLoading = true;
         if (options && options.seed) window.__bootSeed = String(options.seed);
-        if (dungeon) {
-            if (typeof dungeon.ensureGpuInitialized === 'function') dungeon.ensureGpuInitialized();
-            if (typeof dungeon.resetSessionState === 'function') dungeon.resetSessionState();
-        }
-        // Keep the 0:00 -> 1:05 menu theme looping seamlessly through character creation / setup!
-        // It will fade out automatically in network.onFrame once active 3D gameplay (phase === 'play') begins.
-        if (audio && typeof audio.startMenuMusic === 'function') {
-            audio.startMenuMusic();
-        }
-        hideModals();
         const chosenRealm = options.realm || activeRealm || 'angband';
         const offlineNow = (typeof navigator !== 'undefined' && navigator.onLine === false);
         const preferredMode = resolvePreferredEngineMode(chosenRealm);
         if (engineMode !== preferredMode) {
             setEngineMode(preferredMode, false);
         }
+        hideModals();
         setLoadingCurtain(true, engineMode === 'local' ? 'Initializing Instant Browser Realm...' : 'Connecting to Cloud Realm & Spawning Engine...', 14);
+        if (dungeon && typeof dungeon.resetSessionState === 'function') {
+            dungeon.resetSessionState();
+        }
+        // Keep the 0:00 -> 1:05 menu theme looping seamlessly through character creation / setup!
+        // It will fade out automatically in network.onFrame once active 3D gameplay (phase === 'play') begins.
+        if (audio && typeof audio.startMenuMusic === 'function') {
+            audio.startMenuMusic();
+        }
+        await new Promise((r) => setTimeout(r, 20));
+        if (appState !== 'game') return;
         if (window.__startWatchdog) clearTimeout(window.__startWatchdog);
         if (window.__localBootFallbackTimer) {
             clearTimeout(window.__localBootFallbackTimer);
@@ -3980,6 +3995,7 @@ window.addEventListener('DOMContentLoaded', () => {
             window.__startWatchdog = null;
         }
         // # ROOT-CAUSE: Reset loading curtain and scene asset gate flags cleanly when returning to main menu.
+        clearSceneAssetGateState();
         window.gameSceneAssetsLoading = false;
         sceneAssetGateSeq++;
         if (queueModal) queueModal.classList.add('hidden');
@@ -7371,10 +7387,6 @@ window.addEventListener('DOMContentLoaded', () => {
                     } catch (_) {}
                 }
             }
-            // Dispatch to The Living Chronicle & Voiced Lorekeeper
-            if (window.chronicleManager) {
-                window.chronicleManager.onFrame(frame);
-            }
             // Automated quick-birth advancement
             if (quickBirthActive) {
                 stepQuickBirth(frame);
@@ -7487,15 +7499,17 @@ window.addEventListener('DOMContentLoaded', () => {
             }
             // Render 3D Dungeon World whenever in play phase with valid map (gated by Loading Curtain ONLY on initial play entry and between-levels depth transitions)
             if (currentPhase === 'play' && frame.map && frame.player) {
-                // # ROOT-CAUSE: Restrict #loading-overlay to initial game launch and between-levels depth transitions (isFirstPlayTransition || isDepthChangedTransition || curtainCurrentlyVisible) so the loading wheel never pops up during normal same-level gameplay.
+                // # ROOT-CAUSE: Do not re-trigger or cancel an in-flight sceneAssetGateSeq when subsequent startup frames (-more- auto-ack, status ticks) arrive while #loading-overlay is visible; defer Chronicle narration until setLoadingCurtain(false).
                 const curtainCurrentlyVisible = Boolean(loadingOverlay && !loadingOverlay.classList.contains('hidden'));
                 const needsAssetGate = Boolean(
                     dungeon &&
                     typeof dungeon.awaitSceneAssetsReady === 'function' &&
-                    (isFirstPlayTransition || isDepthChangedTransition || curtainCurrentlyVisible)
+                    (isFirstPlayTransition || isDepthChangedTransition || (curtainCurrentlyVisible && !sceneAssetGateInFlight))
                 );
                 if (needsAssetGate) {
+                    clearSceneAssetGateState();
                     const gateToken = ++sceneAssetGateSeq;
+                    sceneAssetGateInFlight = true;
                     window.gameSceneAssetsLoading = true;
                     const newDepthNum = Number(frame.player.depth || 0);
                     const initialStageLabel = isDepthChangedTransition
@@ -7504,17 +7518,13 @@ window.addEventListener('DOMContentLoaded', () => {
                             : `Entering Level ${newDepthNum} (${newDepthNum * 50} ft) — Loading 3D Dungeon & Bestiary...`)
                         : 'Summoning 2K Photogrammetry & 3D Bestiary...';
                     setLoadingCurtain(true, initialStageLabel, isDepthChangedTransition ? 18 : 38);
-                    dungeon.awaitSceneAssetsReady(frame, (done, total, label) => {
+                    const finishAssetGate = () => {
                         if (gateToken !== sceneAssetGateSeq) return;
-                        const basePct = isDepthChangedTransition ? 18 : 38;
-                        const spanPct = isDepthChangedTransition ? 78 : 58;
-                        const pct = Math.min(97, basePct + Math.round((done / Math.max(1, total)) * spanPct));
-                        setLoadingCurtain(true, label || 'Compiling 3D Shaders & Lighting...', pct);
-                    }).then(() => {
-                        if (gateToken !== sceneAssetGateSeq) return;
+                        clearSceneAssetGateState();
                         window.gameSceneAssetsLoading = false;
+                        const readyFrame = lastFrame || frame;
                         try {
-                            dungeon.updateDungeon(lastFrame || frame);
+                            dungeon.updateDungeon(readyFrame);
                         } catch (err) {
                             console.error('[Dungeon3D Error]', err);
                         }
@@ -7522,13 +7532,23 @@ window.addEventListener('DOMContentLoaded', () => {
                         if (isFirstPlayTransition && window.HudTelemetry && typeof window.HudTelemetry.triggerFirstRunCoachmark === 'function') {
                             window.HudTelemetry.triggerFirstRunCoachmark();
                         }
-                    }).catch((err) => {
-                        console.error('[Dungeon3D Asset Gate Error]', err);
-                        if (gateToken === sceneAssetGateSeq) {
-                            window.gameSceneAssetsLoading = false;
-                            setLoadingCurtain(false);
+                        if (window.chronicleManager && typeof window.chronicleManager.onFrame === 'function') {
+                            window.chronicleManager.onFrame(readyFrame);
                         }
+                    };
+                    sceneAssetGateFailsafe = setTimeout(finishAssetGate, 4800);
+                    dungeon.awaitSceneAssetsReady(frame, (done, total, label) => {
+                        if (gateToken !== sceneAssetGateSeq) return;
+                        const basePct = isDepthChangedTransition ? 18 : 38;
+                        const spanPct = isDepthChangedTransition ? 78 : 58;
+                        const pct = Math.min(97, basePct + Math.round((done / Math.max(1, total)) * spanPct));
+                        setLoadingCurtain(true, label || 'Compiling 3D Shaders & Lighting...', pct);
+                    }).then(finishAssetGate).catch((err) => {
+                        console.error('[Dungeon3D Asset Gate Error]', err);
+                        finishAssetGate();
                     });
+                } else if (sceneAssetGateInFlight) {
+                    window.gameSceneAssetsLoading = true;
                 } else {
                     window.gameSceneAssetsLoading = false;
                     try {
@@ -7537,6 +7557,9 @@ window.addEventListener('DOMContentLoaded', () => {
                         console.error('[Dungeon3D Error]', err);
                     }
                 }
+            }
+            if (!window.gameSceneAssetsLoading && window.chronicleManager && typeof window.chronicleManager.onFrame === 'function') {
+                window.chronicleManager.onFrame(frame);
             }
             // Update HUD
             try {
@@ -7567,9 +7590,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 clearTimeout(window.__startWatchdog);
                 window.__startWatchdog = null;
             }
-            if (loadingOverlay) {
-                loadingOverlay.classList.add('hidden');
-            }
+            setLoadingCurtain(false);
             console.warn('[Angband3D] Disconnected:', detail);
             if (hud.setStatus) {
                 hud.setStatus(engineMode === 'local' ? 'Local [Stopped]' : 'Cloud [Disconnected]');
@@ -7608,9 +7629,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 clearTimeout(window.__startWatchdog);
                 window.__startWatchdog = null;
             }
-            if (loadingOverlay) {
-                loadingOverlay.classList.add('hidden');
-            }
+            setLoadingCurtain(false);
             console.error('[Angband3D] Network Error:', errMsg);
             if (!hasEnteredPlay) {
                 showRealmToast(`❌ Engine Error: ${errMsg}`);
