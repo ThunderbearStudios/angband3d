@@ -3738,7 +3738,11 @@ to { opacity: 1; transform: translateY(0); }
     background: #141923; border: 1px solid var(--realm-border-outer, rgba(148, 163, 184, 0.28));
     border-radius: 9px; overflow: hidden; display: flex; flex-direction: column;
 }
-.menu-dossier-art { width: 100%; height: 112px; object-fit: cover; display: block; background: #090c12; border-bottom: 1px solid rgba(255, 255, 255, 0.08); }
+.menu-dossier-art {
+    width: 100%; height: auto; aspect-ratio: 16 / 9; max-height: 185px;
+    object-fit: cover; object-position: center 28%; display: block;
+    background: #05070c; border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
 .menu-dossier-body { padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; }
 .menu-dossier-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
 .menu-realm-highlight { font-family: var(--font-title, 'Cinzel', serif); font-size: 1rem; font-weight: 800; color: var(--realm-accent-bright, #e5c158); }
@@ -9593,3 +9597,9 @@ body[data-realm="ryod"] { --realm-surface-top: #1c1013; --realm-surface-bot: #0b
     #minimap-container { width: clamp(78px, 22dvh, 112px) !important; height: clamp(78px, 22dvh, 112px) !important; }
     #action-bar { bottom: max(4px, var(--safe-bottom, 0px)) !important; max-width: calc(100vw - 12px) !important; overflow-x: auto !important; }
 }
+.context-tile-btn {
+    border-color: var(--realm-accent-bright, #f5d77f) !important;
+    background: linear-gradient(180deg, rgba(68, 48, 16, 0.94) 0%, rgba(28, 20, 7, 0.96) 100%) !important;
+    box-shadow: 0 0 12px var(--realm-accent-glow, rgba(212, 175, 55, 0.42)), inset 0 0 8px rgba(245, 215, 127, 0.16) !important;
+}
+.context-tile-btn .act-label { color: #fde68a; font-weight: 700; }

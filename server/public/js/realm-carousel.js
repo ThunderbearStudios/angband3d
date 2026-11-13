@@ -172,16 +172,17 @@
     {
       id: 'ryod',
       crest: '⚒️',
-      title: 'Roll Your Own Dungeon 2.0',
-      subtitle: 'The Chimera Forge • Custom 8-Realm Synthesis',
+      title: 'Roll Your Own Dungeon 3.0',
+      subtitle: 'The Casual Arcade Toybox • Daily Blitz & Wild Twists',
       era: 'Yendor Engine™ Original',
       engineBadge: 'Instant Browser Worker • Shareable Seeds',
-      depthSpan: 'Custom 10–50 Floors • 7 3D Biomes',
-      goal: 'Forge, Seed & Share Your Own World',
-      cadence: 'Tabletop Roll-or-Pick + Masterwork Presets',
+      depthSpan: 'Custom 10–30 Floors • 7 3D Biomes',
+      goal: 'Play Today\'s Blitz or Forge a Custom Run',
+      cadence: 'Daily Blitz • 1-Click Adventures • Wild Twists',
       art: '/assets/realms/ryod.webp',
       fit: 'cover',
-      hook: 'Fuse the signature mechanics of all eight legendary realms into one deterministic `RYOD-XXXXXXXX` blueprint—complete with 7 bespoke 3D biomes, playable monster avatars, and shareable run links.',
+      artPos: 'center 28%',
+      hook: 'Drop straight into Today\'s Daily Blitz, pick one of 6 curated 1-click Adventures, or customize your 3D Arena, Hero or Monster Avatar, and up to 3 stackable Wild Twists.',
       pillars: [
         ['8-Realm Chimera Disciplines', 'Combine Sil-Q Woven Songs & Smithing, Brogue Gas/Chasm Physics & Enchanting, DCSS Gods, NetHack BUC Altars, and Hengband Kata.'],
         ['Playable Heroes or Monster Avatars', 'Delve as classic adventurers OR embody an Ancient Dragon, Beholder, Arch-Lich, or Vampire Lord with bespoke 3D anatomy.'],
@@ -352,6 +353,12 @@
       sub.textContent = card.subtitle;
       info.appendChild(t);
       info.appendChild(sub);
+      const hiddenSelect = document.createElement('span');
+      hiddenSelect.className = 'btn-realm-select';
+      hiddenSelect.dataset.realm = card.id;
+      hiddenSelect.style.display = 'none';
+      hiddenSelect.textContent = 'Select';
+      mini.appendChild(hiddenSelect);
       mini.appendChild(img);
       mini.appendChild(info);
       mini.addEventListener('click', () => {
@@ -483,6 +490,7 @@
       artEl.src = card.art;
       artEl.alt = `${card.title} Collector Artwork`;
       artEl.classList.toggle('rc-fit-contain', card.fit === 'contain');
+      artEl.style.objectPosition = card.artPos || (card.fit === 'contain' ? 'center center' : 'center 28%');
     }
     const setTxt = (id, v) => {
       const el = document.getElementById(id);

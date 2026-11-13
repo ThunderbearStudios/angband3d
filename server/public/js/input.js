@@ -590,6 +590,9 @@ class InputController {
         const curTileGlyph = (map && map.rows && map.rows[py] && map.rows[py].g && px !== undefined) ? map.rows[py].g[px] : ' ';
         const standingFountain = Boolean(currentFeat === 44 || curTileGlyph === '{');
         const standingStair = (currentFeat === 5 || currentFeat === 6 || (currentFeat >= 7 && currentFeat <= 14) || (currentFeat >= 32 && currentFeat <= 40));
+        let hasAdjAnvil = false;
+        let hasAdjCage = false;
+        const hasAdjNpc = Boolean(px !== undefined && py !== undefined && (frame.monsters || []).some((m) => m && (m.isPet || m.friendly) && Math.max(Math.abs(m.x - px), Math.abs(m.y - py)) <= 1));
 
         if (map && px !== undefined && py !== undefined) {
             const neighbors = [
@@ -602,6 +605,8 @@ class InputController {
                 const feat = this.getFeatAt ? this.getFeatAt(map, n.x, n.y) : 0;
                 const row = map.rows && map.rows[n.y];
                 const ch = (row && row.g && n.x >= 0 && n.x < row.g.length) ? row.g[n.x] : ' ';
+                if (feat === 46) hasAdjAnvil = true;
+                if (feat === 47) hasAdjCage = true;
                 if (ch === '+' || feat === 2) {
                     adjClosedDoors++;
                     adjAnyDoors++;
@@ -734,7 +739,7 @@ class InputController {
             'btn-browse': { show: r !== 'silq' && r !== 'brogue' && r !== 'rogue' && (!hasInvTelemetry || tomeCount > 0 || r === 'dcss'), suggest: false },
             'btn-study': { show: r !== 'silq' && r !== 'brogue' && r !== 'rogue' && !isNonCaster && (effectiveStudyCount > 0 || !hasInvTelemetry || matchingTomeCount > 0 || r === 'dcss'), suggest: effectiveStudyCount > 0 && (!hasInvTelemetry || matchingTomeCount > 0), reason: isJp ? `新しい呪文を学習可能 (${effectiveStudyCount}) [G]` : `Can learn ${effectiveStudyCount || 'new'} spell(s) right now!` },
             'btn-skills': { show: r === 'silq' || r === 'dcss', suggest: r === 'silq' && Number(player.new_exp !== undefined ? player.new_exp : (player.exp || 0)) >= 500 && hostileMonsters.length === 0, reason: r === 'dcss' ? 'Manage Skills & Aptitudes [m]' : 'Spend XP on Sil-Q Abilities [Tab]' },
-            'btn-power': { show: r === 'frogcomposband' || r === 'hengband' || r === 'nethack' || r === 'dcss', suggest: false, reason: r === 'nethack' ? 'Extended Command [#]' : (r === 'dcss' ? 'Invoke Divine/Evoke Ability [a]' : (isJp ? '特殊能力・レイシャル発動' : 'Invoke Racial/Class Power')) },
+            'btn-power': { show: r === 'frogcomposband' || r === 'hengband' || r === 'nethack' || r === 'dcss' || r === 'ryod', suggest: false, reason: r === 'nethack' ? 'Extended Command [#]' : (r === 'dcss' ? 'Invoke Divine/Evoke Ability [a]' : (r === 'ryod' ? 'Invoke Power / Stance [m]' : (isJp ? '特殊能力・レイシャル発動' : 'Invoke Racial/Class Power'))) },
             'btn-quaff': { show: !hasInvTelemetry || potionCount > 0 || standingFountain, suggest: standingFountain || (potionCount > 0 && (hpPct < 50 || hasBadStatus)), reason: standingFountain ? 'Magic Fountain underfoot — Quaff [q]!' : (isJp ? '体力低下/状態異常 — 薬を飲む！' : 'Low HP or ailment — Drink Potion!') },
             'btn-eat': { show: !hasInvTelemetry || foodCount > 0 || isHungry, suggest: (foodCount > 0 || !hasInvTelemetry) && isHungry, reason: isJp ? '空腹 — 食料を食べる [E]！' : 'Hungry — Eat Ration!' },
             'btn-read': { show: r !== 'silq' && (!hasInvTelemetry || scrollCount > 0), suggest: scrollCount > 0 && !isDisablingStatus && ((hpPct < 35 && hostileMonsters.length > 0) || adjHostiles >= 2), reason: isJp ? '危険 — 巻物で脱出・対処！' : 'Danger — Read Scroll!' },
@@ -773,6 +778,68 @@ class InputController {
                     btn.title = btn.dataset.baseTitle;
                 }
             }
+        }
+
+        // Contextual tile / adjacent interaction pills (WS-6) — NO frame.seq in signature
+        const curRealm = String(r || 'angband');
+        const standingAltar = Boolean(currentFeat === 43 || curTileGlyph === '_');
+        const standingForge = Boolean(curRealm === 'silq' && currentFeat === 60 && curTileGlyph === '0');
+        const onAnvil = Boolean(curRealm === 'ryod' && (currentFeat === 46 || hasAdjAnvil));
+        const nearCage = Boolean((curRealm === 'brogue' || curRealm === 'ryod') && hasAdjCage);
+        const nearNpc = Boolean(curRealm === 'nethack' && hasAdjNpc);
+
+        let ctxPrimary = null;
+        let ctxAlt = null;
+        if (standingAltar && (curRealm === 'nethack' || curRealm === 'dcss' || curRealm === 'ryod')) {
+            ctxPrimary = curRealm === 'nethack'
+                ? { icon: '🙏', label: 'Pray', key: '#pray', keyLabel: '#pray', title: 'Pray at this altar (#pray)' }
+                : { icon: '🙏', label: 'Pray', key: 'p', keyLabel: 'p', title: 'Pray at this altar (p)' };
+            if (curRealm === 'nethack') {
+                ctxAlt = { icon: '🕯️', label: 'Offer', key: '#offer', keyLabel: '#offer', title: 'Offer a corpse or item at this altar (#offer)' };
+            }
+        } else if (standingFountain && (curRealm === 'nethack' || curRealm === 'dcss' || curRealm === 'ryod' || curRealm === 'brogue')) {
+            ctxPrimary = { icon: '⛲', label: 'Drink', key: 'q', keyLabel: 'q', title: 'Drink from this fountain (q)' };
+            if (curRealm === 'nethack') {
+                ctxAlt = { icon: '🧪', label: 'Dip', key: '#dip', keyLabel: '#dip', title: 'Dip an item into this fountain (#dip)' };
+            }
+        } else if (standingForge) {
+            ctxPrimary = { icon: '⚒️', label: 'Forge', key: '0', keyLabel: '0', title: 'Smith at the Forge (0)' };
+        } else if (onAnvil) {
+            ctxPrimary = { icon: '⚒️', label: 'Anvil', key: 'y', keyLabel: 'y', title: 'Use Forging Anvil (y)' };
+        } else if (nearCage) {
+            ctxPrimary = { icon: '🔓', label: 'Free', key: 'y', keyLabel: 'y', title: 'Free captive ally from cage (y)' };
+        }
+
+        if (nearNpc) {
+            const chatSpec = { icon: '💬', label: 'Chat', key: '#chat', keyLabel: '#chat', title: 'Talk to adjacent peaceful NPC (#chat)' };
+            if (!ctxPrimary) ctxPrimary = chatSpec;
+            else if (!ctxAlt) ctxAlt = chatSpec;
+        }
+
+        const ctxTileSig = `${curRealm}|${ctxPrimary ? ctxPrimary.key + ':' + ctxPrimary.label : '-'}|${ctxAlt ? ctxAlt.key + ':' + ctxAlt.label : '-'}`;
+        if (this._lastContextTileSig !== ctxTileSig) {
+            this._lastContextTileSig = ctxTileSig;
+            const applyCtxPill = (id, spec) => {
+                const el = document.getElementById(id);
+                if (!el) return;
+                if (!spec) {
+                    el.style.display = 'none';
+                    el.dataset.contextKey = '';
+                    return;
+                }
+                el.style.display = '';
+                el.dataset.contextKey = spec.key;
+                el.title = spec.title;
+                const iconEl = el.querySelector('.act-icon');
+                const labelEl = el.querySelector('.act-label');
+                const keyEl = el.querySelector('.act-key');
+                if (iconEl) iconEl.textContent = spec.icon;
+                if (labelEl) labelEl.textContent = spec.label;
+                if (keyEl) keyEl.textContent = spec.keyLabel;
+                if (!iconEl && !labelEl) el.textContent = `${spec.icon} ${spec.label} (${spec.keyLabel})`;
+            };
+            applyCtxPill('btn-context-tile', ctxPrimary);
+            applyCtxPill('btn-context-alt', ctxAlt);
         }
 
         if (typeof window.__updateActionBarOverflow === 'function') {
@@ -1558,14 +1625,17 @@ class InputController {
         const lf = (this.app && this.app.lastFrame) || (window.__app && window.__app.lastFrame) || null;
         this._lastMoveSentSeq = (lf && lf.seq !== undefined) ? lf.seq : -1;
         this._lastMoveSentAt = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
-        if (lf && lf.player && lf.map && lf.map.rows && this.dungeon && !(this.network && this.network.isLocal)) {
+        if (lf && lf.player && lf.map && lf.map.rows && this.dungeon) {
             const deltaMap = { up: [0, -1], pageup: [1, -1], right: [1, 0], pagedown: [1, 1], down: [0, 1], end: [-1, 1], left: [-1, 0], home: [-1, -1] };
             const d = deltaMap[String(key || '').toLowerCase()];
             if (d) {
                 const nx = lf.player.x + d[0], ny = lf.player.y + d[1], feat = this.getFeatAt(lf.map, nx, ny);
                 const monBlocking = Array.isArray(lf.monsters) && lf.monsters.some((m) => m && m.x === nx && m.y === ny && m.hp > 0);
-                if (!monBlocking && feat > 0 && feat !== 2 && feat !== 21 && feat !== 22 && feat !== 32 && this.dungeon.targetCamPos) {
-                    if (this.dungeon.isStepping && this.dungeon.camera) this.dungeon.currentCamPos.copy(this.dungeon.camera.position);
+                if (!monBlocking && feat > 0 && feat !== 2 && feat !== 21 && feat !== 22 && feat !== 32 && feat !== 61 && this.dungeon.targetCamPos) {
+                    const logPos = this.dungeon._logicalCamPos || this.dungeon.currentCamPos;
+                    if (this.dungeon.isStepping && logPos) this.dungeon.currentCamPos.copy(logPos);
+                    const nowMs = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+                    this.dungeon._strideChain = (nowMs - (this.dungeon._lastStepEndMs || 0)) < 85;
                     this.dungeon.targetCamPos.set(nx * this.dungeon.cellSize, this.dungeon.eyeHeight + (this.dungeon.playerWaterYOffset || 0), ny * this.dungeon.cellSize);
                     this.dungeon.isStepping = true; this.dungeon.stepTime = 0;
                 }
@@ -1624,7 +1694,7 @@ class InputController {
             if (e.key === 'PageDown') { e.preventDefault(); if (this.dungeon) this.dungeon.userPitchOffset = Math.max(-0.65, (this.dungeon.userPitchOffset || 0) - 0.12); return; }
             if (e.key === 'Home') { e.preventDefault(); if (this.dungeon) this.dungeon.userPitchOffset = 0.0; return; }
         }
-        if (e.key === '+' || e.key === '=' || e.key === '-' || e.key === '_') {
+        if ((e.ctrlKey || e.metaKey) && (e.key === '+' || e.key === '=' || e.key === '-' || e.key === '_')) {
             e.preventDefault(); window.__app?.hud?.adjustMinimapZoom((e.key === '+' || e.key === '=') ? 0.15 : -0.15); return;
         }
 
@@ -1807,7 +1877,7 @@ class InputController {
                 if (!hasAdjDoor) { this.toggleAutoExplore(lf); return; }
             }
             let keyToSend = e.key;
-            if (isTopLevelCommandPrompt && typeof RealmKeys !== 'undefined' && RealmKeys.fromVanilla) {
+            if (isTopLevelCommandPrompt && (realm === 'silq' || realm === 'frogcomposband' || realm === 'hengband') && typeof RealmKeys !== 'undefined' && RealmKeys.fromVanilla) {
                 const mapped = RealmKeys.fromVanilla(e.key, realm);
                 if (mapped === null && realm === 'silq' && (e.key === 'r' || e.key === 'b')) {
                     this.network.sendKey(e.key);
@@ -2086,6 +2156,21 @@ class InputController {
         bind('btn-terminal', 'terminal');
         bind('btn-explore', 'explore');
         bind('btn-run-toggle', 'toggle-run');
+        const bindCtx = (id) => {
+            const btn = document.getElementById(id);
+            if (!btn) return;
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const key = btn.dataset.contextKey;
+                if (key && this.network && typeof this.network.sendKey === 'function') {
+                    this.network.sendKey(key);
+                }
+                btn.blur();
+            });
+        };
+        bindCtx('btn-context-tile');
+        bindCtx('btn-context-alt');
 
         const wBtn = document.getElementById('btn-wasd-toggle');
         if (wBtn) {
@@ -2180,7 +2265,7 @@ class InputController {
         const actionBar = document.getElementById('action-bar');
         const actionPopover = document.getElementById('action-more-popover');
 
-        const ACTION_PRIORITY = ['btn-command-palette', 'btn-hero-action', 'btn-attack', 'btn-cast', 'btn-study', 'btn-browse', 'btn-fire', 'btn-throw', 'btn-quaff', 'btn-eat', 'btn-read', 'btn-pickup', 'btn-rest', 'btn-inventory', 'btn-equipment', 'btn-wield', 'btn-drop', 'btn-aim', 'btn-search', 'btn-door', 'btn-power', 'btn-skills', 'btn-quests', 'btn-overland', 'btn-stair', 'btn-explore', 'btn-run-toggle', 'btn-terminal', 'btn-guide-hud'];
+        const ACTION_PRIORITY = ['btn-command-palette', 'btn-hero-action', 'btn-attack', 'btn-cast', 'btn-study', 'btn-browse', 'btn-fire', 'btn-throw', 'btn-quaff', 'btn-eat', 'btn-read', 'btn-pickup', 'btn-rest', 'btn-inventory', 'btn-equipment', 'btn-wield', 'btn-drop', 'btn-aim', 'btn-search', 'btn-door', 'btn-power', 'btn-skills', 'btn-quests', 'btn-overland', 'btn-stair', 'btn-context-tile', 'btn-context-alt', 'btn-explore', 'btn-run-toggle', 'btn-terminal', 'btn-guide-hud'];
 
         if (actionMoreBtn && actionBar) {
             let lastMoreTime = 0;

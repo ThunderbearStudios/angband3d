@@ -57,6 +57,8 @@ const JS_FILES = [
     'server/public/js/hud.js',
     'server/public/js/hud-layout.js',
     'server/public/js/dungeon3d.js',
+    'server/public/js/dungeon3d-tactical.js',
+    'server/public/js/dungeon3d-town.js',
     'server/public/js/dungeon3d-vfx.js',
     'server/public/js/dungeon3d-proc-textures.js',
     'server/public/js/dungeon3d-environment.js',
@@ -70,6 +72,7 @@ const JS_FILES = [
     'server/public/js/chronicle/chronicle-llm.js',
     'server/public/js/chronicle/chronicle-grounder.js',
     'server/public/js/chronicle/chronicle-filter.js',
+    'server/public/js/chronicle/yasd-sketch-composer.js',
     'server/public/js/heng/heng-translate.js',
     'server/public/sw.js'
 ];

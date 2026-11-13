@@ -1127,7 +1127,7 @@ class NetHackEngine {
                 return;
             }
             if (this.state.menuMode === 'extended') {
-                const extMap = { p: '#pray', d: '#dip', o: '#offer', l: '#loot', u: '#untrap', c: '#chat', f: '#force', e: '#enhance' };
+                const extMap = { p: '#pray', d: '#dip', o: '#offer', l: '#loot', u: '#untrap', c: '#chat', f: '#force', e: '#enhance', k: '#kick' };
                 const mapped = extMap[k.toLowerCase()];
                 this.state.menuMode = 'none';
                 this.state.pendingPrompt = '';
@@ -1263,6 +1263,12 @@ class NetHackEngine {
             this.state.menuMode = 'direction';
             this.state.pendingVerb = 'throw';
             this.state.pendingPrompt = 'In what direction do you want to throw/fire?';
+            return;
+        }
+        if (k === 'C-d' || k === '\x04') {
+            this.state.menuMode = 'direction';
+            this.state.pendingVerb = 'kick';
+            this.state.pendingPrompt = 'In what direction do you want to kick?';
             return;
         }
         if (k === 'o' || k === 'c' || k === 'D' || k === 'u') {
@@ -1773,6 +1779,33 @@ class NetHackEngine {
         const p = this.state.player;
         const tx = p.x + dx, ty = p.y + dy;
         const cell = this.state.map[ty] && this.state.map[ty][tx];
+        if (pendingVerb === 'kick') {
+            const mon = this.state.monsters.find(m => m.x === tx && m.y === ty);
+            if (mon) {
+                mon.asleep = false;
+                const dmg = Math.max(1, 1 + this.rand(4) + Math.floor(((p.str || 12) - 10) / 2));
+                mon.hp -= dmg;
+                this.addMessage(`You kick the ${mon.race} for ${dmg} damage!`, 14);
+                if (mon.hp <= 0) this.handleMonsterDefeat(mon);
+            } else if (cell && cell.feat === FEAT.CLOSED_DOOR) {
+                if (this.rand(2) === 0) {
+                    cell.feat = FEAT.FLOOR;
+                    cell.glyph = '.';
+                    cell.attr = 1;
+                    this.addMessage('Crash! You kick the door off its hinges!', 14);
+                    this.updateVisibility();
+                } else {
+                    this.addMessage('WHAMMM!!! The door shudders!', 11);
+                }
+            } else if (cell && (cell.feat === FEAT.WALL || cell.feat === FEAT.PERM_WALL)) {
+                p.hp = Math.max(1, p.hp - 1);
+                this.addMessage('Ouch! That hurts!', 12);
+            } else {
+                this.addMessage('You kick at empty space.', 1);
+            }
+            this.advanceWorldTurn();
+            return;
+        }
         if (pendingVerb === 'o') {
             if (cell && cell.feat === FEAT.CLOSED_DOOR) {
                 cell.feat = FEAT.OPEN_DOOR;
@@ -1954,6 +1987,12 @@ class NetHackEngine {
         if (cmd.includes('force')) {
             this.addMessage('You strike the lock with your weapon — click!', 11);
             this.advanceWorldTurn();
+            return;
+        }
+        if (cmd.includes('kick')) {
+            this.state.menuMode = 'direction';
+            this.state.pendingVerb = 'kick';
+            this.state.pendingPrompt = 'In what direction do you want to kick?';
             return;
         }
         if (cmd.includes('enhance')) {
@@ -2898,8 +2937,9 @@ function main() {
         if (line.startsWith('keys ')) {
             const rawSeq = rawLine.replace(/^\s*keys\s+/, '').replace(/\r?\n$/, '');
             const NAMED_RE = /^(enter|return|escape|esc|space|tab|backspace|up|down|left|right|home|end|pageup|pagedown|pgup|pgdn)$/i;
-            if (NAMED_RE.test(rawSeq.trim())) {
-                engine.handleKey(rawSeq.trim());
+            const trimmedSeq = rawSeq.trim();
+            if (NAMED_RE.test(trimmedSeq) || /^#[a-z]{1,20}$/i.test(trimmedSeq)) {
+                engine.handleKey(trimmedSeq);
             } else {
                 for (const ch of rawSeq) engine.handleKey(ch);
             }

@@ -576,159 +576,59 @@ class ChronicleGrounder {
     }
 
     static BEST_VOICE_POOLS = {
-        orc: {
-            male: {
-                edge: ['en-US-RogerNeural', 'en-US-ChristopherNeural', 'en-US-EricNeural'],
-                gemini: ['Fenrir']
-            },
-            female: {
-                edge: ['en-US-AriaNeural', 'en-AU-NatashaNeural'],
-                gemini: ['Fenrir', 'Kore']
-            }
-        },
-        kobold: {
-            male: {
-                edge: ['en-IE-ConnorNeural', 'en-US-GuyNeural'],
-                gemini: ['Puck']
-            },
-            female: {
-                edge: ['en-IE-EmilyNeural', 'en-GB-MaisieNeural'],
-                gemini: ['Puck', 'Leda']
-            }
-        },
-        giant: {
-            male: {
-                edge: ['en-US-RogerNeural', 'en-US-ChristopherNeural'],
-                gemini: ['Charon', 'Algenib']
-            },
-            female: {
-                edge: ['en-AU-NatashaNeural', 'en-CA-ClaraNeural'],
-                gemini: ['Kore', 'Sadaltager']
-            }
-        },
-        spellcaster: {
-            male: {
-                edge: ['en-US-ChristopherNeural', 'en-GB-RyanNeural', 'en-US-AndrewNeural'],
-                gemini: ['Gacrux', 'Sulafat']
-            },
-            female: {
-                edge: ['en-US-AriaNeural', 'en-GB-LibbyNeural'],
-                gemini: ['Despina', 'Aoede']
-            }
-        },
-        rogue: {
-            male: {
-                edge: ['en-US-SteffanNeural', 'en-IE-ConnorNeural'],
-                gemini: ['Orus', 'Puck']
-            },
-            female: {
-                edge: ['en-AU-NatashaNeural', 'en-GB-SoniaNeural'],
-                gemini: ['Kore', 'Despina']
-            }
-        },
-        beast: {
-            male: {
-                edge: ['en-US-RogerNeural'],
-                gemini: ['Fenrir']
-            },
-            female: {
-                edge: ['en-US-RogerNeural'],
-                gemini: ['Fenrir']
-            }
-        },
-        dwarf: {
-            male: {
-                edge: ['en-US-RogerNeural', 'en-US-AndrewNeural', 'en-IE-ConnorNeural'],
-                gemini: ['Algenib', 'Gacrux', 'Orus']
-            },
-            female: {
-                edge: ['en-CA-ClaraNeural', 'en-US-JennyNeural'],
-                gemini: ['Kore', 'Sadaltager']
-            }
-        },
-        elf: {
-            male: {
-                edge: ['en-GB-ThomasNeural', 'en-GB-RyanNeural'],
-                gemini: ['Zephyr', 'Sulafat', 'Orus']
-            },
-            female: {
-                edge: ['en-GB-LibbyNeural', 'en-IE-EmilyNeural'],
-                gemini: ['Aoede', 'Despina']
-            }
-        },
-        hobbit: {
-            male: {
-                edge: ['en-IE-ConnorNeural', 'en-US-GuyNeural'],
-                gemini: ['Puck', 'Zephyr']
-            },
-            female: {
-                edge: ['en-IE-EmilyNeural', 'en-GB-MaisieNeural'],
-                gemini: ['Leda', 'Aoede']
-            }
-        },
-        dragon: {
-            male: {
-                edge: ['en-US-ChristopherNeural', 'en-US-RogerNeural'],
-                gemini: ['Charon', 'Algenib']
-            },
-            female: {
-                edge: ['en-GB-SoniaNeural', 'en-US-AriaNeural'],
-                gemini: ['Despina', 'Sadaltager']
-            }
-        },
-        undead: {
-            male: {
-                edge: ['en-US-ChristopherNeural', 'en-US-RogerNeural'],
-                gemini: ['Algenib', 'Charon']
-            },
-            female: {
-                edge: ['en-GB-SoniaNeural', 'en-US-AriaNeural'],
-                gemini: ['Despina', 'Sadaltager']
-            }
-        },
+        orc: { male: { edge: ['en-US-RogerNeural', 'en-US-ChristopherNeural', 'en-US-EricNeural'], gemini: ['Fenrir'] }, female: { edge: ['en-US-AriaNeural', 'en-AU-NatashaNeural'], gemini: ['Fenrir', 'Kore'] } },
+        kobold: { male: { edge: ['en-IE-ConnorNeural', 'en-US-GuyNeural'], gemini: ['Puck'] }, female: { edge: ['en-IE-EmilyNeural', 'en-GB-MaisieNeural'], gemini: ['Puck', 'Leda'] } },
+        giant: { male: { edge: ['en-US-RogerNeural', 'en-US-ChristopherNeural'], gemini: ['Charon', 'Algenib'] }, female: { edge: ['en-AU-NatashaNeural', 'en-CA-ClaraNeural'], gemini: ['Kore', 'Sadaltager'] } },
+        spellcaster: { male: { edge: ['en-US-ChristopherNeural', 'en-GB-RyanNeural', 'en-US-AndrewNeural'], gemini: ['Gacrux', 'Iapetus'] }, female: { edge: ['en-US-AriaNeural', 'en-GB-LibbyNeural'], gemini: ['Despina', 'Aoede'] } },
+        rogue: { male: { edge: ['en-US-SteffanNeural', 'en-IE-ConnorNeural'], gemini: ['Orus', 'Puck'] }, female: { edge: ['en-AU-NatashaNeural', 'en-GB-SoniaNeural'], gemini: ['Kore', 'Despina'] } },
+        beast: { male: { edge: ['en-US-RogerNeural'], gemini: ['Fenrir'] }, female: { edge: ['en-US-RogerNeural'], gemini: ['Fenrir'] } },
+        dwarf: { male: { edge: ['en-US-RogerNeural', 'en-US-AndrewNeural', 'en-IE-ConnorNeural'], gemini: ['Algenib', 'Gacrux', 'Orus'] }, female: { edge: ['en-CA-ClaraNeural', 'en-US-JennyNeural'], gemini: ['Kore', 'Sadaltager'] } },
+        elf: { male: { edge: ['en-GB-ThomasNeural', 'en-GB-RyanNeural'], gemini: ['Zephyr', 'Schedar', 'Orus'] }, female: { edge: ['en-GB-LibbyNeural', 'en-IE-EmilyNeural'], gemini: ['Aoede', 'Despina'] } },
+        hobbit: { male: { edge: ['en-IE-ConnorNeural', 'en-US-GuyNeural'], gemini: ['Puck', 'Zephyr'] }, female: { edge: ['en-IE-EmilyNeural', 'en-GB-MaisieNeural'], gemini: ['Leda', 'Aoede'] } },
+        dragon: { male: { edge: ['en-US-ChristopherNeural', 'en-US-RogerNeural'], gemini: ['Charon', 'Algenib'] }, female: { edge: ['en-GB-SoniaNeural', 'en-US-AriaNeural'], gemini: ['Despina', 'Sadaltager'] } },
+        undead: { male: { edge: ['en-US-ChristopherNeural', 'en-US-RogerNeural'], gemini: ['Algenib', 'Charon'] }, female: { edge: ['en-GB-SoniaNeural', 'en-US-AriaNeural'], gemini: ['Despina', 'Sadaltager'] } },
         mortal: {
-            elder: {
-                male: {
-                    edge: ['en-US-AndrewNeural', 'en-US-RogerNeural', 'en-AU-WilliamMultilingualNeural'],
-                    gemini: ['Gacrux', 'Sulafat']
-                },
-                female: {
-                    edge: ['en-CA-ClaraNeural', 'en-GB-LibbyNeural'],
-                    gemini: ['Sadaltager', 'Despina']
-                }
-            },
-            veteran: {
-                male: {
-                    edge: ['en-US-EricNeural', 'en-US-SteffanNeural', 'en-US-AndrewNeural'],
-                    gemini: ['Orus', 'Algenib']
-                },
-                female: {
-                    edge: ['en-AU-NatashaNeural', 'en-US-AriaNeural', 'en-GB-SoniaNeural'],
-                    gemini: ['Kore', 'Sadaltager']
-                }
-            },
-            youth: {
-                male: {
-                    edge: ['en-US-GuyNeural', 'en-CA-LiamNeural'],
-                    gemini: ['Puck', 'Zephyr']
-                },
-                female: {
-                    edge: ['en-GB-MaisieNeural', 'en-IE-EmilyNeural'],
-                    gemini: ['Aoede', 'Leda']
-                }
-            },
-            adult: {
-                male: {
-                    edge: ['en-US-GuyNeural', 'en-IE-ConnorNeural', 'en-CA-LiamNeural', 'en-GB-RyanNeural'],
-                    gemini: ['Sulafat', 'Orus', 'Puck']
-                },
-                female: {
-                    edge: ['en-GB-LibbyNeural', 'en-US-JennyNeural', 'en-IE-EmilyNeural', 'en-CA-ClaraNeural'],
-                    gemini: ['Aoede', 'Leda', 'Kore']
-                }
-            }
+            elder: { male: { edge: ['en-US-AndrewNeural', 'en-US-RogerNeural', 'en-AU-WilliamMultilingualNeural'], gemini: ['Gacrux', 'Iapetus'] }, female: { edge: ['en-CA-ClaraNeural', 'en-GB-LibbyNeural'], gemini: ['Sadaltager', 'Despina'] } },
+            veteran: { male: { edge: ['en-US-EricNeural', 'en-US-SteffanNeural', 'en-US-AndrewNeural'], gemini: ['Orus', 'Algenib'] }, female: { edge: ['en-AU-NatashaNeural', 'en-US-AriaNeural', 'en-GB-SoniaNeural'], gemini: ['Kore', 'Sadaltager'] } },
+            youth: { male: { edge: ['en-US-GuyNeural', 'en-CA-LiamNeural'], gemini: ['Puck', 'Zephyr'] }, female: { edge: ['en-GB-MaisieNeural', 'en-IE-EmilyNeural'], gemini: ['Aoede', 'Leda'] } },
+            adult: { male: { edge: ['en-US-GuyNeural', 'en-IE-ConnorNeural', 'en-CA-LiamNeural', 'en-GB-RyanNeural'], gemini: ['Schedar', 'Orus', 'Puck'] }, female: { edge: ['en-GB-LibbyNeural', 'en-US-JennyNeural', 'en-IE-EmilyNeural', 'en-CA-ClaraNeural'], gemini: ['Aoede', 'Leda', 'Kore'] } }
         }
     };
+
+    static getMentorColorVoice(name = '', realmKey = 'angband', eventType = '') {
+        const nm = String(name || '').toLowerCase();
+        const rk = String(realmKey || 'angband').toLowerCase();
+        if (eventType === 'altar' || /\b(altar|deity|zin|trog|vehumet|sif muna|okawaru|makhleb|lugonu|shining one|kikubaaqudgha|qazlal|xom)\b/i.test(nm)) {
+            if (/xom/i.test(nm)) return { geminiVoice: 'Puck', edgeVoice: 'en-US-GuyNeural', directorNote: 'Chaotic trickster deity laughing with mercurial glee' };
+            if (/sif|elyvilon|dithmenos|fedhas|ash/i.test(nm)) return { geminiVoice: 'Kore', edgeVoice: 'en-GB-SoniaNeural', directorNote: 'Ethereal divine oracle speaking with serene resonance' };
+            if (/trog|makhleb|okawaru|qazlal/i.test(nm)) return { geminiVoice: 'Fenrir', edgeVoice: 'en-US-RogerNeural', directorNote: 'Fierce war deity speaking with thundering divine command' };
+            return { geminiVoice: 'Charon', edgeVoice: 'en-US-ChristopherNeural', directorNote: 'Ancient sacred deity echoing with temple gravitas' };
+        }
+        const isMentor = eventType === 'counsel' || /\b(corwin|musashi|daeron|oracle|brother thomas|archivist|warden|elrond|dungeon master|quartermaster|shopkeeper)\b/i.test(nm);
+        if (!isMentor) return null;
+        if (nm.includes('corwin') || (eventType === 'counsel' && rk === 'frogcomposband')) {
+            return { geminiVoice: 'Orus', edgeVoice: 'en-US-AndrewNeural', directorNote: 'Corwin of Amber — urbane, witty swordsman-prince in crisp natural Mid-Atlantic English' };
+        }
+        if (nm.includes('musashi') || (eventType === 'counsel' && rk === 'hengband')) {
+            return { geminiVoice: 'Charon', edgeVoice: 'en-US-ChristopherNeural', directorNote: 'Miyamoto Musashi — stoic kensei strategist speaking in calm, grave measured English' };
+        }
+        if (nm.includes('daeron') || (eventType === 'counsel' && rk === 'silq')) {
+            return { geminiVoice: 'Schedar', edgeVoice: 'en-GB-ThomasNeural', directorNote: 'Daeron of Doriath — lyrical First-Age minstrel scholar with clear silver English diction' };
+        }
+        if (nm.includes('thomas') || nm.includes('oracle') || (eventType === 'counsel' && rk === 'nethack')) {
+            return { geminiVoice: 'Iapetus', edgeVoice: 'en-GB-RyanNeural', directorNote: 'Brother Thomas — wry monastic scholar of the Mazes speaking crisp observational English' };
+        }
+        if (nm.includes('archivist') || (eventType === 'counsel' && rk === 'dcss')) {
+            return { geminiVoice: 'Sadachbia', edgeVoice: 'en-US-AriaNeural', directorNote: 'High Archivist of Zot — sharp, analytical tactician of dungeon branches and runes' };
+        }
+        if (nm.includes('warden') || (eventType === 'counsel' && rk === 'brogue')) {
+            return { geminiVoice: 'Algenib', edgeVoice: 'en-US-RogerNeural', directorNote: 'The Warden — hushed subterranean lantern-keeper with taut tactical clarity' };
+        }
+        if (nm.includes('elrond') || (eventType === 'counsel' && rk === 'angband')) {
+            return { geminiVoice: 'Gacrux', edgeVoice: 'en-GB-RyanNeural', directorNote: 'Master Elrond — venerable First-Age counselor speaking with measured warm wisdom' };
+        }
+        return { geminiVoice: 'Gacrux', edgeVoice: 'en-US-ChristopherNeural', directorNote: 'Dry veteran dungeon counselor speaking with crisp precision' };
+    }
 
     /**
      * Resolves rich neural voices attuned to creature instance seed,
@@ -808,13 +708,13 @@ class ChronicleGrounder {
                     heroRate = '+6%';
                     heroDirectorNote = 'A diminutive, nimble adventurer speaking with a light, spirited, higher-pitched agile voice';
                 } else if (sizeBracket === 'tall') {
-                    geminiVoice = isF ? (heroHash % 2 === 0 ? 'Aoede' : 'Despina') : (heroHash % 2 === 0 ? 'Sulafat' : 'Zephyr');
+                    geminiVoice = isF ? (heroHash % 2 === 0 ? 'Aoede' : 'Despina') : (heroHash % 2 === 0 ? 'Schedar' : 'Zephyr');
                     edgeVoice = isF ? 'en-GB-LibbyNeural' : 'en-GB-ThomasNeural';
                     heroPitch = '+0Hz';
                     heroRate = '+0%';
                     heroDirectorNote = 'A tall, noble adventurer speaking with clear, melodious cadence and calm grace';
                 } else {
-                    geminiVoice = isF ? (heroHash % 2 === 0 ? 'Aoede' : 'Kore') : (pRace.includes('orc') ? 'Fenrir' : (heroHash % 2 === 0 ? 'Sulafat' : 'Orus'));
+                    geminiVoice = isF ? (heroHash % 2 === 0 ? 'Aoede' : 'Kore') : (pRace.includes('orc') ? 'Fenrir' : (heroHash % 2 === 0 ? 'Iapetus' : 'Orus'));
                     edgeVoice = isF ? 'en-US-JennyNeural' : 'en-US-GuyNeural';
                     heroPitch = '+0Hz';
                     heroRate = '+0%';
@@ -823,6 +723,16 @@ class ChronicleGrounder {
                 raceArchetype = sizeBracket;
                 ageArchetype = 'adult';
             } else if (entityOrMonster) {
+                const mentorColor = this.getMentorColorVoice((entityOrMonster.name || entityOrMonster.race || ''), realmKey || (player && player.realm) || 'angband', eventType);
+                if (mentorColor) {
+                    edgeVoice = mentorColor.edgeVoice;
+                    geminiVoice = mentorColor.geminiVoice;
+                    gender = (geminiVoice === 'Kore' || geminiVoice === 'Sadachbia') ? 'female' : 'male';
+                    isF = (gender === 'female');
+                    raceArchetype = 'mentor';
+                    ageArchetype = 'elder';
+                    heroDirectorNote = mentorColor.directorNote || '';
+                } else {
                 // 1. GENDER / SEX: 100% deterministic alignment from 3D model and creature detection
                 const name = (entityOrMonster.name || entityOrMonster.race || '');
                 gender = this.detectCreatureGender(name, entityOrMonster);
@@ -887,6 +797,7 @@ class ChronicleGrounder {
 
                 edgeVoice = pool.edge[hash % pool.edge.length];
                 geminiVoice = pool.gemini[hash % pool.gemini.length];
+                }
             } else {
                 // Master Chronicler / Narrator attunement: Realm-contextual standard high quality Gemini voice
                 const rk = (realmKey) || (player && player.realm) || (typeof window !== 'undefined' && window.__app && typeof window.__app.getActiveRealm === 'function' ? window.__app.getActiveRealm() : (traditionKey === 'beleriand' ? 'silq' : (traditionKey === 'easternmythos' ? 'hengband' : (traditionKey === 'amber' ? 'frogcomposband' : 'angband'))));
@@ -914,7 +825,7 @@ class ChronicleGrounder {
 
         // 5. EMOTIONAL CONTEXT FROM LIVE GAME TELEMETRY (DYNAMIC PER UTTERANCE)
         const hpRatio = (player && player.hp_max > 0) ? (player.hp / player.hp_max) : 1.0;
-        const isPeril = hpRatio <= 0.25;
+        const isPeril = hpRatio < 0.35;
         const isBleedingOrStun = player && (player.cut > 0 || player.stun > 0 || player.poisoned > 0 || player.confused > 0);
         const isBoss = entityOrMonster && (entityOrMonster.isUnique || entityOrMonster.glyph === 'P' || entityOrMonster.glyph === 'B' || entityOrMonster.glyph === 'U' || (entityOrMonster.name && /\b(morgoth|sauron|glaurung|balrog)\b/i.test(entityOrMonster.name)));
         const isStealth = Boolean(player && player.isSneaking);
@@ -927,7 +838,7 @@ class ChronicleGrounder {
         let rate = heroRate || '+0%';
 
         if (!entityOrMonster && !isHero) {
-            // Master Narrator is locked to the realm's British RP Storyteller voice (Enceladus) with steady pitch/rate
+            // Master Narrator is locked to the realm's British RP Storyteller voice (Enceladus), modulating prosody per scene mood
             const rk = (realmKey) || (player && player.realm) || (typeof window !== 'undefined' && window.__app && typeof window.__app.getActiveRealm === 'function' ? window.__app.getActiveRealm() : (traditionKey === 'beleriand' ? 'silq' : (traditionKey === 'easternmythos' ? 'hengband' : (traditionKey === 'amber' ? 'frogcomposband' : 'angband'))));
             geminiVoice = this.getLorekeeperVoice(rk, 'male');
             const realmCtx = this.getRealmContext(rk);
@@ -940,11 +851,23 @@ class ChronicleGrounder {
                 pitch = '+0Hz';
                 rate = '+0%';
             } else if (isPeril) {
-                emotion = 'serious';
-                geminiTag = '[urgent, tense, expressive older British storyteller, standard RP British accent, warm fireside gravitas]';
-                directorNote = 'An expressive older British fireside storyteller recounting a moment of mortal peril with tense, steady gravitas';
-                pitch = '+0Hz';
-                rate = '+0%';
+                emotion = 'panicked';
+                geminiTag = '[panicked, urgent, breathless, expressive older British storyteller, standard RP British accent]';
+                directorNote = 'An expressive older British fireside storyteller recounting a desperate brush with mortal peril';
+                pitch = '+3Hz';
+                rate = '+8%';
+            } else if (isStealth) {
+                emotion = 'whispering';
+                geminiTag = '[whispering softly in dark shadows, expressive older British storyteller, standard RP British accent]';
+                directorNote = 'An expressive older British fireside storyteller hushed in tense subterranean stealth';
+                pitch = '-1Hz';
+                rate = '-7%';
+            } else if (isTown) {
+                emotion = 'cheerful';
+                geminiTag = '[warmly, with hearty fireside camaraderie, expressive older British storyteller, standard RP British accent]';
+                directorNote = 'An expressive older British fireside storyteller in the bustling town square with warm, inviting gravitas';
+                pitch = '+1Hz';
+                rate = '+3%';
             } else {
                 emotion = 'calm';
                 pitch = '+0Hz';
@@ -1145,7 +1068,7 @@ class ChronicleGrounder {
             )
         );
         const isOracle = /\boracle\b/i.test(lower);
-        const isShopkeeper = /\b(shopkeeper|izchak|merchant|quartermaster|innkeeper|barkeep|arms-dealer|storekeeper|black marketeer)\b/i.test(lower);
+        const isShopkeeper = /\b(shopkeeper|izchak|quartermaster|innkeeper|barkeep|arms-dealer|storekeeper|black marketeer)\b/i.test(lower) || (/\bmerchant\b/i.test(lower) && !/aimless[- ]looking merchant/i.test(lower));
         const isPriest = /\b(aligned priest|temple priest|high priest|shrine maiden|sanctuary elder|town elder|abbot|monk of)\b/i.test(lower);
         const isGuard = /\b(watchman|watch captain|watch sergeant|town guard|keystone kop|kop sergeant|kop lieutenant|kop kaptain|vault guard)\b/i.test(lower) && monster.hostile !== true && monster.is_hostile !== true;
         const isPeaceful = Boolean(
@@ -1368,7 +1291,7 @@ class ChronicleGrounder {
                 isTame: false,
                 isPeaceful: true,
                 recommendedVoice: vPeace,
-                sleepNoise: `dozes lightly behind the counter, one eye still half-open for thieves.`,
+                sleepNoise: `slumps against a stack of crates behind the counter, dozing lightly with one eye still half-open for thieves.`,
                 ambientBark: isIzchak
                     ? `"Welcome to Izchak's Lighting Shop! Brass lanterns, wax candles, and magic lamps—never face the dark unlit, young delver!"`
                     : (att.isPriest
@@ -4910,18 +4833,22 @@ class ChronicleGrounder {
                     title = '1980 Dungeons of Doom';
                     prose = `Welcome to Classic Rogue, ${name}. Watch your rations, guard your armor against Aquators, and descend twenty-six floors for the Amulet of Yendor.`;
                     insight = "Fight in 1-tile doorways, eat ('e') when hungry, and drop Scrolls of Scare Monster to stand on them!";
-                } else if (traditionKey === 'khazad') {
-                    title = 'Arrival at the Frontier';
-                    prose = `${name} of the Seven Houses stands above the Iron Hell. Visit General Store '1' for torches and rations before delving into Angband.`;
-                    insight = "Press '1' to enter the General Store. Purchase torches ('p') and rations before descending.";
-                } else if (traditionKey === 'noldor') {
-                    title = 'Arrival at the Frontier';
-                    prose = `The frontier wind sighs as ${name} stands above Angband. Stock light and healing draughts in the town stores before descending ('>').`;
-                    insight = "Press '1' to enter the General Store. Purchase torches ('p') and rations before descending.";
                 } else {
-                    title = 'Arrival at the Frontier';
-                    prose = `Welcome to the frontier of Angband, ${name}. Visit General Store '1' for torches and rations before taking the iron stairs down ('>').`;
-                    insight = "Press '1' to enter the General Store. Purchase torches ('p') and rations before descending.";
+                    const arrivalBackstory = this.formatBackstorySummary(player);
+                    const bClause = arrivalBackstory ? `, ${arrivalBackstory},` : '';
+                    if (traditionKey === 'khazad') {
+                        title = 'Arrival at the Frontier';
+                        prose = `${name} of the Seven Houses${bClause} stands above the Iron Hell. Visit General Store '1' for torches and rations before delving into Angband.`;
+                        insight = "Press '1' to enter the General Store. Purchase torches ('p') and rations before descending.";
+                    } else if (traditionKey === 'noldor') {
+                        title = 'Arrival at the Frontier';
+                        prose = `The frontier wind sighs as ${name}${bClause} stands above Angband. Stock light and healing draughts in the town stores before descending ('>').`;
+                        insight = "Press '1' to enter the General Store. Purchase torches ('p') and rations before descending.";
+                    } else {
+                        title = 'Arrival at the Frontier';
+                        prose = `Welcome to the frontier of Angband, ${name}${bClause}. Visit General Store '1' for torches and rations before taking the iron stairs down ('>').`;
+                        insight = "Press '1' to enter the General Store. Purchase torches ('p') and rations before descending.";
+                    }
                 }
                 break;
             }
@@ -7117,317 +7044,110 @@ class ChronicleGrounder {
     }
 
     static REALM_STORY_ARCHITECTURES = {
-        angband: {
-            realm: 'angband',
-            collectionTitle: 'Books of the Siege of Angband',
-            divisionUnit: 'Book',
-            divisions: [
-                { maxDepth: 0, badge: 'Book I • Frontier of Men', title: 'Book I: The Vigil Above the Iron Pits' },
-                { maxDepth: 25, badge: 'Book II • The Upper Delvings', title: 'Book II: Echoes in the Goblin Fastness' },
-                { maxDepth: 60, badge: 'Book III • Vaults of Thangorodrim', title: 'Book III: Where Ancient Wyrms Slumber' },
-                { maxDepth: 999, badge: 'Book IV • The Throne of Bauglir', title: 'Book IV: The Last Descent to Morgoth' }
-            ]
-        },
-        silq: {
-            realm: 'silq',
-            collectionTitle: 'Cantos of the Lay of Leithian',
-            divisionUnit: 'Canto',
-            divisions: [
-                { maxDepth: 3, badge: 'Canto I • Gates of Doriath', title: 'Canto I: Beneath the Eaves of Beleriand' },
-                { maxDepth: 10, badge: 'Canto II • Shadows of Taur-nu-Fuin', title: 'Canto II: The Whispering Stair & Silent Blade' },
-                { maxDepth: 17, badge: 'Canto III • Forges of Angband', title: 'Canto III: Anvils of the Fallen Noldor' },
-                { maxDepth: 999, badge: 'Canto IV • The Iron Crown', title: 'Canto IV: The Silmaril in the Dark' }
-            ]
-        },
-        frogcomposband: {
-            realm: 'frogcomposband',
-            collectionTitle: 'Shadow Walks & Arcana Readings',
-            divisionUnit: 'Arcana',
-            divisions: [
-                { maxDepth: 0, badge: 'Arcana I • Outpost of Shadows', title: 'Arcana I: The Crossroads of the Multiverse' },
-                { maxDepth: 30, badge: 'Arcana II • Shifting Courts', title: 'Arcana II: Walking the Broken Pattern' },
-                { maxDepth: 65, badge: 'Arcana III • The Logrus Flux', title: 'Arcana III: Lords of Chaos & Wyrd' },
-                { maxDepth: 999, badge: 'Arcana IV • The Serpent of the Abyss', title: 'Arcana IV: Twilight of the Elder Gods' }
-            ]
-        },
-        hengband: {
-            realm: 'hengband',
-            collectionTitle: 'Scrolls of the Five Rings (五輪書)',
-            divisionUnit: 'Scroll',
-            divisions: [
-                { maxDepth: 0, badge: '地之巻 • Scroll of Earth', title: 'Scroll of Earth (地之巻): Foundation of the Way' },
-                { maxDepth: 20, badge: '水之巻 • Scroll of Water', title: 'Scroll of Water (水之巻): Flowing Steel in the Dark' },
-                { maxDepth: 45, badge: '火之巻 • Scroll of Fire', title: 'Scroll of Fire (火之巻): Clash of Sengoku Spirits' },
-                { maxDepth: 75, badge: '風之巻 • Scroll of Wind', title: 'Scroll of Wind (風之巻): Secrets of the Ten Realms' },
-                { maxDepth: 999, badge: '空之巻 • Scroll of the Void', title: 'Scroll of the Void (空之巻): Beyond Life and Death' }
-            ]
-        },
-        nethack: {
-            realm: 'nethack',
-            collectionTitle: 'Tablets of the Delphic Oracle',
-            divisionUnit: 'Tablet',
-            divisions: [
-                { maxDepth: 4, badge: 'Tablet I • Dungeons of Doom', title: 'Tablet I: The Torchlit Mazes & Faithful Companion' },
-                { maxDepth: 12, badge: 'Tablet II • Sokoban & The Mines', title: 'Tablet II: Altars of Beatitude & Gnomish Vaults' },
-                { maxDepth: 22, badge: 'Tablet III • The Medusa & Castle', title: 'Tablet III: The Valley of the Dead' },
-                { maxDepth: 999, badge: 'Tablet IV • Gehennom & Ascension', title: 'Tablet IV: Sanctum of Moloch & The Astral Plane' }
-            ]
-        },
-        dcss: {
-            realm: 'dcss',
-            collectionTitle: 'Annals of the Orb of Zot',
-            divisionUnit: 'Codex',
-            divisions: [
-                { maxDepth: 7, badge: 'Codex I • The Ecumenical Threshold', title: 'Codex I: Altars of the Pantheon' },
-                { maxDepth: 14, badge: 'Codex II • Lair & Orcish Mines', title: 'Codex II: The Rune-Guarded Branches' },
-                { maxDepth: 22, badge: 'Codex III • Vaults & Depths', title: 'Codex III: The Three Runes of Zot' },
-                { maxDepth: 999, badge: 'Codex IV • Realm of Zot', title: 'Codex IV: Seizing the Orb & The Demonic Ascent' }
-            ]
-        },
-        brogue: {
-            realm: 'brogue',
-            collectionTitle: 'Journals of the Bioluminescent Deep',
-            divisionUnit: 'Folio',
-            divisions: [
-                { maxDepth: 6, badge: 'Folio I • Upper Caverns', title: 'Folio I: Enchanting Scrolls & Vault Keys' },
-                { maxDepth: 14, badge: 'Folio II • Goblin Warrens & Bog', title: 'Folio II: Liberated Allies & Caustic Gas' },
-                { maxDepth: 22, badge: 'Folio III • Lava Depths', title: 'Folio III: Runic Mastery & Dragonfire' },
-                { maxDepth: 999, badge: 'Folio IV • Sanctum of Yendor', title: 'Folio IV: The Amulet & Radiant Lumenstones' }
-            ]
-        },
-        rogue: {
-            realm: 'rogue',
-            collectionTitle: 'Parchments of the 1980 Guild',
-            divisionUnit: 'Parchment',
-            divisions: [
-                { maxDepth: 6, badge: 'Parchment I • Torchlit Entry', title: 'Parchment I: Kestrels, Kobolds & Rations' },
-                { maxDepth: 14, badge: 'Parchment II • The Rust Halls', title: 'Parchment II: Centaurs, Aquators & Nymphs' },
-                { maxDepth: 21, badge: 'Parchment III • Troll Labyrinths', title: 'Parchment III: Phantoms, Xerocs & Vampires' },
-                { maxDepth: 999, badge: 'Parchment IV • Floor 26', title: 'Parchment IV: Jabberwocks, Dragons & The Amulet of Yendor' }
-            ]
-        },
-        ryod: {
-            realm: 'ryod',
-            collectionTitle: 'Acts of the Rolled Realm',
-            divisionUnit: 'Act',
-            divisions: [
-                { maxDepth: 0, badge: 'Prologue • Sanctuary Outpost', title: 'Prologue: Rumors at the Threshold' },
-                { maxDepth: 3, badge: 'Act I • The Outer Threshold', title: 'Act I: Crossing the Rolled Frontier' },
-                { maxDepth: 7, badge: 'Act II • The Rising Shadow', title: 'Act II: Guardians of the First Seal' },
-                { maxDepth: 11, badge: 'Act III • The Crucible', title: 'Act III: Blood & Vaults in the Deep' },
-                { maxDepth: 14, badge: 'Act IV • Inner Sanctum', title: 'Act IV: The Overlord’s Vanguard' },
-                { maxDepth: 999, badge: 'Act V • The Final Reckoning', title: 'Act V: Throne of the Nemesis' }
-            ]
-        }
+        angband: { realm: 'angband', collectionTitle: 'Books of the Siege of Angband', divisionUnit: 'Book', divisions: [
+            { maxDepth: 0, badge: 'Book I • Frontier of Men', title: 'Book I: The Vigil Above the Iron Pits' },
+            { maxDepth: 25, badge: 'Book II • The Upper Delvings', title: 'Book II: Echoes in the Goblin Fastness' },
+            { maxDepth: 60, badge: 'Book III • Vaults of Thangorodrim', title: 'Book III: Where Ancient Wyrms Slumber' },
+            { maxDepth: 999, badge: 'Book IV • The Throne of Bauglir', title: 'Book IV: The Last Descent to Morgoth' }
+        ]},
+        silq: { realm: 'silq', collectionTitle: 'Cantos of the Lay of Leithian', divisionUnit: 'Canto', divisions: [
+            { maxDepth: 3, badge: 'Canto I • Gates of Doriath', title: 'Canto I: Beneath the Eaves of Beleriand' },
+            { maxDepth: 10, badge: 'Canto II • Shadows of Taur-nu-Fuin', title: 'Canto II: The Whispering Stair & Silent Blade' },
+            { maxDepth: 17, badge: 'Canto III • Forges of Angband', title: 'Canto III: Anvils of the Fallen Noldor' },
+            { maxDepth: 999, badge: 'Canto IV • The Iron Crown', title: 'Canto IV: The Silmaril in the Dark' }
+        ]},
+        frogcomposband: { realm: 'frogcomposband', collectionTitle: 'Shadow Walks & Arcana Readings', divisionUnit: 'Arcana', divisions: [
+            { maxDepth: 0, badge: 'Arcana I • Outpost of Shadows', title: 'Arcana I: The Crossroads of the Multiverse' },
+            { maxDepth: 30, badge: 'Arcana II • Shifting Courts', title: 'Arcana II: Walking the Broken Pattern' },
+            { maxDepth: 65, badge: 'Arcana III • The Logrus Flux', title: 'Arcana III: Lords of Chaos & Wyrd' },
+            { maxDepth: 999, badge: 'Arcana IV • The Serpent of the Abyss', title: 'Arcana IV: Twilight of the Elder Gods' }
+        ]},
+        hengband: { realm: 'hengband', collectionTitle: 'Scrolls of the Five Rings (五輪書)', divisionUnit: 'Scroll', divisions: [
+            { maxDepth: 0, badge: '地之巻 • Scroll of Earth', title: 'Scroll of Earth (地之巻): Foundation of the Way' },
+            { maxDepth: 20, badge: '水之巻 • Scroll of Water', title: 'Scroll of Water (水之巻): Flowing Steel in the Dark' },
+            { maxDepth: 45, badge: '火之巻 • Scroll of Fire', title: 'Scroll of Fire (火之巻): Clash of Sengoku Spirits' },
+            { maxDepth: 75, badge: '風之巻 • Scroll of Wind', title: 'Scroll of Wind (風之巻): Secrets of the Ten Realms' },
+            { maxDepth: 999, badge: '空之巻 • Scroll of the Void', title: 'Scroll of the Void (空之巻): Beyond Life and Death' }
+        ]},
+        nethack: { realm: 'nethack', collectionTitle: 'Tablets of the Delphic Oracle', divisionUnit: 'Tablet', divisions: [
+            { maxDepth: 4, badge: 'Tablet I • Dungeons of Doom', title: 'Tablet I: The Torchlit Mazes & Faithful Companion' },
+            { maxDepth: 12, badge: 'Tablet II • Sokoban & The Mines', title: 'Tablet II: Altars of Beatitude & Gnomish Vaults' },
+            { maxDepth: 22, badge: 'Tablet III • The Medusa & Castle', title: 'Tablet III: The Valley of the Dead' },
+            { maxDepth: 999, badge: 'Tablet IV • Gehennom & Ascension', title: 'Tablet IV: Sanctum of Moloch & The Astral Plane' }
+        ]},
+        dcss: { realm: 'dcss', collectionTitle: 'Annals of the Orb of Zot', divisionUnit: 'Codex', divisions: [
+            { maxDepth: 7, badge: 'Codex I • The Ecumenical Threshold', title: 'Codex I: Altars of the Pantheon' },
+            { maxDepth: 14, badge: 'Codex II • Lair & Orcish Mines', title: 'Codex II: The Rune-Guarded Branches' },
+            { maxDepth: 22, badge: 'Codex III • Vaults & Depths', title: 'Codex III: The Three Runes of Zot' },
+            { maxDepth: 999, badge: 'Codex IV • Realm of Zot', title: 'Codex IV: Seizing the Orb & The Demonic Ascent' }
+        ]},
+        brogue: { realm: 'brogue', collectionTitle: 'Journals of the Bioluminescent Deep', divisionUnit: 'Folio', divisions: [
+            { maxDepth: 6, badge: 'Folio I • Upper Caverns', title: 'Folio I: Enchanting Scrolls & Vault Keys' },
+            { maxDepth: 14, badge: 'Folio II • Goblin Warrens & Bog', title: 'Folio II: Liberated Allies & Caustic Gas' },
+            { maxDepth: 22, badge: 'Folio III • Lava Depths', title: 'Folio III: Runic Mastery & Dragonfire' },
+            { maxDepth: 999, badge: 'Folio IV • Sanctum of Yendor', title: 'Folio IV: The Amulet & Radiant Lumenstones' }
+        ]},
+        rogue: { realm: 'rogue', collectionTitle: 'Parchments of the 1980 Guild', divisionUnit: 'Parchment', divisions: [
+            { maxDepth: 6, badge: 'Parchment I • Torchlit Entry', title: 'Parchment I: Kestrels, Kobolds & Rations' },
+            { maxDepth: 14, badge: 'Parchment II • The Rust Halls', title: 'Parchment II: Centaurs, Aquators & Nymphs' },
+            { maxDepth: 21, badge: 'Parchment III • Troll Labyrinths', title: 'Parchment III: Phantoms, Xerocs & Vampires' },
+            { maxDepth: 999, badge: 'Parchment IV • Floor 26', title: 'Parchment IV: Jabberwocks, Dragons & The Amulet of Yendor' }
+        ]},
+        ryod: { realm: 'ryod', collectionTitle: 'Acts of the Rolled Realm', divisionUnit: 'Act', divisions: [
+            { maxDepth: 0, badge: 'Prologue • Sanctuary Outpost', title: 'Prologue: Rumors at the Threshold' },
+            { maxDepth: 3, badge: 'Act I • The Outer Threshold', title: 'Act I: Crossing the Rolled Frontier' },
+            { maxDepth: 7, badge: 'Act II • The Rising Shadow', title: 'Act II: Guardians of the First Seal' },
+            { maxDepth: 11, badge: 'Act III • The Crucible', title: 'Act III: Blood & Vaults in the Deep' },
+            { maxDepth: 14, badge: 'Act IV • Inner Sanctum', title: 'Act IV: The Overlord’s Vanguard' },
+            { maxDepth: 999, badge: 'Act V • The Final Reckoning', title: 'Act V: Throne of the Nemesis' }
+        ]}
     };
 
     static MYTHIC_VOWS_BY_REALM = {
         angband: [
-            {
-                id: 'vanguard',
-                label: '⚔️ Oath of the Iron Vanguard',
-                epithet: 'Iron-Sworn of the West',
-                summary: 'Stand unyielding in narrow corridors and meet Morgoth’s captains blade to blade.',
-                counsel: 'Hold 1-tile choke points; keep Phase Door & Cure Critical Wounds at the ready.'
-            },
-            {
-                id: 'flame',
-                label: '🔥 Covenant of the Secret Fire',
-                epithet: 'Keeper of the Unquenched Flame',
-                summary: 'Wield arcane light, rods, and high-magic wands to purge the subterranean dark.',
-                counsel: 'Preserve mana and device charges for high-threat breeders and summoner uniques.'
-            },
-            {
-                id: 'warden',
-                label: '🛡️ Warden of the Shadowed Stair',
-                epithet: 'Wayfarer of the Deep Stairs',
-                summary: 'Prioritize survival, detection, and measured retreats over reckless glory.',
-                counsel: 'Never fight blind; detect monsters on every new floor and retreat before HP drops below 40%.'
-            }
+            { id: 'vanguard', label: '⚔️ Oath of the Iron Vanguard', epithet: 'Iron-Sworn of the West', summary: 'Stand unyielding in narrow corridors and meet Morgoth’s captains blade to blade.', counsel: 'Hold 1-tile choke points; keep Phase Door & Cure Critical Wounds at the ready.' },
+            { id: 'flame', label: '🔥 Covenant of the Secret Fire', epithet: 'Keeper of the Unquenched Flame', summary: 'Wield arcane light, rods, and high-magic wands to purge the subterranean dark.', counsel: 'Preserve mana and device charges for high-threat breeders and summoner uniques.' },
+            { id: 'warden', label: '🛡️ Warden of the Shadowed Stair', epithet: 'Wayfarer of the Deep Stairs', summary: 'Prioritize survival, detection, and measured retreats over reckless glory.', counsel: 'Never fight blind; detect monsters on every new floor and retreat before HP drops below 40%.' }
         ],
         silq: [
-            {
-                id: 'finrod',
-                label: '🎵 Oath of Finrod’s Harp',
-                epithet: 'Singer in the Deep Gloom',
-                summary: 'Weave Songs of Elbereth, Silence, and Staying to master the unseen vaults.',
-                counsel: 'Chant Songs of Silence near sleeping packs; conserve Voice for dire encounters.'
-            },
-            {
-                id: 'beren',
-                label: '🌑 Vow of Beren’s Quiet Step',
-                epithet: 'Shadow-Walker of Taur-nu-Fuin',
-                summary: 'Pass unseen past Balrogs and sleeping legions to claim the Silmaril by guile.',
-                counsel: 'Avoid waking Orc patrols; close doors behind you and strike only isolated sentries.'
-            },
-            {
-                id: 'celebrimbor',
-                label: '🔨 Anvil-Oath of Celebrimbor',
-                epithet: 'Rune-Smith of Eregion',
-                summary: 'Seek the subterranean anvils to forge masterwork Noldorin arms and mithril mail.',
-                counsel: 'Invest Grace into Smithing early and craft slaying or protection runes at the first anvil.'
-            }
+            { id: 'finrod', label: '🎵 Oath of Finrod’s Harp', epithet: 'Singer in the Deep Gloom', summary: 'Weave Songs of Elbereth, Silence, and Staying to master the unseen vaults.', counsel: 'Chant Songs of Silence near sleeping packs; conserve Voice for dire encounters.' },
+            { id: 'beren', label: '🌑 Vow of Beren’s Quiet Step', epithet: 'Shadow-Walker of Taur-nu-Fuin', summary: 'Pass unseen past Balrogs and sleeping legions to claim the Silmaril by guile.', counsel: 'Avoid waking Orc patrols; close doors behind you and strike only isolated sentries.' },
+            { id: 'celebrimbor', label: '🔨 Anvil-Oath of Celebrimbor', epithet: 'Rune-Smith of Eregion', summary: 'Seek the subterranean anvils to forge masterwork Noldorin arms and mithril mail.', counsel: 'Invest Grace into Smithing early and craft slaying or protection runes at the first anvil.' }
         ],
         frogcomposband: [
-            {
-                id: 'pattern',
-                label: '🧭 Walker of the Pattern of Amber',
-                epithet: 'Scion of the True Pattern',
-                summary: 'Impose order upon the chaotic wilderness and master tactical positioning.',
-                counsel: 'Use wilderness towns and quest citadels to gear up before diving past 1500ft.'
-            },
-            {
-                id: 'logrus',
-                label: '🔮 Initiate of the Courts of Chaos',
-                epithet: 'Channeler of the Wyrd Flux',
-                summary: 'Embrace eldritch mutations, patron boons, and high-variance arcane power.',
-                counsel: 'Monitor mutation side-effects and keep resistance gear swapped for elemental breathers.'
-            },
-            {
-                id: 'trump',
-                label: '🃏 Dealer of the Shifting Trumps',
-                epithet: 'Master of the Painted Arcana',
-                summary: 'Bend space, teleportation, and dimensional summons to outmaneuver deadly foes.',
-                counsel: 'Use Trump and dimensional translocation to control line-of-sight against ranged casters.'
-            }
+            { id: 'pattern', label: '🧭 Walker of the Pattern of Amber', epithet: 'Scion of the True Pattern', summary: 'Impose order upon the chaotic wilderness and master tactical positioning.', counsel: 'Use wilderness towns and quest citadels to gear up before diving past 1500ft.' },
+            { id: 'logrus', label: '🔮 Initiate of the Courts of Chaos', epithet: 'Channeler of the Wyrd Flux', summary: 'Embrace eldritch mutations, patron boons, and high-variance arcane power.', counsel: 'Monitor mutation side-effects and keep resistance gear swapped for elemental breathers.' },
+            { id: 'trump', label: '🃏 Dealer of the Shifting Trumps', epithet: 'Master of the Painted Arcana', summary: 'Bend space, teleportation, and dimensional summons to outmaneuver deadly foes.', counsel: 'Use Trump and dimensional translocation to control line-of-sight against ranged casters.' }
         ],
         hengband: [
-            {
-                id: 'niten',
-                label: '⚔️ Way of the Two Heavens (二天一流)',
-                epithet: 'Seeker of the Empty Sky',
-                summary: 'Walk Miyamoto Musashi’s path of decisive, unhesitating martial mastery.',
-                counsel: 'Lure dangerousoni and wyrms to pillar corners to prevent breath crossfire.'
-            },
-            {
-                id: 'shinobi',
-                label: '🌑 Scroll of the Unseen Shadow (忍法帳)',
-                epithet: 'Walker in the Moonless Mist',
-                summary: 'Strike from darkness with Kawarimi escapes, speed, and lethal precision.',
-                counsel: 'Keep escape scrolls and teleportation ready before engaging fast Sengoku uniques.'
-            },
-            {
-                id: 'onmyo',
-                label: '⛩️ Seal of the Onmyōji (陰陽道)',
-                epithet: 'Diviner of the Five Elements',
-                summary: 'Harmonize Yin and Yang through talismans, divination, and elemental warding.',
-                counsel: 'Layer elemental resistances and enlightenment before descending into quest citadels.'
-            }
+            { id: 'niten', label: '⚔️ Way of the Two Heavens (二天一流)', epithet: 'Seeker of the Empty Sky', summary: 'Walk Miyamoto Musashi’s path of decisive, unhesitating martial mastery.', counsel: 'Lure dangerous oni and wyrms to pillar corners to prevent breath crossfire.' },
+            { id: 'shinobi', label: '🌑 Scroll of the Unseen Shadow (忍法帳)', epithet: 'Walker in the Moonless Mist', summary: 'Strike from darkness with Kawarimi escapes, speed, and lethal precision.', counsel: 'Keep escape scrolls and teleportation ready before engaging fast Sengoku uniques.' },
+            { id: 'onmyo', label: '⛩️ Seal of the Onmyōji (陰陽道)', epithet: 'Diviner of the Five Elements', summary: 'Harmonize Yin and Yang through talismans, divination, and elemental warding.', counsel: 'Layer elemental resistances and enlightenment before descending into quest citadels.' }
         ],
         nethack: [
-            {
-                id: 'delphi_altar',
-                label: '⛩️ Covenant of the Co-Aligned Altar',
-                epithet: 'Consecrator of Sacred Stone',
-                summary: 'Test all unknown gear upon altars, brew Holy Water, and guard your pet.',
-                counsel: 'Drop items on altars to check BUC status and save #pray for true emergencies.'
-            },
-            {
-                id: 'elbereth_ward',
-                label: '✨ Inscription of Elbereth',
-                epithet: 'Scribe of the Warding Dust',
-                summary: 'Carve the sacred word of terror when cornered and harvest corpse intrinsics.',
-                counsel: 'Engrave Elbereth with E and never attack while standing on your warding rune.'
-            },
-            {
-                id: 'yendor_ascendant',
-                label: '🏆 Oath of the Astral Ascent',
-                epithet: 'Seeker of the Bell & Book',
-                summary: 'Descend to Gehennom, wrest the Amulet from Moloch’s priest, and ascend.',
-                counsel: 'Stockpile magic markers, genocide scrolls, and full elemental resistances.'
-            }
+            { id: 'delphi_altar', label: '⛩️ Covenant of the Co-Aligned Altar', epithet: 'Consecrator of Sacred Stone', summary: 'Test all unknown gear upon altars, brew Holy Water, and guard your pet.', counsel: 'Drop items on altars to check BUC status and save #pray for true emergencies.' },
+            { id: 'elbereth_ward', label: '✨ Inscription of Elbereth', epithet: 'Scribe of the Warding Dust', summary: 'Carve the sacred word of terror when cornered and harvest corpse intrinsics.', counsel: 'Engrave Elbereth with E and never attack while standing on your warding rune.' },
+            { id: 'yendor_ascendant', label: '🏆 Oath of the Astral Ascent', epithet: 'Seeker of the Bell & Book', summary: 'Descend to Gehennom, wrest the Amulet from Moloch’s priest, and ascend.', counsel: 'Stockpile magic markers, genocide scrolls, and full elemental resistances.' }
         ],
         dcss: [
-            {
-                id: 'mindelay',
-                label: '⚔️ Discipline of Mindelay Steel',
-                epithet: 'Tactician of the Choke Point',
-                summary: 'Focus-train primary weapon skill to mindelay before branching into support.',
-                counsel: 'Press m to focus 1-2 skills and pull every pack back to a known staircase.'
-            },
-            {
-                id: 'ecumenical',
-                label: '🙏 Zealot of the Ecumenical Temple',
-                epithet: 'Champion of Divine Piety',
-                summary: 'Claim a patron deity early and channel divine wrath in every boss fight.',
-                counsel: 'Pray at altars with p and invoke god powers before HP drops below 50%.'
-            },
-            {
-                id: 'three_runes',
-                label: '🔮 Hunter of the Three Runes',
-                epithet: 'Bearer of the Orb of Zot',
-                summary: 'Conquer Lair, Orc, Vaults, and Zot:5 with disciplined stair-dancing.',
-                counsel: 'Never fight two uniques at once; use Teleportation early when surrounded.'
-            }
+            { id: 'mindelay', label: '⚔️ Discipline of Mindelay Steel', epithet: 'Tactician of the Choke Point', summary: 'Focus-train primary weapon skill to mindelay before branching into support.', counsel: 'Press m to focus 1-2 skills and pull every pack back to a known staircase.' },
+            { id: 'ecumenical', label: '🙏 Zealot of the Ecumenical Temple', epithet: 'Champion of Divine Piety', summary: 'Claim a patron deity early and channel divine wrath in every boss fight.', counsel: 'Pray at altars with p and invoke god powers before HP drops below 50%.' },
+            { id: 'three_runes', label: '🔮 Hunter of the Three Runes', epithet: 'Bearer of the Orb of Zot', summary: 'Conquer Lair, Orc, Vaults, and Zot:5 with disciplined stair-dancing.', counsel: 'Never fight two uniques at once; use Teleportation early when surrounded.' }
         ],
         brogue: [
-            {
-                id: 'enchant_savant',
-                label: '📜 Savant of the Enchanted Scroll',
-                epithet: 'Architect of Runic Gear',
-                summary: 'Hoard Scrolls of Enchantment to forge one unstoppable weapon, staff, or charm.',
-                counsel: 'Commit your Enchantment scrolls to a single defining vault item.'
-            },
-            {
-                id: 'liberated_pack',
-                label: '⛓️ Liberator of the Chained',
-                epithet: 'Pack-Leader of the Deep',
-                summary: 'Free every captive monster and empower your allies through the deep caverns.',
-                counsel: 'Shatter chains on every floor and swap positions with wounded allies.'
-            },
-            {
-                id: 'lumen_delver',
-                label: '💎 Seeker of the Twenty-Five Lumenstones',
-                epithet: 'Walker of the Bioluminescent Abyss',
-                summary: 'Master gas traps, potions, and chasm bridges to claim the Amulet on Depth 26.',
-                counsel: 'Test unknown potions on cleared floors near water and away from lava.'
-            }
+            { id: 'enchant_savant', label: '📜 Savant of the Enchanted Scroll', epithet: 'Architect of Runic Gear', summary: 'Hoard Scrolls of Enchantment to forge one unstoppable weapon, staff, or charm.', counsel: 'Commit your Enchantment scrolls to a single defining vault item.' },
+            { id: 'liberated_pack', label: '⛓️ Liberator of the Chained', epithet: 'Pack-Leader of the Deep', summary: 'Free every captive monster and empower your allies through the deep caverns.', counsel: 'Shatter chains on every floor and swap positions with wounded allies.' },
+            { id: 'lumen_delver', label: '💎 Seeker of the Twenty-Five Lumenstones', epithet: 'Walker of the Bioluminescent Abyss', summary: 'Master gas traps, potions, and chasm bridges to claim the Amulet on Depth 26.', counsel: 'Test unknown potions on cleared floors near water and away from lava.' }
         ],
         rogue: [
-            {
-                id: 'doorway_duelist',
-                label: '🗡️ Duelist of the Stone Doorway',
-                epithet: 'Sentinel of the 1980 Grid',
-                summary: 'Hold every 1-tile doorway and never let the A-to-Z bestiary surround you.',
-                counsel: 'Step back into doorways so only one monster can strike you per turn.'
-            },
-            {
-                id: 'rust_warden',
-                label: '🛡️ Warden Against the Aquator',
-                epithet: 'Keeper of Unrusted Mail',
-                summary: 'Protect enchanted armor from Aquators and ration food across all 26 floors.',
-                counsel: 'Unequip metal armor before fighting Aquators and watch your hunger state.'
-            },
-            {
-                id: 'scare_scholar',
-                label: '📜 Master of the Dropped Scroll',
-                epithet: 'Archivist of Floor 26',
-                summary: 'Use Scrolls of Scare Monster and wands wisely to claim the Amulet of Yendor.',
-                counsel: 'Drop Scrolls of Scare Monster on the floor and stand on them in emergencies.'
-            }
+            { id: 'doorway_duelist', label: '🗡️ Duelist of the Stone Doorway', epithet: 'Sentinel of the 1980 Grid', summary: 'Hold every 1-tile doorway and never let the A-to-Z bestiary surround you.', counsel: 'Step back into doorways so only one monster can strike you per turn.' },
+            { id: 'rust_warden', label: '🛡️ Warden Against the Aquator', epithet: 'Keeper of Unrusted Mail', summary: 'Protect enchanted armor from Aquators and ration food across all 26 floors.', counsel: 'Unequip metal armor before fighting Aquators and watch your hunger state.' },
+            { id: 'scare_scholar', label: '📜 Master of the Dropped Scroll', epithet: 'Archivist of Floor 26', summary: 'Use Scrolls of Scare Monster and wands wisely to claim the Amulet of Yendor.', counsel: 'Drop Scrolls of Scare Monster on the floor and stand on them in emergencies.' }
         ],
         ryod: [
-            {
-                id: 'dice_sovereign',
-                label: '🎲 Sovereign of the Rolled Fate',
-                epithet: 'Champion of the Tabletop Forge',
-                summary: 'Master your chosen Power Discipline [m] and conquer all 5 Mythic Acts.',
-                counsel: 'Invoke [m] powers in tough rooms and slay Act Bosses for Enchant Scrolls.'
-            },
-            {
-                id: 'pack_liberator',
-                label: '🐾 Commander of the Loyal Pack',
-                epithet: 'Liberator of the Deep Vaults',
-                summary: 'Fight alongside your starting companion pet and liberate chained floor allies.',
-                counsel: 'Free captive allies on every floor and trade gold with the Quartermaster.'
-            },
-            {
-                id: 'relic_ascendant',
-                label: '🏆 Vanquisher of the Overlord',
-                epithet: 'Claimant of the Crown Relic',
-                summary: 'Adapt to your World Mutator and strike down the Nemesis on the final floor.',
-                counsel: 'Pray at glowing altars [p] to sanctify your weapon and restore full vigor.'
-            }
+            { id: 'dice_sovereign', label: '🎲 Sovereign of the Rolled Fate', epithet: 'Champion of the Tabletop Forge', summary: 'Master your chosen Power Discipline [m] and conquer all 5 Mythic Acts.', counsel: 'Invoke [m] powers in tough rooms and slay Act Bosses for Enchant Scrolls.' },
+            { id: 'pack_liberator', label: '🐾 Commander of the Loyal Pack', epithet: 'Liberator of the Deep Vaults', summary: 'Fight alongside your starting companion pet and liberate chained floor allies.', counsel: 'Free captive allies on every floor and trade gold with the Quartermaster.' },
+            { id: 'relic_ascendant', label: '🏆 Vanquisher of the Overlord', epithet: 'Claimant of the Crown Relic', summary: 'Adapt to your World Mutator and strike down the Nemesis on the final floor.', counsel: 'Pray at glowing altars [p] to sanctify your weapon and restore full vigor.' }
         ]
     };
 

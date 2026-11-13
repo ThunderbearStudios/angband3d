@@ -25,15 +25,18 @@ function markSketchModelCooldown(tier, modelName, cooldownMs = SKETCH_MODEL_COOL
 
 function sanitizeSketchPrompt(rawText) {
     return String(rawText || '')
-        .replace(/\b(bloodied|blood-stained|blood|gore|visceral|horror|horrifying|corpse|mutilated|slaughtered|suicide|self-harm|macabre|grotesque)\b/gi, 'shadow-wreathed')
-        .replace(/\b(killed by mortal wounds|slain by|meeting an absurd, tragicomic demise|death scene)\b/gi, 'in a dramatic dungeon confrontation with');
+        .replace(/\b(bloodied|blood-stained|blood|gore|visceral|horror|horrifying|corpse|mutilated|slaughtered|suicide|self-harm|macabre|grotesque|dead body)\b/gi, 'shadow-wreathed')
+        .replace(/\b(skeletal remains|fallen corpses?)\b/gi, 'ancient fallen shield and helm')
+        .replace(/\b(killed by mortal wounds|slain by|felled by|overwhelmed by|meeting an absurd, tragicomic demise|death scene)\b/gi, 'locked in a dramatic dungeon confrontation with')
+        .replace(/\boverwhelmed\b/gi, 'locked in a dramatic last stand');
 }
 
 function buildSketchPayload(promptText, modelName = '', imageOnlyModalities = false) {
     const generationConfig = {
         responseModalities: imageOnlyModalities ? ['IMAGE'] : ['TEXT', 'IMAGE']
     };
-    if (String(modelName || '').startsWith('gemini-3')) {
+    const mLower = String(modelName || '').toLowerCase();
+    if (mLower.startsWith('gemini-3') || mLower.startsWith('gemini-nano-banana')) {
         generationConfig.thinkingConfig = { thinkingLevel: 'MINIMAL' };
     }
     return JSON.stringify({
@@ -125,7 +128,8 @@ async function trySketchTier({
     customKey,
     geminiHttpsAgent,
     getGcpAuthContext,
-    redactSecret
+    redactSecret,
+    onAiStudioDepleted
 }) {
     let vertexCtx = null;
     if (tier === 'vertex') {
@@ -159,7 +163,7 @@ async function trySketchTier({
                 : `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(modelName)}:generateContent`;
             const headers = tier === 'vertex'
                 ? { 'Content-Type': 'application/json', 'Authorization': `Bearer ${vertexCtx.token}` }
-                : { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey };
+                : { 'Content-Type': 'application/json', 'Api-Revision': '2026-05-20', 'x-goog-api-key': apiKey };
 
             let result = null;
             try {
@@ -225,8 +229,11 @@ async function trySketchTier({
                 continue;
             }
 
-            // Invalid API key won't succeed on other models in the same AI Studio tier
-            if (tier === 'aistudio' && (status === 401 || (status === 400 && result.body.includes('API_KEY_INVALID')))) {
+            // Depleted/unauthorized AI Studio key won't succeed on other models in the same AI Studio tier
+            if (tier === 'aistudio' && (status === 402 || status === 403 || status === 401 || (status === 400 && result.body.includes('API_KEY_INVALID')))) {
+                if (!customKey && (status === 402 || status === 403) && typeof onAiStudioDepleted === 'function') {
+                    try { onAiStudioDepleted(); } catch (_) {}
+                }
                 return { ok: false, lastStatus: status, reason: `upstream_error_${status}` };
             }
 
@@ -248,14 +255,19 @@ async function generateChronicleSketch({
     customKey = '',
     geminiHttpsAgent,
     getGcpAuthContext,
-    redactSecret
+    redactSecret,
+    isAiStudioDepleted,
+    onAiStudioDepleted
 }) {
     const sanitizedPrompt = sanitizeSketchPrompt(prompt);
     const orderedModels = buildModelOrder(models, requestedModel);
-    const preferAiStudio = Boolean(apiKey && !apiKey.startsWith('AQ.'));
-    const tiers = preferAiStudio
-        ? (customKey ? ['aistudio'] : ['aistudio', 'vertex'])
-        : (apiKey ? ['vertex', 'aistudio'] : ['vertex']);
+    const aiStudioBypassed = !customKey && typeof isAiStudioDepleted === 'function' && Boolean(isAiStudioDepleted());
+    const preferAiStudio = Boolean(apiKey && !apiKey.startsWith('AQ.') && !aiStudioBypassed);
+    const tiers = aiStudioBypassed
+        ? ['vertex']
+        : (preferAiStudio
+            ? (customKey ? ['aistudio'] : ['aistudio', 'vertex'])
+            : (apiKey ? ['vertex', 'aistudio'] : ['vertex']));
 
     let lastResult = { ok: false, lastStatus: 0, reason: apiKey ? 'upstream_error_502' : 'no_api_key' };
     for (const tier of tiers) {
@@ -267,7 +279,8 @@ async function generateChronicleSketch({
             customKey,
             geminiHttpsAgent,
             getGcpAuthContext,
-            redactSecret
+            redactSecret,
+            onAiStudioDepleted
         });
         if (res.ok) {
             return { ok: true, imageUrl: res.imageUrl, model: res.model };

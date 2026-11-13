@@ -774,7 +774,7 @@ class ChronicleAudioRouter {
     async fetchOrGetAudioBuffer(text, role = 'narrator', customVoice = null, options = {}, signal = null) {
         options = this.normalizeVocalOptions(options);
         // Narrator uses high quality Gemini Native Audio
-        const isNarrator = (role === 'narrator');
+        const isNarrator = (role === 'narrator' || role === 'mentor');
         const engine = isNarrator ? 'gemini' : (options.engine || this.ttsEngine || 'gemini');
         if (this.isMuted()) {
             return { audioBuffer: null, engine, cached: false, muted: true };
@@ -843,7 +843,7 @@ class ChronicleAudioRouter {
                 const res = await fetch(url, { headers: fetchHeaders, signal: signal || undefined });
                 if (!res.ok) {
                     if (res.headers && res.headers.get('x-tts-unavailable') === '1') {
-                        this._serverTtsUnavailableUntil = Date.now() + 5 * 60 * 1000;
+                        this._serverTtsUnavailableUntil = Date.now() + 15 * 1000;
                         lastErr = new Error(`HTTP ${res.status}`);
                         break;
                     }
@@ -1353,11 +1353,27 @@ class ChronicleAudioRouter {
                 } catch (_) {}
             }
 
-            // Single-Take Cohesive Playback:
-            // Synthesize the complete passage in one continuous Gemini Native Audio take so voice
-            // prosody, timbre, and British RP storyteller cadence never shift mid-paragraph.
+            // First-Sentence Fast-Start Pipelining: for multi-sentence passages (>90 chars),
+            // speak the opening sentence immediately while pre-warming the remainder in parallel.
             const voiceToken = this._activeVoiceToken;
+            const sentences = cleanText.match(/[^.!?]+[.!?]+(?:\s+|$)|[^.!?]+$/g)?.map(s => s.trim()).filter(Boolean) || [cleanText];
             try {
+                if (sentences.length > 1 && cleanText.length > 90 && sentences[0].length >= 15) {
+                    const firstSentence = sentences[0];
+                    const remainder = sentences.slice(1).join(' ');
+                    if (remainder && typeof this.prewarmUtterance === 'function') {
+                        this.prewarmUtterance(remainder, role, speakerName, customVoice, options).catch(() => {});
+                    }
+                    const r1 = await this.playNeuralAudio(firstSentence, role, customVoice, options);
+                    if (r1 && (r1.aborted || r1.interrupted || r1.superseded)) return { aborted: true, interrupted: true };
+                    if (this.isMuted() || this.isPaused || this._activeVoiceToken !== voiceToken) return { stopped: true };
+                    if (remainder) {
+                        const r2 = await this.playNeuralAudio(remainder, role, customVoice, options);
+                        if (r2 && (r2.aborted || r2.interrupted || r2.superseded)) return { aborted: true, interrupted: true };
+                        return r2 || { finished: true };
+                    }
+                    return r1 || { finished: true };
+                }
                 const res = await this.playNeuralAudio(cleanText, role, customVoice, options);
                 if (res && (res.aborted || res.interrupted || res.superseded)) return { aborted: true, interrupted: true };
                 return res || { finished: true };
@@ -1466,7 +1482,7 @@ class ChronicleAudioRouter {
 
             try {
                 this.isSpeaking = true;
-                const isNarrator = (role === 'narrator');
+                const isNarrator = (role === 'narrator' || role === 'mentor');
                 const engine = isNarrator ? 'gemini' : (options.engine || this.ttsEngine || 'gemini');
                 let voice = (engine === 'gemini' && options.geminiVoice)
                     ? options.geminiVoice
@@ -1625,7 +1641,7 @@ class ChronicleAudioRouter {
                             }
                             if (!res.ok) {
                                 if (res.headers && res.headers.get('x-tts-unavailable') === '1') {
-                                    this._serverTtsUnavailableUntil = Date.now() + 5 * 60 * 1000;
+                                    this._serverTtsUnavailableUntil = Date.now() + 15 * 1000;
                                 }
                                 httpStatusError = true;
                                 this._setLoading(false);
@@ -1990,7 +2006,7 @@ class ChronicleAudioRouter {
     getAudioCacheKey(text, role, customVoice, options = {}) {
         const opts = this.normalizeVocalOptions(options);
         const cleanText = String(text || '').replace(/<[^>]*>/g, '').trim();
-        const isNarrator = (role === 'narrator');
+        const isNarrator = (role === 'narrator' || role === 'mentor');
         const engine = isNarrator ? 'gemini' : (opts.engine || this.ttsEngine || 'gemini');
         let voice = isNarrator
             ? ((engine === 'gemini' ? (opts.geminiVoice || opts.voice) : (opts.voice || opts.geminiVoice)) || this.narratorVoice || 'Enceladus')
@@ -2037,10 +2053,11 @@ class ChronicleAudioRouter {
 
         const prewarmPromise = (async () => {
             try {
-                const isNarrator = (role === 'narrator');
+                const isNarrator = (role === 'narrator' || role === 'mentor');
                 const engine = isNarrator ? 'gemini' : (options.engine || this.ttsEngine || 'gemini');
-                let voice = isNarrator ? (options.voice || options.geminiVoice || this.narratorVoice || 'Enceladus') : (customVoice || options.geminiVoice || options.voice || this.narratorVoice || '');
-                if (engine === 'gemini' && options.geminiVoice && !isNarrator) voice = options.geminiVoice;
+                let voice = isNarrator
+                    ? ((engine === 'gemini' ? (options.geminiVoice || options.voice) : (options.voice || options.geminiVoice)) || this.narratorVoice || 'Enceladus')
+                    : (customVoice || (engine === 'gemini' ? (options.geminiVoice || options.voice) : (options.voice || options.geminiVoice)) || this.narratorVoice || '');
 
                 const emotion = options.emotion || '';
                 const geminiTag = options.geminiTag || '';

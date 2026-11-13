@@ -427,11 +427,14 @@ class Dungeon3D {
         this.targetPitch = this.basePitch;
         this.targetCamPos = new THREE.Vector3(0, this.eyeHeight, 0);
         this.currentCamPos = new THREE.Vector3(0, this.eyeHeight, 0);
+        this._logicalCamPos = new THREE.Vector3(0, this.eyeHeight, 0);
         this.cameraBobPhase = 0;
 
         this.stepDuration = 0.14; // 140ms step tween
         this.stepTime = 0;
         this.isStepping = false;
+        this._lastStepEndMs = 0;
+        this._strideChain = false;
 
         this.monsters = new Map();
         this.items = new Map();
@@ -3881,6 +3884,32 @@ class Dungeon3D {
                     const framedEW = isW(y, x - 1) && isW(y, x + 1);
                     if (!framedNS && !framedEW) feat = 1;
                 }
+            } else if ((this.realm === 'hengband' || this.realm === 'frogcomposband') &&
+                (map.depth === 0 || (map.depth === undefined && this.lastDepth === 0)) &&
+                x > 1 && y > 1 && x < map.w - 2 && y < map.h - 2 &&
+                (feat <= 4 || feat === 22)) {
+                // # ROOT-CAUSE: Ensure Hengband / FrogComposBand Outpost storefronts & specialty guilds resolve reliably to store feats in Town.
+                if (g >= '1' && g <= '8') {
+                    feat = 7 + (g.charCodeAt(0) - 49);
+                } else if (g === '9') {
+                    feat = 39; // Bookstore
+                } else if (g === '0') {
+                    feat = (this.realm === 'frogcomposband') ? 33 : 35; // Museum in Hengband, Inn in FCB
+                } else if (g === 'M') {
+                    feat = 35; // Museum
+                } else if (g === 'B') {
+                    feat = 32; // Castle / Bounty Guild
+                } else if (g === '+') {
+                    const isBldgWall = (ry, rx) => {
+                        const r = map.rows[ry];
+                        if (!r || !r.f || rx < 0 || rx * 2 + 1 >= r.f.length) return false;
+                        const fc = (parseInt(r.f[rx * 2], 16) << 4) | (parseInt(r.f[rx * 2 + 1], 16) || 0);
+                        return fc === 21 || fc === 22;
+                    };
+                    if ((isBldgWall(y - 1, x) && isBldgWall(y + 1, x)) || (isBldgWall(y, x - 1) && isBldgWall(y, x + 1))) {
+                        feat = 33; // Special Town Building Door (Inn / Guild Hall)
+                    }
+                }
             } else if (this.realm !== 'silq') {
                 if (feat === 25 && (g === '.' || g === ',' || g === "'")) {
                     feat = 26; // Feat 26: Grass
@@ -4242,7 +4271,6 @@ class Dungeon3D {
         h = Math.imul(h ^ (px & 0xffff), 16777619) >>> 0;
         h = Math.imul(h ^ (py & 0xffff), 16777619) >>> 0;
         h = Math.imul(h ^ (depth & 0xffff), 16777619) >>> 0;
-        h = Math.imul(h ^ (torchRadius & 0xff), 16777619) >>> 0;
         h = Math.imul(h ^ ((this._lastCamProxMask || 0) & 0xffff), 16777619) >>> 0;
         const blindBit = (this.isPlayerBlind && this.isPlayerBlind(this.lastFrame && this.lastFrame.player)) ? 0x9e37 : 0;
         h = Math.imul(h ^ blindBit, 16777619) >>> 0;
@@ -4269,8 +4297,11 @@ class Dungeon3D {
                 const stride = flgStr.length >= mapW * 2 ? 2 : 1;
                 const startIdx = minX * stride;
                 const endIdx = Math.min(flgStr.length - 1, (maxX + 1) * stride - 1);
-                for (let i = startIdx; i <= endIdx; i += 1) {
-                    h = Math.imul(h ^ flgStr.charCodeAt(i), 16777619) >>> 0;
+                for (let i = startIdx + (stride - 1); i <= endIdx; i += stride) {
+                    // Hash ONLY discovered/known bit (0x1) so transient inView/lighting FOV fades do not rebuild static chunks
+                    const c = flgStr.charCodeAt(i);
+                    const knownBit = (c >= 97 ? (c - 87) : (c >= 65 ? (c - 55) : c)) & 1;
+                    h = Math.imul(h ^ knownBit, 16777619) >>> 0;
                 }
             }
             if (row.g) {
@@ -4623,27 +4654,40 @@ class Dungeon3D {
         }
 
         if (this.renderGovernor) this.renderGovernor.wake(1500);
-        this.targetCamPos.set(px * this.cellSize, this.eyeHeight + waterYOffset + thresholdYOffset, py * this.cellSize);
+        const targetX = px * this.cellSize;
+        const targetY = this.eyeHeight + waterYOffset + thresholdYOffset;
+        const targetZ = py * this.cellSize;
+        if (!this._logicalCamPos) this._logicalCamPos = new THREE.Vector3().copy(this.currentCamPos);
 
-        const dist = this.currentCamPos.distanceTo(this.targetCamPos);
-        if (dist > this.cellSize * 1.5) {
-            this.currentCamPos.copy(this.targetCamPos);
-            this.isStepping = false;
-            this.stepPlayedThisMove = false;
-        } else if (dist > 0.05) {
-            if (this.isStepping && this.camera) {
-                this.currentCamPos.copy(this.camera.position);
-            }
-            this.isStepping = true;
-            this.stepTime = 0;
-            const now = performance.now();
-            if (!this.lastStepSoundTime) this.lastStepSoundTime = 0;
-            if (!this.stepPlayedThisMove && (now - this.lastStepSoundTime > 200)) {
-                this.stepPlayedThisMove = true;
-                this.lastStepSoundTime = now;
-                if (this.audio) {
-                    this.audio.playFootstep(outdoors, this.heightRatio || 1.0, footstepSurface);
+        const sameStepTargetXZ = this.isStepping && Math.hypot(this.targetCamPos.x - targetX, this.targetCamPos.z - targetZ) < 0.05;
+        if (sameStepTargetXZ) {
+            // Do not reset in-flight step tween or recapture camera.position mid-stride
+            this.targetCamPos.y = targetY;
+        } else {
+            this.targetCamPos.set(targetX, targetY, targetZ);
+            const dist = this._logicalCamPos.distanceTo(this.targetCamPos);
+            if (dist > this.cellSize * 1.5) {
+                this.currentCamPos.copy(this.targetCamPos);
+                this._logicalCamPos.copy(this.targetCamPos);
+                this.isStepping = false;
+                this.stepPlayedThisMove = false;
+                this._strideChain = false;
+            } else if (dist > 0.05) {
+                const now = performance.now();
+                this._strideChain = (now - (this._lastStepEndMs || 0)) < 85;
+                this.currentCamPos.copy(this._logicalCamPos);
+                this.isStepping = true;
+                this.stepTime = 0;
+                if (!this.lastStepSoundTime) this.lastStepSoundTime = 0;
+                if (!this.stepPlayedThisMove && (now - this.lastStepSoundTime > 200)) {
+                    this.stepPlayedThisMove = true;
+                    this.lastStepSoundTime = now;
+                    if (this.audio) {
+                        this.audio.playFootstep(outdoors, this.heightRatio || 1.0, footstepSurface);
+                    }
                 }
+            } else {
+                this._logicalCamPos.copy(this.targetCamPos);
             }
         }
 
@@ -4710,23 +4754,23 @@ class Dungeon3D {
             this._syncLevelVisibilityAndRooms(map, w, h, depth, this.realm, outdoors, px, py);
         }
 
-        if (outdoors) {
-            if (this._terrainAnchorDepth !== depth ||
-                this._terrainAnchorRealm !== this.realm ||
-                this._terrainAnchorX === undefined ||
-                this._terrainAnchorY === undefined ||
-                Math.abs(px - this._terrainAnchorX) > 6 ||
-                Math.abs(py - this._terrainAnchorY) > 6) {
-                this._terrainAnchorX = px;
-                this._terrainAnchorY = py;
-                this._terrainAnchorDepth = depth;
-                this._terrainAnchorRealm = this.realm;
-            }
+        if (this._terrainAnchorDepth !== depth ||
+            this._terrainAnchorRealm !== this.realm ||
+            this._terrainAnchorOutdoors !== outdoors ||
+            this._terrainAnchorX === undefined ||
+            this._terrainAnchorY === undefined ||
+            Math.abs(px - this._terrainAnchorX) > 6 ||
+            Math.abs(py - this._terrainAnchorY) > 6) {
+            this._terrainAnchorX = px;
+            this._terrainAnchorY = py;
+            this._terrainAnchorDepth = depth;
+            this._terrainAnchorRealm = this.realm;
+            this._terrainAnchorOutdoors = outdoors;
         }
 
-        const anchorX = outdoors ? this._terrainAnchorX : px;
-        const anchorY = outdoors ? this._terrainAnchorY : py;
-        const sightRange = outdoors ? 30 : 24;
+        const anchorX = this._terrainAnchorX;
+        const anchorY = this._terrainAnchorY;
+        const sightRange = outdoors ? 30 : 28;
         const minX = Math.max(0, anchorX - sightRange);
         const maxX = Math.min(w - 1, anchorX + sightRange);
         const minY = Math.max(0, anchorY - sightRange);
@@ -4810,7 +4854,7 @@ class Dungeon3D {
             for (let x = minX; x <= maxX; x++) {
                 const dx = x - anchorX, dy = y - anchorY;
                 const distSq = dx * dx + dy * dy;
-                if (distSq > (outdoors ? 784 : 576)) continue;
+                if (distSq > 784) continue;
                 tileIdx = y * w + x;
 
                 let feat = this.getFeatAt(map, x, y);
@@ -5128,7 +5172,7 @@ class Dungeon3D {
                                 setCol(this.townTimberMesh, townTimberCount, wallShade);
                                 townTimberCount++;
                             }
-                            if (this.townRoofMesh && townRoofCount < this.maxInstances) {
+                            if (!(outdoors && typeof window !== 'undefined' && window.Dungeon3DTown) && this.townRoofMesh && townRoofCount < this.maxInstances) {
                                 this.townRoofMesh.setMatrixAt(townRoofCount, this.dummy.matrix);
                                 setCol(this.townRoofMesh, townRoofCount, wallShade);
                                 townRoofCount++;
@@ -5257,7 +5301,7 @@ class Dungeon3D {
                         shopCounts[shopIdx]++;
                     }
 
-                    if (outdoors && this.townRoofMesh && townRoofCount < this.maxInstances) {
+                    if (!(outdoors && typeof window !== 'undefined' && window.Dungeon3DTown) && outdoors && this.townRoofMesh && townRoofCount < this.maxInstances) {
                         this.dummy.position.set(wx, 0, wz);
                         this.dummy.rotation.set(0, 0, 0);
                         this.dummy.updateMatrix();
@@ -5969,33 +6013,50 @@ class Dungeon3D {
 
         this.updateMonsters(frame.monsters || [], frame.player);
         this.updateItems(frame.objects || frame.items || [], frame.player);
+        if (typeof window !== 'undefined' && window.Dungeon3DTown && typeof window.Dungeon3DTown.buildTownArchitecture === 'function') {
+            window.Dungeon3DTown.buildTownArchitecture(this, map, w, h, depth, this.realm);
+        }
         this.updateTerrainLabels(map, w, h, depth, px, py);
     }
 
     updateTerrainLabels(map, w, h, depth, px = this.playerGridX, py = this.playerGridY) {
         if (!this.terrainLabelsGroup) return;
 
+        if (!this._fontsReadyRebaked && typeof document !== 'undefined' && document.fonts && document.fonts.ready && typeof document.fonts.ready.then === 'function') {
+            this._fontsReadyRebaked = true;
+            document.fonts.ready.then(() => {
+                this._lastTerrainLabelsSig = null;
+                if (this.lastFrame && this.lastFrame.map) {
+                    const lm = this.lastFrame.map;
+                    this.updateTerrainLabels(lm, lm.w, lm.h, lm.depth ?? (this.lastFrame.player ? this.lastFrame.player.depth : 0), this.playerGridX, this.playerGridY);
+                }
+            }).catch(() => {});
+        }
+
         const outdoors = depth === 0;
+        const rLow = String(this.realm || 'angband').toLowerCase();
+        const isHengOrFcb = (rLow === 'hengband' || rLow === 'frogcomposband');
+        const isCartridgeTown = (rLow === 'dcss' || rLow === 'brogue' || rLow === 'rogue' || rLow === 'ryod' || rLow === 'nethack');
         const storeNames = [
-            'General Store',
+            isCartridgeTown ? 'Quartermaster Hall' : 'General Store',
             'Armoury',
             'Weapon Smiths',
-            'Bookseller',
+            (isHengOrFcb || isCartridgeTown) ? 'Temple' : 'Bookseller',
             'Alchemy Shop',
             'Magic Shop',
             'Black Market',
             'Home'
         ];
         const specialStoreNames = {
-            32: 'Town Hall',
+            32: isHengOrFcb ? 'Castle & Guild Hall' : 'Town Hall',
             33: 'Inn & Tavern',
-            34: 'Fighters Guild',
-            35: 'Arcane Tower',
-            36: 'Grand Cathedral',
+            34: isHengOrFcb ? 'Healer Sanctuary' : 'Fighters Guild',
+            35: isHengOrFcb ? 'Museum' : 'Arcane Tower',
+            36: isHengOrFcb ? 'Arena & Casino' : 'Grand Cathedral',
             37: 'Thieves Guild',
-            38: 'Rangers Lodge',
-            39: 'Bounty Office',
-            40: 'Gladiator Arena'
+            38: isHengOrFcb ? 'Mystic Pagoda' : 'Rangers Lodge',
+            39: isHengOrFcb ? 'Bookstore' : 'Bounty Office',
+            40: isHengOrFcb ? 'Beastmaster Stables' : 'Gladiator Arena'
         };
 
         if (this._lastTerrainLabelsDepth !== depth) {
@@ -6005,7 +6066,6 @@ class Dungeon3D {
                     if (sprite.parent) sprite.parent.remove(sprite);
                     if (sprite._ownedSignTexture) sprite._ownedSignTexture.dispose();
                     if (sprite._ownedSignMaterial) sprite._ownedSignMaterial.dispose();
-                    if (sprite._ownedRoofSpriteMat) sprite._ownedRoofSpriteMat.dispose();
                     if (sprite.material) {
                         if (sprite.material.map) sprite.material.map.dispose();
                         sprite.material.dispose();
@@ -6016,7 +6076,8 @@ class Dungeon3D {
             this._lastTerrainLabelsSig = null;
         }
 
-        const labelSig = `${this._lastTerrainSig || ''}:${depth}:${px}:${py}:${this.realm || 'angband'}`;
+        const anchorLabelKey = outdoors ? (w > 90 ? `${this._terrainAnchorX ?? px}:${this._terrainAnchorY ?? py}` : 'town') : `${this._terrainAnchorX ?? px}:${this._terrainAnchorY ?? py}`;
+        const labelSig = `${this._lastTerrainSig || ''}:${depth}:${anchorLabelKey}:${this.realm || 'angband'}`;
         if (this._lastTerrainLabelsSig === labelSig) return;
         this._lastTerrainLabelsSig = labelSig;
 
@@ -6026,11 +6087,13 @@ class Dungeon3D {
         const stairsList = [];
         const pitList = [];
 
-        const labelRange = 28;
-        const lMinY = Math.max(0, py - labelRange);
-        const lMaxY = Math.min(h - 1, py + labelRange);
-        const lMinX = Math.max(0, px - labelRange);
-        const lMaxX = Math.min(w - 1, px + labelRange);
+        const labelRange = (outdoors && w <= 90) ? 45 : 32;
+        const labelCx = outdoors ? px : (this._terrainAnchorX ?? px);
+        const labelCy = outdoors ? py : (this._terrainAnchorY ?? py);
+        const lMinY = Math.max(0, labelCy - labelRange);
+        const lMaxY = Math.min(h - 1, labelCy + labelRange);
+        const lMinX = Math.max(0, labelCx - labelRange);
+        const lMaxX = Math.min(w - 1, labelCx + labelRange);
 
         for (let y = lMinY; y <= lMaxY; y++) {
             for (let x = lMinX; x <= lMaxX; x++) {
@@ -6096,24 +6159,26 @@ class Dungeon3D {
             'PROVISIONS & LANTERNS',
             'ROYAL ARMOURERS',
             'MASTER BLADESMITHS',
-            'HOLY & ARCANE TOMES',
+            (isHengOrFcb || isCartridgeTown) ? 'DIVINE SANCTUARY' : 'HOLY & ARCANE TOMES',
             'ALCHEMICAL APOTHECARY',
             'SORCEROUS RELICS',
             'SHADOW SYNDICATE',
             'HERO\'S SANCTUARY'
         ];
-        const storeIcons = ['⚖', '🛡', '⚔', '📖', '⚗', '🔮', '🗝', '🏠'];
+        const storeIcons = ['⚖', '🛡', '⚔', (isHengOrFcb || isCartridgeTown) ? '⛩' : '📖', '⚗', '🔮', '🗝', '🏠'];
 
-        const createCaption = (text, pos, colorHex, isStore = false, storeIdx = 0) => {
+        const createCaption = (text, pos, colorHex, isStore = false, storeIdx = 0, subOverride = '', iconOverride = '') => {
             const canvas = document.createElement('canvas');
-            canvas.width = 512;
-            canvas.height = isStore ? 128 : 96;
+            canvas.width = isStore ? 1024 : 512;
+            canvas.height = isStore ? 256 : 128;
             const ctx = canvas.getContext('2d');
 
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
             if (isStore) {
-                // Illuminated Medieval Carved-Oak & Brass Guild Signboard Plaque (flush fascia, zero top hanging-chain stubs!)
+                ctx.save();
+                ctx.scale(2, 2);
+                // Illuminated Medieval Carved-Oak & Brass Guild Signboard Plaque (2x Hi-DPI 1024x256)
                 const w = 492, h = 112, x0 = 10, y0 = 8;
 
                 // Weathered dark oak plaque background
@@ -6167,39 +6232,45 @@ class Dungeon3D {
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
                 ctx.fillStyle = colorHex || '#ffd866';
-                ctx.fillText(storeIcons[storeIdx] || '⚜', cx, cy + 2);
+                ctx.fillText(iconOverride || storeIcons[storeIdx] || '⚜', cx, cy + 2);
 
                 // Main Shop Title
                 ctx.font = '700 28px "Cinzel", "Georgia", serif';
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
                 ctx.strokeStyle = 'rgba(0, 0, 0, 0.95)';
-                ctx.lineWidth = 6;
-                ctx.strokeText(text, 286, y0 + 40);
+                ctx.lineWidth = 5;
+                ctx.strokeText(text, 286, y0 + 40, 350);
                 ctx.fillStyle = '#fff5dc';
-                ctx.fillText(text, 286, y0 + 40);
+                ctx.fillText(text, 286, y0 + 40, 350);
 
                 // Guild Subtitle
-                const sub = storeSubtitles[storeIdx] || 'MERCHANT GUILD';
+                const sub = subOverride || storeSubtitles[storeIdx] || 'MERCHANT GUILD';
                 ctx.font = '600 15px "Cinzel", "Georgia", serif';
                 ctx.fillStyle = colorHex || '#e5b85c';
-                ctx.fillText(sub, 286, y0 + 78);
+                ctx.fillText(sub, 286, y0 + 78, 350);
+                ctx.restore();
             } else {
-                // Clean, crisp outlined text matching Godot Label3D (OutlineSize = 8, OutlineModulate = Black)
-                ctx.font = '700 24px "Cinzel", "Noto Sans JP", "Yu Gothic", sans-serif';
+                // High-legibility Dungeon Landmark Pill (512x128 @ 40px bold, 3px outline)
+                ctx.font = '700 40px "Cinzel", "Noto Sans JP", "Yu Gothic", sans-serif';
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
 
                 ctx.strokeStyle = 'rgba(0, 0, 0, 0.95)';
-                ctx.lineWidth = 7;
-                ctx.strokeText(text, 256, 48);
+                ctx.lineWidth = 3;
+                ctx.strokeText(text, 256, 64, 480);
 
-                ctx.fillStyle = colorHex;
-                ctx.fillText(text, 256, 48);
+                ctx.fillStyle = colorHex || '#f8fafc';
+                ctx.fillText(text, 256, 64, 480);
             }
 
             const tex = new THREE.CanvasTexture(canvas);
-            tex.minFilter = THREE.LinearFilter;
+            tex.generateMipmaps = true;
+            tex.minFilter = THREE.LinearMipmapLinearFilter;
+            tex.magFilter = THREE.LinearFilter;
+            if (this.renderer && this.renderer.capabilities && typeof this.renderer.capabilities.getMaxAnisotropy === 'function') {
+                tex.anisotropy = Math.min(8, Math.max(1, this.renderer.capabilities.getMaxAnisotropy()));
+            }
             if (typeof THREE.SRGBColorSpace !== 'undefined') tex.colorSpace = THREE.SRGBColorSpace;
             else if (typeof THREE.sRGBEncoding !== 'undefined') tex.encoding = THREE.sRGBEncoding;
             if (isStore) {
@@ -6215,13 +6286,29 @@ class Dungeon3D {
                     fasciaTrimGeo._sharedGeometry = true;
                     const fasciaFaceGeo = new THREE.PlaneGeometry(1.90, 0.46);
                     fasciaFaceGeo._sharedGeometry = true;
+                    const bracketArmGeo = new THREE.BoxGeometry(0.05, 0.05, 0.56);
+                    bracketArmGeo._sharedGeometry = true;
+                    const bracketBoardGeo = new THREE.BoxGeometry(0.04, 0.24, 0.52);
+                    bracketBoardGeo._sharedGeometry = true;
+                    const bracketFaceGeo = new THREE.PlaneGeometry(0.50, 0.22);
+                    bracketFaceGeo._sharedGeometry = true;
                     const woodMat = new THREE.MeshStandardMaterial({ color: 0x26170c, roughness: 0.82, metalness: 0.12 });
                     woodMat._sharedMaterial = true;
                     const brassMat = new THREE.MeshStandardMaterial({ color: 0xc89b3c, roughness: 0.38, metalness: 0.82 });
                     brassMat._sharedMaterial = true;
-                    this._storeSignSharedGeos = { fasciaBackGeo, fasciaTrimGeo, fasciaFaceGeo, woodMat, brassMat };
+                    const ironMat = new THREE.MeshStandardMaterial({ color: 0x22262c, roughness: 0.55, metalness: 0.80 });
+                    ironMat._sharedMaterial = true;
+                    this._storeSignSharedGeos = {
+                        fasciaBackGeo, fasciaTrimGeo, fasciaFaceGeo,
+                        bracketArmGeo, bracketBoardGeo, bracketFaceGeo,
+                        woodMat, brassMat, ironMat
+                    };
                 }
-                const { fasciaBackGeo, fasciaTrimGeo, fasciaFaceGeo, woodMat, brassMat } = this._storeSignSharedGeos;
+                const {
+                    fasciaBackGeo, fasciaTrimGeo, fasciaFaceGeo,
+                    bracketArmGeo, bracketBoardGeo, bracketFaceGeo,
+                    woodMat, brassMat, ironMat
+                } = this._storeSignSharedGeos;
                 const signFaceMat = new THREE.MeshBasicMaterial({
                     map: tex,
                     transparent: true,
@@ -6231,7 +6318,7 @@ class Dungeon3D {
                 signGroup._ownedSignMaterial = signFaceMat;
                 signGroup._ownedSignTexture = tex;
 
-                // 1. Flush Unobstructed Front Lintel Guild Plaque strictly proud of shopFrameGeo (0.996 < 1.028 < 1.034 < 1.038)
+                // 1. Flush Unobstructed Front Lintel Guild Plaque
                 const fasciaTrim = new THREE.Mesh(fasciaTrimGeo, brassMat);
                 fasciaTrim.position.set(0, 2.74, 1.013);
                 const fasciaBack = new THREE.Mesh(fasciaBackGeo, woodMat);
@@ -6239,26 +6326,25 @@ class Dungeon3D {
                 const fasciaFace = new THREE.Mesh(fasciaFaceGeo, signFaceMat);
                 fasciaFace.position.set(0, 2.74, 1.038);
 
-                // 2. High Hover-Over Wayfinder Beacon above the roofline (y = 4.30m; smoothly distance-faded out < 7.5m)
-                const roofSpriteMat = new THREE.SpriteMaterial({
-                    map: tex,
-                    depthTest: true,
-                    depthWrite: false,
-                    transparent: true
-                });
-                const roofSprite = new THREE.Sprite(roofSpriteMat);
-                roofSprite.scale.set(2.85, 0.72, 1.0);
-                roofSprite.position.set(0, 4.30, 0.0);
-                signGroup._ownedRoofSpriteMat = roofSpriteMat;
-                signGroup._roofSprite = roofSprite;
+                // 2. Wrought-Iron Projecting Tavern Bracket Sign (street-readable from side approaches)
+                const bracketArm = new THREE.Mesh(bracketArmGeo, ironMat);
+                bracketArm.position.set(-1.02, 2.66, 1.24);
+                const bracketBoard = new THREE.Mesh(bracketBoardGeo, woodMat);
+                bracketBoard.position.set(-1.02, 2.48, 1.28);
+                const bracketFaceL = new THREE.Mesh(bracketFaceGeo, signFaceMat);
+                bracketFaceL.rotation.y = -Math.PI * 0.5;
+                bracketFaceL.position.set(-1.045, 2.48, 1.28);
+                const bracketFaceR = new THREE.Mesh(bracketFaceGeo, signFaceMat);
+                bracketFaceR.rotation.y = Math.PI * 0.5;
+                bracketFaceR.position.set(-0.995, 2.48, 1.28);
 
-                signGroup.add(fasciaTrim, fasciaBack, fasciaFace, roofSprite);
+                signGroup.add(fasciaTrim, fasciaBack, fasciaFace, bracketArm, bracketBoard, bracketFaceL, bracketFaceR);
                 return signGroup;
             }
             // depthTest = true so buildings, walls, and pillars properly occlude labels
             const mat = new THREE.SpriteMaterial({ map: tex, depthTest: true, depthWrite: false, transparent: true });
             const sprite = new THREE.Sprite(mat);
-            sprite.scale.set(2.0, 0.38, 1.0);
+            sprite.scale.set(1.45, 0.36, 1.0);
             sprite.position.set(pos.x, pos.y, pos.z);
             sprite.maxDist = 25.0; // Distance culling threshold
             return sprite;
@@ -6283,6 +6369,29 @@ class Dungeon3D {
             ['ph_goblet', 'ph_book']
         ];
 
+        const specialStoreSubtitles = {
+            32: 'BOUNTIES & QUESTS',
+            33: 'HEARTH & REST',
+            34: isHengOrFcb ? 'SACRED HEALING' : 'WARRIOR DISCIPLINE',
+            35: isHengOrFcb ? 'RELICS & LORE HALL' : 'ARCANE STUDIES',
+            36: isHengOrFcb ? 'CHAMPIONS ARENA' : 'SACRED SANCTUARY',
+            37: 'SHADOW SYNDICATE',
+            38: isHengOrFcb ? 'MYSTIC SANCTUM' : 'WILDS & LORE',
+            39: isHengOrFcb ? 'SPELLBOOKS & MANUALS' : 'BOUNTIES & QUESTS',
+            40: isHengOrFcb ? 'BEAST STABLES' : 'CHAMPIONS ARENA'
+        };
+        const specialStoreIcons = {
+            32: '👑',
+            33: '🍺',
+            34: '✚',
+            35: '🏛',
+            36: '⚔',
+            37: '🗡',
+            38: '⛩',
+            39: '📖',
+            40: '🐎'
+        };
+
         const shopClusterEntries = [];
         const maxClusterDistSq = (this.cellSize * 2.2) * (this.cellSize * 2.2);
         for (const [feat, points] of storePositions.entries()) {
@@ -6290,7 +6399,8 @@ class Dungeon3D {
             const storeIdx = isSpecialBuilding ? ((feat - 32) % 8) : (feat - 7);
             const storeNum = isSpecialBuilding ? (feat - 31) : (storeIdx + 1);
             const storeName = isSpecialBuilding ? (specialStoreNames[feat] || 'Guild Hall') : (storeNames[storeIdx] || `Store ${storeNum}`);
-            const labelText = isSpecialBuilding ? `[+] ${storeName}` : `[${storeNum}] ${storeName}`;
+            const subOverride = isSpecialBuilding ? (specialStoreSubtitles[feat] || '') : '';
+            const iconOverride = isSpecialBuilding ? (specialStoreIcons[feat] || '') : '';
             const col = getStoreColorHex(storeIdx + 1);
 
             const clusters = [];
@@ -6312,8 +6422,11 @@ class Dungeon3D {
                 const avgZ = anchorPt.z;
                 const gx = Math.round(avgX / this.cellSize);
                 const gy = Math.round(avgZ / this.cellSize);
+                const rawG = (this.getGlyphAt(map, gx, gy) || '').trim();
+                const badge = isSpecialBuilding ? (rawG || '+') : String(storeNum);
+                const labelText = `[${badge}] ${storeName}`;
                 const doorYaw = this.determineShopDoorOrientation(map, gx, gy, w, h);
-                shopClusterEntries.push({ feat, storeIdx, labelText, col, avgX, avgZ, gx, gy, doorYaw });
+                shopClusterEntries.push({ feat, storeIdx, labelText, col, avgX, avgZ, gx, gy, doorYaw, subOverride, iconOverride });
             }
         }
 
@@ -6334,7 +6447,7 @@ class Dungeon3D {
             activeLabelKeys.add(key);
 
             if (!this._terrainLabelSprites.has(key)) {
-                const signObj = createCaption(c.labelText, { x: c.avgX, y: 2.74, z: c.avgZ, yaw: c.doorYaw }, c.col, true, c.storeIdx);
+                const signObj = createCaption(c.labelText, { x: c.avgX, y: 2.74, z: c.avgZ, yaw: c.doorYaw }, c.col, true, c.storeIdx, c.subOverride, c.iconOverride);
                 this.terrainLabelsGroup.add(signObj);
                 this._terrainLabelSprites.set(key, signObj);
             }
@@ -6398,7 +6511,6 @@ class Dungeon3D {
                 this.terrainLabelsGroup.remove(sprite);
                 if (sprite._ownedSignTexture) sprite._ownedSignTexture.dispose();
                 if (sprite._ownedSignMaterial) sprite._ownedSignMaterial.dispose();
-                if (sprite._ownedRoofSpriteMat) sprite._ownedRoofSpriteMat.dispose();
                 if (sprite.material) {
                     if (sprite.material.map) sprite.material.map.dispose();
                     sprite.material.dispose();
@@ -12028,7 +12140,7 @@ class Dungeon3D {
 
             const tex = new THREE.CanvasTexture(canvas);
             tex.minFilter = THREE.LinearFilter;
-            spriteMat = new THREE.SpriteMaterial({ map: tex, depthTest: false, depthWrite: false });
+            spriteMat = new THREE.SpriteMaterial({ map: tex, depthTest: true, depthWrite: false });
             if (this.captionMaterialCache) {
                 this.captionMaterialCache.set(captionKey, spriteMat);
             }
@@ -12232,7 +12344,7 @@ class Dungeon3D {
         const deathModal = this._deathModalEl || (this._deathModalEl = document.getElementById('death-modal'));
         const loadModal = this._loadModalEl || (this._loadModalEl = document.getElementById('load-modal'));
         const guideModal = this._guideModalEl || (this._guideModalEl = document.getElementById('guide-modal'));
-        const realmModal = this._realmModalEl || (this._realmModalEl = document.getElementById('realm-modal'));
+        const realmModal = this._realmModalEl || (this._realmModalEl = document.getElementById('realm-selector-modal') || document.getElementById('realm-modal'));
         const realmCarouselOverlay = this._realmCarouselOverlayEl || (this._realmCarouselOverlayEl = document.getElementById('realm-carousel-overlay'));
         const splashOverlay = this._splashOverlayEl || (this._splashOverlayEl = document.getElementById('splash-overlay'));
         const mainMenuOverlay = this._mainMenuOverlayEl || (this._mainMenuOverlayEl = document.getElementById('main-menu-overlay'));
@@ -12303,26 +12415,31 @@ class Dungeon3D {
         const bobScale = reducedMotion ? 0.0 : Math.max(0.0, Math.min(1.0, rawBobCfg));
 
         // Smooth camera position tweening (including grounded thresholdYOffset glide)
+        if (!this._logicalCamPos) this._logicalCamPos = new THREE.Vector3().copy(this.targetCamPos);
         if (this.isStepping) {
             this.stepTime += delta;
             const progress = Math.min(1.0, this.stepTime / this.stepDuration);
-            const t = progress * (2 - progress); // Ease out quad
+            const t = this._strideChain ? progress : progress * (2 - progress); // Continuous held-key stride or ease-out quad
 
-            this.camera.position.lerpVectors(this.currentCamPos, this.targetCamPos, t);
+            this._logicalCamPos.lerpVectors(this.currentCamPos, this.targetCamPos, t);
+            this.camera.position.copy(this._logicalCamPos);
 
-            // Reactive Walking Head-bob (single phase accumulator; respects reduced-motion & headBobScale)
+            // Reactive Walking Head-bob applied strictly after logical position interpolation
             this.cameraBobPhase += delta * 18;
-            const baseY = this.camera.position.y;
-            this.camera.position.y = baseY + Math.sin(this.cameraBobPhase) * 0.045 * bobScale;
+            this.camera.position.y = this._logicalCamPos.y + Math.sin(this.cameraBobPhase) * 0.045 * bobScale;
 
             if (progress >= 1.0) {
+                this._logicalCamPos.copy(this.targetCamPos);
                 this.currentCamPos.copy(this.targetCamPos);
                 this.camera.position.copy(this.targetCamPos);
                 this.isStepping = false;
                 this.stepPlayedThisMove = false;
+                this._lastStepEndMs = performance.now();
+                this._strideChain = false;
             }
         } else {
-            this.camera.position.copy(this.targetCamPos);
+            this._logicalCamPos.copy(this.targetCamPos);
+            this.camera.position.copy(this._logicalCamPos);
             this.isStepping = false;
             this.stepPlayedThisMove = false;
             // Idle breathing bob & buoyant liquid bobbing in water
@@ -12332,7 +12449,7 @@ class Dungeon3D {
             this.camera.position.y = baseY + idleBob + waterBob;
         }
 
-        if (this._checkThresholdProximity && this._checkThresholdProximity()) {
+        if (!this.isStepping && this._checkThresholdProximity && this._checkThresholdProximity()) {
             this._lastTerrainSig = null;
             if (this.lastFrame) this.updateDungeon(this.lastFrame);
         }
@@ -12770,12 +12887,6 @@ class Dungeon3D {
                 const maxDist = sprite.maxDist || 45.0;
                 const dSq = this.camera.position.distanceToSquared(sprite.position);
                 sprite.visible = (dSq <= maxDist * maxDist);
-                if (sprite.visible && sprite._roofSprite && sprite._ownedRoofSpriteMat) {
-                    const d = Math.hypot(this.camera.position.x - sprite.position.x, this.camera.position.z - sprite.position.z);
-                    const op = Math.max(0, Math.min(1, (d - 4.5) / 3.5));
-                    sprite._ownedRoofSpriteMat.opacity = op;
-                    sprite._roofSprite.visible = op > 0.01;
-                }
             }
         }
         if (this.storefrontPropsGroup && this.storefrontPropsGroup.visible && this.storefrontPropsGroup.children) {

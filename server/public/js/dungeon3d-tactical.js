@@ -418,7 +418,7 @@
             let stillUnsettled = false;
             let anyStepped = false;
 
-            for (let i = 0; i < len; i++) {
+            const stepTile = (i) => {
                 const t = target[i];
                 const s = smooth[i];
                 const diff = t - s;
@@ -435,6 +435,26 @@
                     smooth[i] = t;
                     anyStepped = true;
                 }
+            };
+
+            const map = d3d.lastMap;
+            const w = (map && map.w) || 0;
+            const h = (map && map.h) || 0;
+            if (w > 0 && h > 0 && w * h === len && (d3d.targetCamPos || d3d.camera)) {
+                const cs = d3d.cellSize || 2.0;
+                const refPos = d3d.targetCamPos || d3d.camera.position;
+                const cx = Math.round(refPos.x / cs);
+                const cy = Math.round(refPos.z / cs);
+                const y0 = Math.max(0, cy - 34), y1 = Math.min(h - 1, cy + 34);
+                const x0 = Math.max(0, cx - 34), x1 = Math.min(w - 1, cx + 34);
+                for (let y = y0; y <= y1; y++) {
+                    const rowBase = y * w;
+                    for (let x = x0; x <= x1; x++) {
+                        stepTile(rowBase + x);
+                    }
+                }
+            } else {
+                for (let i = 0; i < len; i++) stepTile(i);
             }
 
             if (anyStepped && d3d._visMeshes && d3d._visBindCount > 0) {

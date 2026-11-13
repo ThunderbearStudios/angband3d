@@ -38,7 +38,8 @@
     "test_ws81_menu_action_parity_9realms.js",
     "test_ws82_prelaunch_9pillars.js",
     "test_v12_2_overhaul_contracts.js",
-    "test_v12_2_2_regressions.js"
+    "test_v12_2_2_regressions.js",
+    "test_v12_3_0_overhaul.js"
   ],
   "e2e": [
     "verify_cross_realm_menus.js",

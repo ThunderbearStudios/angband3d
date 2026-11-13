@@ -48,6 +48,8 @@ const KeySpec = {
         const cMatch = trimmed.match(/^[Cc]-([a-zA-Z0-9_[\]\\^@])$/);
         if (cMatch) return 'C-' + cMatch[1];
 
+        if (/^#[a-z]{1,20}$/i.test(trimmed)) return trimmed.toLowerCase();
+
         return null;
     },
 

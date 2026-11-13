@@ -112,7 +112,8 @@
             customTitle: config.customTitle || '',
             customNemesisName: config.customNemesisName || '',
             ...(config.mapLayout && config.mapLayout !== 'classic' ? { mapLayout: config.mapLayout } : {}),
-            ...(config.mutatorId && config.mutatorId !== 'balanced' ? { mutatorId: config.mutatorId } : {})
+            ...(config.mutatorId && config.mutatorId !== 'balanced' ? { mutatorId: config.mutatorId } : {}),
+            ...(Array.isArray(config.mutators) && config.mutators.length > 1 ? { mutators: config.mutators } : {})
         });
         let h1 = 0x811c9dc5 >>> 0;
         let h2 = 0x01000193 >>> 0;
@@ -165,12 +166,29 @@
             resolvedDiscipline = heroSpec.defaultDiscipline || baseArch.powerDiscipline || 'arcane';
         }
 
+        const validMutators = Pool.WORLD_MUTATORS || {};
+        const rawMutList = Array.isArray(raw.mutators)
+            ? raw.mutators
+            : (raw.mutatorId && raw.mutatorId !== 'balanced' ? [raw.mutatorId] : (raw.godMode ? ['god_sandbox'] : []));
+        const mutators = [];
+        for (const m of rawMutList) {
+            const id = String(m || '').trim();
+            if (id && id !== 'balanced' && validMutators[id] && !mutators.includes(id)) {
+                mutators.push(id);
+                if (mutators.length >= 3) break;
+            }
+        }
+        const mutatorId = mutators[0] || 'balanced';
+
         const progressionMode = ['xp', 'brogue_item', 'hybrid'].includes(raw.progressionMode)
             ? raw.progressionMode
             : (baseArch.progressionMode || 'xp');
 
         const rawDepth = Number(raw.goalDepth);
-        const goalDepth = Number.isFinite(rawDepth) ? Math.min(30, Math.max(5, Math.round(rawDepth))) : (baseArch.goalDepth || 15);
+        const defaultDepth = mutators.includes('boss_rush') ? 8 : (baseArch.goalDepth || 15);
+        const goalDepth = (raw.goalDepth != null && raw.goalDepth !== '' && Number.isFinite(rawDepth))
+            ? Math.min(30, Math.max(5, Math.round(rawDepth)))
+            : defaultDepth;
 
         const victoryMode = ['boss_kill', 'ascension', 'three_runes', 'relic_ascent'].includes(raw.victoryMode)
             ? raw.victoryMode
@@ -178,7 +196,7 @@
 
         const hazardDensity = ['minimal', 'tactical', 'abundant'].includes(raw.hazardDensity)
             ? raw.hazardDensity
-            : (baseArch.hazardDensity || 'tactical');
+            : (mutators.includes('cataclysm') ? 'abundant' : (baseArch.hazardDensity || 'tactical'));
 
         const difficulty = ['story', 'standard', 'nightmare'].includes(raw.difficulty)
             ? raw.difficulty
@@ -187,10 +205,6 @@
         const mapLayout = ['classic', 'caverns', 'labyrinth', 'arena'].includes(raw.mapLayout)
             ? raw.mapLayout
             : (biomeId === 'bioluminescent' ? 'caverns' : 'classic');
-
-        const mutatorId = (Pool.WORLD_MUTATORS && Pool.WORLD_MUTATORS[raw.mutatorId])
-            ? raw.mutatorId
-            : (raw.godMode ? 'god_sandbox' : 'balanced');
 
         const d20Fate = Number.isFinite(Number(raw.d20Fate))
             ? Math.min(20, Math.max(1, Math.round(Number(raw.d20Fate))))
@@ -203,7 +217,7 @@
         const hasTown = typeof raw.hasTown === 'boolean' ? raw.hasTown : (baseArch.hasTown !== false);
         const captiveAllies = typeof raw.captiveAllies === 'boolean' ? raw.captiveAllies : Boolean(baseArch.captiveAllies);
         const beatitude = typeof raw.beatitude === 'boolean' ? raw.beatitude : Boolean(baseArch.beatitude);
-        const godMode = Boolean(raw.godMode || mutatorId === 'god_sandbox');
+        const godMode = Boolean(raw.godMode || mutators.includes('god_sandbox'));
         const audioTheme = raw.audioTheme && raw.audioTheme !== 'auto' ? raw.audioTheme : (biomeSpec.defaultAudio || baseArch.audioTheme || 'angband');
 
         const title = String(raw.customTitle || storySpec.title).slice(0, 64);
@@ -221,6 +235,7 @@
             version: '1.0',
             archetypeId: baseArch.id,
             presetId: raw.presetId || undefined,
+            dailyDate: raw.dailyDate || undefined,
             chimeraChaos: Boolean(raw.chimeraChaos || raw.presetId === 'true_chimera_chaos'),
             mithrilSmithing: Boolean(raw.mithrilSmithing),
             wovenSongs: Boolean(raw.wovenSongs),
@@ -237,6 +252,7 @@
             biome: biomeId,
             mapLayout,
             mutatorId,
+            mutators,
             d20Fate,
             storyArc: storyId,
             bestiary: bestiaryId,
@@ -370,7 +386,8 @@
             c.mapLayout || 'classic',
             c.mutatorId || 'balanced',
             c.d20Fate || 15,
-            c.customNemesisName || ''
+            c.customNemesisName || '',
+            ...(Array.isArray(c.mutators) && c.mutators.length > 1 ? [c.mutators] : [])
         ];
         const json = JSON.stringify(compact);
         if (typeof Buffer !== 'undefined') {
@@ -412,7 +429,8 @@
                 mapLayout: arr[18] || undefined,
                 mutatorId: arr[19] || undefined,
                 d20Fate: arr[20] != null ? Number(arr[20]) : undefined,
-                customNemesisName: arr[21] || ''
+                customNemesisName: arr[21] || '',
+                mutators: Array.isArray(arr[22]) ? arr[22] : undefined
             });
         } catch (_) {
             return null;
@@ -666,6 +684,8 @@
             godMode: bp.godMode,
             mapLayout: bp.mapLayout || 'classic',
             mutatorId: bp.mutatorId || 'balanced',
+            mutators: Array.isArray(bp.mutators) ? bp.mutators.slice() : (bp.mutatorId && bp.mutatorId !== 'balanced' ? [bp.mutatorId] : []),
+            dailyDate: bp.dailyDate || undefined,
             d20Fate: bp.d20Fate || 15,
             d20FateTitle: bp.d20Fate === 20 ? 'Vault Relic Boon & Shrine Blessing' : (bp.d20Fate >= 15 ? 'Explorer Cache & Speed' : (bp.d20Fate === 1 ? 'Nemesis Shade Hunt & 2× Score' : (bp.d20Fate <= 7 ? 'Hardscrabble Provisions' : 'Adventurer Gold'))),
             d20FateDescription: bp.d20Fate === 20
@@ -849,16 +869,164 @@
         }
     ];
 
+    const ARCADE_ADVENTURES = [
+        {
+            id: 'dragon_hoard',
+            crest: '🐉',
+            title: 'Dragon Hoard Plunder',
+            tagline: 'Soar as a Red Dragon across gold-filled vaults & Loot Piñatas.',
+            biome: 'chaos_rift',
+            mapLayout: 'arena',
+            heroOrigin: 'red_dragon',
+            avatarId: 'dragon',
+            isMonsterAvatar: true,
+            powerDiscipline: 'arcane',
+            mutators: ['loot_pinata', 'midas_vaults'],
+            goalDepth: 10,
+            victoryMode: 'boss_kill'
+        },
+        {
+            id: 'beholder_chaos',
+            crest: '👁️',
+            title: 'Beholder Chaos Eye',
+            tagline: 'Equip 6 rings on your eyestalks & unleash Wild Chaos Surges.',
+            biome: 'chaos_rift',
+            mapLayout: 'caverns',
+            heroOrigin: 'beholder',
+            avatarId: 'beholder',
+            isMonsterAvatar: true,
+            powerDiscipline: 'arcane',
+            mutators: ['chaos_surge', 'blood_moon'],
+            goalDepth: 10,
+            victoryMode: 'boss_kill'
+        },
+        {
+            id: 'vampire_crypt',
+            crest: '🧛',
+            title: 'Blood-Moon Crypt',
+            tagline: 'No passive rest heal — survive by 30% Vampire Thirst melee leech.',
+            biome: 'catacombs',
+            mapLayout: 'labyrinth',
+            heroOrigin: 'vampire_scion',
+            avatarId: 'vampire',
+            isMonsterAvatar: true,
+            powerDiscipline: 'arcane',
+            mutators: ['vampire_thirst', 'blood_moon'],
+            beatitude: true,
+            goalDepth: 10,
+            victoryMode: 'boss_kill'
+        },
+        {
+            id: 'spore_pack',
+            crest: '🐺',
+            title: 'Spore Packmaster Run',
+            tagline: 'Start with 2 war beasts, free captive allies & rain Loot Piñatas.',
+            biome: 'bioluminescent',
+            mapLayout: 'caverns',
+            heroOrigin: 'warrior',
+            powerDiscipline: 'auto',
+            progressionMode: 'brogue_item',
+            livingPhysics: true,
+            captiveAllies: true,
+            evolvingAllies: true,
+            mutators: ['packmaster', 'loot_pinata'],
+            goalDepth: 10,
+            victoryMode: 'boss_kill'
+        },
+        {
+            id: 'shogun_boss_rush',
+            crest: '⛩️',
+            title: 'Shogunate Boss Rush',
+            tagline: '8-floor Ninja/Samurai speed-gauntlet under a Crumbling Quake clock!',
+            biome: 'shadow_keep',
+            mapLayout: 'classic',
+            heroOrigin: 'samurai',
+            powerDiscipline: 'martial',
+            martialStances: true,
+            wantedBounties: true,
+            mutators: ['boss_rush', 'floor_collapse'],
+            goalDepth: 8,
+            victoryMode: 'boss_kill'
+        },
+        {
+            id: 'immortal_toybox',
+            crest: '⚡',
+            title: 'Immortal God Toybox',
+            tagline: '999 HP/MP, [G] floor warp, double treasure & zero stress exploration.',
+            biome: 'obsidian',
+            mapLayout: 'arena',
+            heroOrigin: 'arch_lich',
+            avatarId: 'lich',
+            isMonsterAvatar: true,
+            powerDiscipline: 'arcane',
+            godMode: true,
+            mutators: ['god_sandbox', 'loot_pinata', 'chaos_surge'],
+            goalDepth: 10,
+            victoryMode: 'boss_kill'
+        }
+    ];
+
+    function rollDailyBlitzBlueprint(dateStr) {
+        const utc = (dateStr && /^\d{4}-\d{2}-\d{2}$/.test(String(dateStr).trim()))
+            ? String(dateStr).trim()
+            : new Date().toISOString().slice(0, 10);
+        const key = `DAILY_BLITZ:${utc}`;
+        let seed = 0x811c9dc5 >>> 0;
+        for (let i = 0; i < key.length; i++) {
+            seed ^= key.charCodeAt(i);
+            seed = Math.imul(seed, 0x01000193) >>> 0;
+        }
+        const rng = xorshift32(seed || 1337);
+        const biomeKeys = Object.keys(Pool.BIOMES || {});
+        const heroKeys = Object.keys(getAllHeroOrigins());
+        const petKeys = Object.keys(Pool.PET_COMPANIONS || {}).filter(k => k !== 'none');
+        const layouts = ['classic', 'caverns', 'labyrinth', 'arena'];
+        const blitzPool = Object.keys(Pool.WORLD_MUTATORS || {}).filter(id => id !== 'balanced' && id !== 'god_sandbox');
+
+        const biome = biomeKeys[rng() % Math.max(1, biomeKeys.length)] || 'obsidian';
+        const heroOrigin = heroKeys[rng() % Math.max(1, heroKeys.length)] || 'warrior';
+        const mapLayout = layouts[rng() % layouts.length] || 'classic';
+        const pet = petKeys[rng() % Math.max(1, petKeys.length)] || 'war_hound';
+
+        const picked = [];
+        if (blitzPool.length > 0) {
+            const first = blitzPool[rng() % blitzPool.length];
+            picked.push(first);
+            if (blitzPool.length > 1 && (rng() % 2 === 0)) {
+                const second = blitzPool[rng() % blitzPool.length];
+                if (second !== first) picked.push(second);
+            }
+        }
+        const matchingArch = (Pool.WORLD_ARCHETYPES || []).find(w => w.biome === biome) || (Pool.WORLD_ARCHETYPES || [])[0];
+        return normalizeConfig({
+            archetypeId: matchingArch ? matchingArch.id : 'obsidian_covenant',
+            biome,
+            mapLayout,
+            heroOrigin,
+            pet,
+            mutators: picked,
+            goalDepth: picked.includes('boss_rush') ? 8 : 10,
+            victoryMode: 'boss_kill',
+            difficulty: 'standard',
+            progressionMode: 'hybrid',
+            seed,
+            dailyDate: utc,
+            customTitle: `Daily Blitz (${utc})`
+        });
+    }
+
     return {
         computeRyodHash,
         normalizeConfig,
         rollCoherentBlueprint,
+        rollDailyBlitzBlueprint,
         encodePermalink,
         decodePermalink,
         buildFloorCohorts,
         compileEngineSpec,
         parseSeed,
         mulberry32,
-        MASTERWORK_PRESETS
+        MASTERWORK_PRESETS,
+        ARCADE_ADVENTURES
     };
 });

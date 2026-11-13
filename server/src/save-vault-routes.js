@@ -37,10 +37,15 @@ function sanitizeFilename(name) {
     return path.basename(String(name)).replace(/[^a-zA-Z0-9_.-]/g, '_');
 }
 
+function isFixtureSaveFile(file) {
+    return /^(smoke_|demo_|TestOne$)/i.test(String(file || ''));
+}
+
 function isSidecarOrHiddenSaveFile(file) {
     if (!file || typeof file !== 'string') return true;
     if (
         file.startsWith('.') ||
+        isFixtureSaveFile(file) ||
         file.endsWith('.realm.json') ||
         file.endsWith('.ryod.json') ||
         file.endsWith('.owner.json') ||

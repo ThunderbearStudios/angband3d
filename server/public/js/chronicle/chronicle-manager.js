@@ -108,7 +108,7 @@ class ChronicleManager {
         this.inspectCloseBtn = null; this.inspectHpWrap = null; this.inspectHpFill = null; this.inspectHpText = null;
         this.inspectProse = null; this.inspectQuote = null; this.inspectTactics = null; this.inspectChatBtn = null;
         this.inspectVoiceBtn = null; this.inspectedEntity = null;
-        this._openedTransiently = false; this._isInteractiveVoiceActive = false;
+        this._openedTransiently = false; this._isInteractiveVoiceActive = false; this._isInteractiveCounselSpeaking = false;
 
         // Footer Actions, Settings Modal & Telemetry
         this.btnExportJson = null; this.btnExportHtml = null; this.btnImport = null; this.fileInput = null;
@@ -576,7 +576,7 @@ class ChronicleManager {
                         this.testStatus.textContent = `✨ Auditioning Master Chronicler (${sampleVoice})...`;
                     }
                     try {
-                        const narrProfile = this.grounder ? this.grounder.resolveVoiceProfile(null, this.currentHero, 'exploration', this.tradition) : null;
+                        const narrProfile = this.grounder ? this.grounder.resolveVoiceProfile(null, this.currentHero, 'exploration', this.tradition, false, currentRealm, this.getLanguageMode()) : null;
                         const vName = (narrProfile && narrProfile.geminiVoice) || sampleVoice;
                         await this.audio.speakUtterance(sampleText, 'narrator', '', vName, {
                             engine: 'gemini',
@@ -1107,6 +1107,19 @@ class ChronicleManager {
         this.liveHero = hero;
         this._lastCatchUpTriggerTurn = 0;
         this._lastStagingTime = 0;
+        this._preWarmedDeathUrl = null;
+        this._preWarmedDeathEngravingUrl = null;
+        this._preWarmedDeathCtx = null;
+        this._preWarmedDeathPromise = null;
+        this._preWarmedDeathModel = null;
+        this._lastDeathSketchUrl = null;
+        this._lastDeathCtx = null;
+        this._preWarmedSceneKey = null;
+        this._preWarmedSceneUrl = null;
+        this._preWarmedScenePromise = null;
+        this._preWarmedSceneModel = null;
+        this._lastActiveSketchUrl = null;
+        this._lastActiveSketchCtx = null;
 
         // 3. Clear instance voice cache so new dungeon monsters don't inherit old mappings
         if (this.grounder && typeof this.grounder.clearInstanceVoiceRegistry === 'function') {
@@ -1319,7 +1332,7 @@ class ChronicleManager {
                 this.voicingHeroSnapshot = null;
 
                 if (this.audio && this.audio.enabled && deathEntry) {
-                    const narrProfile = this.grounder ? this.grounder.resolveVoiceProfile(null, frame.player, 'HERO_DEATH', this.tradition) : null;
+                    const narrProfile = this.grounder ? this.grounder.resolveVoiceProfile(null, frame.player, 'HERO_DEATH', this.tradition, false, this.getActiveRealm(), this.getLanguageMode()) : null;
                     const speakOpts = {
                         narrator: narrProfile,
                         engine: this.audio.ttsEngine,
@@ -1344,6 +1357,9 @@ class ChronicleManager {
                 return;
             }
 
+            const eventDepth = (frame.map && typeof frame.map.depth === 'number') ? frame.map.depth : (frame.player?.depth ?? 0);
+            const eventPushTs = Date.now();
+
             // Dynamic Voice Handoff & Story Catch-Up Gate (Zero Duplicate Cards):
             // 1. If audio is idle (!isSpeaking && !isStaging):
             //    - If multiple events occurred in the same frame (e.g. altar + kill + level-up),
@@ -1362,6 +1378,8 @@ class ChronicleManager {
                                 event: ev,
                                 entry: null,
                                 turn: playerTurn,
+                                depth: eventDepth,
+                                timestamp: eventPushTs,
                                 player: snapshotHeroVitals(frame.player)
                             });
                         }
@@ -1384,17 +1402,21 @@ class ChronicleManager {
                                         event: ev,
                                         entry: null,
                                         turn: playerTurn,
+                                        depth: eventDepth,
+                                        timestamp: eventPushTs,
                                         player: snapshotHeroVitals(frame.player)
                                     });
                                 }
                             }
 
                             const eventType = bestEv.type || '';
-                            const narrProfile = this.grounder ? this.grounder.resolveVoiceProfile(null, frame.player, eventType, this.tradition) : null;
+                            const activeRealm = this.getActiveRealm();
+                            const langMode = this.getLanguageMode();
+                            const narrProfile = this.grounder ? this.grounder.resolveVoiceProfile(null, frame.player, eventType, this.tradition, false, activeRealm, langMode) : null;
                             let dVoiceProfile = null;
                             if (bestEntry.dialogue && this.grounder) {
                                 const speakerEntity = bestEv.monster || { name: bestEntry.dialogue.speaker };
-                                dVoiceProfile = bestEntry.dialogue.voiceProfile || this.grounder.resolveVoiceProfile(speakerEntity, frame.player, eventType, this.tradition);
+                                dVoiceProfile = bestEntry.dialogue.voiceProfile || this.grounder.resolveVoiceProfile(speakerEntity, frame.player, eventType, this.tradition, false, activeRealm, langMode);
                                 bestEntry.dialogue.voiceProfile = dVoiceProfile;
                             }
                             const speakOpts = {
@@ -1418,6 +1440,8 @@ class ChronicleManager {
                             event: ev,
                             entry: null,
                             turn: playerTurn,
+                            depth: eventDepth,
+                            timestamp: eventPushTs,
                             player: snapshotHeroVitals(frame.player)
                         });
                     }
@@ -1570,11 +1594,25 @@ class ChronicleManager {
         }
     }
 
+    _pruneUnvoicedLedger(curPlayer) {
+        if (!Array.isArray(this.unvoicedEventLedger) || this.unvoicedEventLedger.length === 0) return;
+        const now = Date.now();
+        const curDepth = (curPlayer && typeof curPlayer.depth === 'number')
+            ? curPlayer.depth
+            : ((this.lastFrame && this.lastFrame.map && typeof this.lastFrame.map.depth === 'number') ? this.lastFrame.map.depth : null);
+        this.unvoicedEventLedger = this.unvoicedEventLedger.filter(item => {
+            if (!item || !item.event) return false;
+            if (typeof item.timestamp === 'number' && (now - item.timestamp) > 6000) return false;
+            if (typeof curDepth === 'number' && typeof item.depth === 'number' && item.depth !== curDepth) return false;
+            return true;
+        });
+    }
+
     evaluateCatchUp(player) {
         if (!this.audio || !this.audio.enabled || this.isStoryPlaying) return;
-        if (!this.unvoicedEventLedger || this.unvoicedEventLedger.length === 0) return;
-
         const curPlayer = player || this.liveHero || this.currentHero;
+        this._pruneUnvoicedLedger(curPlayer);
+        if (!this.unvoicedEventLedger || this.unvoicedEventLedger.length === 0) return;
         if (!curPlayer) return;
 
         // Metric extraction across unvoiced ledger: routine combat strikes must NEVER be treated as kills or speech preemption
@@ -1623,13 +1661,14 @@ class ChronicleManager {
 
     _prewarmPendingCatchUp(player) {
         if (!this.audio || this._isAudioMuted() || typeof this.audio.prewarmUtterance !== 'function' || !this.grounder) return;
+        this._pruneUnvoicedLedger(player);
         if (!this.unvoicedEventLedger || this.unvoicedEventLedger.length === 0) return;
         try {
             const events = this.unvoicedEventLedger.map(item => item.event).filter(Boolean);
             if (events.length === 0) return;
             const preview = this.grounder.generateCatchUpBeat(events, this.voicingHeroSnapshot, player, this.tradition, { dryRun: true });
             if (preview && preview.prose) {
-                const narrProfile = this.grounder.resolveVoiceProfile(null, player, 'CATCH_UP', this.tradition);
+                const narrProfile = this.grounder.resolveVoiceProfile(null, player, 'CATCH_UP', this.tradition, false, this.getActiveRealm(), this.getLanguageMode());
                 this.audio.prewarmUtterance(preview.prose, 'narrator', '', null, {
                     ...(narrProfile || {}),
                     narrator: narrProfile,
@@ -1640,8 +1679,9 @@ class ChronicleManager {
     }
 
     triggerCatchUpBeat(player) {
-        if (!this.unvoicedEventLedger || this.unvoicedEventLedger.length === 0 || this.isStoryPlaying) return;
         const curPlayer = player || this.liveHero || this.currentHero;
+        this._pruneUnvoicedLedger(curPlayer);
+        if (!this.unvoicedEventLedger || this.unvoicedEventLedger.length === 0 || this.isStoryPlaying) return;
         if (!curPlayer) return;
 
         // Calculate skipped action summary before flushing ledger
@@ -1718,11 +1758,13 @@ class ChronicleManager {
 
         // Stage for seamless playback (zero overlap guaranteed)
         if (this.audio && this.audio.enabled) {
-            const narrProfile = this.grounder ? this.grounder.resolveVoiceProfile(null, curPlayer, 'CATCH_UP', this.tradition) : null;
+            const activeRealm = this.getActiveRealm();
+            const langMode = this.getLanguageMode();
+            const narrProfile = this.grounder ? this.grounder.resolveVoiceProfile(null, curPlayer, 'CATCH_UP', this.tradition, false, activeRealm, langMode) : null;
             let dVoiceProfile = null;
             if (catchUpEntry.dialogue && this.grounder) {
                 const speakerEntity = { name: catchUpEntry.dialogue.speaker };
-                dVoiceProfile = this.grounder.resolveVoiceProfile(speakerEntity, curPlayer, 'CATCH_UP', this.tradition);
+                dVoiceProfile = this.grounder.resolveVoiceProfile(speakerEntity, curPlayer, 'CATCH_UP', this.tradition, false, activeRealm, langMode);
                 catchUpEntry.dialogue.voiceProfile = dVoiceProfile;
             }
 
@@ -1883,11 +1925,13 @@ class ChronicleManager {
             if (isDeath && this.audio.isSpeaking) {
                 this.audio.stopSpeaking();
             }
-            const narrProfile = this.grounder ? this.grounder.resolveVoiceProfile(null, frame.player, event.type, this.tradition) : null;
+            const activeRealm = this.getActiveRealm();
+            const langMode = this.getLanguageMode();
+            const narrProfile = this.grounder ? this.grounder.resolveVoiceProfile(null, frame.player, event.type, this.tradition, false, activeRealm, langMode) : null;
             let dVoiceProfile = null;
             if (entry.dialogue && this.grounder) {
                 const speakerEntity = event.monster || { name: entry.dialogue.speaker };
-                dVoiceProfile = entry.dialogue.voiceProfile || this.grounder.resolveVoiceProfile(speakerEntity, frame.player, event.type, this.tradition);
+                dVoiceProfile = entry.dialogue.voiceProfile || this.grounder.resolveVoiceProfile(speakerEntity, frame.player, event.type, this.tradition, false, activeRealm, langMode);
                 entry.dialogue.voiceProfile = dVoiceProfile;
             }
             const speakOpts = {
@@ -2182,7 +2226,7 @@ class ChronicleManager {
                         pIndex: pIdx,
                         text: p.prose || '',
                         dialogue: p.dialogue || null,
-                        role: 'narrator'
+                        role: p.isLorekeeper ? 'mentor' : 'narrator'
                     });
                 });
             } else if (ch.prose) {
@@ -2193,7 +2237,7 @@ class ChronicleManager {
                     pIndex: 0,
                     text: ch.prose || '',
                     dialogue: ch.dialogue || null,
-                    role: 'narrator'
+                    role: ch.isLorekeeper ? 'mentor' : 'narrator'
                 });
             }
         });
@@ -2369,18 +2413,20 @@ class ChronicleManager {
     prewarmBeat(beat) {
         if (!beat || !beat.text || !this.audio || typeof this.audio.prewarmUtterance !== 'function') return;
         if (this._isAudioMuted()) return;
+        const activeRealm = this.getActiveRealm();
+        const langMode = this.getLanguageMode();
         try {
             if (beat.role === 'mentor') {
                 const mentorName = this.getLorekeeperName();
-                const mentorProfile = this.grounder ? this.grounder.resolveVoiceProfile({ name: mentorName, race: 'Human' }, this.currentHero, 'counsel', this.tradition) : null;
+                const mentorProfile = this.grounder ? this.grounder.resolveVoiceProfile({ name: mentorName, race: 'Human' }, this.currentHero, 'counsel', this.tradition, false, activeRealm, langMode) : null;
                 if (mentorProfile) {
-                    mentorProfile.geminiTag = '[solemnly, with wise gravitas]';
-                    mentorProfile.directorNote = 'An ancient scholar and lorekeeper reciting the living chronicle';
+                    mentorProfile.geminiTag = mentorProfile.geminiTag || '[solemnly, with wise gravitas]';
+                    mentorProfile.directorNote = mentorProfile.directorNote || 'An ancient scholar and lorekeeper reciting the living chronicle';
                 }
                 const mOpts = { ...(mentorProfile || {}), engine: this.audio.ttsEngine || 'gemini' };
-                this.audio.prewarmUtterance(beat.text, 'narrator', mentorName, null, mOpts).catch(() => {});
+                this.audio.prewarmUtterance(beat.text, 'mentor', mentorName, null, mOpts).catch(() => {});
             } else {
-                const narrProfile = this.grounder ? this.grounder.resolveVoiceProfile(null, this.currentHero, '', this.tradition) : null;
+                const narrProfile = this.grounder ? this.grounder.resolveVoiceProfile(null, this.currentHero, '', this.tradition, false, activeRealm, langMode) : null;
                 const speakOpts = { ...(narrProfile || {}), narrator: narrProfile, engine: this.audio.ttsEngine || 'gemini' };
                 this.audio.prewarmUtterance(beat.text, 'narrator', '', null, speakOpts).catch(() => {});
                 if (beat.text) {
@@ -2397,7 +2443,7 @@ class ChronicleManager {
                 }
                 if (beat.dialogue && beat.dialogue.text && !beat.dialogue.isNoise) {
                     const speakerEntity = beat.dialogue.creature || { name: beat.dialogue.speaker };
-                    const cProfile = this.grounder ? this.grounder.resolveVoiceProfile(speakerEntity, this.currentHero, '', this.tradition) : null;
+                    const cProfile = this.grounder ? this.grounder.resolveVoiceProfile(speakerEntity, this.currentHero, '', this.tradition, false, activeRealm, langMode) : null;
                     const dOpts = cProfile ? { ...cProfile, engine: this.audio.ttsEngine || 'gemini' } : { engine: this.audio.ttsEngine || 'gemini' };
                     this.audio.prewarmUtterance(beat.dialogue.text, 'creature', beat.dialogue.speaker, beat.dialogue.recommendedVoice || null, dOpts).catch(() => {});
                 }
@@ -2451,20 +2497,22 @@ class ChronicleManager {
         }
 
         this.isSpeakingBeat = true;
+        const playRealm = this.getActiveRealm();
+        const playLang = this.getLanguageMode();
         try {
             if (beat.role === 'mentor') {
                 const mentorName = this.getLorekeeperName();
-                const mentorProfile = this.grounder ? this.grounder.resolveVoiceProfile({ name: mentorName, race: 'Human' }, this.currentHero, 'counsel', this.tradition) : null;
+                const mentorProfile = this.grounder ? this.grounder.resolveVoiceProfile({ name: mentorName, race: 'Human' }, this.currentHero, 'counsel', this.tradition, false, playRealm, playLang) : null;
                 if (mentorProfile) {
-                    mentorProfile.geminiTag = '[solemnly, with wise gravitas]';
-                    mentorProfile.directorNote = 'An ancient scholar and lorekeeper reciting the living chronicle';
+                    mentorProfile.geminiTag = mentorProfile.geminiTag || '[solemnly, with wise gravitas]';
+                    mentorProfile.directorNote = mentorProfile.directorNote || 'An ancient scholar and lorekeeper reciting the living chronicle';
                 }
-                await this.audio.speakUtterance(beat.text, 'narrator', mentorName, null, mentorProfile || { engine: this.audio.ttsEngine });
+                await this.audio.speakUtterance(beat.text, 'mentor', mentorName, null, { ...(mentorProfile || {}), engine: this.audio.ttsEngine || 'gemini' });
             } else {
-                const narrProfile = this.grounder ? this.grounder.resolveVoiceProfile(null, this.currentHero, '', this.tradition) : null;
+                const narrProfile = this.grounder ? this.grounder.resolveVoiceProfile(null, this.currentHero, '', this.tradition, false, playRealm, playLang) : null;
                 if (beat.dialogue && this.grounder) {
                     const speakerEntity = beat.dialogue.creature || { name: beat.dialogue.speaker };
-                    beat.dialogue.voiceProfile = this.grounder.resolveVoiceProfile(speakerEntity, this.currentHero, '', this.tradition);
+                    beat.dialogue.voiceProfile = this.grounder.resolveVoiceProfile(speakerEntity, this.currentHero, '', this.tradition, false, playRealm, playLang);
                 }
                 const speakOpts = {
                     narrator: narrProfile,
@@ -2856,7 +2904,7 @@ class ChronicleManager {
             }
 
             if (this.audio && !this._isAudioMuted()) {
-                const narrProfile = this.grounder ? this.grounder.resolveVoiceProfile(null, hero, 'story_prompt', this.tradition) : null;
+                const narrProfile = this.grounder ? this.grounder.resolveVoiceProfile(null, hero, 'story_prompt', this.tradition, false, this.getActiveRealm(), this.getLanguageMode()) : null;
                 const speakOpts = {
                     narrator: narrProfile,
                     engine: this.audio.ttsEngine,
@@ -2907,7 +2955,7 @@ class ChronicleManager {
         this.showHudToast(`🕯️ Sworn: ${this.escapeHtml(beat.title || vowId)}`);
 
         if (this.audio && !this._isAudioMuted()) {
-            const narrProfile = this.grounder.resolveVoiceProfile(null, hero, 'vow', this.tradition);
+            const narrProfile = this.grounder.resolveVoiceProfile(null, hero, 'vow', this.tradition, false, realmKey, langMode);
             await this.audio.speak(beat.prose, null, null, null, 0, {
                 narrator: narrProfile,
                 engine: this.audio.ttsEngine,
@@ -2937,7 +2985,7 @@ class ChronicleManager {
         this.renderStoryEntry(outcome, true);
 
         if (this.audio && !this._isAudioMuted()) {
-            const narrProfile = this.grounder.resolveVoiceProfile(null, hero, 'parley', this.tradition);
+            const narrProfile = this.grounder.resolveVoiceProfile(null, hero, 'parley', this.tradition, false, realmKey, langMode);
             await this.audio.speak(outcome.prose, outcome.dialogue, null, null, 0, {
                 narrator: narrProfile,
                 engine: this.audio.ttsEngine,
@@ -2973,6 +3021,20 @@ class ChronicleManager {
         if (!this.sketchModalStatus) this.sketchModalStatus = getEl('chronicle-sketch-modal-status');
         if (!this.btnShareSketchCard) this.btnShareSketchCard = getEl('btn-share-sketch-card');
         if (!this.btnCloseSketchModal) this.btnCloseSketchModal = getEl('btn-close-sketch-modal');
+        if (!this.btnModalRegenSketch) this.btnModalRegenSketch = getEl('btn-modal-regen-sketch');
+        this._lastLightboxIsDeath = Boolean(options && options.isDeath);
+
+        if (this.btnModalRegenSketch && !this._modalRegenSketchBound) {
+            this._modalRegenSketchBound = true;
+            this.btnModalRegenSketch.addEventListener('click', (e) => {
+                e.preventDefault();
+                if (this._lastLightboxIsDeath && this.lastFrame) {
+                    this.renderDeathSketchIntoModal(this.lastFrame, true, { forceRefresh: true });
+                } else {
+                    this.promptHeroActionSketch(this._lastActiveSketchBeat || null, { forceRefresh: true });
+                }
+            });
+        }
 
         if (this.btnCloseSketchModal && !this._closeSketchModalLazyBound) {
             this._closeSketchModalLazyBound = true;
@@ -3006,6 +3068,9 @@ class ChronicleManager {
         }
 
         const isLoading = Boolean(options && options.isLoading);
+        if (this.btnModalRegenSketch && this.btnModalRegenSketch.style) {
+            this.btnModalRegenSketch.style.display = isLoading ? 'none' : 'inline-flex';
+        }
         const loadingEl = getEl('chronicle-sketch-loading');
         const stageEl = getEl('chronicle-sketch-stage');
         const progressFillEl = getEl('chronicle-sketch-progress-fill');
@@ -3896,136 +3961,11 @@ class ChronicleManager {
     }
 
     renderMasterworkCanvasSketch(ctxData) {
-        if (typeof document === 'undefined') {
-            return 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+        const YSC = (typeof window !== 'undefined' && window.YasdSketchComposer) || (typeof globalThis !== 'undefined' && globalThis.YasdSketchComposer) || null;
+        if (YSC && typeof YSC.renderMasterworkCanvasSketch === 'function') {
+            return YSC.renderMasterworkCanvasSketch(ctxData);
         }
-        try {
-            const canvas = document.createElement('canvas');
-            canvas.width = 768;
-            canvas.height = 480;
-            const ctx = canvas.getContext('2d');
-            if (!ctx) return 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
-
-            const info = ctxData || {};
-            const hero = info.hero || { name: 'Adventurer', level: 1, race: 'Human', class: 'Warrior' };
-            const loc = info.locationLabel || 'The Dungeons of Doom';
-            const realm = String(info.realm || 'angband').toUpperCase();
-            const quote = String(info.narrativeText || 'The shadows deepen around the torchlight...').replace(/\s+/g, ' ').trim();
-            const allies = Array.isArray(info.visibleAllies) ? info.visibleAllies : [];
-            const foes = Array.isArray(info.visibleMonsters) ? info.visibleMonsters : [];
-
-            // 1. Dark Heraldic Parchment / Charcoal Engraving Plate
-            const bg = ctx.createRadialGradient(384, 240, 40, 384, 240, 460);
-            bg.addColorStop(0, '#1f1812');
-            bg.addColorStop(0.65, '#130e0a');
-            bg.addColorStop(1, '#090705');
-            ctx.fillStyle = bg;
-            ctx.fillRect(0, 0, 768, 480);
-
-            // Subtle Gustave Doré cross-hatching lines
-            ctx.strokeStyle = 'rgba(212, 175, 55, 0.045)';
-            ctx.lineWidth = 1;
-            for (let y = 24; y < 456; y += 6) {
-                ctx.beginPath();
-                ctx.moveTo(24, y);
-                ctx.lineTo(744, y + ((y % 12 === 0) ? 2 : -2));
-                ctx.stroke();
-            }
-
-            // Double Gilded Folio Frame
-            ctx.strokeStyle = 'rgba(212, 175, 55, 0.68)';
-            ctx.lineWidth = 2;
-            ctx.strokeRect(18, 18, 732, 444);
-            ctx.strokeStyle = 'rgba(212, 175, 55, 0.28)';
-            ctx.lineWidth = 1;
-            ctx.strokeRect(26, 26, 716, 428);
-
-            // Gothic Archway Silhouette & Torchlight Glow
-            const archGlow = ctx.createRadialGradient(384, 210, 12, 384, 210, 185);
-            archGlow.addColorStop(0, 'rgba(245, 185, 75, 0.22)');
-            archGlow.addColorStop(0.55, 'rgba(180, 95, 30, 0.08)');
-            archGlow.addColorStop(1, 'rgba(0, 0, 0, 0)');
-            ctx.fillStyle = archGlow;
-            ctx.beginPath();
-            ctx.arc(384, 210, 185, 0, Math.PI * 2);
-            ctx.fill();
-
-            ctx.strokeStyle = 'rgba(212, 175, 55, 0.32)';
-            ctx.lineWidth = 1.5;
-            ctx.beginPath();
-            ctx.arc(384, 220, 130, Math.PI, 0, false);
-            ctx.lineTo(514, 355);
-            ctx.moveTo(254, 220);
-            ctx.lineTo(254, 355);
-            ctx.stroke();
-
-            // Header Crest & Location
-            ctx.textAlign = 'center';
-            ctx.fillStyle = '#c9a050';
-            ctx.font = 'bold 13px "Cinzel", Georgia, serif';
-            ctx.fillText(`✦ CHRONICLE ENGRAVING • ${realm} REALM • ${loc.toUpperCase()} ✦`, 384, 62);
-
-            // Hero Title Plate
-            ctx.fillStyle = '#f5d77f';
-            ctx.font = 'bold 24px "Cinzel", Georgia, serif';
-            ctx.fillText(`${hero.name} — Lv.${hero.level || 1} ${hero.race || ''} ${hero.class || ''}`.trim(), 384, 102);
-
-            // Companion / Encounter Sub-Banner
-            // # ROOT-CAUSE: Death modal hid imgEl until Gemini finished (causing blank/laggy death sketch box) and lacked killer banner on 0ms engraving
-            if (info.mode === 'death') {
-                ctx.fillStyle = '#e87a7a';
-                ctx.font = 'bold 14px "Cinzel", Georgia, serif';
-                const killerLabel = String(info.killedBy || (hero && hero.killedBy) || 'mortal peril').toUpperCase();
-                ctx.fillText(`☠ SLAIN BY ${killerLabel} ☠`.slice(0, 82), 384, 128);
-            } else if (allies.length > 0 || foes.length > 0) {
-                ctx.fillStyle = '#d4b872';
-                ctx.font = 'italic 13px Georgia, serif';
-                const subParts = [];
-                if (allies.length > 0) subParts.push(`🐾 Companion: ${allies.map(a => a.name).join(', ')}`);
-                if (foes.length > 0) subParts.push(`⚔ Encounter: ${foes.map(f => f.name).join(', ')}`);
-                ctx.fillText(subParts.join('  •  ').slice(0, 82), 384, 126);
-            }
-
-            // Central Heraldic Crossed-Blades & Shield Emblem
-            ctx.save();
-            ctx.translate(384, 225);
-            ctx.strokeStyle = 'rgba(245, 215, 127, 0.55)';
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.moveTo(-55, -55); ctx.lineTo(55, 55);
-            ctx.moveTo(55, -55); ctx.lineTo(-55, 55);
-            ctx.stroke();
-            ctx.fillStyle = '#1b140d';
-            ctx.beginPath();
-            ctx.moveTo(0, -46);
-            ctx.lineTo(38, -26);
-            ctx.lineTo(30, 22);
-            ctx.lineTo(0, 48);
-            ctx.lineTo(-30, 22);
-            ctx.lineTo(-38, -26);
-            ctx.closePath();
-            ctx.fill();
-            ctx.stroke();
-            ctx.fillStyle = '#f5d77f';
-            ctx.font = 'bold 26px "Cinzel", Georgia, serif';
-            ctx.fillText(info.mode === 'death' ? '☠' : (info.mode === 'victory' ? '👑' : (allies.length > 0 && foes.length === 0 ? '🐾' : '⚔')), 0, 10);
-            ctx.restore();
-
-            // Narrative Inscription Footer
-            ctx.fillStyle = '#e5d5b5';
-            ctx.font = 'italic 15px Georgia, serif';
-            const maxChars = 76;
-            const l1 = quote.slice(0, maxChars);
-            const l2 = quote.length > maxChars ? quote.slice(maxChars, maxChars * 2 - 3) + (quote.length > maxChars * 2 - 3 ? '...' : '') : '';
-            ctx.fillText(`“${l1}${l2 ? '' : '”'}`, 384, 392);
-            if (l2) {
-                ctx.fillText(`${l2}”`, 384, 416);
-            }
-
-            return canvas.toDataURL('image/jpeg', 0.88);
-        } catch (_) {
-            return 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
-        }
+        return 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
     }
 
     async preWarmActiveSceneSketch(frame, beat = null) {
@@ -4058,18 +3998,21 @@ class ChronicleManager {
         return this._preWarmedDeathEngravingUrl;
     }
 
-    async renderDeathSketchIntoModal(frame, requestAi = false) {
+    async renderDeathSketchIntoModal(frame, requestAi = false, options = {}) {
         try {
+            const forceRefresh = Boolean(options && options.forceRefresh);
             const p = (frame && frame.player) || {};
             const mode = (frame && frame.victory) || p.winner || p.total_winner ? 'victory' : 'death';
             const ctxData = this.buildHeroSketchContext(null, { mode, frame });
             this._lastDeathCtx = ctxData;
+            if (forceRefresh) this._preWarmedDeathUrl = null;
 
             const imgEl = typeof document !== 'undefined' && document.getElementById('death-sketch-img');
             const loaderEl = typeof document !== 'undefined' && document.getElementById('death-sketch-loader');
             const statusEl = typeof document !== 'undefined' && document.getElementById('death-sketch-status');
+            const regenBtnEl = typeof document !== 'undefined' && document.getElementById('btn-death-regen-sketch');
 
-            const bindDeathImage = (imageUrl, modelLabel = 'Gemini', allowPaintClick = false) => {
+            const bindDeathImage = (imageUrl, modelLabel = 'Gemini', allowPaintClick = false, isEngraving = false, customStatus = '') => {
                 this._lastDeathSketchUrl = imageUrl;
                 if (imgEl) {
                     imgEl.onload = () => {
@@ -4090,7 +4033,9 @@ class ChronicleManager {
                             ctxData.gearBadges,
                             ctxData.statBadges,
                             ctxData.statusBadges,
-                            ctxData.historyTimeline
+                            ctxData.historyTimeline,
+                            statusEl ? statusEl.textContent : '',
+                            { isDeath: true }
                         );
                     };
                 }
@@ -4098,33 +4043,38 @@ class ChronicleManager {
                     if (this.sketchModalImg) this.sketchModalImg.src = imageUrl;
                     if (this.btnDownloadSketchPng) this.btnDownloadSketchPng.href = imageUrl;
                 }
+                if (regenBtnEl && regenBtnEl.style) {
+                    regenBtnEl.style.display = 'inline-block';
+                    regenBtnEl.textContent = isEngraving ? '✨ Paint AI Illustration' : '🔄 Regenerate AI Illustration';
+                    regenBtnEl.onclick = () => this.renderDeathSketchIntoModal(frame, true, { forceRefresh: true });
+                }
                 if (statusEl) {
-                    if (allowPaintClick) {
+                    if (customStatus) {
+                        statusEl.style.cursor = allowPaintClick ? 'pointer' : 'default';
+                        statusEl.textContent = customStatus;
+                        statusEl.onclick = allowPaintClick ? () => this.renderDeathSketchIntoModal(frame, true, { forceRefresh: true }) : null;
+                    } else if (isEngraving) {
                         statusEl.style.cursor = 'pointer';
                         statusEl.textContent = mode === 'victory'
-                            ? '✨ Click here to Paint AI Ascension Masterwork (Engraving Ready)'
-                            : '✨ Click here to Paint AI Memorial Illustration (Engraving Ready)';
-                        statusEl.onclick = () => {
-                            this.renderDeathSketchIntoModal(frame, true);
-                        };
+                            ? '📜 Local Woodcut Engraving — Click ✨ Paint AI Illustration'
+                            : '📜 Local Woodcut Engraving — Click ✨ Paint AI Illustration';
+                        statusEl.onclick = () => this.renderDeathSketchIntoModal(frame, true, { forceRefresh: true });
                     } else {
                         statusEl.style.cursor = 'default';
                         statusEl.onclick = null;
-                        statusEl.textContent = `🎨 Illustrated by ${modelLabel} (Click Image to Expand)`;
+                        statusEl.textContent = `✨ AI Illustrated Scene (${modelLabel} — Click Image to Expand)`;
                     }
                 }
             };
 
-            // 1. Instant 0ms cached AI illustration if already requested during this death!
-            if (mode === 'death' && this._preWarmedDeathUrl) {
-                bindDeathImage(this._preWarmedDeathUrl, this._preWarmedDeathModel || 'Gemini', false);
+            if (!forceRefresh && mode === 'death' && this._preWarmedDeathUrl) {
+                bindDeathImage(this._preWarmedDeathUrl, this._preWarmedDeathModel || 'Gemini', false, false);
                 return this._preWarmedDeathUrl;
             }
 
-            // 1b. Immediate 0ms Masterwork Canvas Engraving — zero unclicked paid API cost & zero 0px container collapse!
             const immediateEngravingUrl = this._preWarmedDeathEngravingUrl || this.renderMasterworkCanvasSketch(ctxData);
             if (!requestAi) {
-                if (immediateEngravingUrl) bindDeathImage(immediateEngravingUrl, 'Chronicle Engraving', true);
+                if (immediateEngravingUrl) bindDeathImage(immediateEngravingUrl, 'Chronicle Engraving', true, true);
                 return immediateEngravingUrl;
             }
             if (immediateEngravingUrl && imgEl) {
@@ -4133,6 +4083,7 @@ class ChronicleManager {
                 imgEl.style.opacity = '0.45';
             }
             if (loaderEl) loaderEl.style.display = 'flex';
+            if (regenBtnEl && regenBtnEl.style) regenBtnEl.style.display = 'none';
             if (statusEl) {
                 statusEl.style.cursor = 'default';
                 statusEl.onclick = null;
@@ -4141,7 +4092,6 @@ class ChronicleManager {
                     : '🎨 Painting AI Memorial Illustration...';
             }
 
-            // 2. Explicit user-requested Gemini Flash Image illustration
             const headers = { 'Content-Type': 'application/json' };
             const byok = (this.llm && this.llm.apiKey) || ((this.llmBridge && typeof this.llmBridge.getApiKey === 'function') ? this.llmBridge.getApiKey('gemini') : '');
             if (byok) headers['x-goog-api-key'] = byok;
@@ -4151,216 +4101,51 @@ class ChronicleManager {
                 body: JSON.stringify({
                     realm: ctxData.realm,
                     prompt: ctxData.prompt,
-                    heroSummary: ctxData.heroSummary
+                    heroSummary: ctxData.heroSummary,
+                    forceRefresh
                 })
             });
+            let apiErr = `HTTP ${res.status}`;
             if (res.ok) {
                 const json = await res.json();
                 if (json && json.ok && json.imageUrl) {
                     this._preWarmedDeathUrl = json.imageUrl;
                     this._preWarmedDeathModel = json.model || 'Gemini';
-                    bindDeathImage(json.imageUrl, json.model || 'Gemini', false);
+                    bindDeathImage(json.imageUrl, json.model || 'Gemini', false, false);
                     return json.imageUrl;
                 }
+                if (json && json.error) apiErr = String(json.error).slice(0, 64);
             }
 
-            // Fallback to procedural canvas parchment sketch so a broken image is never shown
-            const fallbackUrl = this.renderMasterworkCanvasSketch(ctxData);
-            if (fallbackUrl) {
-                bindDeathImage(fallbackUrl, 'Tome Chronicler', true);
-                return fallbackUrl;
-            }
             if (loaderEl) loaderEl.style.display = 'none';
+            if (immediateEngravingUrl) {
+                bindDeathImage(
+                    immediateEngravingUrl,
+                    'Local Woodcut',
+                    true,
+                    true,
+                    `📜 Local Woodcut Engraving (AI unavailable: ${apiErr} — Click 🔄 to retry)`
+                );
+                return immediateEngravingUrl;
+            }
             if (statusEl) {
                 statusEl.textContent = '⚠ AI Illustrator busy — Click here to retry YASD Painting';
                 statusEl.style.cursor = 'pointer';
-                statusEl.onclick = () => {
-                    this.renderDeathSketchIntoModal(frame, true);
-                };
+                statusEl.onclick = () => this.renderDeathSketchIntoModal(frame, true, { forceRefresh: true });
             }
             return null;
         } catch (_) {
+            const loaderEl = typeof document !== 'undefined' && document.getElementById('death-sketch-loader');
+            if (loaderEl) loaderEl.style.display = 'none';
             return this._lastDeathSketchUrl || null;
         }
     }
 
     async downloadYasdShareCard(frame, customCtx = null, customSketchSrc = null) {
-        if (typeof document === 'undefined') return;
-        const activeFrame = frame || this.lastFrame || {};
-        const p = activeFrame.player || {};
-        const ctxData = customCtx || this._lastDeathCtx || this._lastActiveSketchCtx || this.buildHeroSketchContext(null, { mode: p.winner ? 'victory' : (p.dead ? 'death' : 'action'), frame: activeFrame });
-        const sketchSrc = customSketchSrc || (ctxData.mode === 'action' ? this._lastActiveSketchUrl : (this._lastDeathSketchUrl || this._preWarmedDeathUrl)) || null;
-        const isActionScene = (ctxData.mode === 'action');
-
-        const canvas = document.createElement('canvas');
-        canvas.width = 1200;
-        canvas.height = 630;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) return;
-
-        // 1. Obsidian & Gold Memorial / Scene Card Backdrop
-        const bg = ctx.createLinearGradient(0, 0, 1200, 630);
-        bg.addColorStop(0, '#140f0a');
-        bg.addColorStop(0.5, '#0b0805');
-        bg.addColorStop(1, '#18110a');
-        ctx.fillStyle = bg;
-        ctx.fillRect(0, 0, 1200, 630);
-
-        ctx.strokeStyle = '#d4af37';
-        ctx.lineWidth = 3;
-        ctx.strokeRect(16, 16, 1168, 598);
-        ctx.strokeStyle = 'rgba(212, 175, 55, 0.4)';
-        ctx.lineWidth = 1;
-        ctx.strokeRect(24, 24, 1152, 582);
-
-        // 2. Top Platform Header with Official YASD3D & Thunderbear Badges
-        // # ROOT-CAUSE: Render the official RGBA YASD3D icon badge and Thunderbear Studios emblem onto exported 1200x630 share cards.
-        try {
-            const loadBadge = (src) => new Promise((res) => { const im = new Image(); im.crossOrigin = 'anonymous'; im.onload = () => res(im); im.onerror = () => res(null); im.src = src; });
-            const [yBadge, tbBadge] = await Promise.all([loadBadge('/assets/yasd3d_badge.png'), loadBadge('/assets/thunderbear_logo.png')]);
-            if (yBadge && yBadge.width > 1) ctx.drawImage(yBadge, 44, 28, 25, 34);
-            if (tbBadge && tbBadge.width > 1) ctx.drawImage(tbBadge, 1130, 28, 26, 34);
-        } catch (_) {}
-        ctx.fillStyle = '#f5d77f';
-        ctx.font = 'bold 16px "Cinzel", Georgia, serif';
-        ctx.textAlign = 'left';
-        ctx.fillText(isActionScene ? 'YASD 3D • LIVING CHRONICLE SCENE (angband3d.com)' : 'YASD 3D • YET ANOTHER STUPID DEATH (yasd3d.com)', 76, 52);
-        ctx.textAlign = 'right';
-        ctx.fillStyle = '#c9a050';
-        ctx.font = 'bold 13px "Cinzel", Georgia, serif';
-        ctx.fillText('POWERED BY YENDOR ENGINE™ • THUNDERBEAR STUDIOS™', 1122, 52);
-
-        ctx.strokeStyle = 'rgba(212, 175, 55, 0.35)';
-        ctx.beginPath();
-        ctx.moveTo(44, 68);
-        ctx.lineTo(1156, 68);
-        ctx.stroke();
-
-        // 3. Left Panel: Illustrated Sketch
-        if (sketchSrc) {
-            try {
-                const img = new Image();
-                img.crossOrigin = 'anonymous';
-                await new Promise((resolve) => {
-                    img.onload = resolve;
-                    img.onerror = resolve;
-                    img.src = sketchSrc;
-                });
-                if (img.width > 1) {
-                    ctx.save();
-                    ctx.strokeStyle = '#d4af37';
-                    ctx.lineWidth = 2;
-                    ctx.strokeRect(44, 86, 540, 480);
-                    ctx.drawImage(img, 46, 88, 536, 476);
-                    ctx.restore();
-                }
-            } catch (_) {}
+        const YSC = (typeof window !== 'undefined' && window.YasdSketchComposer) || (typeof globalThis !== 'undefined' && globalThis.YasdSketchComposer) || null;
+        if (YSC && typeof YSC.downloadYasdShareCard === 'function') {
+            return YSC.downloadYasdShareCard(this, frame, customCtx, customSketchSrc);
         }
-
-        // 4. Right Panel: Scene Tone / Epitaph, Vitals & Gear
-        const rx = 610;
-        ctx.textAlign = 'left';
-        if (isActionScene) {
-            ctx.fillStyle = ctxData.sceneTone === 'humor' ? '#fbbf24' : (ctxData.sceneTone === 'humor_horror' ? '#c084fc' : '#f87171');
-            ctx.font = 'bold 24px "Cinzel", Georgia, serif';
-            ctx.fillText((ctxData.toneBadge || '🎭 DUNGEON CHRONICLE SCENE').toUpperCase(), rx, 120);
-        } else {
-            ctx.fillStyle = p.winner ? '#fde047' : '#f87171';
-            ctx.font = 'bold 26px "Cinzel", Georgia, serif';
-            ctx.fillText(p.winner ? '👑 IMMORTAL ASCENSION' : '☠ YOU HAVE PERISHED', rx, 120);
-        }
-
-        ctx.fillStyle = '#fff8e1';
-        ctx.font = 'bold 22px "Cinzel", Georgia, serif';
-        ctx.fillText(`${ctxData.hero.name} — Lv.${ctxData.hero.level} ${ctxData.hero.race} ${ctxData.hero.class}`, rx, 156);
-
-        ctx.fillStyle = isActionScene ? '#fde68a' : '#fca5a5';
-        ctx.font = 'italic 17px Georgia, serif';
-        const causeStr = isActionScene
-            ? ((ctxData.notableDeeds && ctxData.notableDeeds[0]) || ctxData.storyArc || `Chronicled at ${ctxData.locationLabel}.`)
-            : (p.winner
-                ? `Ascended triumphantly from ${ctxData.locationLabel}!`
-                : `Killed by ${ctxData.killedBy || 'mortal wounds'} at ${ctxData.locationLabel}.`);
-        ctx.fillText(causeStr.slice(0, 62), rx, 188);
-
-        // Realm & Telemetry Box
-        ctx.fillStyle = 'rgba(28, 21, 12, 0.9)';
-        ctx.strokeStyle = 'rgba(212, 175, 55, 0.5)';
-        ctx.fillRect(rx, 210, 546, 88);
-        ctx.strokeRect(rx, 210, 546, 88);
-
-        ctx.fillStyle = '#f5d77f';
-        ctx.font = 'bold 13px sans-serif';
-        ctx.fillText(`REALM: ${ctxData.realm.toUpperCase()}   •   LOCATION: ${ctxData.locationLabel}`, rx + 16, 236);
-        ctx.fillStyle = '#e2d9c5';
-        ctx.font = '13px monospace';
-        ctx.fillText(`Gold: ${(ctxData.vitals.gold || 0).toLocaleString()} AU   •   EXP: ${(ctxData.vitals.exp || 0).toLocaleString()}   •   Turns: ${ctxData.vitals.turn || 1}`, rx + 16, 260);
-        ctx.fillText((ctxData.statBadges || []).slice(0, 6).join('  |  '), rx + 16, 284);
-
-        // Equipped Loadout
-        ctx.fillStyle = '#f5d77f';
-        ctx.font = 'bold 14px "Cinzel", Georgia, serif';
-        ctx.fillText(isActionScene ? '⚔ EQUIPPED ARMS & RELICS IN SCENE' : '⚔ EQUIPPED ARMS & RELICS AT DEMISE', rx, 330);
-        ctx.fillStyle = '#e2d2b5';
-        ctx.font = '13px sans-serif';
-        const gearList = (ctxData.gearBadges && ctxData.gearBadges.length > 0) ? ctxData.gearBadges.slice(0, 5) : ['Basic adventurer attire'];
-        gearList.forEach((g, idx) => {
-            ctx.fillText(`• ${g.slice(0, 58)}`, rx + 8, 354 + idx * 22);
-        });
-
-        // Chronicle Quote
-        ctx.fillStyle = '#d4c2a0';
-        ctx.font = 'italic 14px Georgia, serif';
-        const q = `“${(ctxData.narrativeText || '').replace(/\s+/g, ' ').trim().slice(0, 115)}”`;
-        ctx.fillText(q, rx, 505);
-
-        // Footer
-        ctx.fillStyle = '#94a3b8';
-        ctx.font = '12px sans-serif';
-        ctx.fillText('Play 9 classic roguelikes in first-person 3D at https://yasd3d.com • https://angband3d.com', rx, 555);
-
-        if (typeof navigator !== 'undefined' && typeof navigator.share === 'function' && typeof navigator.canShare === 'function' && typeof canvas.toBlob === 'function' && typeof File === 'function') {
-            try {
-                const shareBlob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
-                if (shareBlob) {
-                    const cleanShare = (ctxData.hero.name || 'hero').toLowerCase().replace(/[^a-z0-9]+/g, '-');
-                    const file = new File([shareBlob], `${cleanShare}-${ctxData.realm}-yasd-card.png`, { type: 'image/png' });
-                    if (navigator.canShare({ files: [file] })) {
-                        await navigator.share({
-                            title: 'YASD 3D — Yet Another Stupid Death',
-                            text: `${ctxData.hero.name} (Lv.${ctxData.hero.level}) in ${ctxData.realm.toUpperCase()} — https://yasd3d.com`,
-                            files: [file]
-                        });
-                    }
-                }
-            } catch (_) {}
-        }
-
-        const dataUrl = canvas.toDataURL('image/png');
-        const a = document.createElement('a');
-        const cleanName = (ctxData.hero.name || 'hero').toLowerCase().replace(/[^a-z0-9]+/g, '-');
-        a.href = dataUrl;
-        a.download = isActionScene
-            ? `${cleanName}-${ctxData.realm}-${ctxData.sceneTone || 'scene'}-card.png`
-            : `${cleanName}-${ctxData.realm}-yasd-card.png`;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        let copiedToClipboard = false;
-        if (typeof navigator !== 'undefined' && navigator.clipboard && typeof navigator.clipboard.write === 'function' && typeof ClipboardItem !== 'undefined' && typeof canvas.toBlob === 'function') {
-            try {
-                const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
-                if (blob) {
-                    await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
-                    copiedToClipboard = true;
-                }
-            } catch (_) {}
-        }
-        this.showHudToast(
-            copiedToClipboard
-                ? (isActionScene ? '⚔ Copied to Clipboard & Downloaded Scene Card (.PNG)!' : '⚔ Copied to Clipboard & Downloaded YASD Card (.PNG)!')
-                : (isActionScene ? '⚔ Downloaded Shareable Scene Card (.PNG)!' : '⚔ Downloaded Shareable YASD Memorial Card (.PNG)!')
-        );
     }
 
     async promptHeroActionSketch(overrideBeat = null, options = {}) {
@@ -4368,6 +4153,8 @@ class ChronicleManager {
         if (isAuto) {
             return;
         }
+        const forceRefresh = Boolean(options && options.forceRefresh);
+        this._lastActiveSketchBeat = overrideBeat;
         if (this._sketchAbortController) {
             try { this._sketchAbortController.abort(); } catch (_) {}
             this._sketchAbortController = null;
@@ -4378,6 +4165,7 @@ class ChronicleManager {
         const ctxData = this.buildHeroSketchContext(overrideBeat, options);
         const placeholderUrl = this.renderMasterworkCanvasSketch(ctxData);
         this._lastActiveSketchCtx = ctxData;
+        if (forceRefresh) this._preWarmedSceneUrl = null;
 
         const sketchBtn = this.btnSketch || document.getElementById('chronicle-sketch-btn');
         if (sketchBtn) sketchBtn.classList.add('is-voicing');
@@ -4490,13 +4278,13 @@ class ChronicleManager {
         this.showHudToast(`${toneTitle}: Painting ${this.escapeHtml(ctxData.hero.name || 'Hero')} at ${this.escapeHtml(ctxData.locationLabel || 'Dungeon')}...`);
 
         const sceneKey = `${ctxData.realm}:${ctxData.locationLabel}`;
-        if (this._preWarmedSceneKey === sceneKey && this._preWarmedSceneUrl) {
+        if (!forceRefresh && this._preWarmedSceneKey === sceneKey && this._preWarmedSceneUrl) {
             const warmUrl = this._preWarmedSceneUrl;
             const warmModel = this._preWarmedSceneModel || 'gemini-nano-banana-2.1';
             this._lastActiveSketchUrl = warmUrl;
             revealCardImage(warmUrl);
             if (saveLink) saveLink.href = warmUrl;
-            const doneStatus = `🎨 Illustrated by ${warmModel} (Click to Expand)`;
+            const doneStatus = `✨ AI Illustrated Scene (${warmModel} — Click to Expand)`;
             if (cardStatusEl) cardStatusEl.textContent = doneStatus;
             openLightboxForCard(doneStatus, false);
             if (sketchBtn) sketchBtn.classList.remove('is-voicing');
@@ -4579,7 +4367,8 @@ class ChronicleManager {
                     body: JSON.stringify({
                         realm: ctxData.realm,
                         prompt: ctxData.prompt,
-                        heroSummary: ctxData.heroSummary
+                        heroSummary: ctxData.heroSummary,
+                        forceRefresh
                     })
                 });
                 if (reqId !== this._sketchReqSeq) return;
@@ -4594,13 +4383,13 @@ class ChronicleManager {
                         this._preWarmedSceneModel = resolvedModel;
                         revealCardImage(json.imageUrl);
                         if (saveLink) saveLink.href = json.imageUrl;
-                        const doneStatus = `🎨 Illustrated by ${resolvedModel} (Click to Expand)`;
+                        const doneStatus = `✨ AI Illustrated Scene (${resolvedModel} — Click to Expand)`;
                         if (cardStatusEl) cardStatusEl.textContent = doneStatus;
                         if (!this._sketchModalDismissedByUser) {
                             openLightboxForCard(doneStatus, false);
                         }
                         if (this.statusTextEl) {
-                            this.statusTextEl.textContent = `🎨 ${toneTitle} Rendered (${resolvedModel})`;
+                            this.statusTextEl.textContent = `✨ ${toneTitle} Rendered (${resolvedModel})`;
                         }
                         return;
                     }
@@ -4608,7 +4397,7 @@ class ChronicleManager {
 
                 if (reqId !== this._sketchReqSeq) return;
                 revealCardImage(placeholderUrl);
-                const fallbackStatus = '🎨 Illustrated by Tome Chronicler (Click Sketch button to retry Gemini)';
+                const fallbackStatus = `📜 Local Woodcut Engraving (AI busy HTTP ${res.status} — Click 🔄 Regenerate AI to retry)`;
                 if (cardStatusEl) cardStatusEl.textContent = fallbackStatus;
                 if (!this._sketchModalDismissedByUser) {
                     openLightboxForCard(fallbackStatus, false);
@@ -4616,7 +4405,7 @@ class ChronicleManager {
             } catch (err) {
                 if ((err && err.name === 'AbortError') || reqId !== this._sketchReqSeq) return;
                 revealCardImage(placeholderUrl);
-                const fallbackStatus = '🎨 Illustrated by Tome Chronicler (Click Sketch button to retry Gemini)';
+                const fallbackStatus = '📜 Local Woodcut Engraving (AI offline — Click 🔄 Regenerate AI to retry)';
                 if (cardStatusEl) cardStatusEl.textContent = fallbackStatus;
                 if (!this._sketchModalDismissedByUser) {
                     openLightboxForCard(fallbackStatus, false);
@@ -4782,6 +4571,19 @@ class ChronicleManager {
         } catch (_) {}
     }
 
+    _speakMentorCounsel(text, mentorName, mentorProfile) {
+        if (!this.audio) return null;
+        this._isInteractiveVoiceActive = true;
+        this._isInteractiveCounselSpeaking = true;
+        this._counselToken = (this._counselToken || 0) + 1;
+        const tok = this._counselToken;
+        const opts = { ...(mentorProfile || {}), engine: this.audio.ttsEngine || 'gemini' };
+        return Promise.resolve(this.audio.speakUtterance(text, 'mentor', mentorName, null, opts))
+            .finally(() => {
+                if (this._counselToken === tok) this._isInteractiveCounselSpeaking = false;
+            });
+    }
+
     /**
      * Absolute Gameplay Precedence:
      * Called whenever the player moves, turns, clicks elsewhere in the dungeon, or issues any command.
@@ -4796,11 +4598,16 @@ class ChronicleManager {
         if (this.targetedCreature || this.targetedObject) {
             this.clearTargetCreature();
         }
-        if (!this.isPinned && this._openedTransiently && this.visible && (reason === 'outside_click' || reason === 'escape')) {
+        const forceStop = (reason === 'escape' || reason === 'death' || reason === 'stop');
+        if (!this.isPinned && this._openedTransiently && this.visible && (!this._isInteractiveCounselSpeaking || forceStop || reason === 'outside_click')) {
             this.hideWindow();
         }
-        if (this._isInteractiveVoiceActive) {
+        if (this._isInteractiveCounselSpeaking && !forceStop) {
+            return;
+        }
+        if (this._isInteractiveVoiceActive || this._isInteractiveCounselSpeaking) {
             this._isInteractiveVoiceActive = false;
+            this._isInteractiveCounselSpeaking = false;
             if (this.audio) {
                 this.audio.stopSpeaking();
             }
@@ -5619,10 +5426,9 @@ class ChronicleManager {
             if (replayBtn) {
                 replayBtn.addEventListener('click', () => {
                     if (this.audio) {
-                        this._isInteractiveVoiceActive = true;
-                        const mentorProfile = this.grounder ? this.grounder.resolveVoiceProfile({ name: mentorName, race: 'Human' }, this.currentHero, 'counsel', this.tradition) : null;
+                        const mentorProfile = this.grounder ? this.grounder.resolveVoiceProfile({ name: mentorName, race: 'Human' }, this.currentHero, 'counsel', this.tradition, false, this.getActiveRealm(), this.getLanguageMode()) : null;
                         const fullText = `${appraisal.prose}\n\n${mentorName} speaks: "${appraisal.dialogue}"`;
-                        this.audio.speakUtterance(fullText, 'narrator', mentorName, null, mentorProfile || { engine: this.audio.ttsEngine });
+                        this._speakMentorCounsel(fullText, mentorName, mentorProfile);
                     }
                 });
             }
@@ -5635,11 +5441,10 @@ class ChronicleManager {
 
         // Voiced Audio Playback
         if (this.audio && !this._isAudioMuted() && appraisal) {
-            this._isInteractiveVoiceActive = true;
             const mentorName = this.getLorekeeperName();
-            const mentorProfile = this.grounder ? this.grounder.resolveVoiceProfile({ name: mentorName, race: 'Human' }, this.currentHero, 'counsel', this.tradition) : null;
+            const mentorProfile = this.grounder ? this.grounder.resolveVoiceProfile({ name: mentorName, race: 'Human' }, this.currentHero, 'counsel', this.tradition, false, this.getActiveRealm(), this.getLanguageMode()) : null;
             const fullText = `${appraisal.prose}\n\n${mentorName} speaks: "${appraisal.dialogue}"`;
-            this.audio.speakUtterance(fullText, 'narrator', mentorName, null, mentorProfile || { engine: this.audio.ttsEngine });
+            this._speakMentorCounsel(fullText, mentorName, mentorProfile);
         }
     }
 
@@ -5804,10 +5609,10 @@ class ChronicleManager {
         this.lorekeeperQueryCount = (this.lorekeeperQueryCount || 0) + 1;
 
         const mentorName = this.getLorekeeperName();
-        const mentorProfile = this.grounder ? this.grounder.resolveVoiceProfile({ name: mentorName, race: 'Human' }, player, 'counsel', this.tradition) : null;
+        const mentorProfile = this.grounder ? this.grounder.resolveVoiceProfile({ name: mentorName, race: 'Human' }, player, 'counsel', this.tradition, false, this.getActiveRealm(), this.getLanguageMode()) : null;
         if (mentorProfile) {
-            mentorProfile.geminiTag = '[solemnly, with wise gravitas]';
-            mentorProfile.directorNote = 'An ancient scholar and lorekeeper offering survival counsel';
+            mentorProfile.geminiTag = mentorProfile.geminiTag || '[solemnly, with wise gravitas]';
+            mentorProfile.directorNote = mentorProfile.directorNote || 'An ancient scholar and lorekeeper offering survival counsel';
         }
 
         const entry = {
@@ -5833,9 +5638,9 @@ class ChronicleManager {
             this.renderFlowingParagraph(entry, true);
         }
 
-        // Voice immediately in the canonical British RP Storyteller ('Enceladus') voice speaking the counsel directly without preamble
+        // Voice counsel via dedicated mentor channel (color character voice where appropriate)
         if (this.audio && this.audio.enabled) {
-            this.audio.speakUtterance(entry.prose, 'narrator', mentorName, null, mentorProfile || { engine: this.audio.ttsEngine });
+            this._speakMentorCounsel(entry.prose, mentorName, mentorProfile);
 
             this._highlightActiveCard(entry);
         }
@@ -5848,10 +5653,10 @@ class ChronicleManager {
 
         const prose = answer;
 
-        const mentorProfile = this.grounder ? this.grounder.resolveVoiceProfile({ name: mentorName, race: 'Human' }, player, 'counsel', this.tradition) : null;
+        const mentorProfile = this.grounder ? this.grounder.resolveVoiceProfile({ name: mentorName, race: 'Human' }, player, 'counsel', this.tradition, false, this.getActiveRealm(), this.getLanguageMode()) : null;
         if (mentorProfile) {
-            mentorProfile.geminiTag = '[reverently, examining an ancient relic]';
-            mentorProfile.directorNote = 'An ancient scholar appraising a dungeon artifact';
+            mentorProfile.geminiTag = mentorProfile.geminiTag || '[reverently, examining an ancient relic]';
+            mentorProfile.directorNote = mentorProfile.directorNote || 'An ancient scholar appraising a dungeon artifact';
         }
 
         const entry = {
@@ -5877,7 +5682,7 @@ class ChronicleManager {
         }
 
         if (this.audio && this.audio.enabled && !this._isAudioMuted()) {
-            this.audio.speakUtterance(entry.prose, 'narrator', mentorName, null, mentorProfile || { engine: this.audio.ttsEngine });
+            this._speakMentorCounsel(entry.prose, mentorName, mentorProfile);
             this._highlightActiveCard(entry);
         }
     }

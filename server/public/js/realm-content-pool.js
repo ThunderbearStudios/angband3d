@@ -498,6 +498,26 @@
             id: 'god_sandbox',
             label: '⚡ Immortal God-Sandbox (999 HP & [G] Floor Warp)',
             desc: 'Never die (999 HP/MP, +9 Gear, 0 Cost) and press [G] anytime to warp floors!'
+        },
+        loot_pinata: {
+            id: 'loot_pinata',
+            label: '🪅 Loot Piñata (Bonus Chests & Kill Drops)',
+            desc: 'Foes burst with bonus gold & scrolls; extra treasure caches on every floor!'
+        },
+        boss_rush: {
+            id: 'boss_rush',
+            label: '👑 Boss Rush Blitz (8F Champion Gauntlet)',
+            desc: 'Compact 8-floor sprint with floor mini-bosses and bonus relic drops!'
+        },
+        vampire_thirst: {
+            id: 'vampire_thirst',
+            label: '🧛 Vampire Thirst (30% Leech, No Rest Regen)',
+            desc: 'Passive resting heal disabled, but melee hits leech 30% HP!'
+        },
+        floor_collapse: {
+            id: 'floor_collapse',
+            label: '⏳ Crumbling Depths (120-Turn Quake Clock)',
+            desc: 'Linger past 120 turns on a floor and seismic quakes & magma drive you deeper!'
         }
     };
 

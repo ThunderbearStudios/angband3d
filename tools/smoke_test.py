@@ -257,20 +257,23 @@ def test_messages_channel():
 def main() -> int:
     clean_saves()
     passed = failed = 0
-    for fn in TESTS:
-        label = fn.__name__.replace("test_", "").replace("_", " ")
-        try:
-            fn()
-        except (AssertionError, BridgeError) as exc:
-            failed += 1
-            print(f"FAIL  {label}\n        {exc}")
-        except Exception:  # noqa: BLE001
-            failed += 1
-            print(f"ERROR {label}")
-            traceback.print_exc()
-        else:
-            passed += 1
-            print(f"ok    {label}")
+    try:
+        for fn in TESTS:
+            label = fn.__name__.replace("test_", "").replace("_", " ")
+            try:
+                fn()
+            except (AssertionError, BridgeError) as exc:
+                failed += 1
+                print(f"FAIL  {label}\n        {exc}")
+            except Exception:  # noqa: BLE001
+                failed += 1
+                print(f"ERROR {label}")
+                traceback.print_exc()
+            else:
+                passed += 1
+                print(f"ok    {label}")
+    finally:
+        clean_saves()
 
     print(f"\n{passed} passed, {failed} failed")
     return 1 if failed else 0

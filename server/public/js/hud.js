@@ -1030,16 +1030,25 @@ class WebHUD {
 
         const isBlind = !!(player.blind || (player.statuses && player.statuses.some(s => /blind|盲目/i.test(s.name || s))));
         const d3dRef = window.__app?.dungeon || window.__app?.dungeon3d;
+        const digestSeq = (this.lastFrame && this.lastFrame.seq) || 0;
+        const digestBounds = `${ox},${oy},${cols},${lines},${map.w || 0}x${map.h || 0},${map.depth ?? ''}`;
         let visDigest = 2166136261 >>> 0;
-        for (let rIdx = 0; rIdx < lines && (oy + rIdx) < map.h; rIdx++) {
-            const rObj = map.rows[oy + rIdx];
-            if (!rObj) continue;
-            const gSlice = rObj.g ? rObj.g.slice(ox, ox + cols) : '';
-            const lSlice = rObj.l ? rObj.l.slice(ox, ox + cols) : '';
-            const aSlice = rObj.a ? rObj.a.slice(ox * 2, (ox + cols) * 2) : '';
-            for (let k = 0; k < gSlice.length; k++) visDigest = Math.imul(visDigest ^ gSlice.charCodeAt(k), 16777619) >>> 0;
-            for (let k = 0; k < lSlice.length; k++) visDigest = Math.imul(visDigest ^ lSlice.charCodeAt(k), 16777619) >>> 0;
-            for (let k = 0; k < aSlice.length; k++) visDigest = Math.imul(visDigest ^ aSlice.charCodeAt(k), 16777619) >>> 0;
+        if (digestSeq && this._minimapDigestSeq === digestSeq && this._minimapDigestBounds === digestBounds && this._minimapDigestVal !== undefined) {
+            visDigest = this._minimapDigestVal;
+        } else {
+            for (let rIdx = 0; rIdx < lines && (oy + rIdx) < map.h; rIdx++) {
+                const rObj = map.rows[oy + rIdx];
+                if (!rObj) continue;
+                const gSlice = rObj.g ? rObj.g.slice(ox, ox + cols) : '';
+                const lSlice = rObj.l ? rObj.l.slice(ox, ox + cols) : '';
+                const aSlice = rObj.a ? rObj.a.slice(ox * 2, (ox + cols) * 2) : '';
+                for (let k = 0; k < gSlice.length; k++) visDigest = Math.imul(visDigest ^ gSlice.charCodeAt(k), 16777619) >>> 0;
+                for (let k = 0; k < lSlice.length; k++) visDigest = Math.imul(visDigest ^ lSlice.charCodeAt(k), 16777619) >>> 0;
+                for (let k = 0; k < aSlice.length; k++) visDigest = Math.imul(visDigest ^ aSlice.charCodeAt(k), 16777619) >>> 0;
+            }
+            this._minimapDigestSeq = digestSeq;
+            this._minimapDigestBounds = digestBounds;
+            this._minimapDigestVal = visDigest;
         }
         const cacheKey = `${this.lastFrame?.realm || 'angband'}_${this.lastFrame?.player?.depth ?? 0}_${px}_${py}_${visDigest}_${ox}_${oy}_${this.minimapZoom}_${w}_${h}_${isBlind ? 1 : 0}`;
         const dimsChanged = this.minimapTileCanvas.width !== w || this.minimapTileCanvas.height !== h;
@@ -1630,13 +1639,31 @@ class WebHUD {
         if (charSubMetaEl) {
             const pLev = player.lev !== undefined ? player.lev : (player.level !== undefined ? player.level : 1);
             const hasCharLevels = realm !== 'brogue' && !isSilQ && Number(pLev) > 0;
-            const pRace = player.race || '';
-            const pClass = player.class || player.cls || '';
+            let pRace = player.race || '';
+            let pClass = player.class || player.cls || '';
+            const lang = window.__langMode || 'en';
+            if (realm === 'hengband' && (pRace || pClass)) {
+                const jpToEn = window.__JP_TERM_TRANSLATIONS || {};
+                const enToJp = window.__EN_TO_JP_TRANSLATIONS || {};
+                const ht = window.HengTranslate;
+                const txTerm = (val) => {
+                    if (!val) return '';
+                    if (lang === 'jp') return enToJp[val] || val;
+                    const en = jpToEn[val] || ((ht && typeof ht.translateName === 'function') ? ht.translateName(val, 1, 'en') : val);
+                    if (lang === 'bilingual' && en && en !== val) {
+                        return jpToEn[val] ? `${en} (${val})` : (enToJp[val] ? `${val} (${enToJp[val]})` : val);
+                    }
+                    return en || val;
+                };
+                pRace = txTerm(pRace);
+                pClass = txTerm(pClass);
+            }
             const godSuffix = player.god && player.god !== 'No God' ? ` • ⛩ ${player.god}` : '';
             const levPrefix = hasCharLevels ? `${realm === 'dcss' ? 'XL' : 'Lv.'}${pLev} ` : '';
             const subMetaStr = `${levPrefix}${pRace}${pClass ? ` ${pClass}` : ''} • ${depthLabel}${godSuffix}`;
-            if (this._lastCharSubMeta !== subMetaStr) {
-                this._lastCharSubMeta = subMetaStr;
+            const subMetaSig = `${lang}:${subMetaStr}`;
+            if (this._lastCharSubMeta !== subMetaSig) {
+                this._lastCharSubMeta = subMetaSig;
                 charSubMetaEl.textContent = subMetaStr;
             }
         }

@@ -217,9 +217,11 @@ class UniversalCartridgeEngine {
         const startDepth = this.spec.hasTown ? 0 : 1;
         const initialMonsters = [];
         const petTpl = r.pet || this.spec.startingPet;
-        const bpMutator = (this.realm === 'ryod' && this.spec.ryodBlueprint && this.spec.ryodBlueprint.mutatorId) || 'balanced';
+        const hasPackmaster = RyodSystems && typeof RyodSystems.hasMutator === 'function'
+            ? RyodSystems.hasMutator(this.spec, 'packmaster')
+            : (this.spec.mutatorId === 'packmaster' || (Array.isArray(this.spec.mutators) && this.spec.mutators.includes('packmaster')));
         const bpFate = (this.realm === 'ryod' && this.spec.ryodBlueprint && Number(this.spec.ryodBlueprint.d20Fate)) || 15;
-        const petBoost = bpMutator === 'packmaster' ? 1.4 : 1.0;
+        const petBoost = (this.realm === 'ryod' && hasPackmaster) ? 1.4 : 1.0;
         if (petTpl && petTpl.name) {
             initialMonsters.push({
                 id: 9001,
@@ -240,7 +242,7 @@ class UniversalCartridgeEngine {
                 captive: false
             });
         }
-        if (bpMutator === 'packmaster') {
+        if (this.realm === 'ryod' && hasPackmaster) {
             initialMonsters.push({
                 id: 9002,
                 race: 'warg',
@@ -520,13 +522,20 @@ class UniversalCartridgeEngine {
             map.push(row);
         }
 
-        // Carve 2 Sanctuary Buildings (West Temple & East Quartermaster Hall) with open doors
-        const carveBuilding = (x0, y0, x1, y1, doorX, doorY) => {
+        // Carve 2 Sanctuary Buildings (West Temple [4] & East Quartermaster Hall [1]) with walkable store portals
+        const carveBuilding = (x0, y0, x1, y1, doorX, doorY, doorGlyph, doorAttr, doorFeat) => {
             for (let y = y0; y <= y1; y++) {
                 for (let x = x0; x <= x1; x++) {
                     const isEdge = (x === x0 || x === x1 || y === y0 || y === y1);
                     if (x === doorX && y === doorY) {
-                        map[y][x] = { glyph: "'", attr: 3, feat: FEAT.OPEN_DOOR, known: true, inView: false, roomLit: true };
+                        map[y][x] = {
+                            glyph: doorGlyph || "'",
+                            attr: doorAttr != null ? doorAttr : 3,
+                            feat: doorFeat != null ? doorFeat : FEAT.OPEN_DOOR,
+                            known: true,
+                            inView: false,
+                            roomLit: true
+                        };
                     } else if (isEdge) {
                         map[y][x] = { glyph: '#', attr: 1, feat: FEAT.WALL, known: true, inView: false, roomLit: true };
                     }
@@ -536,8 +545,8 @@ class UniversalCartridgeEngine {
 
         const cx = Math.floor(MAP_W / 2);
         const cy = Math.floor(MAP_H / 2);
-        carveBuilding(cx - 14, cy - 6, cx - 6, cy - 1, cx - 6, cy - 3);
-        carveBuilding(cx + 6, cy - 6, cx + 14, cy - 1, cx + 6, cy - 3);
+        carveBuilding(cx - 14, cy - 6, cx - 6, cy - 1, cx - 6, cy - 3, '4', 15, 10);
+        carveBuilding(cx + 6, cy - 6, cx + 14, cy - 1, cx + 6, cy - 3, '1', 11, 7);
 
         // West Building: Sanctuary Temple Altar (_)
         const deity = this.spec.defaultDeity || 'The Pantheon';
@@ -666,6 +675,7 @@ class UniversalCartridgeEngine {
         }
 
         this.state.depth = depth;
+        this.state.floorTurns = 0;
         if (depth > this.state.maxDepth) this.state.maxDepth = depth;
         this.state.branchName = this.getBranchName(depth);
 
@@ -964,6 +974,38 @@ class UniversalCartridgeEngine {
             }
         }
 
+        // Boss Rush Blitz mutator: spawn an elite Floor Champion on non-milestone floors
+        if (this.realm === 'ryod' && this._hasMutator('boss_rush') && depth > 0 && !(this.spec.actMilestones && this.spec.actMilestones[depth] && this.spec.actMilestones[depth].boss)) {
+            const slainMap = this.state.slainActBosses || {};
+            if (!slainMap[depth]) {
+                const bx = Math.max(endRoom.x0 + 1, Math.min(endRoom.x1 - 1, endRoom.cx - 1));
+                const by = endRoom.cy;
+                const champPool = (this.spec.monsters || []).filter(m => !m.isBoss);
+                const tpl = champPool[this.rand(Math.max(1, champPool.length))] || { name: 'champion warden', glyph: 'U', attr: 12, hp: 28, dmg: 10, ac: 4, exp: 40 };
+                this.state.monsters = this.state.monsters.filter(m => !(m.x === bx && m.y === by));
+                const champHp = Math.round((tpl.hp || 28) * 1.6);
+                this.state.monsters.push({
+                    id: monId++,
+                    race: `${tpl.name} Champion`,
+                    glyph: String(tpl.glyph || 'U').toUpperCase(),
+                    attr: 14,
+                    x: bx,
+                    y: by,
+                    hp: champHp,
+                    hp_max: champHp,
+                    ac: tpl.ac != null ? tpl.ac : 4,
+                    dmg: Math.round((tpl.dmg || 10) * 1.25),
+                    exp: this.usesExpLevels() ? Math.round((tpl.exp || 30) * 1.8) : 0,
+                    speed: 115,
+                    lore: 'Elite Boss Rush Floor Champion.',
+                    isPet: false,
+                    peaceful: false,
+                    captive: false,
+                    isBoss: true
+                });
+            }
+        }
+
         // Spawn Nemesis Shade pursuer on floor if player chose Grim Dare (Nat 1)
         if (this.state.huntedByShade && depth > 0 && shuffledRooms.length > 1) {
             const shadeRoom = shuffledRooms[1];
@@ -1022,11 +1064,27 @@ class UniversalCartridgeEngine {
         }
 
         // Midas Treasure Vaults mutator: bonus gilded chest + Scroll of Enchanting
-        if (this.spec.mutatorId === 'midas_vaults' && shuffledRooms.length > 2) {
+        if (this._hasMutator('midas_vaults') && shuffledRooms.length > 2) {
             const vRoom = shuffledRooms[2];
             this.state.objects.push({ kind: 'gold', name: 'gilded vault hoard', glyph: '$', attr: 14, amount: 65 + depth * 10, x: vRoom.cx, y: vRoom.cy, count: 1 });
             if (depth % 2 === 0) {
                 this.state.objects.push({ kind: 'scroll', name: 'scroll of enchanting', glyph: '?', attr: 14, enchantGain: 1, weight: 5, tval: 70, sval: 15, x: Math.min(vRoom.x1 - 1, vRoom.cx + 1), y: vRoom.cy, count: 1 });
+            }
+        }
+
+        // Loot Piñata mutator: 2 bonus floor treasure caches per level
+        if (this.realm === 'ryod' && this._hasMutator('loot_pinata') && shuffledRooms.length > 1) {
+            for (let pi = 0; pi < 2; pi++) {
+                const pRoom = shuffledRooms[(1 + pi) % shuffledRooms.length] || endRoom;
+                const px = Math.min(pRoom.x1 - 1, Math.max(pRoom.x0 + 1, pRoom.cx + (pi === 0 ? -1 : 1)));
+                const py = pRoom.cy;
+                if (pi === 0) {
+                    this.state.objects.push({ kind: 'gold', name: 'piñata treasure cache', glyph: '$', attr: 14, amount: 35 + depth * 8, x: px, y: py, count: 1 });
+                } else {
+                    const bonusScroll = (itemPool || []).find(it => it.kind === 'scroll' || it.kind === 'potion')
+                        || { kind: 'scroll', name: 'scroll of identify', glyph: '?', attr: 11, count: 1, weight: 5, tval: 70, sval: 1 };
+                    this.state.objects.push({ ...bonusScroll, x: px, y: py, count: bonusScroll.count || 1 });
+                }
             }
         }
 
@@ -1134,6 +1192,15 @@ class UniversalCartridgeEngine {
         }
     }
 
+    _hasMutator(id) {
+        if (!this.spec || !id) return false;
+        if (RyodSystems && typeof RyodSystems.hasMutator === 'function') {
+            return RyodSystems.hasMutator(this.spec, id);
+        }
+        if (this.spec.mutatorId === id) return true;
+        return Array.isArray(this.spec.mutators) && this.spec.mutators.includes(id);
+    }
+
     updateVisibility() {
         const p = this.state.player;
         const map = this.state.map;
@@ -1142,7 +1209,7 @@ class UniversalCartridgeEngine {
                 map[y][x].inView = false;
             }
         }
-        const radius = (this.spec && this.spec.mutatorId === 'stygian_fog' && this.state.depth > 0) ? 4 : 8;
+        const radius = (this._hasMutator('stygian_fog') && this.state.depth > 0) ? 4 : 8;
         for (let dy = -radius; dy <= radius; dy++) {
             for (let dx = -radius; dx <= radius; dx++) {
                 const tx = p.x + dx;
@@ -1443,7 +1510,20 @@ class UniversalCartridgeEngine {
                         this.openVerbPrompt('inspect', 'Examine which item? [a-z or ESC]');
                         return;
                     }
-                    if (k === 'q') { this.openVerbPrompt('quaff', 'Drink which potion? [a-z or ESC]'); return; }
+                    if (k === 'q') {
+            const curCell = this.state.map[p.y] && this.state.map[p.y][p.x];
+            if (curCell && curCell.feat === FEAT.FOUNTAIN) {
+                const potions = p.inventory.filter(it => it.kind === 'potion');
+                if (potions.length === 0) {
+                    this.interactContextualFeature();
+                    return;
+                }
+                this.openVerbPrompt('quaff', 'Drink [f/Enter] from fountain, or potion [a-z, ESC]?');
+                return;
+            }
+            this.openVerbPrompt('quaff', 'Drink which potion? [a-z or ESC]');
+            return;
+        }
                     if (k === 'r') { this.openVerbPrompt('read', 'Read which scroll? [a-z or ESC]'); return; }
                     if (k === 'w') { this.openVerbPrompt('wield', 'Equip which item? [a-z or ESC]'); return; }
                     if (k === 'd') { this.openVerbPrompt('drop', 'Drop which item? [a-z or ESC]'); return; }
@@ -1474,6 +1554,13 @@ class UniversalCartridgeEngine {
                 return;
             }
             if (this.state.menuMode === 'verb') {
+                if (this.state.pendingVerb === 'quaff' && this.state.map[p.y] && this.state.map[p.y][p.x] && this.state.map[p.y][p.x].feat === FEAT.FOUNTAIN && (k === 'f' || k === '{' || lower === 'enter' || lower === 'return')) {
+                    this.state.menuMode = 'none';
+                    this.state.pendingVerb = null;
+                    this.state.pendingPrompt = '';
+                    this.interactContextualFeature();
+                    return;
+                }
                 if (this.state.pendingVerb === 'dcss_ability' && (k === '1' || lower === 'enter' || k === '!')) {
                     this.state.menuMode = 'none';
                     this.state.pendingVerb = null;
@@ -1671,7 +1758,20 @@ class UniversalCartridgeEngine {
             this.openVerbPrompt('eat', 'Eat which food item? [a-z or ESC]');
             return;
         }
-        if (k === 'q') { this.openVerbPrompt('quaff', 'Drink which potion? [a-z or ESC]'); return; }
+        if (k === 'q') {
+            const curCell = this.state.map[p.y] && this.state.map[p.y][p.x];
+            if (curCell && curCell.feat === FEAT.FOUNTAIN) {
+                const potions = p.inventory.filter(it => it.kind === 'potion');
+                if (potions.length === 0) {
+                    this.interactContextualFeature();
+                    return;
+                }
+                this.openVerbPrompt('quaff', 'Drink [f/Enter] from fountain, or potion [a-z, ESC]?');
+                return;
+            }
+            this.openVerbPrompt('quaff', 'Drink which potion? [a-z or ESC]');
+            return;
+        }
         if (k === 'r') { this.openVerbPrompt('read', 'Read which scroll? [a-z or ESC]'); return; }
         if (k === 'w' || k === 'W') { this.openVerbPrompt('wield', 'Equip which item? [a-z or ESC]'); return; }
         if (k === 'P') { this.openVerbPrompt('wield', 'Put on which ring or amulet? [a-z or ESC]'); return; }
@@ -1876,7 +1976,7 @@ class UniversalCartridgeEngine {
             }
         }
         if (k === '.' || k === '5' || lower === 'space') {
-            if (p.hp < p.hpMax) p.hp = Math.min(p.hpMax, p.hp + 1);
+            if (p.hp < p.hpMax && !this._hasMutator('vampire_thirst')) p.hp = Math.min(p.hpMax, p.hp + 1);
             if (p.pw < p.pwMax && this.state.turn % 2 === 0) p.pw++;
             this.advanceTurn();
         }
@@ -2017,7 +2117,7 @@ class UniversalCartridgeEngine {
                 if (!cell.known) { cell.known = true; found++; }
             }
         }
-        if (p.hp < p.hpMax) p.hp = Math.min(p.hpMax, p.hp + 1);
+        if (p.hp < p.hpMax && !this._hasMutator('vampire_thirst')) p.hp = Math.min(p.hpMax, p.hp + 1);
         this.addMessage(found > 0 ? 'You search the surrounding stonework and spot hidden detail!' : 'You search the surrounding area carefully.');
         this.advanceTurn();
     }
@@ -2408,7 +2508,7 @@ class UniversalCartridgeEngine {
         }
 
         const hostiles = this.state.monsters.filter(m => !m.isPet && !m.peaceful && !m.captive && this.state.map[m.y] && this.state.map[m.y][m.x] && this.state.map[m.y][m.x].inView);
-        const chaosBonus = (this.spec && this.spec.mutatorId === 'chaos_surge' && (this.state.turn % 2 === 0)) ? 6 : 0;
+        const chaosBonus = (this._hasMutator('chaos_surge') && (this.state.turn % 2 === 0)) ? 6 : 0;
         if (chaosBonus > 0) {
             p.speedBoost = Math.max(p.speedBoost || 0, 8);
         }
@@ -2455,8 +2555,9 @@ class UniversalCartridgeEngine {
     prayAtAltar() {
         const p = this.state.player;
         const cell = this.state.map[p.y][p.x];
-        if (cell.feat === FEAT.ALTAR && cell.deity) {
-            p.deity = cell.deity;
+        if (cell.feat === FEAT.ALTAR) {
+            const deityName = cell.deity || p.deity || (this.spec && this.spec.defaultDeity) || 'the Ancient Spirits';
+            p.deity = deityName;
             p.piety = Math.min(6, (p.piety || 2) + 1);
             p.hp = p.hpMax;
             p.pw = p.pwMax;
@@ -2467,7 +2568,7 @@ class UniversalCartridgeEngine {
                 wep.bonus = (wep.bonus || 0) + 1;
             }
             p.inventory.forEach(it => { if (it.beatitude === 'cursed') it.beatitude = 'uncursed'; });
-            this.addMessage(`You kneel at the glowing altar of ${cell.deity}. Your vitality and gear are sanctified! (Piety: ${'★'.repeat(p.piety)})`, 14);
+            this.addMessage(`You kneel at the glowing altar of ${deityName}. Your vitality and gear are sanctified! (Piety: ${'★'.repeat(p.piety)})`, 14);
         } else {
             p.hp = Math.min(p.hpMax, p.hp + 6);
             p.pw = Math.min(p.pwMax, (p.pw || 0) + 3);
@@ -2648,12 +2749,14 @@ class UniversalCartridgeEngine {
                     for (let d = 0; d < nd; d++) baseRoll += 1 + this.rand(sd);
                 }
             }
-            const mutMult = (this.spec && this.spec.mutatorId === 'blood_moon') ? 1.35 : ((this.spec && this.spec.mutatorId === 'stygian_fog') ? 1.30 : 1.0);
-            const rawDmg = Math.max(2, Math.round((baseRoll + strBonus + wepBonus) * mutMult));
+            const mutMult = this._hasMutator('blood_moon') ? 1.35 : (this._hasMutator('stygian_fog') ? 1.30 : 1.0);
+            const stanceMult = p.activeStance === 'byakko' ? 1.5 : 1.0;
+            const songDmgBonus = p.activeSong === 'slaying' ? 4 : 0;
+            const rawDmg = Math.max(2, Math.round((baseRoll + strBonus + wepBonus + songDmgBonus) * mutMult * stanceMult));
 
             // AC vs DEX/Level/toHit hit roll
             const dexBonus = p.dex ? Math.floor((p.dex - 10) / 2) : 0;
-            const toHitBonus = (wep ? (wep.toHit || wep.bonus || 0) : 0) + (p.level || 1);
+            const toHitBonus = (wep ? (wep.toHit || wep.bonus || 0) : 0) + (p.level || 1) + (p.activeSong === 'sharpness' ? 2 : 0);
             const d20Attack = 1 + this.rand(20);
             const hitRoll = 10 + dexBonus + toHitBonus + d20Attack;
             const targetAC = mon.ac != null ? mon.ac : 8;
@@ -2691,6 +2794,7 @@ class UniversalCartridgeEngine {
             else if (isFrostWep) dmg += 2;
             else if (isVenomWep) dmg += 2;
             else if (isLightningWep) dmg += 3;
+            if (p.activeStance === 'seiryu') dmg += 3;
 
             mon.hp -= dmg;
             if (hitQuality === 'crit') {
@@ -2699,6 +2803,15 @@ class UniversalCartridgeEngine {
                 this.addMessage(`Glancing blow! You graze the ${mon.race} for ${dmg} damage.`, 8);
             } else {
                 this.addMessage(`You strike the ${mon.race} with your ${p.weaponName}! (${dmg} dmg)`, 11);
+            }
+            if (dmg > 0) {
+                if (this._hasMutator('vampire_thirst') && p.hp < p.hpMax) {
+                    const leech = Math.max(1, Math.round(dmg * 0.30));
+                    p.hp = Math.min(p.hpMax, p.hp + leech);
+                }
+                if (RyodSystems && typeof RyodSystems.applyVampireLeech === 'function') {
+                    RyodSystems.applyVampireLeech(this, dmg);
+                }
             }
 
             if (mon.hp <= 0) {
@@ -2764,9 +2877,26 @@ class UniversalCartridgeEngine {
     handleMonsterKilled(mon) {
         const p = this.state.player;
         this.state.monsters = this.state.monsters.filter(m => m.id !== mon.id);
-        if (this.spec && this.spec.mutatorId === 'blood_moon') {
+        if (this._hasMutator('blood_moon')) {
             p.hp = Math.min(p.hpMax, p.hp + 4);
             p.pw = Math.min(p.pwMax, (p.pw || 0) + 1);
+        }
+        if (this._hasMutator('loot_pinata') && this.rand(100) < 35) {
+            const amount = 20 + (this.state.depth || 1) * 5;
+            this.state.objects.push({
+                kind: 'gold',
+                name: 'bursting pinata cache',
+                glyph: '$',
+                attr: 14,
+                amount,
+                x: mon.x != null ? mon.x : p.x,
+                y: mon.y != null ? mon.y : p.y,
+                count: 1
+            });
+            this.addMessage(`[LOOT PINATA] The ${mon.race} explodes into ${amount} gold pieces!`, 14);
+        }
+        if (RyodSystems && typeof RyodSystems.onBountyKilled === 'function') {
+            RyodSystems.onBountyKilled(this, mon);
         }
         const scoreMult = this.state.scoreMultiplier || 1.0;
         if (this.usesExpLevels()) {
@@ -2902,9 +3032,21 @@ class UniversalCartridgeEngine {
         } else {
             p.pw = p.pwMax;
         }
-        if (this.spec && this.spec.mutatorId === 'cataclysm' && this.state.depth > 0 && this.state.turn % 18 === 0) {
-            this.state.objects.push({ kind: 'gold', name: 'tremor-shaken gold cache', glyph: '$', attr: 14, amount: 25, x: p.x, y: p.y, count: 1 });
-            this.addMessage('[CATACLYSM] Seismic tremors shake the ceiling, dislodging a cache of gold!', 14);
+        if (this.state.depth > 0) {
+            this.state.floorTurns = (this.state.floorTurns || 0) + 1;
+            if (this._hasMutator('cataclysm') && this.state.turn % 18 === 0) {
+                this.state.objects.push({ kind: 'gold', name: 'tremor-shaken gold cache', glyph: '$', attr: 14, amount: 25, x: p.x, y: p.y, count: 1 });
+                this.addMessage('[CATACLYSM] Seismic tremors shake the ceiling, dislodging a cache of gold!', 14);
+            }
+            if (this._hasMutator('floor_collapse')) {
+                if (this.state.floorTurns === 90) {
+                    this.addMessage('[CRUMBLING DEPTHS] Stone groans overhead! Seek the stairs before the vault collapses!', 12);
+                } else if (this.state.floorTurns >= 120 && this.state.floorTurns % 10 === 0 && !p.godMode && !(this.spec && this.spec.godMode)) {
+                    p.hp -= 4;
+                    this.addMessage('[CRUMBLING DEPTHS] Falling masonry strikes you! (-4 HP)', 12);
+                    if (this._checkLethalOrLifesave('crumbling depths')) return;
+                }
+            }
         }
 
         // Periodic wandering monster spawn (skip in Town Depth 0)

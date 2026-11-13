@@ -98,45 +98,27 @@ async function run() {
         throw new Error(`Expected 0 buttons on splash billboard, found ${initial.splashButtonsCount}!`);
     }
 
-    // 2. Click anywhere on #splash-overlay -> transitions to Realm Collector Card Carousel, then [Select] -> Main Menu
-    console.log('2. Clicking #splash-overlay to enter Realm Collector Card Carousel...');
-    const splashToRealmRes = (await send('Runtime.evaluate', {
+    // 2. Click anywhere on #splash-overlay -> transitions directly to Main Menu (1-hop WS-7)
+    console.log('2. Clicking #splash-overlay to enter Main Menu...');
+    const splashToMenuRes = (await send('Runtime.evaluate', {
         expression: `(() => {
             const splash = document.getElementById('splash-overlay');
+            const mainMenu = document.getElementById('main-menu-overlay');
             const realmModal = document.getElementById('realm-selector-modal');
-            if (!splash || !realmModal) return 'splash or realm-selector-modal not found';
+            if (!splash || !mainMenu) return 'splash or main-menu-overlay not found';
             splash.click();
             return {
                 appState: window.__app.getAppState(),
                 splashVisible: !splash.classList.contains('hidden'),
-                realmModalVisible: !realmModal.classList.contains('hidden'),
-                cardTitle: document.getElementById('rc-card-title')?.textContent || ''
+                menuVisible: !mainMenu.classList.contains('hidden'),
+                realmModalVisible: Boolean(realmModal && !realmModal.classList.contains('hidden'))
             };
         })()`,
         returnByValue: true
     })).result.value;
-    console.log('   Splash -> Realm Carousel Result:', splashToRealmRes);
-    if (splashToRealmRes.appState !== 'realmModal' || !splashToRealmRes.realmModalVisible || splashToRealmRes.splashVisible) {
-        throw new Error('#splash-overlay click failed to open #realm-selector-modal RPG Card Carousel!');
-    }
-
-    // Cycle [Next ▶] and [◀ Prev], then click [Select] to enter Main Menu
-    const startRes = (await send('Runtime.evaluate', {
-        expression: `(() => {
-            document.getElementById('btn-realm-next')?.click();
-            document.getElementById('btn-realm-prev')?.click();
-            document.getElementById('btn-realm-select-confirm')?.click();
-            return {
-                appState: window.__app.getAppState(),
-                realmModalVisible: !document.getElementById('realm-selector-modal').classList.contains('hidden'),
-                menuVisible: !document.getElementById('main-menu-overlay').classList.contains('hidden')
-            };
-        })()`,
-        returnByValue: true
-    })).result.value;
-    console.log('   Select Realm -> Main Menu Result:', startRes);
-    if (startRes.appState !== 'mainMenu' || !startRes.menuVisible || startRes.realmModalVisible) {
-        throw new Error('#btn-realm-select-confirm failed to transition to mainMenu!');
+    console.log('   Splash -> Main Menu Result:', splashToMenuRes);
+    if (splashToMenuRes.appState !== 'mainMenu' || !splashToMenuRes.menuVisible || splashToMenuRes.splashVisible || splashToMenuRes.realmModalVisible) {
+        throw new Error('#splash-overlay click failed 1-hop transition to mainMenu!');
     }
 
     // 3. Test #main-menu-realm-select dropdown on Main Menu

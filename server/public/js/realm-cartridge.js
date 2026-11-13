@@ -1389,8 +1389,16 @@
         const p = f.player || {};
         const r = String(realmId || f.realm || 'angband').toLowerCase();
         const name = p.name || 'Hero';
-        const race = p.race || 'Human';
-        const pClass = p.class || 'Adventurer';
+        const rawRace = p.race || 'Human';
+        const rawClass = p.class || 'Adventurer';
+        let race = rawRace;
+        let pClass = rawClass;
+        if (r === 'hengband' && typeof window !== 'undefined' && (window.__langMode || 'en') !== 'jp') {
+            const jpToEn = window.__JP_TERM_TRANSLATIONS || {};
+            const ht = window.HengTranslate;
+            race = jpToEn[rawRace] || ((ht && typeof ht.translateName === 'function') ? ht.translateName(rawRace, 1, 'en') : rawRace) || rawRace;
+            pClass = jpToEn[rawClass] || ((ht && typeof ht.translateName === 'function') ? ht.translateName(rawClass, 1, 'en') : rawClass) || rawClass;
+        }
         const level = p.level || 1;
         const depth = p.depth || 0;
         const maxDepth = p.max_depth || depth;

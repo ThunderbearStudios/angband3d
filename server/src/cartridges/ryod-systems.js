@@ -573,9 +573,18 @@
         }
     }
 
+    function hasMutator(specOrBp, id) {
+        if (!specOrBp || !id) return false;
+        const bp = specOrBp.ryodBlueprint || specOrBp;
+        if (specOrBp.mutatorId === id || bp.mutatorId === id) return true;
+        if (Array.isArray(specOrBp.mutators) && specOrBp.mutators.includes(id)) return true;
+        if (Array.isArray(bp.mutators) && bp.mutators.includes(id)) return true;
+        return false;
+    }
+
     return {
         FEAT, parseSeed, mixSeed, mulberry32, buildAppearanceMap, getDisplayItemName,
-        SONGS, STANCES, DEITIES, AVATARS, resolveActiveSystems,
+        SONGS, STANCES, DEITIES, AVATARS, resolveActiveSystems, hasMutator,
         toggleSong, toggleStance, smithAtAnvil, assignFloorBounty, onBountyKilled,
         recordKillPiety, invokeDeityPower, pushHazard, tickActiveHazards,
         evolveAllyOnBattle, interactAltar, interactFountain, interactCage,

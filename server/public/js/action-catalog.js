@@ -55,21 +55,17 @@
         { id: 'refill', group: 'items', icon: 'lamp', labels: { en: 'Refill Light', jp: '光源を補給' }, synonyms: ['fuel', 'oil', 'lantern', 'torch'], keys: { angband: 'F', silq: null, frogcomposband: 'F', hengband: 'F', nethack: 'a' }, target: 'item', itemFilter: 'light', primaryFor: [], needsIdle: true, atomic: false },
         { id: 'examine', group: 'items', icon: 'inspect', labels: { en: 'Examine Item', jp: '調べる' }, synonyms: ['inspect', 'identify', 'describe'], keys: { angband: 'I', silq: 'x', frogcomposband: 'I', hengband: 'I', nethack: ':' }, target: 'item', itemFilter: null, primaryFor: [], needsIdle: true, atomic: false },
 
-        // =========================================================================
         // Magic / Abilities Group
-        // =========================================================================
         { id: 'cast', group: 'magic', icon: 'magic', labels: { en: 'Cast Spell', jp: '詠唱' }, synonyms: ['spell', 'pray', 'magic', 'incant'], keys: { angband: 'm', silq: null, frogcomposband: 'm', hengband: 'm', nethack: 'Z' }, target: 'spell', itemFilter: 'book', primaryFor: ['book'], needsIdle: true, atomic: false },
         { id: 'browse', group: 'magic', icon: 'book', labels: { en: 'Browse Book', jp: '閲覧' }, synonyms: ['read_book', 'peruse'], keys: { angband: 'b', silq: null, frogcomposband: 'b', hengband: 'b', nethack: 'r' }, target: 'item', itemFilter: 'book', primaryFor: [], needsIdle: true, atomic: false },
         { id: 'study', group: 'magic', icon: 'study', labels: { en: 'Study Spells', jp: '学習' }, synonyms: ['learn', 'memorize', 'gain_spells'], keys: { angband: 'G', silq: null, frogcomposband: 'G', hengband: 'G', nethack: 'r' }, target: 'item', itemFilter: 'book', primaryFor: [], needsIdle: true, atomic: false },
         { id: 'song', group: 'magic', icon: 'music', labels: { en: 'Sing Song', jp: '歌う' }, synonyms: ['sing', 'music', 'chant'], keys: { angband: null, silq: 's', frogcomposband: null, hengband: null, nethack: null }, target: 'menu', itemFilter: null, primaryFor: [], needsIdle: true, atomic: false },
         { id: 'abilities', group: 'magic', icon: 'tree', labels: { en: 'Abilities / Skills', jp: '能力/技能' }, synonyms: ['skills', 'tree', 'talents'], keys: { angband: null, silq: 'tab', frogcomposband: null, hengband: null, nethack: 'C' }, target: 'screen', itemFilter: null, primaryFor: [], needsIdle: true, atomic: false },
         { id: 'smithing', group: 'magic', icon: 'anvil', labels: { en: 'Smithing', jp: '鍛冶' }, synonyms: ['forge', 'craft', 'smith'], keys: { angband: null, silq: '0', frogcomposband: null, hengband: null, nethack: null }, target: 'screen', itemFilter: null, primaryFor: [], needsIdle: true, atomic: false },
+        { id: 'smith', group: 'magic', icon: 'anvil', labels: { en: 'Smith / Anvil', jp: '鍛造' }, synonyms: ['anvil', 'temper'], keys: { angband: null, silq: '0', frogcomposband: null, hengband: null, nethack: null }, target: 'none', itemFilter: null, primaryFor: [], needsIdle: true, atomic: true },
         { id: 'power', group: 'magic', icon: 'power', labels: { en: 'Use Power', jp: '特殊能力' }, synonyms: ['mutation', 'racial_power', 'class_power'], keys: { angband: null, silq: null, frogcomposband: 'U', hengband: 'U', nethack: '#' }, target: 'menu', itemFilter: null, primaryFor: [], needsIdle: true, atomic: false },
         { id: 'pet', group: 'magic', icon: 'pet', labels: { en: 'Pet / Minion Command', jp: 'ペットへの指示' }, synonyms: ['minion', 'companion', 'summon'], keys: { angband: null, silq: null, frogcomposband: 'p', hengband: 'p', nethack: 'C' }, target: 'menu', itemFilter: null, primaryFor: [], needsIdle: true, atomic: false },
-
-        // =========================================================================
         // Action / Terrain Group
-        // =========================================================================
         { id: 'tunnel', group: 'action', icon: 'pickaxe', labels: { en: 'Tunnel', jp: '掘る' }, synonyms: ['dig', 'mine'], keys: { angband: 'T', silq: 'T', frogcomposband: 'T', hengband: 'T', nethack: 'a' }, target: 'dir', itemFilter: null, primaryFor: [], needsIdle: true, atomic: false },
         { id: 'open', group: 'action', icon: 'door-open', labels: { en: 'Open Door / Chest', jp: '開ける' }, synonyms: ['door', 'chest', 'unlock'], keys: { angband: 'o', silq: 'o', frogcomposband: 'o', hengband: 'o', nethack: 'o' }, target: 'dir', itemFilter: null, primaryFor: [], needsIdle: true, atomic: false },
         { id: 'close', group: 'action', icon: 'door-closed', labels: { en: 'Close Door', jp: '閉める' }, synonyms: ['shut'], keys: { angband: 'c', silq: 'c', frogcomposband: 'c', hengband: 'c', nethack: 'c' }, target: 'dir', itemFilter: null, primaryFor: [], needsIdle: true, atomic: false },
@@ -93,9 +89,14 @@
         { id: 'repeat', group: 'action', icon: 'repeat', labels: { en: 'Repeat Previous', jp: '繰り返す' }, synonyms: ['redo', 'again'], keys: { angband: 'n', silq: 'n', frogcomposband: 'n', hengband: 'n', nethack: 'n' }, target: 'none', itemFilter: null, primaryFor: [], needsIdle: true, atomic: true },
         { id: 'count', group: 'action', icon: 'counter', labels: { en: 'Repeat Count Prefix', jp: '回数指定' }, synonyms: ['times', 'multiplier', 'repeat_count'], keys: { angband: '0', silq: 'R', frogcomposband: '0', hengband: '0', nethack: '0' }, target: 'prompt', itemFilter: null, primaryFor: [], needsIdle: true, atomic: false },
 
-        // =========================================================================
+        { id: 'pray', group: 'action', icon: 'pray', labels: { en: 'Pray / Kneel', jp: '祈る' }, synonyms: ['kneel', 'worship', 'altar'], keys: { angband: null, silq: null, frogcomposband: null, hengband: null, nethack: '#pray' }, target: 'none', itemFilter: null, primaryFor: [], needsIdle: true, atomic: true },
+        { id: 'offer', group: 'action', icon: 'altar', labels: { en: 'Offer / Sacrifice', jp: '捧げる' }, synonyms: ['sacrifice'], keys: { angband: null, silq: null, frogcomposband: null, hengband: null, nethack: '#offer' }, target: 'none', itemFilter: null, primaryFor: [], needsIdle: true, atomic: true },
+        { id: 'dip', group: 'action', icon: 'potion', labels: { en: 'Dip Item', jp: '浸す' }, synonyms: ['submerge'], keys: { angband: null, silq: null, frogcomposband: null, hengband: null, nethack: '#dip' }, target: 'none', itemFilter: null, primaryFor: [], needsIdle: true, atomic: true },
+        { id: 'chat', group: 'action', icon: 'chat', labels: { en: 'Chat / Talk', jp: '話す' }, synonyms: ['talk', 'speak'], keys: { angband: null, silq: null, frogcomposband: null, hengband: null, nethack: '#chat' }, target: 'none', itemFilter: null, primaryFor: [], needsIdle: true, atomic: true },
+        { id: 'loot', group: 'action', icon: 'chest', labels: { en: 'Loot / Open Container', jp: '漁る' }, synonyms: ['plunder'], keys: { angband: null, silq: null, frogcomposband: null, hengband: null, nethack: '#loot' }, target: 'none', itemFilter: null, primaryFor: [], needsIdle: true, atomic: true },
+        { id: 'force', group: 'action', icon: 'lock', labels: { en: 'Force Lock', jp: 'こじ開ける' }, synonyms: ['pry'], keys: { angband: null, silq: null, frogcomposband: null, hengband: null, nethack: '#force' }, target: 'none', itemFilter: null, primaryFor: [], needsIdle: true, atomic: true },
+        { id: 'kick', group: 'action', icon: 'kick', labels: { en: 'Kick Door / Foe', jp: '蹴る' }, synonyms: ['boot'], keys: { angband: null, silq: null, frogcomposband: null, hengband: null, nethack: 'C-d' }, target: 'dir', itemFilter: null, primaryFor: [], needsIdle: true, atomic: false },
         // Information / Manage Group
-        // =========================================================================
         { id: 'inventory', group: 'info', icon: 'pack', labels: { en: 'Inventory', jp: '持ち物一覧' }, synonyms: ['inven', 'pack', 'items', 'bag'], keys: { angband: 'i', silq: 'i', frogcomposband: 'i', hengband: 'i', nethack: 'i' }, target: 'screen', itemFilter: null, primaryFor: [], needsIdle: true, atomic: false },
         { id: 'equipment', group: 'info', icon: 'shield', labels: { en: 'Equipment', jp: '装備品一覧' }, synonyms: ['equip', 'gear', 'worn'], keys: { angband: 'e', silq: 'e', frogcomposband: 'e', hengband: 'e', nethack: 'e' }, target: 'screen', itemFilter: null, primaryFor: [], needsIdle: true, atomic: false },
         { id: 'quiver', group: 'info', icon: 'quiver', labels: { en: 'Quiver', jp: '矢筒' }, synonyms: ['ammo', 'arrows', 'bolts', 'shots'], keys: { angband: '|', silq: null, frogcomposband: null, hengband: null, nethack: 'Q' }, target: 'screen', itemFilter: null, primaryFor: [], needsIdle: true, atomic: false },
@@ -114,17 +115,18 @@
         { id: 'quests', group: 'info', icon: 'quest', labels: { en: 'Quests & Bounties', jp: '任務/賞金首' }, synonyms: ['bounties', 'missions', 'tasks'], keys: { angband: null, silq: null, frogcomposband: null, hengband: null, nethack: null }, target: 'screen', itemFilter: null, primaryFor: [], needsIdle: true, atomic: false }
     ];
 
-        // Deep freeze command definitions with authoritative 8-realm key overrides
+        // Deep freeze command definitions with authoritative 9-realm key overrides
     const REALM_KEY_OVERRIDES = {
         dcss: {
-            wield: 'w', takeoff: 'T', drop: 'd', ignore: null, quaff: 'q', read: 'r', eat: 'e',
+            wield: 'w', takeoff: 'T', drop: 'd', ignore: null, quaff: 'q', read: 'r', eat: 'E',
             aim: 'V', use_staff: 'V', zap: 'V', activate: 'a', use: 'a', play_horn: 'V',
             fire: 'f', throw: 'f', inscribe: '{', uninscribe: '}', refill: null, examine: 'v',
-            cast: 'z', browse: 'I', study: 'M', song: null, abilities: 'm', smithing: null,
+            cast: 'z', browse: 'I', study: 'M', song: null, abilities: 'm', smithing: null, smith: null,
             power: 'a', pet: null, tunnel: 'T', open: 'o', close: 'c', bash: 'O', spike: null,
             disarm: 'D', alter: '+', exchange: "'", steal: null, rest: '5', pickup: 'g',
             hold: '.', walk: ';', run: '.', search_mode: 's', search: 's', explore: 'Alt+E',
             travel: 'G', stairs_up: '<', stairs_down: '>', repeat: '`', count: '0',
+            pray: 'p', offer: null, dip: null, chat: null, loot: null, force: null, kick: null,
             inventory: 'i', equipment: 'e', quiver: 'Q', look: 'x', target: 'x', map: 'X',
             locate: '@', char_sheet: '%', knowledge: '\\', messages: 'C-p', save: 'S',
             options: '=', help: '?', command_menu: 'a', overland: null, quests: null
@@ -133,37 +135,40 @@
             wield: 'w', takeoff: 'T', drop: 'd', ignore: null, quaff: 'q', read: 'r', eat: 'E',
             aim: 'a', use_staff: 'a', zap: 'a', activate: 'a', use: 'a', play_horn: null,
             fire: 't', throw: 't', inscribe: '{', uninscribe: '}', refill: null, examine: 'x',
-            cast: null, browse: null, study: null, song: null, abilities: null, smithing: null,
+            cast: null, browse: null, study: null, song: null, abilities: null, smithing: null, smith: null,
             power: null, pet: null, tunnel: 'T', open: 'o', close: 'c', bash: null, spike: null,
             disarm: 'D', alter: null, exchange: null, steal: null, rest: 'z', pickup: 'g',
             hold: '.', walk: ';', run: '.', search_mode: 's', search: 's', explore: 'Alt+E',
             travel: '_', stairs_up: '<', stairs_down: '>', repeat: 'n', count: '0',
+            pray: null, offer: null, dip: null, chat: null, loot: null, force: null, kick: null,
             inventory: 'i', equipment: 'e', quiver: null, look: 'x', target: 'x', map: 'M',
             locate: 'L', char_sheet: 'C', knowledge: '~', messages: 'C-p', save: 'S',
             options: '=', help: '?', command_menu: 'enter', overland: null, quests: null
         },
         rogue: {
-            wield: 'w', takeoff: 'T', drop: 'd', ignore: null, quaff: 'q', read: 'r', eat: 'e',
+            wield: 'w', takeoff: 'T', drop: 'd', ignore: null, quaff: 'q', read: 'r', eat: 'E',
             aim: 'z', use_staff: 'z', zap: 'z', activate: 'z', use: 'z', play_horn: null,
             fire: 't', throw: 't', inscribe: '{', uninscribe: '}', refill: null, examine: 'I',
-            cast: null, browse: null, study: null, song: null, abilities: null, smithing: null,
+            cast: null, browse: null, study: null, song: null, abilities: null, smithing: null, smith: null,
             power: null, pet: null, tunnel: 'T', open: 'o', close: 'c', bash: null, spike: null,
             disarm: 'D', alter: null, exchange: null, steal: null, rest: '.', pickup: ',',
             hold: '.', walk: ';', run: '.', search_mode: 's', search: 's', explore: 'Alt+E',
             travel: '_', stairs_up: '<', stairs_down: '>', repeat: 'n', count: '0',
+            pray: null, offer: null, dip: null, chat: null, loot: null, force: null, kick: null,
             inventory: 'i', equipment: 'e', quiver: null, look: ';', target: ';', map: 'M',
             locate: '@', char_sheet: 'C', knowledge: '\\', messages: 'C-p', save: 'S',
             options: '=', help: '?', command_menu: 'enter', overland: null, quests: null
         },
         ryod: {
-            wield: 'w', takeoff: 'T', drop: 'd', ignore: null, quaff: 'q', read: 'r', eat: 'e',
+            wield: 'w', takeoff: 'T', drop: 'd', ignore: null, quaff: 'q', read: 'r', eat: 'E',
             aim: 'a', use_staff: 'a', zap: 'a', activate: 'a', use: 'a', play_horn: 'a',
             fire: 'f', throw: 't', inscribe: '{', uninscribe: '}', refill: null, examine: 'I',
-            cast: 'm', browse: 'M', study: 'M', song: 'm', abilities: 'm', smithing: null,
+            cast: 'm', browse: 'M', study: 'M', song: 'm', abilities: 'm', smithing: null, smith: 'y',
             power: 'm', pet: 'p', tunnel: 'T', open: 'o', close: 'c', bash: 'o', spike: null,
             disarm: 'D', alter: '+', exchange: 'x', steal: null, rest: '.', pickup: 'g',
             hold: '.', walk: ';', run: '.', search_mode: 's', search: 's', explore: 'Alt+E',
             travel: '_', stairs_up: '<', stairs_down: '>', repeat: 'n', count: '0',
+            pray: 'p', offer: null, dip: null, chat: null, loot: null, force: null, kick: null,
             inventory: 'i', equipment: 'e', quiver: 'Q', look: 'x', target: 'x', map: 'M',
             locate: '@', char_sheet: 'C', knowledge: '~', messages: 'C-p', save: 'S',
             options: '=', help: '?', command_menu: 'enter', overland: null, quests: null
@@ -227,7 +232,6 @@
 
         function keyFor(id, realm) {
         const r = (realm || 'angband').toLowerCase();
-        if (typeof id === 'string' && id.trim().toLowerCase() === 'pray' && (r === 'dcss' || r === 'nethack')) return 'p';
         const cmd = get(id);
         if (!cmd) return null;
         return cmd.keys[r] !== undefined ? cmd.keys[r] : null;

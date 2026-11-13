@@ -230,12 +230,6 @@ class ChronicleFilter {
             return null;
         }
 
-        // Drain any pending sequential events in the queue
-        if (this.eventQueue && this.eventQueue.length > 0) {
-            this.lastBeatTime = Date.now();
-            return this.eventQueue.shift();
-        }
-
         const player = frame.player;
         const now = Date.now();
         const equippedWeapon = (player && player.weapon_item) ? player.weapon_item : null;
@@ -256,7 +250,7 @@ class ChronicleFilter {
             ? frame.map.depth
             : (player.depth || 0);
 
-        // --- 1. MESSAGE STREAM DIFFING (Prevents Repeating Past Log Entries) ---
+        // --- 1. MESSAGE STREAM DIFFING (Always runs BEFORE eventQueue drain so fresh messages/kills/deaths never lag) ---
         const realmForNorm = String(frame.realm || (typeof window !== 'undefined' && window.__activeRealm) || '').toLowerCase();
         const normMsg = (raw) => {
             const txt = typeof raw === 'string' ? raw : (raw && raw.text ? raw.text : '');
@@ -402,9 +396,11 @@ class ChronicleFilter {
 
         for (const msg of expandedMsgs) {
             // 1. Kills & Slayings (Dies, destroyed, dissolved, crumbled, slain, NetHack kill/destroy)
+            // Exclude inanimate trap disarms/destruction (e.g. "You destroyed a dart trap.")
             const diesMatch = msg.match(RE_MON_DIES);
             const slainMatch = msg.match(RE_SLAIN);
-            const isKill = diesMatch || slainMatch || /\b(?:You\s+(?:have\s+slain|slay|kill|destroy|vanquish)|destroyed)\b/i.test(msg) || /\bdies(?:\.|\!|$)/i.test(msg);
+            const isTrapDestruction = /\b(?:dart trap|arrow trap|falling rock trap|magic trap|pit trap|bear trap|trap door|a trap|the trap)\b/i.test(msg);
+            const isKill = !isTrapDestruction && (diesMatch || slainMatch || /\b(?:You\s+(?:have\s+slain|slay|kill|destroy|vanquish)|destroyed)\b/i.test(msg) || /\bdies(?:\.|\!|$)/i.test(msg));
             if (isKill) {
                 this.episodeAccumulator.monstersSlain++;
                 frameKills.push(msg);
@@ -857,8 +853,9 @@ class ChronicleFilter {
             }
 
             // 8g. Faithful Companion / Pet Actions & Kills
-            const petMatch = msg.match(RE_PET_ACTION);
-            if (petMatch) {
+            const petMatch = (!mHitMatch && !mFireMatch) ? msg.match(RE_PET_ACTION) : null;
+            const isProjectileNoun = petMatch && /\b(?:arrow|bolt|quarrel|shot|pebble|dagger|spear|javelin|dart|shuriken|throwing|boomerang|rock|stone|missile|flask|oil)\b/i.test(petMatch[1]);
+            if (petMatch && !isProjectileNoun) {
                 const petName = petMatch[1].trim();
                 const petVerb = petMatch[2].toLowerCase();
                 const targetMon = petMatch[3] ? petMatch[3].trim() : '';
@@ -926,7 +923,7 @@ class ChronicleFilter {
             }
 
             // 9. Detect creature interactions and assaults on the player
-            if (!msg.startsWith('You ') && !msg.includes('misses you')) {
+            if (!msg.startsWith('You ') && !msg.startsWith('Your ') && !mHitMatch && !msg.includes('misses you')) {
                 // Begging (Beggars, urchins, outcasts)
                 const bMatch = msg.match(begRe);
                 if (bMatch) {
@@ -1174,7 +1171,8 @@ class ChronicleFilter {
             }
         }
 
-        // Initialize lastDepth on first frame
+        // Initialize lastDepth on first frame (remember if this was turn-0/initial frame)
+        const wasFirstDepthFrame = (this.lastDepth === null);
         if (this.lastDepth === null) {
             this.lastDepth = depth;
         }
@@ -1215,7 +1213,7 @@ class ChronicleFilter {
         if (frame.monsters && frame.monsters.length > 0) {
             for (const m of frame.monsters) {
                 const mName = m.name || m.race;
-                if (m.is_unique && mName) {
+                if ((m.is_unique || m.unique) && mName) {
                     this.knownUniques.add(mName);
                     if (!this.seenMonsterTypes.has(mName)) {
                         this.seenMonsterTypes.add(mName);
@@ -1231,13 +1229,19 @@ class ChronicleFilter {
             }
         }
 
-        // Check for Unique Boss slayings in pending kills
-        if (this.pendingKills.length > 0 && this.knownUniques.size > 0) {
-            for (let i = 0; i < this.pendingKills.length; i++) {
-                const kMsg = this.pendingKills[i];
+        // Check for Unique Boss slayings in current-frame kills and pendingKills
+        if (this.knownUniques.size > 0) {
+            for (let i = 0; i < frameKills.length; i++) {
+                const kMsg = frameKills[i];
+                const kLower = typeof kMsg === 'string' ? kMsg.toLowerCase() : '';
                 for (const uName of this.knownUniques) {
-                    if (kMsg.includes(uName)) {
-                        this.pendingKills.splice(i, 1);
+                    if (kLower.includes(uName.toLowerCase())) {
+                        frameKills.splice(i, 1);
+                        if (Array.isArray(this.eventQueue)) {
+                            this.eventQueue = this.eventQueue.filter(ev =>
+                                !(ev && ev.type === 'COMBAT_EPISODE' && ev.data && Array.isArray(ev.data.kills) && ev.data.kills.some(km => typeof km === 'string' && km.toLowerCase().includes(uName.toLowerCase())))
+                            );
+                        }
                         this.lastBeatTime = now;
                         return {
                             type: 'UNIQUE_SLAIN',
@@ -1245,6 +1249,24 @@ class ChronicleFilter {
                             isChapter: true,
                             data: { name: uName, message: kMsg, depth }
                         };
+                    }
+                }
+            }
+            if (this.pendingKills.length > 0) {
+                for (let i = 0; i < this.pendingKills.length; i++) {
+                    const kMsg = this.pendingKills[i];
+                    const kLower = typeof kMsg === 'string' ? kMsg.toLowerCase() : '';
+                    for (const uName of this.knownUniques) {
+                        if (kLower.includes(uName.toLowerCase())) {
+                            this.pendingKills.splice(i, 1);
+                            this.lastBeatTime = now;
+                            return {
+                                type: 'UNIQUE_SLAIN',
+                                priority: 'high',
+                                isChapter: true,
+                                data: { name: uName, message: kMsg, depth }
+                            };
+                        }
                     }
                 }
             }
@@ -1265,17 +1287,23 @@ class ChronicleFilter {
             };
         }
 
-        // First Descent (First time taking stairs down to 50ft)
+        // First Descent (First time taking stairs down; suppress Turn-0/1 dungeon-start spawns at depth === 1)
+        const turnForSpawn = (currentTurn !== null) ? currentTurn : ((typeof player.turns === 'number') ? player.turns : null);
         if (depth > 0 && !this.hasCompletedOnboarding.firstStairsDown) {
-            this.hasCompletedOnboarding.firstStairsDown = true;
-            this.lastDepth = depth;
-            this.lastBeatTime = now;
-            return {
-                type: 'ONBOARDING_FIRST_DESCENT',
-                priority: 'normal',
-                isChapter: true,
-                data: { depth, player }
-            };
+            if (wasFirstDepthFrame && depth === 1 && (turnForSpawn === null || turnForSpawn <= 1)) {
+                this.hasCompletedOnboarding.firstStairsDown = true;
+                this.lastDepth = depth;
+            } else {
+                this.hasCompletedOnboarding.firstStairsDown = true;
+                this.lastDepth = depth;
+                this.lastBeatTime = now;
+                return {
+                    type: 'ONBOARDING_FIRST_DESCENT',
+                    priority: 'normal',
+                    isChapter: true,
+                    data: { depth, player }
+                };
+            }
         }
 
         // --- 5. DRAIN PENDING SEQUENTIAL EVENTS IN QUEUE FIRST ---

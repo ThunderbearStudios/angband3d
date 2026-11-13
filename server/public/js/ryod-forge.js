@@ -104,8 +104,9 @@
     let _savedLibrary = [];
     let _modalEl = null;
     let _hasImportedBlueprint = false;
+    let _activeArcadeAdvId = null;
 
-    // 6-Die Hybrid Roll-or-Pick Tabletop State + Locks
+    // 6-Die Hybrid Roll-or-Pick + Stackable Wild Twists State
     const _diceState = {
         biomeIdx: 0,
         bestiaryIdx: 0,
@@ -113,6 +114,7 @@
         heroIdx: 0,
         disciplineIdx: 0,
         mutatorIdx: 0,
+        mutators: [],
         petIdx: 0,
         mapLayout: 'classic',
         hasTown: true,
@@ -405,6 +407,70 @@
             .ryod-btn-outline:hover {
                 border-color: #f5d77f; color: #fde68a;
             }
+            .ryod-zone-title {
+                font-family: var(--font-title, 'Cinzel', serif); font-size: 0.72rem; font-weight: 800;
+                letter-spacing: 0.7px; color: #e5c158; text-transform: uppercase;
+                display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 5px;
+            }
+            .ryod-hero-strip {
+                display: grid; grid-template-columns: 1.55fr 1fr; gap: 8px; align-items: stretch;
+            }
+            @media (max-width: 680px) { .ryod-hero-strip { grid-template-columns: 1fr; } }
+            .ryod-blitz-card, .ryod-surprise-card {
+                display: flex; align-items: center; justify-content: space-between; gap: 10px;
+                padding: 10px 12px; border-radius: 8px; cursor: pointer; text-align: left;
+                transition: transform 0.14s ease, border-color 0.14s ease, box-shadow 0.14s ease;
+            }
+            .ryod-blitz-card {
+                background: linear-gradient(135deg, rgba(64, 44, 14, 0.92) 0%, rgba(22, 18, 12, 0.98) 100%);
+                border: 1px solid rgba(245, 215, 127, 0.78); color: #fff6d6;
+            }
+            .ryod-surprise-card {
+                background: linear-gradient(135deg, rgba(24, 34, 52, 0.95) 0%, rgba(13, 17, 26, 0.98) 100%);
+                border: 1px solid rgba(148, 163, 184, 0.45); color: #e2e8f0;
+            }
+            .ryod-blitz-card:hover, .ryod-surprise-card:hover { transform: translateY(-1px); border-color: #fde68a; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.55); }
+            .ryod-adv-grid {
+                display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px;
+            }
+            @media (max-width: 780px) { .ryod-adv-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+            @media (max-width: 500px) { .ryod-adv-grid { grid-template-columns: 1fr; } }
+            .ryod-adv-card {
+                display: flex; flex-direction: column; gap: 3px; padding: 8px 10px; border-radius: 7px;
+                background: linear-gradient(180deg, rgba(24, 29, 41, 0.96) 0%, rgba(13, 16, 24, 0.98) 100%);
+                border: 1px solid rgba(201, 164, 92, 0.34); color: #dce0e8; text-align: left; cursor: pointer;
+                transition: border-color 0.14s ease, transform 0.14s ease, background 0.14s ease;
+            }
+            .ryod-adv-card:hover, .ryod-adv-card.active { border-color: #f5d77f; background: linear-gradient(180deg, #272216 0%, #151721 100%); transform: translateY(-1px); }
+            .ryod-adv-head { display: flex; align-items: center; justify-content: space-between; gap: 6px; font-weight: 800; font-size: 0.77rem; color: #fde68a; }
+            .ryod-adv-tag { font-size: 0.65rem; padding: 1px 6px; border-radius: 999px; background: rgba(212, 175, 55, 0.16); color: #f5d77f; border: 1px solid rgba(212, 175, 55, 0.42); }
+            .ryod-adv-sub { font-size: 0.68rem; color: #9ca3b2; line-height: 1.28; }
+            .ryod-toybox-picks {
+                display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px;
+            }
+            @media (max-width: 820px) { .ryod-toybox-picks { grid-template-columns: 1fr; } }
+            .ryod-pick-card {
+                background: linear-gradient(165deg, rgba(22, 27, 39, 0.95) 0%, rgba(12, 15, 23, 0.98) 100%);
+                border: 1px solid rgba(201, 164, 92, 0.32); border-radius: 8px; padding: 8px 9px;
+                display: flex; flex-direction: column; gap: 6px;
+            }
+            .ryod-pill-grid { display: flex; flex-wrap: wrap; gap: 4px; }
+            .ryod-pick-pill, .ryod-twist-chip {
+                background: #141925; border: 1px solid rgba(148, 163, 184, 0.34); color: #cbd5e1;
+                border-radius: 6px; padding: 4px 7px; font-size: 0.69rem; font-weight: 600; cursor: pointer;
+                transition: border-color 0.12s ease, background 0.12s ease, color 0.12s ease;
+            }
+            .ryod-pick-pill:hover, .ryod-twist-chip:hover { border-color: #f5d77f; color: #fde68a; }
+            .ryod-pick-pill.active, .ryod-twist-chip.active {
+                background: linear-gradient(180deg, #d4af37 0%, #9a7418 100%); border-color: #fde68a; color: #0a0d14; font-weight: 800;
+            }
+            .ryod-tinker-drawer {
+                background: rgba(13, 16, 24, 0.85); border: 1px solid rgba(201, 164, 92, 0.25); border-radius: 8px; padding: 6px 10px;
+            }
+            .ryod-tinker-drawer summary {
+                cursor: pointer; font-size: 0.74rem; font-weight: 700; color: #e5c158; list-style: none; display: flex; align-items: center; justify-content: space-between;
+            }
+            .ryod-tinker-drawer[open] summary { margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid rgba(201, 164, 92, 0.2); }
         `;
         document.head.appendChild(style);
     }
@@ -494,7 +560,12 @@
         if (hIdx >= 0) _diceState.heroIdx = hIdx;
         const dIdx = lists.disciplines.findIndex(d => d.id === (bp.powerDiscipline || 'auto'));
         if (dIdx >= 0) _diceState.disciplineIdx = dIdx;
-        const mIdx = lists.mutators.findIndex(m => m.id === (bp.mutatorId || (bp.godMode ? 'god_sandbox' : 'balanced')));
+        const rawMuts = Array.isArray(bp.mutators)
+            ? bp.mutators.filter(m => m && m !== 'balanced')
+            : (bp.mutatorId && bp.mutatorId !== 'balanced' ? [bp.mutatorId] : (bp.godMode ? ['god_sandbox'] : []));
+        _diceState.mutators = Array.from(new Set(rawMuts)).slice(0, 3);
+        const primaryMutId = _diceState.mutators[0] || bp.mutatorId || (bp.godMode ? 'god_sandbox' : 'balanced');
+        const mIdx = lists.mutators.findIndex(m => m.id === primaryMutId);
         if (mIdx >= 0) _diceState.mutatorIdx = mIdx;
         const pIdx = lists.pets.indexOf(bp.pet || 'war_hound');
         if (pIdx >= 0) _diceState.petIdx = pIdx;
@@ -524,6 +595,11 @@
         const pet = lists.pets[_diceState.petIdx] || 'war_hound';
         const matchingArch = lists.worlds.find(w => w.biome === biome.id) || lists.worlds[0] || { id: 'obsidian_covenant' };
 
+        const activeMutators = (Array.isArray(_diceState.mutators) && _diceState.mutators.length > 0)
+            ? _diceState.mutators.slice(0, 3)
+            : (mutator.id && mutator.id !== 'balanced' ? [mutator.id] : []);
+        const primMut = activeMutators[0] || 'balanced';
+
         return {
             seed: _diceState.seed || 133742,
             customTitle: _diceState.customTitle || undefined,
@@ -535,18 +611,19 @@
             bestiary: bestiary.id,
             heroOrigin: hero.id,
             powerDiscipline: disc.id,
-            mutatorId: mutator.id,
+            mutatorId: primMut,
+            mutators: activeMutators,
             d20Fate: _diceState.d20Roll || 15,
-            pet: mutator.id === 'packmaster' && pet === 'none' ? 'war_hound' : pet,
+            pet: activeMutators.includes('packmaster') && pet === 'none' ? 'war_hound' : pet,
             hasTown: _diceState.hasTown,
             victoryMode: _diceState.victoryMode,
-            goalDepth: _diceState.goalDepth || 15,
+            goalDepth: _diceState.goalDepth || (activeMutators.includes('boss_rush') ? 8 : 15),
             progressionMode: _diceState.progressionMode || 'hybrid',
             difficulty: _diceState.difficulty || 'standard',
-            godMode: mutator.id === 'god_sandbox',
+            godMode: activeMutators.includes('god_sandbox'),
             beatitude: _diceState.beatitude,
             captiveAllies: _diceState.captiveAllies,
-            hazardDensity: mutator.id === 'cataclysm' ? 'abundant' : 'tactical'
+            hazardDensity: activeMutators.includes('cataclysm') ? 'abundant' : 'tactical'
         };
     }
 
@@ -643,12 +720,15 @@
             _diceState.disciplineIdx = pickDiff(_diceState.disciplineIdx, lists.disciplines.length);
         } else if (slot === 'mutator' || slot === 'stakes') {
             _diceState.mutatorIdx = pickDiff(_diceState.mutatorIdx, lists.mutators.length);
+            const chosenMut = lists.mutators[_diceState.mutatorIdx];
+            _diceState.mutators = chosenMut && chosenMut.id !== 'balanced' ? [chosenMut.id] : [];
         }
         triggerRollAnimation();
         recompileFromDice();
     }
 
     function rollAllUnlockedDice(promptText = '') {
+        _activeArcadeAdvId = null;
         const lists = getLists();
         const compiler = getCompiler();
         _diceState.seed = Math.floor(Math.random() * 899999) + 100000;
@@ -684,6 +764,8 @@
             }
             if (!_diceState.locks.mutator && lists.mutators.length > 0) {
                 _diceState.mutatorIdx = Math.random() < 0.10 ? (lists.mutators.length - 1) : Math.floor(Math.random() * Math.max(1, lists.mutators.length - 1));
+                const chosenMut = lists.mutators[_diceState.mutatorIdx];
+                _diceState.mutators = chosenMut && chosenMut.id !== 'balanced' ? [chosenMut.id] : [];
             }
         }
         triggerRollAnimation();
@@ -698,7 +780,11 @@
         else if (slot === 'story') _diceState.storyIdx = step(_diceState.storyIdx, lists.stories.length);
         else if (slot === 'hero') _diceState.heroIdx = step(_diceState.heroIdx, lists.heroes.length);
         else if (slot === 'discipline') _diceState.disciplineIdx = step(_diceState.disciplineIdx, lists.disciplines.length);
-        else if (slot === 'mutator' || slot === 'stakes') _diceState.mutatorIdx = step(_diceState.mutatorIdx, lists.mutators.length);
+        else if (slot === 'mutator' || slot === 'stakes') {
+            _diceState.mutatorIdx = step(_diceState.mutatorIdx, lists.mutators.length);
+            const chosenMut = lists.mutators[_diceState.mutatorIdx];
+            _diceState.mutators = chosenMut && chosenMut.id !== 'balanced' ? [chosenMut.id] : [];
+        }
         playDiceSfx();
         recompileFromDice();
     }
@@ -722,185 +808,101 @@
         const lists = getLists();
         const makeOpts = (arr, labelFn) => arr.map((item, i) => `<option value="${i}">${esc(labelFn(item))}</option>`).join('');
 
+        const compiler = getCompiler();
+        const advs = (compiler && compiler.ARCADE_ADVENTURES) || [];
+        const dailyBp = (compiler && typeof compiler.rollDailyBlitzBlueprint === 'function')
+            ? compiler.rollDailyBlitzBlueprint()
+            : null;
+        const twistList = lists.mutators.filter(m => m && m.id && m.id !== 'balanced');
+        const shortName = (lbl) => String(lbl || '').replace(/\s*\([^)]*\)/g, '').trim();
+
         const overlay = document.createElement('div');
         overlay.id = 'ryod-forge-modal';
         overlay.className = 'ryod-forge-overlay hidden';
         overlay.setAttribute('role', 'dialog');
-        overlay.setAttribute('aria-label', 'Roll Your Own Dungeon Tabletop Forge');
+        overlay.setAttribute('aria-label', 'Roll Your Own Dungeon Arcade Toybox');
 
         overlay.innerHTML = `
             <div class="ryod-forge-card">
                 <div class="ryod-forge-header">
                     <div>
-                        <h2 class="ryod-forge-title">🎲 ROLL YOUR OWN DUNGEON — TABLETOP FORGE</h2>
-                        <div class="ryod-forge-subtitle">Roll Any Die [🎲], Pick Directly from Any Dropdown [▾], Lock Favorites [🔒], or Drop Straight In!</div>
-                        <div class="ryod-masterwork-strip">
-                            <span class="ryod-masterwork-label">⚡ MASTERWORK:</span>
-                            <button type="button" class="ryod-masterwork-pill" data-masterwork="first_age_anvil" title="Sil-Q Woven Songs &amp; Mithril Smithing">🔨 Mithril Anvil</button>
-                            <button type="button" class="ryod-masterwork-pill" data-masterwork="mazes_of_alchemy" title="NetHack Unidentified Draughts, BUC &amp; Fountains">🧪 Alchemical Mazes</button>
-                            <button type="button" class="ryod-masterwork-pill" data-masterwork="luminous_crucible" title="Brogue Living Gases, Wildfire &amp; Evolving Allies">🍄 Spore Crucible</button>
-                            <button type="button" class="ryod-masterwork-pill" data-masterwork="pantheon_gauntlet" title="DCSS 6-Deity Pantheon, Piety &amp; Gifts">⚡ Pantheon Gauntlet</button>
-                            <button type="button" class="ryod-masterwork-pill" data-masterwork="wyrm_beholder_ascendant" title="Playable Beholder Avatar: 6 Rings &amp; Disintegration">👁️ Beholder Chaos</button>
-                            <button type="button" class="ryod-masterwork-pill" data-masterwork="bushido_bounty_tower" title="Hengband Martial Stances &amp; Wanted Bounties">⚔️ Bushido Bounties</button>
-                            <button type="button" class="ryod-masterwork-pill" data-masterwork="yendor_relic_ascent" title="Rogue Relic Ascent Pursuit &amp; Apex Hunters">🏆 Relic Ascent</button>
-                            <button type="button" class="ryod-masterwork-pill" data-masterwork="true_chimera_chaos" title="All 8 Canonical Disciplines Simultaneously">🌀 True Chimera</button>
-                        </div>
+                        <h2 class="ryod-forge-title">⚒️ ROLL YOUR OWN DUNGEON 3.0 — ARCADE TOYBOX</h2>
+                        <div class="ryod-forge-subtitle">Jump straight into Today&rsquo;s Blitz or a curated Adventure, or stack up to 3 Wild Twists in your custom run!</div>
                     </div>
                     <div class="ryod-btn-row">
-                        <button type="button" id="btn-ryod-quick-dropin" class="ryod-btn-instant" title="Roll all dice and drop straight into 3D play!">⚡ Quick Roll &amp; Play</button>
                         <button type="button" id="btn-ryod-close" class="ryod-btn-outline" title="Close [Esc]">✕</button>
                     </div>
                 </div>
 
                 <div class="ryod-forge-body">
-                    <div class="ryod-preset-bar">
-                        ${STAKES_PRESETS.map(p => `<button type="button" class="ryod-preset-pill" data-preset-id="${p.id}" title="${esc(p.sub)}">${esc(p.label)}</button>`).join('')}
-                    </div>
-                    <div class="ryod-dice-tray">
-                        <button type="button" class="ryod-d20-badge" id="ryod-d20-display" title="Click to reroll your d20 Starting Fate Boon! (20 = Blessed +3 Relic + Extra Heal, 15-19 = +45 Au &amp; Speed, 1 = Cursed Grim Dare)">🎲 d20: 18 ★</button>
-                        <button type="button" id="btn-ryod-reroll-spine" class="ryod-btn-roll-all" title="Roll all unlocked dice!">🎲 Roll the Bones (Reroll Unlocked)</button>
-                        <input type="text" id="ryod-architect-prompt" class="ryod-prompt-mini" maxlength="160" placeholder="Optional theme (e.g. 'frozen vampire heist', 'gilded dragon runes')...">
-                        <button type="button" id="btn-ryod-weave-prompt" class="ryod-btn-outline" title="Roll dice weighted to your theme">✨ Weave Theme</button>
-                    </div>
-
-                    <div class="ryod-dice-grid">
-                        <!-- CARD 1: d8 3D BIOME & ARCHITECTURE -->
-                        <div class="ryod-die-card" id="ryod-card-biome">
-                            <div class="ryod-die-top">
-                                <span class="ryod-die-label">🏰 d8 3D BIOME &amp; LAYOUT</span>
-                                <div class="ryod-die-actions">
-                                    <button type="button" class="ryod-mini-btn" data-roll-die="biome">🎲 Roll</button>
-                                    <button type="button" class="ryod-mini-btn" data-lock-die="biome">🔓 Keep</button>
-                                </div>
-                            </div>
-                            <div class="ryod-stepper-row">
-                                <button type="button" class="ryod-step-arrow" data-step-die="biome" data-dir="-1">◀</button>
-                                <select id="ryod-select-biome" class="ryod-select-input" data-select-die="biome" aria-label="Select 3D Biome">
-                                    ${makeOpts(lists.biomes, b => b.label)}
-                                </select>
-                                <button type="button" class="ryod-step-arrow" data-step-die="biome" data-dir="1">▶</button>
-                            </div>
-                            <div class="ryod-die-subRow">
-                                <button type="button" class="ryod-sub-pill" id="btn-ryod-cycle-layout" title="Cycle Floor Architecture Layout">🗺️ Classic Rooms</button>
-                                <button type="button" class="ryod-sub-pill" id="btn-ryod-toggle-town" title="Toggle Depth 0 Sanctuary Town">🏘️ Town: ON</button>
-                            </div>
+                    <!-- ZONE 1: 1-CLICK PLAY STRIP -->
+                    <div>
+                        <div class="ryod-zone-title">
+                            <span>⚡ Zone 1 &bull; 1-Click Play</span>
+                            <span style="font-size:0.66rem; color:#9ca3b2; font-weight:600;">Instant 3D Launch &bull; Zero Setup</span>
                         </div>
-
-                        <!-- CARD 2: d10 BESTIARY & ALLIES -->
-                        <div class="ryod-die-card" id="ryod-card-bestiary">
-                            <div class="ryod-die-top">
-                                <span class="ryod-die-label">👹 d10 BESTIARY &amp; ALLIES</span>
-                                <div class="ryod-die-actions">
-                                    <button type="button" class="ryod-mini-btn" data-roll-die="bestiary">🎲 Roll</button>
-                                    <button type="button" class="ryod-mini-btn" data-lock-die="bestiary">🔓 Keep</button>
+                        <div class="ryod-hero-strip">
+                            <button type="button" id="btn-ryod-daily-blitz" class="ryod-blitz-card" title="Same deterministic dungeon seed worldwide today">
+                                <div>
+                                    <div style="font-weight:800; font-size:0.86rem; color:#fde68a;">📅 Today&rsquo;s Daily Blitz</div>
+                                    <div id="ryod-daily-blitz-sub" style="font-size:0.7rem; color:#e2d4b0; margin-top:2px;">${dailyBp ? `${esc(dailyBp.title)} &bull; ${esc(dailyBp.goalDepth)}F &bull; ${esc((dailyBp.mutators || ['balanced']).join(' + '))}` : 'Deterministic daily seeded gauntlet'}</div>
                                 </div>
-                            </div>
-                            <div class="ryod-stepper-row">
-                                <button type="button" class="ryod-step-arrow" data-step-die="bestiary" data-dir="-1">◀</button>
-                                <select id="ryod-select-bestiary" class="ryod-select-input" data-select-die="bestiary" aria-label="Select Bestiary Faction">
-                                    ${makeOpts(lists.bestiaries, f => f.label)}
-                                </select>
-                                <button type="button" class="ryod-step-arrow" data-step-die="bestiary" data-dir="1">▶</button>
-                            </div>
-                            <div class="ryod-die-subRow">
-                                <span class="ryod-die-desc" id="ryod-desc-bestiary">Coherent 3D Monster Faction</span>
-                                <button type="button" class="ryod-sub-pill" id="btn-ryod-toggle-allies" title="Toggle Liberated Captive Allies on Floors">⛓️ Allies: ON</button>
-                            </div>
+                                <span style="font-size:0.76rem; font-weight:800; color:#0b0d13; background:#f5d77f; padding:5px 10px; border-radius:6px; white-space:nowrap;">▶ Play Blitz</span>
+                            </button>
+                            <button type="button" id="btn-ryod-quick-dropin" class="ryod-surprise-card" title="Generate a fresh coherent run and drop straight in">
+                                <div>
+                                    <div style="font-weight:800; font-size:0.83rem; color:#f3d478;">🎲 Surprise Me!</div>
+                                    <div style="font-size:0.69rem; color:#9ca3b2; margin-top:2px;">Coherent random hero, arena &amp; twists</div>
+                                </div>
+                                <span style="font-size:0.74rem; font-weight:800; color:#fde68a;">▶ Go</span>
+                            </button>
                         </div>
-
-                        <!-- CARD 3: d8 MYTHIC PLOT & GOAL -->
-                        <div class="ryod-die-card" id="ryod-card-story">
-                            <div class="ryod-die-top">
-                                <span class="ryod-die-label">📜 d8 MYTHIC PLOT &amp; GOAL</span>
-                                <div class="ryod-die-actions">
-                                    <button type="button" class="ryod-mini-btn" data-roll-die="story">🎲 Roll</button>
-                                    <button type="button" class="ryod-mini-btn" data-lock-die="story">🔓 Keep</button>
+                        <div class="ryod-adv-grid" style="margin-top:7px;">
+                            ${advs.map(a => `
+                                <div class="ryod-adv-card" data-arcade-adv="${esc(a.id)}" role="button" tabindex="0" title="${esc(a.tagline)}">
+                                    <div class="ryod-adv-head">
+                                        <span>${esc(a.crest)} ${esc(a.title)}</span>
+                                        <span class="ryod-adv-tag" data-play-adv="${esc(a.id)}">▶ Play</span>
+                                    </div>
+                                    <div class="ryod-adv-sub">${esc(a.tagline)}</div>
                                 </div>
-                            </div>
-                            <div class="ryod-stepper-row">
-                                <button type="button" class="ryod-step-arrow" data-step-die="story" data-dir="-1">◀</button>
-                                <select id="ryod-select-story" class="ryod-select-input" data-select-die="story" aria-label="Select 5-Act Mythic Plot">
-                                    ${makeOpts(lists.stories, s => `📜 ${s.title}`)}
-                                </select>
-                                <button type="button" class="ryod-step-arrow" data-step-die="story" data-dir="1">▶</button>
-                            </div>
-                            <div class="ryod-die-subRow">
-                                <span class="ryod-die-desc" id="ryod-desc-story">Boss: Preceptor Malakor</span>
-                                <button type="button" class="ryod-sub-pill" id="btn-ryod-toggle-victory" title="Cycle Victory Condition (Slay Boss / Relic Ascension / 3 Runes + Boss)">🏆 Slay Boss</button>
-                            </div>
-                        </div>
-
-                        <!-- CARD 4: d12 HERO / MONSTER AVATAR & PET -->
-                        <div class="ryod-die-card" id="ryod-card-hero">
-                            <div class="ryod-die-top">
-                                <span class="ryod-die-label">⚔️ d12 HERO / AVATAR &amp; PET</span>
-                                <div class="ryod-die-actions">
-                                    <button type="button" class="ryod-mini-btn" data-roll-die="hero">🎲 Roll</button>
-                                    <button type="button" class="ryod-mini-btn" data-lock-die="hero">🔓 Keep</button>
-                                </div>
-                            </div>
-                            <div class="ryod-stepper-row">
-                                <button type="button" class="ryod-step-arrow" data-step-die="hero" data-dir="-1">◀</button>
-                                <select id="ryod-select-hero" class="ryod-select-input" data-select-die="hero" aria-label="Select Hero Class or Monster Avatar">
-                                    ${makeOpts(lists.heroes, h => `${h.isMonsterAvatar ? '' : '⚔️ '}${String(h.label).replace(/\s*\((Mortal Class|Creature Avatar)\)/i, '')}`)}
-                                </select>
-                                <button type="button" class="ryod-step-arrow" data-step-die="hero" data-dir="1">▶</button>
-                            </div>
-                            <div class="ryod-die-subRow">
-                                <span class="ryod-die-desc" id="ryod-desc-hero">[m] Shield Bash Surge</span>
-                                <button type="button" class="ryod-sub-pill" id="btn-ryod-cycle-pet" title="Cycle Starting Companion Pet">🐾 War Hound</button>
-                            </div>
-                        </div>
-
-                        <!-- CARD 5: d6 POWER DISCIPLINE & LEVELING -->
-                        <div class="ryod-die-card" id="ryod-card-discipline">
-                            <div class="ryod-die-top">
-                                <span class="ryod-die-label">✨ d6 POWER &amp; LEVELING</span>
-                                <div class="ryod-die-actions">
-                                    <button type="button" class="ryod-mini-btn" data-roll-die="discipline">🎲 Roll</button>
-                                    <button type="button" class="ryod-mini-btn" data-lock-die="discipline">🔓 Keep</button>
-                                </div>
-                            </div>
-                            <div class="ryod-stepper-row">
-                                <button type="button" class="ryod-step-arrow" data-step-die="discipline" data-dir="-1">◀</button>
-                                <select id="ryod-select-discipline" class="ryod-select-input" data-select-die="discipline" aria-label="Select Power Discipline">
-                                    ${makeOpts(lists.disciplines, d => d.label)}
-                                </select>
-                                <button type="button" class="ryod-step-arrow" data-step-die="discipline" data-dir="1">▶</button>
-                            </div>
-                            <div class="ryod-die-subRow">
-                                <button type="button" class="ryod-sub-pill" id="btn-ryod-cycle-prog" title="Cycle Progression (Hybrid / Classic XP / Brogue Gear-Only)">📈 Hybrid XP+Gear</button>
-                                <button type="button" class="ryod-sub-pill" id="btn-ryod-toggle-beatitude" title="Toggle Altar Blessings &amp; BUC">🙏 Altars: ON</button>
-                            </div>
-                        </div>
-
-                        <!-- CARD 6: d8 WORLD MUTATOR, DEPTH & DIFFICULTY -->
-                        <div class="ryod-die-card" id="ryod-card-mutator">
-                            <div class="ryod-die-top">
-                                <span class="ryod-die-label">🔥 d8 MUTATOR &amp; STAKES</span>
-                                <div class="ryod-die-actions">
-                                    <button type="button" class="ryod-mini-btn" data-roll-die="mutator">🎲 Roll</button>
-                                    <button type="button" class="ryod-mini-btn" data-lock-die="mutator">🔓 Keep</button>
-                                </div>
-                            </div>
-                            <div class="ryod-stepper-row">
-                                <button type="button" class="ryod-step-arrow" data-step-die="mutator" data-dir="-1">◀</button>
-                                <select id="ryod-select-mutator" class="ryod-select-input" data-select-die="mutator" aria-label="Select World Mutator">
-                                    ${makeOpts(lists.mutators, m => m.label)}
-                                </select>
-                                <button type="button" class="ryod-step-arrow" data-step-die="mutator" data-dir="1">▶</button>
-                            </div>
-                            <div class="ryod-die-subRow">
-                                <span class="ryod-die-desc" id="ryod-desc-mutator">Standard tactical challenge</span>
-                                <button type="button" class="ryod-sub-pill" id="btn-ryod-cycle-depth" title="Cycle Dungeon Depth (10F / 15F / 25F)">📏 15 Floors</button>
-                                <button type="button" class="ryod-sub-pill" id="btn-ryod-cycle-diff" title="Cycle Difficulty">⚖️ Standard</button>
-                            </div>
+                            `).join('')}
                         </div>
                     </div>
 
-                    <div class="ryod-naming-row">
-                        <input type="text" id="ryod-custom-title" class="ryod-prompt-mini" maxlength="60" placeholder="Custom Dungeon Title (e.g. 'Citadel of the Wyrm Sovereign')...">
-                        <input type="text" id="ryod-custom-nemesis" class="ryod-prompt-mini" maxlength="60" placeholder="Custom Nemesis Name (e.g. 'Malakor the Undying')...">
+                    <!-- ZONE 2: 3-PICK CUSTOM TOYBOX -->
+                    <div>
+                        <div class="ryod-zone-title">
+                            <span>🎛️ Zone 2 &bull; 3-Pick Custom Toybox</span>
+                            <span style="font-size:0.66rem; color:#9ca3b2; font-weight:600;">Mix Any Arena + Fighter + up to 3 Stackable Twists</span>
+                        </div>
+                        <div class="ryod-toybox-picks">
+                            <div class="ryod-pick-card">
+                                <div class="ryod-die-top">
+                                    <span class="ryod-die-label">1. ARENA (3D BIOME)</span>
+                                </div>
+                                <div class="ryod-pill-grid" id="ryod-pick-biomes">
+                                    ${lists.biomes.map((b, i) => `<button type="button" class="ryod-pick-pill" data-pick-biome="${esc(b.id)}" data-pick-idx="${i}">${esc(shortName(b.label))}</button>`).join('')}
+                                </div>
+                            </div>
+                            <div class="ryod-pick-card">
+                                <div class="ryod-die-top">
+                                    <span class="ryod-die-label">2. FIGHTER (HERO / AVATAR)</span>
+                                </div>
+                                <div class="ryod-pill-grid" id="ryod-pick-heroes">
+                                    ${lists.heroes.map((h, i) => `<button type="button" class="ryod-pick-pill" data-pick-hero="${esc(h.id)}" data-pick-idx="${i}" title="${esc(h.roleName || h.id)}">${esc(shortName(h.label))}</button>`).join('')}
+                                </div>
+                            </div>
+                            <div class="ryod-pick-card">
+                                <div class="ryod-die-top">
+                                    <span class="ryod-die-label">3. WILD TWISTS <span id="ryod-twist-count" style="color:#fde68a;">(0/3)</span></span>
+                                    <button type="button" id="btn-ryod-clear-mutators" class="ryod-mini-btn" title="Clear all active twists">Clear</button>
+                                </div>
+                                <div class="ryod-pill-grid" id="ryod-pick-mutators">
+                                    ${twistList.map(m => `<button type="button" class="ryod-twist-chip" data-toggle-mutator="${esc(m.id)}" title="${esc(m.desc)}">${esc(shortName(m.label))}</button>`).join('')}
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <div class="ryod-summary-strip">
@@ -910,11 +912,168 @@
                         </div>
                         <div class="ryod-preview-premise" id="ryod-preview-premise"></div>
                     </div>
+
+                    <!-- ZONE 3: COLLAPSED ADVANCED TINKER DRAWER -->
+                    <details class="ryod-tinker-drawer" id="ryod-tinker-drawer">
+                        <summary>
+                            <span>🛠️ Advanced Tinker Drawer (8 Masterwork Presets, 6-Die Locks, Stakes &amp; Naming)</span>
+                            <span style="font-size:0.67rem; color:#9ca3b2;">▾ Click to expand</span>
+                        </summary>
+                        <div style="display:flex; flex-direction:column; gap:8px;">
+                            <div class="ryod-masterwork-strip">
+                                <span class="ryod-masterwork-label">⚡ MASTERWORK:</span>
+                                <button type="button" class="ryod-masterwork-pill" data-masterwork="first_age_anvil" title="Sil-Q Woven Songs &amp; Mithril Smithing">🔨 Mithril Anvil</button>
+                                <button type="button" class="ryod-masterwork-pill" data-masterwork="mazes_of_alchemy" title="NetHack Unidentified Draughts, BUC &amp; Fountains">🧪 Alchemical Mazes</button>
+                                <button type="button" class="ryod-masterwork-pill" data-masterwork="luminous_crucible" title="Brogue Living Gases, Wildfire &amp; Evolving Allies">🍄 Spore Crucible</button>
+                                <button type="button" class="ryod-masterwork-pill" data-masterwork="pantheon_gauntlet" title="DCSS 6-Deity Pantheon, Piety &amp; Gifts">⚡ Pantheon Gauntlet</button>
+                                <button type="button" class="ryod-masterwork-pill" data-masterwork="wyrm_beholder_ascendant" title="Playable Beholder Avatar: 6 Rings &amp; Disintegration">👁️ Beholder Chaos</button>
+                                <button type="button" class="ryod-masterwork-pill" data-masterwork="bushido_bounty_tower" title="Hengband Martial Stances &amp; Wanted Bounties">⚔️ Bushido Bounties</button>
+                                <button type="button" class="ryod-masterwork-pill" data-masterwork="yendor_relic_ascent" title="Rogue Relic Ascent Pursuit &amp; Apex Hunters">🏆 Relic Ascent</button>
+                                <button type="button" class="ryod-masterwork-pill" data-masterwork="true_chimera_chaos" title="All 8 Canonical Disciplines Simultaneously">🌀 True Chimera</button>
+                            </div>
+                            <div class="ryod-preset-bar">
+                                ${STAKES_PRESETS.map(p => `<button type="button" class="ryod-preset-pill" data-preset-id="${p.id}" title="${esc(p.sub)}">${esc(p.label)}</button>`).join('')}
+                            </div>
+                            <div class="ryod-dice-tray">
+                                <button type="button" class="ryod-d20-badge" id="ryod-d20-display" title="Click to reroll your d20 Starting Fate Boon!">🎲 d20: 18 ★</button>
+                                <button type="button" id="btn-ryod-reroll-spine" class="ryod-btn-roll-all" title="Roll all unlocked dice!">🎲 Roll Unlocked</button>
+                                <input type="text" id="ryod-architect-prompt" class="ryod-prompt-mini" maxlength="160" placeholder="Optional theme (e.g. 'frozen vampire heist', 'gilded dragon runes')...">
+                                <button type="button" id="btn-ryod-weave-prompt" class="ryod-btn-outline" title="Roll dice weighted to your theme">✨ Weave Theme</button>
+                            </div>
+                            <div class="ryod-dice-grid">
+                                <div class="ryod-die-card" id="ryod-card-biome">
+                                    <div class="ryod-die-top">
+                                        <span class="ryod-die-label">🏰 d8 3D BIOME &amp; LAYOUT</span>
+                                        <div class="ryod-die-actions">
+                                            <button type="button" class="ryod-mini-btn" data-roll-die="biome">🎲 Roll</button>
+                                            <button type="button" class="ryod-mini-btn" data-lock-die="biome">🔓 Keep</button>
+                                        </div>
+                                    </div>
+                                    <div class="ryod-stepper-row">
+                                        <button type="button" class="ryod-step-arrow" data-step-die="biome" data-dir="-1">◀</button>
+                                        <select id="ryod-select-biome" class="ryod-select-input" data-select-die="biome" aria-label="Select 3D Biome">
+                                            ${makeOpts(lists.biomes, b => b.label)}
+                                        </select>
+                                        <button type="button" class="ryod-step-arrow" data-step-die="biome" data-dir="1">▶</button>
+                                    </div>
+                                    <div class="ryod-die-subRow">
+                                        <button type="button" class="ryod-sub-pill" id="btn-ryod-cycle-layout">🗺️ Classic Rooms</button>
+                                        <button type="button" class="ryod-sub-pill" id="btn-ryod-toggle-town">🏘️ Town: ON</button>
+                                    </div>
+                                </div>
+                                <div class="ryod-die-card" id="ryod-card-bestiary">
+                                    <div class="ryod-die-top">
+                                        <span class="ryod-die-label">👹 d10 BESTIARY &amp; ALLIES</span>
+                                        <div class="ryod-die-actions">
+                                            <button type="button" class="ryod-mini-btn" data-roll-die="bestiary">🎲 Roll</button>
+                                            <button type="button" class="ryod-mini-btn" data-lock-die="bestiary">🔓 Keep</button>
+                                        </div>
+                                    </div>
+                                    <div class="ryod-stepper-row">
+                                        <button type="button" class="ryod-step-arrow" data-step-die="bestiary" data-dir="-1">◀</button>
+                                        <select id="ryod-select-bestiary" class="ryod-select-input" data-select-die="bestiary" aria-label="Select Bestiary Faction">
+                                            ${makeOpts(lists.bestiaries, f => f.label)}
+                                        </select>
+                                        <button type="button" class="ryod-step-arrow" data-step-die="bestiary" data-dir="1">▶</button>
+                                    </div>
+                                    <div class="ryod-die-subRow">
+                                        <span class="ryod-die-desc" id="ryod-desc-bestiary">Coherent 3D Monster Faction</span>
+                                        <button type="button" class="ryod-sub-pill" id="btn-ryod-toggle-allies">⛓️ Allies: ON</button>
+                                    </div>
+                                </div>
+                                <div class="ryod-die-card" id="ryod-card-story">
+                                    <div class="ryod-die-top">
+                                        <span class="ryod-die-label">📜 d8 MYTHIC PLOT &amp; GOAL</span>
+                                        <div class="ryod-die-actions">
+                                            <button type="button" class="ryod-mini-btn" data-roll-die="story">🎲 Roll</button>
+                                            <button type="button" class="ryod-mini-btn" data-lock-die="story">🔓 Keep</button>
+                                        </div>
+                                    </div>
+                                    <div class="ryod-stepper-row">
+                                        <button type="button" class="ryod-step-arrow" data-step-die="story" data-dir="-1">◀</button>
+                                        <select id="ryod-select-story" class="ryod-select-input" data-select-die="story" aria-label="Select 5-Act Mythic Plot">
+                                            ${makeOpts(lists.stories, s => `📜 ${s.title}`)}
+                                        </select>
+                                        <button type="button" class="ryod-step-arrow" data-step-die="story" data-dir="1">▶</button>
+                                    </div>
+                                    <div class="ryod-die-subRow">
+                                        <span class="ryod-die-desc" id="ryod-desc-story">Boss: Preceptor Malakor</span>
+                                        <button type="button" class="ryod-sub-pill" id="btn-ryod-toggle-victory">🏆 Slay Boss</button>
+                                    </div>
+                                </div>
+                                <div class="ryod-die-card" id="ryod-card-hero">
+                                    <div class="ryod-die-top">
+                                        <span class="ryod-die-label">⚔️ d12 HERO / AVATAR &amp; PET</span>
+                                        <div class="ryod-die-actions">
+                                            <button type="button" class="ryod-mini-btn" data-roll-die="hero">🎲 Roll</button>
+                                            <button type="button" class="ryod-mini-btn" data-lock-die="hero">🔓 Keep</button>
+                                        </div>
+                                    </div>
+                                    <div class="ryod-stepper-row">
+                                        <button type="button" class="ryod-step-arrow" data-step-die="hero" data-dir="-1">◀</button>
+                                        <select id="ryod-select-hero" class="ryod-select-input" data-select-die="hero" aria-label="Select Hero Class or Monster Avatar">
+                                            ${makeOpts(lists.heroes, h => `${h.isMonsterAvatar ? '' : '⚔️ '}${String(h.label).replace(/\s*\((Mortal Class|Creature Avatar)\)/i, '')}`)}
+                                        </select>
+                                        <button type="button" class="ryod-step-arrow" data-step-die="hero" data-dir="1">▶</button>
+                                    </div>
+                                    <div class="ryod-die-subRow">
+                                        <span class="ryod-die-desc" id="ryod-desc-hero">[m] Shield Bash Surge</span>
+                                        <button type="button" class="ryod-sub-pill" id="btn-ryod-cycle-pet">🐾 War Hound</button>
+                                    </div>
+                                </div>
+                                <div class="ryod-die-card" id="ryod-card-discipline">
+                                    <div class="ryod-die-top">
+                                        <span class="ryod-die-label">✨ d6 POWER &amp; LEVELING</span>
+                                        <div class="ryod-die-actions">
+                                            <button type="button" class="ryod-mini-btn" data-roll-die="discipline">🎲 Roll</button>
+                                            <button type="button" class="ryod-mini-btn" data-lock-die="discipline">🔓 Keep</button>
+                                        </div>
+                                    </div>
+                                    <div class="ryod-stepper-row">
+                                        <button type="button" class="ryod-step-arrow" data-step-die="discipline" data-dir="-1">◀</button>
+                                        <select id="ryod-select-discipline" class="ryod-select-input" data-select-die="discipline" aria-label="Select Power Discipline">
+                                            ${makeOpts(lists.disciplines, d => d.label)}
+                                        </select>
+                                        <button type="button" class="ryod-step-arrow" data-step-die="discipline" data-dir="1">▶</button>
+                                    </div>
+                                    <div class="ryod-die-subRow">
+                                        <button type="button" class="ryod-sub-pill" id="btn-ryod-cycle-prog">📈 Hybrid XP+Gear</button>
+                                        <button type="button" class="ryod-sub-pill" id="btn-ryod-toggle-beatitude">🙏 Altars: ON</button>
+                                    </div>
+                                </div>
+                                <div class="ryod-die-card" id="ryod-card-mutator">
+                                    <div class="ryod-die-top">
+                                        <span class="ryod-die-label">🔥 MUTATOR, DEPTH &amp; STAKES</span>
+                                        <div class="ryod-die-actions">
+                                            <button type="button" class="ryod-mini-btn" data-roll-die="mutator">🎲 Roll</button>
+                                            <button type="button" class="ryod-mini-btn" data-lock-die="mutator">🔓 Keep</button>
+                                        </div>
+                                    </div>
+                                    <div class="ryod-stepper-row">
+                                        <button type="button" class="ryod-step-arrow" data-step-die="mutator" data-dir="-1">◀</button>
+                                        <select id="ryod-select-mutator" class="ryod-select-input" data-select-die="mutator" aria-label="Select World Mutator">
+                                            ${makeOpts(lists.mutators, m => m.label)}
+                                        </select>
+                                        <button type="button" class="ryod-step-arrow" data-step-die="mutator" data-dir="1">▶</button>
+                                    </div>
+                                    <div class="ryod-die-subRow">
+                                        <span class="ryod-die-desc" id="ryod-desc-mutator">Standard tactical rules</span>
+                                        <button type="button" class="ryod-sub-pill" id="btn-ryod-cycle-depth">📏 15 Floors</button>
+                                        <button type="button" class="ryod-sub-pill" id="btn-ryod-cycle-diff">⚖️ Standard</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="ryod-naming-row">
+                                <input type="text" id="ryod-custom-title" class="ryod-prompt-mini" maxlength="60" placeholder="Custom Dungeon Title (e.g. 'Citadel of the Wyrm Sovereign')...">
+                                <input type="text" id="ryod-custom-nemesis" class="ryod-prompt-mini" maxlength="60" placeholder="Custom Nemesis Name (e.g. 'Malakor the Undying')...">
+                            </div>
+                        </div>
+                    </details>
                 </div>
 
                 <div class="ryod-forge-footer">
                     <div class="ryod-btn-row">
-                        <button type="button" id="btn-ryod-save-lib" class="ryod-btn-outline" title="Pin this rolled dungeon to your browser">📌 Pin</button>
+                        <button type="button" id="btn-ryod-save-lib" class="ryod-btn-outline" title="Pin this run to your browser">📌 Pin</button>
                         <button type="button" id="btn-ryod-export-json" class="ryod-btn-outline" title="Download .ryod.json blueprint file">💾 Save .json</button>
                         <label for="ryod-file-import" class="ryod-btn-outline" style="cursor:pointer; margin:0;" title="Load a .ryod.json blueprint file">📂 Load .json</label>
                         <input type="file" id="ryod-file-import" accept=".json,.ryod.json" style="display:none;">
@@ -923,7 +1082,7 @@
                         <span id="ryod-status-msg" style="font-size:0.72rem; color:#f5d77f;"></span>
                     </div>
                     <div class="ryod-btn-row">
-                        <button type="button" id="btn-ryod-launch" class="ryod-btn-primary">⚔️ Enter Rolled Dungeon</button>
+                        <button type="button" id="btn-ryod-launch" class="ryod-btn-primary">⚔️ Delve Now</button>
                     </div>
                 </div>
             </div>
@@ -1016,9 +1175,39 @@
             }
         });
 
-        setTxt('ryod-preview-title', `${bp.title} (${bp.hasTown ? 'Town + ' : ''}${bp.goalDepth}F • ${hero.roleName || hero.id} • ${mutSpec.label ? String(mutSpec.label).split('(')[0].trim() : 'Balanced'})`);
+        const mutLabelMap = {};
+        (lists.mutators || []).forEach(m => {
+            if (m && m.id) mutLabelMap[m.id] = String(m.label || m.id).replace(/\s*\([^)]*\)/g, '').trim();
+        });
+        const activeMuts = Array.isArray(_diceState.mutators) ? _diceState.mutators : [];
+        const twistSummary = activeMuts.length > 0
+            ? activeMuts.map(id => mutLabelMap[id] || id).join(' + ')
+            : (mutSpec.label ? String(mutSpec.label).split('(')[0].trim() : 'Balanced');
+
+        // Zone 1: Highlight active Arcade Adventure if matching
+        _modalEl.querySelectorAll('.ryod-adv-card').forEach(card => {
+            const advId = card.getAttribute('data-arcade-adv');
+            card.classList.toggle('active', Boolean(_activeArcadeAdvId && advId === _activeArcadeAdvId));
+        });
+
+        // Zone 2: Sync 3-Pick Toybox pills & twist cap counter
+        const curBiomeId = (lists.biomes[_diceState.biomeIdx] || {}).id;
+        _modalEl.querySelectorAll('[data-pick-biome]').forEach(btn => {
+            btn.classList.toggle('active', btn.getAttribute('data-pick-biome') === curBiomeId);
+        });
+        const curHeroId = (lists.heroes[_diceState.heroIdx] || {}).id;
+        _modalEl.querySelectorAll('[data-pick-hero]').forEach(btn => {
+            btn.classList.toggle('active', btn.getAttribute('data-pick-hero') === curHeroId);
+        });
+        _modalEl.querySelectorAll('[data-toggle-mutator]').forEach(btn => {
+            btn.classList.toggle('active', activeMuts.includes(btn.getAttribute('data-toggle-mutator')));
+        });
+        setTxt('ryod-twist-count', `(${activeMuts.length}/3)`);
+
+        setTxt('ryod-preview-title', `${bp.title} (${bp.hasTown ? 'Town + ' : ''}${bp.goalDepth}F • ${hero.roleName || hero.id} • ${twistSummary})`);
         setTxt('ryod-preview-hash', `${bp.ryodHash} • Seed #${bp.seed}`);
         setTxt('ryod-preview-premise', bp.elderRumor || bp.subtitle || '');
+        setTxt('btn-ryod-launch', `⚔️ Delve Into ${String(bp.title || 'Custom Realm').slice(0, 32)} • ${bp.goalDepth || 15}F`);
 
         renderSavedShelf();
     }
@@ -1081,8 +1270,95 @@
     }
 
     function bindModalEvents(overlay) {
+        const blitzBtn = overlay.querySelector('#btn-ryod-daily-blitz');
+        if (blitzBtn) {
+            blitzBtn.addEventListener('click', () => launchDailyBlitz());
+        }
+
+        overlay.querySelectorAll('[data-arcade-adv]').forEach(card => {
+            const triggerAdv = (e) => {
+                const advId = card.getAttribute('data-arcade-adv');
+                if (advId) applyArcadeAdventure(advId, !(e && e.altKey));
+            };
+            card.addEventListener('click', triggerAdv);
+            card.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    triggerAdv(e);
+                }
+            });
+        });
+
+        overlay.querySelectorAll('[data-pick-biome]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const idx = Number(btn.getAttribute('data-pick-idx'));
+                if (!Number.isNaN(idx) && idx >= 0) {
+                    _activeArcadeAdvId = null;
+                    _diceState.biomeIdx = idx;
+                    playDiceSfx();
+                    recompileFromDice();
+                }
+            });
+        });
+
+        overlay.querySelectorAll('[data-pick-hero]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const idx = Number(btn.getAttribute('data-pick-idx'));
+                if (!Number.isNaN(idx) && idx >= 0) {
+                    _activeArcadeAdvId = null;
+                    _diceState.heroIdx = idx;
+                    playDiceSfx();
+                    recompileFromDice();
+                }
+            });
+        });
+
+        overlay.querySelectorAll('[data-toggle-mutator]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const mutId = btn.getAttribute('data-toggle-mutator');
+                if (!mutId) return;
+                _activeArcadeAdvId = null;
+                const cur = Array.isArray(_diceState.mutators) ? _diceState.mutators.slice() : [];
+                const existingIdx = cur.indexOf(mutId);
+                if (existingIdx >= 0) {
+                    cur.splice(existingIdx, 1);
+                } else {
+                    if (cur.length >= 3) {
+                        setStatus('⚠️ Max 3 Wild Twists can be stacked at once (clear or untoggle one first).');
+                        return;
+                    }
+                    cur.push(mutId);
+                    if (mutId === 'boss_rush' && _diceState.goalDepth === 15) {
+                        _diceState.goalDepth = 8;
+                    }
+                }
+                _diceState.mutators = cur;
+                const lists = getLists();
+                const primId = cur[0] || 'balanced';
+                const mIdx = lists.mutators.findIndex(m => m.id === primId);
+                if (mIdx >= 0) _diceState.mutatorIdx = mIdx;
+                playDiceSfx();
+                recompileFromDice();
+            });
+        });
+
+        const clearMutBtn = overlay.querySelector('#btn-ryod-clear-mutators');
+        if (clearMutBtn) {
+            clearMutBtn.addEventListener('click', () => {
+                _activeArcadeAdvId = null;
+                _diceState.mutators = [];
+                const lists = getLists();
+                const balIdx = lists.mutators.findIndex(m => m.id === 'balanced');
+                if (balIdx >= 0) _diceState.mutatorIdx = balIdx;
+                playDiceSfx();
+                recompileFromDice();
+                setStatus('Cleared active Wild Twists.');
+            });
+        }
+
         overlay.querySelectorAll('[data-masterwork]').forEach(btn => {
             btn.addEventListener('click', () => {
+                _activeArcadeAdvId = null;
                 const presetId = btn.getAttribute('data-masterwork');
                 applyMasterworkPreset(presetId);
                 overlay.querySelectorAll('[data-masterwork]').forEach(b => b.classList.toggle('active', b === btn));
@@ -1143,12 +1419,18 @@
             sel.addEventListener('change', () => {
                 const slot = sel.getAttribute('data-select-die');
                 const val = Number(sel.value) || 0;
+                _activeArcadeAdvId = null;
                 if (slot === 'biome') _diceState.biomeIdx = val;
                 else if (slot === 'bestiary') _diceState.bestiaryIdx = val;
                 else if (slot === 'story') _diceState.storyIdx = val;
                 else if (slot === 'hero') _diceState.heroIdx = val;
                 else if (slot === 'discipline') _diceState.disciplineIdx = val;
-                else if (slot === 'mutator') _diceState.mutatorIdx = val;
+                else if (slot === 'mutator') {
+                    _diceState.mutatorIdx = val;
+                    const lists = getLists();
+                    const chosenMut = lists.mutators[val];
+                    _diceState.mutators = chosenMut && chosenMut.id !== 'balanced' ? [chosenMut.id] : [];
+                }
                 playDiceSfx();
                 recompileFromDice();
             });
@@ -1243,8 +1525,9 @@
         const depthBtn = overlay.querySelector('#btn-ryod-cycle-depth');
         if (depthBtn) {
             depthBtn.addEventListener('click', () => {
-                const depths = [10, 15, 25];
-                _diceState.goalDepth = depths[(depths.indexOf(_diceState.goalDepth) + 1) % depths.length];
+                const depths = [8, 10, 15, 25];
+                const curIdx = depths.indexOf(_diceState.goalDepth);
+                _diceState.goalDepth = depths[(curIdx >= 0 ? curIdx + 1 : 0) % depths.length];
                 playDiceSfx();
                 recompileFromDice();
             });
@@ -1390,12 +1673,44 @@
         }
     }
 
+    function applyArcadeAdventure(advId, autoLaunch = false) {
+        const compiler = getCompiler();
+        if (!compiler || !Array.isArray(compiler.ARCADE_ADVENTURES)) return null;
+        const preset = compiler.ARCADE_ADVENTURES.find(a => a.id === advId);
+        if (!preset) return null;
+        const cfg = { ...preset, customTitle: preset.customTitle || preset.title };
+        const bp = compiler.normalizeConfig(cfg);
+        _activeArcadeAdvId = advId;
+        _hasImportedBlueprint = true;
+        syncDiceStateFromBlueprint(bp);
+        applyBlueprintToRuntime(bp);
+        renderDiceUI();
+        setStatus(`⚡ Loaded "${bp.title}"!`);
+        if (autoLaunch) launchRyodAdventure(bp, true);
+        return bp;
+    }
+
+    function launchDailyBlitz(dateStr) {
+        const compiler = getCompiler();
+        if (!compiler || typeof compiler.rollDailyBlitzBlueprint !== 'function') return null;
+        const bp = compiler.rollDailyBlitzBlueprint(dateStr);
+        _activeArcadeAdvId = null;
+        _hasImportedBlueprint = true;
+        syncDiceStateFromBlueprint(bp);
+        applyBlueprintToRuntime(bp);
+        renderDiceUI();
+        setStatus(`📅 Daily Blitz Ready: "${bp.title}"!`);
+        launchRyodAdventure(bp, true);
+        return bp;
+    }
+
     function applyMasterworkPreset(presetId) {
         const compiler = getCompiler();
         if (!compiler || !compiler.MASTERWORK_PRESETS) return null;
         const preset = compiler.MASTERWORK_PRESETS.find(p => p.id === presetId);
         if (!preset) return null;
         const bp = compiler.normalizeConfig(preset);
+        _activeArcadeAdvId = null;
         _hasImportedBlueprint = true;
         syncDiceStateFromBlueprint(bp);
         applyBlueprintToRuntime(bp);
@@ -1422,9 +1737,10 @@
     function open(opts = {}) {
         const modal = buildModalDOM();
         if (!modal) return;
-        // Every time you open the RYOD Dice Forge, give the unlocked dice a fresh roll so it immediately feels alive!
-        if (!opts.preserveBlueprint && !_hasImportedBlueprint) {
+        if (opts.forceReroll || !_currentBlueprint) {
             rollAllUnlockedDice();
+        } else {
+            renderDiceUI();
         }
         modal.classList.remove('hidden');
     }
@@ -1460,7 +1776,10 @@
         close,
         isOpen,
         quickRandomizeAndLaunch,
+        applyArcadeAdventure,
+        launchDailyBlitz,
         applyMasterworkPreset,
-        MASTERWORK_PRESETS: (getCompiler() && getCompiler().MASTERWORK_PRESETS) || []
+        MASTERWORK_PRESETS: (getCompiler() && getCompiler().MASTERWORK_PRESETS) || [],
+        ARCADE_ADVENTURES: (getCompiler() && getCompiler().ARCADE_ADVENTURES) || []
     };
 });

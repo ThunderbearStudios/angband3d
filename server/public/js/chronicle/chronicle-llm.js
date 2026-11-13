@@ -8,9 +8,10 @@
 // Curated Google AI Studio Free Tier model chain for automatic failover in order of confirmed working capability
 const FREE_TIER_CHAIN = [
     'gemini-3.8-flash',      // Flagship Flash (Highest intelligence, New Stable)
-    'gemini-3.5-flash-lite', // High-throughput, ultra-cost-effective skirmish/parley tier (Stable)
+    'gemini-3.7-flash',      // Fast cascade tier (Stable)
     'gemini-3.6-flash',      // Balanced Flash (Stable)
     'gemini-3.5-flash',      // Foundational Flash (Stable)
+    'gemini-3.5-flash-lite', // High-throughput, ultra-cost-effective skirmish/parley tier (Stable)
     'gemini-3.1-flash-lite', // Frontier-class lightweight (Stable)
     'gemini-4-argon',        // Next-gen frontier reasoning & narrative model
     'gemini-2.5-flash',      // Proven hybrid reasoning (Stable)
@@ -132,6 +133,7 @@ class ChronicleLLMBridge {
         this.recentStoryThread = [];
 
         this.hasServerKey = false;
+        this._serverDepletedUntil = 0;
         this.loadSettings();
         this.fetchServerKeyIfEmpty();
     }
@@ -286,6 +288,9 @@ class ChronicleLLMBridge {
     }
 
     isConfigured() {
+        if (!this.apiKey && this._serverDepletedUntil && Date.now() < this._serverDepletedUntil) {
+            return false;
+        }
         return this.provider !== 'offline' && (this.hasServerKey || Boolean(this.apiKey && this.apiKey.length > 5));
     }
 
@@ -760,7 +765,14 @@ Rules:
                 }
             }
 
-            // Authentication / Authorization / Bad Request errors (400, 401, 403) must NOT cascade across models
+            // Authentication / Authorization / Depleted Key / Bad Request (400, 401, 402, 403) must NOT cascade across models
+            if (res.status === 402) {
+                if (!this.apiKey) {
+                    this._serverDepletedUntil = Date.now() + 15 * 60 * 1000;
+                }
+                this.notifyStatus('🛡️ Server AI credits exhausted — seamlessly using offline Chronicle lore', true);
+                throw new Error(`Gemini payment/quota depleted (402): ${errMsg}`);
+            }
             if (res.status === 400 || res.status === 401 || res.status === 403) {
                 this.notifyStatus(`⚠️ Gemini Authentication/Request error (${res.status}): ${errMsg}`, true);
                 throw new Error(`Gemini Authentication/Request error (${res.status}): ${errMsg}`);

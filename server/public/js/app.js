@@ -216,11 +216,11 @@ window.addEventListener('DOMContentLoaded', () => {
             lorekeeper: 'Master of the Original Dungeons of Doom'
         },
         ryod: {
-            name: 'Roll Your Own Dungeon (RYOD)',
-            shortName: 'RYOD Forge',
-            tagline: 'Roll the Realm Dice or Pick Directly • 3D Worlds • 5-Act Plots • Monster Avatars',
-            desc: 'Roll the dice or pick directly across 6 Tabletop Cards: 3D Biomes & Map Layouts, Bestiary Factions, 5-Act Plots, Monster Avatars & Pets, Power Disciplines, and World Mutators.',
-            voiceAccent: 'The Grand Architect (Enceladus)',
+            name: 'Roll Your Own Dungeon 3.0',
+            shortName: 'RYOD Toybox',
+            tagline: 'Daily Blitz • 1-Click Adventures • Stackable Wild Twists',
+            desc: 'Launch Today\'s Daily Blitz, jump into 6 curated 1-click Adventures, or customize any 3D Arena, Hero or Monster Avatar (Dragon, Beholder, Arch-Lich), and up to 3 Wild Twists.',
+            voiceAccent: 'The Grand Architect',
             lorekeeper: 'The Grand Architect'
         }
     };
@@ -2559,7 +2559,15 @@ window.addEventListener('DOMContentLoaded', () => {
         if (input) input.setTerminalMode(false);
         if (pauseCharDisplay && lastFrame && lastFrame.player) {
             const p = lastFrame.player;
-            const charDesc = p.name ? `${p.name} (${p.race || ''} ${p.class || ''})` : 'Hero of Angband';
+            const trHeng = (val) => {
+                if (!val || activeRealm !== 'hengband' || langMode === 'jp') return val || '';
+                if (JP_TERM_TRANSLATIONS && JP_TERM_TRANSLATIONS[val]) return JP_TERM_TRANSLATIONS[val];
+                if (window.HengTranslate && typeof window.HengTranslate.translateName === 'function') {
+                    return window.HengTranslate.translateName(val, 1, langMode) || val;
+                }
+                return val;
+            };
+            const charDesc = p.name ? `${p.name} (${trHeng(p.race)} ${trHeng(p.class)})` : 'Hero of Angband';
             pauseCharDisplay.textContent = `Current Character: ${charDesc}`;
         }
         selectedPauseIndex = 0;
@@ -3426,8 +3434,10 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 
     function selectMenuItem(index) {
-        if (index >= 0 && index < menuOptionBtns.length) {
-            selectedMenuIndex = index;
+        const domIdx = Array.from(menuOptionBtns).findIndex((b) => Number(b.dataset.index) === index);
+        const resolved = domIdx >= 0 ? domIdx : index;
+        if (resolved >= 0 && resolved < menuOptionBtns.length) {
+            selectedMenuIndex = resolved;
             updateMenuSelectionUI();
         }
     }
@@ -3484,7 +3494,9 @@ window.addEventListener('DOMContentLoaded', () => {
 
     function activateMenuItem(overrideIndex = null) {
         if (audio) audio.playMenuSelect();
-        const idx = overrideIndex !== null ? overrideIndex : selectedMenuIndex;
+        const selBtn = menuOptionBtns[selectedMenuIndex];
+        const defaultIdx = (selBtn && selBtn.dataset.index !== undefined) ? Number(selBtn.dataset.index) : selectedMenuIndex;
+        const idx = overrideIndex !== null ? overrideIndex : defaultIdx;
         const menuActions = [
             () => latestSave ? startGame({ charName: latestSave.characterName || 'Adventurer', saveFile: latestSave.filename, isNew: false, autoBirth: false }) : startNewRandomHero(),
             () => showLoadMenu(false), startNewRandomHero, startNewCustomHero,
@@ -4127,11 +4139,7 @@ window.addEventListener('DOMContentLoaded', () => {
     // Splash Screen -> Realm Collector Card Carousel -> Realm-Attuned Main Menu -> Character Creation -> Play
     function enterFromSplash() {
         if (appState !== 'splash') return;
-        if (_bootRealm || _bootParams.get('bp') || _bootSeed) {
-            showMainMenu();
-            return;
-        }
-        showRealmSelector('splash');
+        showMainMenu();
     }
 
     // Attach DOM event listeners for splash billboard & compatibility buttons
@@ -4272,7 +4280,7 @@ window.addEventListener('DOMContentLoaded', () => {
         startGame({ realm: effRealm, isNew: true, autoBirth: true, seed: dailySeed, charName: 'DailyHero' });
     }
 
-    [['btn-menu-guide', () => showGuide(0, 'mainMenu')], ['btn-menu-credits', () => showGuide(6, 'mainMenu')], ['btn-menu-realms', () => showRealmSelector('mainMenu')], ['btn-menu-daily-seed', () => launchDailySeededDescent()], ['btn-menu-ryod-forge', () => { if (activeRealm !== 'ryod') selectRealm('ryod', false); if (window.RyodForge && typeof window.RyodForge.open === 'function') window.RyodForge.open(); }], ['btn-menu-ryod-main', () => { if (activeRealm !== 'ryod') selectRealm('ryod', false); if (window.RyodForge && typeof window.RyodForge.open === 'function') window.RyodForge.open(); }], ['btn-menu-ryod-quick', () => { if (activeRealm !== 'ryod') selectRealm('ryod', false); if (window.RyodForge && typeof window.RyodForge.quickRandomizeAndLaunch === 'function') window.RyodForge.quickRandomizeAndLaunch(); }]].forEach(([id, fn]) => {
+    [['btn-menu-guide', () => showGuide(0, 'mainMenu')], ['btn-menu-credits', () => showGuide(6, 'mainMenu')], ['btn-menu-realms', () => { if (appState === 'realmModal' || (realmModal && !realmModal.classList.contains('hidden'))) hideRealmSelector(); else showRealmSelector('mainMenu'); }], ['btn-menu-daily-seed', () => launchDailySeededDescent()], ['btn-menu-ryod-forge', () => { if (activeRealm !== 'ryod') selectRealm('ryod', false); if (window.RyodForge && typeof window.RyodForge.open === 'function') window.RyodForge.open(); }], ['btn-menu-ryod-main', () => { if (activeRealm !== 'ryod') selectRealm('ryod', false); if (window.RyodForge && typeof window.RyodForge.open === 'function') window.RyodForge.open(); }], ['btn-menu-ryod-quick', () => { if (activeRealm !== 'ryod') selectRealm('ryod', false); if (window.RyodForge && typeof window.RyodForge.quickRandomizeAndLaunch === 'function') window.RyodForge.quickRandomizeAndLaunch(); }]].forEach(([id, fn]) => {
         const el = document.getElementById(id);
         if (el) bindFastTap(el, fn);
     });
@@ -5046,7 +5054,8 @@ window.addEventListener('DOMContentLoaded', () => {
         bindFastTap(btn, () => {
             selectedMenuIndex = idx;
             updateMenuSelectionUI();
-            activateMenuItem();
+            const actionIdx = btn.dataset.index !== undefined ? Number(btn.dataset.index) : idx;
+            activateMenuItem(actionIdx);
         });
         btn.addEventListener('mouseenter', () => {
             selectedMenuIndex = idx;
@@ -5305,7 +5314,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 const grounder = window.chronicleManager.grounder || window.ChronicleGrounder;
                 const tradition = (grounder && typeof grounder.getTraditionForRealm === 'function')
                     ? grounder.getTraditionForRealm(realmKey)
-                    : (realmKey === 'frogcomposband' ? 'mythicbard' : realmKey === 'hengband' ? 'easternmythos' : realmKey === 'silq' ? 'beleriand' : 'westmarch');
+                    : (realmKey === 'frogcomposband' ? 'amber' : realmKey === 'hengband' ? 'easternmythos' : realmKey === 'silq' ? 'beleriand' : 'westmarch');
                 window.chronicleManager.tradition = tradition;
                 if (window.chronicleManager.audio && typeof window.chronicleManager.audio.setTradition === 'function') {
                     window.chronicleManager.audio.setTradition(tradition);
@@ -5547,8 +5556,8 @@ window.addEventListener('DOMContentLoaded', () => {
         }
         // 2. Main Menu UI Synchronization
         setTxt('menu-active-realm-name', realm.name);
-        setTxt('main-menu-subtitle', `${realm.tagline} • ${realm.voiceAccent}`);
-        setTxt('main-menu-realm-tagline', `${realm.tagline} • ${realm.voiceAccent}`);
+        setTxt('main-menu-subtitle', realm.tagline);
+        setTxt('main-menu-realm-tagline', realm.tagline);
         setTxt('menu-active-realm-desc', realm.desc || realm.tagline);
         const menuHeroArt = document.getElementById('menu-realm-hero-art');
         if (menuHeroArt) {
@@ -5556,6 +5565,13 @@ window.addEventListener('DOMContentLoaded', () => {
             if (!menuHeroArt.getAttribute('src') || !menuHeroArt.getAttribute('src').endsWith(`${activeRealm || 'angband'}.webp`)) {
                 menuHeroArt.src = artPath;
             }
+            const realmArtFocus = {
+                angband: 'center 24%', frogcomposband: 'center 32%', hengband: 'center 28%',
+                silq: 'center 26%', nethack: 'center 30%', dcss: 'center 30%',
+                brogue: 'center 35%', rogue: 'center center', ryod: 'center 28%'
+            };
+            menuHeroArt.style.objectFit = realm.artFit || (activeRealm === 'rogue' ? 'contain' : 'cover');
+            menuHeroArt.style.objectPosition = realm.artPos || realmArtFocus[activeRealm] || 'center 28%';
             menuHeroArt.alt = `${realm.name} Artwork`;
         }
         const menuRealmSelect = document.getElementById('main-menu-realm-select');
@@ -5652,6 +5668,9 @@ window.addEventListener('DOMContentLoaded', () => {
         appState = 'realmModal';
         updateRealmUI();
         hideModals(realmModal);
+        if (fromState === 'mainMenu' && mainMenuOverlay) {
+            mainMenuOverlay.classList.remove('hidden');
+        }
         if (window.RealmCarousel && typeof window.RealmCarousel.open === 'function') {
             window.RealmCarousel.open(fromState === 'splash' ? 'splash' : 'menu', activeRealm);
         } else if (realmModal) {

@@ -321,7 +321,7 @@ test('all 8 realms define accurate keybindings and never swallow native keys in 
         assert(list.length >= 25, `Realm '${r}' must define >= 25 commands (got ${list.length})`);
     }
     // DCSS pins
-    assert.strictEqual(ActionCatalog.keyFor('eat', 'dcss'), 'e');
+    assert.strictEqual(ActionCatalog.keyFor('eat', 'dcss'), 'E');
     assert.strictEqual(ActionCatalog.keyFor('cast', 'dcss'), 'z');
     assert.strictEqual(ActionCatalog.keyFor('aim', 'dcss'), 'V');
     assert.strictEqual(ActionCatalog.keyFor('power', 'dcss'), 'a');
@@ -338,7 +338,7 @@ test('all 8 realms define accurate keybindings and never swallow native keys in 
     assert.strictEqual(ActionCatalog.keyFor('cast', 'brogue'), null);
 
     // Rogue pins
-    assert.strictEqual(ActionCatalog.keyFor('eat', 'rogue'), 'e');
+    assert.strictEqual(ActionCatalog.keyFor('eat', 'rogue'), 'E');
     assert.strictEqual(ActionCatalog.keyFor('aim', 'rogue'), 'z');
     assert.strictEqual(ActionCatalog.keyFor('throw', 'rogue'), 't');
     assert.strictEqual(ActionCatalog.keyFor('takeoff', 'rogue'), 'T');

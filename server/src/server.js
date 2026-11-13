@@ -247,8 +247,8 @@ const GEMINI_VOICE_MAP = {
     mentor: 'Enceladus',         // Locked to canonical British RP Storyteller ('Enceladus') across all realms
     idiot: 'Puck',              // Upbeat, blubbering, eccentric babbler
     female_townsperson: 'Aoede', // Breezy, lyrical, gentle townsfolk
-    male_townsperson: 'Sulafat',
-    townsperson: 'Sulafat',
+    male_townsperson: 'Orus',
+    townsperson: 'Orus',
     female_rogue: 'Kore',       // Firm, gritty, sharp martial cadence
     male_rogue: 'Orus',         // Disciplined, raspy cutthroat
     rogue: 'Orus',
@@ -366,8 +366,19 @@ function redactSecret(val, secret = '') {
     return sanitized;
 }
 
-let _gcpAuthCache = { token: '', projectId: process.env.GOOGLE_CLOUD_PROJECT || process.env.GCLOUD_PROJECT || process.env.GCP_PROJECT || '', expiresAt: 0, inflight: null };
+let _gcpAuthCache = { token: '', projectId: process.env.GOOGLE_CLOUD_PROJECT || process.env.GCLOUD_PROJECT || process.env.GCP_PROJECT || '', expiresAt: 0, inflight: null, failedUntil: 0 };
 let _aiStudioDepletedUntil = 0;
+
+function hasVertexCandidate() {
+    return Boolean(
+        process.env.GOOGLE_CLOUD_PROJECT ||
+        process.env.GCLOUD_PROJECT ||
+        process.env.GCP_PROJECT ||
+        process.env.GOOGLE_APPLICATION_CREDENTIALS ||
+        process.env.K_SERVICE ||
+        (_gcpAuthCache && _gcpAuthCache.token && _gcpAuthCache.projectId)
+    );
+}
 
 function fetchMetadataText(metaPath) {
     return new Promise(resolve => {
@@ -396,7 +407,7 @@ function runGcloudCmd(args) {
             return resolve('');
         }
         let out = '';
-        const t = setTimeout(() => { try { proc.kill(); } catch (_) {} resolve(''); }, 4000);
+        const t = setTimeout(() => { try { proc.kill(); } catch (_) {} resolve(''); }, 10000);
         proc.stdout.on('data', d => out += d);
         proc.on('error', () => { clearTimeout(t); resolve(''); });
         proc.on('close', code => {
@@ -415,10 +426,14 @@ function getGcpAuthContext() {
         return Promise.resolve({ token: '', projectId: '' });
     }
     if (_gcpAuthCache.inflight) return _gcpAuthCache.inflight;
-    _gcpAuthCache.inflight = Promise.all([
-        fetchMetadataText('instance/service-accounts/default/token'),
-        _gcpAuthCache.projectId ? Promise.resolve(_gcpAuthCache.projectId) : fetchMetadataText('project/project-id')
-    ]).then(async ([rawTokenJson, metaProject]) => {
+    const onGcpMetadataEnv = Boolean(process.env.K_SERVICE || process.env.GOOGLE_CLOUD_PROJECT || process.env.CLOUD_RUN_JOB);
+    const metaPromise = onGcpMetadataEnv
+        ? Promise.all([
+            fetchMetadataText('instance/service-accounts/default/token'),
+            _gcpAuthCache.projectId ? Promise.resolve(_gcpAuthCache.projectId) : fetchMetadataText('project/project-id')
+        ])
+        : Promise.resolve(['', _gcpAuthCache.projectId]);
+    _gcpAuthCache.inflight = metaPromise.then(async ([rawTokenJson, metaProject]) => {
         if (metaProject) _gcpAuthCache.projectId = metaProject;
         if (rawTokenJson) {
             try {
@@ -454,15 +469,17 @@ function getGcpAuthContext() {
 // Proxies text-to-speech to Gemini Native Audio (gemini-3.8-flash-tts / gemini-3.8-flash-lite-tts / gemini-3.1-flash-tts-preview) with Vertex AI failover
 function synthesizeGeminiTTS({ text, voice, emotion, geminiTag, directorNote, role, apiKey, realm = 'angband', lang = 'en', isRetry = false }) {
     return new Promise((resolve, reject) => {
-        if (!apiKey) {
+        if (!apiKey && !hasVertexCandidate()) {
             return reject(new Error('No Gemini API key provided'));
         }
         const baseReqOpts = { method: 'POST', agent: geminiHttpsAgent, timeout: 20000 };
+        const cleanTranscript = String(text || '').replace(/^\s*(?:\[[^\]]+\]|\*[^*]+\*)\s*/g, '').trim() || String(text || '');
+        const isShortLiveBeat = cleanTranscript.length > 0 && cleanTranscript.length < 220 && String(role || '').toLowerCase() !== 'mentor';
         const ttsModels = ['gemini-3.8-flash-tts', 'gemini-3.1-flash-tts-preview'];
+        if (isShortLiveBeat) ttsModels.unshift('gemini-3.8-flash-lite-tts');
         const retryIdx = typeof isRetry === 'number' ? isRetry : (isRetry ? 1 : 0);
         const ttsModel = ttsModels[Math.min(retryIdx, ttsModels.length - 1)];
         const isGemini38Tts = ttsModel.startsWith('gemini-3.8');
-        const cleanTranscript = String(text || '').replace(/^\s*(?:\[[^\]]+\]|\*[^*]+\*)\s*/g, '').trim() || String(text || '');
 
         let promptText = cleanTranscript;
         let tag = '';
@@ -521,7 +538,7 @@ function synthesizeGeminiTTS({ text, voice, emotion, geminiTag, directorNote, ro
             }
         }
 
-        const partObj = { text: promptText };
+        const partObj = { text: isGemini38Tts ? cleanTranscript : promptText };
         if (isGemini38Tts && styleInstruction && retryIdx === 0) {
             partObj.speech_metadata = { style: styleInstruction };
         }
@@ -595,13 +612,13 @@ function synthesizeGeminiTTS({ text, voice, emotion, geminiTag, directorNote, ro
                     errMsg = `HTTP ${res.statusCode}: ${body.substring(0, 100)}`;
                 }
                 const safeErrMsg = redactSecret(errMsg.replace(/[\r\n\t]+/g, ' ').substring(0, 120), apiKey);
-                if (!usedVertex && (res.statusCode === 402 || res.statusCode === 429 || res.statusCode === 503)) {
-                    if (res.statusCode === 402 && apiKey === process.env.GEMINI_API_KEY) {
+                if (!usedVertex && (res.statusCode === 401 || res.statusCode === 402 || res.statusCode === 403 || res.statusCode === 429 || res.statusCode === 503)) {
+                    if (res.statusCode === 402 && apiKey && apiKey === process.env.GEMINI_API_KEY) {
                         _aiStudioDepletedUntil = Date.now() + 15 * 60 * 1000;
                     }
                     return sendViaVertex(safeErrMsg);
                 }
-                if (retryIdx + 1 < ttsModels.length && (res.statusCode === 400 || res.statusCode === 404 || res.statusCode === 429 || res.statusCode === 503)) {
+                if (retryIdx + 1 < ttsModels.length && (res.statusCode === 429 || res.statusCode === 500 || res.statusCode === 503)) {
                     return synthesizeGeminiTTS({ text, voice, emotion, geminiTag, directorNote, role, apiKey, realm, lang, isRetry: retryIdx + 1 }).then(resolve).catch(reject);
                 }
                 return reject(new Error(safeErrMsg));
@@ -655,7 +672,7 @@ function synthesizeGeminiTTS({ text, voice, emotion, geminiTag, directorNote, ro
             }
         }
 
-        if (apiKey.startsWith('AQ.') || (Date.now() < _aiStudioDepletedUntil && apiKey === process.env.GEMINI_API_KEY)) {
+        if (!apiKey || apiKey.startsWith('AQ.') || (Date.now() < _aiStudioDepletedUntil && apiKey === process.env.GEMINI_API_KEY)) {
             return sendViaVertex();
         }
 
@@ -1421,16 +1438,19 @@ const server = http.createServer((req, res) => {
     // REST: Protected LLM Configuration Provider (Never exposes raw secret key to browser)
     if (pathname === '/api/config/llm' && req.method === 'GET') {
         const apiKey = process.env.GEMINI_API_KEY || '';
+        const vertexReady = hasVertexCandidate();
+        const hasKey = Boolean(apiKey || vertexReady);
+        const provider = (apiKey && Date.now() >= _aiStudioDepletedUntil) ? 'gemini' : (vertexReady ? 'vertex' : 'offline');
         res.writeHead(200, {
             'Content-Type': 'application/json',
             'Cache-Control': 'no-cache, no-store, must-revalidate'
         });
         res.end(JSON.stringify({
-            hasKey: !!apiKey,
-            hasServerKey: !!apiKey,
+            hasKey,
+            hasServerKey: hasKey,
             defaultModel: 'gemini-3.8-flash',
             models: ALLOWED_MODELS,
-            provider: apiKey ? 'gemini' : 'offline'
+            provider
         }));
         return;
     }
@@ -1510,10 +1530,11 @@ const server = http.createServer((req, res) => {
                 generationConfig
             };
 
-            // Key resolution: client header override allowed, else server environment
-            const apiKey = req.headers['x-goog-api-key'] || req.headers['x-api-key'] || process.env.GEMINI_API_KEY || '';
+            // Key resolution: client header override allowed, else server environment or Vertex ADC
+            const customApiKey = String(req.headers['x-goog-api-key'] || req.headers['x-api-key'] || '').trim();
+            const apiKey = customApiKey || process.env.GEMINI_API_KEY || '';
 
-            if (!apiKey) {
+            if (!apiKey && !hasVertexCandidate()) {
                 res.writeHead(401, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ error: { message: 'No Gemini API key configured on server or request.' } }));
                 return;
@@ -1525,7 +1546,7 @@ const server = http.createServer((req, res) => {
 
             function handleLlmResponse(upstreamRes, respBody, usedVertex) {
                 if (upstreamRes.statusCode !== 200 && !usedVertex && (upstreamRes.statusCode === 402 || upstreamRes.statusCode === 403 || upstreamRes.statusCode === 404 || upstreamRes.statusCode === 429 || upstreamRes.statusCode === 500 || upstreamRes.statusCode === 503)) {
-                    if (upstreamRes.statusCode === 402 && apiKey === process.env.GEMINI_API_KEY) {
+                    if (upstreamRes.statusCode === 402 && !customApiKey && apiKey === process.env.GEMINI_API_KEY) {
                         _aiStudioDepletedUntil = Date.now() + 15 * 60 * 1000;
                     }
                     return sendLlmViaVertex(upstreamRes.statusCode, respBody);
@@ -1555,7 +1576,7 @@ const server = http.createServer((req, res) => {
                 }
             }
 
-            function sendLlmViaVertex(fallbackStatus = 502, fallbackBody = '') {
+            function sendLlmViaVertex(fallbackStatus = 502, fallbackBody = '', vertexOverrideModel = '', retriedStable = false) {
                 getGcpAuthContext().then(({ token, projectId }) => {
                     if (!token || !projectId) {
                         if (!res.headersSent) {
@@ -1565,7 +1586,8 @@ const server = http.createServer((req, res) => {
                         }
                         return;
                     }
-                    const vUrl = `https://aiplatform.googleapis.com/v1beta1/projects/${encodeURIComponent(projectId)}/locations/global/publishers/google/models/${encodeURIComponent(vertexLlmModel)}:generateContent`;
+                    const chosenModel = vertexOverrideModel || vertexLlmModel;
+                    const vUrl = `https://aiplatform.googleapis.com/v1beta1/projects/${encodeURIComponent(projectId)}/locations/global/publishers/google/models/${encodeURIComponent(chosenModel)}:generateContent`;
                     const vReq = https.request(vUrl, {
                         method: 'POST',
                         agent: geminiHttpsAgent,
@@ -1578,7 +1600,12 @@ const server = http.createServer((req, res) => {
                     }, vRes => {
                         let vBody = '';
                         vRes.on('data', c => vBody += c);
-                        vRes.on('end', () => handleLlmResponse(vRes, vBody, true));
+                        vRes.on('end', () => {
+                            if (vRes.statusCode === 404 && !retriedStable && chosenModel !== 'gemini-2.5-flash') {
+                                return sendLlmViaVertex(404, vBody, 'gemini-2.5-flash', true);
+                            }
+                            handleLlmResponse(vRes, vBody, true);
+                        });
                     });
                     vReq.on('timeout', () => {
                         vReq.destroy();
@@ -1598,7 +1625,7 @@ const server = http.createServer((req, res) => {
                 });
             }
 
-            if (apiKey.startsWith('AQ.') || (Date.now() < _aiStudioDepletedUntil && apiKey === process.env.GEMINI_API_KEY)) {
+            if (!apiKey || apiKey.startsWith('AQ.') || (!customApiKey && Date.now() < _aiStudioDepletedUntil && apiKey === process.env.GEMINI_API_KEY)) {
                 sendLlmViaVertex();
                 return;
             }
@@ -1688,7 +1715,7 @@ const server = http.createServer((req, res) => {
                 return;
             }
 
-            const cacheKey = crypto.createHash('sha256').update(realm + ':' + prompt.trim().slice(0, 640)).digest('hex');
+            const cacheKey = crypto.createHash('sha256').update(realm + ':' + prompt.trim()).digest('hex');
             if (sketchCache.has(cacheKey)) {
                 const cachedImg = sketchCache.get(cacheKey);
                 sketchCache.delete(cacheKey);
@@ -1747,7 +1774,9 @@ const server = http.createServer((req, res) => {
                 customKey,
                 geminiHttpsAgent,
                 getGcpAuthContext,
-                redactSecret
+                redactSecret,
+                isAiStudioDepleted: () => (!customKey && apiKey === process.env.GEMINI_API_KEY && Date.now() < _aiStudioDepletedUntil),
+                onAiStudioDepleted: () => { if (!customKey && apiKey === process.env.GEMINI_API_KEY) _aiStudioDepletedUntil = Date.now() + 15 * 60 * 1000; }
             }).then((result) => {
                 if (result && result.ok && result.imageUrl) {
                     if (sketchCache.size >= MAX_SKETCH_CACHE_ITEMS) {
@@ -1845,12 +1874,8 @@ const server = http.createServer((req, res) => {
 
         // --- ENGINE B: GEMINI NATIVE CONTROLLABLE AUDIO ---
         if (requestedEngine === 'gemini') {
-            const hasCloudAuth = Boolean(process.env.GOOGLE_APPLICATION_CREDENTIALS || process.env.K_SERVICE);
+            const hasCloudAuth = hasVertexCandidate();
             if (!geminiApiKey && !hasCloudAuth) {
-                handleEdgeTTS('No Gemini API key configured');
-                return;
-            }
-            if (!geminiApiKey) {
                 handleEdgeTTS('No Gemini API key configured');
                 return;
             }
@@ -3261,6 +3286,9 @@ function attachWebSocketToSession(session, ws) {
             if (cMatch) {
                 return `key C-${cMatch[1]}`;
             }
+            if (/^#[a-z]{1,20}$/i.test(payload)) {
+                return `key ${payload.toLowerCase()}`;
+            }
 
             return null; // Reject unknown multi-char spec (e.g. "key Foo")
         }
@@ -4324,4 +4352,7 @@ server.timeout = 60000;
 
 server.listen(PORT, () => {
     console.log(`[Angband3D Cloud Server] Listening on http://localhost:${PORT}`);
+    if (require.main === module) {
+        getGcpAuthContext().catch(() => {});
+    }
 });

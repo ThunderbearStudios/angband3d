@@ -24,6 +24,7 @@
         if (key === ' ' || key.toLowerCase() === 'space') return 'space';
         if (key.length === 1) return key;
         const lower = key.trim().toLowerCase();
+        if (/^#[a-z]{1,20}$/i.test(lower)) return lower;
         const map = {
             'escape': 'escape', 'esc': 'escape',
             'enter': 'enter', 'return': 'enter',
@@ -110,7 +111,15 @@
         messages: Object.freeze({ angband: 'C-p', silq: 'C-p', frogcomposband: 'C-p', hengband: 'C-p', nethack: 'C-p', dcss: 'C-p', brogue: 'C-p', rogue: 'C-p', ryod: 'C-p' }),
         save: Object.freeze({ angband: 'C-s', silq: 'C-s', frogcomposband: 'C-s', hengband: 'C-s', nethack: 'S', dcss: 'S', brogue: 'S', rogue: 'S', ryod: 'S' }),
         options: Object.freeze({ angband: '=', silq: 'O', frogcomposband: '=', hengband: '=', nethack: 'O', dcss: '=', brogue: '=', rogue: '=', ryod: '=' }),
-        help: Object.freeze({ nethack: '?', dcss: '?', angband: '?', brogue: '?', rogue: '?', silq: '?', frogcomposband: '?', hengband: '?', ryod: '?' })
+        help: Object.freeze({ nethack: '?', dcss: '?', angband: '?', brogue: '?', rogue: '?', silq: '?', frogcomposband: '?', hengband: '?', ryod: '?' }),
+        pray: Object.freeze({ angband: null, silq: null, frogcomposband: null, hengband: null, nethack: '#pray', dcss: 'p', brogue: null, rogue: null, ryod: 'p' }),
+        offer: Object.freeze({ angband: null, silq: null, frogcomposband: null, hengband: null, nethack: '#offer', dcss: null, brogue: null, rogue: null, ryod: null }),
+        dip: Object.freeze({ angband: null, silq: null, frogcomposband: null, hengband: null, nethack: '#dip', dcss: null, brogue: null, rogue: null, ryod: null }),
+        chat: Object.freeze({ angband: null, silq: null, frogcomposband: null, hengband: null, nethack: '#chat', dcss: null, brogue: null, rogue: null, ryod: null }),
+        loot: Object.freeze({ angband: null, silq: null, frogcomposband: null, hengband: null, nethack: '#loot', dcss: null, brogue: null, rogue: null, ryod: null }),
+        force: Object.freeze({ angband: null, silq: null, frogcomposband: null, hengband: null, nethack: '#force', dcss: null, brogue: null, rogue: null, ryod: null }),
+        kick: Object.freeze({ angband: null, silq: null, frogcomposband: null, hengband: null, nethack: 'C-d', dcss: null, brogue: null, rogue: null, ryod: null }),
+        smith: Object.freeze({ angband: null, silq: '0', frogcomposband: null, hengband: null, nethack: null, dcss: null, brogue: null, rogue: null, ryod: 'y' })
     });
     function resolveTargetKey(realm, target) {
         const r = (realm || 'angband').toLowerCase();
@@ -527,7 +536,7 @@
         if (intent.verb === 'open' || intent.verb === 'close' || intent.verb === 'disarm' ||
             intent.verb === 'tunnel' || intent.verb === 'alter' || intent.verb === 'bash' ||
             intent.verb === 'spike' || intent.verb === 'steal' || intent.verb === 'walk' ||
-            intent.verb === 'run') {
+            intent.verb === 'run' || intent.verb === 'kick') {
             const verbKey = this.resolveVerbKey(intent.verb, r) || intent.key;
             if (!verbKey) return null;
             const steps = [
