@@ -38,6 +38,7 @@ const JS_FILES = [
     'server/public/js/ryod-compiler.js',
     'server/public/js/ryod-forge.js',
     'server/public/js/input.js',
+    'server/public/js/input-autonav.js',
     'server/public/js/screen-context.js',
     'server/public/js/prompt-mirror.js',
     'server/public/js/item-sheet.js',
@@ -53,7 +54,9 @@ const JS_FILES = [
     'server/public/js/quick-actions.js',
     'server/public/js/terminal.js',
     'server/public/js/hud.js',
+    'server/public/js/hud-layout.js',
     'server/public/js/dungeon3d.js',
+    'server/public/js/dungeon3d-vfx.js',
     'server/public/js/dungeon3d-proc-textures.js',
     'server/public/js/dungeon3d-environment.js',
     'server/public/js/audio.js',
@@ -227,11 +230,13 @@ for (const banned of bannedVocalFiles) {
     assert.ok(!sfxManifest.files.some((f) => f.file === banned), `manifest.json must not include banned guttural vocal file: ${banned}`);
 }
 
+const d3dVfxPath = path.join(ROOT, 'server/public/js/dungeon3d-vfx.js');
+const d3dCombinedSrc = d3dSrc + '\n' + (fs.existsSync(d3dVfxPath) ? fs.readFileSync(d3dVfxPath, 'utf8') : '');
 assert.ok(
-    d3dSrc.includes('_ensureSharedVfxResources') && d3dSrc.includes('spawnDetonationDome') && d3dSrc.includes('_sharedSparkGeo') && d3dSrc.includes('_sharedSlashArcGeo') && d3dSrc.includes('_sharedBreathConeGeo'),
-    'dungeon3d.js must implement _ensureSharedVfxResources, spawnDetonationDome, and shared VFX singleton geometries'
+    d3dCombinedSrc.includes('_ensureSharedVfxResources') && d3dCombinedSrc.includes('spawnDetonationDome') && d3dCombinedSrc.includes('_sharedSparkGeo') && d3dCombinedSrc.includes('_sharedSlashArcGeo') && d3dCombinedSrc.includes('_sharedBreathConeGeo'),
+    'dungeon3d.js / dungeon3d-vfx.js must implement _ensureSharedVfxResources, spawnDetonationDome, and shared VFX singleton geometries'
 );
-const hitSparksBlock = d3dSrc.slice(d3dSrc.indexOf('spawnHitSparks('), d3dSrc.indexOf('spawnDetonationDome('));
+const hitSparksBlock = d3dCombinedSrc.slice(d3dCombinedSrc.indexOf('spawnHitSparks('), d3dCombinedSrc.indexOf('spawnDetonationDome('));
 assert.ok(
     !hitSparksBlock.includes('new THREE.SphereGeometry'),
     'spawnHitSparks must reuse shared VFX geometries and never allocate per-call SphereGeometry'
@@ -288,8 +293,8 @@ assert.ok(
     'Passive HP regeneration delta in dungeon3d.js must never call playHeal() (L49)'
 );
 assert.ok(
-    !d3dSrc.includes('|missile|mana|chaos|'),
-    'triggerMessageVfx in dungeon3d.js must not match standalone "mana" as an offensive fireball explosion (use mana bolt|mana storm|mana burst; L49)'
+    !d3dCombinedSrc.includes('|missile|mana|chaos|'),
+    'triggerMessageVfx in dungeon3d.js / dungeon3d-vfx.js must not match standalone "mana" as an offensive fireball explosion (use mana bolt|mana storm|mana burst; L49)'
 );
 assert.ok(
     !audioJsSrc.includes("heal: ['heal_spell.wav'") && !audioJsSrc.includes("prayer: ['magic_holy_1.ogg'"),
