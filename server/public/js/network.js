@@ -209,6 +209,9 @@ class GameNetwork {
         if (typeof window !== 'undefined' && window.__yasdPermadeathMode === 'ironman') {
             wsUrl += '&ironman=1';
         }
+        if (isNew && typeof window !== 'undefined' && window.__bootSeed && /^[a-zA-Z0-9_-]{1,32}$/.test(String(window.__bootSeed))) {
+            wsUrl += `&seed=${encodeURIComponent(String(window.__bootSeed))}`;
+        }
 
         let wsProtocols = undefined;
         try {

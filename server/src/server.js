@@ -2190,7 +2190,7 @@ const server = http.createServer((req, res) => {
                 }
             }
             if (!blueprint) {
-                const getOwnerToken = String(req.headers['x-owner-token'] || urlObj.searchParams.get('token') || '').trim();
+                const getOwnerToken = String(req.headers['x-owner-token'] || '').trim();
                 blueprint = (cleanName ? ryodBlueprintStore('get', 'slot:' + cleanName.toLowerCase()) : null)
                     || (getOwnerToken ? ryodBlueprintStore('get', 'tok:' + getOwnerToken) : null);
             }
@@ -2233,7 +2233,7 @@ const server = http.createServer((req, res) => {
                     const rawCfg = payload.ryodConfig || payload.blueprint || payload;
                     blueprint = RyodCompiler.normalizeConfig(rawCfg);
                 }
-                const postOwnerToken = String(req.headers['x-owner-token'] || payload.ownerToken || urlObj.searchParams.get('token') || '').trim();
+                const postOwnerToken = String(req.headers['x-owner-token'] || payload.ownerToken || '').trim();
                 const saveName = sanitizeFilename(String(payload.saveName || payload.user || '')).replace(/\.sav$/i, '');
                 if (saveName && !isReservedFilename(saveName)) {
                     ryodBlueprintStore('set', 'slot:' + saveName.toLowerCase(), blueprint);
@@ -2901,7 +2901,7 @@ function mirrorStagedSavesToPersistent(session, opts = null) {
                 if (!isFloor && !isMainSlot) continue;
                 const dstFile = path.join(session.persistentSaveDir, f);
                 await fs.promises.copyFile(srcFile, dstFile);
-                if (!isFloor && !f.endsWith('.json') && !f.endsWith('.sav.living') && !mirroredPrimaryPath) {
+                if (!isFloor && !f.endsWith('.json') && !f.endsWith('.sav.living') && !f.endsWith('.living.sav') && !mirroredPrimaryPath) {
                     mirroredPrimaryPath = dstFile;
                 }
             }
@@ -3518,6 +3518,10 @@ async function spawnGameSession(ws, request) {
             args.push('-c');
         } else if (!isCustomBirth && realm === 'nethack') {
             args.push('-r');
+        }
+        const seedParam = String(urlObj.searchParams.get('seed') || '').trim();
+        if (seedParam && /^[a-zA-Z0-9_-]{1,32}$/.test(seedParam) && (realm === 'dcss' || realm === 'brogue' || realm === 'rogue' || realm === 'nethack' || realm === 'ryod')) {
+            args.push(`--seed=${seedParam}`);
         }
     }
 

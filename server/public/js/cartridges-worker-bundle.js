@@ -527,6 +527,23 @@
             extra: { kind: 'potion', name: 'potion of fire essence', glyph: '!', heal: 35, count: 2, weight: 10, tval: 71, sval: 35 },
             innatePower: { name: 'Searing Dragon Breath', cost: 3, dmg: 26, aoe: true, desc: 'Exhale a cone of molten dragonfire across all nearby enemies!' }
         },
+        beholder: {
+            id: 'beholder',
+            label: '👁 Eldritch Beholder Eye (Creature Avatar)',
+            isMonsterAvatar: true,
+            avatarMonsterName: 'floating eye',
+            race: 'Aberration',
+            roleName: 'Eldritch Beholder Eye',
+            align: 'Chaotic',
+            defaultDiscipline: 'arcane',
+            ringSlots: 6,
+            allowBodyArmor: false,
+            hp: 34, pw: 30, ac: 7,
+            str: 12, int: 19, wis: 17, dex: 15, con: 15,
+            weapon: { name: 'central antimagic lens', dmg: '2d6', bonus: 2, weight: 10, tval: 23, sval: 2 },
+            extra: { kind: 'wand', name: 'wand of disintegration [5/5]', glyph: '-', charges: 5, count: 1, weight: 12, tval: 65, sval: 20 },
+            innatePower: { name: 'Disintegration Ray', cost: 2, dmg: 22, aoe: false, desc: 'Project a beam of pure disintegration from your central eye!' }
+        },
         vampire_scion: {
             id: 'vampire_scion',
             label: '🧛 Vampire Scion (Creature Avatar)',
@@ -2035,8 +2052,10 @@
                 wis: bp.godMode ? h.wis + 10 : h.wis,
                 dex: bp.godMode ? h.dex + 10 : h.dex,
                 con: bp.godMode ? h.con + 10 : h.con,
-                weapon: { ...h.weapon, bonus: bp.godMode ? 9 : h.weapon.bonus },
-                armor: { ...h.armor, bonus: bp.godMode ? 9 : h.armor.bonus },
+                ringSlots: h.ringSlots || 2,
+                allowBodyArmor: h.allowBodyArmor !== false,
+                weapon: h.weapon ? { ...h.weapon, bonus: bp.godMode ? 9 : h.weapon.bonus } : null,
+                armor: h.armor ? { ...h.armor, bonus: bp.godMode ? 9 : h.armor.bonus } : null,
                 extra: h.extra ? { ...h.extra } : null,
                 innatePower: h.innatePower ? { ...h.innatePower } : null,
                 disciplinePowers: disc.powers.map(p => ({ ...p }))
@@ -2405,7 +2424,25 @@
     function log(engine, msg, attr = 11) {
         if (!engine) return;
         if (typeof engine.addMessage === 'function') engine.addMessage(msg, attr);
-        else if (typeof engine.logMsg === 'function') log(engine, msg, attr);
+        else if (typeof engine.logMsg === 'function') engine.logMsg(msg, attr);
+        else if (typeof engine.pushMessage === 'function') engine.pushMessage(msg, attr);
+    }
+
+    function getCellFeat(map, x, y) {
+        const row = map && map[y];
+        const cell = row && row[x];
+        if (cell == null) return FEAT.NONE;
+        return typeof cell === 'object' ? cell.feat : cell;
+    }
+
+    function setCellFeat(map, x, y, feat, glyph) {
+        if (!map || !map[y] || map[y][x] == null) return;
+        if (typeof map[y][x] === 'object') {
+            map[y][x].feat = feat;
+            if (glyph) map[y][x].glyph = glyph;
+        } else {
+            map[y][x] = feat;
+        }
     }
 
     function parseSeed(raw) {
@@ -2566,12 +2603,14 @@
     function smithAtAnvil(engine, choiceIdx = 0) {
         const s = engine.state;
         const p = s.player;
+        const mapW = engine.MAP_W || (s.map && s.map[0] ? s.map[0].length : 66);
+        const mapH = engine.MAP_H || (s.map ? s.map.length : 22);
         let nearAnvil = false;
         for (let dy = -1; dy <= 1; dy++) {
             for (let dx = -1; dx <= 1; dx++) {
                 const nx = p.x + dx, ny = p.y + dy;
-                if (nx >= 0 && nx < engine.MAP_W && ny >= 0 && ny < engine.MAP_H) {
-                    if (s.map[ny][nx] === FEAT.ANVIL) nearAnvil = true;
+                if (nx >= 0 && nx < mapW && ny >= 0 && ny < mapH) {
+                    if (getCellFeat(s.map, nx, ny) === FEAT.ANVIL) nearAnvil = true;
                 }
             }
         }
@@ -2579,7 +2618,10 @@
             log(engine, `You must stand next to a Mithril Anvil to smith.`);
             return false;
         }
-        const target = p.equipment && (p.equipment.weapon || p.equipment.body || p.inventory.find(i => i.kind === 'weapon' || i.kind === 'armor'));
+        const inv = Array.isArray(p.inventory) ? p.inventory : [];
+        const target = (p.equipment && (p.equipment.weapon || p.equipment.body))
+            || inv.find(i => i.equipped === 'weapon' || i.equipped === 'body' || i.equipped === 'armor')
+            || inv.find(i => i.kind === 'weapon' || i.kind === 'armor');
         if (!target) {
             log(engine, `You have no weapon or armor to temper on the anvil.`);
             return false;
@@ -2588,17 +2630,21 @@
         const chosen = brands[choiceIdx % brands.length];
         target.bonus = (target.bonus || 0) + 2;
         if (!target.name.includes(' of ')) target.name = `${target.name} ${chosen}`;
+        if (typeof engine.recalcPlayerDefenses === 'function') engine.recalcPlayerDefenses();
         log(engine, `With ringing hammer-blows, you temper ${target.name}! (+2)`);
         return true;
     }
 
     function assignFloorBounty(engine) {
         const monsters = engine.state.monsters || [];
-        const candidates = monsters.filter(m => m.alive && !m.isBoss && !m.isAlly && !m.isWantedBounty);
+        const candidates = monsters.filter(m => (m.alive !== false && (m.hp == null || m.hp > 0)) && !m.isBoss && !m.isAlly && !m.isPet && !m.isWantedBounty);
         if (candidates.length === 0) return null;
-        const target = candidates[Math.floor(Math.random() * candidates.length)];
+        const pickIdx = typeof engine.rand === 'function' ? engine.rand(candidates.length) : Math.floor(Math.random() * candidates.length);
+        const target = candidates[pickIdx];
         target.isWantedBounty = true;
-        target.name = `[WANTED] ${target.name}`;
+        const baseName = target.name || target.race || 'foe';
+        target.name = `[WANTED] ${baseName}`;
+        if (target.race && !String(target.race).startsWith('[WANTED]')) target.race = `[WANTED] ${target.race}`;
         target.bountyRewardGold = (engine.state.depth || 1) * 35 + 50;
         log(engine, `A Shogunate bounty notice is posted for ${target.name}!`);
         return target;
@@ -2610,6 +2656,7 @@
         const gold = mon.bountyRewardGold || 75;
         p.gold = (p.gold || 0) + gold;
         p.inventory.push({ kind: 'scroll', name: 'scroll of enchanting', glyph: '?', enchantGain: 1, count: 1, weight: 5, tval: 70, sval: 15 });
+        if (typeof engine.reindexInventory === 'function') engine.reindexInventory();
         log(engine, `Bounty claimed! You receive ${gold} gold and a Scroll of Enchanting!`);
     }
 
@@ -2621,6 +2668,7 @@
             p.deityGiftGiven = true;
             const gift = { kind: 'weapon', name: `Blessed Blade of ${p.deity}`, dmg: '3d7', bonus: 3, beatitude: 'blessed', weight: 40, tval: 23, sval: 9 };
             p.inventory.push(gift);
+            if (typeof engine.reindexInventory === 'function') engine.reindexInventory();
             log(engine, `★ ${p.deity} is well pleased and bestows upon you ${gift.name}!`);
         }
     }
@@ -2648,13 +2696,17 @@
             p.pw = Math.min(p.pwMax, (p.pw || 0) + 24);
             log(engine, `Sif Muna channels boundless arcane energy into your core! (+24 PW)`);
         } else if (p.deity === 'Yredelemnul') {
-            const thrall = { id: `thrall_${Date.now()}`, name: 'shadow thrall', glyph: 'Z', x: p.x, y: p.y, hp: 30, hpMax: 30, dmg: '2d6', alive: true, isAlly: true };
+            const thrall = { id: `thrall_${Date.now()}`, name: 'shadow thrall', race: 'shadow thrall', glyph: 'Z', attr: 8, x: p.x, y: p.y, hp: 30, hpMax: 30, hp_max: 30, dmg: 8, dmgDice: '2d6', alive: true, isAlly: true, isPet: true };
             engine.state.monsters.push(thrall);
             log(engine, `Yredelemnul binds a shadow thrall to serve you!`);
         } else if (p.deity === 'Vehumet') {
-            (engine.state.monsters || []).filter(m => m.alive && !m.isAlly).forEach(m => {
+            (engine.state.monsters || []).slice().filter(m => (m.alive !== false && (m.hp == null || m.hp > 0)) && !m.isAlly && !m.isPet).forEach(m => {
                 m.hp -= 25;
-                if (m.hp <= 0) { m.alive = false; engine.onMonsterKilled(m); }
+                if (m.hp <= 0) {
+                    m.alive = false;
+                    if (typeof engine.handleMonsterKilled === 'function') engine.handleMonsterKilled(m);
+                    else if (typeof engine.onMonsterKilled === 'function') engine.onMonsterKilled(m);
+                }
             });
             log(engine, `Vehumet unleashes an apocalyptic conflagration upon all foes!`);
         } else {
@@ -2674,6 +2726,8 @@
         const s = engine.state;
         if (!s.activeHazards || s.activeHazards.length === 0) return;
         const p = s.player;
+        const mapW = engine.MAP_W || (s.map && s.map[0] ? s.map[0].length : 66);
+        const mapH = engine.MAP_H || (s.map ? s.map.length : 22);
         const nextHazards = [];
         for (const h of s.activeHazards) {
             h.duration = (h.duration || 1) - 1;
@@ -2681,8 +2735,8 @@
                 for (let dy = -1; dy <= 1; dy++) {
                     for (let dx = -1; dx <= 1; dx++) {
                         const nx = h.x + dx, ny = h.y + dy;
-                        if (nx >= 0 && nx < engine.MAP_W && ny >= 0 && ny < engine.MAP_H && s.map[ny][nx] === FEAT.GAS_VENT) {
-                            s.map[ny][nx] = FEAT.FLOOR;
+                        if (nx >= 0 && nx < mapW && ny >= 0 && ny < mapH && getCellFeat(s.map, nx, ny) === FEAT.GAS_VENT) {
+                            setCellFeat(s.map, nx, ny, FEAT.FLOOR, '.');
                             log(engine, `The wildfire ignites a subterranean gas vent with a deafening blast!`);
                         }
                     }
@@ -2706,27 +2760,32 @@
     }
 
     function evolveAllyOnBattle(ally, engine) {
-        if (!ally || !ally.isAlly) return;
+        if (!ally || (!ally.isAlly && !ally.isPet)) return;
         ally.kills = (ally.kills || 0) + 1;
         if (ally.kills === 2 && !ally.traits?.vampiric) {
             ally.traits = ally.traits || {}; ally.traits.vampiric = true;
-            ally.name = `vampiric ${ally.name}`;
+            ally.name = `vampiric ${ally.name || ally.race || 'ally'}`;
+            if (ally.race) ally.race = ally.name;
             log(engine, `Your ally drank deep of battle and gained the Vampiric trait!`);
         } else if (ally.kills === 4 && !ally.traits?.blinking) {
-            ally.traits.blinking = true;
-            ally.name = `shadow-blinking ${ally.name}`;
+            ally.traits = ally.traits || {}; ally.traits.blinking = true;
+            ally.name = `shadow-blinking ${ally.name || ally.race || 'ally'}`;
+            if (ally.race) ally.race = ally.name;
             log(engine, `Your ally mastered phase-stepping and gained the Blinking trait!`);
         } else if (ally.kills === 7 && !ally.traits?.flame) {
-            ally.traits.flame = true;
-            ally.name = `flame-crested ${ally.name}`;
-            ally.hpMax += 15; ally.hp += 15;
+            ally.traits = ally.traits || {}; ally.traits.flame = true;
+            ally.name = `flame-crested ${ally.name || ally.race || 'ally'}`;
+            if (ally.race) ally.race = ally.name;
+            ally.hpMax = (ally.hpMax || ally.hp_max || 30) + 15;
+            ally.hp_max = ally.hpMax;
+            ally.hp += 15;
             log(engine, `Your ally ascended into a Flame-Crested guardian! (+15 Max HP)`);
         }
     }
 
     function interactAltar(engine) {
         const p = engine.state.player;
-        if (engine.state.map[p.y][p.x] !== FEAT.ALTAR) {
+        if (getCellFeat(engine.state.map, p.x, p.y) !== FEAT.ALTAR) {
             log(engine, `There is no altar here.`);
             return false;
         }
@@ -2743,25 +2802,27 @@
 
     function interactFountain(engine) {
         const p = engine.state.player;
-        if (engine.state.map[p.y][p.x] !== FEAT.FOUNTAIN) {
+        if (getCellFeat(engine.state.map, p.x, p.y) !== FEAT.FOUNTAIN) {
             log(engine, `There is no fountain here.`);
             return false;
         }
         p.hp = Math.min(p.hpMax, p.hp + 20);
-        engine.state.map[p.y][p.x] = FEAT.FLOOR;
+        setCellFeat(engine.state.map, p.x, p.y, FEAT.FLOOR, '.');
         log(engine, `You drink the pristine spring water (+20 HP). The fountain bubbles and dries to dry stone.`);
         return true;
     }
 
     function interactCage(engine) {
         const p = engine.state.player;
+        const mapW = engine.MAP_W || (engine.state.map && engine.state.map[0] ? engine.state.map[0].length : 66);
+        const mapH = engine.MAP_H || (engine.state.map ? engine.state.map.length : 22);
         let found = false;
         for (let dy = -1; dy <= 1; dy++) {
             for (let dx = -1; dx <= 1; dx++) {
                 const nx = p.x + dx, ny = p.y + dy;
-                if (nx >= 0 && nx < engine.MAP_W && ny >= 0 && ny < engine.MAP_H && engine.state.map[ny][nx] === FEAT.CAGE) {
-                    engine.state.map[ny][nx] = FEAT.FLOOR;
-                    const ally = { id: `liberated_${Date.now()}`, name: 'liberated captive', glyph: 'h', x: nx, y: ny, hp: 35, hpMax: 35, dmg: '2d5', alive: true, isAlly: true };
+                if (nx >= 0 && nx < mapW && ny >= 0 && ny < mapH && getCellFeat(engine.state.map, nx, ny) === FEAT.CAGE) {
+                    setCellFeat(engine.state.map, nx, ny, FEAT.FLOOR, '.');
+                    const ally = { id: `liberated_${Date.now()}`, name: 'liberated captive', race: 'liberated captive', glyph: 'h', attr: 10, x: nx, y: ny, hp: 35, hpMax: 35, hp_max: 35, dmg: 7, dmgDice: '2d5', alive: true, isAlly: true, isPet: true };
                     engine.state.monsters.push(ally);
                     log(engine, `You shatter the iron cage! A grateful captive joins your party as a loyal ally!`);
                     found = true;
@@ -2788,17 +2849,26 @@
         const rng = mulberry32(seed);
         const vault = VAULT_TEMPLATES[Math.floor(rng() * VAULT_TEMPLATES.length)];
         const targetRoom = rooms[Math.floor(rng() * rooms.length)];
-        if (!targetRoom || targetRoom.w < vault.w || targetRoom.h < vault.h) return false;
-        const ox = targetRoom.x + Math.floor((targetRoom.w - vault.w) / 2);
-        const oy = targetRoom.y + Math.floor((targetRoom.h - vault.h) / 2);
+        const rw = targetRoom ? (targetRoom.w != null ? targetRoom.w : (targetRoom.x1 - targetRoom.x0 + 1)) : 0;
+        const rh = targetRoom ? (targetRoom.h != null ? targetRoom.h : (targetRoom.y1 - targetRoom.y0 + 1)) : 0;
+        if (!targetRoom || rw < vault.w || rh < vault.h) return false;
+        const rx = targetRoom.x != null ? targetRoom.x : targetRoom.x0;
+        const ry = targetRoom.y != null ? targetRoom.y : targetRoom.y0;
+        const ox = rx + Math.floor((rw - vault.w) / 2);
+        const oy = ry + Math.floor((rh - vault.h) / 2);
         const map = engine.state.map;
+        const mapW = engine.MAP_W || (map && map[0] ? map[0].length : 66);
+        const mapH = engine.MAP_H || (map ? map.length : 22);
+        const glyphForFeat = { [FEAT.ANVIL]: '0', [FEAT.GAS_VENT]: '^', [FEAT.WALL]: '#', [FEAT.FLOOR]: '.', [FEAT.OPEN_DOOR]: "'", [FEAT.ALTAR]: '_', [FEAT.FOUNTAIN]: '{', [FEAT.CAGE]: '#', [FEAT.RUNE_VAULT]: '8' };
         for (let vy = 0; vy < vault.h; vy++) {
             for (let vx = 0; vx < vault.w; vx++) {
                 const char = vault.layout[vy][vx];
                 const feat = vault.featMap[char] !== undefined ? vault.featMap[char] : FEAT.FLOOR;
                 const gx = ox + vx, gy = oy + vy;
-                if (gx > 0 && gx < engine.MAP_W - 1 && gy > 0 && gy < engine.MAP_H - 1) {
-                    map[gy][gx] = feat;
+                if (gx > 0 && gx < mapW - 1 && gy > 0 && gy < mapH - 1) {
+                    const curFeat = getCellFeat(map, gx, gy);
+                    if (curFeat === 5 || curFeat === 6) continue; // Never overwrite UP_STAIR or DOWN_STAIR
+                    setCellFeat(map, gx, gy, feat, glyphForFeat[feat] || '.');
                 }
             }
         }
@@ -2820,15 +2890,36 @@
     function onAscentFloorEnter(engine) {
         const p = engine.state.player;
         if (!p.hasAmulet) return;
+        const map = engine.state.map;
+        const mapW = engine.MAP_W || (map && map[0] ? map[0].length : 66);
+        const mapH = engine.MAP_H || (map ? map.length : 22);
+        let hx = Math.min(mapW - 2, Math.max(1, p.x + 2));
+        let hy = Math.min(mapH - 2, Math.max(1, p.y + 2));
+        if (map && getCellFeat(map, hx, hy) !== FEAT.FLOOR) {
+            outer: for (let dy = -3; dy <= 3; dy++) {
+                for (let dx = -3; dx <= 3; dx++) {
+                    if (dx === 0 && dy === 0) continue;
+                    const tx = p.x + dx, ty = p.y + dy;
+                    if (tx > 0 && tx < mapW - 1 && ty > 0 && ty < mapH - 1 && getCellFeat(map, tx, ty) === FEAT.FLOOR) {
+                        hx = tx; hy = ty; break outer;
+                    }
+                }
+            }
+        }
+        const hpVal = 60 + ((engine.state.depth || 1) * 5);
         const hunter = {
             id: `apex_hunter_${Date.now()}`,
             name: 'Apex Relic Hunter',
+            race: 'Apex Relic Hunter',
             glyph: 'A',
-            x: Math.max(1, p.x + 2),
-            y: Math.max(1, p.y + 2),
-            hp: 60 + (engine.state.depth * 5),
-            hpMax: 60 + (engine.state.depth * 5),
-            dmg: '3d6',
+            attr: 14,
+            x: hx,
+            y: hy,
+            hp: hpVal,
+            hpMax: hpVal,
+            hp_max: hpVal,
+            dmg: 14,
+            dmgDice: '3d6',
             alive: true,
             isBoss: true
         };
@@ -2862,12 +2953,16 @@
         else if (player.level >= 20 || d >= 10 || (player.enchantments || 0) >= 4) stageIdx = 2;
         else if (player.level >= 10 || d >= 5 || (player.enchantments || 0) >= 2) stageIdx = 1;
         const targetStage = stages[stageIdx];
+        if (!player._evolvedStages) player._evolvedStages = { Wyrmling: true };
         if (player.dragonStage !== targetStage) {
             player.dragonStage = targetStage;
             player.roleName = `Red Dragon (${targetStage})`;
-            player.hpMax += 15;
-            player.hp += 15;
-            player.ac += 2;
+            if (!player._evolvedStages[targetStage]) {
+                player._evolvedStages[targetStage] = true;
+                player.hpMax += 15;
+                player.hp += 15;
+                player.ac += 2;
+            }
         }
     }
 
@@ -2941,16 +3036,18 @@ function parseCliArgs(argv, defaultSaveDir) {
     let isNew = false;
     let customBirth = false;
     let randomBirth = false;
+    let seed = undefined;
     for (let i = 2; i < argv.length; i++) {
         const arg = String(argv[i] || '');
         if (arg === '-n') isNew = true;
         else if (arg === '-c' || arg === '--custom') customBirth = true;
         else if (arg === '-r' || arg === '--random') randomBirth = true;
+        else if (arg.startsWith('--seed=')) seed = arg.slice(7) || undefined;
         else if (arg.startsWith('-u')) user = arg.slice(2) || user;
         else if (arg.startsWith('-dsave=')) saveDir = arg.slice(7) || saveDir;
     }
     const cleanUser = user.replace(/[^a-zA-Z0-9_.-]/g, '_') || 'Adventurer';
-    return { user: cleanUser, saveDir, isNew, customBirth, randomBirth };
+    return { user: cleanUser, saveDir, isNew, customBirth, randomBirth, seed };
 }
 
 function isWalkableFeat(feat) {
@@ -3235,6 +3332,9 @@ class UniversalCartridgeEngine {
             messages: [
                 { text: this.spec.welcomeMessage || `You enter ${this.spec.title}.`, count: 1, attr: 14 }
             ],
+            baseSeed: this.baseSeed,
+            rngState: this.rngState,
+            levels: {},
             statFocus: 'optimal',
             kitBoon: 'signature',
             _optimizedApplied: false
@@ -3317,7 +3417,8 @@ class UniversalCartridgeEngine {
         const p = this.state.player;
         p.inventory = p.inventory.filter(it => (it.count == null || it.count > 0));
         p.inventory.forEach((it, idx) => {
-            it.slot = idx;
+            it.packIdx = idx;
+            if (typeof it.slot === 'number') delete it.slot;
             it.letter = String.fromCharCode(97 + (idx % 26));
         });
         const w = p.inventory.find(it => it.equipped === 'weapon');
@@ -3337,9 +3438,10 @@ class UniversalCartridgeEngine {
         const ring = p.inventory.find(it => it.equipped === 'ring' && /protection|armor|defense/i.test(it.name || ''));
         const armorBase = body ? Number(body.ac != null ? body.ac : 4) : 0;
         const shieldAc = shield ? (Number(shield.ac != null ? shield.ac : 2) + Number(shield.bonus || 0)) : 0;
-        const armorBonus = (body ? Number(body.bonus || 0) : 0) + (ring ? Number(ring.bonus || 1) : 0) + shieldAc;
+        const heroBonus = (p.heroism && p.heroism > 0) ? 4 : 0;
+        const armorBonus = (body ? Number(body.bonus || 0) : 0) + (ring ? Number(ring.bonus || 1) : 0) + shieldAc + heroBonus;
         if (this.realm === 'rogue') {
-            p.ac = body ? Math.max(-10, (body.ac != null ? body.ac : 7) - armorBonus) : (10 - shieldAc);
+            p.ac = body ? Math.max(-10, (body.ac != null ? body.ac : 7) - armorBonus) : (10 - shieldAc - heroBonus);
         } else {
             p.ac = Math.max(0, (body ? (armorBase + armorBonus) : (2 + armorBonus)) + Math.floor(((p.dex || 12) - 10) / 3));
         }
@@ -3481,12 +3583,63 @@ class UniversalCartridgeEngine {
     }
 
     generateLevel(depth) {
-        if (RyodSystems && this.baseSeed) {
-            this.rngState = RyodSystems.mixSeed(this.baseSeed, depth);
-        }
         const survivingPets = Array.isArray(this.state && this.state.monsters)
             ? this.state.monsters.filter(m => m && m.isPet && m.hp > 0)
             : [];
+        const prevDepth = this.state ? this.state.depth : null;
+        const descending = prevDepth != null ? (depth > prevDepth) : true;
+
+        if (this.state && Array.isArray(this.state.map) && this.state.map.length > 0 && prevDepth != null && prevDepth !== depth) {
+            this.state.levels = this.state.levels || {};
+            this.state.levels[prevDepth] = {
+                map: this.state.map,
+                monsters: (this.state.monsters || []).filter(m => !m.isPet),
+                objects: this.state.objects || [],
+                branchName: this.state.branchName
+            };
+        }
+
+        if (this.state && this.state.levels && this.state.levels[depth]) {
+            const savedLvl = this.state.levels[depth];
+            delete this.state.levels[depth];
+            this.state.depth = depth;
+            if (depth > this.state.maxDepth) this.state.maxDepth = depth;
+            this.state.branchName = savedLvl.branchName || this.getBranchName(depth);
+            this.state.map = savedLvl.map;
+            this.state.monsters = Array.isArray(savedLvl.monsters) ? savedLvl.monsters : [];
+            this.state.objects = Array.isArray(savedLvl.objects) ? savedLvl.objects : [];
+            const targetFeat = descending ? FEAT.UP_STAIR : FEAT.DOWN_STAIR;
+            let placed = false;
+            for (let y = 1; y < MAP_H - 1 && !placed; y++) {
+                for (let x = 1; x < MAP_W - 1; x++) {
+                    if (this.state.map[y] && this.state.map[y][x] && this.state.map[y][x].feat === targetFeat) {
+                        this.state.player.x = x;
+                        this.state.player.y = y;
+                        placed = true;
+                        break;
+                    }
+                }
+            }
+            if (!placed) {
+                for (let y = 1; y < MAP_H - 1 && !placed; y++) {
+                    for (let x = 1; x < MAP_W - 1; x++) {
+                        if (this.state.map[y] && this.state.map[y][x] && isWalkableFeat(this.state.map[y][x].feat)) {
+                            this.state.player.x = x;
+                            this.state.player.y = y;
+                            placed = true;
+                            break;
+                        }
+                    }
+                }
+            }
+            this.placeSurvivingPets(survivingPets, 9001);
+            this.updateVisibility();
+            return;
+        }
+
+        if (RyodSystems && this.baseSeed) {
+            this.rngState = RyodSystems.mixSeed(this.baseSeed, depth);
+        }
 
         if (depth <= 0 && this.spec.hasTown) {
             this.generateTownLevel(survivingPets);
@@ -3986,21 +4139,29 @@ class UniversalCartridgeEngine {
     }
 
     hasLineOfSight(x0, y0, x1, y1) {
+        const isOpaqueCell = (x, y) => {
+            const c = this.state.map[y] && this.state.map[y][x];
+            return !c || c.feat === FEAT.WALL || c.feat === FEAT.PERM_WALL || c.feat === FEAT.CLOSED_DOOR;
+        };
         let dx = Math.abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
         let dy = -Math.abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
         let err = dx + dy;
         let cx = x0, cy = y0;
         while (true) {
             if (cx === x1 && cy === y1) return true;
-            if (!(cx === x0 && cy === y0)) {
-                const cell = this.state.map[cy] && this.state.map[cy][cx];
-                if (!cell || cell.feat === FEAT.WALL || cell.feat === FEAT.PERM_WALL || cell.feat === FEAT.CLOSED_DOOR) {
-                    return false;
-                }
+            if (!(cx === x0 && cy === y0) && isOpaqueCell(cx, cy)) {
+                return false;
             }
             const e2 = 2 * err;
-            if (e2 >= dy) { err += dy; cx += sx; }
-            if (e2 <= dx) { err += dx; cy += sy; }
+            const stepX = e2 >= dy;
+            const stepY = e2 <= dx;
+            if (stepX && stepY) {
+                if (!(cx + sx === x1 && cy + sy === y1) || (isOpaqueCell(cx + sx, cy) && isOpaqueCell(cx, cy + sy))) {
+                    if (isOpaqueCell(cx + sx, cy) && isOpaqueCell(cx, cy + sy)) return false;
+                }
+            }
+            if (stepX) { err += dy; cx += sx; }
+            if (stepY) { err += dx; cy += sy; }
         }
     }
 
@@ -4026,6 +4187,8 @@ class UniversalCartridgeEngine {
             // LAZARUS INVARIANT: Never overwrite a living save file once the character is dead!
             if (!p || p.dead) return false;
             if (!fs.existsSync(this.saveDir)) fs.mkdirSync(this.saveDir, { recursive: true });
+            this.state.baseSeed = this.baseSeed;
+            this.state.rngState = this.rngState;
             const desc = `${p.class} (${p.race}), ${this.state.branchName} ${this.state.depth}, ${p.hp}/${p.hpMax} HP`;
             const descBuf = Buffer.from(desc + '\0', 'utf8');
             const header = Buffer.alloc(36, 0);
@@ -4053,6 +4216,7 @@ class UniversalCartridgeEngine {
                 depth: this.state.depth,
                 race: p.race,
                 class: p.class,
+                seed: this.baseSeed || null,
                 updatedAt: Date.now()
             };
             fs.writeFileSync(this.saveFile + '.realm.json', JSON.stringify(sidecar));
@@ -4081,6 +4245,8 @@ class UniversalCartridgeEngine {
                     this.spec = this.spec.onBlueprintHydrate(loaded.ryodBlueprint) || this.spec;
                 }
                 this.state = loaded;
+                if (loaded.baseSeed) this.baseSeed = loaded.baseSeed;
+                if (loaded.rngState) this.rngState = loaded.rngState;
                 this.state.phase = 'play';
                 this.state.menuMode = 'none';
                 this.checkExperience({ silent: true });
@@ -4097,6 +4263,8 @@ class UniversalCartridgeEngine {
                         this.spec = this.spec.onBlueprintHydrate(lLoaded.ryodBlueprint) || this.spec;
                     }
                     this.state = lLoaded;
+                    if (lLoaded.baseSeed) this.baseSeed = lLoaded.baseSeed;
+                    if (lLoaded.rngState) this.rngState = lLoaded.rngState;
                     this.state.phase = 'play';
                     this.state.menuMode = 'none';
                     fs.copyFileSync(this.saveFile + '.living.sav', this.saveFile);
@@ -4961,8 +5129,16 @@ class UniversalCartridgeEngine {
                 this.recalcPlayerDefenses();
                 this.addMessage(`Universal runes of enchantment infuse your ${eq.name} (+${eq.bonus})!`, 14);
             } else if (/teleport/i.test(sLower)) {
-                p.x = 2 + this.rand(MAP_W - 4);
-                p.y = 2 + this.rand(MAP_H - 4);
+                for (let attempt = 0; attempt < 40; attempt++) {
+                    const tx = 2 + this.rand(MAP_W - 4);
+                    const ty = 2 + this.rand(MAP_H - 4);
+                    const cell = this.state.map[ty] && this.state.map[ty][tx];
+                    if (cell && isWalkableFeat(cell.feat) && !this.state.monsters.some(m => m.x === tx && m.y === ty)) {
+                        p.x = tx;
+                        p.y = ty;
+                        break;
+                    }
+                }
                 this.updateVisibility();
                 this.addMessage(`You read the ${item.name}. Reality folds around you in a spatial jump!`, 11);
             } else if (/genocide/i.test(sLower)) {
@@ -5011,7 +5187,7 @@ class UniversalCartridgeEngine {
             }
             const lowerItem = String(item.name || '').toLowerCase();
             const k = String(item.kind || '').toLowerCase();
-            let slot = item.slot;
+            let slot = typeof item.slot === 'string' ? item.slot : null;
             if (!slot) {
                 if (k === 'bow' || k === 'ranged' || /\b(bow|crossbow|sling)\b/.test(lowerItem)) slot = 'bow';
                 else if (k === 'shield' || /\b(shield|buckler|targe)\b/.test(lowerItem)) slot = 'shield';
@@ -5121,8 +5297,16 @@ class UniversalCartridgeEngine {
                 }
             } else if (/teleport/i.test(wLower)) {
                 if (target) {
-                    target.x = 2 + this.rand(MAP_W - 4);
-                    target.y = 2 + this.rand(MAP_H - 4);
+                    for (let attempt = 0; attempt < 40; attempt++) {
+                        const tx = 2 + this.rand(MAP_W - 4);
+                        const ty = 2 + this.rand(MAP_H - 4);
+                        const cell = this.state.map[ty] && this.state.map[ty][tx];
+                        if (cell && isWalkableFeat(cell.feat) && !(tx === p.x && ty === p.y) && !this.state.monsters.some(m => m !== target && m.x === tx && m.y === ty)) {
+                            target.x = tx;
+                            target.y = ty;
+                            break;
+                        }
+                    }
                     this.addMessage(`The ${target.race} teleports away in a swirl of arcane smoke!`, 11);
                 } else {
                     this.addMessage(`Space wavers around the wand tip.`, 11);
@@ -5617,12 +5801,86 @@ class UniversalCartridgeEngine {
         }
     }
 
+    _checkLethalOrLifesave(killerArticle) {
+        const p = this.state && this.state.player;
+        if (!p || p.hp > 0) return false;
+        const lifesave = Array.isArray(p.inventory)
+            ? (p.inventory.find(it => it.equipped && (it.extraLife || /life\s*saving/i.test(it.name || '')))
+               || p.inventory.find(it => it.extraLife || /amulet of life\s*saving/i.test(it.name || '')))
+            : null;
+        if (lifesave) {
+            lifesave.count = (lifesave.count || 1) - 1;
+            lifesave.equipped = null;
+            this.reindexInventory();
+            p.hp = p.hpMax;
+            p.poisoned = 0;
+            this.addMessage(`✨ Your ${lifesave.name} shatters in a blinding flash, snatching your soul back from death!`, 14);
+            return false;
+        }
+        p.hp = 0;
+        p.dead = true;
+        p.diedFrom = killerArticle || 'mortal wounds';
+        if (this.ironman || process.env.ANGBAND3D_IRONMAN === '1' || (this.state && this.state.ironman)) {
+            try { if (fs.existsSync(this.saveFile + '.living.sav')) fs.unlinkSync(this.saveFile + '.living.sav'); } catch (_) {}
+            try { if (fs.existsSync(this.saveFile)) fs.unlinkSync(this.saveFile); } catch (_) {}
+        }
+        this.addMessage(`You die... Killed by ${p.diedFrom} on ${this.state.branchName} ${this.state.depth}.`, 4);
+        return true;
+    }
+
     advanceTurn() {
         const p = this.state.player;
         this.state.turn++;
         if (p.speedBoost > 0) p.speedBoost--;
-        if (p.nutrition > 0 && !p.godMode && !this.spec.godMode) p.nutrition--;
-        if (p.godMode || this.spec.godMode) {
+        if (p.confused > 0) {
+            p.confused--;
+            if (p.confused === 0) this.addMessage('Your head clears; you are no longer confused.', 11);
+        }
+        if (p.blind > 0) {
+            p.blind--;
+            if (p.blind === 0) {
+                this.updateVisibility();
+                this.addMessage('Your sight returns!', 11);
+            }
+        }
+        if (p.levitating > 0) {
+            p.levitating--;
+            if (p.levitating === 0) this.addMessage('You float gently back down to the dungeon floor.', 11);
+        }
+        if (p.heroism > 0) {
+            p.heroism--;
+            if (p.heroism === 0) {
+                this.recalcPlayerDefenses();
+                this.addMessage('The surge of ancient heroism fades.', 11);
+            }
+        }
+        if (p.telepathyTurns > 0) {
+            p.telepathyTurns--;
+            if (p.telepathyTurns === 0) {
+                const hasEspGear = Array.isArray(p.inventory) && p.inventory.some(it => it.equipped && it.flags && it.flags.esp);
+                if (!hasEspGear) p.telepathy = false;
+                this.addMessage('Your temporary third-eye telepathy fades.', 11);
+            }
+        }
+        if (p.poisoned > 0) {
+            p.poisoned--;
+            const hasPoisRes = Boolean((p.resists && p.resists.pois > 0) || (Array.isArray(p.inventory) && p.inventory.some(it => it.equipped && ((it.resists && it.resists.pois > 0) || it.brand === 'pois'))));
+            if (!hasPoisRes && !p.godMode && !this.spec.godMode) {
+                p.hp -= 1;
+                if (this._checkLethalOrLifesave('virulent poison')) return;
+            }
+            if (p.poisoned === 0) this.addMessage('The poison leaves your bloodstream.', 10);
+        }
+        if (!p.godMode && !this.spec.godMode) {
+            if (p.nutrition > 0) {
+                p.nutrition--;
+                if (p.nutrition === 150) this.addMessage('You are getting dangerously hungry!', 12);
+            } else if (this.state.turn % 6 === 0) {
+                p.hp -= 1;
+                this.addMessage('You are weak from starvation! (-1 HP)', 12);
+                if (this._checkLethalOrLifesave('starvation')) return;
+            }
+        } else {
             p.pw = p.pwMax;
         }
         if (this.spec && this.spec.mutatorId === 'cataclysm' && this.state.depth > 0 && this.state.turn % 18 === 0) {
@@ -5760,11 +6018,7 @@ class UniversalCartridgeEngine {
                         p.hp -= bDmg;
                         if (p.godMode || this.spec.godMode) p.hp = Math.max(1, p.hp);
                         this.addMessage(`🔥 ${subjName} breathes a searing cone of fire directly at you! (-${bDmg} HP)`, 4);
-                        if (p.hp <= 0) {
-                            p.hp = 0; p.dead = true; p.diedFrom = killerArticle;
-                            this.addMessage(`You die... Killed by ${p.diedFrom} on ${this.state.branchName} ${this.state.depth}.`, 4);
-                            return;
-                        }
+                        if (this._checkLethalOrLifesave(killerArticle)) return;
                         continue;
                     }
                 } else if (dist >= 2 && dist <= 5 && inView && this.rand(100) < 50) {
@@ -5797,11 +6051,7 @@ class UniversalCartridgeEngine {
                         p.hp -= sDmg;
                         if (p.godMode || this.spec.godMode) p.hp = Math.max(1, p.hp);
                         this.addMessage(`💥 ${subjName} charges across the hall and slams into you! (-${sDmg} HP)`, 12);
-                        if (p.hp <= 0) {
-                            p.hp = 0; p.dead = true; p.diedFrom = killerArticle;
-                            this.addMessage(`You die... Killed by ${p.diedFrom} on ${this.state.branchName} ${this.state.depth}.`, 4);
-                            return;
-                        }
+                        if (this._checkLethalOrLifesave(killerArticle)) return;
                         continue;
                     }
                 }
@@ -5846,11 +6096,7 @@ class UniversalCartridgeEngine {
                     p.hp -= arrowDmg;
                     if (p.godMode || this.spec.godMode) p.hp = Math.max(1, p.hp);
                     this.addMessage(`${subjName} looses an arrow at you! (-${arrowDmg} HP)`, 11);
-                    if (p.hp <= 0) {
-                        p.hp = 0; p.dead = true; p.diedFrom = killerArticle;
-                        this.addMessage(`You die... Killed by ${p.diedFrom} on ${this.state.branchName} ${this.state.depth}.`, 4);
-                        return;
-                    }
+                    if (this._checkLethalOrLifesave(killerArticle)) return;
                     continue;
                 }
             }
@@ -5861,11 +6107,7 @@ class UniversalCartridgeEngine {
                 p.hp -= boltDmg;
                 if (p.godMode || this.spec.godMode) p.hp = Math.max(1, p.hp);
                 this.addMessage(`${subjName} hurls a shimmering magical bolt at you! (-${boltDmg} HP)`, 13);
-                if (p.hp <= 0) {
-                    p.hp = 0; p.dead = true; p.diedFrom = killerArticle;
-                    this.addMessage(`You die... Killed by ${p.diedFrom} on ${this.state.branchName} ${this.state.depth}.`, 4);
-                    return;
-                }
+                if (this._checkLethalOrLifesave(killerArticle)) return;
                 continue;
             }
 
@@ -5902,22 +6144,30 @@ class UniversalCartridgeEngine {
                     p.hp = Math.max(1, p.hp);
                 }
                 this.addMessage(`${subjName} hits you! (-${dmg} HP)`, 4);
-                if (p.hp <= 0) {
-                    p.hp = 0;
-                    p.dead = true;
-                    p.diedFrom = killerArticle;
-                    if (this.ironman || process.env.ANGBAND3D_IRONMAN === '1' || (this.state && this.state.ironman)) {
-                        try { if (fs.existsSync(this.saveFile + '.living.sav')) fs.unlinkSync(this.saveFile + '.living.sav'); } catch (_) {}
-                        try { if (fs.existsSync(this.saveFile)) fs.unlinkSync(this.saveFile); } catch (_) {}
-                    }
-                    this.addMessage(`You die... Killed by ${p.diedFrom} on ${this.state.branchName} ${this.state.depth}.`, 4);
-                    return;
-                }
+                if (this._checkLethalOrLifesave(killerArticle)) return;
             } else if (dist <= 7 && inView) {
-                const nx = mon.x + Math.sign(p.x - mon.x);
-                const ny = mon.y + Math.sign(p.y - mon.y);
-                if (this.state.map[ny] && this.state.map[ny][nx] && isWalkableFeat(this.state.map[ny][nx].feat) && !this.state.monsters.some(m => m.x === nx && m.y === ny) && !(nx === p.x && ny === p.y)) {
-                    mon.x = nx; mon.y = ny;
+                const dx = p.x - mon.x;
+                const dy = p.y - mon.y;
+                const sx = Math.sign(dx);
+                const sy = Math.sign(dy);
+                const candidates = [[mon.x + sx, mon.y + sy]];
+                if (sx !== 0 && sy !== 0) {
+                    if (Math.abs(dx) >= Math.abs(dy)) {
+                        candidates.push([mon.x + sx, mon.y], [mon.x, mon.y + sy]);
+                    } else {
+                        candidates.push([mon.x, mon.y + sy], [mon.x + sx, mon.y]);
+                    }
+                } else if (sx !== 0) {
+                    candidates.push([mon.x + sx, mon.y + 1], [mon.x + sx, mon.y - 1]);
+                } else if (sy !== 0) {
+                    candidates.push([mon.x + 1, mon.y + sy], [mon.x - 1, mon.y + sy]);
+                }
+                for (const [nx, ny] of candidates) {
+                    if (this.state.map[ny] && this.state.map[ny][nx] && isWalkableFeat(this.state.map[ny][nx].feat) && !this.state.monsters.some(m => m !== mon && m.x === nx && m.y === ny) && !(nx === p.x && ny === p.y)) {
+                        mon.x = nx;
+                        mon.y = ny;
+                        break;
+                    }
                 }
             }
         }
@@ -6244,8 +6494,8 @@ class UniversalCartridgeEngine {
             vm: computeVerbMask(it),
             attr: 1
         }));
-        const inventoryList = p.inventory.map((it) => ({
-            slot: it.slot,
+        const inventoryList = p.inventory.map((it, idx) => ({
+            slot: it.packIdx != null ? it.packIdx : idx,
             label: it.letter,
             letter: it.letter,
             name: formatItemDesc(it),
@@ -6370,6 +6620,7 @@ class UniversalCartridgeEngine {
             t: 'frame',
             realm: this.realm,
             seq: this.seq,
+            seed: this.baseSeed,
             phase: this.state.phase,
             victory: Boolean(p.winner),
             ryodMeta,
@@ -6555,7 +6806,7 @@ function runCartridgeMain(spec, defaultSaveDir) {
         if (!line) return;
         if (line === 'save') {
             const ok = engine.saveGame();
-            writeJson({ t: 'saved', ok });
+            writeJson({ t: 'ok', detail: 'saved', ok: ok !== false });
             return;
         }
         if (line === 'frame') {
@@ -6567,11 +6818,29 @@ function runCartridgeMain(spec, defaultSaveDir) {
             process.exit(0);
             return;
         }
-        if (line.startsWith('key ') || line.startsWith('keys ')) {
-            const keyArg = line.replace(/^keys?\s+/, '');
+        if (line.startsWith('keys ')) {
+            const rawSeq = rawLine.replace(/^\s*keys\s+/, '').replace(/\r?\n$/, '');
+            const NAMED_RE = /^(enter|return|escape|esc|space|tab|backspace|up|down|left|right|home|end|pageup|pagedown|pgup|pgdn)$/i;
+            if (NAMED_RE.test(rawSeq.trim())) {
+                engine.handleKey(rawSeq.trim());
+            } else {
+                for (const ch of rawSeq) engine.handleKey(ch);
+            }
+            writeJson(engine.buildFrame());
+            return;
+        }
+        if (line.startsWith('key ')) {
+            const keyArg = line.replace(/^key\s+/, '');
             engine.handleKey(keyArg);
             writeJson(engine.buildFrame());
         }
+    });
+    rl.on('close', () => {
+        try { engine.saveGame(); } catch (_) {}
+    });
+    process.on('SIGTERM', () => {
+        try { engine.saveGame(); } catch (_) {}
+        process.exit(0);
     });
 
     return engine;
@@ -6706,18 +6975,34 @@ const ITEM_POOL = [
 
 const SLOT_LETTERS = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
 
+function parseSeedInput(raw) {
+    if (raw == null || raw === '') return 0;
+    const n = Number(raw);
+    if (Number.isFinite(n) && n > 0) return (n >>> 0) || 1;
+    const s = String(raw).trim();
+    if (/^[0-9a-fA-F]{1,8}$/.test(s)) return (parseInt(s, 16) >>> 0) || 1;
+    let h = 2166136261 >>> 0;
+    for (let i = 0; i < s.length; i++) {
+        h ^= s.charCodeAt(i);
+        h = Math.imul(h, 16777619) >>> 0;
+    }
+    return (h >>> 0) || 1;
+}
+
 function parseCliArgs(argv) {
     let saveDir = path.resolve(__dirname, '../lib/save');
     let user = 'Rodney';
     let isNew = false;
     let randomBirth = false;
+    let seed = null;
     for (const arg of argv.slice(2)) {
         if (arg.startsWith('-dsave=')) saveDir = arg.slice(7);
         else if (arg.startsWith('-u')) user = arg.slice(2) || user;
         else if (arg === '-n') isNew = true;
         else if (arg === '-r' || arg === '--random') randomBirth = true;
+        else if (arg.startsWith('--seed=')) seed = arg.slice(7);
     }
-    return { saveDir, user, isNew, randomBirth };
+    return { saveDir, user, isNew, randomBirth, seed };
 }
 
 function formatItemDesc(it) {
@@ -6815,7 +7100,9 @@ class NetHackEngine {
         this.user = opts.user;
         this.saveFile = path.join(this.saveDir, this.user);
         this.seq = 0;
-        this.seed = (crypto.randomBytes(4).readUInt32LE(0) || ((Date.now() ^ 0x5f3759df) >>> 0)) >>> 0;
+        const parsedSeed = opts && opts.seed != null ? parseSeedInput(opts.seed) : 0;
+        this.baseSeed = parsedSeed || ((crypto.randomBytes(4).readUInt32LE(0) || ((Date.now() ^ 0x5f3759df) >>> 0)) >>> 0);
+        this.seed = this.baseSeed;
         this.state = null;
         this._lastLivingSnapshot = null;
         if (!opts.isNew && !opts.randomBirth && this.loadSave()) {
@@ -6953,6 +7240,10 @@ class NetHackEngine {
                 { text: `Welcome to NetHack 3.6.7! You are a ${role.align} ${role.race} ${role.id}.`, count: 1, attr: 11 },
                 { text: 'Your faithful little dog bounds alongside you into the Dungeons of Doom.', count: 1, attr: 1 }
             ],
+            baseSeed: this.baseSeed,
+            rngSeed: this.seed,
+            levels: {},
+            wizardSpawned: false,
             statFocus: 'optimal',
             kitBoon: 'signature',
             _optimizedApplied: false,
@@ -7080,6 +7371,67 @@ class NetHackEngine {
     }
 
     generateDungeonLevel(depth) {
+        const prevDepth = this.state ? this.state.depth : null;
+        const descending = prevDepth != null ? (depth > prevDepth) : true;
+        if (this.state && Array.isArray(this.state.map) && this.state.map.length > 0 && prevDepth != null && prevDepth !== depth) {
+            this.state.levels = this.state.levels || {};
+            this.state.levels[prevDepth] = {
+                map: this.state.map,
+                monsters: (this.state.monsters || []).filter(m => !m.isPet),
+                objects: this.state.objects || [],
+                branchName: this.state.branchName
+            };
+        }
+
+        if (this.state && this.state.levels && this.state.levels[depth]) {
+            const savedLvl = this.state.levels[depth];
+            delete this.state.levels[depth];
+            this.state.depth = depth;
+            if (depth > this.state.maxDepth) this.state.maxDepth = depth;
+            this.state.branchName = savedLvl.branchName || this.state.branchName;
+            this.state.map = savedLvl.map;
+            this.state.monsters = Array.isArray(savedLvl.monsters) ? savedLvl.monsters : [];
+            this.state.objects = Array.isArray(savedLvl.objects) ? savedLvl.objects : [];
+            const targetFeat = descending ? FEAT.UP_STAIR : FEAT.DOWN_STAIR;
+            let placed = false;
+            for (let y = 1; y < MAP_H - 1 && !placed; y++) {
+                for (let x = 1; x < MAP_W - 1; x++) {
+                    if (this.state.map[y] && this.state.map[y][x] && this.state.map[y][x].feat === targetFeat) {
+                        this.state.player.x = x;
+                        this.state.player.y = y;
+                        placed = true;
+                        break;
+                    }
+                }
+            }
+            const ps = this.state.petState;
+            if (ps && ps.alive) {
+                const px = Math.min(MAP_W - 2, this.state.player.x + 1);
+                const py = this.state.player.y;
+                if (this.state.map[py] && this.state.map[py][px] && this.state.map[py][px].feat !== FEAT.WALL && this.state.map[py][px].feat !== FEAT.PERM_WALL) {
+                    const maxId = this.state.monsters.reduce((acc, m) => Math.max(acc, m.id || 0), 0);
+                    this.state.monsters.push({
+                        id: maxId + 1,
+                        x: px, y: py,
+                        glyph: ps.glyph || 'd', attr: 1,
+                        race: ps.name || 'little dog (tame)',
+                        race_level: ps.level || Math.max(1, depth),
+                        hp: ps.hp, hp_max: ps.maxHp,
+                        ac: 6, dmg: 5 + depth, speed: 120, exp: 0,
+                        isPet: true, peaceful: ps.tam !== false, asleep: false
+                    });
+                }
+            }
+            this.updateVisibility();
+            return;
+        }
+
+        if (this.baseSeed) {
+            let mix = (this.baseSeed ^ Math.imul((depth >>> 0) + 1, 0x9e3779b9)) >>> 0;
+            mix = Math.imul(mix ^ (mix >>> 16), 0x85ebca6b) >>> 0;
+            this.seed = (mix ^ (mix >>> 13)) >>> 0 || 1;
+        }
+
         this.state.depth = depth;
         if (depth > this.state.maxDepth) this.state.maxDepth = depth;
         if (depth <= 3) this.state.branchName = 'Dungeons of Doom';
@@ -7243,7 +7595,7 @@ class NetHackEngine {
             this._lastLivingSnapshot = JSON.stringify(this.state);
         }
 
-        const eligible = MONSTER_TABLE.filter(m => m.minDepth <= depth + 2 && (!m.isBoss || depth >= 10));
+        const eligible = MONSTER_TABLE.filter(m => m.minDepth <= depth + 2 && !m.isBoss);
         for (let i = 1; i < shuffledRooms.length; i++) {
             const rm = shuffledRooms[i];
             const count = 1 + (this.rand(100) < 45 ? 1 : 0);
@@ -7269,6 +7621,33 @@ class NetHackEngine {
                     isBoss: Boolean(tmpl.isBoss),
                     asleep: this.rand(100) < 25
                 });
+            }
+        }
+        if (depth >= 20 && !this.state.wizardSpawned && endRoom) {
+            const wizTmpl = MONSTER_TABLE.find(m => m.isBoss);
+            if (wizTmpl) {
+                this.state.wizardSpawned = true;
+                const wx = Math.min(endRoom.x1, endRoom.cx + 1);
+                const wy = endRoom.cy;
+                if (!this.state.monsters.some(m => m.x === wx && m.y === wy)) {
+                    this.state.monsters.push({
+                        id: nextMonId++,
+                        x: wx,
+                        y: wy,
+                        glyph: wizTmpl.glyph,
+                        attr: wizTmpl.attr,
+                        race: wizTmpl.name,
+                        race_level: wizTmpl.minDepth,
+                        hp: wizTmpl.hp + depth * 2,
+                        hp_max: wizTmpl.hp + depth * 2,
+                        ac: wizTmpl.ac,
+                        dmg: wizTmpl.dmg + Math.floor(depth / 2),
+                        speed: wizTmpl.speed,
+                        exp: wizTmpl.exp,
+                        isBoss: true,
+                        asleep: false
+                    });
+                }
             }
         }
 
@@ -7320,21 +7699,27 @@ class NetHackEngine {
     }
 
     hasLineOfSight(x0, y0, x1, y1) {
+        const isOpaqueCell = (x, y) => {
+            const c = this.state.map[y] && this.state.map[y][x];
+            return !c || c.feat === FEAT.WALL || c.feat === FEAT.PERM_WALL || c.feat === FEAT.CLOSED_DOOR;
+        };
         let dx = Math.abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
         let dy = -Math.abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
         let err = dx + dy;
         let cx = x0, cy = y0;
         while (true) {
             if (cx === x1 && cy === y1) return true;
-            if (!(cx === x0 && cy === y0)) {
-                const cell = this.state.map[cy] && this.state.map[cy][cx];
-                if (!cell || cell.feat === FEAT.WALL || cell.feat === FEAT.PERM_WALL || cell.feat === FEAT.CLOSED_DOOR) {
-                    return false;
-                }
+            if (!(cx === x0 && cy === y0) && isOpaqueCell(cx, cy)) {
+                return false;
             }
             const e2 = 2 * err;
-            if (e2 >= dy) { err += dy; cx += sx; }
-            if (e2 <= dx) { err += dx; cy += sy; }
+            const stepX = e2 >= dy;
+            const stepY = e2 <= dx;
+            if (stepX && stepY && isOpaqueCell(cx + sx, cy) && isOpaqueCell(cx, cy + sy)) {
+                return false;
+            }
+            if (stepX) { err += dy; cx += sx; }
+            if (stepY) { err += dx; cy += sy; }
         }
     }
 
@@ -7381,6 +7766,8 @@ class NetHackEngine {
     saveGame() {
         try {
             if (!this.state || !this.state.player || this.state.player.dead) return false;
+            this.state.baseSeed = this.baseSeed;
+            this.state.rngSeed = this.seed;
             this._lastLivingSnapshot = JSON.stringify(this.state);
             if (!fs.existsSync(this.saveDir)) fs.mkdirSync(this.saveDir, { recursive: true });
             const p = this.state.player;
@@ -7396,7 +7783,7 @@ class NetHackEngine {
             const full = Buffer.concat([header, descBuf, payload]);
             fs.writeFileSync(this.saveFile, full);
             fs.writeFileSync(this.saveFile + '.living.sav', full);
-            const sidecar = { realm: 'nethack', characterName: p.name, level: p.level, depth: this.state.depth, race: p.race, class: p.class, updatedAt: Date.now() };
+            const sidecar = { realm: 'nethack', characterName: p.name, level: p.level, depth: this.state.depth, race: p.race, class: p.class, seed: this.baseSeed || null, updatedAt: Date.now() };
             fs.writeFileSync(this.saveFile + '.realm.json', JSON.stringify(sidecar));
             return true;
         } catch (_) {
@@ -7465,6 +7852,8 @@ class NetHackEngine {
             }
             if (loaded && loaded.player && loaded.map && !loaded.player.dead) {
                 this.state = loaded;
+                if (loaded.baseSeed) this.baseSeed = loaded.baseSeed;
+                if (loaded.rngSeed) this.seed = loaded.rngSeed;
                 this.state.phase = 'play';
                 this.state.menuMode = 'none';
                 // Normalize any legacy feature codes in saved maps to canonical 3D feature codes
@@ -9186,6 +9575,7 @@ class NetHackEngine {
             t: 'frame',
             realm: 'nethack',
             seq: this.seq,
+            seed: this.baseSeed,
             phase: this.state.phase,
             victory: Boolean(p.winner || p.ascended),
             ui: {
@@ -9349,8 +9739,8 @@ function main() {
         const line = String(rawLine || '').trim();
         if (!line) return;
         if (line === 'save') {
-            engine.saveGame();
-            writeJson({ t: 'saved', ok: true });
+            const ok = engine.saveGame();
+            writeJson({ t: 'ok', detail: 'saved', ok: ok !== false });
             return;
         }
         if (line === 'frame') {
@@ -9362,11 +9752,29 @@ function main() {
             process.exit(0);
             return;
         }
-        if (line.startsWith('key ') || line.startsWith('keys ')) {
-            const keyArg = line.replace(/^keys?\s+/, '');
+        if (line.startsWith('keys ')) {
+            const rawSeq = rawLine.replace(/^\s*keys\s+/, '').replace(/\r?\n$/, '');
+            const NAMED_RE = /^(enter|return|escape|esc|space|tab|backspace|up|down|left|right|home|end|pageup|pagedown|pgup|pgdn)$/i;
+            if (NAMED_RE.test(rawSeq.trim())) {
+                engine.handleKey(rawSeq.trim());
+            } else {
+                for (const ch of rawSeq) engine.handleKey(ch);
+            }
+            writeJson(engine.buildFrame());
+            return;
+        }
+        if (line.startsWith('key ')) {
+            const keyArg = line.replace(/^key\s+/, '');
             engine.handleKey(keyArg);
             writeJson(engine.buildFrame());
         }
+    });
+    rl.on('close', () => {
+        try { engine.saveGame(); } catch (_) {}
+    });
+    process.on('SIGTERM', () => {
+        try { engine.saveGame(); } catch (_) {}
+        process.exit(0);
     });
 }
 

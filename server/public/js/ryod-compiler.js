@@ -532,8 +532,10 @@
                 wis: bp.godMode ? h.wis + 10 : h.wis,
                 dex: bp.godMode ? h.dex + 10 : h.dex,
                 con: bp.godMode ? h.con + 10 : h.con,
-                weapon: { ...h.weapon, bonus: bp.godMode ? 9 : h.weapon.bonus },
-                armor: { ...h.armor, bonus: bp.godMode ? 9 : h.armor.bonus },
+                ringSlots: h.ringSlots || 2,
+                allowBodyArmor: h.allowBodyArmor !== false,
+                weapon: h.weapon ? { ...h.weapon, bonus: bp.godMode ? 9 : h.weapon.bonus } : null,
+                armor: h.armor ? { ...h.armor, bonus: bp.godMode ? 9 : h.armor.bonus } : null,
                 extra: h.extra ? { ...h.extra } : null,
                 innatePower: h.innatePower ? { ...h.innatePower } : null,
                 disciplinePowers: disc.powers.map(p => ({ ...p }))

@@ -87,10 +87,6 @@ function extractRequestOwnerTokens(req, urlObj = null) {
             if (trimmed.startsWith('owner.')) parts.push(trimmed.slice(6).trim());
         }
     }
-    if (urlObj && urlObj.searchParams) {
-        const qOwner = urlObj.searchParams.get('owner');
-        if (qOwner) parts.push(qOwner);
-    }
     return parts.filter(Boolean).join(',');
 }
 
@@ -1049,7 +1045,10 @@ function createSaveVaultService({
                     }
 
                     const isDeadUpload = isSaveBufferDead(saveBuf);
-                    await fs.promises.writeFile(destPath, saveBuf);
+                    const tmpSuffix = `${process.pid}.${crypto.randomBytes(6).toString('hex')}`;
+                    const destTmp = `${destPath}.tmp.${tmpSuffix}`;
+                    await fs.promises.writeFile(destTmp, saveBuf);
+                    await fs.promises.rename(destTmp, destPath);
 
                     // Optional Hengband floor sidecars bundled in sync envelope
                     if (jsonEnvelope && jsonEnvelope.floorSidecars && typeof jsonEnvelope.floorSidecars === 'object') {
@@ -1081,7 +1080,9 @@ function createSaveVaultService({
                         delete sidecarOut.dead;
                         clearSaveDead(destPath);
                     }
-                    await fs.promises.writeFile(destPath + '.realm.json', JSON.stringify(sidecarOut), 'utf8').catch(() => {});
+                    const scPath = destPath + '.realm.json';
+                    const scTmp = `${scPath}.tmp.${tmpSuffix}`;
+                    await fs.promises.writeFile(scTmp, JSON.stringify(sidecarOut), 'utf8').then(() => fs.promises.rename(scTmp, scPath)).catch(() => {});
 
                     let newOwnerToken = undefined;
                     const existingOwnerRec = await getOwnerRecordAsync(destPath);

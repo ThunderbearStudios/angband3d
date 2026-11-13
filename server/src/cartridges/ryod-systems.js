@@ -31,7 +31,25 @@
     function log(engine, msg, attr = 11) {
         if (!engine) return;
         if (typeof engine.addMessage === 'function') engine.addMessage(msg, attr);
-        else if (typeof engine.logMsg === 'function') log(engine, msg, attr);
+        else if (typeof engine.logMsg === 'function') engine.logMsg(msg, attr);
+        else if (typeof engine.pushMessage === 'function') engine.pushMessage(msg, attr);
+    }
+
+    function getCellFeat(map, x, y) {
+        const row = map && map[y];
+        const cell = row && row[x];
+        if (cell == null) return FEAT.NONE;
+        return typeof cell === 'object' ? cell.feat : cell;
+    }
+
+    function setCellFeat(map, x, y, feat, glyph) {
+        if (!map || !map[y] || map[y][x] == null) return;
+        if (typeof map[y][x] === 'object') {
+            map[y][x].feat = feat;
+            if (glyph) map[y][x].glyph = glyph;
+        } else {
+            map[y][x] = feat;
+        }
     }
 
     function parseSeed(raw) {
@@ -192,12 +210,14 @@
     function smithAtAnvil(engine, choiceIdx = 0) {
         const s = engine.state;
         const p = s.player;
+        const mapW = engine.MAP_W || (s.map && s.map[0] ? s.map[0].length : 66);
+        const mapH = engine.MAP_H || (s.map ? s.map.length : 22);
         let nearAnvil = false;
         for (let dy = -1; dy <= 1; dy++) {
             for (let dx = -1; dx <= 1; dx++) {
                 const nx = p.x + dx, ny = p.y + dy;
-                if (nx >= 0 && nx < engine.MAP_W && ny >= 0 && ny < engine.MAP_H) {
-                    if (s.map[ny][nx] === FEAT.ANVIL) nearAnvil = true;
+                if (nx >= 0 && nx < mapW && ny >= 0 && ny < mapH) {
+                    if (getCellFeat(s.map, nx, ny) === FEAT.ANVIL) nearAnvil = true;
                 }
             }
         }
@@ -205,7 +225,10 @@
             log(engine, `You must stand next to a Mithril Anvil to smith.`);
             return false;
         }
-        const target = p.equipment && (p.equipment.weapon || p.equipment.body || p.inventory.find(i => i.kind === 'weapon' || i.kind === 'armor'));
+        const inv = Array.isArray(p.inventory) ? p.inventory : [];
+        const target = (p.equipment && (p.equipment.weapon || p.equipment.body))
+            || inv.find(i => i.equipped === 'weapon' || i.equipped === 'body' || i.equipped === 'armor')
+            || inv.find(i => i.kind === 'weapon' || i.kind === 'armor');
         if (!target) {
             log(engine, `You have no weapon or armor to temper on the anvil.`);
             return false;
@@ -214,17 +237,21 @@
         const chosen = brands[choiceIdx % brands.length];
         target.bonus = (target.bonus || 0) + 2;
         if (!target.name.includes(' of ')) target.name = `${target.name} ${chosen}`;
+        if (typeof engine.recalcPlayerDefenses === 'function') engine.recalcPlayerDefenses();
         log(engine, `With ringing hammer-blows, you temper ${target.name}! (+2)`);
         return true;
     }
 
     function assignFloorBounty(engine) {
         const monsters = engine.state.monsters || [];
-        const candidates = monsters.filter(m => m.alive && !m.isBoss && !m.isAlly && !m.isWantedBounty);
+        const candidates = monsters.filter(m => (m.alive !== false && (m.hp == null || m.hp > 0)) && !m.isBoss && !m.isAlly && !m.isPet && !m.isWantedBounty);
         if (candidates.length === 0) return null;
-        const target = candidates[Math.floor(Math.random() * candidates.length)];
+        const pickIdx = typeof engine.rand === 'function' ? engine.rand(candidates.length) : Math.floor(Math.random() * candidates.length);
+        const target = candidates[pickIdx];
         target.isWantedBounty = true;
-        target.name = `[WANTED] ${target.name}`;
+        const baseName = target.name || target.race || 'foe';
+        target.name = `[WANTED] ${baseName}`;
+        if (target.race && !String(target.race).startsWith('[WANTED]')) target.race = `[WANTED] ${target.race}`;
         target.bountyRewardGold = (engine.state.depth || 1) * 35 + 50;
         log(engine, `A Shogunate bounty notice is posted for ${target.name}!`);
         return target;
@@ -236,6 +263,7 @@
         const gold = mon.bountyRewardGold || 75;
         p.gold = (p.gold || 0) + gold;
         p.inventory.push({ kind: 'scroll', name: 'scroll of enchanting', glyph: '?', enchantGain: 1, count: 1, weight: 5, tval: 70, sval: 15 });
+        if (typeof engine.reindexInventory === 'function') engine.reindexInventory();
         log(engine, `Bounty claimed! You receive ${gold} gold and a Scroll of Enchanting!`);
     }
 
@@ -247,6 +275,7 @@
             p.deityGiftGiven = true;
             const gift = { kind: 'weapon', name: `Blessed Blade of ${p.deity}`, dmg: '3d7', bonus: 3, beatitude: 'blessed', weight: 40, tval: 23, sval: 9 };
             p.inventory.push(gift);
+            if (typeof engine.reindexInventory === 'function') engine.reindexInventory();
             log(engine, `★ ${p.deity} is well pleased and bestows upon you ${gift.name}!`);
         }
     }
@@ -274,13 +303,17 @@
             p.pw = Math.min(p.pwMax, (p.pw || 0) + 24);
             log(engine, `Sif Muna channels boundless arcane energy into your core! (+24 PW)`);
         } else if (p.deity === 'Yredelemnul') {
-            const thrall = { id: `thrall_${Date.now()}`, name: 'shadow thrall', glyph: 'Z', x: p.x, y: p.y, hp: 30, hpMax: 30, dmg: '2d6', alive: true, isAlly: true };
+            const thrall = { id: `thrall_${Date.now()}`, name: 'shadow thrall', race: 'shadow thrall', glyph: 'Z', attr: 8, x: p.x, y: p.y, hp: 30, hpMax: 30, hp_max: 30, dmg: 8, dmgDice: '2d6', alive: true, isAlly: true, isPet: true };
             engine.state.monsters.push(thrall);
             log(engine, `Yredelemnul binds a shadow thrall to serve you!`);
         } else if (p.deity === 'Vehumet') {
-            (engine.state.monsters || []).filter(m => m.alive && !m.isAlly).forEach(m => {
+            (engine.state.monsters || []).slice().filter(m => (m.alive !== false && (m.hp == null || m.hp > 0)) && !m.isAlly && !m.isPet).forEach(m => {
                 m.hp -= 25;
-                if (m.hp <= 0) { m.alive = false; engine.onMonsterKilled(m); }
+                if (m.hp <= 0) {
+                    m.alive = false;
+                    if (typeof engine.handleMonsterKilled === 'function') engine.handleMonsterKilled(m);
+                    else if (typeof engine.onMonsterKilled === 'function') engine.onMonsterKilled(m);
+                }
             });
             log(engine, `Vehumet unleashes an apocalyptic conflagration upon all foes!`);
         } else {
@@ -300,6 +333,8 @@
         const s = engine.state;
         if (!s.activeHazards || s.activeHazards.length === 0) return;
         const p = s.player;
+        const mapW = engine.MAP_W || (s.map && s.map[0] ? s.map[0].length : 66);
+        const mapH = engine.MAP_H || (s.map ? s.map.length : 22);
         const nextHazards = [];
         for (const h of s.activeHazards) {
             h.duration = (h.duration || 1) - 1;
@@ -307,8 +342,8 @@
                 for (let dy = -1; dy <= 1; dy++) {
                     for (let dx = -1; dx <= 1; dx++) {
                         const nx = h.x + dx, ny = h.y + dy;
-                        if (nx >= 0 && nx < engine.MAP_W && ny >= 0 && ny < engine.MAP_H && s.map[ny][nx] === FEAT.GAS_VENT) {
-                            s.map[ny][nx] = FEAT.FLOOR;
+                        if (nx >= 0 && nx < mapW && ny >= 0 && ny < mapH && getCellFeat(s.map, nx, ny) === FEAT.GAS_VENT) {
+                            setCellFeat(s.map, nx, ny, FEAT.FLOOR, '.');
                             log(engine, `The wildfire ignites a subterranean gas vent with a deafening blast!`);
                         }
                     }
@@ -332,27 +367,32 @@
     }
 
     function evolveAllyOnBattle(ally, engine) {
-        if (!ally || !ally.isAlly) return;
+        if (!ally || (!ally.isAlly && !ally.isPet)) return;
         ally.kills = (ally.kills || 0) + 1;
         if (ally.kills === 2 && !ally.traits?.vampiric) {
             ally.traits = ally.traits || {}; ally.traits.vampiric = true;
-            ally.name = `vampiric ${ally.name}`;
+            ally.name = `vampiric ${ally.name || ally.race || 'ally'}`;
+            if (ally.race) ally.race = ally.name;
             log(engine, `Your ally drank deep of battle and gained the Vampiric trait!`);
         } else if (ally.kills === 4 && !ally.traits?.blinking) {
-            ally.traits.blinking = true;
-            ally.name = `shadow-blinking ${ally.name}`;
+            ally.traits = ally.traits || {}; ally.traits.blinking = true;
+            ally.name = `shadow-blinking ${ally.name || ally.race || 'ally'}`;
+            if (ally.race) ally.race = ally.name;
             log(engine, `Your ally mastered phase-stepping and gained the Blinking trait!`);
         } else if (ally.kills === 7 && !ally.traits?.flame) {
-            ally.traits.flame = true;
-            ally.name = `flame-crested ${ally.name}`;
-            ally.hpMax += 15; ally.hp += 15;
+            ally.traits = ally.traits || {}; ally.traits.flame = true;
+            ally.name = `flame-crested ${ally.name || ally.race || 'ally'}`;
+            if (ally.race) ally.race = ally.name;
+            ally.hpMax = (ally.hpMax || ally.hp_max || 30) + 15;
+            ally.hp_max = ally.hpMax;
+            ally.hp += 15;
             log(engine, `Your ally ascended into a Flame-Crested guardian! (+15 Max HP)`);
         }
     }
 
     function interactAltar(engine) {
         const p = engine.state.player;
-        if (engine.state.map[p.y][p.x] !== FEAT.ALTAR) {
+        if (getCellFeat(engine.state.map, p.x, p.y) !== FEAT.ALTAR) {
             log(engine, `There is no altar here.`);
             return false;
         }
@@ -369,25 +409,27 @@
 
     function interactFountain(engine) {
         const p = engine.state.player;
-        if (engine.state.map[p.y][p.x] !== FEAT.FOUNTAIN) {
+        if (getCellFeat(engine.state.map, p.x, p.y) !== FEAT.FOUNTAIN) {
             log(engine, `There is no fountain here.`);
             return false;
         }
         p.hp = Math.min(p.hpMax, p.hp + 20);
-        engine.state.map[p.y][p.x] = FEAT.FLOOR;
+        setCellFeat(engine.state.map, p.x, p.y, FEAT.FLOOR, '.');
         log(engine, `You drink the pristine spring water (+20 HP). The fountain bubbles and dries to dry stone.`);
         return true;
     }
 
     function interactCage(engine) {
         const p = engine.state.player;
+        const mapW = engine.MAP_W || (engine.state.map && engine.state.map[0] ? engine.state.map[0].length : 66);
+        const mapH = engine.MAP_H || (engine.state.map ? engine.state.map.length : 22);
         let found = false;
         for (let dy = -1; dy <= 1; dy++) {
             for (let dx = -1; dx <= 1; dx++) {
                 const nx = p.x + dx, ny = p.y + dy;
-                if (nx >= 0 && nx < engine.MAP_W && ny >= 0 && ny < engine.MAP_H && engine.state.map[ny][nx] === FEAT.CAGE) {
-                    engine.state.map[ny][nx] = FEAT.FLOOR;
-                    const ally = { id: `liberated_${Date.now()}`, name: 'liberated captive', glyph: 'h', x: nx, y: ny, hp: 35, hpMax: 35, dmg: '2d5', alive: true, isAlly: true };
+                if (nx >= 0 && nx < mapW && ny >= 0 && ny < mapH && getCellFeat(engine.state.map, nx, ny) === FEAT.CAGE) {
+                    setCellFeat(engine.state.map, nx, ny, FEAT.FLOOR, '.');
+                    const ally = { id: `liberated_${Date.now()}`, name: 'liberated captive', race: 'liberated captive', glyph: 'h', attr: 10, x: nx, y: ny, hp: 35, hpMax: 35, hp_max: 35, dmg: 7, dmgDice: '2d5', alive: true, isAlly: true, isPet: true };
                     engine.state.monsters.push(ally);
                     log(engine, `You shatter the iron cage! A grateful captive joins your party as a loyal ally!`);
                     found = true;
@@ -414,17 +456,26 @@
         const rng = mulberry32(seed);
         const vault = VAULT_TEMPLATES[Math.floor(rng() * VAULT_TEMPLATES.length)];
         const targetRoom = rooms[Math.floor(rng() * rooms.length)];
-        if (!targetRoom || targetRoom.w < vault.w || targetRoom.h < vault.h) return false;
-        const ox = targetRoom.x + Math.floor((targetRoom.w - vault.w) / 2);
-        const oy = targetRoom.y + Math.floor((targetRoom.h - vault.h) / 2);
+        const rw = targetRoom ? (targetRoom.w != null ? targetRoom.w : (targetRoom.x1 - targetRoom.x0 + 1)) : 0;
+        const rh = targetRoom ? (targetRoom.h != null ? targetRoom.h : (targetRoom.y1 - targetRoom.y0 + 1)) : 0;
+        if (!targetRoom || rw < vault.w || rh < vault.h) return false;
+        const rx = targetRoom.x != null ? targetRoom.x : targetRoom.x0;
+        const ry = targetRoom.y != null ? targetRoom.y : targetRoom.y0;
+        const ox = rx + Math.floor((rw - vault.w) / 2);
+        const oy = ry + Math.floor((rh - vault.h) / 2);
         const map = engine.state.map;
+        const mapW = engine.MAP_W || (map && map[0] ? map[0].length : 66);
+        const mapH = engine.MAP_H || (map ? map.length : 22);
+        const glyphForFeat = { [FEAT.ANVIL]: '0', [FEAT.GAS_VENT]: '^', [FEAT.WALL]: '#', [FEAT.FLOOR]: '.', [FEAT.OPEN_DOOR]: "'", [FEAT.ALTAR]: '_', [FEAT.FOUNTAIN]: '{', [FEAT.CAGE]: '#', [FEAT.RUNE_VAULT]: '8' };
         for (let vy = 0; vy < vault.h; vy++) {
             for (let vx = 0; vx < vault.w; vx++) {
                 const char = vault.layout[vy][vx];
                 const feat = vault.featMap[char] !== undefined ? vault.featMap[char] : FEAT.FLOOR;
                 const gx = ox + vx, gy = oy + vy;
-                if (gx > 0 && gx < engine.MAP_W - 1 && gy > 0 && gy < engine.MAP_H - 1) {
-                    map[gy][gx] = feat;
+                if (gx > 0 && gx < mapW - 1 && gy > 0 && gy < mapH - 1) {
+                    const curFeat = getCellFeat(map, gx, gy);
+                    if (curFeat === 5 || curFeat === 6) continue; // Never overwrite UP_STAIR or DOWN_STAIR
+                    setCellFeat(map, gx, gy, feat, glyphForFeat[feat] || '.');
                 }
             }
         }
@@ -446,15 +497,36 @@
     function onAscentFloorEnter(engine) {
         const p = engine.state.player;
         if (!p.hasAmulet) return;
+        const map = engine.state.map;
+        const mapW = engine.MAP_W || (map && map[0] ? map[0].length : 66);
+        const mapH = engine.MAP_H || (map ? map.length : 22);
+        let hx = Math.min(mapW - 2, Math.max(1, p.x + 2));
+        let hy = Math.min(mapH - 2, Math.max(1, p.y + 2));
+        if (map && getCellFeat(map, hx, hy) !== FEAT.FLOOR) {
+            outer: for (let dy = -3; dy <= 3; dy++) {
+                for (let dx = -3; dx <= 3; dx++) {
+                    if (dx === 0 && dy === 0) continue;
+                    const tx = p.x + dx, ty = p.y + dy;
+                    if (tx > 0 && tx < mapW - 1 && ty > 0 && ty < mapH - 1 && getCellFeat(map, tx, ty) === FEAT.FLOOR) {
+                        hx = tx; hy = ty; break outer;
+                    }
+                }
+            }
+        }
+        const hpVal = 60 + ((engine.state.depth || 1) * 5);
         const hunter = {
             id: `apex_hunter_${Date.now()}`,
             name: 'Apex Relic Hunter',
+            race: 'Apex Relic Hunter',
             glyph: 'A',
-            x: Math.max(1, p.x + 2),
-            y: Math.max(1, p.y + 2),
-            hp: 60 + (engine.state.depth * 5),
-            hpMax: 60 + (engine.state.depth * 5),
-            dmg: '3d6',
+            attr: 14,
+            x: hx,
+            y: hy,
+            hp: hpVal,
+            hpMax: hpVal,
+            hp_max: hpVal,
+            dmg: 14,
+            dmgDice: '3d6',
             alive: true,
             isBoss: true
         };
@@ -488,12 +560,16 @@
         else if (player.level >= 20 || d >= 10 || (player.enchantments || 0) >= 4) stageIdx = 2;
         else if (player.level >= 10 || d >= 5 || (player.enchantments || 0) >= 2) stageIdx = 1;
         const targetStage = stages[stageIdx];
+        if (!player._evolvedStages) player._evolvedStages = { Wyrmling: true };
         if (player.dragonStage !== targetStage) {
             player.dragonStage = targetStage;
             player.roleName = `Red Dragon (${targetStage})`;
-            player.hpMax += 15;
-            player.hp += 15;
-            player.ac += 2;
+            if (!player._evolvedStages[targetStage]) {
+                player._evolvedStages[targetStage] = true;
+                player.hpMax += 15;
+                player.hp += 15;
+                player.ac += 2;
+            }
         }
     }
 

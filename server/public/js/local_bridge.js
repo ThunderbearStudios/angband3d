@@ -495,6 +495,7 @@ class LocalGameBridge {
             saveFile: saveFile,
             customBirth: Boolean(opts && opts.customBirth),
             randomBirth: Boolean(opts && opts.randomBirth),
+            seed: (opts && opts.seed) || (isNew && typeof window !== 'undefined' && window.__bootSeed ? window.__bootSeed : undefined),
             ryodBlueprint: effectiveRyod
         });
     }

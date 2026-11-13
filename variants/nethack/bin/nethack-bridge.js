@@ -118,18 +118,34 @@ const ITEM_POOL = [
 
 const SLOT_LETTERS = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
 
+function parseSeedInput(raw) {
+    if (raw == null || raw === '') return 0;
+    const n = Number(raw);
+    if (Number.isFinite(n) && n > 0) return (n >>> 0) || 1;
+    const s = String(raw).trim();
+    if (/^[0-9a-fA-F]{1,8}$/.test(s)) return (parseInt(s, 16) >>> 0) || 1;
+    let h = 2166136261 >>> 0;
+    for (let i = 0; i < s.length; i++) {
+        h ^= s.charCodeAt(i);
+        h = Math.imul(h, 16777619) >>> 0;
+    }
+    return (h >>> 0) || 1;
+}
+
 function parseCliArgs(argv) {
     let saveDir = path.resolve(__dirname, '../lib/save');
     let user = 'Rodney';
     let isNew = false;
     let randomBirth = false;
+    let seed = null;
     for (const arg of argv.slice(2)) {
         if (arg.startsWith('-dsave=')) saveDir = arg.slice(7);
         else if (arg.startsWith('-u')) user = arg.slice(2) || user;
         else if (arg === '-n') isNew = true;
         else if (arg === '-r' || arg === '--random') randomBirth = true;
+        else if (arg.startsWith('--seed=')) seed = arg.slice(7);
     }
-    return { saveDir, user, isNew, randomBirth };
+    return { saveDir, user, isNew, randomBirth, seed };
 }
 
 function formatItemDesc(it) {
@@ -227,7 +243,9 @@ class NetHackEngine {
         this.user = opts.user;
         this.saveFile = path.join(this.saveDir, this.user);
         this.seq = 0;
-        this.seed = (crypto.randomBytes(4).readUInt32LE(0) || ((Date.now() ^ 0x5f3759df) >>> 0)) >>> 0;
+        const parsedSeed = opts && opts.seed != null ? parseSeedInput(opts.seed) : 0;
+        this.baseSeed = parsedSeed || ((crypto.randomBytes(4).readUInt32LE(0) || ((Date.now() ^ 0x5f3759df) >>> 0)) >>> 0);
+        this.seed = this.baseSeed;
         this.state = null;
         this._lastLivingSnapshot = null;
         if (!opts.isNew && !opts.randomBirth && this.loadSave()) {
@@ -365,6 +383,10 @@ class NetHackEngine {
                 { text: `Welcome to NetHack 3.6.7! You are a ${role.align} ${role.race} ${role.id}.`, count: 1, attr: 11 },
                 { text: 'Your faithful little dog bounds alongside you into the Dungeons of Doom.', count: 1, attr: 1 }
             ],
+            baseSeed: this.baseSeed,
+            rngSeed: this.seed,
+            levels: {},
+            wizardSpawned: false,
             statFocus: 'optimal',
             kitBoon: 'signature',
             _optimizedApplied: false,
@@ -492,6 +514,67 @@ class NetHackEngine {
     }
 
     generateDungeonLevel(depth) {
+        const prevDepth = this.state ? this.state.depth : null;
+        const descending = prevDepth != null ? (depth > prevDepth) : true;
+        if (this.state && Array.isArray(this.state.map) && this.state.map.length > 0 && prevDepth != null && prevDepth !== depth) {
+            this.state.levels = this.state.levels || {};
+            this.state.levels[prevDepth] = {
+                map: this.state.map,
+                monsters: (this.state.monsters || []).filter(m => !m.isPet),
+                objects: this.state.objects || [],
+                branchName: this.state.branchName
+            };
+        }
+
+        if (this.state && this.state.levels && this.state.levels[depth]) {
+            const savedLvl = this.state.levels[depth];
+            delete this.state.levels[depth];
+            this.state.depth = depth;
+            if (depth > this.state.maxDepth) this.state.maxDepth = depth;
+            this.state.branchName = savedLvl.branchName || this.state.branchName;
+            this.state.map = savedLvl.map;
+            this.state.monsters = Array.isArray(savedLvl.monsters) ? savedLvl.monsters : [];
+            this.state.objects = Array.isArray(savedLvl.objects) ? savedLvl.objects : [];
+            const targetFeat = descending ? FEAT.UP_STAIR : FEAT.DOWN_STAIR;
+            let placed = false;
+            for (let y = 1; y < MAP_H - 1 && !placed; y++) {
+                for (let x = 1; x < MAP_W - 1; x++) {
+                    if (this.state.map[y] && this.state.map[y][x] && this.state.map[y][x].feat === targetFeat) {
+                        this.state.player.x = x;
+                        this.state.player.y = y;
+                        placed = true;
+                        break;
+                    }
+                }
+            }
+            const ps = this.state.petState;
+            if (ps && ps.alive) {
+                const px = Math.min(MAP_W - 2, this.state.player.x + 1);
+                const py = this.state.player.y;
+                if (this.state.map[py] && this.state.map[py][px] && this.state.map[py][px].feat !== FEAT.WALL && this.state.map[py][px].feat !== FEAT.PERM_WALL) {
+                    const maxId = this.state.monsters.reduce((acc, m) => Math.max(acc, m.id || 0), 0);
+                    this.state.monsters.push({
+                        id: maxId + 1,
+                        x: px, y: py,
+                        glyph: ps.glyph || 'd', attr: 1,
+                        race: ps.name || 'little dog (tame)',
+                        race_level: ps.level || Math.max(1, depth),
+                        hp: ps.hp, hp_max: ps.maxHp,
+                        ac: 6, dmg: 5 + depth, speed: 120, exp: 0,
+                        isPet: true, peaceful: ps.tam !== false, asleep: false
+                    });
+                }
+            }
+            this.updateVisibility();
+            return;
+        }
+
+        if (this.baseSeed) {
+            let mix = (this.baseSeed ^ Math.imul((depth >>> 0) + 1, 0x9e3779b9)) >>> 0;
+            mix = Math.imul(mix ^ (mix >>> 16), 0x85ebca6b) >>> 0;
+            this.seed = (mix ^ (mix >>> 13)) >>> 0 || 1;
+        }
+
         this.state.depth = depth;
         if (depth > this.state.maxDepth) this.state.maxDepth = depth;
         if (depth <= 3) this.state.branchName = 'Dungeons of Doom';
@@ -655,7 +738,7 @@ class NetHackEngine {
             this._lastLivingSnapshot = JSON.stringify(this.state);
         }
 
-        const eligible = MONSTER_TABLE.filter(m => m.minDepth <= depth + 2 && (!m.isBoss || depth >= 10));
+        const eligible = MONSTER_TABLE.filter(m => m.minDepth <= depth + 2 && !m.isBoss);
         for (let i = 1; i < shuffledRooms.length; i++) {
             const rm = shuffledRooms[i];
             const count = 1 + (this.rand(100) < 45 ? 1 : 0);
@@ -681,6 +764,33 @@ class NetHackEngine {
                     isBoss: Boolean(tmpl.isBoss),
                     asleep: this.rand(100) < 25
                 });
+            }
+        }
+        if (depth >= 20 && !this.state.wizardSpawned && endRoom) {
+            const wizTmpl = MONSTER_TABLE.find(m => m.isBoss);
+            if (wizTmpl) {
+                this.state.wizardSpawned = true;
+                const wx = Math.min(endRoom.x1, endRoom.cx + 1);
+                const wy = endRoom.cy;
+                if (!this.state.monsters.some(m => m.x === wx && m.y === wy)) {
+                    this.state.monsters.push({
+                        id: nextMonId++,
+                        x: wx,
+                        y: wy,
+                        glyph: wizTmpl.glyph,
+                        attr: wizTmpl.attr,
+                        race: wizTmpl.name,
+                        race_level: wizTmpl.minDepth,
+                        hp: wizTmpl.hp + depth * 2,
+                        hp_max: wizTmpl.hp + depth * 2,
+                        ac: wizTmpl.ac,
+                        dmg: wizTmpl.dmg + Math.floor(depth / 2),
+                        speed: wizTmpl.speed,
+                        exp: wizTmpl.exp,
+                        isBoss: true,
+                        asleep: false
+                    });
+                }
             }
         }
 
@@ -732,21 +842,27 @@ class NetHackEngine {
     }
 
     hasLineOfSight(x0, y0, x1, y1) {
+        const isOpaqueCell = (x, y) => {
+            const c = this.state.map[y] && this.state.map[y][x];
+            return !c || c.feat === FEAT.WALL || c.feat === FEAT.PERM_WALL || c.feat === FEAT.CLOSED_DOOR;
+        };
         let dx = Math.abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
         let dy = -Math.abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
         let err = dx + dy;
         let cx = x0, cy = y0;
         while (true) {
             if (cx === x1 && cy === y1) return true;
-            if (!(cx === x0 && cy === y0)) {
-                const cell = this.state.map[cy] && this.state.map[cy][cx];
-                if (!cell || cell.feat === FEAT.WALL || cell.feat === FEAT.PERM_WALL || cell.feat === FEAT.CLOSED_DOOR) {
-                    return false;
-                }
+            if (!(cx === x0 && cy === y0) && isOpaqueCell(cx, cy)) {
+                return false;
             }
             const e2 = 2 * err;
-            if (e2 >= dy) { err += dy; cx += sx; }
-            if (e2 <= dx) { err += dx; cy += sy; }
+            const stepX = e2 >= dy;
+            const stepY = e2 <= dx;
+            if (stepX && stepY && isOpaqueCell(cx + sx, cy) && isOpaqueCell(cx, cy + sy)) {
+                return false;
+            }
+            if (stepX) { err += dy; cx += sx; }
+            if (stepY) { err += dx; cy += sy; }
         }
     }
 
@@ -793,6 +909,8 @@ class NetHackEngine {
     saveGame() {
         try {
             if (!this.state || !this.state.player || this.state.player.dead) return false;
+            this.state.baseSeed = this.baseSeed;
+            this.state.rngSeed = this.seed;
             this._lastLivingSnapshot = JSON.stringify(this.state);
             if (!fs.existsSync(this.saveDir)) fs.mkdirSync(this.saveDir, { recursive: true });
             const p = this.state.player;
@@ -808,7 +926,7 @@ class NetHackEngine {
             const full = Buffer.concat([header, descBuf, payload]);
             fs.writeFileSync(this.saveFile, full);
             fs.writeFileSync(this.saveFile + '.living.sav', full);
-            const sidecar = { realm: 'nethack', characterName: p.name, level: p.level, depth: this.state.depth, race: p.race, class: p.class, updatedAt: Date.now() };
+            const sidecar = { realm: 'nethack', characterName: p.name, level: p.level, depth: this.state.depth, race: p.race, class: p.class, seed: this.baseSeed || null, updatedAt: Date.now() };
             fs.writeFileSync(this.saveFile + '.realm.json', JSON.stringify(sidecar));
             return true;
         } catch (_) {
@@ -877,6 +995,8 @@ class NetHackEngine {
             }
             if (loaded && loaded.player && loaded.map && !loaded.player.dead) {
                 this.state = loaded;
+                if (loaded.baseSeed) this.baseSeed = loaded.baseSeed;
+                if (loaded.rngSeed) this.seed = loaded.rngSeed;
                 this.state.phase = 'play';
                 this.state.menuMode = 'none';
                 // Normalize any legacy feature codes in saved maps to canonical 3D feature codes
@@ -2598,6 +2718,7 @@ class NetHackEngine {
             t: 'frame',
             realm: 'nethack',
             seq: this.seq,
+            seed: this.baseSeed,
             phase: this.state.phase,
             victory: Boolean(p.winner || p.ascended),
             ui: {
@@ -2761,8 +2882,8 @@ function main() {
         const line = String(rawLine || '').trim();
         if (!line) return;
         if (line === 'save') {
-            engine.saveGame();
-            writeJson({ t: 'saved', ok: true });
+            const ok = engine.saveGame();
+            writeJson({ t: 'ok', detail: 'saved', ok: ok !== false });
             return;
         }
         if (line === 'frame') {
@@ -2774,11 +2895,29 @@ function main() {
             process.exit(0);
             return;
         }
-        if (line.startsWith('key ') || line.startsWith('keys ')) {
-            const keyArg = line.replace(/^keys?\s+/, '');
+        if (line.startsWith('keys ')) {
+            const rawSeq = rawLine.replace(/^\s*keys\s+/, '').replace(/\r?\n$/, '');
+            const NAMED_RE = /^(enter|return|escape|esc|space|tab|backspace|up|down|left|right|home|end|pageup|pagedown|pgup|pgdn)$/i;
+            if (NAMED_RE.test(rawSeq.trim())) {
+                engine.handleKey(rawSeq.trim());
+            } else {
+                for (const ch of rawSeq) engine.handleKey(ch);
+            }
+            writeJson(engine.buildFrame());
+            return;
+        }
+        if (line.startsWith('key ')) {
+            const keyArg = line.replace(/^key\s+/, '');
             engine.handleKey(keyArg);
             writeJson(engine.buildFrame());
         }
+    });
+    rl.on('close', () => {
+        try { engine.saveGame(); } catch (_) {}
+    });
+    process.on('SIGTERM', () => {
+        try { engine.saveGame(); } catch (_) {}
+        process.exit(0);
     });
 }
 

@@ -55,16 +55,18 @@ function parseCliArgs(argv, defaultSaveDir) {
     let isNew = false;
     let customBirth = false;
     let randomBirth = false;
+    let seed = undefined;
     for (let i = 2; i < argv.length; i++) {
         const arg = String(argv[i] || '');
         if (arg === '-n') isNew = true;
         else if (arg === '-c' || arg === '--custom') customBirth = true;
         else if (arg === '-r' || arg === '--random') randomBirth = true;
+        else if (arg.startsWith('--seed=')) seed = arg.slice(7) || undefined;
         else if (arg.startsWith('-u')) user = arg.slice(2) || user;
         else if (arg.startsWith('-dsave=')) saveDir = arg.slice(7) || saveDir;
     }
     const cleanUser = user.replace(/[^a-zA-Z0-9_.-]/g, '_') || 'Adventurer';
-    return { user: cleanUser, saveDir, isNew, customBirth, randomBirth };
+    return { user: cleanUser, saveDir, isNew, customBirth, randomBirth, seed };
 }
 
 function isWalkableFeat(feat) {
@@ -349,6 +351,9 @@ class UniversalCartridgeEngine {
             messages: [
                 { text: this.spec.welcomeMessage || `You enter ${this.spec.title}.`, count: 1, attr: 14 }
             ],
+            baseSeed: this.baseSeed,
+            rngState: this.rngState,
+            levels: {},
             statFocus: 'optimal',
             kitBoon: 'signature',
             _optimizedApplied: false
@@ -431,7 +436,8 @@ class UniversalCartridgeEngine {
         const p = this.state.player;
         p.inventory = p.inventory.filter(it => (it.count == null || it.count > 0));
         p.inventory.forEach((it, idx) => {
-            it.slot = idx;
+            it.packIdx = idx;
+            if (typeof it.slot === 'number') delete it.slot;
             it.letter = String.fromCharCode(97 + (idx % 26));
         });
         const w = p.inventory.find(it => it.equipped === 'weapon');
@@ -451,9 +457,10 @@ class UniversalCartridgeEngine {
         const ring = p.inventory.find(it => it.equipped === 'ring' && /protection|armor|defense/i.test(it.name || ''));
         const armorBase = body ? Number(body.ac != null ? body.ac : 4) : 0;
         const shieldAc = shield ? (Number(shield.ac != null ? shield.ac : 2) + Number(shield.bonus || 0)) : 0;
-        const armorBonus = (body ? Number(body.bonus || 0) : 0) + (ring ? Number(ring.bonus || 1) : 0) + shieldAc;
+        const heroBonus = (p.heroism && p.heroism > 0) ? 4 : 0;
+        const armorBonus = (body ? Number(body.bonus || 0) : 0) + (ring ? Number(ring.bonus || 1) : 0) + shieldAc + heroBonus;
         if (this.realm === 'rogue') {
-            p.ac = body ? Math.max(-10, (body.ac != null ? body.ac : 7) - armorBonus) : (10 - shieldAc);
+            p.ac = body ? Math.max(-10, (body.ac != null ? body.ac : 7) - armorBonus) : (10 - shieldAc - heroBonus);
         } else {
             p.ac = Math.max(0, (body ? (armorBase + armorBonus) : (2 + armorBonus)) + Math.floor(((p.dex || 12) - 10) / 3));
         }
@@ -595,12 +602,63 @@ class UniversalCartridgeEngine {
     }
 
     generateLevel(depth) {
-        if (RyodSystems && this.baseSeed) {
-            this.rngState = RyodSystems.mixSeed(this.baseSeed, depth);
-        }
         const survivingPets = Array.isArray(this.state && this.state.monsters)
             ? this.state.monsters.filter(m => m && m.isPet && m.hp > 0)
             : [];
+        const prevDepth = this.state ? this.state.depth : null;
+        const descending = prevDepth != null ? (depth > prevDepth) : true;
+
+        if (this.state && Array.isArray(this.state.map) && this.state.map.length > 0 && prevDepth != null && prevDepth !== depth) {
+            this.state.levels = this.state.levels || {};
+            this.state.levels[prevDepth] = {
+                map: this.state.map,
+                monsters: (this.state.monsters || []).filter(m => !m.isPet),
+                objects: this.state.objects || [],
+                branchName: this.state.branchName
+            };
+        }
+
+        if (this.state && this.state.levels && this.state.levels[depth]) {
+            const savedLvl = this.state.levels[depth];
+            delete this.state.levels[depth];
+            this.state.depth = depth;
+            if (depth > this.state.maxDepth) this.state.maxDepth = depth;
+            this.state.branchName = savedLvl.branchName || this.getBranchName(depth);
+            this.state.map = savedLvl.map;
+            this.state.monsters = Array.isArray(savedLvl.monsters) ? savedLvl.monsters : [];
+            this.state.objects = Array.isArray(savedLvl.objects) ? savedLvl.objects : [];
+            const targetFeat = descending ? FEAT.UP_STAIR : FEAT.DOWN_STAIR;
+            let placed = false;
+            for (let y = 1; y < MAP_H - 1 && !placed; y++) {
+                for (let x = 1; x < MAP_W - 1; x++) {
+                    if (this.state.map[y] && this.state.map[y][x] && this.state.map[y][x].feat === targetFeat) {
+                        this.state.player.x = x;
+                        this.state.player.y = y;
+                        placed = true;
+                        break;
+                    }
+                }
+            }
+            if (!placed) {
+                for (let y = 1; y < MAP_H - 1 && !placed; y++) {
+                    for (let x = 1; x < MAP_W - 1; x++) {
+                        if (this.state.map[y] && this.state.map[y][x] && isWalkableFeat(this.state.map[y][x].feat)) {
+                            this.state.player.x = x;
+                            this.state.player.y = y;
+                            placed = true;
+                            break;
+                        }
+                    }
+                }
+            }
+            this.placeSurvivingPets(survivingPets, 9001);
+            this.updateVisibility();
+            return;
+        }
+
+        if (RyodSystems && this.baseSeed) {
+            this.rngState = RyodSystems.mixSeed(this.baseSeed, depth);
+        }
 
         if (depth <= 0 && this.spec.hasTown) {
             this.generateTownLevel(survivingPets);
@@ -1100,21 +1158,29 @@ class UniversalCartridgeEngine {
     }
 
     hasLineOfSight(x0, y0, x1, y1) {
+        const isOpaqueCell = (x, y) => {
+            const c = this.state.map[y] && this.state.map[y][x];
+            return !c || c.feat === FEAT.WALL || c.feat === FEAT.PERM_WALL || c.feat === FEAT.CLOSED_DOOR;
+        };
         let dx = Math.abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
         let dy = -Math.abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
         let err = dx + dy;
         let cx = x0, cy = y0;
         while (true) {
             if (cx === x1 && cy === y1) return true;
-            if (!(cx === x0 && cy === y0)) {
-                const cell = this.state.map[cy] && this.state.map[cy][cx];
-                if (!cell || cell.feat === FEAT.WALL || cell.feat === FEAT.PERM_WALL || cell.feat === FEAT.CLOSED_DOOR) {
-                    return false;
-                }
+            if (!(cx === x0 && cy === y0) && isOpaqueCell(cx, cy)) {
+                return false;
             }
             const e2 = 2 * err;
-            if (e2 >= dy) { err += dy; cx += sx; }
-            if (e2 <= dx) { err += dx; cy += sy; }
+            const stepX = e2 >= dy;
+            const stepY = e2 <= dx;
+            if (stepX && stepY) {
+                if (!(cx + sx === x1 && cy + sy === y1) || (isOpaqueCell(cx + sx, cy) && isOpaqueCell(cx, cy + sy))) {
+                    if (isOpaqueCell(cx + sx, cy) && isOpaqueCell(cx, cy + sy)) return false;
+                }
+            }
+            if (stepX) { err += dy; cx += sx; }
+            if (stepY) { err += dx; cy += sy; }
         }
     }
 
@@ -1140,6 +1206,8 @@ class UniversalCartridgeEngine {
             // LAZARUS INVARIANT: Never overwrite a living save file once the character is dead!
             if (!p || p.dead) return false;
             if (!fs.existsSync(this.saveDir)) fs.mkdirSync(this.saveDir, { recursive: true });
+            this.state.baseSeed = this.baseSeed;
+            this.state.rngState = this.rngState;
             const desc = `${p.class} (${p.race}), ${this.state.branchName} ${this.state.depth}, ${p.hp}/${p.hpMax} HP`;
             const descBuf = Buffer.from(desc + '\0', 'utf8');
             const header = Buffer.alloc(36, 0);
@@ -1167,6 +1235,7 @@ class UniversalCartridgeEngine {
                 depth: this.state.depth,
                 race: p.race,
                 class: p.class,
+                seed: this.baseSeed || null,
                 updatedAt: Date.now()
             };
             fs.writeFileSync(this.saveFile + '.realm.json', JSON.stringify(sidecar));
@@ -1195,6 +1264,8 @@ class UniversalCartridgeEngine {
                     this.spec = this.spec.onBlueprintHydrate(loaded.ryodBlueprint) || this.spec;
                 }
                 this.state = loaded;
+                if (loaded.baseSeed) this.baseSeed = loaded.baseSeed;
+                if (loaded.rngState) this.rngState = loaded.rngState;
                 this.state.phase = 'play';
                 this.state.menuMode = 'none';
                 this.checkExperience({ silent: true });
@@ -1211,6 +1282,8 @@ class UniversalCartridgeEngine {
                         this.spec = this.spec.onBlueprintHydrate(lLoaded.ryodBlueprint) || this.spec;
                     }
                     this.state = lLoaded;
+                    if (lLoaded.baseSeed) this.baseSeed = lLoaded.baseSeed;
+                    if (lLoaded.rngState) this.rngState = lLoaded.rngState;
                     this.state.phase = 'play';
                     this.state.menuMode = 'none';
                     fs.copyFileSync(this.saveFile + '.living.sav', this.saveFile);
@@ -2075,8 +2148,16 @@ class UniversalCartridgeEngine {
                 this.recalcPlayerDefenses();
                 this.addMessage(`Universal runes of enchantment infuse your ${eq.name} (+${eq.bonus})!`, 14);
             } else if (/teleport/i.test(sLower)) {
-                p.x = 2 + this.rand(MAP_W - 4);
-                p.y = 2 + this.rand(MAP_H - 4);
+                for (let attempt = 0; attempt < 40; attempt++) {
+                    const tx = 2 + this.rand(MAP_W - 4);
+                    const ty = 2 + this.rand(MAP_H - 4);
+                    const cell = this.state.map[ty] && this.state.map[ty][tx];
+                    if (cell && isWalkableFeat(cell.feat) && !this.state.monsters.some(m => m.x === tx && m.y === ty)) {
+                        p.x = tx;
+                        p.y = ty;
+                        break;
+                    }
+                }
                 this.updateVisibility();
                 this.addMessage(`You read the ${item.name}. Reality folds around you in a spatial jump!`, 11);
             } else if (/genocide/i.test(sLower)) {
@@ -2125,7 +2206,7 @@ class UniversalCartridgeEngine {
             }
             const lowerItem = String(item.name || '').toLowerCase();
             const k = String(item.kind || '').toLowerCase();
-            let slot = item.slot;
+            let slot = typeof item.slot === 'string' ? item.slot : null;
             if (!slot) {
                 if (k === 'bow' || k === 'ranged' || /\b(bow|crossbow|sling)\b/.test(lowerItem)) slot = 'bow';
                 else if (k === 'shield' || /\b(shield|buckler|targe)\b/.test(lowerItem)) slot = 'shield';
@@ -2235,8 +2316,16 @@ class UniversalCartridgeEngine {
                 }
             } else if (/teleport/i.test(wLower)) {
                 if (target) {
-                    target.x = 2 + this.rand(MAP_W - 4);
-                    target.y = 2 + this.rand(MAP_H - 4);
+                    for (let attempt = 0; attempt < 40; attempt++) {
+                        const tx = 2 + this.rand(MAP_W - 4);
+                        const ty = 2 + this.rand(MAP_H - 4);
+                        const cell = this.state.map[ty] && this.state.map[ty][tx];
+                        if (cell && isWalkableFeat(cell.feat) && !(tx === p.x && ty === p.y) && !this.state.monsters.some(m => m !== target && m.x === tx && m.y === ty)) {
+                            target.x = tx;
+                            target.y = ty;
+                            break;
+                        }
+                    }
                     this.addMessage(`The ${target.race} teleports away in a swirl of arcane smoke!`, 11);
                 } else {
                     this.addMessage(`Space wavers around the wand tip.`, 11);
@@ -2731,12 +2820,86 @@ class UniversalCartridgeEngine {
         }
     }
 
+    _checkLethalOrLifesave(killerArticle) {
+        const p = this.state && this.state.player;
+        if (!p || p.hp > 0) return false;
+        const lifesave = Array.isArray(p.inventory)
+            ? (p.inventory.find(it => it.equipped && (it.extraLife || /life\s*saving/i.test(it.name || '')))
+               || p.inventory.find(it => it.extraLife || /amulet of life\s*saving/i.test(it.name || '')))
+            : null;
+        if (lifesave) {
+            lifesave.count = (lifesave.count || 1) - 1;
+            lifesave.equipped = null;
+            this.reindexInventory();
+            p.hp = p.hpMax;
+            p.poisoned = 0;
+            this.addMessage(`✨ Your ${lifesave.name} shatters in a blinding flash, snatching your soul back from death!`, 14);
+            return false;
+        }
+        p.hp = 0;
+        p.dead = true;
+        p.diedFrom = killerArticle || 'mortal wounds';
+        if (this.ironman || process.env.ANGBAND3D_IRONMAN === '1' || (this.state && this.state.ironman)) {
+            try { if (fs.existsSync(this.saveFile + '.living.sav')) fs.unlinkSync(this.saveFile + '.living.sav'); } catch (_) {}
+            try { if (fs.existsSync(this.saveFile)) fs.unlinkSync(this.saveFile); } catch (_) {}
+        }
+        this.addMessage(`You die... Killed by ${p.diedFrom} on ${this.state.branchName} ${this.state.depth}.`, 4);
+        return true;
+    }
+
     advanceTurn() {
         const p = this.state.player;
         this.state.turn++;
         if (p.speedBoost > 0) p.speedBoost--;
-        if (p.nutrition > 0 && !p.godMode && !this.spec.godMode) p.nutrition--;
-        if (p.godMode || this.spec.godMode) {
+        if (p.confused > 0) {
+            p.confused--;
+            if (p.confused === 0) this.addMessage('Your head clears; you are no longer confused.', 11);
+        }
+        if (p.blind > 0) {
+            p.blind--;
+            if (p.blind === 0) {
+                this.updateVisibility();
+                this.addMessage('Your sight returns!', 11);
+            }
+        }
+        if (p.levitating > 0) {
+            p.levitating--;
+            if (p.levitating === 0) this.addMessage('You float gently back down to the dungeon floor.', 11);
+        }
+        if (p.heroism > 0) {
+            p.heroism--;
+            if (p.heroism === 0) {
+                this.recalcPlayerDefenses();
+                this.addMessage('The surge of ancient heroism fades.', 11);
+            }
+        }
+        if (p.telepathyTurns > 0) {
+            p.telepathyTurns--;
+            if (p.telepathyTurns === 0) {
+                const hasEspGear = Array.isArray(p.inventory) && p.inventory.some(it => it.equipped && it.flags && it.flags.esp);
+                if (!hasEspGear) p.telepathy = false;
+                this.addMessage('Your temporary third-eye telepathy fades.', 11);
+            }
+        }
+        if (p.poisoned > 0) {
+            p.poisoned--;
+            const hasPoisRes = Boolean((p.resists && p.resists.pois > 0) || (Array.isArray(p.inventory) && p.inventory.some(it => it.equipped && ((it.resists && it.resists.pois > 0) || it.brand === 'pois'))));
+            if (!hasPoisRes && !p.godMode && !this.spec.godMode) {
+                p.hp -= 1;
+                if (this._checkLethalOrLifesave('virulent poison')) return;
+            }
+            if (p.poisoned === 0) this.addMessage('The poison leaves your bloodstream.', 10);
+        }
+        if (!p.godMode && !this.spec.godMode) {
+            if (p.nutrition > 0) {
+                p.nutrition--;
+                if (p.nutrition === 150) this.addMessage('You are getting dangerously hungry!', 12);
+            } else if (this.state.turn % 6 === 0) {
+                p.hp -= 1;
+                this.addMessage('You are weak from starvation! (-1 HP)', 12);
+                if (this._checkLethalOrLifesave('starvation')) return;
+            }
+        } else {
             p.pw = p.pwMax;
         }
         if (this.spec && this.spec.mutatorId === 'cataclysm' && this.state.depth > 0 && this.state.turn % 18 === 0) {
@@ -2874,11 +3037,7 @@ class UniversalCartridgeEngine {
                         p.hp -= bDmg;
                         if (p.godMode || this.spec.godMode) p.hp = Math.max(1, p.hp);
                         this.addMessage(`🔥 ${subjName} breathes a searing cone of fire directly at you! (-${bDmg} HP)`, 4);
-                        if (p.hp <= 0) {
-                            p.hp = 0; p.dead = true; p.diedFrom = killerArticle;
-                            this.addMessage(`You die... Killed by ${p.diedFrom} on ${this.state.branchName} ${this.state.depth}.`, 4);
-                            return;
-                        }
+                        if (this._checkLethalOrLifesave(killerArticle)) return;
                         continue;
                     }
                 } else if (dist >= 2 && dist <= 5 && inView && this.rand(100) < 50) {
@@ -2911,11 +3070,7 @@ class UniversalCartridgeEngine {
                         p.hp -= sDmg;
                         if (p.godMode || this.spec.godMode) p.hp = Math.max(1, p.hp);
                         this.addMessage(`💥 ${subjName} charges across the hall and slams into you! (-${sDmg} HP)`, 12);
-                        if (p.hp <= 0) {
-                            p.hp = 0; p.dead = true; p.diedFrom = killerArticle;
-                            this.addMessage(`You die... Killed by ${p.diedFrom} on ${this.state.branchName} ${this.state.depth}.`, 4);
-                            return;
-                        }
+                        if (this._checkLethalOrLifesave(killerArticle)) return;
                         continue;
                     }
                 }
@@ -2960,11 +3115,7 @@ class UniversalCartridgeEngine {
                     p.hp -= arrowDmg;
                     if (p.godMode || this.spec.godMode) p.hp = Math.max(1, p.hp);
                     this.addMessage(`${subjName} looses an arrow at you! (-${arrowDmg} HP)`, 11);
-                    if (p.hp <= 0) {
-                        p.hp = 0; p.dead = true; p.diedFrom = killerArticle;
-                        this.addMessage(`You die... Killed by ${p.diedFrom} on ${this.state.branchName} ${this.state.depth}.`, 4);
-                        return;
-                    }
+                    if (this._checkLethalOrLifesave(killerArticle)) return;
                     continue;
                 }
             }
@@ -2975,11 +3126,7 @@ class UniversalCartridgeEngine {
                 p.hp -= boltDmg;
                 if (p.godMode || this.spec.godMode) p.hp = Math.max(1, p.hp);
                 this.addMessage(`${subjName} hurls a shimmering magical bolt at you! (-${boltDmg} HP)`, 13);
-                if (p.hp <= 0) {
-                    p.hp = 0; p.dead = true; p.diedFrom = killerArticle;
-                    this.addMessage(`You die... Killed by ${p.diedFrom} on ${this.state.branchName} ${this.state.depth}.`, 4);
-                    return;
-                }
+                if (this._checkLethalOrLifesave(killerArticle)) return;
                 continue;
             }
 
@@ -3016,22 +3163,30 @@ class UniversalCartridgeEngine {
                     p.hp = Math.max(1, p.hp);
                 }
                 this.addMessage(`${subjName} hits you! (-${dmg} HP)`, 4);
-                if (p.hp <= 0) {
-                    p.hp = 0;
-                    p.dead = true;
-                    p.diedFrom = killerArticle;
-                    if (this.ironman || process.env.ANGBAND3D_IRONMAN === '1' || (this.state && this.state.ironman)) {
-                        try { if (fs.existsSync(this.saveFile + '.living.sav')) fs.unlinkSync(this.saveFile + '.living.sav'); } catch (_) {}
-                        try { if (fs.existsSync(this.saveFile)) fs.unlinkSync(this.saveFile); } catch (_) {}
-                    }
-                    this.addMessage(`You die... Killed by ${p.diedFrom} on ${this.state.branchName} ${this.state.depth}.`, 4);
-                    return;
-                }
+                if (this._checkLethalOrLifesave(killerArticle)) return;
             } else if (dist <= 7 && inView) {
-                const nx = mon.x + Math.sign(p.x - mon.x);
-                const ny = mon.y + Math.sign(p.y - mon.y);
-                if (this.state.map[ny] && this.state.map[ny][nx] && isWalkableFeat(this.state.map[ny][nx].feat) && !this.state.monsters.some(m => m.x === nx && m.y === ny) && !(nx === p.x && ny === p.y)) {
-                    mon.x = nx; mon.y = ny;
+                const dx = p.x - mon.x;
+                const dy = p.y - mon.y;
+                const sx = Math.sign(dx);
+                const sy = Math.sign(dy);
+                const candidates = [[mon.x + sx, mon.y + sy]];
+                if (sx !== 0 && sy !== 0) {
+                    if (Math.abs(dx) >= Math.abs(dy)) {
+                        candidates.push([mon.x + sx, mon.y], [mon.x, mon.y + sy]);
+                    } else {
+                        candidates.push([mon.x, mon.y + sy], [mon.x + sx, mon.y]);
+                    }
+                } else if (sx !== 0) {
+                    candidates.push([mon.x + sx, mon.y + 1], [mon.x + sx, mon.y - 1]);
+                } else if (sy !== 0) {
+                    candidates.push([mon.x + 1, mon.y + sy], [mon.x - 1, mon.y + sy]);
+                }
+                for (const [nx, ny] of candidates) {
+                    if (this.state.map[ny] && this.state.map[ny][nx] && isWalkableFeat(this.state.map[ny][nx].feat) && !this.state.monsters.some(m => m !== mon && m.x === nx && m.y === ny) && !(nx === p.x && ny === p.y)) {
+                        mon.x = nx;
+                        mon.y = ny;
+                        break;
+                    }
                 }
             }
         }
@@ -3358,8 +3513,8 @@ class UniversalCartridgeEngine {
             vm: computeVerbMask(it),
             attr: 1
         }));
-        const inventoryList = p.inventory.map((it) => ({
-            slot: it.slot,
+        const inventoryList = p.inventory.map((it, idx) => ({
+            slot: it.packIdx != null ? it.packIdx : idx,
             label: it.letter,
             letter: it.letter,
             name: formatItemDesc(it),
@@ -3484,6 +3639,7 @@ class UniversalCartridgeEngine {
             t: 'frame',
             realm: this.realm,
             seq: this.seq,
+            seed: this.baseSeed,
             phase: this.state.phase,
             victory: Boolean(p.winner),
             ryodMeta,
@@ -3669,7 +3825,7 @@ function runCartridgeMain(spec, defaultSaveDir) {
         if (!line) return;
         if (line === 'save') {
             const ok = engine.saveGame();
-            writeJson({ t: 'saved', ok });
+            writeJson({ t: 'ok', detail: 'saved', ok: ok !== false });
             return;
         }
         if (line === 'frame') {
@@ -3681,11 +3837,29 @@ function runCartridgeMain(spec, defaultSaveDir) {
             process.exit(0);
             return;
         }
-        if (line.startsWith('key ') || line.startsWith('keys ')) {
-            const keyArg = line.replace(/^keys?\s+/, '');
+        if (line.startsWith('keys ')) {
+            const rawSeq = rawLine.replace(/^\s*keys\s+/, '').replace(/\r?\n$/, '');
+            const NAMED_RE = /^(enter|return|escape|esc|space|tab|backspace|up|down|left|right|home|end|pageup|pagedown|pgup|pgdn)$/i;
+            if (NAMED_RE.test(rawSeq.trim())) {
+                engine.handleKey(rawSeq.trim());
+            } else {
+                for (const ch of rawSeq) engine.handleKey(ch);
+            }
+            writeJson(engine.buildFrame());
+            return;
+        }
+        if (line.startsWith('key ')) {
+            const keyArg = line.replace(/^key\s+/, '');
             engine.handleKey(keyArg);
             writeJson(engine.buildFrame());
         }
+    });
+    rl.on('close', () => {
+        try { engine.saveGame(); } catch (_) {}
+    });
+    process.on('SIGTERM', () => {
+        try { engine.saveGame(); } catch (_) {}
+        process.exit(0);
     });
 
     return engine;

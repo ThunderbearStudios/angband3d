@@ -340,8 +340,14 @@
     const ab = await file.arrayBuffer();
     const bytes = new Uint8Array(ab);
 
-    if (localSaveManager && typeof localSaveManager.putSave === 'function') {
-      try { await localSaveManager.putSave(saveName, bytes, rk); } catch (_) {}
+    if (localSaveManager) {
+      try {
+        if (typeof localSaveManager.putSave === 'function') {
+          await localSaveManager.putSave(saveName, bytes, rk);
+        } else if (typeof localSaveManager.putSaveData === 'function') {
+          await localSaveManager.putSaveData(`${rk}:${saveName}`, bytes, rk);
+        }
+      } catch (_) {}
     }
     await recordCheckpoint(rk, saveName, 'living', bytes, {});
 
@@ -389,6 +395,7 @@
       const b64 = uint8ToBase64(u8);
       const res = await fetch('/api/saves/sync', {
         method: 'POST',
+        keepalive: b64.length < 48000,
         headers: buildAuthHeaders(rk, saveName, { 'Content-Type': 'application/json' }),
         body: JSON.stringify({
           realm: rk,
@@ -475,6 +482,11 @@
         if (document.visibilityState === 'hidden') {
           try { getSnapshotCallback('visibilitychange'); } catch (_) {}
         }
+      });
+    }
+    if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+      window.addEventListener('pagehide', () => {
+        try { getSnapshotCallback('pagehide'); } catch (_) {}
       });
     }
   }

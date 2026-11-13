@@ -486,10 +486,7 @@ ${moduleEntries.join(',\n')}
 `;
 
 const OUT_FILE1 = path.join(ROOT, 'server/public/js/cartridges-worker-bundle.js');
-const OUT_FILE2 = path.join(ROOT, 'server/public/js/worker-cartridges.js');
 
 fs.writeFileSync(OUT_FILE1, bundleSource, 'utf8');
-fs.writeFileSync(OUT_FILE2, bundleSource, 'utf8');
 const stat1 = fs.statSync(OUT_FILE1);
-const stat2 = fs.statSync(OUT_FILE2);
-console.log(`[build_worker_cartridges] Wrote ${path.relative(ROOT, OUT_FILE1)} (${(stat1.size / 1024).toFixed(1)} KB) and ${path.relative(ROOT, OUT_FILE2)} (${(stat2.size / 1024).toFixed(1)} KB)`);
+console.log(`[build_worker_cartridges] Wrote ${path.relative(ROOT, OUT_FILE1)} (${(stat1.size / 1024).toFixed(1)} KB)`);

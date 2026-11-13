@@ -305,9 +305,15 @@ function snapshotLivingSave(savePath) {
             } catch (_) {}
         }
         if (isSaveDeadSync(savePath)) return false;
-        fs.copyFileSync(savePath, savePath + '.living.sav');
+        const livingDst = savePath + '.living.sav';
+        const livingTmp = `${livingDst}.tmp.${process.pid}`;
+        fs.copyFileSync(savePath, livingTmp);
+        fs.renameSync(livingTmp, livingDst);
         if (fs.existsSync(sidecar)) {
-            fs.copyFileSync(sidecar, savePath + '.living.sav.realm.json');
+            const sidecarDst = savePath + '.living.sav.realm.json';
+            const sidecarTmp = `${sidecarDst}.tmp.${process.pid}`;
+            fs.copyFileSync(sidecar, sidecarTmp);
+            fs.renameSync(sidecarTmp, sidecarDst);
         }
         const dir = path.dirname(savePath);
         const slotBase = path.basename(savePath);
@@ -349,9 +355,14 @@ async function snapshotLivingSaveAsync(savePath) {
         } catch (_) {}
         if (isIronman) return false;
         if (await isSaveDeadAsync(savePath)) return false;
-        await fs.promises.copyFile(savePath, savePath + '.living.sav');
+        const nonce = `${process.pid}.${Date.now()}`;
+        const livingDst = savePath + '.living.sav';
+        await fs.promises.copyFile(savePath, `${livingDst}.tmp.${nonce}`);
+        await fs.promises.rename(`${livingDst}.tmp.${nonce}`, livingDst);
         try {
-            await fs.promises.copyFile(metaSidecar, savePath + '.living.sav.realm.json');
+            const scDst = savePath + '.living.sav.realm.json';
+            await fs.promises.copyFile(metaSidecar, `${scDst}.tmp.${nonce}`);
+            await fs.promises.rename(`${scDst}.tmp.${nonce}`, scDst);
         } catch (_) {}
         const dir = path.dirname(savePath);
         const slotBase = path.basename(savePath);

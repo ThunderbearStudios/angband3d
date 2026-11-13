@@ -251,6 +251,23 @@
             extra: { kind: 'potion', name: 'potion of fire essence', glyph: '!', heal: 35, count: 2, weight: 10, tval: 71, sval: 35 },
             innatePower: { name: 'Searing Dragon Breath', cost: 3, dmg: 26, aoe: true, desc: 'Exhale a cone of molten dragonfire across all nearby enemies!' }
         },
+        beholder: {
+            id: 'beholder',
+            label: '👁 Eldritch Beholder Eye (Creature Avatar)',
+            isMonsterAvatar: true,
+            avatarMonsterName: 'floating eye',
+            race: 'Aberration',
+            roleName: 'Eldritch Beholder Eye',
+            align: 'Chaotic',
+            defaultDiscipline: 'arcane',
+            ringSlots: 6,
+            allowBodyArmor: false,
+            hp: 34, pw: 30, ac: 7,
+            str: 12, int: 19, wis: 17, dex: 15, con: 15,
+            weapon: { name: 'central antimagic lens', dmg: '2d6', bonus: 2, weight: 10, tval: 23, sval: 2 },
+            extra: { kind: 'wand', name: 'wand of disintegration [5/5]', glyph: '-', charges: 5, count: 1, weight: 12, tval: 65, sval: 20 },
+            innatePower: { name: 'Disintegration Ray', cost: 2, dmg: 22, aoe: false, desc: 'Project a beam of pure disintegration from your central eye!' }
+        },
         vampire_scion: {
             id: 'vampire_scion',
             label: '🧛 Vampire Scion (Creature Avatar)',

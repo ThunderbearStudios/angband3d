@@ -1629,9 +1629,18 @@ window.addEventListener('DOMContentLoaded', () => {
         showRealmToast,
         toggleLanguageMode,
         getLanguageMode,
-        startNewRyodGame: (slotName, bp, autoBirth = true) => {
+        startNewRyodGame: async (slotName, bp, autoBirth = true) => {
+            if (appState === 'game') {
+                try {
+                    if (network && typeof network.saveAndDisconnect === 'function' && currentPhase === 'play') {
+                        await network.saveAndDisconnect();
+                    } else if (network && typeof network.disconnect === 'function') {
+                        network.disconnect();
+                    }
+                } catch (_) {}
+                appState = 'mainMenu';
+            }
             if (bp && window.RyodForge) window.RyodForge.applyBlueprintToRuntime(bp);
-            if (appState === 'game') appState = 'mainMenu';
             setActiveRealm('ryod');
             updateRealmUI();
             startGame({
@@ -3521,7 +3530,10 @@ window.addEventListener('DOMContentLoaded', () => {
         const effRealm = realmKey || activeRealm || 'angband';
         snapshotInFlight = true;
         try {
-            const resp = await fetch(`/api/saves/${encodeURIComponent(cleanSlot)}?realm=${encodeURIComponent(effRealm)}`);
+            const snapHeaders = (window.SaveVaultClient && typeof window.SaveVaultClient.buildAuthHeaders === 'function')
+                ? window.SaveVaultClient.buildAuthHeaders(effRealm, cleanSlot)
+                : {};
+            const resp = await fetch(`/api/saves/${encodeURIComponent(cleanSlot)}?realm=${encodeURIComponent(effRealm)}`, { headers: snapHeaders });
             if (!resp.ok) return;
             const buf = await resp.arrayBuffer();
             if (buf && buf.byteLength >= 36) {
@@ -4187,7 +4199,22 @@ window.addEventListener('DOMContentLoaded', () => {
         bindFastTap(btnMenuDemo, () => showDemoModal('mainMenu'));
     }
 
-    [['btn-menu-guide', () => showGuide(0, 'mainMenu')], ['btn-menu-credits', () => showGuide(6, 'mainMenu')], ['btn-menu-realms', () => showRealmSelector('mainMenu')], ['btn-menu-ryod-forge', () => { if (activeRealm !== 'ryod') selectRealm('ryod', false); if (window.RyodForge && typeof window.RyodForge.open === 'function') window.RyodForge.open(); }], ['btn-menu-ryod-main', () => { if (activeRealm !== 'ryod') selectRealm('ryod', false); if (window.RyodForge && typeof window.RyodForge.open === 'function') window.RyodForge.open(); }], ['btn-menu-ryod-quick', () => { if (activeRealm !== 'ryod') selectRealm('ryod', false); if (window.RyodForge && typeof window.RyodForge.quickRandomizeAndLaunch === 'function') window.RyodForge.quickRandomizeAndLaunch(); }]].forEach(([id, fn]) => {
+    function launchDailySeededDescent() {
+        const utcDay = new Date().toISOString().slice(0, 10);
+        const effRealm = activeRealm || 'angband';
+        const raw = `DAILY:${utcDay}:${effRealm}`;
+        let h = 2166136261 >>> 0;
+        for (let i = 0; i < raw.length; i++) {
+            h ^= raw.charCodeAt(i);
+            h = Math.imul(h, 16777619) >>> 0;
+        }
+        const dailySeed = h.toString(36).toUpperCase();
+        window.__bootSeed = dailySeed;
+        showRealmToast(`📅 Daily Seeded Descent (${utcDay} • Seed ${dailySeed})`);
+        startGame({ realm: effRealm, isNew: true, autoBirth: true, seed: dailySeed, charName: 'DailyHero' });
+    }
+
+    [['btn-menu-guide', () => showGuide(0, 'mainMenu')], ['btn-menu-credits', () => showGuide(6, 'mainMenu')], ['btn-menu-realms', () => showRealmSelector('mainMenu')], ['btn-menu-daily-seed', () => launchDailySeededDescent()], ['btn-menu-ryod-forge', () => { if (activeRealm !== 'ryod') selectRealm('ryod', false); if (window.RyodForge && typeof window.RyodForge.open === 'function') window.RyodForge.open(); }], ['btn-menu-ryod-main', () => { if (activeRealm !== 'ryod') selectRealm('ryod', false); if (window.RyodForge && typeof window.RyodForge.open === 'function') window.RyodForge.open(); }], ['btn-menu-ryod-quick', () => { if (activeRealm !== 'ryod') selectRealm('ryod', false); if (window.RyodForge && typeof window.RyodForge.quickRandomizeAndLaunch === 'function') window.RyodForge.quickRandomizeAndLaunch(); }]].forEach(([id, fn]) => {
         const el = document.getElementById(id);
         if (el) bindFastTap(el, fn);
     });
@@ -7222,6 +7249,29 @@ window.addEventListener('DOMContentLoaded', () => {
             if (window.__localBootFallbackTimer) {
                 clearTimeout(window.__localBootFallbackTimer);
                 window.__localBootFallbackTimer = null;
+            }
+            if (frame && Array.isArray(frame.monsters) && frame.monsters.length > 0 && typeof localStorage !== 'undefined') {
+                try {
+                    if (!window.__bestiaryCodexSet) {
+                        const rawCodex = localStorage.getItem('yasd3d_bestiary_codex_v1');
+                        const parsedCodex = rawCodex ? JSON.parse(rawCodex) : [];
+                        window.__bestiaryCodexSet = new Set(Array.isArray(parsedCodex) ? parsedCodex : []);
+                    }
+                    let codexDirty = false;
+                    const rTag = String(frame.realm || activeRealm || 'angband').toLowerCase();
+                    for (let mi = 0; mi < frame.monsters.length; mi++) {
+                        const mName = frame.monsters[mi] && (frame.monsters[mi].race || frame.monsters[mi].name);
+                        if (!mName) continue;
+                        const entryKey = `${rTag}:${mName}`;
+                        if (!window.__bestiaryCodexSet.has(entryKey) && window.__bestiaryCodexSet.size < 512) {
+                            window.__bestiaryCodexSet.add(entryKey);
+                            codexDirty = true;
+                        }
+                    }
+                    if (codexDirty) {
+                        localStorage.setItem('yasd3d_bestiary_codex_v1', JSON.stringify(Array.from(window.__bestiaryCodexSet)));
+                    }
+                } catch (_) {}
             }
             // Strict Invariant: Reject any frame that belongs to a different realm than active
             if (frame.realm && activeRealm && frame.realm !== activeRealm) {

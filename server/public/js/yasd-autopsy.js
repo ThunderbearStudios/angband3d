@@ -120,13 +120,13 @@
         if (/\b(poison|venom|toxic|drolem|viper|mamba|stinger)\b/.test(corpus) && !(r.pois > 0)) {
             gaps.push('Unresisted Poison (rPois OFF)');
         }
-        if (/\b(paralyz|paralys|freez.*solid|floating eye|ghoul|hold|held)\b/.test(corpus) && !f.free_act) {
+        if (/\b(paralyz|paralys|freez.*solid|floating eye|ghoul|hold|held)\b/.test(corpus) && !(f.free_act || f.freeAct)) {
             gaps.push('Paralyzed without Free Action (FA OFF)');
         }
-        if (/\b(confus|baffl|chaos|umber hulk)\b/.test(corpus) && !(r.conf > 0)) {
+        if (/\b(confus|baffl|chaos|umber hulk)\b/.test(corpus) && !(r.conf > 0 || f.rConf)) {
             gaps.push('Unresisted Confusion (rConf OFF)');
         }
-        if (/\b(blind|darkness|flash)\b/.test(corpus) && !(r.light > 0 && r.dark > 0)) {
+        if (/\b(blind|darkness|flash)\b/.test(corpus) && !((r.light > 0 && r.dark > 0) || f.rBlind)) {
             gaps.push('Blindness / Light-Dark Exposure (rBlind/rDark gap)');
         }
         if (/\b(fire|flame|dragon.*fire|balrog|magma|hellhound|plasma)\b/.test(corpus) && !(r.fire > 0)) {
@@ -141,10 +141,10 @@
         if (/\b(lightning|elec|blue dragon|thunder|volt)\b/.test(corpus) && !(r.elec > 0)) {
             gaps.push('Unresisted Lightning (rElec OFF)');
         }
-        if (/\b(nether|drain.*life|wraith|lich|nazgul)\b/.test(corpus) && !(r.nether > 0) && !f.hold_life) {
+        if (/\b(nether|drain.*life|wraith|lich|nazgul)\b/.test(corpus) && !(r.nether > 0) && !(f.hold_life || f.holdLife)) {
             gaps.push('Life Drain / Nether Exposure (rNeth & Hold Life OFF)');
         }
-        if (/\b(invisible|unseen|phantom|stalker)\b/.test(corpus) && !f.see_inv) {
+        if (/\b(invisible|unseen|phantom|stalker)\b/.test(corpus) && !(f.see_inv || f.seeInvis)) {
             gaps.push('Ambushed by Unseen Foe (See Invisible OFF)');
         }
 
@@ -427,6 +427,7 @@
         const p = (frame && frame.player) || {};
         if (frame && frame.seed) return String(frame.seed);
         if (p.seed) return String(p.seed);
+        if (root && root.__bootSeed) return String(root.__bootSeed);
         const raw = `${diag.realm}:${diag.heroName}:${diag.depth}:${diag.turn}:${diag.cause}`;
         let h = 2166136261 >>> 0;
         for (let i = 0; i < raw.length; i++) {
