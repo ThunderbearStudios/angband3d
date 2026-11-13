@@ -52,6 +52,7 @@ const JS_FILES = [
     'server/public/js/command-palette.js',
     'server/public/js/grimoire-deck.js',
     'server/public/js/quick-actions.js',
+    'server/public/js/terminal-lexer.js',
     'server/public/js/terminal.js',
     'server/public/js/hud.js',
     'server/public/js/hud-layout.js',

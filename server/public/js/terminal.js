@@ -1,3 +1,4 @@
+const TerminalLexer = (typeof window !== 'undefined' && window.TerminalLexer) || (typeof require === 'function' ? require('./terminal-lexer.js') : null);
 
 class WebTerminal {
     constructor(canvasId, onSelectKey) {
@@ -10,8 +11,10 @@ class WebTerminal {
         this.cols = 80;
         this.rows = 24;
 
-        // Accurate Angband 16-color palette (WEB-SCOTOPIC-02 warm phosphor clamp: #e6e1d6 on #161920)
-        this.palette = ['#161920','#e6e1d6','#9ea3ad','#ff9900','#e63946','#2a9d8f','#457b9d','#a3704c','#555a64','#c8d1dc','#b5179e','#ffd166','#ff6b6b','#06d6a0','#4cc9f0','#e0a96d'];
+        // Accurate Angband 32-color palette (WEB-SCOTOPIC-02 slate comfort clamp: #e6eaf0 on #14171d)
+        this.palette = (TerminalLexer && TerminalLexer.PALETTE_32)
+            ? TerminalLexer.PALETTE_32.slice()
+            : ['#14171d','#e6eaf0','#94a3b8','#f59e0b','#ef4444','#2dd4bf','#60a5fa','#b47b52','#687285','#cbd5e1','#c084fc','#fde047','#fb7185','#4ade80','#38bdf8','#e2b079'];
 
         this.lastRows = [];
         this.tdSjis = (typeof TextDecoder !== 'undefined') ? new TextDecoder('shift-jis') : null;
@@ -327,33 +330,45 @@ class WebTerminal {
 
         // Anchor scale to true viewport budget minus actual rendered toolbar/ribbon/grimoire chrome
         const viewport = document.getElementById('terminal-viewport');
+        const termContainer = document.getElementById('terminal-container');
+        const isInGameModal = Boolean(termContainer && termContainer.classList && termContainer.classList.contains('in-game-modal'));
         const termWindow = document.getElementById('terminal-window') || document.getElementById('terminal-card');
         const toolbarEl = termWindow ? termWindow.querySelector('.terminal-toolbar') : null;
         const birthBarEl = document.getElementById('terminal-birth-helper-bar');
         const grimoireEl = document.getElementById('grimoire-deck-container');
         const touchDockEl = document.getElementById('terminal-touch-controls');
         const elH = (el) => (el && el.style.display !== 'none' && el.offsetHeight > 0) ? (el.offsetHeight + 6) : 0;
-        const measuredChromeH = elH(toolbarEl) + elH(birthBarEl) + elH(grimoireEl) + elH(touchDockEl) + 28;
-        const maxViewportW = Math.min(Math.floor(window.innerWidth * 0.96), 1480) - 24;
-        const maxViewportH = Math.floor(window.innerHeight * 0.96) - Math.max(96, measuredChromeH);
+        const measuredChromeH = elH(toolbarEl) + elH(birthBarEl) + elH(grimoireEl) + elH(touchDockEl) + (isInGameModal ? 22 : 28);
+        const maxViewportW = isInGameModal
+            ? Math.min(Math.floor(window.innerWidth * 0.92), 1240) - 24
+            : Math.min(Math.floor(window.innerWidth * 0.96), 1480) - 24;
+        const maxViewportH = isInGameModal
+            ? Math.min(Math.floor(window.innerHeight * 0.88), 820) - Math.max(84, measuredChromeH)
+            : Math.floor(window.innerHeight * 0.96) - Math.max(96, measuredChromeH);
 
         const availW = Math.max(260, maxViewportW);
         const availH = Math.max(180, maxViewportH);
 
-        // Scale the 80x24 classic grid to fit 100% inside availW x availH at zoomLevel=1.0
-        // with zero vertical or horizontal scrollbars on desktop/tablet.
         const isMobileScreen = window.innerWidth <= 640;
-        let baseScale;
-        if (isMobileScreen) {
-            baseScale = Math.max(0.58, Math.min(availW / logicalWidth, availH / logicalHeight, 1.35));
-        } else {
-            baseScale = Math.max(0.34, Math.min(availW / logicalWidth, availH / logicalHeight, 2.25));
-        }
+        const fitScale = Math.min(availW / logicalWidth, availH / logicalHeight);
+        const baseScale = isMobileScreen
+            ? Math.max(0.28, Math.min(fitScale, 1.35))
+            : Math.max(0.34, Math.min(fitScale, isInGameModal ? 1.55 : 2.25));
 
         const effectiveScale = baseScale * this.zoomLevel;
         this.effectiveScale = effectiveScale;
-        const cssW = Math.floor(logicalWidth * effectiveScale);
-        const cssH = Math.floor(logicalHeight * effectiveScale);
+        let cssW = Math.floor(logicalWidth * effectiveScale);
+        let cssH = Math.floor(logicalHeight * effectiveScale);
+        if (this.zoomLevel === 1.0 && window.innerWidth > 0 && window.innerHeight > 0) {
+            const hardMaxW = Math.max(240, window.innerWidth - 16);
+            const hardMaxH = Math.max(180, window.innerHeight - 108);
+            if (cssW > hardMaxW || cssH > hardMaxH) {
+                const clampRatio = Math.min(hardMaxW / Math.max(1, cssW), hardMaxH / Math.max(1, cssH));
+                cssW = Math.floor(cssW * clampRatio);
+                cssH = Math.floor(cssH * clampRatio);
+                this.effectiveScale = cssW / logicalWidth;
+            }
+        }
 
         // Size backing canvas buffer to exact device pixels for native retina crispness
         const targetW = Math.round(cssW * dpr);
@@ -507,24 +522,27 @@ class WebTerminal {
         const rawLine = this.lastRows[row]?.g || '';
         const line = this.decodeText(rawLine);
         const sendKey = (key) => {
-            if (key && key !== 'enter' && key !== 'space') {
-                this.setSelectedKey(key);
-            }
+            if (key && key !== 'enter' && key !== 'space') this.setSelectedKey(key);
             if (typeof window !== 'undefined' && window.sound && typeof window.sound.playParchmentTurn === 'function') {
                 window.sound.playParchmentTurn();
             }
-            const btn = (typeof document !== 'undefined' && document.querySelector) ? document.querySelector(`.term-letter-btn[data-key="${key}"]`) : null;
-            if (btn) {
-                btn.click();
-            } else if (typeof this.onKeyClick === 'function') {
-                this.onKeyClick(key);
-            } else if (typeof this.onSelectKey === 'function') {
-                this.onSelectKey(key);
-            } else if (typeof window !== 'undefined' && typeof window.__sendTerminalKey === 'function') {
-                window.__sendTerminalKey(key);
-            } else if (typeof window !== 'undefined' && window.network && typeof window.network.sendKey === 'function') {
-                window.network.sendKey(key);
+            if (typeof this.onKeyClick === 'function') this.onKeyClick(key);
+            else if (typeof this.onSelectKey === 'function') this.onSelectKey(key);
+            else if (typeof window !== 'undefined' && typeof window.__sendTerminalKey === 'function') window.__sendTerminalKey(key);
+            else if (typeof window !== 'undefined' && window.network && typeof window.network.sendKey === 'function') window.network.sendKey(key);
+        };
+        const selectOrSendRowKey = (key) => {
+            if (this.currentMode === 'store' && /^[a-z]$/i.test(key)) {
+                const pRow0 = this.decodeText(this.lastRows[0]?.g || '');
+                const pLast = this.decodeText(this.lastRows[this.rows - 1]?.g || '');
+                const isSubPrompt = /which item|examine which|inspect which|buy which|purchase which|sell which|drop which|how many|accept/i.test(`${pRow0} ${pLast}`);
+                if (!isSubPrompt && !/^[psgdlx]$/i.test(key) || (this.selectableRegions && this.selectableRegions.some(r => r.key === key) && !isSubPrompt)) {
+                    this.setSelectedKey(key);
+                    if (this.lastTermData) this.render(this.lastTermData);
+                    return;
+                }
             }
+            sendKey(key);
         };
 
         const app = (typeof window !== 'undefined' && (window.app || window.__app)) || null;
@@ -549,31 +567,30 @@ class WebTerminal {
             }
         }
 
+        if (col >= 0 && TerminalLexer && typeof TerminalLexer.extractInteractiveTokens === 'function') {
+            const hitTok = TerminalLexer.extractInteractiveTokens(line, this.cols).find(t => col >= t.startCol && col <= t.endCol);
+            if (hitTok && hitTok.key) { sendKey(hitTok.key); return; }
+        }
+
         // Multi-column spatial hit-testing (WS25.1 / MENU-02)
         const regions = this.extractRowRegions(line);
         if (regions.length > 0) {
             if (col >= 0 && regions.length > 1) {
                 const matchedRegion = regions.find(r => col >= r.startCol - 1 && col <= Math.min(r.endCol, r.startCol + (r.rawLabel ? r.rawLabel.length : 28) + 6));
-                if (matchedRegion && matchedRegion.key) { sendKey(matchedRegion.key); return; }
+                if (matchedRegion && matchedRegion.key) { selectOrSendRowKey(matchedRegion.key); return; }
                 return;
             }
-            if (regions[0] && regions[0].key) { sendKey(regions[0].key); return; }
+            if (regions[0] && regions[0].key) { selectOrSendRowKey(regions[0].key); return; }
         }
 
         const tagMatch = line.match(/(?:^|\s+)(?:\[([a-zA-Z0-9*@?])\]|\(([a-zA-Z0-9*@?])\)|([a-zA-Z0-9*@?])[\)\.\:\-])\s+\S/);
         if (tagMatch) {
             const key = tagMatch[1] || tagMatch[2] || tagMatch[3];
-            if (key) {
-                sendKey(key);
-                return;
-            }
+            if (key) { selectOrSendRowKey(key); return; }
         }
 
-        if (line.includes('> ')) {
-            sendKey('enter');
-        } else if (line.includes('-more-') || line.includes('-続く-')) {
-            sendKey('space');
-        }
+        if (line.includes('> ')) sendKey('enter');
+        else if (/--more--|-more-|-続く-|\(page\s+\d+\s+of\s+\d+\)/i.test(line)) sendKey('space');
     }
 
     _findPlayerTermCoords(termData, player) {
@@ -606,10 +623,8 @@ class WebTerminal {
         if (!aStr) return 1;
         const idx = cellIdx * 2;
         if (idx + 1 >= aStr.length) return 1;
-        const hi = parseInt(aStr[idx], 16) || 0;
-        const lo = parseInt(aStr[idx + 1], 16) || 0;
-        const val = (hi << 4) | lo;
-        return val & 0x0f; // Low 4 bits is palette index 0-15
+        const val = ((parseInt(aStr[idx], 16) || 0) << 4) | (parseInt(aStr[idx + 1], 16) || 0);
+        return val & 0x1f; // Low 5 bits: Angband 32-color palette index 0-31
     }
 
     decodeText(str) {
@@ -738,12 +753,12 @@ class WebTerminal {
         const w = this.cols * this.charWidth;
         const h = this.rows * this.charHeight;
 
-        // Illuminated Dark Obsidian-Vellum Grimoire Surface (replaces cold CRT black)
+        // WEB-SCOTOPIC-02 Dark-Slate Terminal Surface (#14171d comfort luminance band)
         if (!this._cachedBgGrad || this._cachedBgW !== w || this._cachedBgH !== h) {
-            const bgGrad = this.ctx.createRadialGradient(w * 0.5, h * 0.45, w * 0.08, w * 0.5, h * 0.5, w * 0.75);
-            bgGrad.addColorStop(0, '#130e0a');
-            bgGrad.addColorStop(0.65, '#0c0906');
-            bgGrad.addColorStop(1, '#070504');
+            const bgGrad = this.ctx.createRadialGradient(w * 0.5, h * 0.45, w * 0.08, w * 0.5, h * 0.5, w * 0.78);
+            bgGrad.addColorStop(0, '#181c24');
+            bgGrad.addColorStop(0.68, '#14171d');
+            bgGrad.addColorStop(1, '#101318');
             this._cachedBgGrad = bgGrad;
             this._cachedBgW = w;
             this._cachedBgH = h;
@@ -767,43 +782,42 @@ class WebTerminal {
             this.ctx.fillRect(sx, sy + 2, 3, Math.max(4, this.charHeight - 4));
         }
 
+        let hasHoverTarget = Boolean(this._hoverMapPath && this._hoverMapPath.length > 0);
         if ((mode !== 'classic_play' || (effFrame?.ui?.overlay || 0) > 0) && this.hoverRow >= 0 && this.hoverRow < this.rows) {
-            const rawHoverLine = this.lastRows[this.hoverRow]?.g || '';
-            const hoverLine = this.decodeText(rawHoverLine);
-            const regions = this.extractRowRegions(hoverLine);
-            let highlightX = 2;
-            let highlightW = w - 4;
-            if (regions.length > 1 && this.hoverCol >= 0) {
-                const activeReg = regions.find(r => this.hoverCol >= r.startCol && this.hoverCol <= r.endCol);
-                if (activeReg) {
-                    highlightX = Math.max(2, activeReg.startCol * this.charWidth - 4);
-                    highlightW = Math.min(w - highlightX - 2, (activeReg.endCol - activeReg.startCol + 1) * this.charWidth + 8);
-                }
+            const hoverLine = this.decodeText(this.lastRows[this.hoverRow]?.g || '');
+            const hitTok = (this.hoverCol >= 0 && TerminalLexer && TerminalLexer.extractInteractiveTokens)
+                ? TerminalLexer.extractInteractiveTokens(hoverLine, this.cols).find(t => this.hoverCol >= t.startCol && this.hoverCol <= t.endCol)
+                : null;
+            const regions = hitTok ? [] : this.extractRowRegions(hoverLine);
+            const activeReg = hitTok || (regions.length > 1
+                ? regions.find(r => this.hoverCol >= r.startCol && this.hoverCol <= r.endCol)
+                : (regions[0] || null));
+            if (activeReg) {
+                hasHoverTarget = true;
+                const highlightX = Math.max(2, activeReg.startCol * this.charWidth - 4);
+                const highlightW = Math.min(w - highlightX - 2, (activeReg.endCol - activeReg.startCol + 1) * this.charWidth + 8);
+                const hy = this.hoverRow * this.charHeight;
+                this.ctx.fillStyle = 'rgba(218, 172, 84, 0.16)';
+                this.ctx.fillRect(highlightX, hy, highlightW, this.charHeight);
+                this.ctx.strokeStyle = 'rgba(245, 204, 122, 0.48)';
+                this.ctx.lineWidth = 1;
+                this.ctx.strokeRect(highlightX + 0.5, hy + 0.5, highlightW - 1, this.charHeight - 1);
             }
-            const hy = this.hoverRow * this.charHeight;
-            this.ctx.fillStyle = 'rgba(218, 172, 84, 0.16)';
-            this.ctx.fillRect(highlightX, hy, highlightW, this.charHeight);
-            this.ctx.strokeStyle = 'rgba(245, 204, 122, 0.42)';
-            this.ctx.lineWidth = 1;
-            this.ctx.strokeRect(highlightX + 0.5, hy + 0.5, highlightW - 1, this.charHeight - 1);
+        }
+        if (this.canvas && this.canvas.style) {
+            this.canvas.style.cursor = hasHoverTarget ? 'pointer' : (this.zoomLevel > 1.02 ? 'grab' : 'default');
         }
 
-        // Gilded Sanctuary Double-Bevel Border
-        this.ctx.strokeStyle = 'rgba(218, 172, 84, 0.52)';
-        this.ctx.lineWidth = 2;
+        // Subtle Slate-Brass Hairline Border
+        this.ctx.strokeStyle = 'rgba(212, 175, 55, 0.46)';
+        this.ctx.lineWidth = 1.5;
         this.ctx.strokeRect(1, 1, w - 2, h - 2);
-        this.ctx.strokeStyle = 'rgba(255, 232, 175, 0.16)';
-        this.ctx.lineWidth = 1;
-        this.ctx.strokeRect(4, 4, w - 8, h - 8);
-
         this.ctx.textBaseline = 'top';
 
         const isHeng = (typeof window !== 'undefined') &&
-            ((window.activeRealm === 'hengband') ||
-             (window.__activeRealm === 'hengband') ||
+            ((window.activeRealm === 'hengband') || (window.__activeRealm === 'hengband') ||
              (window.__app && typeof window.__app.getActiveRealm === 'function' && window.__app.getActiveRealm() === 'hengband') ||
-             (termData && termData.realm === 'hengband') ||
-             (this.lastTermData && this.lastTermData.realm === 'hengband'));
+             (termData && termData.realm === 'hengband') || (this.lastTermData && this.lastTermData.realm === 'hengband'));
         const langMode = (typeof window !== 'undefined' && window.__langMode) ? window.__langMode : 'en';
 
         let lastFillStyle = '';
@@ -816,8 +830,7 @@ class WebTerminal {
             const trFn = (typeof window !== 'undefined') && (window.translateTerminalRow || (window.HENG_DICT && window.HENG_DICT.translateTerminalRow));
             if (isHeng && typeof trFn === 'function') {
                 const tr = trFn(text, attrs, langMode, r);
-                text = tr.text;
-                attrs = tr.attrs;
+                text = tr.text; attrs = tr.attrs;
             }
             const y = (rowObj.y !== undefined ? rowObj.y : r) * this.charHeight;
 
@@ -825,36 +838,29 @@ class WebTerminal {
             for (let c = 0; c < text.length && screenCol < this.cols; c++) {
                 const code = text.codePointAt(c);
                 const isSurrogate = (code > 0xffff);
-
-                // Full-width CJK characters occupy 2 monospace grid columns
                 const isFullWidthCJK = (
-                    (code >= 0x1100 && code <= 0x115f) ||
-                    (code >= 0x2e80 && code <= 0xa4cf) ||
-                    (code >= 0xac00 && code <= 0xd7a3) ||
-                    (code >= 0xf900 && code <= 0xfaff) ||
-                    (code >= 0xfe30 && code <= 0xfe4f) ||
-                    (code >= 0xff01 && code <= 0xff60) ||
-                    (code >= 0xffe0 && code <= 0xffe6) ||
-                    (code >= 0x20000 && code <= 0x3fffd)
+                    (code >= 0x1100 && code <= 0x115f) || (code >= 0x2e80 && code <= 0xa4cf) ||
+                    (code >= 0xac00 && code <= 0xd7a3) || (code >= 0xf900 && code <= 0xfaff) ||
+                    (code >= 0xfe30 && code <= 0xfe4f) || (code >= 0xff01 && code <= 0xff60) ||
+                    (code >= 0xffe0 && code <= 0xffe6) || (code >= 0x20000 && code <= 0x3fffd)
                 );
+                const attrInfo = (TerminalLexer && TerminalLexer.decodeCellAttr)
+                    ? TerminalLexer.decodeCellAttr(attrs, screenCol)
+                    : { fgIdx: this.parseAttr(attrs, screenCol), bgHighlight: false };
+                if (attrInfo.bgHighlight) {
+                    this.ctx.fillStyle = 'rgba(218, 172, 84, 0.22)';
+                    this.ctx.fillRect(screenCol * this.charWidth, y, this.charWidth * (isFullWidthCJK ? 2 : 1), this.charHeight);
+                    lastFillStyle = '';
+                }
 
                 if (isFullWidthCJK) {
-                    const kanji = String.fromCodePoint(code);
-                    const colorIdx = this.parseAttr(attrs, screenCol);
-                    const nextFill = this.palette[colorIdx] || '#ffffff';
-                    if (nextFill !== lastFillStyle) {
-                        this.ctx.fillStyle = nextFill;
-                        lastFillStyle = nextFill;
-                    }
+                    const nextFill = this.palette[attrInfo.fgIdx] || '#e6eaf0';
+                    if (nextFill !== lastFillStyle) { this.ctx.fillStyle = nextFill; lastFillStyle = nextFill; }
                     const nextFont = this.cjkFont || `bold 25px 'BIZ UDGothic', 'MS Gothic', 'Noto Sans CJK JP', 'Meiryo', sans-serif`;
-                    if (nextFont !== lastFont) {
-                        this.ctx.font = nextFont;
-                        lastFont = nextFont;
-                    }
-                    // Center the CJK character horizontally in its 2-cell slot (28px) and vertically in the row (28px)
+                    if (nextFont !== lastFont) { this.ctx.font = nextFont; lastFont = nextFont; }
                     const kx = screenCol * this.charWidth + Math.max(0, Math.floor((this.charWidth * 2 - (this.cjkFontSize || 25)) / 2));
                     const ky = y + Math.max(0, Math.floor((this.charHeight - (this.cjkFontSize || 25)) / 2));
-                    this.ctx.fillText(kanji, kx, ky);
+                    this.ctx.fillText(String.fromCodePoint(code), kx, ky);
                     screenCol += 2;
                     if (isSurrogate) c++;
                     continue;
@@ -862,24 +868,25 @@ class WebTerminal {
 
                 const ch = text[c];
                 if (ch !== ' ' && ch !== '\0') {
-                    const colorIdx = this.parseAttr(attrs, screenCol);
-                    const nextFill = this.palette[colorIdx] || '#ffffff';
-                    if (nextFill !== lastFillStyle) {
-                        this.ctx.fillStyle = nextFill;
-                        lastFillStyle = nextFill;
+                    const nextFill = this.palette[attrInfo.fgIdx] || '#e6eaf0';
+                    if (TerminalLexer && TerminalLexer.isBoxGlyph && TerminalLexer.isBoxGlyph(ch)) {
+                        TerminalLexer.drawBoxGlyph(this.ctx, ch, screenCol * this.charWidth, y, this.charWidth, this.charHeight, nextFill);
+                        lastFillStyle = '';
+                    } else {
+                        if (nextFill !== lastFillStyle) { this.ctx.fillStyle = nextFill; lastFillStyle = nextFill; }
+                        const nextFont = this.asciiFont || `bold 20px 'Fira Code', 'BIZ UDGothic', monospace`;
+                        if (nextFont !== lastFont) { this.ctx.font = nextFont; lastFont = nextFont; }
+                        const ax = screenCol * this.charWidth + 1;
+                        const ay = y + Math.max(0, Math.floor((this.charHeight - (this.fontSize || 20)) / 2));
+                        this.ctx.fillText(ch, ax, ay);
                     }
-                    const nextFont = this.asciiFont || `bold 20px 'Fira Code', 'BIZ UDGothic', monospace`;
-                    if (nextFont !== lastFont) {
-                        this.ctx.font = nextFont;
-                        lastFont = nextFont;
-                    }
-                    // Center ASCII character horizontally in its 1-cell slot (14px) and vertically in the row (28px)
-                    const ax = screenCol * this.charWidth + 1;
-                    const ay = y + Math.max(0, Math.floor((this.charHeight - (this.fontSize || 20)) / 2));
-                    this.ctx.fillText(ch, ax, ay);
                 }
                 screenCol += 1;
             }
+        }
+
+        if (TerminalLexer && typeof TerminalLexer.drawCursor === 'function') {
+            TerminalLexer.drawCursor(this.ctx, termData, this.charWidth, this.charHeight, this.cols, this.rows);
         }
 
         // Sleek translucent gold A* path overlay on Tab Classic Map

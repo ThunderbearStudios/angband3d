@@ -347,10 +347,13 @@
 
     function renderCoachmark(bar) {
         if (!bar) return;
+        const wasdOn = Boolean(window.__app && window.__app.input && window.__app.input.wasdMode);
         const steps = [
             '',
             '✦ Step 1/3: Drag Mouse or press [Q / E] to Look 360° (Costs 0 Turns!)',
-            '✦ Step 2/3: Press [Up / W] to Step Forward or Bump-Attack Foes',
+            wasdOn
+                ? '✦ Step 2/3: Press [W] to Step Forward or [A / D] to Turn & Attack Foes'
+                : '✦ Step 2/3: Press [Up] to Step Forward or [Left / Right] to Turn (Alt+W toggles WASD)',
             '✦ Step 3/3: Press [Tab] anytime to toggle the Classic 80×24 Terminal!'
         ];
         if (_ftueStep < 1 || _ftueStep > 3) {

@@ -110,6 +110,7 @@
         }
 
         _processPad(pad) {
+            if (typeof window !== 'undefined' && window.__app && typeof window.__app.getAppState === 'function' && window.__app.getAppState() !== 'game') return;
             this.setInputDevice('gamepad');
             this.diagonalLock = Boolean(pad.buttons[6] && pad.buttons[6].pressed);
             const context = this.options.getContext ? this.options.getContext() : this._liveContext();
@@ -191,6 +192,9 @@
             if (intent.id === 'back') {
                 const cmdModal = typeof document !== 'undefined' ? document.getElementById('command-palette-modal') : null;
                 if (cmdModal && !cmdModal.classList.contains('hidden') && window.CommandPalette) { window.CommandPalette.hide(); return; }
+            }
+            if (intent.id === 'smart_action' && window.__app && window.__app.input && typeof window.__app.input.executeSmartAction === 'function') {
+                window.__app.input.executeSmartAction(window.__app.input.smartAction || 'wait'); return;
             }
             if (intent.key && window.__app && window.__app.network && typeof window.__app.network.sendKey === 'function') {
                 const keyToSend = intent.key === 'space' ? ' ' : (intent.key === 'enter' ? 'enter' : (intent.key === 'escape' ? 'escape' : intent.key));

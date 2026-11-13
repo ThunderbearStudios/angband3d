@@ -310,9 +310,9 @@ async function checkAsync(label, fn) {
     // =========================================================================
     // PILLAR 9: Deep 9-Realm Bug & State-Bleed Sweep
     // =========================================================================
-    check('Pillar 9.1: DCSS closed-door check (feat === 3), Cartridge Victory routing, and canonical angband3d.com URLs', () => {
+    check('Pillar 9.1: DCSS closed-door check (feat === 2), Cartridge Victory routing, and canonical angband3d.com URLs', () => {
         const inputSrc = read('server/public/js/input.js');
-        assert.ok(inputSrc.includes('this.getFeatAt(lf.map, px + dx, py + dy) === 3'), 'DCSS "o" door check must use FEAT_DOOR_CLOSED (3)');
+        assert.ok(inputSrc.includes('this.getFeatAt(lf.map, px + dx, py + dy) === 2'), 'DCSS "o" door check must use FEAT.CLOSED_DOOR (2)');
 
         const appSrc = read('server/public/js/app.js');
         assert.ok(appSrc.includes('Boolean(frame.victory || frame.player.winner || frame.player.total_winner)'), 'needsTerminal must check frame.victory');

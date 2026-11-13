@@ -1525,7 +1525,7 @@ class InputController {
                 }
             }
             if (window.MenuRouter && typeof window.MenuRouter.route === 'function') {
-                if (window.MenuRouter.route(keySpec, lastFrame, realm)) {
+                if (window.MenuRouter.route(keySpec, lastFrame, realm, { source: 'keyboard' })) {
                     if (this.terminal && typeof this.terminal.setSelectedKey === 'function' && keySpec.length === 1) this.terminal.setSelectedKey(keySpec);
                     if (window.__app && typeof window.__app.updateTerminalToolbar === 'function') window.__app.updateTerminalToolbar(lastFrame);
                     if (this.terminal && lastFrame && lastFrame.term && typeof this.terminal.render === 'function') this.terminal.render(lastFrame.term);
@@ -1791,7 +1791,7 @@ class InputController {
             if (isTopLevelCommandPrompt && realm === 'dcss' && e.key === 'o') {
                 const lf = (this.app && this.app.lastFrame) || (window.__app && window.__app.lastFrame) || null;
                 const px = lf?.player?.x, py = lf?.player?.y;
-                const hasAdjDoor = px !== undefined && py !== undefined && [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]].some(([dx, dy]) => this.getFeatAt(lf.map, px + dx, py + dy) === 3);
+                const hasAdjDoor = px !== undefined && py !== undefined && [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]].some(([dx, dy]) => this.getFeatAt(lf.map, px + dx, py + dy) === 2);
                 if (!hasAdjDoor) { this.toggleAutoExplore(lf); return; }
             }
             let keyToSend = e.key;
@@ -2844,7 +2844,66 @@ class InputController {
             }
         };
 
+        let longPressTimer = null;
+        let longPressFired = false;
+
+        const openEntityInspectAt = (cx, cy) => {
+            if (!this.dungeon || this.inTerminal) return false;
+            const frame = (this.app && this.app.lastFrame) || (window.__app && window.__app.lastFrame) || this.dungeon.lastFrame;
+            const monster = (typeof this.dungeon.getMonsterAtScreenCoords === 'function') ? this.dungeon.getMonsterAtScreenCoords(cx, cy) : null;
+            if (monster && window.chronicleManager && typeof window.chronicleManager.interactWithCreature === 'function') {
+                window.chronicleManager.interactWithCreature(monster, { mode: 'popover', clientX: cx, clientY: cy });
+                return true;
+            }
+            const item = (typeof this.dungeon.getItemAtScreenCoords === 'function') ? this.dungeon.getItemAtScreenCoords(cx, cy) : null;
+            if (item && window.chronicleManager && typeof window.chronicleManager.inspectObject === 'function') {
+                window.chronicleManager.inspectObject(item, { mode: 'popover', clientX: cx, clientY: cy });
+                return true;
+            }
+            if (typeof this.dungeon.getTileAtScreenCoords === 'function' && frame) {
+                const hitTile = this.dungeon.getTileAtScreenCoords(cx, cy);
+                if (hitTile) {
+                    const monOnTile = (Array.isArray(frame.monsters) ? frame.monsters : []).find((m) => m && m.visible !== false && m.x === hitTile.x && m.y === hitTile.y);
+                    if (monOnTile && window.chronicleManager && typeof window.chronicleManager.interactWithCreature === 'function') {
+                        window.chronicleManager.interactWithCreature(monOnTile, { mode: 'popover', clientX: cx, clientY: cy });
+                        return true;
+                    }
+                    const its = Array.isArray(frame.items) ? frame.items : (Array.isArray(frame.objects) ? frame.objects : []);
+                    const itemOnTile = its.find((it) => it && it.x === hitTile.x && it.y === hitTile.y);
+                    if (itemOnTile && window.chronicleManager && typeof window.chronicleManager.inspectObject === 'function') {
+                        window.chronicleManager.inspectObject(itemOnTile, { mode: 'popover', clientX: cx, clientY: cy });
+                        return true;
+                    }
+                }
+            }
+            return false;
+        };
+
+        const clearLongPress = () => {
+            if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
+        };
+
+        const origOnStart = onStart;
+        const startWithLongPress = (clientX, clientY, pointerId = null, isTouch = false) => {
+            clearLongPress();
+            longPressFired = false;
+            origOnStart(clientX, clientY, pointerId);
+            if (isTouch) {
+                longPressTimer = setTimeout(() => {
+                    if (isDragging && Math.hypot(lastX - startX, lastY - startY) < 16) {
+                        if (openEntityInspectAt(lastX, lastY)) {
+                            longPressFired = true;
+                            isDragging = false;
+                            activePointerId = null;
+                        }
+                    }
+                }, 430);
+            }
+        };
+
         const onEnd = (endX = null, endY = null) => {
+            clearLongPress();
+            if (longPressFired) { longPressFired = false; return; }
             if (!isDragging) return;
             isDragging = false;
             activePointerId = null;
@@ -2863,21 +2922,36 @@ class InputController {
                     window.DeviceProfile.triggerHaptic('light');
                 }
                 if (this.dungeon && typeof this.dungeon.turn === 'function') {
-                    const turnDir = (totalDx > 0 ? 1 : -1);
-                    this.dungeon.turn(turnDir);
+                    this.dungeon.turn(totalDx > 0 ? 1 : -1);
                 }
             } else if (elapsed < 380 && Math.abs(totalDx) < 18 && Math.abs(totalDy) < 18) {
                 if (this.dungeon) {
                     const frame = (this.app && this.app.lastFrame) || (window.__app && window.__app.lastFrame) || this.dungeon.lastFrame;
+                    const worldKeyMap = { '0,-1': 'up', '1,-1': 'pageup', '1,0': 'right', '1,1': 'pagedown', '0,1': 'down', '-1,1': 'end', '-1,0': 'left', '-1,-1': 'home' };
+                    const realm = (window.__app && window.__app.getActiveRealm) ? window.__app.getActiveRealm() : 'angband';
                     if (this.isDirectionalTargeting() && frame && frame.player) {
                         const monster = (typeof this.dungeon.getMonsterAtScreenCoords === 'function') ? this.dungeon.getMonsterAtScreenCoords(finalX, finalY) : null;
                         const hitTile = (!monster && typeof this.dungeon.getTileAtScreenCoords === 'function') ? this.dungeon.getTileAtScreenCoords(finalX, finalY) : null;
                         const tx = monster ? monster.x : (hitTile ? hitTile.x : null), ty = monster ? monster.y : (hitTile ? hitTile.y : null);
                         if (tx !== null && ty !== null) {
-                            const dx = Math.sign(tx - frame.player.x), dy = Math.sign(ty - frame.player.y);
-                            const worldKeyMap = { '0,-1': 'up', '1,-1': 'pageup', '1,0': 'right', '1,1': 'pagedown', '0,1': 'down', '-1,1': 'end', '-1,0': 'left', '-1,-1': 'home' };
-                            const realm = (window.__app && window.__app.getActiveRealm) ? window.__app.getActiveRealm() : 'angband';
-                            if (monster && Math.max(Math.abs(tx - frame.player.x), Math.abs(ty - frame.player.y)) > 1 && !(dx === 0 || dy === 0 || Math.abs(tx - frame.player.x) === Math.abs(ty - frame.player.y))) {
+                            const dxRaw = tx - frame.player.x, dyRaw = ty - frame.player.y;
+                            const dx = Math.sign(dxRaw), dy = Math.sign(dyRaw);
+                            const cheb = Math.max(Math.abs(dxRaw), Math.abs(dyRaw));
+                            const on8Way = (dxRaw === 0 || dyRaw === 0 || Math.abs(dxRaw) === Math.abs(dyRaw));
+                            if (cheb === 0) {
+                                this.network.sendKey('.');
+                            } else if (cheb > 1 && !on8Way && ['angband', 'silq', 'frogcomposband', 'hengband'].includes(realm) && cheb <= 24) {
+                                const st = (window.ScreenContext && typeof window.ScreenContext.screenTextOf === 'function') ? window.ScreenContext.screenTextOf(frame) : '';
+                                if (!/\btarget\b|\blook\b|'p'|\[p,|press '\?'/i.test(st)) this.network.sendKey('*');
+                                this.network.sendKey('p');
+                                let rx = dxRaw, ry = dyRaw;
+                                while (rx !== 0 || ry !== 0) {
+                                    const sx = Math.sign(rx), sy = Math.sign(ry);
+                                    const sk = worldKeyMap[`${sx},${sy}`];
+                                    if (!sk) break;
+                                    this.network.sendKey(sk);
+                                    rx -= sx; ry -= sy;
+                                }
                                 this.network.sendKey(realm === 'silq' ? 'f' : 't');
                             } else {
                                 this.network.sendKey(worldKeyMap[`${dx},${dy}`] || (realm === 'silq' ? 'f' : 't'));
@@ -2885,31 +2959,33 @@ class InputController {
                             return;
                         }
                     }
-                    const monster = (typeof this.dungeon.getMonsterAtScreenCoords === 'function') ? this.dungeon.getMonsterAtScreenCoords(finalX, finalY) : null;
-                    if (monster) {
-                        if (window.chronicleManager && typeof window.chronicleManager.interactWithCreature === 'function') window.chronicleManager.interactWithCreature(monster, { mode: 'popover', clientX: finalX, clientY: finalY });
-                        return;
-                    }
-                    const item = (typeof this.dungeon.getItemAtScreenCoords === 'function') ? this.dungeon.getItemAtScreenCoords(finalX, finalY) : null;
-                    if (item) {
-                        if (window.chronicleManager && typeof window.chronicleManager.inspectObject === 'function') window.chronicleManager.inspectObject(item, { mode: 'popover', clientX: finalX, clientY: finalY });
-                        return;
-                    }
                     if (window.chronicleManager && typeof window.chronicleManager.preemptForGameplay === 'function') window.chronicleManager.preemptForGameplay('canvas_click');
-                    if (typeof this.dungeon.getTileAtScreenCoords === 'function' && !this.inTerminal) {
-                        const hitTile = this.dungeon.getTileAtScreenCoords(finalX, finalY);
-                        if (hitTile && frame) {
-                            const monOnTile = (Array.isArray(frame.monsters) ? frame.monsters : []).find((m) => m && m.visible !== false && m.x === hitTile.x && m.y === hitTile.y);
-                            if (monOnTile) {
-                                if (window.chronicleManager && typeof window.chronicleManager.interactWithCreature === 'function') window.chronicleManager.interactWithCreature(monOnTile, { mode: 'popover', clientX: finalX, clientY: finalY });
-                                return;
+                    if (!this.inTerminal && frame && frame.player) {
+                        const hitTile = (typeof this.dungeon.getTileAtScreenCoords === 'function') ? this.dungeon.getTileAtScreenCoords(finalX, finalY) : null;
+                        const monster = ((typeof this.dungeon.getMonsterAtScreenCoords === 'function') ? this.dungeon.getMonsterAtScreenCoords(finalX, finalY) : null) ||
+                            (hitTile && Array.isArray(frame.monsters) ? frame.monsters.find((m) => m && m.visible !== false && m.x === hitTile.x && m.y === hitTile.y) : null);
+                        if (monster) {
+                            const dxRaw = monster.x - frame.player.x, dyRaw = monster.y - frame.player.y;
+                            if (Math.max(Math.abs(dxRaw), Math.abs(dyRaw)) === 1) {
+                                const atkKey = worldKeyMap[`${Math.sign(dxRaw)},${Math.sign(dyRaw)}`];
+                                if (atkKey) { this.sendMovementKey(atkKey); return; }
                             }
-                            const its = Array.isArray(frame.items) ? frame.items : (Array.isArray(frame.objects) ? frame.objects : []);
-                            const itemOnTile = its.find((it) => it && it.x === hitTile.x && it.y === hitTile.y);
-                            if (itemOnTile) {
-                                if (window.chronicleManager && typeof window.chronicleManager.inspectObject === 'function') window.chronicleManager.inspectObject(itemOnTile, { mode: 'popover', clientX: finalX, clientY: finalY });
-                                return;
+                            this.startMinimapAutoNav(monster.x, monster.y, frame);
+                            return;
+                        }
+                        const its = Array.isArray(frame.items) ? frame.items : (Array.isArray(frame.objects) ? frame.objects : []);
+                        const item = ((typeof this.dungeon.getItemAtScreenCoords === 'function') ? this.dungeon.getItemAtScreenCoords(finalX, finalY) : null) ||
+                            (hitTile ? its.find((it) => it && it.x === hitTile.x && it.y === hitTile.y) : null);
+                        if (item) {
+                            if (item.x === frame.player.x && item.y === frame.player.y) {
+                                const gKey = (typeof RealmKeys !== 'undefined' && RealmKeys.realmKey) ? (RealmKeys.realmKey('pickup', realm) || 'g') : 'g';
+                                this.network.sendKey(gKey);
+                            } else {
+                                this.startMinimapAutoNav(item.x, item.y, frame);
                             }
+                            return;
+                        }
+                        if (hitTile) {
                             this.startMinimapAutoNav(hitTile.x, hitTile.y, frame);
                         }
                     }
@@ -2917,11 +2993,16 @@ class InputController {
             }
         };
 
+        canvas.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            openEntityInspectAt(e.clientX, e.clientY);
+        });
+
         canvas.addEventListener('pointerdown', (e) => {
             if (e.isPrimary === false || (e.pointerType === 'mouse' && e.button !== 0)) return;
             if (e.target && e.target.closest && e.target.closest('#quick-slot-bar, #quick-slot-popover, #minimap-canvas, #grimoire-deck-container, #streetview-nav-rosette')) return;
             try { canvas.setPointerCapture(e.pointerId); } catch (_) {}
-            onStart(e.clientX, e.clientY, e.pointerId);
+            startWithLongPress(e.clientX, e.clientY, e.pointerId, e.pointerType === 'touch');
         });
 
         canvas.addEventListener('pointermove', (e) => {

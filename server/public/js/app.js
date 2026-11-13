@@ -358,23 +358,15 @@ window.addEventListener('DOMContentLoaded', () => {
         network.sendKey(key);
     };
     const terminal = new WebTerminal('terminal-canvas', dispatchTerminalKey);
-    const _origTermResize = terminal.resize.bind(terminal);
-    terminal.resize = function () {
-        _origTermResize();
-        if (this.canvas && this.zoomLevel === 1.0 && window.innerWidth > 0 && window.innerHeight > 0) {
-            const curW = parseInt(this.canvas.style.width, 10) || 0;
-            const curH = parseInt(this.canvas.style.height, 10) || 0;
-            const maxW = Math.max(240, window.innerWidth - 16);
-            const maxH = Math.max(180, window.innerHeight - 110);
-            if (curW > maxW || curH > maxH) {
-                const ratio = Math.min(maxW / Math.max(1, curW), maxH / Math.max(1, curH));
-                this.canvas.style.width = `${Math.floor(curW * ratio)}px`;
-                this.canvas.style.height = `${Math.floor(curH * ratio)}px`;
-            }
-        }
-    };
     terminal.resize();
     window.__sendTerminalKey = dispatchTerminalKey;
+    if (terminalContainer) {
+        terminalContainer.addEventListener('click', (e) => {
+            if (e.target === terminalContainer && terminalContainer.classList.contains('in-game-modal')) {
+                dispatchTerminalKey('escape');
+            }
+        });
+    }
 
     if (window.RealmGrimoireDeck && typeof window.RealmGrimoireDeck.setMode === 'function') {
         window.RealmGrimoireDeck.setMode('classic');
@@ -1004,15 +996,13 @@ window.addEventListener('DOMContentLoaded', () => {
                 if (terminal && typeof terminal.setSelectedKey === 'function') {
                     terminal.setSelectedKey(key);
                 }
-                if (btn.dataset.storeAutoBuy) {
-                    const buyCmd = btn.dataset.storeAutoBuy === 'g' ? 'g' : 'p';
-                    if (dispatcher && typeof dispatcher.run === 'function') {
-                        dispatcher.run({ verb: 'store_buy', buyCmd, item: key, qty: 1 });
-                    } else {
-                        network.sendKey(buyCmd);
-                        network.sendKey(key);
+                if (terminal && terminal.currentMode === 'store' && lastFrame && lastFrame.term && Array.isArray(lastFrame.term.rows)) {
+                    const pRow0 = (lastFrame.term.rows[0] && lastFrame.term.rows[0].g) || '';
+                    const isSubPrompt = /which item|examine which|inspect which|buy which|purchase which|sell which|drop which|how many|accept/i.test(pRow0);
+                    if (!isSubPrompt && /^[a-l]$/i.test(key)) {
+                        terminal.render(lastFrame.term);
+                        return;
                     }
-                    return;
                 }
                 const realm = (typeof getActiveRealm === 'function' ? getActiveRealm() : activeRealm) || (lastFrame && lastFrame.realm) || 'angband';
                 if (window.MenuRouter && typeof window.MenuRouter.route === 'function') {
@@ -6120,13 +6110,6 @@ window.addEventListener('DOMContentLoaded', () => {
                 );
                 setCtxActions(renderCtxButtons(storeBtns));
                 populateLetterRibbon(effFrame.term ? effFrame.term.rows : []);
-                const promptLine = (effFrame.term && effFrame.term.rows && effFrame.term.rows[0]) ? (effFrame.term.rows[0].g || '') : screenText;
-                if (!/which item|examine which|inspect which|buy which|purchase which|sell which|drop which|how many|accept/i.test(promptLine) && termLetterRibbon) {
-                    const buyCmd = (effectiveHome || screenText.includes('g) get') || screenText.includes('g) purchase')) ? 'g' : 'p';
-                    termLetterRibbon.querySelectorAll('.term-letter-btn').forEach(b => {
-                        if (b.dataset.key && /^[a-l]$/i.test(b.dataset.key)) b.dataset.storeAutoBuy = buyCmd;
-                    });
-                }
             }
         } else if (isItemActions) {
             terminalTitle.textContent = isHeng ? hengTitle('⚔ CHOOSE ACTION FOR ITEM', '⚔ CHOOSE ACTION / 選択', '⚔ アイテムの行動を選択') : '⚔ CHOOSE ACTION FOR ITEM';
@@ -6231,7 +6214,7 @@ window.addEventListener('DOMContentLoaded', () => {
                         { key: rk('wield', 'w'), badge: `[${rk('wield', 'w')}]`, label: '⚔ Wield' },
                         { key: rk('quaff', 'q'), badge: `[${rk('quaff', 'q')}]`, label: '🧪 Quaff' },
                         { key: rk('read', 'r'), badge: `[${rk('read', 'r')}]`, label: '📜 Read' },
-                        { key: 'E', badge: '[E]', label: '🍖 Eat' },
+                        { key: rk('eat', 'E'), badge: `[${rk('eat', 'E')}]`, label: '🍖 Eat' },
                         { key: rk('examine', 'I'), badge: `[${rk('examine', 'I')}]`, label: '🔍 Inspect' },
                         { key: rk('drop', 'd'), badge: `[${rk('drop', 'd')}]`, label: '📦 Drop' }
                     );
@@ -6863,8 +6846,9 @@ window.addEventListener('DOMContentLoaded', () => {
         const btnToggleDpad = document.getElementById('btn-toggle-dpad');
         const btnToggleChronicle = document.getElementById('btn-toggle-chronicle');
         if (needsTerm) {
+            const isInGameModal = Boolean(currentFrame && currentFrame.phase === 'play' && !forceTerminal);
             terminalContainer.classList.remove('hidden');
-            terminalContainer.classList.remove('in-game-modal');
+            terminalContainer.classList.toggle('in-game-modal', isInGameModal);
             document.body.classList.add('terminal-mode-active', 'terminal-active');
             const rtc = document.getElementById('reticle-target-card');
             if (rtc) { rtc.style.display = 'none'; rtc.classList.add('hidden'); }
@@ -6885,7 +6869,8 @@ window.addEventListener('DOMContentLoaded', () => {
                 if (expBtn) expBtn.textContent = '▼ Show';
             }
             const topRightBar = document.getElementById('top-right-bar');
-            [hudOverlay, topRightBar, minimapContainer, messageFeedWindow, topMessageBanner, touchControls, btnToggleMsg, btnToggleMap, btnToggleDpad, btnToggleChronicle].forEach(el => { if (el) el.style.display = 'none'; });
+            if (hudOverlay) hudOverlay.style.display = isInGameModal ? 'flex' : 'none';
+            [topRightBar, minimapContainer, messageFeedWindow, topMessageBanner, touchControls, btnToggleMsg, btnToggleMap, btnToggleDpad, btnToggleChronicle].forEach(el => { if (el) el.style.display = 'none'; });
             const globalAudioBarTerm = document.getElementById('global-audio-bar');
             if (globalAudioBarTerm) globalAudioBarTerm.style.display = 'none';
             input.setTerminalMode(true);
@@ -7439,7 +7424,10 @@ window.addEventListener('DOMContentLoaded', () => {
             const needsTerm = needsTerminal(frame) || forceTerminal;
             if (promptMirror && typeof promptMirror.render === 'function') {
                 try {
-                    promptMirror.render(frame, (!needsTerm && currentPhase === 'play') ? lastScreenModel : null, realmForRouter, { sendKey: (k) => network && network.sendKey(k) });
+                    const mirrorModel = (!needsTerm && currentPhase === 'play' && !(lastScreenModel && lastScreenModel.mirror === 'direction'))
+                        ? lastScreenModel
+                        : null;
+                    promptMirror.render(frame, mirrorModel, realmForRouter, { sendKey: (k) => network && network.sendKey(k) });
                 } catch (err) {
                     console.error('[PromptMirror Error]', err);
                 }

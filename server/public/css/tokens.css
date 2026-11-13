@@ -1,0 +1,67 @@
+/* ============================================================================
+ * tokens.css — YASD 3D / Angband 3D Design Tokens, Cascade Layers & Slate Modal
+ * Calibrated to WEB-SCOTOPIC-02 (anti-halation dark-slate luminance comfort band)
+ * ============================================================================ */
+@layer reset, tokens, base, hud, terminal, modals, overrides;
+
+@layer tokens {
+    :root {
+        color-scheme: dark;
+        --surface-0: #161920;      /* Viewport & root dark slate */
+        --surface-1: #14171d;      /* Recessed terminal & log surface */
+        --surface-2: #1e222b;      /* Slate modal & HUD panel surface */
+        --surface-3: #282d38;      /* Hover / interactive elevation */
+        --text-heading: #dce0e8;   /* <= 13.5:1 scotopic heading ceiling */
+        --text-primary: #c8cdd6;   /* 10.6:1 comfort prose band */
+        --text-secondary: #9ca3b2; /* 6.6:1 secondary labels */
+        --text-muted: #94a3b8;     /* >= 5.2:1 WCAG 2.2 AA muted floor */
+        --border-subtle: rgba(148, 163, 184, 0.22);
+        --border-control: #687082; /* >= 3.12:1 control boundary */
+        --brass-hairline: rgba(212, 175, 55, 0.48);
+        --brass-accent: #e6c35c;
+        --focus-ring: color-mix(in oklab, var(--brass-accent) 78%, var(--text-heading));
+        scrollbar-width: thin;
+        scrollbar-color: var(--border-control) var(--surface-1);
+    }
+}
+
+/* ============================================================================
+ * Classic-First 80x24 Centered Translucent Slate Modal over Live 3D Scene
+ * ============================================================================ */
+#terminal-container.in-game-modal {
+    background: rgba(10, 12, 16, 0.44);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    padding: max(10px, env(safe-area-inset-top, 0px)) max(12px, env(safe-area-inset-right, 0px)) max(12px, env(safe-area-inset-bottom, 0px)) max(12px, env(safe-area-inset-left, 0px));
+}
+
+#terminal-container.in-game-modal .terminal-card {
+    background: rgba(20, 23, 29, 0.94);
+    border: 1px solid var(--realm-border-accent, var(--brass-hairline));
+    border-radius: 10px;
+    box-shadow: 0 20px 56px rgba(0, 0, 0, 0.86), inset 0 1px 0 rgba(230, 234, 240, 0.08);
+    max-width: min(94vw, 1260px);
+    max-height: min(90dvh, 840px);
+    padding: 8px 12px 10px;
+}
+
+#terminal-container.in-game-modal .terminal-card::after {
+    background: none;
+    box-shadow: inset 0 0 0 1px rgba(212, 175, 55, 0.14);
+}
+
+/* Desktop precision: hide redundant letter-ribbon clutter inside in-game modal
+ * (every [a) ...] row & inline token on the 80x24 canvas is directly clickable),
+ * while keeping #btn-term-escape visible in the top toolbar for 1-click close. */
+@media (hover: hover) and (pointer: fine) and (min-width: 901px) {
+    #terminal-container.in-game-modal #term-letter-ribbon {
+        display: none !important;
+    }
+    #terminal-container.in-game-modal #terminal-card .terminal-toolbar .terminal-actions > #btn-term-escape {
+        display: inline-flex !important;
+    }
+    #terminal-container.in-game-modal #term-contextual-actions {
+        gap: 5px;
+        padding: 2px 0 0;
+    }
+}

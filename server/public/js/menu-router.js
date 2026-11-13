@@ -535,14 +535,13 @@
                 return false; // Pass escape through to engine to close inventory/equipment
             }
 
-            const verbsForRealm = VERBS[realm] || {};
-            const isVerbKey = Boolean(verbsForRealm[key]);
-
-            // CMD-P1-10: In passive command-loop lists, if user presses a key that is a realm verb AND opts.source === 'keyboard',
-            // let native verb keys work cleanly
-            if (isCommandPrompt && isVerbKey && opts && opts.source === 'keyboard') {
+            // Classic-First keyboard fidelity: never hijack keyboard presses in passive lists into scraped chooser
+            if (opts && opts.source === 'keyboard') {
                 return false;
             }
+
+            const verbsForRealm = VERBS[realm] || {};
+            const isVerbKey = Boolean(verbsForRealm[key]);
 
             // Letters/digits that match a listed item row open the Action Chooser
             if (key.length === 1 && /[a-zA-Z0-9]/.test(key) && classifier.items) {

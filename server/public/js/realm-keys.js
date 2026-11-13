@@ -43,7 +43,7 @@
         throw: Object.freeze({ angband: 'v', silq: 't', frogcomposband: 'v', hengband: 'v', nethack: 't', dcss: 'f', brogue: 't', rogue: 't', ryod: 't' }),
         fire: Object.freeze({ angband: 'f', silq: 'f', frogcomposband: 'f', hengband: 'f', nethack: 'f', dcss: 'f', brogue: 't', rogue: 't', ryod: 'f' }),
         quaff: Object.freeze({ angband: 'q', silq: 'q', frogcomposband: 'q', hengband: 'q', nethack: 'q', dcss: 'q', brogue: 'q', rogue: 'q', ryod: 'q' }),
-        eat: Object.freeze({ angband: 'E', silq: 'E', frogcomposband: 'E', hengband: 'E', nethack: 'e', dcss: 'e', brogue: 'e', rogue: 'e', ryod: 'e' }),
+        eat: Object.freeze({ angband: 'E', silq: 'E', frogcomposband: 'E', hengband: 'E', nethack: 'E', dcss: 'E', brogue: 'E', rogue: 'E', ryod: 'E' }),
         read: Object.freeze({ angband: 'r', silq: null, frogcomposband: 'r', hengband: 'r', nethack: 'r', dcss: 'r', brogue: 'r', rogue: 'r', ryod: 'r' }),
         rest: Object.freeze({ angband: 'R', silq: '%', frogcomposband: 'R', hengband: 'R', nethack: '.', dcss: '5', brogue: 'z', rogue: '.', ryod: '.' }),
         open: Object.freeze({ angband: 'o', silq: 'o', frogcomposband: 'o', hengband: 'o', nethack: 'o', dcss: 'o', brogue: 'o', rogue: 'o', ryod: 'o' }),
