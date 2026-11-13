@@ -447,10 +447,10 @@ function synthesizeGeminiTTS({ text, voice, emotion, geminiTag, directorNote, ro
             return reject(new Error('No Gemini API key provided'));
         }
         const baseReqOpts = { method: 'POST', agent: geminiHttpsAgent, timeout: 20000 };
-        const ttsModels = ['gemini-3.1-flash-tts-preview'];
+        const ttsModels = ['gemini-3.8-flash-tts', 'gemini-3.1-flash-tts-preview'];
         const retryIdx = typeof isRetry === 'number' ? isRetry : (isRetry ? 1 : 0);
         const ttsModel = ttsModels[Math.min(retryIdx, ttsModels.length - 1)];
-        const isGemini38Tts = false;
+        const isGemini38Tts = ttsModel.startsWith('gemini-3.8');
         const cleanTranscript = String(text || '').replace(/^\s*(?:\[[^\]]+\]|\*[^*]+\*)\s*/g, '').trim() || String(text || '');
 
         let promptText = cleanTranscript;
@@ -1689,7 +1689,7 @@ const server = http.createServer((req, res) => {
                 res.end(JSON.stringify({
                     ok: true,
                     imageUrl: cachedImg,
-                    model: 'gemini-2.5-flash-image',
+                    model: 'gemini-nano-banana-2.1',
                     cached: true
                 }));
                 return;
@@ -1835,14 +1835,8 @@ const server = http.createServer((req, res) => {
         // --- ENGINE B: GEMINI NATIVE CONTROLLABLE AUDIO ---
         if (requestedEngine === 'gemini') {
             if (!geminiApiKey) {
-                if (!isNarrator) {
-                    console.info('[TTS] No Gemini API key for non-narrator role, falling back to Edge Neural');
-                    handleEdgeTTS('No Gemini API key configured');
-                    return;
-                }
-                console.warn('[TTS] Gemini Native Audio requested, but no Gemini API key found (headers, query, or env).');
-                res.writeHead(401, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ error: 'No Gemini API key configured for Gemini Native Audio' }));
+                console.info(`[TTS] No Gemini API key for role=${role}, falling back to <100ms Edge Neural`);
+                handleEdgeTTS('No Gemini API key configured');
                 return;
             }
 
@@ -1897,15 +1891,7 @@ const server = http.createServer((req, res) => {
                     .then(wavBuffer => sendWav(wavBuffer, false))
                     .catch(geminiErr => {
                         console.warn(`[TTS] Gemini Native Audio error: ${redactSecret(geminiErr.message, geminiApiKey)}`);
-                        if (!isNarrator) {
-                            console.info('[TTS] Non-narrator role falling back to Edge Neural:', geminiErr.message);
-                            handleEdgeTTS(geminiErr.message);
-                            return;
-                        }
-                        if (!res.headersSent) {
-                            res.writeHead(502, { 'Content-Type': 'application/json' });
-                            res.end(JSON.stringify({ error: redactSecret(geminiErr.message, geminiApiKey) }));
-                        }
+                        handleEdgeTTS(geminiErr.message);
                     });
                 return;
             }
@@ -1948,15 +1934,7 @@ const server = http.createServer((req, res) => {
                 sendWav(wavBuffer, false);
             }).catch(geminiErr => {
                 console.warn(`[TTS] Gemini Native Audio error: ${redactSecret(geminiErr.message, geminiApiKey)}`);
-                if (!isNarrator) {
-                    console.info('[TTS] Non-narrator role falling back to Edge Neural:', geminiErr.message);
-                    handleEdgeTTS(geminiErr.message);
-                    return;
-                }
-                if (!res.headersSent) {
-                    res.writeHead(502, { 'Content-Type': 'application/json' });
-                    res.end(JSON.stringify({ error: redactSecret(geminiErr.message, geminiApiKey) }));
-                }
+                handleEdgeTTS(geminiErr.message);
             });
             return;
         }

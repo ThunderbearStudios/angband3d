@@ -286,11 +286,18 @@
         g.gain.linearRampToValueAtTime(peakGain, t0 + 0.16);
         g.gain.exponentialRampToValueAtTime(0.0001, t0 + durationSec);
         g.connect(dest);
+        let endedCount = 0;
         for (let i = 0; i < freqs.length; i++) {
           const osc = ctx.createOscillator();
           osc.type = waveType;
           osc.frequency.setValueAtTime(freqs[i], t0);
           osc.connect(g);
+          osc.onended = () => {
+            try {
+              osc.disconnect();
+              if (++endedCount >= freqs.length) g.disconnect();
+            } catch (_) {}
+          };
           osc.start(t0);
           osc.stop(t0 + durationSec + 0.04);
         }

@@ -1941,7 +1941,7 @@ class ChronicleManager {
 
     renderAllChapters() {
         if (!this.listEl) return;
-        this.listEl.innerHTML = '';
+        this.listEl.replaceChildren();
         this.storyPlaylist = [];
         if (!this.activeChronicle || !this.activeChronicle.chapters) return;
 
@@ -4029,7 +4029,8 @@ class ChronicleManager {
 
     async preWarmActiveSceneSketch(frame, beat = null) {
         // Sovereign Protector Budget Invariant (WS70):
-        // Never fire unclicked background /api/chronicle/sketch requests; pre-bake the 0ms local Doré canvas engraving instead.
+        // Never fire unclicked background /api/chronicle/sketch requests; pre-bake the 0ms local Doré canvas engraving only while Chronicle is open.
+        if (this.drawerEl && this.drawerEl.classList && (this.drawerEl.classList.contains('hidden') || this.drawerEl.classList.contains('collapsed'))) return null;
         const activeFrame = frame || this.lastFrame;
         if (!activeFrame || !activeFrame.player) return null;
         const ctxData = this.buildHeroSketchContext(beat, { mode: 'action', frame: activeFrame });
@@ -4490,7 +4491,7 @@ class ChronicleManager {
         const sceneKey = `${ctxData.realm}:${ctxData.locationLabel}`;
         if (this._preWarmedSceneKey === sceneKey && this._preWarmedSceneUrl) {
             const warmUrl = this._preWarmedSceneUrl;
-            const warmModel = this._preWarmedSceneModel || 'gemini-2.5-flash-image';
+            const warmModel = this._preWarmedSceneModel || 'gemini-nano-banana-2.1';
             this._lastActiveSketchUrl = warmUrl;
             revealCardImage(warmUrl);
             if (saveLink) saveLink.href = warmUrl;
@@ -4545,7 +4546,7 @@ class ChronicleManager {
         }, 100);
         this._sketchProgressTimer = sketchTimerId;
 
-        const primarySketchModel = 'gemini-2.5-flash-image';
+        const primarySketchModel = 'gemini-nano-banana-2.1';
         const abortCtrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
         this._sketchAbortController = abortCtrl;
         const reqHeaders = { 'Content-Type': 'application/json' };

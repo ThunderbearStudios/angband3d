@@ -251,6 +251,11 @@
         };
 
         mediaRecorder.onstop = async () => {
+            try {
+                if (stream && typeof stream.getTracks === 'function') {
+                    stream.getTracks().forEach(t => { try { t.stop(); } catch (_) {} });
+                }
+            } catch (_) {}
             console.log(`[Recorder] MediaRecorder stopped. Assembling video blob from ${recordedChunks.length} chunks...`);
             const blob = new Blob(recordedChunks, { type: chosenMime });
             console.log(`[Recorder] Uploading ${(blob.size / (1024 * 1024)).toFixed(2)} MB video to server endpoint /api/recordings/upload...`);

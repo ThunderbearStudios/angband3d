@@ -47,7 +47,7 @@ test('WS1A: Enceladus British RP voice and 35ms Web Audio gain ramp across serve
         assert(ctx.recommendedVoice.startsWith('en-GB-'), `Expected British Neural fallback voice for ${realm}, got ${ctx.recommendedVoice}`);
     }
     const serverJs = fs.readFileSync(path.join(ROOT, 'server/src/server.js'), 'utf8');
-    assert(serverJs.includes("const ttsModels = ['gemini-3.1-flash-tts-preview']"));
+    assert(serverJs.includes("const ttsModels = ['gemini-3.8-flash-tts', 'gemini-3.1-flash-tts-preview']"));
     assert(serverJs.includes('standard RP British accent'));
 
     const audioJs = fs.readFileSync(path.join(ROOT, 'server/public/js/chronicle/chronicle-audio.js'), 'utf8');

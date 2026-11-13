@@ -1666,12 +1666,13 @@ class SoundEngine {
 
         if (panner) {
             source.connect(gain);
-            gain.connect(panner);
+            gain.connect(panner._filter || panner);
             panner.connect(dest);
             source.onended = () => {
                 try {
                     source.disconnect();
                     gain.disconnect();
+                    if (panner._filter) panner._filter.disconnect();
                     panner.disconnect();
                     if (wetSend) wetSend.disconnect();
                 } catch (_) {}

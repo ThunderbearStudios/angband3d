@@ -13,6 +13,17 @@
 (function() {
     'use strict';
 
+    const escapeHtml = (typeof window !== 'undefined' && typeof window.escapeHtml === 'function')
+        ? window.escapeHtml
+        : function(s) {
+            return String(s == null ? '' : s)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        };
+
     const CHAPTER_COLORS = [
         '#ffd700', // Act 0: Insignia (Gold)
         '#f59e0b', // Act 1: Town & Descent (Amber)
@@ -474,8 +485,8 @@
             const ribbon = document.querySelector('.demo-chapter-ribbon');
             if (ribbon && ribbon !== this.chapterPillContainer) bindHoverHold(ribbon);
 
-            // Reset HUD auto-hide timer on user interaction
-            const onUserActivity = () => this.resetHudTimer();
+            // Reset HUD auto-hide timer on user interaction only when theater is open
+            const onUserActivity = () => { if (this.isOpen || this.isStandalone) this.resetHudTimer(); };
             window.addEventListener('mousemove', onUserActivity, { passive: true });
             window.addEventListener('mousedown', onUserActivity, { passive: true });
             window.addEventListener('touchstart', onUserActivity, { passive: true });
