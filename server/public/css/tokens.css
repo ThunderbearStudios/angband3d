@@ -65,3 +65,71 @@
         padding: 2px 0 0;
     }
 }
+
+/* ============================================================================
+ * WEB-SCOTOPIC-02 Anti-Halation Contrast, Z-Index Stack & Zero-Blur 60fps HUD
+ * ============================================================================ */
+#app-container :is(h1, h2, h3, .modal-title, .main-menu-title) {
+    color: var(--text-heading);
+}
+
+#app-container :is(.text-muted, .save-meta, .chronicle-timestamp, .hud-sub-label, .char-sub-meta) {
+    color: var(--text-muted);
+}
+
+#app-container :is(button, a, input, select, textarea, [tabindex]):focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
+}
+
+/* Lift #pause-modal (950) above #terminal-container (100) & below #death-modal (999) */
+#app-container > #pause-modal {
+    z-index: 950;
+    background: rgba(16, 19, 25, 0.92);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+}
+
+/* Eliminate expensive live-WebGL compositor Gaussian blur across 60fps HUD panels */
+#hud-overlay > .hud-panel,
+#hud-overlay #hud-center-column > .hud-panel,
+#app-container #message-panel,
+#app-container #minimap-panel,
+#app-container #top-controls {
+    background-color: rgba(20, 23, 29, 0.92);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+}
+
+/* ============================================================================
+ * Coarse-Pointer Tap Targets (>= 44x44 CSS px) & iOS 16px Auto-Zoom Guard
+ * ============================================================================ */
+@media (pointer: coarse), (max-width: 768px) {
+    #app-container :is(#top-controls .icon-btn, .terminal-toolbar .term-btn, #pause-modal .main-menu-btn, .char-mini-btn) {
+        min-width: 44px;
+        min-height: 44px;
+        touch-action: manipulation;
+    }
+
+    #app-container :is(
+        input[type="text"],
+        input[type="search"],
+        input[type="password"],
+        input[type="email"],
+        input[type="number"],
+        select,
+        textarea
+    ) {
+        font-size: max(16px, 1rem);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #app-container *,
+    #app-container *::before,
+    #app-container *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
