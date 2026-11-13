@@ -1,11 +1,11 @@
 {
   "name": "angband3d-app",
-  "version": "12.1.0",
+  "version": "12.2.0",
   "private": true,
   "scripts": {
     "cap": "cap",
     "android:add": "cap add android",
-    "android:sync": "cap sync android && node -e \"const fs=require('fs'),p=require('path'),b='android/app/src/main/assets/public';for(const x of ['assets/video','demo.html'])fs.rmSync(p.join(b,x),{recursive:true,force:true});(function w(d){if(!fs.existsSync(d))return;for(const e of fs.readdirSync(d,{withFileTypes:true})){const f=p.join(d,e.name);if(e.isDirectory())w(f);else if(e.name.endsWith('.br'))fs.unlinkSync(f);}})(b);\"",
+    "android:sync": "node tools/sync_android_assets.js",
     "android:build": "cd android && .\\gradlew.bat assembleRelease"
   },
   "dependencies": {

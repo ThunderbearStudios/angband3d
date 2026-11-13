@@ -11,23 +11,33 @@ if (!newVersion) {
 
 const rootDir = path.join(__dirname, '..');
 const indexHtmlPath = path.join(rootDir, 'server/public/index.html');
+const demoHtmlPath = path.join(rootDir, 'server/public/demo.html');
 const swJsPath = path.join(rootDir, 'server/public/sw.js');
 const versionJsonPath = path.join(rootDir, 'server/public/version.json');
 
-// 1. Rewrite ?v=... in index.html
-if (fs.existsSync(indexHtmlPath)) {
-    let indexHtml = fs.readFileSync(indexHtmlPath, 'utf8');
-    indexHtml = indexHtml.replace(/\?v=[0-9a-zA-Z.-]+/g, `?v=${newVersion}`);
-    fs.writeFileSync(indexHtmlPath, indexHtml, 'utf8');
-    console.log(`Updated ${indexHtmlPath} -> ?v=${newVersion}`);
+// 1. Rewrite ?v=... in index.html & demo.html
+for (const htmlPath of [indexHtmlPath, demoHtmlPath]) {
+    if (fs.existsSync(htmlPath)) {
+        let html = fs.readFileSync(htmlPath, 'utf8');
+        html = html.replace(/\?v=[0-9a-zA-Z.-]+/g, `?v=${newVersion}`);
+        fs.writeFileSync(htmlPath, html, 'utf8');
+        console.log(`Updated ${htmlPath} -> ?v=${newVersion}`);
+    }
 }
 
-// 2. Rewrite CACHE_NAME in sw.js
+// 2. Rewrite CACHE_NAME in sw.js & fallback version in boot.js
 if (fs.existsSync(swJsPath)) {
     let swJs = fs.readFileSync(swJsPath, 'utf8');
     swJs = swJs.replace(/(const|let|var)\s+CACHE_NAME\s*=\s*['"]angband3d-v[^'"]+['"]/g, `$1 CACHE_NAME = 'angband3d-v${newVersion}'`);
     fs.writeFileSync(swJsPath, swJs, 'utf8');
     console.log(`Updated ${swJsPath} -> angband3d-v${newVersion}`);
+}
+const bootJsPath = path.join(rootDir, 'server/public/js/boot.js');
+if (fs.existsSync(bootJsPath)) {
+    let bootJs = fs.readFileSync(bootJsPath, 'utf8');
+    bootJs = bootJs.replace(/(\|\|\s*window\.APP_VERSION\s*\|\|\s*['"])[^'"]+(['"])/, `$1${newVersion}$2`);
+    fs.writeFileSync(bootJsPath, bootJs, 'utf8');
+    console.log(`Updated ${bootJsPath} -> fallback ${newVersion}`);
 }
 
 // 3. Write version.json if present or update it
