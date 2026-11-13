@@ -1,5 +1,5 @@
 // Angband3D Service Worker — Split-Epoch PWA Shell + Persistent 3D/WASM Asset Cache
-const CACHE_NAME = 'angband3d-v12.2.1';
+const CACHE_NAME = 'angband3d-v12.2.2';
 const ASSET_CACHE = 'angband3d-assets-v1';
 const SHELL_ASSETS = [
   '/',
@@ -51,8 +51,9 @@ self.addEventListener('fetch', (event) => {
   }
 
   const hasVersionParam = url.searchParams.has('v');
-  const bypassDiskCache = event.request.mode !== 'navigate' && (url.pathname.startsWith('/assets/') || hasVersionParam);
-  const fetchFresh = () => bypassDiskCache ? fetch(event.request, { cache: 'reload' }) : fetch(event.request);
+  const isNav = event.request.mode === 'navigate';
+  const bypassDiskCache = isNav || url.pathname.startsWith('/assets/') || hasVersionParam;
+  const fetchFresh = () => bypassDiskCache ? fetch(event.request, { cache: isNav ? 'no-store' : 'reload' }) : fetch(event.request);
   const isHeavyImmutableAsset = (
     url.pathname.startsWith('/assets/models/') ||
     url.pathname.startsWith('/assets/polyhaven/') ||

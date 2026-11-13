@@ -382,11 +382,21 @@ window.addEventListener('DOMContentLoaded', () => {
                 if (isApk) localStorage.setItem('angband_engine_mode', mode);
             } catch (_) {}
         }
-        try {
-            if (network) network.disconnect();
-        } catch (_) {}
+        const prevNet = network;
+        if (prevNet) {
+            for (const cb of ['onHello', 'onFrame', 'onBye', 'onError', 'onStatus', 'onPing', 'onQueue', 'onSave', 'onSavePersisted', 'onOfflineCommand', 'onCommands', 'onSpells', 'onEvent', 'onWasmFallback']) {
+                prevNet[cb] = null;
+            }
+            try {
+                prevNet.disconnect();
+            } catch (_) {}
+        }
         network = (mode === 'cloud' && window.GameNetwork) ? new GameNetwork() : new LocalGameBridge();
         window.__app.network = network;
+        if (typeof input !== 'undefined' && input) {
+            input.network = network;
+            if (input.quickActions) input.quickActions.network = network;
+        }
         if (typeof dispatcher !== 'undefined' && dispatcher) {
             dispatcher.sendKey = (k) => network && network.sendKey(k);
         }
@@ -426,6 +436,8 @@ window.addEventListener('DOMContentLoaded', () => {
 
     let quickBirthActive = false;
     let quickBirthStep = 0;
+    let lastQuickBirthSig = '';
+    let quickBirthStallCount = 0;
     let quickBirthArchetype = null;
     let quickBirthPlanner = null;
     let birthConfirming = false;
@@ -440,6 +452,8 @@ window.addEventListener('DOMContentLoaded', () => {
     const cancelQuickBirth = () => {
         quickBirthActive = false;
         quickBirthStep = 0;
+        lastQuickBirthSig = '';
+        quickBirthStallCount = 0;
         quickBirthArchetype = null;
         quickBirthPlanner = null;
         birthConfirming = false;
@@ -528,7 +542,7 @@ window.addEventListener('DOMContentLoaded', () => {
         const rawText = (frame.term && frame.term.rows ? frame.term.rows.map(r => r.g || '').join('\n') : '');
         const decodedText = decodeHengbandText(rawText);
         const screenText = (rawText + '\n' + decodedText).toLowerCase();
-        const hasMore = screenText.includes('-more-') || (frame.ui && frame.ui.more);
+        const hasMore = screenText.includes('-more-') || screenText.includes('-続く-') || (frame.ui && frame.ui.more);
         // Once in active play with valid map and player object,
         // birth is 100% finished: dismiss terminal and switch directly to 3D world view!
         if (frame.phase === 'play' && frame.map && frame.player && !hasMore) {
@@ -537,9 +551,24 @@ window.addEventListener('DOMContentLoaded', () => {
         }
         if (++quickBirthStep > 120) {
             quickBirthActive = false;
-            forceTerminal = false;
+            lastQuickBirthSig = '';
+            quickBirthStallCount = 0;
+            forceTerminal = true;
+            setLoadingCurtain(false);
             updateViewMode(frame);
-            console.warn('[QuickStart] Exceeded maximum auto-birth steps; switching to world view.');
+            console.warn('[QuickStart] Exceeded maximum auto-birth steps; switching to interactive terminal.');
+            return;
+        }
+        const birthSig = `${frame.phase || ''}:${(frame.term && frame.term.cursor) ? `${frame.term.cursor.x},${frame.term.cursor.y}` : ''}:${rawText.slice(0, 600)}`;
+        if (birthSig === lastQuickBirthSig) {
+            quickBirthStallCount++;
+        } else {
+            lastQuickBirthSig = birthSig;
+            quickBirthStallCount = 0;
+        }
+        if (quickBirthStallCount >= 2) {
+            const recoveryKeys = ['*', 'a', 'space', 'enter', 'y', 'escape'];
+            network.sendKey(recoveryKeys[(quickBirthStallCount - 2) % recoveryKeys.length]);
             return;
         }
         if (!quickBirthPlanner && window.RealmCartridge && typeof window.RealmCartridge.createRandomBirthPlanner === 'function') {
@@ -588,10 +617,20 @@ window.addEventListener('DOMContentLoaded', () => {
             network.sendKey('enter');
             return;
         }
-        // 5. Hengband Realm Selection (for spellcasting classes) -> select varied realm from planner
+        // 5. Hengband Realm Selection (for spellcasting classes) -> use '*' when random offered or clamp to (a-X)
         if (screenText.includes('choose a realm') || screenText.includes('choose realm') || screenText.includes('realm 1:') ||
             screenText.includes('魔法領域') || screenText.includes('領域を選んで')) {
-            network.sendKey(planner.magicRealmKey || 'a');
+            if (rawText.includes('*)') || screenText.includes('*)')) {
+                network.sendKey('*');
+            } else {
+                const rangeMatch = rawText.match(/\(([a-z])-([a-z])\)/i);
+                const cand = String(planner.magicRealmKey || 'a').toLowerCase();
+                if (rangeMatch && cand >= rangeMatch[1].toLowerCase() && cand <= rangeMatch[2].toLowerCase()) {
+                    network.sendKey(cand);
+                } else {
+                    network.sendKey(rangeMatch ? rangeMatch[1].toLowerCase() : 'a');
+                }
+            }
             return;
         }
         // 6. FrogComposBand Mode Selection: 'n' is Normal Mode (never 'b' Beginner which forces pre-rolled Hobbit Rogue)
@@ -725,9 +764,10 @@ window.addEventListener('DOMContentLoaded', () => {
             network.sendKey('enter');
             return;
         }
-        // 12. More prompts or splash screens
-        if (hasMore || screenText.includes('press any key') || screenText.includes('press space') ||
-            screenText.includes('press any other key to play') || screenText.includes('press ? for credits')) {
+        // 12. More prompts or splash screens (EN + JP)
+        if (hasMore || screenText.includes('press any key') || screenText.includes('hit any key') ||
+            screenText.includes('press space') || screenText.includes('press any other key to play') ||
+            screenText.includes('press ? for credits') || screenText.includes('何かキーを押して')) {
             network.sendKey('space');
             return;
         }
@@ -3824,6 +3864,8 @@ window.addEventListener('DOMContentLoaded', () => {
         }
         quickBirthActive = !!options.autoBirth;
         quickBirthStep = 0;
+        lastQuickBirthSig = '';
+        quickBirthStallCount = 0;
         forceTerminal = false;
         lastFrame = null;
         if (window.__dungeonRenderer) {
@@ -4040,7 +4082,7 @@ window.addEventListener('DOMContentLoaded', () => {
         let lastTouchEndTime = 0;
         let startX = 0, startY = 0, moved = false;
         const trigger = (e) => {
-            if (el === splashOverlay && e && e.target && e.target.closest('a, button, input, select, #global-audio-bar, .sr-only-test-compat')) {
+            if (el === splashOverlay && e && e.target && e.target.closest('a, button, input, select, #global-audio-bar, #quick-volume-popover, .sr-only-test-compat')) {
                 return;
             }
             const now = Date.now();
@@ -4095,7 +4137,7 @@ window.addEventListener('DOMContentLoaded', () => {
     // Attach DOM event listeners for splash billboard & compatibility buttons
     if (splashOverlay) {
         bindFastTap(splashOverlay, (e) => {
-            if (e && e.target && e.target.closest('a, button, input, select, #global-audio-bar, .sr-only-test-compat')) return;
+            if (e && e.target && e.target.closest('a, button, input, select, #global-audio-bar, #quick-volume-popover, .sr-only-test-compat')) return;
             enterFromSplash();
         });
     }
@@ -4127,7 +4169,7 @@ window.addEventListener('DOMContentLoaded', () => {
     // Keyboard shortcuts for splash screen: [Q] Quick Start, [L] Saved Chronicles, or any key to enter Realm Selector
     window.addEventListener('keydown', (e) => {
         if (appState === 'splash') {
-            if (document.activeElement && document.activeElement.closest && document.activeElement.closest('#global-audio-bar, a, button, input')) {
+            if (document.activeElement && document.activeElement.closest && document.activeElement.closest('#global-audio-bar, #quick-volume-popover, a, button, input, select')) {
                 return;
             }
             if (e.key === 'q' || e.key === 'Q') {
@@ -4572,18 +4614,41 @@ window.addEventListener('DOMContentLoaded', () => {
     // Audio Configuration Popover Drawer Lifecycle
     // # ROOT-CAUSE: Remove the 7500ms auto-close timer and the broken mouseleave -> showQuickVolumePopover() listener (which re-opened the popover on the same frame when clicking ✕ or ⚙), and decouple #btn-sound (instant Global Mute on HUD) from #btn-sound-config (deterministic open/close toggle for #quick-volume-popover underneath).
     let popoverDismissTimer = null;
+    const AUDIO_CFG_BTN_IDS = ['btn-sound-config', 'btn-global-audio-config', 'btn-term-audio-config', 'btn-menu-audio-settings'];
     function setConfigBtnExpanded(isOpen) {
-        const cfgBtn = document.getElementById('btn-sound-config');
-        if (cfgBtn) {
-            cfgBtn.classList.toggle('active', Boolean(isOpen));
-            cfgBtn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+        AUDIO_CFG_BTN_IDS.forEach((id) => {
+            const cfgBtn = document.getElementById(id);
+            if (cfgBtn) {
+                cfgBtn.classList.toggle('active', Boolean(isOpen));
+                cfgBtn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+            }
+        });
+    }
+
+    function positionQuickVolumePopover(anchorEl) {
+        const pop = document.getElementById('quick-volume-popover');
+        if (!pop) return;
+        const rect = anchorEl && typeof anchorEl.getBoundingClientRect === 'function' ? anchorEl.getBoundingClientRect() : null;
+        if (rect && rect.width > 0 && rect.height > 0 && typeof window !== 'undefined') {
+            const margin = 12;
+            const popW = Math.min(352, window.innerWidth - margin * 2);
+            const rightPx = Math.max(margin, Math.min(window.innerWidth - popW - margin, window.innerWidth - rect.right));
+            const topPx = Math.max(margin, Math.min(window.innerHeight - 180, rect.bottom + 8));
+            pop.style.top = `${Math.round(topPx)}px`;
+            pop.style.right = `${Math.round(rightPx)}px`;
+            pop.style.left = 'auto';
+        } else if (pop.classList.contains('hidden')) {
+            pop.style.top = '';
+            pop.style.right = '';
+            pop.style.left = '';
         }
     }
 
-    function showQuickVolumePopover() {
+    function showQuickVolumePopover(anchorEl = null) {
         const pop = document.getElementById('quick-volume-popover');
         if (!pop) return;
         clearTimeout(popoverDismissTimer);
+        positionQuickVolumePopover(anchorEl);
         pop.classList.remove('hidden');
         setConfigBtnExpanded(true);
     }
@@ -4595,7 +4660,7 @@ window.addEventListener('DOMContentLoaded', () => {
         setConfigBtnExpanded(false);
     }
 
-    function toggleQuickVolumePopover() {
+    function toggleQuickVolumePopover(anchorEl = null) {
         const pop = document.getElementById('quick-volume-popover');
         if (!pop) return;
         if (!pop.classList.contains('hidden')) {
@@ -4603,7 +4668,7 @@ window.addEventListener('DOMContentLoaded', () => {
         } else {
             if (audio) audio.unlock();
             syncAudioUI();
-            showQuickVolumePopover();
+            showQuickVolumePopover(anchorEl);
         }
     }
 
@@ -4623,14 +4688,13 @@ window.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // # ROOT-CAUSE: Wire #btn-global-audio-config, #btn-term-audio-mute, #btn-term-audio-config, #btn-load-close-x, #btn-pause-close-x, and backdrop click-outside dismissal on #load-modal and #pause-modal.
-    ['btn-sound-config', 'btn-global-audio-config', 'btn-term-audio-config'].forEach((cfgId) => {
+    AUDIO_CFG_BTN_IDS.forEach((cfgId) => {
         const el = document.getElementById(cfgId);
         if (el) {
             el.setAttribute('aria-expanded', 'false');
             bindFastTap(el, (e) => {
                 if (e && e.stopPropagation) e.stopPropagation();
-                toggleQuickVolumePopover();
+                toggleQuickVolumePopover(el);
             });
         }
     });
@@ -4773,8 +4837,15 @@ window.addEventListener('DOMContentLoaded', () => {
     // # ROOT-CAUSE: Remove the mouseleave -> showQuickVolumePopover() listener that re-opened the popover immediately upon clicking ✕, and allow Escape or outside click/tap to close #quick-volume-popover deterministically.
     const quickVolPop = document.getElementById('quick-volume-popover');
     if (quickVolPop) {
-        quickVolPop.addEventListener('click', (e) => e.stopPropagation());
+        ['click', 'pointerdown', 'mousedown'].forEach((evt) => {
+            quickVolPop.addEventListener(evt, (e) => e.stopPropagation());
+        });
         quickVolPop.addEventListener('touchstart', (e) => e.stopPropagation(), { passive: true });
+        document.addEventListener('pointerdown', (e) => {
+            if (quickVolPop.classList.contains('hidden')) return;
+            if (e.target && e.target.closest('#quick-volume-popover, #btn-sound-config, #btn-global-audio-config, #btn-term-audio-config, #btn-menu-audio-settings, #btn-top-music')) return;
+            hideQuickVolumePopover();
+        });
     }
 
     const btnPopoverClose = document.getElementById('btn-popover-close');
@@ -5478,6 +5549,15 @@ window.addEventListener('DOMContentLoaded', () => {
         setTxt('menu-active-realm-name', realm.name);
         setTxt('main-menu-subtitle', `${realm.tagline} • ${realm.voiceAccent}`);
         setTxt('main-menu-realm-tagline', `${realm.tagline} • ${realm.voiceAccent}`);
+        setTxt('menu-active-realm-desc', realm.desc || realm.tagline);
+        const menuHeroArt = document.getElementById('menu-realm-hero-art');
+        if (menuHeroArt) {
+            const artPath = `/assets/realms/${encodeURIComponent(activeRealm || 'angband')}.webp`;
+            if (!menuHeroArt.getAttribute('src') || !menuHeroArt.getAttribute('src').endsWith(`${activeRealm || 'angband'}.webp`)) {
+                menuHeroArt.src = artPath;
+            }
+            menuHeroArt.alt = `${realm.name} Artwork`;
+        }
         const menuRealmSelect = document.getElementById('main-menu-realm-select');
         if (menuRealmSelect && menuRealmSelect.value !== activeRealm) {
             menuRealmSelect.value = activeRealm;
@@ -7508,6 +7588,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 );
                 if (needsAssetGate) {
                     clearSceneAssetGateState();
+                    let gateSettled = false;
                     const gateToken = ++sceneAssetGateSeq;
                     sceneAssetGateInFlight = true;
                     window.gameSceneAssetsLoading = true;
@@ -7519,7 +7600,9 @@ window.addEventListener('DOMContentLoaded', () => {
                         : 'Summoning 2K Photogrammetry & 3D Bestiary...';
                     setLoadingCurtain(true, initialStageLabel, isDepthChangedTransition ? 18 : 38);
                     const finishAssetGate = () => {
-                        if (gateToken !== sceneAssetGateSeq) return;
+                        if (gateSettled || gateToken !== sceneAssetGateSeq) return;
+                        gateSettled = true;
+                        ++sceneAssetGateSeq;
                         clearSceneAssetGateState();
                         window.gameSceneAssetsLoading = false;
                         const readyFrame = lastFrame || frame;
@@ -7538,7 +7621,7 @@ window.addEventListener('DOMContentLoaded', () => {
                     };
                     sceneAssetGateFailsafe = setTimeout(finishAssetGate, 4800);
                     dungeon.awaitSceneAssetsReady(frame, (done, total, label) => {
-                        if (gateToken !== sceneAssetGateSeq) return;
+                        if (gateSettled || !sceneAssetGateInFlight || gateToken !== sceneAssetGateSeq) return;
                         const basePct = isDepthChangedTransition ? 18 : 38;
                         const spanPct = isDepthChangedTransition ? 78 : 58;
                         const pct = Math.min(97, basePct + Math.round((done / Math.max(1, total)) * spanPct));

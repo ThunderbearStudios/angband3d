@@ -5,7 +5,19 @@
 
 class InputController {
     constructor(network, dungeon, terminal, audio, toggleTerminalView) {
-        this.network = network;
+        this._fallbackNetwork = network;
+        Object.defineProperty(this, 'network', {
+            configurable: true,
+            enumerable: true,
+            get() {
+                return (typeof window !== 'undefined' && window.__app && window.__app.network)
+                    ? window.__app.network
+                    : this._fallbackNetwork;
+            },
+            set(v) {
+                this._fallbackNetwork = v;
+            }
+        });
         this.dungeon = dungeon;
         this.terminal = terminal;
         if (audio && (audio.hud || audio.lastFrame || audio.getActiveRealm)) {

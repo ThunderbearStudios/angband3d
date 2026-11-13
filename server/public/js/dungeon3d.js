@@ -3237,15 +3237,17 @@ class Dungeon3D {
             const total = tier1Tasks.length;
             if (total > 0) {
                 let completed = 0;
+                let gateDone = false;
                 if (typeof onProgress === 'function') onProgress(0, total, 'Loading critical 2K PBR surfaces...');
                 const gateAll = Promise.all(tier1Tasks.map((p) => p.then((res) => {
                     completed++;
-                    if (typeof onProgress === 'function') {
+                    if (!gateDone && typeof onProgress === 'function') {
                         onProgress(completed, total, `Loading 3D scene surfaces (${completed}/${total})...`);
                     }
                     return res;
                 })));
                 await Promise.race([gateAll, new Promise((r) => setTimeout(r, 3200))]);
+                gateDone = true;
             }
 
             await yieldFrame();

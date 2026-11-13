@@ -54,14 +54,14 @@
     <link rel="preload" href="/assets/fonts/cinzel-latin.woff2" as="font" type="font/woff2" crossorigin>
     <!-- # ROOT-CAUSE: Bind dedicated favicon.png and yasd3d_icon_192.png instead of the full widescreen splash graphic. -->
     <link rel="manifest" href="/manifest.json">
-    <link rel="preload" as="image" href="/assets/yasd3d_logo_fast.jpg?v=12.2.1" fetchpriority="high">
-    <link rel="apple-touch-icon" sizes="180x180" href="/assets/yasd3d_icon_192.png?v=12.2.1">
-    <link rel="icon" type="image/png" sizes="64x64" href="/assets/favicon.png?v=12.2.1">
-    <link rel="stylesheet" href="/css/tokens.css?v=12.2.1">
-    <link rel="stylesheet" href="/css/dungeon.css?v=12.2.1">
-    <link rel="stylesheet" href="/css/realm-cards.css?v=12.2.1">
-    <link rel="stylesheet" href="/css/hud-skin.css?v=12.2.1">
-    <link rel="stylesheet" href="/css/chronicle.css?v=12.2.1">
+    <link rel="preload" as="image" href="/assets/yasd3d_logo_fast.jpg?v=12.2.2" fetchpriority="high">
+    <link rel="apple-touch-icon" sizes="180x180" href="/assets/yasd3d_icon_192.png?v=12.2.2">
+    <link rel="icon" type="image/png" sizes="64x64" href="/assets/favicon.png?v=12.2.2">
+    <link rel="stylesheet" href="/css/tokens.css?v=12.2.2">
+    <link rel="stylesheet" href="/css/dungeon.css?v=12.2.2">
+    <link rel="stylesheet" href="/css/realm-cards.css?v=12.2.2">
+    <link rel="stylesheet" href="/css/hud-skin.css?v=12.2.2">
+    <link rel="stylesheet" href="/css/chronicle.css?v=12.2.2">
 </head>
 <body>
     <div id="app-container">
@@ -317,79 +317,6 @@
                 </div>
                 <button id="btn-sound-config" class="icon-btn-subtle" title="Audio Configuration (Music, Tome Voice, Effects &amp; Reverb)" aria-label="Audio Configuration">⚙</button>
             </div>
-            <!-- Audio & Volume Configuration Floating Popover -->
-            <div id="quick-volume-popover" class="quick-volume-popover hidden" role="dialog" aria-label="Audio and Volume Controls">
-                <div class="popover-header">
-                    <span class="popover-title">🔊 Audio Configuration</span>
-                    <span id="popover-vol-badge" class="popover-badge">75%</span>
-                    <button type="button" id="btn-popover-close" class="popover-close-btn" title="Close Volume Controls">✕</button>
-                </div>
-                <div class="popover-slider-row">
-                    <button type="button" id="btn-popover-mute" class="popover-mute-toggle" title="Universal Audio Mute">🔊 Sound On</button>
-                    <input type="range" id="popover-volume-slider" class="volume-range-slider touch-slider" min="0" max="100" value="75" step="1" title="Adjust Master Volume" aria-label="Master Volume">
-                </div>
-                <div class="popover-presets">
-                    <button type="button" class="vol-preset-btn" data-vol="0">🔇 Mute</button>
-                    <button type="button" class="vol-preset-btn" data-vol="25">25%</button>
-                    <button type="button" class="vol-preset-btn" data-vol="50">50%</button>
-                    <button type="button" class="vol-preset-btn" data-vol="75">75%</button>
-                    <button type="button" class="vol-preset-btn" data-vol="100">100%</button>
-                </div>
-                <div class="popover-channels">
-                    <div class="popover-channel-row">
-                        <div class="popover-channel-header" style="display:flex; align-items:center; justify-content:space-between;">
-                            <span class="popover-channel-label">🎵 Theme &amp; Background Music</span>
-                            <div style="display:flex; align-items:center; gap:6px;">
-                                <button type="button" id="btn-popover-music-mute" class="popover-mute-toggle" style="padding:2px 7px; font-size:0.72rem;" title="Mute / Unmute Music">🎵 Music: ON</button>
-                                <span id="popover-music-badge" class="popover-sub-badge">85%</span>
-                            </div>
-                        </div>
-                        <input type="range" id="popover-music-slider" class="volume-range-slider touch-slider" min="0" max="100" value="85" step="1" title="Adjust Music Volume" aria-label="Music Volume">
-                        <div class="popover-jukebox-controls" style="display:flex; flex-direction:column; gap:5px; margin-top:6px; padding-top:6px; border-top:1px solid rgba(212,175,55,0.2);">
-                            <div style="display:flex; align-items:center; justify-content:space-between; gap:6px;">
-                                <span id="popover-music-now-playing" style="font-size:0.71rem; color:#e6c67c; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1;" title="Currently Playing Track">🎶 Auto (Contextual Director)</span>
-                                <div style="display:flex; align-items:center; gap:3px; flex-shrink:0;">
-                                    <button type="button" id="btn-music-prev" class="popover-mute-toggle" style="padding:2px 6px; font-size:0.7rem;" title="Previous Track">⏮</button>
-                                    <button type="button" id="btn-music-playpause" class="popover-mute-toggle" style="padding:2px 6px; font-size:0.7rem;" title="Play / Pause Music">⏯</button>
-                                    <button type="button" id="btn-music-next" class="popover-mute-toggle" style="padding:2px 6px; font-size:0.7rem;" title="Next Track">⏭</button>
-                                    <button type="button" id="btn-music-shuffle" class="popover-mute-toggle" style="padding:2px 6px; font-size:0.7rem;" title="Toggle Shuffle All 58 Tracks">🔀</button>
-                                </div>
-                            </div>
-                            <div id="popover-music-credit" style="font-size:0.65rem; color:#94a3b8; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="Composer &amp; License Attribution">🎵 HURT RECORD &amp; OpenGameArt (CC0 / CC-BY)</div>
-                            <select id="popover-music-track-select" aria-label="Select Background Music Mode or Track" style="width:100%; background:#10141d; color:#e2e8f0; border:1px solid rgba(212,175,55,0.4); border-radius:4px; padding:3px 6px; font-size:0.73rem; cursor:pointer;">
-                                <option value="auto">🎭 Auto (Contextual Realm Director)</option>
-                                <option value="theme_full">⚔️ YASD Theme Song (Full Track)</option>
-                                <option value="shuffle">🔀 Shuffle All Soundtrack (58 Tracks)</option>
-                                <option value="playlist:town">🏰 Playlist: Peaceful Town &amp; Outposts</option>
-                                <option value="playlist:dungeon">🕯️ Playlist: Dungeon Delving</option>
-                                <option value="playlist:boss">🔥 Playlist: Boss &amp; High Danger</option>
-                            </select>
-                            <button type="button" id="btn-music-resume-default" class="popover-mute-toggle" style="width:100%; padding:4px 8px; font-size:0.72rem; text-align:center; border-color:rgba(212,175,55,0.45);" title="Return to Automatic Contextual Realm &amp; Level Music">🎭 Resume Default Music (Auto)</button>
-                        </div>
-                    </div>
-                    <div class="popover-channel-row">
-                        <div class="popover-channel-header">
-                            <span class="popover-channel-label">📖 Tome Narration Voice</span>
-                            <span id="popover-voice-badge" class="popover-sub-badge">100%</span>
-                        </div>
-                        <input type="range" id="popover-voice-slider" class="volume-range-slider touch-slider" min="0" max="100" value="100" step="1" title="Adjust Tome / Lorekeeper Voice Volume">
-                    </div>
-                    <div class="popover-channel-row">
-                        <div class="popover-channel-header">
-                            <span class="popover-channel-label">⚔️ Sound Effects (SFX)</span>
-                            <span id="popover-sfx-badge" class="popover-sub-badge">100%</span>
-                        </div>
-                        <input type="range" id="popover-sfx-slider" class="volume-range-slider touch-slider" min="0" max="100" value="100" step="1" title="Adjust Sound Effects Volume">
-                    </div>
-                    <div class="popover-channel-row">
-                        <div class="popover-channel-header">
-                            <span class="popover-channel-label">🏰 Subterranean Reverb</span>
-                            <span id="popover-reverb-badge" class="popover-sub-badge">10%</span>
-                        </div>
-                        <input type="range" id="popover-reverb-slider" class="volume-range-slider touch-slider" min="0" max="100" value="10" step="1" title="Adjust Vault Convolution Reverb Wet Level">
-                    </div>
-                </div>
-            </div>
             <button id="btn-menu" class="icon-btn" title="Main Menu [Esc]"><span class="menu-icon">⚙</span> <span class="menu-label">Menu</span></button>
         </div>
 
@@ -628,7 +555,7 @@
             <div class="death-panel">
                 <div class="death-header">
                     <!-- # ROOT-CAUSE: Add official YASD3D.com icon badge (.modal-crest-badge) to modal headers with fetchpriority="low". -->
-                    <h1 class="death-title"><img src="/assets/yasd3d_badge.png?v=12.2.1" alt="" class="modal-crest-badge" width="22" height="29" fetchpriority="low" decoding="async"> <span id="death-title-text">YOU HAVE PERISHED</span> <img src="/assets/yasd3d_badge.png?v=12.2.1" alt="" class="modal-crest-badge" width="22" height="29" fetchpriority="low" decoding="async"></h1>
+                    <h1 class="death-title"><img src="/assets/yasd3d_badge.png?v=12.2.2" alt="" class="modal-crest-badge" width="22" height="29" fetchpriority="low" decoding="async"> <span id="death-title-text">YOU HAVE PERISHED</span> <img src="/assets/yasd3d_badge.png?v=12.2.2" alt="" class="modal-crest-badge" width="22" height="29" fetchpriority="low" decoding="async"></h1>
                     <div id="death-epitaph" class="death-epitaph">Hero the Human Warrior (Level 1)</div>
                     <div id="death-cause" class="death-cause">Killed by mortal wounds in the Town.</div>
                     <div id="death-score" class="death-score">Gold: 0 AU &nbsp;•&nbsp; Experience: 0 &nbsp;•&nbsp; Deepest Level: 0 (Town)</div>
@@ -699,11 +626,76 @@
             <button type="button" id="btn-global-audio-config" class="btn-top-sound" title="Audio Configuration (Music Jukebox, Tome Voice, Effects &amp; Reverb)" aria-label="Audio Configuration" style="background:rgba(30,36,48,0.85); border:1px solid rgba(212,175,55,0.45); border-radius:4px; color:#f3cf7a; font-size:0.78rem; cursor:pointer; padding:2px 6px;">⚙</button>
         </div>
 
+        <!-- Audio & Volume Configuration Floating Popover (Hoisted above all overlays) -->
+        <div id="quick-volume-popover" class="quick-volume-popover hidden" role="dialog" aria-label="Audio and Volume Controls">
+            <div class="popover-header">
+                <span class="popover-title">🔊 Audio Configuration</span>
+                <span id="popover-vol-badge" class="popover-badge">75%</span>
+                <button type="button" id="btn-popover-close" class="popover-close-btn" title="Close Volume Controls">✕</button>
+            </div>
+            <div class="popover-slider-row">
+                <button type="button" id="btn-popover-mute" class="popover-mute-toggle" title="Universal Audio Mute">🔊 Sound On</button>
+                <input type="range" id="popover-volume-slider" class="volume-range-slider touch-slider" min="0" max="100" value="75" step="1" title="Adjust Master Volume" aria-label="Master Volume">
+            </div>
+            <div class="popover-presets">
+                <button type="button" class="vol-preset-btn" data-vol="0">🔇 Mute</button>
+                <button type="button" class="vol-preset-btn" data-vol="25">25%</button>
+                <button type="button" class="vol-preset-btn" data-vol="50">50%</button>
+                <button type="button" class="vol-preset-btn" data-vol="75">75%</button>
+                <button type="button" class="vol-preset-btn" data-vol="100">100%</button>
+            </div>
+            <div class="popover-channels">
+                <div class="popover-channel-row">
+                    <div class="popover-channel-header" style="display:flex; align-items:center; justify-content:space-between;">
+                        <span class="popover-channel-label">🎵 Theme &amp; Background Music</span>
+                        <div style="display:flex; align-items:center; gap:6px;">
+                            <button type="button" id="btn-popover-music-mute" class="popover-mute-toggle" style="padding:2px 7px; font-size:0.72rem;" title="Mute / Unmute Music">🎵 Music: ON</button>
+                            <span id="popover-music-badge" class="popover-sub-badge">85%</span>
+                        </div>
+                    </div>
+                    <input type="range" id="popover-music-slider" class="volume-range-slider touch-slider" min="0" max="100" value="85" step="1" title="Adjust Music Volume" aria-label="Music Volume">
+                    <div class="popover-jukebox-controls" style="display:flex; flex-direction:column; gap:5px; margin-top:6px; padding-top:6px; border-top:1px solid rgba(212,175,55,0.2);">
+                        <div style="display:flex; align-items:center; justify-content:space-between; gap:6px;">
+                            <span id="popover-music-now-playing" style="font-size:0.71rem; color:#e6c67c; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1;" title="Currently Playing Track">🎶 Auto (Contextual Director)</span>
+                            <div style="display:flex; align-items:center; gap:3px; flex-shrink:0;">
+                                <button type="button" id="btn-music-prev" class="popover-mute-toggle" style="padding:2px 6px; font-size:0.7rem;" title="Previous Track">⏮</button>
+                                <button type="button" id="btn-music-playpause" class="popover-mute-toggle" style="padding:2px 6px; font-size:0.7rem;" title="Play / Pause Music">⏯</button>
+                                <button type="button" id="btn-music-next" class="popover-mute-toggle" style="padding:2px 6px; font-size:0.7rem;" title="Next Track">⏭</button>
+                                <button type="button" id="btn-music-shuffle" class="popover-mute-toggle" style="padding:2px 6px; font-size:0.7rem;" title="Toggle Shuffle All 58 Tracks">🔀</button>
+                            </div>
+                        </div>
+                        <div id="popover-music-credit" style="font-size:0.65rem; color:#94a3b8; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="Composer &amp; License Attribution">🎵 HURT RECORD &amp; OpenGameArt (CC0 / CC-BY)</div>
+                        <select id="popover-music-track-select" aria-label="Select Background Music Mode or Track" style="width:100%; background:#10141d; color:#e2e8f0; border:1px solid rgba(212,175,55,0.4); border-radius:4px; padding:3px 6px; font-size:0.73rem; cursor:pointer;">
+                            <option value="auto">🎭 Auto (Contextual Realm Director)</option>
+                            <option value="theme_full">⚔️ YASD Theme Song (Full Track)</option>
+                            <option value="shuffle">🔀 Shuffle All Soundtrack (58 Tracks)</option>
+                            <option value="playlist:town">🏰 Playlist: Peaceful Town &amp; Outposts</option>
+                            <option value="playlist:dungeon">🕯️ Playlist: Dungeon Delving</option>
+                            <option value="playlist:boss">🔥 Playlist: Boss &amp; High Danger</option>
+                        </select>
+                        <button type="button" id="btn-music-resume-default" class="popover-mute-toggle" style="width:100%; padding:4px 8px; font-size:0.72rem; text-align:center; border-color:rgba(212,175,55,0.45);" title="Return to Automatic Contextual Realm &amp; Level Music">🎭 Resume Default Music (Auto)</button>
+                    </div>
+                </div>
+                <div class="popover-channel-row">
+                    <div class="popover-channel-header"><span class="popover-channel-label">📖 Tome Narration Voice</span><span id="popover-voice-badge" class="popover-sub-badge">100%</span></div>
+                    <input type="range" id="popover-voice-slider" class="volume-range-slider touch-slider" min="0" max="100" value="100" step="1" title="Adjust Tome / Lorekeeper Voice Volume">
+                </div>
+                <div class="popover-channel-row">
+                    <div class="popover-channel-header"><span class="popover-channel-label">⚔️ Sound Effects (SFX)</span><span id="popover-sfx-badge" class="popover-sub-badge">100%</span></div>
+                    <input type="range" id="popover-sfx-slider" class="volume-range-slider touch-slider" min="0" max="100" value="100" step="1" title="Adjust Sound Effects Volume">
+                </div>
+                <div class="popover-channel-row">
+                    <div class="popover-channel-header"><span class="popover-channel-label">🏰 Subterranean Reverb</span><span id="popover-reverb-badge" class="popover-sub-badge">10%</span></div>
+                    <input type="range" id="popover-reverb-slider" class="volume-range-slider touch-slider" min="0" max="100" value="10" step="1" title="Adjust Vault Convolution Reverb Wet Level">
+                </div>
+            </div>
+        </div>
+
         <!-- Splash Screen Overlay (Zero-Button Obsidian Showcase Billboard) -->
         <div id="splash-overlay" role="region" aria-label="YASD 3D Showcase Splash Screen" tabindex="0">
             <div class="splash-card splash-billboard-mode">
                 <div class="splash-logo-wrap protected-crest" oncontextmenu="return false;">
-                    <img src="/assets/yasd3d_logo_fast.jpg?v=12.2.1" alt="Yet Another Stupid Death Official Splash Art — yasd3d.com • Thunderbear Studios" class="splash-logo splash-logo-main" width="720" height="422" fetchpriority="high" decoding="async" draggable="false">
+                    <img src="/assets/yasd3d_logo_fast.jpg?v=12.2.2" alt="Yet Another Stupid Death Official Splash Art — yasd3d.com • Thunderbear Studios" class="splash-logo splash-logo-main" width="720" height="422" fetchpriority="high" decoding="async" draggable="false">
                 </div>
 
                 <div class="splash-domain-crest" aria-label="angband3d.com">
@@ -732,153 +724,148 @@
 
                 <div class="splash-credits-footer">
                     <a href="https://thunderbearstudios.dev" target="_blank" rel="noopener noreferrer" class="splash-studio-signature" title="Thunderbear Studios™ — Official Studio Portal (thunderbearstudios.dev)">
-                        <img src="/assets/thunderbear_logo.png?v=12.2.1" alt="Thunderbear Studios Official Emblem" class="splash-studio-badge" width="26" height="34" decoding="async" draggable="false">
+                        <img src="/assets/thunderbear_logo.png?v=12.2.2" alt="Thunderbear Studios Official Emblem" class="splash-studio-badge" width="26" height="34" decoding="async" draggable="false">
                         <span class="splash-studio-detail">
                             <strong>Thunderbear Studios&trade; &bull; thunderbearstudios.dev</strong>
                             <small>&copy; 2026 Thunderbear Studios &bull; Official Yendor Engine&trade; Showcase</small>
                         </span>
-                        <img src="/assets/yasd3d_badge.png?v=12.2.1" alt="Angband 3D Official Badge" class="splash-game-badge" width="25" height="34" decoding="async" draggable="false">
+                        <img src="/assets/yasd3d_badge.png?v=12.2.2" alt="Angband 3D Official Badge" class="splash-game-badge" width="25" height="34" decoding="async" draggable="false">
                     </a>
                 </div>
             </div>
         </div>
 
-        <!-- Main Menu Overlay -->
+        <!-- Main Menu Overlay (2-Column Dark-Slate Launcher) -->
         <div id="main-menu-overlay" class="hidden">
             <div class="main-menu-card">
                 <div class="main-menu-header">
                     <div class="main-menu-crest-bar">
-                        <img src="/assets/yasd3d_badge.png?v=12.2.1" alt="Angband 3D Official Game Badge" class="main-menu-logo-primary" width="36" height="48" fetchpriority="low" decoding="async" draggable="false">
+                        <img src="/assets/yasd3d_badge.png?v=12.2.2" alt="Angband 3D Official Game Badge" class="main-menu-logo-primary" width="34" height="45" fetchpriority="low" decoding="async" draggable="false">
                         <div class="main-menu-title-group">
-                            <h2 class="main-menu-title" id="main-menu-title">⚔ YASD 3D • YENDOR ENGINE ⚔</h2>
-                            <div class="main-menu-subtitle" id="main-menu-subtitle">The Classic Tolkien Descent • Old British Scholar</div>
+                            <h2 class="main-menu-title" id="main-menu-title">⚔ YASD 3D • YENDOR ENGINE</h2>
+                            <div class="main-menu-subtitle" id="main-menu-subtitle">Choose a Realm • Forge a Hero • Descend in First-Person 3D</div>
                         </div>
-                        <a href="https://thunderbearstudios.dev" target="_blank" rel="noopener noreferrer" class="main-menu-studio-link" title="Thunderbear Studios™ (thunderbearstudios.dev)">
-                            <img src="/assets/thunderbear_logo.png?v=12.2.1" alt="Thunderbear Studios" class="main-menu-logo-secondary" width="31" height="40" fetchpriority="low" decoding="async" draggable="false">
-                        </a>
-                    </div>
-                    <div class="main-menu-realm-strip" id="main-menu-realm-strip">
-                        <div class="main-menu-realm-select-row">
-                            <label for="main-menu-realm-select" class="main-menu-realm-label">⚔ REALM <kbd>[R]</kbd>:</label>
-                            <div class="main-menu-realm-dropdown-wrap">
-                                <select id="main-menu-realm-select" name="realm" class="main-menu-realm-dropdown" aria-label="Select Roguelike Realm">
-                                    <optgroup label="🏛 Tier 1 — Native C/C++ Canonical Engines">
-                                        <option value="angband" selected>Vanilla Angband 4.2.6 — The Classic Tolkien Descent (100 Depths)</option>
-                                        <option value="silq">Sil-Q 1.5.0 — First Age Stealth &amp; Silmaril Heist (Songs of Power)</option>
-                                        <option value="frogcomposband">FrogComposBand 7.1.1 — 50+ Classes, Monster Races &amp; Overland</option>
-                                        <option value="hengband">Hengband 3.0.1 — Eastern Mythos &amp; Quest Citadels (EN / JP)</option>
-                                    </optgroup>
-                                    <optgroup label="⚡ Tier 2 — Yendor 3D Arcade Cartridges (0ms Browser Worker)">
-                                        <option value="ryod">🎲 Roll Your Own Dungeon (RYOD) — 6-Die Hybrid World, Plot, Avatar &amp; Mutator Forge</option>
-                                        <option value="nethack">NetHack 3.6.7 — The Mazes of Menace &amp; Amulet of Yendor</option>
-                                        <option value="dcss">Dungeon Crawl Stone Soup — Runes of Zot, Altars &amp; Pantheon</option>
-                                        <option value="brogue">Brogue CE — Potions of Strength, Captive Allies &amp; Lumenstones</option>
-                                        <option value="rogue">Classic Rogue 5.4 (1980) — The Original 26-Level Amulet Quest</option>
-                                    </optgroup>
-                                </select>
-                            </div>
-                            <div id="main-menu-hengband-lang-wrap" class="main-menu-lang-wrap hidden">
-                                <label for="main-menu-hengband-lang-select" class="main-menu-lang-label">Lang:</label>
-                                <select id="main-menu-hengband-lang-select" class="main-menu-lang-dropdown" title="Toggle Hengband Language">
-                                    <option value="en">English (EN)</option>
-                                    <option value="bilingual">Bilingual Study (EN + 日本語)</option>
-                                    <option value="jp">日本語 (JP)</option>
-                                </select>
-                            </div>
-                            <div class="main-menu-realm-actions">
-                                <button type="button" id="btn-menu-ryod-forge" class="menu-realm-badge-btn menu-realm-ryod-btn" title="Open Roll Your Own Dungeon (RYOD) 6-Die Hybrid World Forge">🎲 Roll Your Own Dungeon</button>
-                                <button type="button" id="btn-menu-ryod-quick" class="menu-realm-badge-btn menu-realm-quick-btn" title="Instant 1-Click Random RYOD Roll &amp; 3D Drop-In">⚡ Quick Roll</button>
-                                <button type="button" id="btn-menu-daily-seed" class="menu-realm-badge-btn" title="Play Today's Global Daily Seeded Descent (UTC YYYY-MM-DD)">📅 Daily Descent</button>
-                                <button type="button" id="btn-menu-realms" class="menu-realm-badge-btn" title="Open Full Realm Comparison Table [R]">📜 Compare</button>
-                                <button type="button" id="btn-menu-switch-realm" class="menu-realm-badge-btn" style="display:none;" aria-hidden="true" title="Switch Realm">Switch Realm</button>
-                            </div>
-                        </div>
-                        <div class="main-menu-realm-meta-row">
-                            <div class="main-menu-realm-pills" id="main-menu-realm-pills" style="display:none;" aria-hidden="true">
-                                <button type="button" class="realm-pill-btn" data-switch-realm="nethack" title="Switch to NetHack 3.6.7">🏺 NetHack</button>
-                                <button type="button" class="realm-pill-btn" data-switch-realm="dcss" title="Switch to Dungeon Crawl Stone Soup">🐙 DCSS</button>
-                                <button type="button" class="realm-pill-btn active" data-switch-realm="angband" title="Switch to Vanilla Angband 4.2.6">⚔ Angband</button>
-                                <button type="button" class="realm-pill-btn" data-switch-realm="brogue" title="Switch to Brogue CE">🔥 Brogue</button>
-                                <button type="button" class="realm-pill-btn" data-switch-realm="rogue" title="Switch to Classic Rogue 5.4 (1980)">🗝 Rogue</button>
-                                <button type="button" class="realm-pill-btn" data-switch-realm="silq" title="Switch to Sil-Q 1.5.0">👑 Sil-Q</button>
-                                <button type="button" class="realm-pill-btn" data-switch-realm="frogcomposband" title="Switch to FrogComposBand 7.1.1">◈ FrogComposBand</button>
-                                <button type="button" class="realm-pill-btn" data-switch-realm="hengband" title="Switch to Hengband 3.0.1">⛩ Hengband</button>
-                                <button type="button" class="realm-pill-btn" data-switch-realm="ryod" title="Roll Your Own Dungeon (RYOD Forge)">🎲 RYOD</button>
-                            </div>
-                            <span id="main-menu-realm-badge" class="main-menu-realm-badge"><strong id="menu-active-realm-name" class="menu-realm-highlight" style="display:none;">Vanilla Angband 4.2.6</strong><span id="main-menu-realm-tagline" class="main-menu-realm-desc">100 Dungeon Levels • Bit-for-Bit 4.2.6 Rules</span></span>
-                            <div id="permadeath-mode-toggle" class="permadeath-mode-toggle" role="group" aria-label="Permadeath Stakes">
-                                <button type="button" class="permadeath-pill" data-permadeath-mode="ironman" aria-pressed="false" title="True Roguelike Permadeath: Checkpoints disabled; save deleted upon death">☠ Ironman Permadeath</button>
-                                <button type="button" class="permadeath-pill active" data-permadeath-mode="adventure" aria-pressed="true" title="Adventure Checkpoints: Reload your last living checkpoint after death">🕯 Adventure Checkpoints</button>
-                            </div>
+                        <div class="main-menu-header-tools">
+                            <button type="button" id="btn-menu-audio-settings" class="menu-audio-launch-btn" title="Open Audio, Music Jukebox &amp; Voice Configuration" aria-label="Open Audio Configuration">🔊 Audio &amp; Music ⚙</button>
+                            <a href="https://thunderbearstudios.dev" target="_blank" rel="noopener noreferrer" class="main-menu-studio-link" title="Thunderbear Studios™ (thunderbearstudios.dev)">
+                                <img src="/assets/thunderbear_logo.png?v=12.2.2" alt="Thunderbear Studios" class="main-menu-logo-secondary" width="34" height="45" fetchpriority="low" decoding="async" draggable="false">
+                            </a>
                         </div>
                     </div>
                 </div>
 
-                <!-- Primary Gameplay Options -->
-                <div class="main-menu-options" id="main-menu-options">
-                    <button class="menu-option-btn selected" id="btn-menu-continue" data-index="0"><span class="menu-bullet">▸</span>
- <span class="menu-num">1</span>
- <div class="menu-text-col">
- <span class="menu-label" id="menu-continue-label">Continue Adventure</span>
- <span class="menu-desc" id="menu-continue-desc">Checking saved adventurers...</span>
- </div></button>
-                    <button class="menu-option-btn" id="btn-menu-load" data-index="1"><span class="menu-bullet">▸</span>
- <span class="menu-num">2</span>
- <div class="menu-text-col">
- <span class="menu-label">Load Saved Character...</span>
- <span class="menu-desc">Choose an adventurer from your realm archive or upload a .sav file.</span>
- </div></button>
-                    <button class="menu-option-btn btn-primary-cta" id="btn-menu-random" data-index="2"><span class="menu-bullet">▸</span>
- <span class="menu-num">3</span>
- <div class="menu-text-col">
- <span class="menu-label">⚔ Play Instantly (3D Quick Start)</span>
- <span class="menu-desc">Generate a ready-to-play random adventurer and enter the 3D realm immediately!</span>
- </div></button>
-                    <button class="menu-option-btn" id="btn-menu-custom" data-index="3"><span class="menu-bullet">▸</span>
- <span class="menu-num">4</span>
- <div class="menu-text-col">
- <span class="menu-label">Custom Hero (Character Wizard)</span>
- <span class="menu-desc" id="menu-custom-desc">Choose race, class, and roll stats step-by-step in the graphical or classic wizard.</span>
- </div></button>
-                    <div id="main-menu-ryod-feature-row" class="hidden" style="display:none;" aria-hidden="true">
-                        <button type="button" id="btn-menu-ryod-main" class="btn-gold">🎲 Roll Your Own Dungeon</button>
-                    </div>
-
-                    <!-- Preserved compatibility aliases for tests querying alternative ID schemes -->
-                    <button id="btn-menu-load-save" class="hidden-test-alias" style="display:none;" aria-hidden="true">Load Save</button>
-                    <button id="btn-menu-quick-start" class="hidden-test-alias" style="display:none;" aria-hidden="true">Quick Start</button>
-                    <button id="btn-menu-new-game" class="hidden-test-alias" style="display:none;" aria-hidden="true">New Game</button>
-                    <button id="btn-menu-how-to-play" class="hidden-test-alias" style="display:none;" aria-hidden="true">How to Play</button>
-                    <button id="btn-menu-controls" class="hidden-test-alias" style="display:none;" aria-hidden="true">Controls</button>
-                    <button id="btn-menu-audio" class="hidden-test-alias" style="display:none;" aria-hidden="true">Audio</button>
-                </div>
-
-                <!-- Main Menu Integrated Saved Chronicles Panel -->
-                <div id="main-menu-saves-panel" class="main-menu-saves-panel hidden">
-                    <div class="saves-panel-header">
-                        <h4>📂 Saved Chronicles</h4>
-                        <div class="saves-panel-actions">
-                            <button type="button" id="btn-menu-saves-refresh" class="btn-panel-action" title="Refresh Saves">🔄 Refresh</button>
-                            <label for="input-menu-upload-save" id="btn-menu-saves-upload" class="btn-panel-action" title="Upload Save">📤 Upload</label>
-                            <input type="file" id="input-menu-upload-save" accept=".sav,*" style="display: none;">
-                            <button type="button" id="btn-menu-saves-close" class="btn-panel-action close" title="Close Panel">✕</button>
+                <div class="main-menu-grid">
+                    <!-- Left Column: Visual 9-Realm Selector Atlas -->
+                    <section class="main-menu-realm-atlas" id="main-menu-realm-strip" aria-label="Select Roguelike Realm">
+                        <div class="atlas-section-head">
+                            <span class="atlas-kicker">🏛 Canonical Native Engines</span>
+                            <label for="main-menu-realm-select" class="main-menu-realm-label sr-only">Realm <kbd>[R]</kbd></label>
+                            <select id="main-menu-realm-select" name="realm" class="main-menu-realm-dropdown-compact" aria-label="Select Roguelike Realm">
+                                <optgroup label="Canonical Native Engines">
+                                    <option value="angband" selected>Vanilla Angband 4.2.6</option>
+                                    <option value="silq">Sil-Q 1.5.0</option>
+                                    <option value="frogcomposband">FrogComposBand 7.1.1</option>
+                                    <option value="hengband">Hengband 3.0.1</option>
+                                </optgroup>
+                                <optgroup label="0ms Arcade Cartridges &amp; RYOD">
+                                    <option value="ryod">Roll Your Own Dungeon (RYOD)</option>
+                                    <option value="nethack">NetHack 3.6.7</option>
+                                    <option value="dcss">Dungeon Crawl Stone Soup</option>
+                                    <option value="brogue">Brogue CE</option>
+                                    <option value="rogue">Classic Rogue 5.4 (1980)</option>
+                                </optgroup>
+                            </select>
                         </div>
-                    </div>
-                    <div id="main-menu-saves-list" class="main-menu-saves-list"></div>
-                </div>
-                <div id="main-menu-guide-panel" class="main-menu-guide-panel hidden" style="display:none;" aria-hidden="true"></div>
+                        <div class="main-menu-realm-pills realm-card-grid" id="main-menu-realm-pills">
+                            <button type="button" class="realm-pill-btn active" data-switch-realm="angband" title="Vanilla Angband 4.2.6"><img src="/assets/realms/angband.webp" alt="" loading="lazy" decoding="async"><span class="rp-info"><strong>⚔ Angband</strong><small>100 Depths</small></span></button>
+                            <button type="button" class="realm-pill-btn" data-switch-realm="silq" title="Sil-Q 1.5.0"><img src="/assets/realms/silq.webp" alt="" loading="lazy" decoding="async"><span class="rp-info"><strong>👑 Sil-Q</strong><small>Stealth Heist</small></span></button>
+                            <button type="button" class="realm-pill-btn" data-switch-realm="frogcomposband" title="FrogComposBand 7.1.1"><img src="/assets/realms/frogcomposband.webp" alt="" loading="lazy" decoding="async"><span class="rp-info"><strong>◈ FrogComposBand</strong><small>50+ Classes</small></span></button>
+                            <button type="button" class="realm-pill-btn" data-switch-realm="hengband" title="Hengband 3.0.1"><img src="/assets/realms/hengband.webp" alt="" loading="lazy" decoding="async"><span class="rp-info"><strong>⛩ Hengband</strong><small>EN / JP Quests</small></span></button>
+                        </div>
+                        <div class="atlas-section-head atlas-section-sub">
+                            <span class="atlas-kicker">⚡ 0ms Arcade Cartridges &amp; Forge</span>
+                        </div>
+                        <div class="realm-card-grid">
+                            <button type="button" class="realm-pill-btn" data-switch-realm="nethack" title="NetHack 3.6.7"><img src="/assets/realms/nethack.webp" alt="" loading="lazy" decoding="async"><span class="rp-info"><strong>🏺 NetHack</strong><small>Yendor Mazes</small></span></button>
+                            <button type="button" class="realm-pill-btn" data-switch-realm="dcss" title="Dungeon Crawl Stone Soup"><img src="/assets/realms/dcss.webp" alt="" loading="lazy" decoding="async"><span class="rp-info"><strong>🐙 DCSS</strong><small>Runes of Zot</small></span></button>
+                            <button type="button" class="realm-pill-btn" data-switch-realm="brogue" title="Brogue CE"><img src="/assets/realms/brogue.webp" alt="" loading="lazy" decoding="async"><span class="rp-info"><strong>🔥 Brogue</strong><small>Lumenstones</small></span></button>
+                            <button type="button" class="realm-pill-btn" data-switch-realm="rogue" title="Classic Rogue 5.4 (1980)"><img src="/assets/realms/rogue.webp" alt="" loading="lazy" decoding="async"><span class="rp-info"><strong>🗝 Rogue 5.4</strong><small>1980 Classic</small></span></button>
+                            <button type="button" class="realm-pill-btn realm-pill-ryod" data-switch-realm="ryod" title="Roll Your Own Dungeon (RYOD Forge)"><img src="/assets/realms/ryod.webp" alt="" loading="lazy" decoding="async"><span class="rp-info"><strong>🎲 Roll Your Own Dungeon (RYOD)</strong><small>6-Die Hybrid World, 5-Act Plot &amp; Mutator Forge</small></span></button>
+                        </div>
+                        <div class="main-menu-realm-actions">
+                            <button type="button" id="btn-menu-ryod-forge" class="menu-realm-badge-btn menu-realm-ryod-btn" title="Open Roll Your Own Dungeon (RYOD) Forge">🎲 RYOD Forge</button>
+                            <button type="button" id="btn-menu-ryod-quick" class="menu-realm-badge-btn menu-realm-quick-btn" title="Instant 1-Click Random RYOD Drop-In">⚡ Quick Roll</button>
+                            <button type="button" id="btn-menu-daily-seed" class="menu-realm-badge-btn" title="Play Today's Global Daily Seeded Descent">📅 Daily</button>
+                            <button type="button" id="btn-menu-realms" class="menu-realm-badge-btn" title="Open Full Realm Comparison Table [R]">📜 Compare [R]</button>
+                            <button type="button" id="btn-menu-switch-realm" class="menu-realm-badge-btn" style="display:none;" aria-hidden="true">Switch Realm</button>
+                        </div>
+                    </section>
 
-                <!-- Secondary Utilities Dock (Clean 3-column row) -->
+                    <!-- Right Column: Attuned Realm Dossier & Primary Actions -->
+                    <section class="main-menu-launch-deck" aria-label="Launch Selected Realm">
+                        <div class="menu-dossier-card">
+                            <img id="menu-realm-hero-art" class="menu-dossier-art" src="/assets/realms/angband.webp" alt="Selected Realm Artwork" decoding="async">
+                            <div class="menu-dossier-body">
+                                <div class="menu-dossier-top">
+                                    <span id="main-menu-realm-badge" class="main-menu-realm-badge"><strong id="menu-active-realm-name" class="menu-realm-highlight">Vanilla Angband 4.2.6</strong></span>
+                                    <div id="main-menu-hengband-lang-wrap" class="main-menu-lang-wrap hidden">
+                                        <label for="main-menu-hengband-lang-select" class="main-menu-lang-label">Lang:</label>
+                                        <select id="main-menu-hengband-lang-select" class="main-menu-lang-dropdown" title="Toggle Hengband Language">
+                                            <option value="en">EN</option>
+                                            <option value="bilingual">EN + 日本語</option>
+                                            <option value="jp">日本語</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div id="main-menu-realm-tagline" class="main-menu-realm-desc">The Classic Tolkien Descent • Old British Scholar</div>
+                                <p id="menu-active-realm-desc" class="menu-dossier-premise">The purest, bit-for-bit roguelike dungeon crawl. Descend 100 levels into Angband to overthrow Morgoth.</p>
+                                <div id="permadeath-mode-toggle" class="permadeath-mode-toggle" role="group" aria-label="Permadeath Stakes">
+                                    <button type="button" class="permadeath-pill" data-permadeath-mode="ironman" aria-pressed="false" title="True Roguelike Permadeath: Save deleted on death">☠ Ironman</button>
+                                    <button type="button" class="permadeath-pill active" data-permadeath-mode="adventure" aria-pressed="true" title="Adventure Checkpoints: Reload last checkpoint after death">🕯 Adventure Checkpoints</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="main-menu-options" id="main-menu-options">
+                            <button class="menu-option-btn btn-primary-cta" id="btn-menu-random" data-index="2"><span class="menu-bullet">▸</span><span class="menu-num">3</span><div class="menu-text-col"><span class="menu-label">⚔ Play Instantly (Quick Start)</span><span class="menu-desc">Generate a ready-to-play adventurer and enter 3D immediately.</span></div></button>
+                            <button class="menu-option-btn selected" id="btn-menu-continue" data-index="0"><span class="menu-bullet">▸</span><span class="menu-num">1</span><div class="menu-text-col"><span class="menu-label" id="menu-continue-label">Continue Adventure</span><span class="menu-desc" id="menu-continue-desc">Checking saved adventurers...</span></div></button>
+                            <button class="menu-option-btn" id="btn-menu-custom" data-index="3"><span class="menu-bullet">▸</span><span class="menu-num">4</span><div class="menu-text-col"><span class="menu-label">Custom Hero</span><span class="menu-desc" id="menu-custom-desc">Choose race, class &amp; stats.</span></div></button>
+                            <button class="menu-option-btn" id="btn-menu-load" data-index="1"><span class="menu-bullet">▸</span><span class="menu-num">2</span><div class="menu-text-col"><span class="menu-label">Load / Upload Save...</span><span class="menu-desc">Load or upload a .sav file.</span></div></button>
+                            <div id="main-menu-ryod-feature-row" class="hidden" style="display:none;" aria-hidden="true"><button type="button" id="btn-menu-ryod-main" class="btn-gold">🎲 Roll Your Own Dungeon</button></div>
+                            <button id="btn-menu-load-save" class="hidden-test-alias" style="display:none;" aria-hidden="true">Load Save</button>
+                            <button id="btn-menu-quick-start" class="hidden-test-alias" style="display:none;" aria-hidden="true">Quick Start</button>
+                            <button id="btn-menu-new-game" class="hidden-test-alias" style="display:none;" aria-hidden="true">New Game</button>
+                            <button id="btn-menu-how-to-play" class="hidden-test-alias" style="display:none;" aria-hidden="true">How to Play</button>
+                            <button id="btn-menu-controls" class="hidden-test-alias" style="display:none;" aria-hidden="true">Controls</button>
+                            <button id="btn-menu-audio" class="hidden-test-alias" style="display:none;" aria-hidden="true">Audio</button>
+                        </div>
+
+                        <div id="main-menu-saves-panel" class="main-menu-saves-panel hidden">
+                            <div class="saves-panel-header">
+                                <h4>📂 Saved Chronicles</h4>
+                                <div class="saves-panel-actions">
+                                    <button type="button" id="btn-menu-saves-refresh" class="btn-panel-action" title="Refresh Saves">🔄 Refresh</button>
+                                    <label for="input-menu-upload-save" id="btn-menu-saves-upload" class="btn-panel-action" title="Upload Save">📤 Upload</label>
+                                    <input type="file" id="input-menu-upload-save" accept=".sav,*" style="display: none;">
+                                    <button type="button" id="btn-menu-saves-close" class="btn-panel-action close" title="Close Panel">✕</button>
+                                </div>
+                            </div>
+                            <div id="main-menu-saves-list" class="main-menu-saves-list"></div>
+                        </div>
+                        <div id="main-menu-guide-panel" class="main-menu-guide-panel hidden" style="display:none;" aria-hidden="true"></div>
+                    </section>
+                </div>
+
                 <div class="main-menu-secondary-dock">
-                    <button class="menu-dock-btn" id="btn-menu-guide" data-index="4" title="Game Guide &amp; Lore [5]"><span class="dock-icon">📖</span> <span class="dock-label"><kbd>[5]</kbd> Adventurer's Guide</span></button>
-                    <button class="menu-dock-btn" id="btn-menu-pwa" data-index="5" title="Standalone PC &amp; Android Downloads [6]"><span class="dock-icon">📱</span> <span class="dock-label"><kbd>[6]</kbd> Standalone Builds</span></button>
-                    <button class="menu-dock-btn" id="btn-menu-credits" data-index="6" title="Architecture &amp; Credits [7]"><span class="dock-icon">📜</span> <span class="dock-label"><kbd>[7]</kbd> Credits &amp; Tech</span></button>
+                    <button class="menu-dock-btn" id="btn-menu-guide" data-index="4" title="Game Guide &amp; Lore [5]"><span class="dock-icon">📖</span><span class="dock-label"><kbd>[5]</kbd> Guide</span></button>
+                    <button class="menu-dock-btn" id="btn-menu-pwa" data-index="5" title="Standalone PC &amp; Android Downloads [6]"><span class="dock-icon">📱</span><span class="dock-label"><kbd>[6]</kbd> Downloads</span></button>
+                    <button class="menu-dock-btn" id="btn-menu-credits" data-index="6" title="Architecture &amp; Credits [7]"><span class="dock-icon">📜</span><span class="dock-label"><kbd>[7]</kbd> Credits</span></button>
                     <button class="menu-dock-btn" id="btn-menu-demo" style="display:none;" aria-hidden="true">Demo</button>
                     <button class="menu-dock-btn" id="btn-menu-wiki" style="display:none;" aria-hidden="true">Wiki</button>
                 </div>
 
                 <div class="main-menu-footer">
-                    <span>[↑/↓] Navigate &nbsp;•&nbsp; [1-4] Play &nbsp;•&nbsp; [5-7] Extras &nbsp;•&nbsp; [R] Switch Realm &nbsp;•&nbsp; [Esc] Billboard</span>
+                    <span>[↑/↓] Navigate • [1-4] Play • [5-7] Extras • [R] Compare Realms • [Esc] Splash</span>
                 </div>
             </div>
         </div>
@@ -893,7 +880,7 @@
                 <div class="main-menu-ornament-corner bottom-right"></div>
 
                 <div class="main-menu-header">
-                    <h2 class="main-menu-title"><img src="/assets/yasd3d_badge.png?v=12.2.1" alt="" class="modal-crest-badge" width="22" height="29" fetchpriority="low" decoding="async"> LOAD SAVED GAME</h2>
+                    <h2 class="main-menu-title"><img src="/assets/yasd3d_badge.png?v=12.2.2" alt="" class="modal-crest-badge" width="22" height="29" fetchpriority="low" decoding="async"> LOAD SAVED GAME</h2>
                     <div class="main-menu-subtitle">Select an adventurer from your realm archive to continue the descent</div>
                 </div>
 
@@ -931,7 +918,7 @@
                 <div class="main-menu-ornament-corner bottom-right"></div>
 
                 <div class="main-menu-header">
-                    <h2 class="main-menu-title"><img src="/assets/yasd3d_badge.png?v=12.2.1" alt="" class="modal-crest-badge" width="22" height="29" fetchpriority="low" decoding="async"> GAME MENU</h2>
+                    <h2 class="main-menu-title"><img src="/assets/yasd3d_badge.png?v=12.2.2" alt="" class="modal-crest-badge" width="22" height="29" fetchpriority="low" decoding="async"> GAME MENU</h2>
                     <div class="main-menu-subtitle" id="pause-char-display">Current Character: Hero</div>
                 </div>
 
@@ -1036,7 +1023,7 @@
         <div id="guide-modal" class="hidden" role="dialog" aria-labelledby="guide-modal-title">
             <div class="guide-card">
                 <div class="guide-header">
-                    <h2 class="guide-title" id="guide-modal-title"><img src="/assets/yasd3d_badge.png?v=12.2.1" alt="" class="modal-crest-badge" width="22" height="29" fetchpriority="low" decoding="async"> YASD 3D — ADVENTURER'S SURVIVAL GUIDE &amp; REALM ENCYCLOPEDIA</h2>
+                    <h2 class="guide-title" id="guide-modal-title"><img src="/assets/yasd3d_badge.png?v=12.2.2" alt="" class="modal-crest-badge" width="22" height="29" fetchpriority="low" decoding="async"> YASD 3D — ADVENTURER'S SURVIVAL GUIDE &amp; REALM ENCYCLOPEDIA</h2>
                     <button id="btn-guide-close" class="btn-guide-close" title="Close [Esc]" aria-label="Close Adventurer's Guide">✕</button>
                 </div>
                 <div class="guide-realm-bar" id="guide-realm-bar" role="group" aria-label="Select Realm Guide">
@@ -1086,7 +1073,7 @@
                 <div class="main-menu-ornament-corner bottom-right"></div>
 
                 <div class="main-menu-header">
-                    <h2 class="main-menu-title" id="pwa-modal-title"><img src="/assets/yasd3d_badge.png?v=12.2.1" alt="" class="modal-crest-badge" width="22" height="29" fetchpriority="low" decoding="async"> INSTALL WEB APP (PWA) &amp; SAVE PORTABILITY</h2>
+                    <h2 class="main-menu-title" id="pwa-modal-title"><img src="/assets/yasd3d_badge.png?v=12.2.2" alt="" class="modal-crest-badge" width="22" height="29" fetchpriority="low" decoding="async"> INSTALL WEB APP (PWA) &amp; SAVE PORTABILITY</h2>
                     <div class="main-menu-subtitle" id="pwa-modal-subtitle">Full-screen browser app experience with universal .sav character portability</div>
                 </div>
 
@@ -1192,7 +1179,7 @@
                 <!-- Thunderbear Studios GitHub Link Strip Underneath -->
                 <div class="demo-footer-strip">
                     <a href="https://thunderbearstudios.dev" target="_blank" rel="noopener noreferrer" class="demo-github-link" title="Visit Thunderbear Studios Official Site">
-                        <img src="/assets/thunderbear_logo.png?v=12.2.1" alt="Thunderbear Studios" class="demo-footer-logo" loading="lazy" decoding="async">
+                        <img src="/assets/thunderbear_logo.png?v=12.2.2" alt="Thunderbear Studios" class="demo-footer-logo" loading="lazy" decoding="async">
                         <span class="demo-github-text">Brought to you by <strong>Thunderbear Studios</strong> (thunderbearstudios.dev) ↗</span>
                     </a>
                     <a href="https://github.com/ThunderbearStudios/angband3d" target="_blank" rel="noopener noreferrer" class="demo-permalink-link" style="color: var(--gold-bright); font-size: 0.85rem; text-decoration: none; margin-left: 16px;" title="Open GitHub Repository">📦 View GPL-2.0 Source on GitHub ↗</a>
@@ -1256,7 +1243,7 @@
                 <div class="main-menu-ornament-corner bottom-right"></div>
 
                 <div class="main-menu-header">
-                    <h2 class="main-menu-title"><img src="/assets/yasd3d_badge.png?v=12.2.1" alt="" class="modal-crest-badge" width="22" height="29" fetchpriority="low" decoding="async"> MULTI-REALM ARCHIVES &amp; LORE</h2>
+                    <h2 class="main-menu-title"><img src="/assets/yasd3d_badge.png?v=12.2.2" alt="" class="modal-crest-badge" width="22" height="29" fetchpriority="low" decoding="async"> MULTI-REALM ARCHIVES &amp; LORE</h2>
                     <div class="main-menu-subtitle">Select realm before starting or loading an adventure • Locked during active dungeon exploration</div>
                     <div class="realm-voice-audit-banner">
                         <span>🎙 <strong>Lorekeeper Guarantee:</strong> Authentic character-attuned vocal timbre (Old British scholar, Mythic Skald, Eastern chronicle) • Zero southern accents • 100% LLM hallucination-free</span>
@@ -1400,73 +1387,73 @@
             </div>
         </div>
         <!-- Initial Connection & Between-Levels Arcane Progress Wheel Curtain -->
-        <div id="loading-overlay" class="hidden" role="status" aria-live="polite"><div class="loading-emblem-card"><div class="loading-emblem-wheel" aria-hidden="true"><svg class="loading-wheel-svg" viewBox="0 0 220 220" width="220" height="220"><defs><linearGradient id="yasdLoadingGoldGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#b45309"/><stop offset="45%" stop-color="#f59e0b"/><stop offset="80%" stop-color="#ffd700"/><stop offset="100%" stop-color="#fef08a"/></linearGradient></defs><circle class="loading-svg-track" cx="110" cy="110" r="92"/><circle id="loading-svg-ring-outer" class="loading-svg-ring-outer" cx="110" cy="110" r="103"/><circle id="loading-svg-ring-inner" class="loading-svg-ring-inner" cx="110" cy="110" r="78"/><circle id="loading-wheel-arc" class="loading-wheel-arc" cx="110" cy="110" r="92" stroke="url(#yasdLoadingGoldGrad)" stroke-dasharray="578.05" stroke-dashoffset="508.68"/><circle id="loading-wheel-comet" class="loading-wheel-comet" cx="110" cy="18" r="5.5"/></svg><img class="loading-emblem-logo" src="/assets/yasd3d_badge.png?v=12.2.1" alt="" width="126" height="126" loading="lazy" decoding="async" /><span id="loading-wheel-pct" class="loading-wheel-pct">12%</span></div><h2 class="loading-emblem-title">YASD 3D</h2><p id="loading-stage-text" class="loading-emblem-subtitle">Connecting to Cloud Realm &amp; Spawning Engine...</p><div class="loading-progress-track" aria-hidden="true"><div id="loading-progress-fill" class="loading-progress-fill" style="width: 12%;"></div></div><button type="button" id="btn-loading-cancel" class="loading-cancel-btn hidden">Return to Main Menu</button></div></div>
+        <div id="loading-overlay" class="hidden" role="status" aria-live="polite"><div class="loading-emblem-card"><div class="loading-emblem-wheel" aria-hidden="true"><svg class="loading-wheel-svg" viewBox="0 0 220 220" width="220" height="220"><defs><linearGradient id="yasdLoadingGoldGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#b45309"/><stop offset="45%" stop-color="#f59e0b"/><stop offset="80%" stop-color="#ffd700"/><stop offset="100%" stop-color="#fef08a"/></linearGradient></defs><circle class="loading-svg-track" cx="110" cy="110" r="92"/><circle id="loading-svg-ring-outer" class="loading-svg-ring-outer" cx="110" cy="110" r="103"/><circle id="loading-svg-ring-inner" class="loading-svg-ring-inner" cx="110" cy="110" r="78"/><circle id="loading-wheel-arc" class="loading-wheel-arc" cx="110" cy="110" r="92" stroke="url(#yasdLoadingGoldGrad)" stroke-dasharray="578.05" stroke-dashoffset="508.68"/><circle id="loading-wheel-comet" class="loading-wheel-comet" cx="110" cy="18" r="5.5"/></svg><img class="loading-emblem-logo" src="/assets/yasd3d_badge.png?v=12.2.2" alt="" width="126" height="126" loading="lazy" decoding="async" /><span id="loading-wheel-pct" class="loading-wheel-pct">12%</span></div><h2 class="loading-emblem-title">YASD 3D</h2><p id="loading-stage-text" class="loading-emblem-subtitle">Connecting to Cloud Realm &amp; Spawning Engine...</p><div class="loading-progress-track" aria-hidden="true"><div id="loading-progress-fill" class="loading-progress-fill" style="width: 12%;"></div></div><button type="button" id="btn-loading-cancel" class="loading-cancel-btn hidden">Return to Main Menu</button></div></div>
     </div>
 
     <!-- Canonical Boot Version Stamp (Runs First, CSP-Clean) -->
-    <script defer src="/js/boot.js?v=12.2.1"></script>
+    <script defer src="/js/boot.js?v=12.2.2"></script>
 
     <!-- Three.js r128 & Loaders (Local Vendored) -->
-    <script defer src="/js/vendor/three.min.js?v=12.2.1"></script>
-    <script defer src="/js/vendor/meshopt_decoder.js?v=12.2.1"></script>
-    <script defer src="/js/vendor/OBJLoader.js?v=12.2.1"></script>
-    <script defer src="/js/vendor/GLTFLoader.js?v=12.2.1"></script>
+    <script defer src="/js/vendor/three.min.js?v=12.2.2"></script>
+    <script defer src="/js/vendor/meshopt_decoder.js?v=12.2.2"></script>
+    <script defer src="/js/vendor/OBJLoader.js?v=12.2.2"></script>
+    <script defer src="/js/vendor/GLTFLoader.js?v=12.2.2"></script>
 
     <!-- Client Subsystems -->
-    <script defer src="/js/safe-html.js?v=12.2.1"></script>
-    <script defer src="/js/i18n-locale.js?v=12.2.1"></script>
-    <script defer src="/js/realm-content-pool.js?v=12.2.1"></script>
-    <script defer src="/js/ryod-compiler.js?v=12.2.1"></script>
-    <script defer src="/js/ryod-forge.js?v=12.2.1"></script>
-    <script defer src="/js/realm-cartridge.js?v=12.2.1"></script>
-    <script defer src="/js/screen-modal-coordinator.js?v=12.2.1"></script>
-    <script defer src="/js/dungeon3d-lightmap.js?v=12.2.1"></script>
-    <script defer src="/js/dungeon3d-model-governor.js?v=12.2.1"></script>
-    <script defer src="/js/screen-context.js?v=12.2.1"></script>
-    <script defer src="/js/menu-router.js?v=12.2.1"></script>
-    <script defer src="/js/grimoire-deck.js?v=12.2.1"></script>
-    <script defer src="/js/quick-actions.js?v=12.2.1"></script>
-    <script defer src="/js/device.js?v=12.2.1"></script>
-    <script defer src="/js/action-catalog.js?v=12.2.1"></script>
-    <script defer src="/js/realm-keys.js?v=12.2.1"></script>
-    <script defer src="/js/command-dispatcher.js?v=12.2.1"></script>
-    <script defer src="/js/command-palette.js?v=12.2.1"></script>
-    <script defer src="/js/prompt-mirror.js?v=12.2.1"></script>
-    <script defer src="/js/item-sheet.js?v=12.2.1"></script>
-    <script defer src="/js/entity-menu.js?v=12.2.1"></script>
-    <script defer src="/js/gamepad.js?v=12.2.1"></script>
-    <script defer src="/js/radial-menu.js?v=12.2.1"></script>
-    <script defer src="/js/audio-director.js?v=12.2.1"></script>
-    <script defer src="/js/audio.js?v=12.2.1"></script>
-    <script defer src="/js/terminal-lexer.js?v=12.2.1"></script>
-    <script defer src="/js/terminal.js?v=12.2.1"></script>
-    <script defer src="/js/master-bestiary.js?v=12.2.1"></script>
-    <script defer src="/js/master-item-registry.js?v=12.2.1"></script>
-    <script defer src="/js/dungeon3d-proc-textures.js?v=12.2.1"></script>
-    <script defer src="/js/dungeon3d-environment.js?v=12.2.1"></script>
-    <script defer src="/js/dungeon3d-vfx.js?v=12.2.1"></script>
-    <script defer src="/js/dungeon3d.js?v=12.2.1"></script>
-    <script defer src="/js/dungeon3d-tactical.js?v=12.2.1"></script>
-    <script defer src="/js/hud-telemetry.js?v=12.2.1"></script>
-    <script defer src="/js/yasd-autopsy.js?v=12.2.1"></script>
-    <script defer src="/js/hud-layout.js?v=12.2.1"></script>
-    <script defer src="/js/hud.js?v=12.2.1"></script>
-    <script defer src="/js/network.js?v=12.2.1"></script>
-    <script defer src="/js/local_bridge.js?v=12.2.1"></script>
-    <script defer src="/js/save-vault-client.js?v=12.2.1"></script>
-    <script defer src="/js/realm-carousel.js?v=12.2.1"></script>
-    <script defer src="/js/input-autonav.js?v=12.2.1"></script>
-    <script defer src="/js/input.js?v=12.2.1"></script>
-    <script defer src="/js/demo-player.js?v=12.2.1"></script>
+    <script defer src="/js/safe-html.js?v=12.2.2"></script>
+    <script defer src="/js/i18n-locale.js?v=12.2.2"></script>
+    <script defer src="/js/realm-content-pool.js?v=12.2.2"></script>
+    <script defer src="/js/ryod-compiler.js?v=12.2.2"></script>
+    <script defer src="/js/ryod-forge.js?v=12.2.2"></script>
+    <script defer src="/js/realm-cartridge.js?v=12.2.2"></script>
+    <script defer src="/js/screen-modal-coordinator.js?v=12.2.2"></script>
+    <script defer src="/js/dungeon3d-lightmap.js?v=12.2.2"></script>
+    <script defer src="/js/dungeon3d-model-governor.js?v=12.2.2"></script>
+    <script defer src="/js/screen-context.js?v=12.2.2"></script>
+    <script defer src="/js/menu-router.js?v=12.2.2"></script>
+    <script defer src="/js/grimoire-deck.js?v=12.2.2"></script>
+    <script defer src="/js/quick-actions.js?v=12.2.2"></script>
+    <script defer src="/js/device.js?v=12.2.2"></script>
+    <script defer src="/js/action-catalog.js?v=12.2.2"></script>
+    <script defer src="/js/realm-keys.js?v=12.2.2"></script>
+    <script defer src="/js/command-dispatcher.js?v=12.2.2"></script>
+    <script defer src="/js/command-palette.js?v=12.2.2"></script>
+    <script defer src="/js/prompt-mirror.js?v=12.2.2"></script>
+    <script defer src="/js/item-sheet.js?v=12.2.2"></script>
+    <script defer src="/js/entity-menu.js?v=12.2.2"></script>
+    <script defer src="/js/gamepad.js?v=12.2.2"></script>
+    <script defer src="/js/radial-menu.js?v=12.2.2"></script>
+    <script defer src="/js/audio-director.js?v=12.2.2"></script>
+    <script defer src="/js/audio.js?v=12.2.2"></script>
+    <script defer src="/js/terminal-lexer.js?v=12.2.2"></script>
+    <script defer src="/js/terminal.js?v=12.2.2"></script>
+    <script defer src="/js/master-bestiary.js?v=12.2.2"></script>
+    <script defer src="/js/master-item-registry.js?v=12.2.2"></script>
+    <script defer src="/js/dungeon3d-proc-textures.js?v=12.2.2"></script>
+    <script defer src="/js/dungeon3d-environment.js?v=12.2.2"></script>
+    <script defer src="/js/dungeon3d-vfx.js?v=12.2.2"></script>
+    <script defer src="/js/dungeon3d.js?v=12.2.2"></script>
+    <script defer src="/js/dungeon3d-tactical.js?v=12.2.2"></script>
+    <script defer src="/js/hud-telemetry.js?v=12.2.2"></script>
+    <script defer src="/js/yasd-autopsy.js?v=12.2.2"></script>
+    <script defer src="/js/hud-layout.js?v=12.2.2"></script>
+    <script defer src="/js/hud.js?v=12.2.2"></script>
+    <script defer src="/js/network.js?v=12.2.2"></script>
+    <script defer src="/js/local_bridge.js?v=12.2.2"></script>
+    <script defer src="/js/save-vault-client.js?v=12.2.2"></script>
+    <script defer src="/js/realm-carousel.js?v=12.2.2"></script>
+    <script defer src="/js/input-autonav.js?v=12.2.2"></script>
+    <script defer src="/js/input.js?v=12.2.2"></script>
+    <script defer src="/js/demo-player.js?v=12.2.2"></script>
     <!-- Living Chronicle & Voiced Lorekeeper Modules -->
-    <script defer src="/js/chronicle/chronicle-store.js?v=12.2.1"></script>
-    <script defer src="/js/chronicle/chronicle-grounder.js?v=12.2.1"></script>
-    <script defer src="/js/chronicle/chronicle-filter.js?v=12.2.1"></script>
-    <script defer src="/js/chronicle/chronicle-story-weaver.js?v=12.2.1"></script>
-    <script defer src="/js/chronicle/chronicle-audio.js?v=12.2.1"></script>
-    <script defer src="/js/chronicle/chronicle-llm.js?v=12.2.1"></script>
-    <script defer src="/js/chronicle/chronicle-manager.js?v=12.2.1"></script>
-    <script defer src="/js/app.js?v=12.2.1"></script>
-    <script defer src="/js/splash-shader.js?v=12.2.1"></script>
+    <script defer src="/js/chronicle/chronicle-store.js?v=12.2.2"></script>
+    <script defer src="/js/chronicle/chronicle-grounder.js?v=12.2.2"></script>
+    <script defer src="/js/chronicle/chronicle-filter.js?v=12.2.2"></script>
+    <script defer src="/js/chronicle/chronicle-story-weaver.js?v=12.2.2"></script>
+    <script defer src="/js/chronicle/chronicle-audio.js?v=12.2.2"></script>
+    <script defer src="/js/chronicle/chronicle-llm.js?v=12.2.2"></script>
+    <script defer src="/js/chronicle/chronicle-manager.js?v=12.2.2"></script>
+    <script defer src="/js/app.js?v=12.2.2"></script>
+    <script defer src="/js/splash-shader.js?v=12.2.2"></script>
 </body>
 </html>

@@ -132,6 +132,7 @@ class GameNetwork {
     }
 
     connect(charName = 'Adventurer', isNew = false, saveFile = null, realm = 'angband', isCustomBirth = false) {
+        this.disposed = false;
         if (this.reconnectTimer) {
             clearTimeout(this.reconnectTimer);
             this.reconnectTimer = null;
@@ -527,6 +528,7 @@ class GameNetwork {
     }
 
     disconnect() {
+        this.disposed = true;
         this.manualDisconnect = true;
         this.hasActiveGameSession = false;
         this.isInQueue = false;
@@ -609,6 +611,8 @@ class GameNetwork {
     }
 
     ensureConnected() {
+        if (this.disposed) return false;
+        if (typeof window !== 'undefined' && window.__app && window.__app.network && window.__app.network !== this) return false;
         if (this.connected && this.ws && this.ws.readyState === WebSocket.OPEN) return true;
         if (this.ws && this.ws.readyState === WebSocket.CONNECTING) return false;
         const now = Date.now();
@@ -654,6 +658,7 @@ class GameNetwork {
     }
 
     sendKey(spec) {
+        if (this.disposed) return false;
         const normalized = KeySpec.normalize(spec);
         if (normalized === null) {
             console.warn(`[Network] Dropping unrecognised key spec: ${JSON.stringify(spec)}`);
@@ -673,6 +678,7 @@ class GameNetwork {
     }
 
     sendCommand(cmd) {
+        if (this.disposed) return false;
         if (typeof window !== 'undefined' && window.chronicleManager && typeof window.chronicleManager.preemptForGameplay === 'function') {
             window.chronicleManager.preemptForGameplay('network_action');
         }

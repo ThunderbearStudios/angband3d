@@ -21,6 +21,7 @@ class ChronicleAudioRouter {
         this.isProcessingSpeechQueue = false;
         this._playSessionId = 0;
         this._activeFetchController = null;
+        this._serverTtsUnavailableUntil = 0;
 
         // Restore persisted audio preferences
         if (typeof window !== 'undefined' && window.localStorage) {
@@ -830,6 +831,9 @@ class ChronicleAudioRouter {
         });
 
         const url = `/api/tts?${q.toString()}`;
+        if (Date.now() < (this._serverTtsUnavailableUntil || 0)) {
+            throw new Error('Server TTS paused');
+        }
         let lastErr = null;
         const maxAttempts = isNarrator ? 3 : 1;
 
@@ -838,6 +842,11 @@ class ChronicleAudioRouter {
                 const fetchHeaders = this.getFetchHeaders();
                 const res = await fetch(url, { headers: fetchHeaders, signal: signal || undefined });
                 if (!res.ok) {
+                    if (res.headers && res.headers.get('x-tts-unavailable') === '1') {
+                        this._serverTtsUnavailableUntil = Date.now() + 5 * 60 * 1000;
+                        lastErr = new Error(`HTTP ${res.status}`);
+                        break;
+                    }
                     lastErr = new Error(`HTTP ${res.status}`);
                     if (res.status >= 400 && res.status < 500) break;
                     throw lastErr;
@@ -1601,6 +1610,11 @@ class ChronicleAudioRouter {
                         let fallbackReason = null;
 
                         if (!audioBuffer) {
+                            if (Date.now() < (this._serverTtsUnavailableUntil || 0)) {
+                                httpStatusError = true;
+                                this._setLoading(false);
+                                throw new Error('Server TTS paused');
+                            }
                             this._setLoading(true, 'Voicing lore...');
                             const fetchHeaders = this.getFetchHeaders();
                             const res = await fetch(url, { headers: fetchHeaders, signal: abortCtrl.signal });
@@ -1610,6 +1624,9 @@ class ChronicleAudioRouter {
                                 return resolve({ aborted: true, superseded: true });
                             }
                             if (!res.ok) {
+                                if (res.headers && res.headers.get('x-tts-unavailable') === '1') {
+                                    this._serverTtsUnavailableUntil = Date.now() + 5 * 60 * 1000;
+                                }
                                 httpStatusError = true;
                                 this._setLoading(false);
                                 throw new Error(`HTTP ${res.status}`);

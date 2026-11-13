@@ -139,12 +139,18 @@ setInterval(() => {
     }
 }, 60000).unref();
 
+let edgeTtsCooldownUntil = 0;
+let edgeTtsWarnedUntil = 0;
+
 async function getWarmEdgeTTS(voice) {
     if (!MsEdgeTTS) return null;
     let entry = edgeVoicePool.get(voice);
     if (entry && entry.tts && entry.tts._ws && entry.tts._ws.readyState === 1 /* OPEN */) {
         entry.lastUsed = Date.now();
         return entry.tts;
+    }
+    if (entry && entry.initPromise) {
+        return entry.initPromise;
     }
     if (entry) {
         try { entry.tts.close(); } catch (_) {}
@@ -153,10 +159,15 @@ async function getWarmEdgeTTS(voice) {
     const tts = new MsEdgeTTS();
     const edgeFormat = (OUTPUT_FORMAT && OUTPUT_FORMAT.AUDIO_24KHZ_48KBITRATE_MONO_MP3) ? OUTPUT_FORMAT.AUDIO_24KHZ_48KBITRATE_MONO_MP3 : (OUTPUT_FORMAT && OUTPUT_FORMAT.AUDIO_24KHZ_96KBITRATE_MONO_MP3);
     const initPromise = tts.setMetadata(voice, edgeFormat)
-        .then(() => tts)
+        .then(() => {
+            if (entry) entry.initPromise = null;
+            return tts;
+        })
         .catch(err => {
             edgeVoicePool.delete(voice);
-            try { tts.close(); } catch (_) {}
+            if (tts && tts._ws && tts._ws.readyState === 1) {
+                try { tts.close(); } catch (_) {}
+            }
             throw err;
         });
     entry = { tts, initPromise, lastUsed: Date.now() };
@@ -1834,8 +1845,12 @@ const server = http.createServer((req, res) => {
 
         // --- ENGINE B: GEMINI NATIVE CONTROLLABLE AUDIO ---
         if (requestedEngine === 'gemini') {
+            const hasCloudAuth = Boolean(process.env.GOOGLE_APPLICATION_CREDENTIALS || process.env.K_SERVICE);
+            if (!geminiApiKey && !hasCloudAuth) {
+                handleEdgeTTS('No Gemini API key configured');
+                return;
+            }
             if (!geminiApiKey) {
-                console.info(`[TTS] No Gemini API key for role=${role}, falling back to <100ms Edge Neural`);
                 handleEdgeTTS('No Gemini API key configured');
                 return;
             }
@@ -2014,22 +2029,41 @@ const server = http.createServer((req, res) => {
                 return;
             }
 
+            function sendTtsUnavailable(err) {
+                const msg = String(err && (err.message || err) || '');
+                const isBlocked = /403|401|unexpected server response|ECONNREFUSED|ENOTFOUND|ETIMEDOUT|closed before the connection/i.test(msg);
+                const nowMs = Date.now();
+                if (isBlocked) {
+                    edgeTtsCooldownUntil = Math.max(edgeTtsCooldownUntil, nowMs + 10 * 60 * 1000);
+                    if (nowMs >= edgeTtsWarnedUntil) {
+                        edgeTtsWarnedUntil = edgeTtsCooldownUntil;
+                        console.warn(`[TTS] Edge Neural TTS unavailable (${msg.split('\n')[0].slice(0, 100)}); pausing server Edge fallback for 10m.`);
+                    }
+                } else {
+                    console.warn(`[TTS] Edge TTS error: ${msg.split('\n')[0].slice(0, 120)}`);
+                }
+                if (!res.headersSent) {
+                    res.writeHead(503, {
+                        'Content-Type': 'application/json',
+                        'X-TTS-Unavailable': '1'
+                    });
+                    res.end(JSON.stringify({ error: 'TTS temporarily unavailable', fallback: 'browser' }));
+                }
+            }
+
             if (inFlightTTS.has(edgeCacheKey)) {
                 inFlightTTS.get(edgeCacheKey)
                     .then(buffer => sendEdgeMp3(buffer, false))
-                    .catch(err => {
-                        if (!res.headersSent) {
-                            console.error('[TTS] Edge TTS fetch error:', err);
-                            res.writeHead(502, { 'Content-Type': 'application/json' });
-                            res.end(JSON.stringify({ error: 'Internal error' }));
-                        }
-                    });
+                    .catch(err => sendTtsUnavailable(err));
                 return;
             }
 
-            if (!MsEdgeTTS) {
-                res.writeHead(503, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ error: 'Neural TTS engine unavailable' }));
+            if (!MsEdgeTTS || Date.now() < edgeTtsCooldownUntil) {
+                res.writeHead(503, {
+                    'Content-Type': 'application/json',
+                    'X-TTS-Unavailable': '1'
+                });
+                res.end(JSON.stringify({ error: 'Neural TTS engine temporarily unavailable', fallback: 'browser' }));
                 return;
             }
 
@@ -2105,11 +2139,7 @@ const server = http.createServer((req, res) => {
                             }
                         });
                     }
-                    if (!res.headersSent) {
-                        console.error('[TTS] Edge TTS error:', err);
-                        res.writeHead(500, { 'Content-Type': 'application/json' });
-                        res.end(JSON.stringify({ error: 'Internal error' }));
-                    }
+                    sendTtsUnavailable(err);
                 });
         }
         return;
