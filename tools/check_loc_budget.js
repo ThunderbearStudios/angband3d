@@ -52,6 +52,13 @@ const BUDGETS = [
     { name: 'entity-menu.js', file: 'server/public/js/entity-menu.js', budget: 220 },
     { name: 'gamepad.js', file: 'server/public/js/gamepad.js', budget: 240 },
     { name: 'radial-menu.js', file: 'server/public/js/radial-menu.js', budget: 240 },
+    { name: 'dungeon3d.js', file: 'server/public/js/dungeon3d.js', budget: 14500 },
+    { name: 'dungeon3d-proc-textures.js', file: 'server/public/js/dungeon3d-proc-textures.js', budget: 2650 },
+    { name: 'dungeon3d-environment.js', file: 'server/public/js/dungeon3d-environment.js', budget: 850 },
+    { name: 'chronicle-grounder.js', file: 'server/public/js/chronicle/chronicle-grounder.js', budget: 7650 },
+    { name: 'chronicle-manager.js', file: 'server/public/js/chronicle/chronicle-manager.js', budget: 6100 },
+    { name: 'audio.js', file: 'server/public/js/audio.js', budget: 4150 },
+    { name: 'server.js', file: 'server/src/server.js', budget: 4700 },
     { name: 'dungeon.css', file: 'server/public/css/dungeon.css', budget: 9850 },
     { name: 'index.html', file: 'server/public/index.html', budget: 1545 }
 ];

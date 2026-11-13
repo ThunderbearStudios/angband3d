@@ -118,7 +118,7 @@ class SoundEngine {
             try {
                 const savedMode = window.localStorage && localStorage.getItem('angband3d_music_mode');
                 const validModes = new Set(['auto', 'theme_full', 'shuffle', 'playlist:town', 'playlist:dungeon', 'playlist:boss']);
-                const catalog = SoundEngine.MUSIC_CATALOG || [];
+                const catalog = typeof this.getMusicCatalog === 'function' ? this.getMusicCatalog() : [];
                 if (savedMode && (validModes.has(savedMode) || catalog.some(t => t.id === savedMode))) {
                     this.musicMode = savedMode;
                     this._manualMusicOverride = (savedMode !== 'auto');
@@ -558,9 +558,81 @@ class SoundEngine {
             try { this._standbyThemeDeck.pause(); this._standbyThemeDeck.volume = 0; } catch (_) {}
         }
         const active = this._activeThemeDeck;
+        const standby = this._standbyThemeDeck;
         if (!active) return entry;
         try {
             const wantSrc = entry.src;
+            const isPlayingDiffTrack = Boolean(
+                this._themeActuallyPlaying &&
+                !active.paused &&
+                active.currentTime > 0.5 &&
+                standby &&
+                !String(active.src || '').endsWith(encodeURI(wantSrc)) &&
+                !String(active.src || '').endsWith(wantSrc)
+            );
+
+            const prevTrackId = this._currentMusicTrackId || '';
+            const dir = this._audioDirector || (typeof AudioDirector === 'function' ? (this._audioDirector = new AudioDirector()) : null);
+            if (isPlayingDiffTrack) {
+                if (dir && prevTrackId) dir.saveExplorationPlayhead(prevTrackId, active.currentTime);
+                // 1.8s equal-power dual-deck crossfading across in-game BGM transitions
+                this._themeCrossfading = true;
+                standby.pause();
+                standby.src = wantSrc;
+                const resumeAt = dir ? dir.consumeSavedPlayhead(entry.id) : 0;
+                try { standby.currentTime = resumeAt > 0 ? resumeAt : 0; } catch (_) { standby.currentTime = 0; }
+                if (resumeAt > 0) {
+                    standby.addEventListener('loadedmetadata', () => {
+                        try { if (resumeAt < (standby.duration || 0) - 2) standby.currentTime = resumeAt; } catch (_) {}
+                    }, { once: true });
+                }
+                standby.volume = 0;
+                standby.loop = Boolean(loop && !this.musicShuffle && !String(this.musicMode || '').startsWith('playlist:') && this.musicMode !== 'shuffle');
+                standby.muted = false;
+                standby.onended = () => {
+                    if (this.musicShuffle || this.musicMode === 'shuffle' || String(this.musicMode || '').startsWith('playlist:') || this.musicMode === 'auto') {
+                        this.nextMusicTrack(true);
+                    }
+                };
+                const playPromise = standby.play();
+                if (playPromise && typeof playPromise.catch === 'function') playPromise.catch(() => {});
+
+                const crossfadeDuration = 1.8;
+                const targetVol = this._getThemeTargetVolume();
+                const startCrossfadeTime = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+                if (this._bgmCrossfadeTimer) clearInterval(this._bgmCrossfadeTimer);
+
+                this._bgmCrossfadeTimer = setInterval(() => {
+                    const elapsed = (((typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now()) - startCrossfadeTime) * 0.001;
+                    const progress = Math.max(0, Math.min(1.0, elapsed / crossfadeDuration));
+                    const outGain = Math.cos(progress * Math.PI * 0.5);
+                    const inGain = Math.sin(progress * Math.PI * 0.5);
+
+                    try {
+                        active.volume = Math.max(0, Math.min(1, targetVol * outGain));
+                        standby.volume = Math.max(0, Math.min(1, targetVol * inGain));
+                    } catch (_) {}
+
+                    if (progress >= 1.0) {
+                        clearInterval(this._bgmCrossfadeTimer);
+                        this._bgmCrossfadeTimer = null;
+                        try {
+                            active.pause();
+                            active.currentTime = 0;
+                            active.volume = 0;
+                            standby.volume = targetVol;
+                        } catch (_) {}
+                        this._activeThemeDeck = standby;
+                        this._standbyThemeDeck = active;
+                        this._themeCrossfading = false;
+                        this._themeActuallyPlaying = true;
+                    }
+                }, 50);
+
+                if (typeof window !== 'undefined' && typeof window.__syncAudioUI === 'function') window.__syncAudioUI();
+                return entry;
+            }
+
             if (!String(active.src || '').endsWith(encodeURI(wantSrc)) && !String(active.src || '').endsWith(wantSrc)) {
                 active.pause();
                 active.src = wantSrc;
@@ -856,7 +928,7 @@ class SoundEngine {
             return;
         }
 
-        if (p.winner || p.total_winner) {
+        if (frame.victory || p.winner || p.total_winner) {
             if (this._contextualMood !== 'victory') {
                 this._contextualMood = 'victory';
                 this._contextualCategory = 'victory';
@@ -866,12 +938,14 @@ class SoundEngine {
             return;
         }
 
-        // 2. Store / Building / Arena / Boss / Level Feeling hooks + 8-Realm Profiles
+        // 2. Threat-Weighted Dynamic AudioDirector + Store / Arena / Feeling / 8-Realm Profiles (WS82 Pillar 1)
+        const dir = this._audioDirector || (typeof AudioDirector === 'function' ? (this._audioDirector = new AudioDirector()) : null);
+        const threat = dir ? dir.evaluateThreat(frame, activeRealm) : { tier: 0, bossMon: null };
+        if (dir) dir.applyContextualHints(this, threat, frame);
+
         const inStore = Boolean(frame.store || frame.inStore || (typeof window !== 'undefined' && window.ScreenContext && typeof window.ScreenContext.isStore === 'function' && frame.screenText && window.ScreenContext.isStore(frame.screenText)));
         const inArena = Boolean(p.arena || /arena/i.test(p.location || ''));
-        const mons = Array.isArray(frame.monsters) ? frame.monsters : [];
-        const bossMon = mons.find(m => m && !m.isPet && !m.peaceful && (m.unique || m.isBoss || /morgoth|sauron|oberon|serpent of chaos|yendor|arch-lich|tiamat|glaurung|gothmog|carcharoth/i.test(m.name || m.race || '')));
-        const depth = Number(p.depth || 0);
+        const depth = Number((frame.map && typeof frame.map.depth === 'number') ? frame.map.depth : (p.depth || 0));
         const r = String(activeRealm || frame.realm || 'angband').toLowerCase();
         const profile = this.getRealmMusicProfile(r);
         let realmHash = 0;
@@ -891,34 +965,41 @@ class SoundEngine {
             nextCategory = 'boss';
             activePool = ['arena_fanfare', ...profile.boss];
             defaultTrack = 'arena_fanfare';
-        } else if (bossMon) {
-            nextCategory = 'boss';
-            const bName = String(bossMon.name || bossMon.race || '');
-            const isFinal = /morgoth|serpent|yendor|oberon|sauron|orb of zot/i.test(bName);
-            activePool = isFinal ? profile.finalBoss : profile.boss;
-            defaultTrack = activePool[0] || (isFinal ? 'oga_throne_room_boss' : 'boss_1');
-        } else if (depth === 0) {
+        } else if (depth === 0 && threat.tier < 3) {
+            // Town Sanctuary Guard: Farmer Maggot, shopkeepers, and pets never trigger battle music
             nextCategory = 'town';
             const isWild = Boolean(frame.wilderness || /wilderness|outskirts|grassland/i.test(locStr));
             activePool = isWild ? profile.wilderness : profile.town;
             defaultTrack = activePool[(realmHash + locHash) % activePool.length] || 'town_cloudancer';
+        } else if (threat.tier >= 4) {
+            nextCategory = 'boss';
+            activePool = profile.finalBoss;
+            defaultTrack = activePool[0] || 'oga_throne_room_boss';
+        } else if (threat.tier === 3) {
+            nextCategory = 'boss';
+            activePool = profile.boss;
+            defaultTrack = activePool[0] || 'boss_1';
+        } else if (threat.tier === 2) {
+            nextCategory = 'boss';
+            activePool = profile.boss;
+            defaultTrack = activePool[(Math.max(1, depth) + realmHash) % activePool.length] || 'boss_1';
         } else {
+            // Tier 0 & Tier 1 (minor skirmishes): preserve smooth dungeon exploration ambience!
             const deepThresh = (r === 'silq') ? 12 : ((r === 'brogue' || r === 'rogue' || r === 'dcss' || r === 'nethack') ? 15 : 50);
             const midThresh = (r === 'silq') ? 6 : ((r === 'brogue' || r === 'rogue' || r === 'dcss' || r === 'nethack') ? 7 : 20);
             const pickIdx = (Math.max(1, depth) + realmHash);
             if (depth >= deepThresh) {
                 nextCategory = 'dungeon_high';
                 activePool = profile.high;
-                defaultTrack = activePool[pickIdx % activePool.length];
             } else if (depth >= midThresh) {
                 nextCategory = 'dungeon_med';
                 activePool = profile.med;
-                defaultTrack = activePool[pickIdx % activePool.length];
             } else {
                 nextCategory = 'dungeon_low';
                 activePool = profile.low;
-                defaultTrack = activePool[pickIdx % activePool.length];
             }
+            const feelInfo = dir ? dir.resolveFeelingTrack(frame, nextCategory) : null;
+            defaultTrack = (feelInfo && feelInfo.track) ? feelInfo.track : activePool[pickIdx % activePool.length];
         }
         const nextMoodSig = `${nextCategory}:${r}:${depth}:${defaultTrack}`;
         this._contextualCategory = nextCategory;
@@ -1398,27 +1479,81 @@ class SoundEngine {
     }
 
     /**
-     * Spatial Panner helper: Clamps pan to [-0.95, 0.95] and creates a StereoPannerNode,
-     * falling back to a pass-through GainNode if StereoPanner is unsupported (e.g. older iOS/Safari).
+     * Spatial Panner helper: Upgrades to 3D PannerNode (panningModel = 'HRTF' with 'equalpower' fallback)
+     * plus a 900 Hz BiquadFilterNode (type = 'lowpass') occlusion muffle when !hasLos / occluded.
      */
-    createPanner(pan = 0) {
+    createPanner(pan = 0, y = 0, z = 0, opts = {}) {
         if (!this.ctx) return null;
-        const clampedPan = Math.max(-0.95, Math.min(0.95, Number(pan) || 0));
-        if (typeof this.ctx.createStereoPanner === 'function') {
+        const isObj = (typeof pan === 'object' && pan !== null);
+        const useWorld3D = Boolean(isObj && pan.worldSpace === true);
+        let x = 0;
+        let occluded = false;
+        let hasLos = true;
+        if (isObj) {
+            x = Number(pan.x ?? pan.pan ?? 0) || 0;
+            y = Number(pan.y ?? y ?? 0) || 0;
+            z = Number(pan.z ?? z ?? 0) || 0;
+            hasLos = (pan.hasLos !== undefined) ? Boolean(pan.hasLos) : (pan.los !== undefined ? Boolean(pan.los) : true);
+            occluded = Boolean(pan.occluded || !hasLos);
+            opts = pan;
+        } else {
+            x = Number(pan) || 0;
+            hasLos = (opts && opts.hasLos !== undefined) ? Boolean(opts.hasLos) : true;
+            occluded = Boolean(opts && (opts.occluded || !hasLos));
+        }
+
+        let panner = null;
+        if (useWorld3D && typeof this.ctx.createPanner === 'function') {
             try {
-                const panner = this.ctx.createStereoPanner();
-                panner.pan.setValueAtTime(clampedPan, this.ctx.currentTime);
-                return panner;
+                panner = this.ctx.createPanner();
+                try {
+                    panner.panningModel = 'HRTF';
+                } catch (_) {
+                    panner.panningModel = 'equalpower';
+                }
+                panner.distanceModel = 'inverse';
+                panner.refDistance = 1.5;
+                panner.maxDistance = 32.0;
+                panner.rolloffFactor = 1.0;
+                panner.coneInnerAngle = 360;
+
+                const t = this.ctx.currentTime || 0;
+                if (panner.positionX && typeof panner.positionX.setValueAtTime === 'function') {
+                    panner.positionX.setValueAtTime(x, t);
+                    panner.positionY.setValueAtTime(y, t);
+                    panner.positionZ.setValueAtTime(z, t);
+                } else if (typeof panner.setPosition === 'function') {
+                    panner.setPosition(x, y, z);
+                }
             } catch (_) {}
         }
-        if (typeof this.ctx.createGain === 'function') {
+        if (!panner && typeof this.ctx.createStereoPanner === 'function') {
             try {
-                const passThrough = this.ctx.createGain();
-                passThrough.gain.setValueAtTime(1.0, this.ctx.currentTime);
-                return passThrough;
+                panner = this.ctx.createStereoPanner();
+                const clamped = Math.max(-0.95, Math.min(0.95, x));
+                panner.pan.setValueAtTime(clamped, this.ctx.currentTime || 0);
             } catch (_) {}
         }
-        return null;
+        if (!panner && typeof this.ctx.createGain === 'function') {
+            try {
+                panner = this.ctx.createGain();
+                panner.gain.setValueAtTime(1.0, this.ctx.currentTime || 0);
+            } catch (_) {}
+        }
+        if (!panner) return null;
+
+        if (occluded || !hasLos) {
+            try {
+                const filter = this.ctx.createBiquadFilter();
+                filter.type = 'lowpass';
+                filter.frequency.setValueAtTime(900, this.ctx.currentTime || 0);
+                filter.Q.setValueAtTime(0.707, this.ctx.currentTime || 0);
+                filter.connect(panner);
+                panner._filter = filter;
+                panner._occluded = true;
+            } catch (_) {}
+        }
+        return panner;
     }
 
     /**
@@ -1453,15 +1588,19 @@ class SoundEngine {
         const voiceGain = this.ctx.createGain();
         voiceGain.gain.setValueAtTime(1.0, now);
 
-        if (panner) {
-            voiceGain.connect(panner);
+        const inNode = (panner && panner._filter) ? panner._filter : panner;
+        if (inNode) {
+            voiceGain.connect(inNode);
             panner.connect(dest);
         } else {
             voiceGain.connect(dest);
         }
 
         const nodes = [voiceGain];
-        if (panner) nodes.push(panner);
+        if (panner) {
+            nodes.push(panner);
+            if (panner._filter) nodes.push(panner._filter);
+        }
 
         const cleanupTimer = setTimeout(() => {
             for (let i = 0; i < nodes.length; i++) {

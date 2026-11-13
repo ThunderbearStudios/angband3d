@@ -173,13 +173,13 @@ test('needsTerminal: dungeon -more- stays 3D', () => {
 test('needsTerminal: not awaiting + direction prompt stays 3D (EN + JP)', () => {
     assert.strictEqual(NT(mkFrame('Aim which direction?', { ui: { awaiting_command: false } })), false);
     assert.strictEqual(NT(mkFrame('どの方向に?', { ui: { awaiting_command: false } })), false);
-    // KNOWN GAP (STATE.md K6): vanilla prompts engine/src/ui-input.c:1527 "Direction or <click> (Escape to cancel)? "
-    // and :1640/:1642 "Direction ('*' or <click> to target, ...)? " match none of the targeting markers, so they
-    // route to the terminal. Pinned here so the WS2 Phase 3 fix is an explicit, reviewed change.
-    assert.strictEqual(NT(mkFrame('Direction or <click> (Escape to cancel)? ', { ui: { awaiting_command: false } })), true);
+    // WS73: Vanilla prompts "Direction or <click> (Escape to cancel)? " and "Direction ('*' or <click> to target)?" stay in 3D!
+    assert.strictEqual(NT(mkFrame('Direction or <click> (Escape to cancel)? ', { ui: { awaiting_command: false } })), false);
+    assert.strictEqual(NT(mkFrame("Direction ('*' or <click> to target, Escape to cancel)? ", { ui: { awaiting_command: false } })), false);
 });
-test('needsTerminal: not awaiting, not targeting -> terminal (menus)', () => {
+test('needsTerminal: not awaiting, not targeting -> terminal by default, 3D when mirror3d=true', () => {
     assert.strictEqual(NT(mkFrame('Quaff which potion?', { ui: { awaiting_command: false } })), true);
+    assert.strictEqual(NT(mkFrame('Quaff which potion?', { ui: { awaiting_command: false } }), { mirror3d: true }), false);
 });
 test('needsTerminal: missing ui -> 3D', () => {
     assert.strictEqual(NT(mkFrame('', { ui: undefined })), false);

@@ -32,7 +32,7 @@ for (const id of movedIds) {
 console.log('✓ Contract 1 PASS: Top-right bar provides clean controls with Tome button on web client');
 
 // Contract 2: Display & Controls section in Pause Modal / Menu Drawer
-const pauseModalMatch = html.match(/<div id="pause-modal"[^>]*>([\s\S]*?)<\/div>\s*<!-- Game Guide/);
+const pauseModalMatch = html.match(/<(?:div|dialog) id="pause-modal"[^>]*>([\s\S]*?)<\/(?:div|dialog)>\s*<!-- Game Guide/);
 assert(pauseModalMatch, 'Contract 2 Fail: #pause-modal container not found in index.html');
 const pauseModalContent = pauseModalMatch[1];
 
@@ -44,7 +44,7 @@ for (const id of movedIds) {
 console.log('✓ Contract 2 PASS: Display & Controls section in Menu drawer contains all 5 moved controls with preserved IDs');
 
 // Contract 3: Footer Deduplication
-const footerMatch = html.match(/<div id="hud-footer"[^>]*>([\s\S]*?)<\/div>\s*<\/div>\s*<!-- Compass/);
+const footerMatch = html.match(/<div id="hud-footer"[^>]*>([\s\S]*?)<\/div>\s*<\/div>\s*<\/div>\s*<!-- Atmospheric Death Screen Modal/);
 assert(footerMatch, 'Contract 3 Fail: #hud-footer container not found in index.html');
 const footerContent = footerMatch[1];
 assert(!/id="btn-quick-help"/.test(footerContent), 'Contract 3 Fail: duplicate btn-quick-help must be removed from hud-footer');

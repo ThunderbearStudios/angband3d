@@ -122,6 +122,22 @@
     ['よろしいですか？', 'Are you sure? '],
     ['本当に終了しますか？', 'Really quit? [y/n]   '],
     ['本当にセーブして終了しますか？', 'Save and quit? [y/n]          '],
+    ['(ESC) 建物から出る', '(ESC) Exit Building'],
+    ['建物から出る', 'Exit Building'],
+    ['(p) 買う', '(p) Purchase'],
+    ['(s) 売る', '(s) Sell'],
+    ['(x) 調べる', '(x) Examine'],
+    ['(-) 前ページ', '(-) Prev page'],
+    ['(スペース) 次ページ', '(Space) Next page'],
+    ['新弟子用教本', 'Apprentice Guide'],
+    ['歌集[讃歌]', 'Songbook[Hymns]'],
+    ['8冊の 新弟子用教本', '8x Apprentice Guide'],
+    ['8冊の 歌集[讃歌]', '8x Songbook[Hymns]'],
+    ['8冊の', '8x '],
+    ['たいまつ (5000ターンの寿命)', 'Wooden Torch (5000 turns of light)'],
+    ['たいまつ (5,000ターンの寿命)', 'Wooden Torch (5,000 turns of light)'],
+    ['(5000ターンの寿命)', '(5000 turns of light)'],
+    ['(5,000ターンの寿命)', '(5,000 turns of light)'],
     ['辺境の地', 'Outpost '],
     ['宿場町', 'Outpost'],
     ['街 (宿場町)', 'Town (Outpost)'],
@@ -137,7 +153,7 @@
     ['器用', 'DEX '],
     ['耐久', 'CON '],
     ['魅力', 'CHR '],
-    ['打撃', 'AC  '],
+    ['打撃', 'Blow'],
     ['射撃', 'SHT '],
     ['防御', 'DEF '],
     ['経験', 'EXP '],
@@ -369,12 +385,12 @@
     ["はるかに勝っています。彼らは多種族にみられるような魅力的な特殊能力は持っ", "creatures put almost any other race to shame. They may lack the"],
     ["ていませんが、その大変大きなＨＰはそれを補ってあまりあります。半タイタン", "fascinating special powers of certain other races, but their enhanced"],
     ["はそこそこのスキルを持っていますが、その巨大さゆえに罠の解除やこっそり歩", "attributes more than make up for that. They learn to estimate the"],
-    ["くことは困難です。法と秩序を愛する彼らは、カオスに対する耐性を持っていま", "strengths of their foes, and their love for law and order makes them"],
-    ["一つ目ではありますが、サイクロプスは多くの二つの目を持つ生物以上に見るこ", "With but one eye, a Cyclops can see more than many with two eyes. They are"],
-    ["とができます。サイクロプスは非常に力強いのですが、知的であるとはちょっと", "headstrong, and loud noises bother them very little. They are not quite"],
-    ["言えません。彼らに比べれば、ハーフトロルの方がハンサムに見えるということ", "qualified for the magic using professions, but as a certain Mr. Ulysses"],
-    ["は言うまでもありません。サイクロプスは戦闘, 射撃に優れていますが、その他", "can testify, their accuracy with thrown rocks can be deadly..."],
-    ["の大部分のスキルは苦手です。サイクロプスは音に対する耐性を持っています。", ""],
+    ["くことは困難です。法と秩序を愛する彼らは、カオスに対する耐性を持っていま", "strengths of their foes, and their love for law and order makes them resistant to the effects of Chaos."],
+    ["一つ目ではありますが、サイクロプスは多くの二つの目を持つ生物以上に見るこ", "With but one eye, a Cyclops can see more than many with two eyes."],
+    ["とができます。サイクロプスは非常に力強いのですが、知的であるとはちょっと", "They are headstrong, and loud noises bother them very little."],
+    ["言えません。彼らに比べれば、ハーフトロルの方がハンサムに見えるということ", "They are not quite qualified for the magic using professions, but"],
+    ["は言うまでもありません。サイクロプスは戦闘, 射撃に優れていますが、その他", "as a certain Mr. Ulysses can testify, their accuracy with thrown"],
+    ["の大部分のスキルは苦手です。サイクロプスは音に対する耐性を持っています。", "rocks can be deadly..."],
     ["イークは最も哀れな生物の一つであり、並のモンスターであっても不注意なイー", "Yeeks are among the most pathetic creatures. Fortunately, their horrible"],
     ["クならば徹底的に打ちのめせるほど肉体的には強くありませんが、彼らはかなり", "screams can scare away less confident foes, and their skin becomes more"],
     ["知的でいくらか賢い生物です。イークは戦闘スキルは苦手ですが、他の分野では", "and more resistant to acid, as they gain experience. But having said that,"],
@@ -1116,11 +1132,13 @@
       // 2. Extract JP counter prefix: e.g. 6つの食料, 6つの 松明, 1つの食料, 3個の...
       let count = typeof n === 'number' ? n : 1;
       let hasExplicitCount = typeof n === 'number' && n > 1;
-      const counterMatch = base.match(/^(\d+)\s*(?:つの|個|本|冊|枚|巻|匹|服|切れ|袋|組|振り|着|足|対|発|束)の?\s*(.+)$/);
+      let counterIsSatsu = false;
+      const counterMatch = base.match(/^(\d+)\s*(?:つの|個|本|(冊)|枚|巻|匹|服|切れ|袋|組|振り|着|足|対|発|束)の?\s*(.+)$/);
       if (counterMatch) {
         count = parseInt(counterMatch[1], 10);
         hasExplicitCount = true;
-        base = counterMatch[2].trim();
+        if (counterMatch[2] === '冊') counterIsSatsu = true;
+        base = counterMatch[3].trim();
       }
 
       let enBase = null;
@@ -1138,6 +1156,8 @@
         if (monEntry) {
           const monEn = Array.isArray(monEntry) ? monEntry[0] : monEntry;
           enBase = (count > 1) ? `Corpses of ${monEn}` : `Corpse of ${monEn}`;
+        } else if (!CJK.test(monJa)) {
+          enBase = (count > 1) ? `Corpses of ${monJa}` : `Corpse of ${monJa}`;
         }
       } else if (skelM) {
         const monJa = skelM[1];
@@ -1145,6 +1165,8 @@
         if (monEntry) {
           const monEn = Array.isArray(monEntry) ? monEntry[0] : monEntry;
           enBase = (count > 1) ? `Skeletons of ${monEn}` : `Skeleton of ${monEn}`;
+        } else if (!CJK.test(monJa)) {
+          enBase = (count > 1) ? `Skeletons of ${monJa}` : `Skeleton of ${monJa}`;
         }
       } else if (headM) {
         const monJa = headM[1];
@@ -1205,7 +1227,7 @@
       // Atomic fallback: if base cannot be fully resolved, return original ja
       if (!enBase) return ja;
 
-      let result = hasExplicitCount ? `${count} ${enBase}` : enBase;
+      let result = hasExplicitCount ? (counterIsSatsu ? `${count}x ${enBase}` : `${count} ${enBase}`) : enBase;
 
       if (suffixes.length > 0) {
         result = `${result} ${suffixes.join(' ')}`;
@@ -1218,10 +1240,113 @@
     });
   }
 
+  // --- Helper to verify translation according to mode ---
+  function isTranslatedForMode(orig, res, mode) {
+    if (!res || typeof res !== 'string') return false;
+    if (mode === 'bilingual') {
+      return !CJK.test(res) || (res !== orig && /[a-zA-Z]/.test(res));
+    }
+    return !CJK.test(res);
+  }
+
+  // --- Helper to join SJIS-wrapped multi-row birth background paragraphs ---
+  function joinSjisWrappedParagraph(text) {
+    if (typeof text !== 'string' || !text.includes('\n')) return text;
+    const lines = text.split(/\r?\n/);
+    let joined = '';
+    for (let i = 0; i < lines.length; i++) {
+      const cur = lines[i].trimEnd();
+      if (!cur) {
+        joined += '\n\n';
+        continue;
+      }
+      if (!joined || joined.endsWith('\n')) {
+        joined += cur.trimStart();
+      } else {
+        const prevChar = joined.slice(-1);
+        const nextChar = cur.trimStart().charAt(0);
+        if (CJK.test(prevChar) || CJK.test(nextChar)) {
+          joined += cur.trimStart();
+        } else {
+          joined += ' ' + cur.trimStart();
+        }
+      }
+    }
+    return joined;
+  }
+
   // --- Helper to translate a single clause ---
-  function translateClause(clause) {
+  function translateClause(clause, mode) {
     if (!CJK.test(clause)) return clause;
-    if (OVERRIDES[clause]) return OVERRIDES[clause];
+    if (OVERRIDES[clause]) {
+      const ov = OVERRIDES[clause];
+      if (mode === 'bilingual' && ov !== clause && !CJK.test(ov)) {
+        return `${ov} / ${clause}`;
+      }
+      return ov;
+    }
+
+    // Drool on you pattern: e.g. "Blubbering idiotによだれをたらされた。"
+    const droolMatch = clause.match(/^(.+?)によだれをたらされた(?:。)?$/);
+    if (droolMatch) {
+      const mon = translateName(droolMatch[1], 1, 'en');
+      const enStr = `${mon} drools on you.`;
+      if (mode === 'bilingual') return `${enStr} / ${clause}`;
+      return enStr;
+    }
+
+    // Attack / hit monster pattern: e.g. "Blubbering idiotを攻撃した。"
+    const atkMatch = clause.match(/^(.+?)を攻撃した(?:。)?$/);
+    if (atkMatch) {
+      const mon = translateName(atkMatch[1], 1, 'en');
+      const enStr = `You hit ${mon}.`;
+      if (mode === 'bilingual') return `${enStr} / ${clause}`;
+      return enStr;
+    }
+
+    // Slain monster pattern: e.g. "Blubbering idiotを葬り去った。"
+    const slainMatch = clause.match(/^(.+?)を葬り去った(?:。)?$/);
+    if (slainMatch) {
+      const mon = translateName(slainMatch[1], 1, 'en');
+      const enStr = `You have slain ${mon}.`;
+      if (mode === 'bilingual') return `${enStr} / ${clause}`;
+      return enStr;
+    }
+
+    // Corpse look pattern: e.g. "Blubbering idiotの死体がある。"
+    const corpseLookMatch = clause.match(/^(.+?)の(?:死体|死骸)がある(?:。)?$/);
+    if (corpseLookMatch) {
+      const mon = translateName(corpseLookMatch[1].trim(), 1, 'en');
+      const enStr = `There is a corpse of ${mon}.`;
+      if (mode === 'bilingual') return `${enStr} / ${clause}`;
+      return enStr;
+    }
+
+    // Generic item found pattern: e.g. "6つの食料を見つけた。" -> "You have found 6 Rations of Food."
+    const foundMatch = clause.match(/^(.+?)を見つけた(?:。)?$/);
+    if (foundMatch) {
+      const item = translateName(foundMatch[1], undefined, 'en');
+      if (item && !CJK.test(item)) {
+        const enStr = `You have found ${item}.`;
+        if (mode === 'bilingual') {
+          return `${enStr} / ${clause}`;
+        }
+        return enStr;
+      }
+    }
+
+    // Spell or prayer learning pattern: e.g. "あと 1 つの呪文を学べる。" -> "You can learn 1 more spell."
+    const spM = clause.match(/^あと\s*(\d+)\s*つの(呪文|祈り)を学べる。?$/);
+    if (spM) {
+      const noun = (spM[2] === '祈り') ? 'prayer' : 'spell';
+      const count = (spM[1] === '1') ? '1 more' : `${spM[1]} more`;
+      const plural = (spM[1] === '1') ? noun : `${noun}s`;
+      const enStr = `You can learn ${count} ${plural}.`;
+      if (mode === 'bilingual') {
+        return `${enStr} (${clause.trim()})`;
+      }
+      return enStr;
+    }
 
     // Determine bucket: leading 2 characters
     const leading2 = clause.slice(0, 2);
@@ -1244,7 +1369,11 @@
               translatedArgs.push(rawArg);
             }
           }
-          return formatEn(enFormat, translatedArgs, argTypes);
+          const enFormatted = formatEn(enFormat, translatedArgs, argTypes);
+          if (mode === 'bilingual') {
+            return `${enFormatted} / ${clause}`;
+          }
+          return enFormatted;
         }
       }
     }
@@ -1254,26 +1383,15 @@
       const stripped = clause.slice(0, -1);
       const punct = clause.slice(-1);
       const enPunct = (punct === '。') ? '.' : '!';
-      const trStripped = translateClause(stripped);
-      if (trStripped !== stripped && !CJK.test(trStripped)) {
-        return trStripped.endsWith('.') || trStripped.endsWith('!') ? trStripped : trStripped + enPunct;
+      const trStripped = translateClause(stripped, mode);
+      if (trStripped !== stripped) {
+        if (mode === 'bilingual') {
+          return trStripped;
+        }
+        if (!CJK.test(trStripped)) {
+          return trStripped.endsWith('.') || trStripped.endsWith('!') ? trStripped : trStripped + enPunct;
+        }
       }
-    }
-
-    // Generic item found pattern: e.g. "6つの食料を見つけた。" -> "You have found 6 Rations of Food."
-    const foundMatch = clause.match(/^(.+?)を見つけた(?:。)?$/);
-    if (foundMatch) {
-      const item = translateName(foundMatch[1], undefined, 'en');
-      if (item && !CJK.test(item)) {
-        return `You have found ${item}.`;
-      }
-    }
-
-    // Spell or prayer learning pattern: e.g. "あと 1 つの呪文を学べる。" -> "You can learn 1 more spell."
-    const spM = clause.match(/^あと\s*(\d+)\s*つの(呪文|祈り)を学べる。?$/);
-    if (spM) {
-      const noun = (spM[2] === '祈り') ? 'prayer' : 'spell';
-      return (spM[1] === '1') ? `You can learn 1 more ${noun}.` : `You can learn ${spM[1]} more ${noun}s.`;
     }
 
     return clause;
@@ -1285,9 +1403,23 @@
     if (mode === 'jp') return ja;
     if (!CJK.test(ja)) return ja;
 
+    // Join SJIS-wrapped multi-row birth background paragraphs before translation
+    if (ja.includes('\n')) {
+      const joined = joinSjisWrappedParagraph(ja);
+      if (joined !== ja) {
+        return translateLine(joined, mode);
+      }
+    }
+
     const cacheKey = `line:${ja}:${mode}`;
     return memo(cacheKey, () => {
-      if (OVERRIDES[ja]) return OVERRIDES[ja];
+      if (OVERRIDES[ja]) {
+        const ov = OVERRIDES[ja];
+        if (mode === 'bilingual' && ov !== ja && !CJK.test(ov)) {
+          return `${ov} / ${ja}`;
+        }
+        return ov;
+      }
 
       // Option row check: e.g. "モンスターは失敗を学習する(*) : はい (smart_learn)"
       const optMatch = ja.match(/^(\s*)(.*?)\s*:\s*(はい|いいえ)(\s*\(.*?\))?(\s*)$/);
@@ -1297,8 +1429,8 @@
         const valJa = optMatch[3];
         const rawOptVar = optMatch[4] ? optMatch[4].trim() : '';
 
-        const promptEn = translateClause(promptJa);
-        if (promptEn !== promptJa && !CJK.test(promptEn)) {
+        const promptEn = translateClause(promptJa, mode);
+        if (promptEn !== promptJa && isTranslatedForMode(promptJa, promptEn, mode)) {
           let valEn = valJa === 'はい' ? 'Yes' : 'No';
           if (mode === 'bilingual') {
             valEn = valJa === 'はい' ? 'Yes(はい)' : 'No(いいえ)';
@@ -1313,7 +1445,7 @@
           } else {
             res = `${leftPart} ${valPart}`;
           }
-          if (!CJK.test(res)) return res;
+          if (isTranslatedForMode(ja, res, mode)) return res;
         }
       }
 
@@ -1333,21 +1465,24 @@
 
       const translatedClauses = [];
       for (const clause of clauses) {
-        translatedClauses.push(translateClause(clause));
+        translatedClauses.push(translateClause(clause, mode));
       }
 
-      let lineResult = translatedClauses.join(' ');
+      let lineResult = translatedClauses.map(c => c.trim()).filter(Boolean).join(' ');
 
       // Atomicity Rule (D8):
       // If clauses didn't translate, try token-level row translation
       if (CJK.test(lineResult)) {
+        if (mode === 'bilingual' && lineResult !== ja && /[a-zA-Z]/.test(lineResult)) {
+          return lineResult;
+        }
         let tokLine = ja;
         for (const [jTerm, eTerm] of DEFAULT_ROW_TERMS) {
           if (tokLine.includes(jTerm)) {
             tokLine = tokLine.split(jTerm).join(eTerm);
           }
         }
-        if (!CJK.test(tokLine)) {
+        if (isTranslatedForMode(ja, tokLine, mode)) {
           return tokLine;
         }
         // If ANY CJK remains in the line, discard and return raw ja untouched
@@ -1384,7 +1519,7 @@
     }
     if (OVERRIDES[trimmed]) {
       const replaced = text.replace(trimmed, OVERRIDES[trimmed]);
-      if (!CJK.test(replaced)) {
+      if (isTranslatedForMode(text, replaced, mode)) {
         return { text: replaced, attrs: makeAttrs(replaced) };
       }
     }
@@ -1396,10 +1531,15 @@
       return { text: newText, attrs: makeAttrs(newText) };
     }
 
-    // 3. Character prompts
+    // 3. Character prompts & header rows
     const namePrompt = text.match(/^キャラクターの名前を入力して下さい:\s*(.*)$/);
     if (namePrompt) {
       const newText = `Enter character's name: ${namePrompt[1]}`;
+      return { text: newText, attrs: makeAttrs(newText) };
+    }
+    const charNameMatch = text.match(/^名前(\s*:\s*.*)$/);
+    if (charNameMatch) {
+      const newText = `Name${charNameMatch[1]}`;
       return { text: newText, attrs: makeAttrs(newText) };
     }
     const createPrompt = text.match(/^キャラクターを作成します。\(.*?\)$/);
@@ -1425,12 +1565,12 @@
           const lbl = m[3];
           const rp = m[4];
           const trans = OVERRIDES[lbl] || translateName(lbl, 1, mode);
-          if (trans && trans !== lbl && !CJK.test(trans)) {
+          if (trans && trans !== lbl && isTranslatedForMode(lbl, trans, mode)) {
             replaced = replaced.replace(opt, `${k})${lp}${trans}${rp}`);
           }
         }
       }
-      if (!CJK.test(replaced)) {
+      if (isTranslatedForMode(text, replaced, mode)) {
         return { text: replaced, attrs: makeAttrs(replaced) };
       }
     }
@@ -1453,7 +1593,7 @@
         const leadWordMatch = leftSide.match(/^(\S+)(\s+)(.*)$/);
         if (leadWordMatch) {
           const transWord = translateLine(leadWordMatch[1], mode);
-          if (transWord !== leadWordMatch[1] && !CJK.test(transWord)) {
+          if (transWord !== leadWordMatch[1] && isTranslatedForMode(leadWordMatch[1], transWord, mode)) {
             const wDiff = visualWidth(leadWordMatch[1]) - visualWidth(transWord);
             const spaces = Math.max(1, leadWordMatch[2].length + wDiff);
             leftSide = `${transWord}${' '.repeat(spaces)}${leadWordMatch[3]}`;
@@ -1492,7 +1632,7 @@
       }
 
       const combined = `${leftSide}${newRight}`;
-      if (!CJK.test(combined)) {
+      if (isTranslatedForMode(text, combined, mode)) {
         return { text: combined, attrs: makeAttrs(combined) };
       }
     }
@@ -1506,7 +1646,7 @@
       const tail = listMatch[4];
 
       const itemEn = translateName(itemJa, undefined, mode);
-      if (itemEn !== itemJa && !CJK.test(itemEn)) {
+      if (itemEn !== itemJa && isTranslatedForMode(itemJa, itemEn, mode)) {
         const origVw = visualWidth(text);
         const prefix = indent + letter + ') ';
         const tailTrimmed = tail.trim();
@@ -1540,7 +1680,7 @@
 
     // 8. General line / clause translation
     const translated = translateLine(text, mode);
-    if (translated !== text && !CJK.test(translated)) {
+    if (translated !== text && isTranslatedForMode(text, translated, mode)) {
       return { text: translated, attrs: makeAttrs(translated) };
     }
 
@@ -1551,7 +1691,7 @@
         tokRow = tokRow.split(ja).join(en);
       }
     }
-    if (!CJK.test(tokRow)) {
+    if (isTranslatedForMode(text, tokRow, mode)) {
       return { text: tokRow, attrs: makeAttrs(tokRow) };
     }
 

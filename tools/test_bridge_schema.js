@@ -95,6 +95,15 @@ for (const realm of REALMS) {
         const hasVerbBits = code.includes('"verbBits"') || code.includes('\\"verbBits\\"');
         assert(hasVerbBits, `${realm} must serialize "verbBits" array in commands message`);
     });
+
+    test(`[${realm}] WS72 Protocol v2 parity: protocol_minor=2, resists, flags, ui.cursor, r_idx, and digest-gated lore`, () => {
+        assert(code.includes('protocol_minor'), `${realm} must emit protocol_minor in hello`);
+        assert(code.includes('"resists"') || code.includes('\\"resists\\"'), `${realm} must emit player.resists`);
+        assert(code.includes('"flags"') || code.includes('\\"flags\\"'), `${realm} must emit player.flags`);
+        assert(code.includes('"cursor"') || code.includes('\\"cursor\\"'), `${realm} must emit ui.cursor`);
+        assert(code.includes('"r_idx"') || code.includes('\\"r_idx\\"'), `${realm} must emit monsters[].r_idx`);
+        assert(code.includes('"lore"') || code.includes('\\"lore\\"'), `${realm} must emit digest-gated frame.lore`);
+    });
 }
 
 // ---------------------------------------------------------------------------

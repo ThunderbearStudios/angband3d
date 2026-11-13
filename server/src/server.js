@@ -10,13 +10,16 @@
 const http = require('http');
 const https = require('https');
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 const { spawn } = require('child_process');
 const { WebSocketServer } = require('ws');
 const zlib = require('zlib');
 const crypto = require('crypto');
 const { guardMutation } = require('./http-guard');
-const { createLimiter, clientIp } = require('./rate-limit');
+const { createLimiter, createVaultSyncLimiter, clientIp, DEFAULT_MAX_WS_PER_IP } = require('./rate-limit');
+const { createSaveVaultService } = require('./save-vault-routes');
+const { generateChronicleSketch } = require('./sketch-service');
 const {
     PRIMARY_DOMAIN,
     LEGACY_DOMAINS,
@@ -24,13 +27,16 @@ const {
     VALID_REALMS,
     VALID_MAGICS,
     MAGIC_TO_REALM,
+    FLOOR_SIDECAR_RE,
     isValidRealm,
     detectRealmFromMagic,
     getRealmShortTag,
     buildDefaultSaveSlotName,
     enrichSaveMetadata,
     handleLegacyDomainRedirect,
+    listFloorSidecarsAsync,
     snapshotLivingSave,
+    snapshotLivingSaveAsync,
     restoreLivingCheckpoint
 } = require('./domain-config');
 if (!globalThis.crypto) globalThis.crypto = crypto;
@@ -39,6 +45,7 @@ const llmLimiter = createLimiter({ perMinute: +process.env.LLM_RPM || 20, perDay
 const ttsLimiter = createLimiter({ perMinute: +process.env.TTS_RPM || 30, perDay: +process.env.TTS_RPD || 500 });
 const sketchLimiter = createLimiter({ perMinute: +process.env.SKETCH_RPM || 15, perDay: +process.env.SKETCH_RPD || 120 });
 const uploadLimiter = createLimiter({ perMinute: +process.env.UPLOAD_RPM || 20, perDay: +process.env.UPLOAD_RPD || 200 });
+const vaultSyncLimiter = createVaultSyncLimiter({ perMinute: +process.env.SYNC_RPM || 60, perDay: +process.env.SYNC_RPD || 5000 });
 const globalLlmLimiter = createLimiter({ perMinute: +process.env.GLOBAL_LLM_RPM || 120, perDay: +process.env.GLOBAL_LLM_RPD || 2500 });
 const globalTtsLimiter = createLimiter({ perMinute: +process.env.GLOBAL_TTS_RPM || 240, perDay: +process.env.GLOBAL_TTS_RPD || 5000 });
 const globalSketchLimiter = createLimiter({ perMinute: +process.env.GLOBAL_SKETCH_RPM || 60, perDay: +process.env.GLOBAL_SKETCH_RPD || 800 });
@@ -46,10 +53,10 @@ const globalSketchLimiter = createLimiter({ perMinute: +process.env.GLOBAL_SKETC
 const ALLOWED_MODELS = [
     'gemini-4-argon',
     'gemini-3.8-flash',
-    'gemini-3.7-flash',
     'gemini-3.6-flash',
     'gemini-3.5-flash',
     'gemini-3.5-flash-lite',
+    'gemini-3.5-transcribe',
     'gemini-3.1-flash-lite',
     'gemini-2.5-flash',
     'gemini-2.5-flash-lite'
@@ -67,12 +74,9 @@ try {
 // Active session registry for telemetry, leak prevention, and graceful shutdown
 const activeSessions = new Map();
 
-// In-Memory Save Metadata Cache (TTL: 2.5s) to eliminate synchronous disk thrashing on /api/saves under load
-const savesCacheMap = new Map(); // realm -> { json, time }
-const SAVES_CACHE_TTL_MS = 2500;
-
-function invalidateSavesCache() {
-    savesCacheMap.clear();
+let saveVault = null;
+function invalidateSavesCache(realm, slotName) {
+    if (saveVault) saveVault.invalidateSavesCache(realm, slotName);
 }
 
 // In-Memory Neural TTS Audio Cache (LRU up to 250 items or 48MB)
@@ -88,10 +92,10 @@ const inFlightTTS = new Map();
 const staticGzipCache = new Map();
 const MAX_STATIC_CACHE_ITEMS = 250;
 
-// In-Memory Living Chronicle Hero Action Sketch Cache (LRU up to 64 items) + In-Flight Deduplication Map
+// In-Memory Living Chronicle Hero Action Sketch Cache (LRU up to 128 items) + In-Flight Deduplication Map
 const sketchCache = new Map();
 const sketchInFlight = new Map();
-const MAX_SKETCH_CACHE_ITEMS = 64;
+const MAX_SKETCH_CACHE_ITEMS = 128;
 
 // Warm WebSocket Connection Pool for Edge Neural TTS
 // Eliminates 250-450ms cold TLS connection setup latency on repeated synthesis requests
@@ -419,7 +423,7 @@ function getGcpAuthContext() {
     return _gcpAuthCache.inflight;
 }
 
-// Proxies text-to-speech to Gemini Native Audio (gemini-3.1-flash-tts-preview / gemini-3.8-flash-lite-tts) with Vertex AI failover
+// Proxies text-to-speech to Gemini Native Audio (gemini-3.8-flash-tts / gemini-3.8-flash-lite-tts / gemini-3.1-flash-tts-preview) with Vertex AI failover
 function synthesizeGeminiTTS({ text, voice, emotion, geminiTag, directorNote, role, apiKey, realm = 'angband', lang = 'en', isRetry = false }) {
     return new Promise((resolve, reject) => {
         if (!apiKey) {
@@ -428,7 +432,7 @@ function synthesizeGeminiTTS({ text, voice, emotion, geminiTag, directorNote, ro
         const baseReqOpts = { method: 'POST', agent: geminiHttpsAgent, timeout: 20000 };
         const ttsModels = ['gemini-3.1-flash-tts-preview'];
         const retryIdx = typeof isRetry === 'number' ? isRetry : (isRetry ? 1 : 0);
-        const ttsModel = retryIdx > 0 ? 'gemini-3.8-flash-lite-tts' : ttsModels[0];
+        const ttsModel = ttsModels[Math.min(retryIdx, ttsModels.length - 1)];
         const isGemini38Tts = false;
         const cleanTranscript = String(text || '').replace(/^\s*(?:\[[^\]]+\]|\*[^*]+\*)\s*/g, '').trim() || String(text || '');
 
@@ -518,10 +522,10 @@ function synthesizeGeminiTTS({ text, voice, emotion, geminiTag, directorNote, ro
             ]
         });
 
-        function sendViaVertex() {
+        function sendViaVertex(fallbackErrMsg) {
             getGcpAuthContext().then(({ token, projectId }) => {
                 if (!token || !projectId) {
-                    return reject(new Error('Vertex AI fallback token unavailable'));
+                    return reject(new Error(fallbackErrMsg || 'Vertex AI fallback token unavailable'));
                 }
                 const vUrl = `https://aiplatform.googleapis.com/v1beta1/projects/${encodeURIComponent(projectId)}/locations/global/publishers/google/models/${ttsModel}:generateContent`;
                 const vReq = https.request(vUrl, {
@@ -536,27 +540,23 @@ function synthesizeGeminiTTS({ text, voice, emotion, geminiTag, directorNote, ro
                 }, vRes => {
                     let vBody = '';
                     vRes.on('data', c => vBody += c);
-                    vRes.on('end', () => handleTtsResponse(vRes, vBody, true));
+                    vRes.on('end', () => {
+                        if ((vRes.statusCode === 401 || vRes.statusCode === 403) && fallbackErrMsg) {
+                            return reject(new Error(fallbackErrMsg));
+                        }
+                        handleTtsResponse(vRes, vBody, true);
+                    });
                 });
                 vReq.setTimeout(20000, () => { vReq.destroy(new Error('Gemini TTS request timed out')); reject(new Error('Gemini TTS request timed out')); });
                 vReq.on('timeout', () => { vReq.destroy(new Error('Gemini TTS request timed out')); reject(new Error('Gemini TTS request timed out')); });
-                vReq.on('error', err => reject(err));
+                vReq.on('error', err => reject(fallbackErrMsg ? new Error(fallbackErrMsg) : err));
                 vReq.write(payload);
                 vReq.end();
-            }).catch(reject);
+            }).catch(() => reject(new Error(fallbackErrMsg || 'Vertex AI fallback unavailable')));
         }
 
         function handleTtsResponse(res, body, usedVertex) {
             if (res.statusCode !== 200) {
-                if (!usedVertex && (res.statusCode === 402 || res.statusCode === 403 || res.statusCode === 404 || res.statusCode === 429 || res.statusCode === 500 || res.statusCode === 503)) {
-                    if (res.statusCode === 402 && apiKey === process.env.GEMINI_API_KEY) {
-                        _aiStudioDepletedUntil = Date.now() + 15 * 60 * 1000;
-                    }
-                    return sendViaVertex();
-                }
-                if (retryIdx === 0 && (res.statusCode === 400 || res.statusCode === 404 || res.statusCode === 429 || res.statusCode === 503)) {
-                    return synthesizeGeminiTTS({ text, voice, emotion, geminiTag, directorNote, role, apiKey, realm, lang, isRetry: 1 }).then(resolve).catch(reject);
-                }
                 let errMsg = `HTTP ${res.statusCode}`;
                 try {
                     const parsed = JSON.parse(body);
@@ -566,7 +566,17 @@ function synthesizeGeminiTTS({ text, voice, emotion, geminiTag, directorNote, ro
                 } catch (_) {
                     errMsg = `HTTP ${res.statusCode}: ${body.substring(0, 100)}`;
                 }
-                return reject(new Error(redactSecret(errMsg.replace(/[\r\n\t]+/g, ' ').substring(0, 120), apiKey)));
+                const safeErrMsg = redactSecret(errMsg.replace(/[\r\n\t]+/g, ' ').substring(0, 120), apiKey);
+                if (!usedVertex && (res.statusCode === 402 || res.statusCode === 429 || res.statusCode === 503)) {
+                    if (res.statusCode === 402 && apiKey === process.env.GEMINI_API_KEY) {
+                        _aiStudioDepletedUntil = Date.now() + 15 * 60 * 1000;
+                    }
+                    return sendViaVertex(safeErrMsg);
+                }
+                if (retryIdx + 1 < ttsModels.length && (res.statusCode === 400 || res.statusCode === 404 || res.statusCode === 429 || res.statusCode === 503)) {
+                    return synthesizeGeminiTTS({ text, voice, emotion, geminiTag, directorNote, role, apiKey, realm, lang, isRetry: retryIdx + 1 }).then(resolve).catch(reject);
+                }
+                return reject(new Error(safeErrMsg));
             }
             try {
                 const data = JSON.parse(body);
@@ -670,8 +680,7 @@ function loadEnv() {
                     if (eqIdx !== -1) {
                         const key = trimmed.substring(0, eqIdx).trim();
                         const val = trimmed.substring(eqIdx + 1).trim().replace(/^['"]|['"]$/g, '');
-                        if (!process.env[key]) {
-                            if (key === 'GEMINI_API_KEY' && process.env.SAVE_DIR && process.env.SAVE_DIR.includes('a3d-save-')) continue;
+                        if (process.env[key] === undefined) {
                             process.env[key] = val;
                         }
                     }
@@ -685,9 +694,9 @@ loadEnv();
 // Configuration
 const PORT = parseInt(process.env.PORT || '8080', 10);
 const IS_WIN = process.platform === 'win32';
-const IDLE_TIMEOUT_MS = parseInt(process.env.IDLE_TIMEOUT_MS || `${20 * 60 * 1000}`, 10); // 20 minutes
+const IDLE_TIMEOUT_MS = parseInt(process.env.IDLE_TIMEOUT_MS || `${15 * 60 * 1000}`, 10); // 15 minutes (WS70 Cloud Run cost guard)
 const MAX_CONCURRENT_GAMES = parseInt(process.env.MAX_CONCURRENT_GAMES || '36', 10);
-const MAX_WS_PER_IP = parseInt(process.env.MAX_WS_PER_IP || '8', 10);
+const MAX_WS_PER_IP = parseInt(process.env.MAX_WS_PER_IP || String(DEFAULT_MAX_WS_PER_IP), 10);
 const MAX_QUEUE_SIZE = parseInt(process.env.MAX_QUEUE_SIZE || '100', 10);
 // Reconnect Grace Period: Keeps headless game engine alive across network drops, tab reloads, or lag spikes (5 minutes; active play sessions save immediately on disconnect)
 const DISCONNECT_GRACE_PERIOD_MS = parseInt(process.env.DISCONNECT_GRACE_PERIOD_MS || `${5 * 60 * 1000}`, 10); // 5 minutes
@@ -788,12 +797,22 @@ try {
     console.warn('[Multi-Realm] Could not load engine-manifest.json:', e.message);
 }
 
+function getPrimaryRealmSaveDir(realmId = 'angband') {
+    const cleanRealm = isValidRealm(realmId) ? realmId : 'angband';
+    const primaryDir = path.resolve(SAVE_DIR, cleanRealm);
+    if (!fs.existsSync(primaryDir)) {
+        try { fs.mkdirSync(primaryDir, { recursive: true }); } catch (_) {}
+    }
+    return primaryDir;
+}
+
 function resolveRealmEngine(realmId = 'angband', lang = 'en') {
+    const primarySaveDir = getPrimaryRealmSaveDir(realmId);
     const defaultEngine = {
         realm: 'angband',
         name: 'Vanilla Angband 4.2.6',
         exe: ENGINE_EXE,
-        saveDir: SAVE_DIR,
+        saveDir: primarySaveDir,
         cwd: path.dirname(ENGINE_EXE),
         env: {
             ANGBAND_PATH: path.join(path.dirname(ENGINE_EXE), 'lib')
@@ -815,7 +834,7 @@ function resolveRealmEngine(realmId = 'angband', lang = 'en') {
             realm: realmId,
             name: realmId,
             exe: null,
-            saveDir: null,
+            saveDir: isValidRealm(realmId) ? primarySaveDir : null,
             cwd: null,
             env: {},
             cli: defaultEngine.cli,
@@ -849,10 +868,6 @@ function resolveRealmEngine(realmId = 'angband', lang = 'en') {
     const variantExe = binRelPath ? path.resolve(__dirname, '../../', binRelPath) : null;
 
     if (variantExe && fs.existsSync(variantExe)) {
-        const variantSaveDir = path.resolve(__dirname, '../../', realmDef.save_system?.directory || `engine/build/game/lib/save/${realmId}`);
-        if (!fs.existsSync(variantSaveDir)) {
-            try { fs.mkdirSync(variantSaveDir, { recursive: true }); } catch (_) {}
-        }
         let variantCwd = path.dirname(variantExe);
         if (!fs.existsSync(path.join(variantCwd, 'lib')) && fs.existsSync(path.join(variantCwd, '..', 'lib'))) {
             variantCwd = path.resolve(variantCwd, '..');
@@ -866,14 +881,18 @@ function resolveRealmEngine(realmId = 'angband', lang = 'en') {
         if (!variantEnv.ANGBAND_PATH && fs.existsSync(path.join(variantCwd, 'lib'))) {
             variantEnv.ANGBAND_PATH = path.join(variantCwd, 'lib');
         }
+        const isNativeAngbandVariant = (realmId === 'frogcomposband' || realmId === 'hengband' || realmId === 'silq');
+        const resolvedCli = isNativeAngbandVariant
+            ? { ...defaultEngine.cli, ...(realmDef.cli || {}) }
+            : (realmDef.cli || defaultEngine.cli);
         return {
             realm: realmId,
             name: realmDef.name,
             exe: variantExe,
-            saveDir: variantSaveDir,
+            saveDir: primarySaveDir,
             cwd: variantCwd,
             env: variantEnv,
-            cli: realmDef.cli || defaultEngine.cli,
+            cli: resolvedCli,
             installed: true,
             isFallback: false
         };
@@ -883,7 +902,7 @@ function resolveRealmEngine(realmId = 'angband', lang = 'en') {
         realm: realmId,
         name: realmDef.name,
         exe: null,
-        saveDir: null,
+        saveDir: primarySaveDir,
         cwd: null,
         env: {},
         cli: realmDef.cli || defaultEngine.cli,
@@ -894,30 +913,30 @@ function resolveRealmEngine(realmId = 'angband', lang = 'en') {
 }
 
 function getSaveDirsForRealm(realmId = 'angband') {
+    const cleanRealm = isValidRealm(realmId) ? realmId : 'angband';
     const dirs = new Set();
-    const engineInfo = resolveRealmEngine(realmId);
-    if (engineInfo.saveDir && fs.existsSync(engineInfo.saveDir)) {
-        dirs.add(path.resolve(engineInfo.saveDir));
-    }
-    if (realmId === 'angband') {
+    dirs.add(getPrimaryRealmSaveDir(cleanRealm));
+
+    if (cleanRealm === 'angband') {
         for (const d of getSaveDirs()) {
             dirs.add(d);
         }
+    } else {
+        const realmDef = engineManifest && engineManifest.realms && engineManifest.realms[cleanRealm];
+        const fallbackCandidates = [
+            realmDef && realmDef.save_system && realmDef.save_system.directory
+                ? path.resolve(__dirname, '../../', realmDef.save_system.directory)
+                : null,
+            path.resolve(__dirname, '../../variants', cleanRealm, 'lib/save'),
+            path.resolve(__dirname, '../../engine/build/game/lib/save', cleanRealm)
+        ];
+        for (const cand of fallbackCandidates) {
+            if (cand && fs.existsSync(cand)) {
+                dirs.add(path.resolve(cand));
+            }
+        }
     }
     return Array.from(dirs);
-}
-
-function isReservedFilename(name) {
-    if (!name) return true;
-    const trimmed = String(name).trim();
-    if (trimmed.startsWith('.') || /\.(owner|realm)\.json$/i.test(trimmed)) return true;
-    const base = trimmed.split('.')[0].trim();
-    return /^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i.test(base);
-}
-
-function sanitizeFilename(name) {
-    if (!name) return '';
-    return path.basename(name).replace(/[^a-zA-Z0-9_.-]/g, '_');
 }
 
 /**
@@ -932,10 +951,6 @@ function resolveSavefileName(requestedSave, realmId = 'angband') {
     const cleanNoExt = clean.replace(/\.sav$/i, '');
     const saveDirs = getSaveDirsForRealm(realmId);
 
-    // Check each save directory for candidate matches in order:
-    // 1. Exact match (e.g. "Player.sav" or "Player")
-    // 2. Name with .sav extension ("Player.sav")
-    // 3. Name without extension ("Player")
     for (const dir of saveDirs) {
         if (!fs.existsSync(dir)) continue;
         const exact = path.join(dir, clean);
@@ -948,7 +963,6 @@ function resolveSavefileName(requestedSave, realmId = 'angband') {
         if (fs.existsSync(withoutExt) && fs.statSync(withoutExt).isFile()) return path.basename(withoutExt);
     }
 
-    // Case-insensitive check fallback:
     for (const dir of saveDirs) {
         if (!fs.existsSync(dir)) continue;
         try {
@@ -967,138 +981,35 @@ function resolveSavefileName(requestedSave, realmId = 'angband') {
     return clean;
 }
 
-// --- Ownership Token System ---
-const sha = t => crypto.createHash('sha256').update(String(t)).digest('hex');
-function getOwnerTokenPath(savePath) {
-    return savePath + '.owner.json';
-}
+saveVault = createSaveVaultService({
+    SAVE_DIR,
+    getSaveDirsForRealm,
+    activeSessions,
+    uploadLimiter,
+    vaultSyncLimiter,
+    clientIp,
+    normalizeSessionKey
+});
 
-function verifyOwnerToken(savePath, requestToken) {
-    const ownerPath = getOwnerTokenPath(savePath);
-    if (!fs.existsSync(ownerPath)) return true; // Legacy save: trust on first use
-    try {
-        const data = JSON.parse(fs.readFileSync(ownerPath, 'utf8'));
-        if (!data || !data.hash) return true;
-        const expected = Buffer.from(String(data.hash), 'utf8');
-        const actual = Buffer.from(sha(requestToken || ''), 'utf8');
-        return expected.length === actual.length && crypto.timingSafeEqual(expected, actual);
-    } catch (e) {
-        return false;
-    }
-}
+const {
+    isReservedFilename,
+    sanitizeFilename,
+    getOwnerTokenPath,
+    verifyOwnerTokenAsync,
+    createOwnerToken,
+    createOwnerTokenAsync,
+    readSaveMetadataAsync,
+    readSaveMetadata
+} = saveVault;
 
-function createOwnerToken(savePath) {
-    const token = crypto.randomBytes(16).toString('hex');
-    fs.writeFileSync(getOwnerTokenPath(savePath), JSON.stringify({
-        hash: sha(token),
-        createdAt: Date.now()
-    }), 'utf8');
-    return token;
-}
-
-/**
- * Parses Angband 4.2.6 SaveVNLA header from binary save file.
- * Structure:
- *  0..7:   "SaveVNLA" magic
- *  8..23:  "description\0..."
- *  24..27: block version/type
- *  28..31: size (uint32_le)
- *  32..35: checksum
- *  36..:   description string
- */
-function readSaveMetadata(filePath) {
-    try {
-        const stat = fs.statSync(filePath);
-        if (stat.size < 4) return null;
-
-        const fd = fs.openSync(filePath, 'r');
-        try {
-            const readLen = Math.min(stat.size, 36);
-            const header = Buffer.alloc(readLen);
-            fs.readSync(fd, header, 0, readLen, 0);
-
-            const magic = readLen >= 8 ? header.toString('ascii', 0, 8) : '';
-            let detectedRealm = MAGIC_TO_REALM[magic] || 'angband';
-
-            const sidecarPath = filePath + '.realm.json';
-            if (fs.existsSync(sidecarPath)) {
-                try {
-                    const sidecar = JSON.parse(fs.readFileSync(sidecarPath, 'utf8'));
-                    if (sidecar.realm) detectedRealm = sidecar.realm;
-                } catch (_) {}
-            } else if (!VALID_MAGICS.includes(magic)) {
-                return null;
-            }
-
-            const blockName = readLen >= 24 ? header.toString('ascii', 8, 24).replace(/\0.*$/, '') : '';
-            let description = null;
-            let charName = null;
-
-            if (blockName === 'description' && readLen >= 32) {
-                const size = header.readUInt32LE(28);
-                if (size > 0 && size <= 512 && stat.size >= 36 + size) {
-                    const descBuf = Buffer.alloc(size);
-                    fs.readSync(fd, descBuf, 0, size, 36);
-                    const nullIdx = descBuf.indexOf(0);
-                    const strLen = nullIdx >= 0 ? nullIdx : size;
-                    description = descBuf.toString('utf8', 0, strLen);
-                    const commaIdx = description.indexOf(',');
-                    if (commaIdx > 0) {
-                        charName = description.substring(0, commaIdx).trim();
-                    }
-                }
-            }
-
-            const baseNameNoExt = path.basename(filePath).replace(/\.sav$/i, '');
-            let ryodHash = null;
-            let ryodTitle = null;
-            let ryodArchetype = null;
-            if (detectedRealm === 'ryod') {
-                const bpCand1 = filePath.replace(/\.sav$/i, '') + '.ryod.json';
-                const bpCand2 = filePath + '.ryod.json';
-                const bpPath = fs.existsSync(bpCand1) ? bpCand1 : (fs.existsSync(bpCand2) ? bpCand2 : null);
-                if (bpPath) {
-                    try {
-                        const bp = JSON.parse(fs.readFileSync(bpPath, 'utf8'));
-                        ryodHash = bp.ryodHash || null;
-                        ryodTitle = bp.title || null;
-                        ryodArchetype = bp.archetype || null;
-                    } catch (_) {}
-                }
-                if (!ryodHash && blockName === 'description' && readLen >= 32) {
-                    const descSize = header.readUInt32LE(28);
-                    const jsonOffset = 36 + descSize;
-                    if (stat.size > jsonOffset && stat.size - jsonOffset <= 2 * 1024 * 1024) {
-                        try {
-                            const jsonBuf = Buffer.alloc(stat.size - jsonOffset);
-                            fs.readSync(fd, jsonBuf, 0, jsonBuf.length, jsonOffset);
-                            const parsedState = JSON.parse(jsonBuf.toString('utf8'));
-                            if (parsedState && parsedState.ryodBlueprint) {
-                                ryodHash = parsedState.ryodBlueprint.ryodHash || parsedState.ryodHash || null;
-                                ryodTitle = parsedState.ryodBlueprint.title || null;
-                                ryodArchetype = parsedState.ryodBlueprint.archetype || null;
-                            }
-                        } catch (_) {}
-                    }
-                }
-            }
-            return enrichSaveMetadata({
-                filename: path.basename(filePath),
-                characterName: charName || baseNameNoExt,
-                description: description || baseNameNoExt,
-                realm: detectedRealm,
-                ryodHash,
-                ryodTitle,
-                ryodArchetype,
-                sizeBytes: stat.size,
-                lastModified: stat.mtime.toISOString(),
-            }, detectedRealm);
-        } finally {
-            try { fs.closeSync(fd); } catch (_) {}
+function verifyOwnerToken(savePath, requestToken, expectedHashBuf = null) {
+    if (expectedHashBuf && Buffer.isBuffer(expectedHashBuf) && requestToken) {
+        const candBuf = Buffer.from(crypto.createHash('sha256').update(String(requestToken)).digest('hex'), 'utf8');
+        if (candBuf.length === expectedHashBuf.length && crypto.timingSafeEqual(expectedHashBuf, candBuf)) {
+            return true;
         }
-    } catch (e) {
-        return null;
     }
+    return saveVault.verifyOwnerToken(savePath, requestToken);
 }
 
 // HTTP Server
@@ -1133,16 +1044,7 @@ function isAllowedForwardedHost(firstFwdHost) {
     return EXTRA_ALLOWED_ORIGINS.some(o => o.endsWith('://' + firstFwdHost)) || ALLOWED_RUN_APP_RE.test(firstFwdHost);
 }
 function extractWsOwnerToken(request, urlObj) {
-    if (request && request.headers) {
-        if (request.headers['x-owner-token']) return String(request.headers['x-owner-token']).trim();
-        if (request.headers['authorization']) return String(request.headers['authorization']).replace(/^Bearer\s+/i, '').trim();
-        const protoHdr = String(request.headers['sec-websocket-protocol'] || '');
-        for (const part of protoHdr.split(',')) {
-            const trimmed = part.trim();
-            if (trimmed.startsWith('owner.')) return trimmed.slice(6).trim();
-        }
-    }
-    return (urlObj && urlObj.searchParams && urlObj.searchParams.get('owner')) || '';
+    return saveVault.extractRequestOwnerTokens(request, urlObj);
 }
 function isAllowedOrigin(origin, host, req) {
     if (!origin) {
@@ -1235,7 +1137,7 @@ const server = http.createServer((req, res) => {
     if (reqOrigin && isAllowedOrigin(reqOrigin, host, req)) {
         res.setHeader('Access-Control-Allow-Origin', reqOrigin);
         res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
-        res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Character-Name, X-Recording-Name, X-Owner-Token, X-Save-Slot, X-Realm, X-API-Key, x-goog-api-key, Api-Revision');
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Character-Name, X-Recording-Name, X-Vault-Id, X-Owner-Token, X-Save-Owner-Token, X-Save-Slot, X-Realm, X-Stakes, X-API-Key, x-goog-api-key, Api-Revision');
         res.setHeader('Access-Control-Expose-Headers', 'X-TTS-Engine, X-TTS-Cache, X-TTS-Fallback-Reason, Content-Type, Content-Length');
     }
     
@@ -1383,94 +1285,8 @@ const server = http.createServer((req, res) => {
         return;
     }
 
-    // REST: List saves
-    if (pathname === '/api/saves' && req.method === 'GET') {
-        const queryRealm = urlObj.searchParams.get('realm') || 'angband';
-        if (!isValidRealm(queryRealm)) {
-            res.writeHead(400, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ error: 'Invalid realm' }));
-            return;
-        }
-        const now = Date.now();
-        const cached = savesCacheMap.get(queryRealm);
-        if (cached && (now - cached.time < SAVES_CACHE_TTL_MS)) {
-            res.writeHead(200, {
-                'Content-Type': 'application/json',
-                'Cache-Control': 'public, max-age=2, stale-while-revalidate=5'
-            });
-            res.end(cached.json);
-            return;
-        }
-
-        try {
-            const saveDirs = getSaveDirsForRealm(queryRealm);
-            const saves = [];
-            const seenFiles = new Set();
-            const primarySaveDir = saveDirs[0] || SAVE_DIR;
-
-            for (const sDir of saveDirs) {
-                if (!fs.existsSync(sDir)) continue;
-                const files = fs.readdirSync(sDir);
-                for (const file of files) {
-                    if (file.startsWith('.') || file.endsWith('.realm.json') || file.endsWith('.ryod.json') || file.endsWith('.owner.json') || file.endsWith('.living.sav') || seenFiles.has(file)) continue;
-                    const fullPath = path.join(sDir, file);
-                    try {
-                        const stat = fs.statSync(fullPath);
-                        if (stat.isFile() && stat.size > 0) {
-                            let meta = readSaveMetadata(fullPath);
-                            if (!meta && stat.size >= 4) {
-                                const sidecarPath = fullPath + '.realm.json';
-                                let sidecarRealm = null;
-                                if (fs.existsSync(sidecarPath)) {
-                                    try {
-                                        sidecarRealm = JSON.parse(fs.readFileSync(sidecarPath, 'utf8')).realm;
-                                    } catch (_) {}
-                                }
-                                if (!sidecarRealm || sidecarRealm === queryRealm) {
-                                    meta = enrichSaveMetadata({
-                                        filename: file,
-                                        characterName: file,
-                                        description: file,
-                                        realm: sidecarRealm || queryRealm,
-                                        sizeBytes: stat.size,
-                                        lastModified: stat.mtime.toISOString(),
-                                    }, sidecarRealm || queryRealm);
-                                }
-                            }
-                            if (meta && (!meta.realm || meta.realm === queryRealm)) {
-                                seenFiles.add(file);
-                                // Ensure save is mirrored into primary save directory if found in a secondary dir
-                                if (primarySaveDir && sDir !== primarySaveDir) {
-                                    try {
-                                        fs.copyFileSync(fullPath, path.join(primarySaveDir, file));
-                                        const sidecarPath = fullPath + '.realm.json';
-                                        if (fs.existsSync(sidecarPath)) {
-                                            fs.copyFileSync(sidecarPath, path.join(primarySaveDir, file + '.realm.json'));
-                                        }
-                                    } catch (_) {}
-                                }
-                                saves.push(meta);
-                            }
-                        }
-                    } catch (_) {}
-                }
-            }
-            saves.sort((a, b) => new Date(b.lastModified) - new Date(a.lastModified));
-            const jsonStr = JSON.stringify({ saves, realm: queryRealm });
-            savesCacheMap.set(queryRealm, { json: jsonStr, time: Date.now() });
-            res.writeHead(200, {
-                'Content-Type': 'application/json',
-                'Cache-Control': 'public, max-age=2, stale-while-revalidate=5'
-            });
-            res.end(jsonStr);
-            return;
-        } catch (err) {
-            console.error('[API] /api/saves error:', err);
-            res.writeHead(500, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ error: 'Internal error', saves: [] }));
-            return;
-        }
-    }
+    // REST: Async Write-Through Dual-Vault Save Endpoints (/api/saves, /api/saves/sync, /api/saves/upload, /api/saves/latest, /api/saves/restore-checkpoint, /api/saves/:name)
+    if (saveVault.handleSaveVaultRoute(req, res, urlObj, pathname)) return;
 
     // REST: Multi-Realm Registry & Capabilities
     if (pathname === '/api/realms' && req.method === 'GET') {
@@ -1677,7 +1493,7 @@ const server = http.createServer((req, res) => {
 
             const targetUrl = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
             const payloadStr = JSON.stringify(payload);
-            const vertexLlmModel = isGemini3 ? 'gemini-3-flash-preview' : model;
+            const vertexLlmModel = model;
 
             function handleLlmResponse(upstreamRes, respBody, usedVertex) {
                 if (upstreamRes.statusCode !== 200 && !usedVertex && (upstreamRes.statusCode === 402 || upstreamRes.statusCode === 403 || upstreamRes.statusCode === 404 || upstreamRes.statusCode === 429 || upstreamRes.statusCode === 500 || upstreamRes.statusCode === 503)) {
@@ -1804,7 +1620,8 @@ const server = http.createServer((req, res) => {
             return;
         }
 
-        const wait = sketchLimiter(clientIp(req)) || globalSketchLimiter('GLOBAL');
+        const customKey = String(req.headers['x-goog-api-key'] || req.headers['x-api-key'] || '').trim();
+        const wait = sketchLimiter(clientIp(req)) || (customKey ? 0 : globalSketchLimiter('GLOBAL'));
         if (wait > 0) {
             res.writeHead(429, { 'Content-Type': 'application/json', 'Retry-After': wait });
             res.end(JSON.stringify({ error: { message: 'Rate limit' } }));
@@ -1836,7 +1653,6 @@ const server = http.createServer((req, res) => {
 
             const realm = (parsed.realm || 'angband').toString();
             const prompt = (typeof parsed.prompt === 'string' ? parsed.prompt.trim() : '');
-            const heroSummary = parsed.heroSummary || {};
 
             if (!prompt || typeof prompt !== 'string' || prompt.length > 4000) {
                 res.writeHead(400, { 'Content-Type': 'application/json' });
@@ -1891,176 +1707,32 @@ const server = http.createServer((req, res) => {
                 }
             };
 
-            const customKey = req.headers['x-goog-api-key'] || req.headers['x-api-key'] || '';
             const apiKey = customKey || process.env.GEMINI_API_KEY || '';
+            const SKETCH_MODELS = ['gemini-nano-banana-2.1', 'gemini-3.1-flash-image', 'gemini-2.5-flash-image'];
+            const rawRequestedModel = (typeof parsed.model === 'string') ? parsed.model.trim() : '';
 
-            // # ROOT-CAUSE: gemini-3.1-flash-lite-image does not exist upstream (404), and local dev waited on gcloud subprocess + unsanitized death prompts
-            const sketchModels = ['gemini-2.5-flash-image', 'gemini-3.1-flash-image'];
-            const buildSketchPayload = (promptText, forVertex) => JSON.stringify({
-                contents: [{ role: 'user', parts: [{ text: promptText }] }],
-                generationConfig: { responseModalities: ["IMAGE"] },
-                safetySettings: [
-                    { category: 'HARM_CATEGORY_HARASSMENT', threshold: forVertex ? 'OFF' : 'BLOCK_NONE' },
-                    { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: forVertex ? 'OFF' : 'BLOCK_NONE' },
-                    { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: forVertex ? 'OFF' : 'BLOCK_NONE' },
-                    { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: forVertex ? 'OFF' : 'BLOCK_NONE' }
-                ]
+            generateChronicleSketch({
+                prompt,
+                requestedModel: rawRequestedModel,
+                models: SKETCH_MODELS,
+                apiKey,
+                customKey,
+                geminiHttpsAgent,
+                getGcpAuthContext,
+                redactSecret
+            }).then((result) => {
+                if (result && result.ok && result.imageUrl) {
+                    if (sketchCache.size >= MAX_SKETCH_CACHE_ITEMS) {
+                        const oldestKey = sketchCache.keys().next().value;
+                        if (oldestKey !== undefined) sketchCache.delete(oldestKey);
+                    }
+                    sketchCache.set(cacheKey, result.imageUrl);
+                }
+                finishSketchRequest(result || { ok: false, fallback: true, reason: 'upstream_error_502' });
+            }).catch((err) => {
+                console.warn(`[Sketch] Unhandled error: ${err && err.message ? err.message : err}`);
+                finishSketchRequest({ ok: false, fallback: true, reason: 'network_error' });
             });
-            const sanitizeSketchPrompt = (rawText) => String(rawText || '')
-                .replace(/\b(bloodied|blood-stained|blood|gore|visceral|horror|horrifying|corpse|mutilated|slaughtered|suicide|self-harm|macabre|grotesque)\b/gi, 'shadow-wreathed')
-                .replace(/\b(killed by mortal wounds|slain by|meeting an absurd, tragicomic demise|death scene)\b/gi, 'in a dramatic dungeon confrontation with');
-            const sanitizedInitialPrompt = sanitizeSketchPrompt(prompt);
-
-            function handleSketchResponse(upstreamRes, respBody, usedVertex, modelIdx = 0, retriedSafe = false) {
-                if (upstreamRes.statusCode !== 200 && !usedVertex) {
-                    if (upstreamRes.statusCode === 402 || upstreamRes.statusCode === 403 || upstreamRes.statusCode === 404 || upstreamRes.statusCode === 429 || upstreamRes.statusCode === 500 || upstreamRes.statusCode === 503) {
-                        if ((upstreamRes.statusCode === 402 || upstreamRes.statusCode === 403 || upstreamRes.statusCode === 429) && apiKey === process.env.GEMINI_API_KEY) {
-                            _aiStudioDepletedUntil = Date.now() + 60 * 60 * 1000;
-                        }
-                        return sendSketchViaVertex(upstreamRes.statusCode, 0, retriedSafe);
-                    }
-                    if (modelIdx + 1 < sketchModels.length) {
-                        return sendSketchViaAiStudio(modelIdx + 1, retriedSafe);
-                    }
-                }
-                if (upstreamRes.statusCode === 200) {
-                    try {
-                        const rb = JSON.parse(respBody);
-                        const cand = rb.candidates?.[0] || {};
-                        const parts = cand.content?.parts || [];
-                        const imgPart = parts.find(p => p.inlineData && p.inlineData.data);
-                        if (imgPart) {
-                            const mime = imgPart.inlineData.mimeType || 'image/png';
-                            const imageUrl = 'data:' + mime + ';base64,' + imgPart.inlineData.data;
-                            if (sketchCache.size >= MAX_SKETCH_CACHE_ITEMS) {
-                                const oldestKey = sketchCache.keys().next().value;
-                                sketchCache.delete(oldestKey);
-                            }
-                            sketchCache.set(cacheKey, imageUrl);
-                            const usedModel = sketchModels[modelIdx] || sketchModels[0];
-                            finishSketchRequest({ ok: true, imageUrl, model: usedModel });
-                        } else if (!retriedSafe && cand.finishReason === 'IMAGE_SAFETY') {
-                            return usedVertex
-                                ? sendSketchViaVertex(200, modelIdx, true)
-                                : sendSketchViaAiStudio(modelIdx, true);
-                        } else if (usedVertex && modelIdx + 1 < sketchModels.length) {
-                            return sendSketchViaVertex(200, modelIdx + 1, retriedSafe);
-                        } else if (usedVertex && !customKey && apiKey && Date.now() >= _aiStudioDepletedUntil) {
-                            return sendSketchViaAiStudio(0, retriedSafe);
-                        } else if (!usedVertex) {
-                            return sendSketchViaVertex(200, 0, retriedSafe);
-                        } else {
-                            finishSketchRequest({ ok: false, fallback: true, reason: 'upstream_no_image' });
-                        }
-                    } catch(e) {
-                        finishSketchRequest({ ok: false, fallback: true, reason: 'upstream_no_image' });
-                    }
-                } else if (usedVertex && modelIdx + 1 < sketchModels.length) {
-                    return sendSketchViaVertex(upstreamRes.statusCode, modelIdx + 1, retriedSafe);
-                } else if (usedVertex && apiKey && Date.now() >= _aiStudioDepletedUntil) {
-                    return sendSketchViaAiStudio(0, retriedSafe);
-                } else {
-                    finishSketchRequest({ ok: false, fallback: true, reason: `upstream_error_${upstreamRes.statusCode}` });
-                }
-            }
-
-            function sendSketchViaVertex(fallbackStatus = 502, modelIdx = 0, useSanitized = true) {
-                getGcpAuthContext().then(({ token, projectId }) => {
-                    if (!token || !projectId) {
-                        if (apiKey && Date.now() >= _aiStudioDepletedUntil) {
-                            return sendSketchViaAiStudio(0, useSanitized);
-                        }
-                        finishSketchRequest({ ok: false, fallback: true, reason: apiKey ? `upstream_error_${fallbackStatus}` : 'no_api_key' });
-                        return;
-                    }
-                    const activeModel = sketchModels[modelIdx] || sketchModels[0];
-                    const activePrompt = sanitizedInitialPrompt;
-                    const vPayloadStr = buildSketchPayload(activePrompt, true);
-                    const vUrl = `https://aiplatform.googleapis.com/v1beta1/projects/${encodeURIComponent(projectId)}/locations/global/publishers/google/models/${activeModel}:generateContent`;
-                    const vReq = https.request(vUrl, {
-                        method: 'POST',
-                        agent: geminiHttpsAgent,
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${token}`,
-                            'Content-Length': Buffer.byteLength(vPayloadStr)
-                        },
-                        timeout: 22000
-                    }, vRes => {
-                        let vBody = '';
-                        vRes.on('data', c => vBody += c);
-                        vRes.on('end', () => handleSketchResponse(vRes, vBody, true, modelIdx, useSanitized));
-                    });
-                    vReq.on('timeout', () => {
-                        vReq.destroy();
-                        if (modelIdx + 1 < sketchModels.length) {
-                            sendSketchViaVertex(504, modelIdx + 1, useSanitized);
-                        } else {
-                            finishSketchRequest({ ok: false, fallback: true, reason: 'timeout' });
-                        }
-                    });
-                    vReq.on('error', () => {
-                        if (modelIdx + 1 < sketchModels.length) {
-                            sendSketchViaVertex(502, modelIdx + 1, useSanitized);
-                        } else {
-                            finishSketchRequest({ ok: false, fallback: true, reason: 'network_error' });
-                        }
-                    });
-                    vReq.write(vPayloadStr);
-                    vReq.end();
-                });
-            }
-
-            function sendSketchViaAiStudio(modelIdx = 0, useSanitized = true) {
-                if (!apiKey) {
-                    finishSketchRequest({ ok: false, fallback: true, reason: 'no_api_key' });
-                    return;
-                }
-                const activeModel = sketchModels[modelIdx] || sketchModels[0];
-                const activePrompt = sanitizedInitialPrompt;
-                const aPayloadStr = buildSketchPayload(activePrompt, false);
-                const targetUrl = `https://generativelanguage.googleapis.com/v1beta/models/${activeModel}:generateContent`;
-                const upstreamReq = https.request(targetUrl, {
-                    method: 'POST',
-                    agent: geminiHttpsAgent,
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'x-goog-api-key': apiKey,
-                        'Content-Length': Buffer.byteLength(aPayloadStr)
-                    },
-                    timeout: 22000
-                }, upstreamRes => {
-                    let respBody = '';
-                    upstreamRes.on('data', chunk => respBody += chunk);
-                    upstreamRes.on('end', () => handleSketchResponse(upstreamRes, respBody, false, modelIdx, useSanitized));
-                });
-
-                upstreamReq.on('timeout', () => {
-                    upstreamReq.destroy();
-                    finishSketchRequest({ ok: false, fallback: true, reason: 'timeout' });
-                });
-
-                upstreamReq.on('error', err => {
-                    if (modelIdx + 1 < sketchModels.length) {
-                        sendSketchViaAiStudio(modelIdx + 1, useSanitized);
-                    } else {
-                        finishSketchRequest({ ok: false, fallback: true, reason: 'network_error' });
-                    }
-                });
-
-                upstreamReq.write(aPayloadStr);
-                upstreamReq.end();
-            }
-
-            // Route directly to AI Studio when an API key is configured locally (outside Cloud Run) and not depleted
-            const isCloudRun = Boolean(process.env.K_SERVICE);
-            if (apiKey && !apiKey.startsWith('AQ.') && Date.now() >= _aiStudioDepletedUntil && (customKey || !isCloudRun)) {
-                sendSketchViaAiStudio(0, true);
-                return;
-            }
-
-            sendSketchViaVertex(502, 0, true);
-            return;
         });
         return;
     }
@@ -2448,127 +2120,6 @@ const server = http.createServer((req, res) => {
         return;
     }
 
-    // REST: Restore Lazarus Living Checkpoint Save after death (all 8 realms)
-    if (pathname === '/api/saves/restore-checkpoint' && req.method === 'POST') {
-        const wait = uploadLimiter(clientIp(req));
-        if (wait > 0) {
-            res.writeHead(429, { 'Content-Type': 'application/json', 'Retry-After': wait });
-            res.end(JSON.stringify({ ok: false, error: 'Rate limit exceeded' }));
-            return;
-        }
-        const queryRealm = (urlObj.searchParams.get('realm') || req.headers['x-realm'] || 'angband').toLowerCase().trim();
-        const charName = urlObj.searchParams.get('char') || req.headers['x-character-name'] || 'Adventurer';
-        if (!isValidRealm(queryRealm)) {
-            res.writeHead(400, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ ok: false, error: 'Invalid realm' }));
-            return;
-        }
-        const saveDirs = getSaveDirsForRealm(queryRealm);
-        const cleanChar = String(charName).replace(/[^a-zA-Z0-9_.-]/g, '').replace(/\.sav$/i, '');
-        const reqToken = req.headers['x-owner-token'] || '';
-        for (const sDir of saveDirs) {
-            for (const cand of [path.join(sDir, cleanChar), path.join(sDir, cleanChar + '.sav')]) {
-                if (fs.existsSync(cand) && !verifyOwnerToken(cand, reqToken)) {
-                    res.writeHead(403, { 'Content-Type': 'application/json' });
-                    res.end(JSON.stringify({ ok: false, error: 'Forbidden: invalid owner token for existing character' }));
-                    return;
-                }
-            }
-        }
-        const restored = restoreLivingCheckpoint(saveDirs, charName);
-        invalidateSavesCache();
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({
-            ok: true,
-            restored: Boolean(restored && restored.restored),
-            filename: restored ? restored.filename : null,
-            realm: queryRealm
-        }));
-        return;
-    }
-
-    // REST: Download latest or current save direct fallback
-    if ((pathname === '/api/saves/latest' || pathname === '/api/saves-download-current') && req.method === 'GET') {
-        const charName = urlObj.searchParams.get('char');
-        const reqRealm = urlObj.searchParams.get('realm');
-        const saveDirs = (reqRealm && isValidRealm(reqRealm)) ? getSaveDirsForRealm(reqRealm) : getSaveDirs();
-        let allSaves = [];
-
-        for (const sDir of saveDirs) {
-            if (!fs.existsSync(sDir)) continue;
-            const files = fs.readdirSync(sDir);
-            for (const file of files) {
-                if (file.startsWith('.') || file.endsWith('.realm.json') || file.endsWith('.owner.json') || file.endsWith('.living.sav')) continue;
-                const fullPath = path.join(sDir, file);
-                try {
-                    const stat = fs.statSync(fullPath);
-                    if (stat.isFile() && stat.size > 0) {
-                        let meta = readSaveMetadata(fullPath);
-                        if (!meta && stat.size >= 36) {
-                            meta = {
-                                filename: file,
-                                characterName: file,
-                                description: file,
-                                sizeBytes: stat.size,
-                                lastModified: stat.mtime.toISOString(),
-                            };
-                        }
-                        if (meta) {
-                            allSaves.push({ ...meta, fullPath });
-                        }
-                    }
-                } catch (_) {}
-            }
-        }
-
-        allSaves.sort((a, b) => new Date(b.lastModified) - new Date(a.lastModified));
-        let match = null;
-        if (charName) {
-            match = allSaves.find(s =>
-                (s.characterName && s.characterName.toLowerCase() === charName.toLowerCase()) ||
-                (s.filename && s.filename.toLowerCase() === charName.toLowerCase()) ||
-                (s.filename && s.filename.toLowerCase().startsWith(charName.toLowerCase()))
-            );
-        }
-        if (!match && allSaves.length > 0) {
-            match = allSaves[0];
-        }
-
-        // Final fallback: check for any non-empty file in any save directory
-        if (!match) {
-            let newestMtime = 0;
-            for (const sDir of saveDirs) {
-                if (!fs.existsSync(sDir)) continue;
-                const files = fs.readdirSync(sDir);
-                for (const file of files) {
-                    if (file.startsWith('.') || file.endsWith('.realm.json') || file.endsWith('.owner.json') || file.endsWith('.living.sav')) continue;
-                    const fullPath = path.join(sDir, file);
-                    try {
-                        const stat = fs.statSync(fullPath);
-                        if (stat.isFile() && stat.size > 0 && stat.mtimeMs > newestMtime) {
-                            newestMtime = stat.mtimeMs;
-                            match = { fullPath, filename: file, characterName: charName || file };
-                        }
-                    } catch (_) {}
-                }
-            }
-        }
-
-        if (match && fs.existsSync(match.fullPath)) {
-            const dlMeta = enrichSaveMetadata(readSaveMetadata(match.fullPath) || { filename: match.filename, characterName: match.characterName || match.filename, realm: queryRealm }, queryRealm);
-            const outName = (dlMeta && dlMeta.downloadFilename) ? dlMeta.downloadFilename : ((match.characterName || match.filename).replace(/[^a-zA-Z0-9_-]/g, '_') + '.sav');
-            res.writeHead(200, {
-                'Content-Type': 'application/octet-stream',
-                'Content-Disposition': `attachment; filename="${outName}"`,
-            });
-            fs.createReadStream(match.fullPath).pipe(res);
-        } else {
-            res.writeHead(404, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ error: 'No save files available' }));
-        }
-        return;
-    }
-
     // REST: RYOD ("Roll Your Own Dungeon") Blueprint & AI Architect Endpoints
     if ((pathname === '/api/ryod/blueprint' || pathname === '/api/ryod/architect' || (pathname.startsWith('/api/saves/') && pathname.endsWith('/blueprint'))) && (req.method === 'GET' || req.method === 'POST')) {
         const RyodCompiler = require('./cartridges/ryod-compiler');
@@ -2621,8 +2172,10 @@ const server = http.createServer((req, res) => {
                     }
                 }
             }
-            if (!blueprint && global.__latestRyodBlueprint) {
-                blueprint = global.__latestRyodBlueprint;
+            if (!blueprint) {
+                const getOwnerToken = String(req.headers['x-owner-token'] || urlObj.searchParams.get('token') || '').trim();
+                blueprint = (cleanName ? ryodBlueprintStore('get', 'slot:' + cleanName.toLowerCase()) : null)
+                    || (getOwnerToken ? ryodBlueprintStore('get', 'tok:' + getOwnerToken) : null);
             }
             if (!blueprint) {
                 res.writeHead(404, { 'Content-Type': 'application/json' });
@@ -2663,12 +2216,16 @@ const server = http.createServer((req, res) => {
                     const rawCfg = payload.ryodConfig || payload.blueprint || payload;
                     blueprint = RyodCompiler.normalizeConfig(rawCfg);
                 }
-                global.__latestRyodBlueprint = blueprint;
+                const postOwnerToken = String(req.headers['x-owner-token'] || payload.ownerToken || urlObj.searchParams.get('token') || '').trim();
                 const saveName = sanitizeFilename(String(payload.saveName || payload.user || '')).replace(/\.sav$/i, '');
                 if (saveName && !isReservedFilename(saveName)) {
+                    ryodBlueprintStore('set', 'slot:' + saveName.toLowerCase(), blueprint);
                     try {
                         fs.writeFileSync(path.join(ryodSaveDir, `${saveName}.ryod.json`), JSON.stringify(blueprint, null, 2), 'utf8');
                     } catch (_) {}
+                }
+                if (postOwnerToken) {
+                    ryodBlueprintStore('set', 'tok:' + postOwnerToken, blueprint);
                 }
                 if (blueprint.ryodHash) {
                     try {
@@ -2685,161 +2242,6 @@ const server = http.createServer((req, res) => {
             } catch (err) {
                 res.writeHead(400, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ ok: false, error: 'Invalid RYOD payload: ' + err.message }));
-            }
-        });
-        return;
-    }
-
-    // REST: Download single save
-    if (pathname.startsWith('/api/saves/') && req.method === 'GET') {
-        const rawSaveName = pathname.substring('/api/saves/'.length);
-        const saveName = sanitizeFilename(rawSaveName);
-        if (!saveName || isReservedFilename(saveName)) {
-            res.writeHead(400, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ error: 'Invalid save file name' }));
-            return;
-        }
-        const queryRealm = urlObj.searchParams.get('realm') || 'angband';
-        if (!isValidRealm(queryRealm)) {
-            res.writeHead(400, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ error: 'Invalid realm' }));
-            return;
-        }
-        const saveDirs = getSaveDirsForRealm(queryRealm);
-        let targetPath = null;
-
-        for (const sDir of saveDirs) {
-            const p = path.join(sDir, saveName);
-            if (fs.existsSync(p) && fs.statSync(p).isFile()) {
-                targetPath = p;
-                break;
-            }
-        }
-
-        if (targetPath) {
-            const dlMeta = enrichSaveMetadata(readSaveMetadata(targetPath) || { filename: saveName, characterName: saveName, realm: queryRealm }, queryRealm);
-            const outName = (dlMeta && dlMeta.downloadFilename) ? dlMeta.downloadFilename : (saveName.endsWith('.sav') ? saveName : `${saveName}.sav`);
-            res.writeHead(200, {
-                'Content-Type': 'application/octet-stream',
-                'Content-Disposition': `attachment; filename="${outName}"`,
-            });
-            fs.createReadStream(targetPath).pipe(res);
-        } else {
-            res.writeHead(404, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ error: 'Save file not found' }));
-        }
-        return;
-    }
-
-    // REST: Upload save
-    if (pathname === '/api/saves/upload' && req.method === 'POST') {
-        const wait = uploadLimiter(clientIp(req));
-        if (wait > 0) {
-            res.writeHead(429, { 'Content-Type': 'application/json', 'Retry-After': wait });
-            res.end(JSON.stringify({ error: 'Rate limit' }));
-            return;
-        }
-        const chunks = [];
-        let totalSize = 0;
-        const maxLimit = 10 * 1024 * 1024; // 10 MB limit
-
-        req.on('data', chunk => {
-            totalSize += chunk.length;
-            if (totalSize > maxLimit) {
-                res.writeHead(413, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ error: 'Payload too large' }));
-                req.destroy();
-                return;
-            }
-            chunks.push(chunk);
-        });
-
-        req.on('end', () => {
-            const buf = Buffer.concat(chunks);
-            if (buf.length < 36) {
-                res.writeHead(400, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ error: 'Invalid savefile: too short' }));
-                return;
-            }
-            const reqRealm = (urlObj.searchParams.get('realm') || req.headers['x-realm'] || '').toLowerCase().trim();
-            const magic = buf.length >= 8 ? buf.toString('ascii', 0, 8) : '';
-            const detectedRealm = detectRealmFromMagic(magic, reqRealm !== 'angband' ? reqRealm : '');
-            if (!detectedRealm) {
-                res.writeHead(400, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ error: 'Invalid savefile: missing or unknown magic header' }));
-                return;
-            }
-
-            const targetDir = getSaveDirsForRealm(detectedRealm)[0] || SAVE_DIR;
-            const headerName = req.headers['x-save-slot'] || req.headers['x-character-name'];
-            let cleanHeaderName = headerName ? sanitizeFilename(headerName) : null;
-            if (cleanHeaderName && isReservedFilename(cleanHeaderName)) {
-                cleanHeaderName = null;
-            }
-            let targetName = cleanHeaderName || ('upload_' + Date.now());
-
-            const tempFile = path.join(targetDir, '.tmp_' + crypto.randomUUID());
-            try {
-                fs.writeFileSync(tempFile, buf);
-                try {
-                    fs.writeFileSync(tempFile + '.realm.json', JSON.stringify({ realm: detectedRealm }), 'utf8');
-                } catch (_) {}
-                const meta = readSaveMetadata(tempFile);
-                if (meta && meta.characterName && !cleanHeaderName) {
-                    const cleanMetaName = sanitizeFilename(meta.characterName);
-                    if (cleanMetaName && !isReservedFilename(cleanMetaName)) {
-                        targetName = cleanMetaName;
-                    }
-                }
-
-                let finalName = targetName;
-                let destPath = path.join(targetDir, finalName);
-                const reqToken = req.headers['x-owner-token'] || '';
-                if (fs.existsSync(destPath)) {
-                    if (!verifyOwnerToken(destPath, reqToken)) {
-                        let n = 1;
-                        while (fs.existsSync(path.join(targetDir, `${targetName}_${n}`))) {
-                            n++;
-                        }
-                        finalName = `${targetName}_${n}`;
-                        destPath = path.join(targetDir, finalName);
-                    }
-                }
-
-                // If there is a stale setup-phase or disconnected session holding this save slot, close it before replacing save on disk
-                const normFinal = normalizeSessionKey(finalName);
-                for (const [sId, cand] of activeSessions.entries()) {
-                    if ((cand.realm || 'angband') === detectedRealm) {
-                        const candKey = normalizeSessionKey(cand.save || cand.user);
-                        if (candKey === normFinal && (cand.phase === 'setup' || !cand.ws)) {
-                            try {
-                                if (cand.child && !cand.child.killed) cand.child.kill();
-                            } catch (_) {}
-                            activeSessions.delete(sId);
-                        }
-                    }
-                }
-
-                fs.renameSync(tempFile, destPath);
-                let newOwnerToken = undefined;
-                if (!fs.existsSync(getOwnerTokenPath(destPath))) {
-                    try { newOwnerToken = createOwnerToken(destPath); } catch (_) {}
-                }
-                try {
-                    fs.writeFileSync(destPath + '.realm.json', JSON.stringify({ realm: detectedRealm }), 'utf8');
-                } catch (_) {}
-                invalidateSavesCache();
-
-                res.writeHead(200, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({
-                    status: 'saved',
-                    filename: finalName,
-                    ownerToken: newOwnerToken,
-                    metadata: readSaveMetadata(destPath)
-                }));
-            } finally {
-                if (fs.existsSync(tempFile)) fs.unlinkSync(tempFile);
-                if (fs.existsSync(tempFile + '.realm.json')) fs.unlinkSync(tempFile + '.realm.json');
             }
         });
         return;
@@ -2901,63 +2303,13 @@ const server = http.createServer((req, res) => {
         return;
     }
 
-    // REST: Delete save
-    if (pathname.startsWith('/api/saves/') && req.method === 'DELETE') {
-        const rawSaveName = pathname.substring('/api/saves/'.length);
-        const saveName = sanitizeFilename(rawSaveName);
-        if (!saveName || isReservedFilename(saveName)) {
-            res.writeHead(400, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ error: 'Invalid save file name' }));
-            return;
-        }
-        const queryRealm = urlObj.searchParams.get('realm') || 'angband';
-        if (!isValidRealm(queryRealm)) {
-            res.writeHead(400, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ error: 'Invalid realm' }));
-            return;
-        }
-        const saveDirs = getSaveDirsForRealm(queryRealm);
-        let savePath = null;
-        for (const sDir of saveDirs) {
-            const p = path.join(sDir, saveName);
-            if (fs.existsSync(p) && fs.statSync(p).isFile()) {
-                savePath = p;
-                break;
-            }
-        }
-        if (savePath) {
-            const reqToken = req.headers['x-owner-token'] || '';
-            if (!verifyOwnerToken(savePath, reqToken)) {
-                res.writeHead(403, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ error: 'Forbidden: invalid owner token for existing character' }));
-                return;
-            }
-            try {
-                fs.unlinkSync(savePath);
-                const sidecarPath = savePath + '.realm.json';
-                if (fs.existsSync(sidecarPath)) fs.unlinkSync(sidecarPath);
-                const ownerPath = getOwnerTokenPath(savePath);
-                if (fs.existsSync(ownerPath)) fs.unlinkSync(ownerPath);
-                invalidateSavesCache();
-                res.writeHead(200, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ status: 'deleted', filename: saveName, realm: queryRealm }));
-            } catch (err) {
-                console.error('[API] /api/saves/delete error:', err);
-                res.writeHead(500, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ error: 'Internal error' }));
-            }
-        } else {
-            res.writeHead(404, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ error: 'Save file not found' }));
-        }
-        return;
-    }
-
     // Static Web Client Files
     let safePath = path.normalize(pathname).replace(/^(\.\.[\/\\])+/, '');
     if (safePath === '/' || safePath === '\\') safePath = '/index.html';
     if (['/demo', '\\demo', '/demo/', '\\demo\\', '/demo.html', '\\demo.html', '/watch', '\\watch', '/showcase', '\\showcase'].includes(safePath)) {
-        safePath = '/index.html';
+        res.writeHead(302, { 'Location': '/?demo=1', 'Cache-Control': 'no-cache' });
+        res.end();
+        return;
     }
     // Alias versioned walkthrough demo video URLs to canonical master video assets
     if (safePath.includes('angband3d_demo_') && safePath.endsWith('.mp4')) {
@@ -2997,6 +2349,7 @@ const server = http.createServer((req, res) => {
                 '.html': 'text/html; charset=utf-8',
                 '.js': 'application/javascript; charset=utf-8',
                 '.wasm': 'application/wasm',
+                '.data': 'application/octet-stream',
                 '.pck': 'application/octet-stream',
                 '.css': 'text/css; charset=utf-8',
                 '.woff2': 'font/woff2',
@@ -3034,7 +2387,7 @@ const server = http.createServer((req, res) => {
             // - Static Audio SFX (.mp3, .wav, .ogg): 24h caching
             // - 3D Models, Textures, Atlases, WASM: 24h immutable caching
             const posixPath = safePath.replace(/\\/g, '/');
-            const hasVersionQuery = req.url && req.url.includes('?v=');
+            const hasVersionQuery = Boolean(req.url && /[?&]v=/.test(req.url));
             let cacheControl = 'no-cache, must-revalidate';
             if (posixPath === '/index.html' || posixPath === '/' || posixPath === '/sw.js' || posixPath === '/version.json' || ext === '.html') {
                 cacheControl = 'no-store, no-cache, must-revalidate, max-age=0, no-transform';
@@ -3044,8 +2397,8 @@ const server = http.createServer((req, res) => {
                 cacheControl = 'public, max-age=604800, no-transform';
             } else if (['.woff2', '.woff'].includes(ext)) {
                 cacheControl = 'public, max-age=31536000, immutable';
-            } else if (['.png', '.jpg', '.jpeg', '.webp', '.obj', '.mtl', '.gltf', '.glb', '.bin', '.wasm', '.pck'].includes(ext)) {
-                cacheControl = 'public, max-age=604800, immutable';
+            } else if (['.png', '.jpg', '.jpeg', '.webp', '.obj', '.mtl', '.gltf', '.glb', '.bin', '.wasm', '.data', '.pck'].includes(ext)) {
+                cacheControl = hasVersionQuery ? 'public, max-age=604800, immutable' : 'public, max-age=3600, must-revalidate';
             } else if (['.js', '.css'].includes(ext)) {
                 cacheControl = hasVersionQuery ? 'public, max-age=604800, immutable' : 'no-cache, must-revalidate';
             }
@@ -3062,18 +2415,18 @@ const server = http.createServer((req, res) => {
                 'X-Frame-Options': 'SAMEORIGIN',
             };
 
+            // Cross-Origin Isolation headers required for WebAssembly multithreading/SharedArrayBuffer and Dedicated Workers under COEP
+            if (posixPath === '/index.html' || posixPath === '/' || ext === '.wasm' || ext === '.data' || ext === '.pck' || ext === '.js') {
+                headers['Cross-Origin-Opener-Policy'] = 'same-origin';
+                headers['Cross-Origin-Embedder-Policy'] = 'credentialless';
+            }
+
             // Handle Conditional ETag Revalidation (HTTP 304 Not Modified)
             // (Strictly bypass 304 for HTML shell, sw.js, and version.json to ensure immediate live updates)
             if (req.headers['if-none-match'] === etag && posixPath !== '/index.html' && posixPath !== '/' && posixPath !== '/sw.js' && posixPath !== '/version.json') {
                 res.writeHead(304, headers);
                 res.end();
                 return;
-            }
-
-            // Cross-Origin Isolation headers required for Godot 4 WebAssembly multithreading/SharedArrayBuffer on game client
-            if (posixPath === '/index.html' || ext === '.wasm' || ext === '.pck') {
-                headers['Cross-Origin-Opener-Policy'] = 'same-origin';
-                headers['Cross-Origin-Embedder-Policy'] = 'credentialless';
             }
 
             // HTTP 206 Partial Content (Range Request) support for smooth video/audio seeking & scrubbing
@@ -3128,8 +2481,8 @@ const server = http.createServer((req, res) => {
                 } catch (_) {}
             }
 
-        // Brotli & Gzip compression for text & 3D scene/code payloads (.html, .js, .css, .json, .obj, .mtl, .svg, .gltf, .glb, .bin, .wasm)
-        const compressible = ['.html', '.js', '.css', '.json', '.obj', '.mtl', '.svg', '.gltf', '.glb', '.bin', '.wasm'].includes(ext);
+        // Brotli & Gzip compression for text & 3D scene/code payloads (.html, .js, .css, .json, .obj, .mtl, .svg, .gltf, .glb, .bin, .wasm, .data)
+        const compressible = ['.html', '.js', '.css', '.json', '.obj', '.mtl', '.svg', '.gltf', '.glb', '.bin', '.wasm', '.data'].includes(ext);
         const acceptEncoding = req.headers['accept-encoding'] || '';
 
         if (compressible && acceptEncoding.includes('br') && typeof zlib.brotliCompress === 'function') {
@@ -3380,14 +2733,293 @@ setInterval(() => {
     }
 }, 5000).unref();
 
-function gracefulSessionSaveAndExit(sessionId, byeMessage = null) {
+function ryodBlueprintStore(op, key, bp) {
+    if (!ryodBlueprintStore._map) ryodBlueprintStore._map = new Map();
+    const m = ryodBlueprintStore._map;
+    if (!key) return null;
+    if (op === 'set' && bp) {
+        if (m.has(key)) m.delete(key);
+        else if (m.size >= 128) m.delete(m.keys().next().value);
+        m.set(key, bp);
+        return bp;
+    }
+    return m.get(key) || null;
+}
+
+const STAGED_NATIVE_REALMS = new Set(['frogcomposband', 'silq', 'hengband']);
+
+function isActiveSaveStagingEnabled(realm) {
+    return STAGED_NATIVE_REALMS.has(realm) && Boolean(process.env.K_SERVICE || process.env.STAGE_ACTIVE_SAVES === '1');
+}
+
+async function copyFileIfPresentAsync(src, dest) {
+    try {
+        const st = await fs.promises.stat(src);
+        if (st.isFile() && st.size > 0) {
+            await fs.promises.copyFile(src, dest);
+            return true;
+        }
+    } catch (_) {}
+    return false;
+}
+
+async function hydrateSlotToDirAsync(slotName, sourceDirs, destDir) {
+    if (!slotName || !destDir || !Array.isArray(sourceDirs)) return;
+    await fs.promises.mkdir(destDir, { recursive: true }).catch(() => {});
+    const resolvedDest = path.resolve(destDir);
+    const stem = String(slotName).replace(/\.sav$/i, '');
+    const candidates = slotName.endsWith('.sav') ? [slotName, stem] : [slotName, `${stem}.sav`];
+
+    for (const sDir of sourceDirs) {
+        if (!sDir) continue;
+        const resolvedSrc = path.resolve(sDir);
+        if (resolvedSrc === resolvedDest) continue;
+        let matchedFile = null;
+        for (const cand of candidates) {
+            try {
+                const st = await fs.promises.stat(path.join(resolvedSrc, cand));
+                if (st.isFile() && st.size > 0) {
+                    matchedFile = cand;
+                    break;
+                }
+            } catch (_) {}
+        }
+        if (!matchedFile) continue;
+
+        const destSlotPath = path.join(resolvedDest, matchedFile);
+        let shouldCopyMain = true;
+        try {
+            const dstStat = await fs.promises.stat(destSlotPath);
+            const srcStat = await fs.promises.stat(path.join(resolvedSrc, matchedFile));
+            if (dstStat.isFile() && dstStat.size > 0 && dstStat.mtimeMs >= srcStat.mtimeMs) {
+                shouldCopyMain = false;
+            }
+        } catch (_) {}
+
+        if (shouldCopyMain) {
+            await copyFileIfPresentAsync(path.join(resolvedSrc, matchedFile), destSlotPath);
+        }
+        const sidecarSuffixes = ['.owner.json', '.realm.json', '.living.sav', '.living.sav.realm.json', '.ironman', '.ryod.json'];
+        for (const sfx of sidecarSuffixes) {
+            const dstSidecar = destSlotPath + sfx;
+            try {
+                await fs.promises.access(dstSidecar);
+            } catch (_) {
+                await copyFileIfPresentAsync(path.join(resolvedSrc, matchedFile + sfx), dstSidecar);
+            }
+        }
+        if (matchedFile !== stem) {
+            const stemRyodDst = path.join(resolvedDest, `${stem}.ryod.json`);
+            try {
+                await fs.promises.access(stemRyodDst);
+            } catch (_) {
+                await copyFileIfPresentAsync(path.join(resolvedSrc, `${stem}.ryod.json`), stemRyodDst);
+            }
+        }
+        const floorFiles = await listFloorSidecarsAsync(resolvedSrc, matchedFile);
+        for (const f of floorFiles) {
+            await copyFileIfPresentAsync(path.join(resolvedSrc, f), path.join(resolvedDest, f));
+        }
+        const livingFloorFiles = await listFloorSidecarsAsync(resolvedSrc, matchedFile + '.living.sav');
+        for (const f of livingFloorFiles) {
+            await copyFileIfPresentAsync(path.join(resolvedSrc, f), path.join(resolvedDest, f));
+        }
+        break;
+    }
+}
+
+async function ensureRealmSidecarAsync(savePath, realm, isIronman) {
+    if (!savePath || !realm) return;
+    const sidecarPath = savePath + '.realm.json';
+    let existing = {};
+    try {
+        existing = JSON.parse(await fs.promises.readFile(sidecarPath, 'utf8')) || {};
+    } catch (_) {}
+    const next = {
+        ...existing,
+        realm,
+        stakes: isIronman ? 'ironman' : (existing.stakes || 'standard')
+    };
+    await fs.promises.writeFile(sidecarPath, JSON.stringify(next), 'utf8').catch(() => {});
+}
+
+function mirrorStagedSavesToPersistent(session, opts = null) {
+    if (!session || !session.stageDir || !session.persistentSaveDir) return Promise.resolve(false);
+    const cleanupStage = Boolean(opts && opts.cleanup);
+    const runMirror = async () => {
+        try {
+            let stageFiles = [];
+            try {
+                stageFiles = await fs.promises.readdir(session.stageDir);
+            } catch (_) {
+                return false;
+            }
+            await fs.promises.mkdir(session.persistentSaveDir, { recursive: true }).catch(() => {});
+            const slotCandidates = new Set([
+                session.save,
+                session.user,
+                session.engineSavefile ? path.basename(session.engineSavefile) : null
+            ].filter(Boolean));
+
+            let mirroredPrimaryPath = null;
+            for (const f of stageFiles) {
+                if (!f || f === 'panic' || f.startsWith('.')) continue;
+                const srcFile = path.join(session.stageDir, f);
+                let st = null;
+                try {
+                    st = await fs.promises.stat(srcFile);
+                } catch (_) {
+                    continue;
+                }
+                if (!st.isFile() || st.size <= 0) continue;
+                const isFloor = FLOOR_SIDECAR_RE.test(f);
+                const isMainSlot = slotCandidates.has(f) || Array.from(slotCandidates).some(s => f === `${s}.sav` || f.startsWith(`${s}.`));
+                if (!isFloor && !isMainSlot) continue;
+                const dstFile = path.join(session.persistentSaveDir, f);
+                await fs.promises.copyFile(srcFile, dstFile);
+                if (!isFloor && !f.endsWith('.json') && !f.endsWith('.sav.living') && !mirroredPrimaryPath) {
+                    mirroredPrimaryPath = dstFile;
+                }
+            }
+
+            const canonicalSavePath = mirroredPrimaryPath || session.persistentSavePath || session.savePath;
+            if (mirroredPrimaryPath) {
+                await ensureRealmSidecarAsync(canonicalSavePath, session.realm, session.ironman);
+                invalidateSavesCache(session.realm, path.basename(canonicalSavePath));
+                if (!session.isDead && !session.ironman) {
+                    await snapshotLivingSaveAsync(canonicalSavePath);
+                }
+            }
+            return Boolean(mirroredPrimaryPath);
+        } catch (err) {
+            console.warn(`[StageMirror] Failed to mirror staged save for ${session.sessionId}: ${err.message}`);
+            return false;
+        } finally {
+            if (cleanupStage && session.stageDir) {
+                await fs.promises.rm(session.stageDir, { recursive: true, force: true }).catch(() => {});
+            }
+        }
+    };
+    session._mirrorChain = (session._mirrorChain || Promise.resolve()).then(runMirror, runMirror);
+    return session._mirrorChain;
+}
+
+function scheduleStagedMirror(session, delayMs = 2000) {
+    if (!session || !session.stageDir || session.isDead) return;
+    if (session.stageMirrorTimer) clearTimeout(session.stageMirrorTimer);
+    session.stageMirrorTimer = setTimeout(() => {
+        session.stageMirrorTimer = null;
+        if (!session.isDead) {
+            mirrorStagedSavesToPersistent(session);
+        }
+    }, delayMs);
+    if (session.stageMirrorTimer.unref) session.stageMirrorTimer.unref();
+}
+
+function stepQuickBirth(session, frameLine) {
+    if (!session || !session.quickBirthActive) return;
+    if (session.isDead || session.phase === 'play') {
+        session.quickBirthActive = false;
+        return;
+    }
+    if (!session.child || session.child.killed || session.child.exitCode !== null || !session.child.stdin || !session.child.stdin.writable) {
+        session.quickBirthActive = false;
+        return;
+    }
+    session.quickBirthSteps = (session.quickBirthSteps || 0) + 1;
+    if (session.quickBirthSteps > 64) {
+        session.quickBirthActive = false;
+        return;
+    }
+
+    let promptText = '';
+    let hasMore = false;
+    let sig = '';
+    if (frameLine && frameLine.startsWith('{"t":"frame"')) {
+        try {
+            const parsed = JSON.parse(frameLine);
+            const ui = parsed.ui || {};
+            const rawPrompt = typeof ui.prompt === 'string'
+                ? ui.prompt
+                : ((ui.prompt && typeof ui.prompt.text === 'string') ? ui.prompt.text : '');
+            hasMore = Boolean(ui.more || (ui.prompt && ui.prompt.kind === 'more'));
+            const rawRows = (parsed.term && (parsed.term.rows || parsed.term.lines)) || [];
+            const rowsText = Array.isArray(rawRows)
+                ? rawRows.map(r => (typeof r === 'string' ? r : ((r && r.g) || ''))).join(' ')
+                : '';
+            promptText = `${rawPrompt} ${rowsText}`;
+            sig = `${ui.context || ''}|${hasMore ? 1 : 0}|${promptText.replace(/\s+/g, ' ').trim().slice(0, 240)}`;
+        } catch (_) {}
+    }
+
+    if (sig && sig === session.quickBirthLastSig) {
+        session.quickBirthSameSigCount = (session.quickBirthSameSigCount || 0) + 1;
+    } else {
+        session.quickBirthLastSig = sig;
+        session.quickBirthSameSigCount = 0;
+    }
+
+    let nextCmd = 'key enter';
+    const stall = session.quickBirthSameSigCount || 0;
+    if (/ESC:終了|ESC:\s*exit/i.test(promptText)) {
+        nextCmd = 'key Escape';
+    } else if (stall > 0) {
+        const mod = stall % 5;
+        nextCmd = mod === 1 ? 'key space' : (mod === 2 ? 'key a' : (mod === 3 ? 'key y' : (mod === 4 ? 'key Escape' : 'key enter')));
+    } else if (hasMore || /(-more-|-続く-|\(more\)|\[初期化終了\]|\[Press Any Key\]|Hit any key|何かキーを押して)/i.test(promptText)) {
+        nextCmd = 'key space';
+    } else if (/(\[y\/n\]|\(y\/n\)|よろしいですか|クイック・スタート|前回のキャラ|quick[\s-]*start|previous character)/i.test(promptText)) {
+        nextCmd = 'key y';
+    }
+
+    setTimeout(() => {
+        if (!session.quickBirthActive || session.isDead || session.phase === 'play') return;
+        if (session.child && !session.child.killed && session.child.exitCode === null && session.child.stdin && session.child.stdin.writable) {
+            try {
+                session.child.stdin.write(nextCmd + '\n');
+            } catch (_) {
+                session.quickBirthActive = false;
+            }
+        }
+    }, 8).unref();
+}
+
+function startQuickBirth(session) {
+    if (!session || session.isDead) return;
+    if (session.phase === 'play') {
+        session.quickBirthActive = false;
+        if (session.child && session.child.stdin && session.child.stdin.writable) {
+            try { session.child.stdin.write('frame\n'); } catch (_) {}
+        }
+        return;
+    }
+    session.quickBirthActive = true;
+    session.quickBirthSteps = 0;
+    session.quickBirthLastSig = '';
+    session.quickBirthSameSigCount = 0;
+    if (session.lastFrame && session.lastFrame.startsWith('{"t":"frame"')) {
+        stepQuickBirth(session, session.lastFrame);
+    }
+}
+
+function gracefulSessionSaveAndExit(sessionId, byeMessage = null, packetType = 'bye', opts = null) {
     const session = activeSessions.get(sessionId);
     if (!session) return;
+    const skipSave = Boolean(opts && opts.skipSave);
 
     if (session.disconnectTimer) {
         clearTimeout(session.disconnectTimer);
         session.disconnectTimer = null;
     }
+    if (session.autoSaveTimer) {
+        clearTimeout(session.autoSaveTimer);
+        session.autoSaveTimer = null;
+    }
+    if (session.stageMirrorTimer) {
+        clearTimeout(session.stageMirrorTimer);
+        session.stageMirrorTimer = null;
+    }
+    session.quickBirthActive = false;
 
     const { child, ws } = session;
     activeSessions.delete(sessionId);
@@ -3396,9 +3028,10 @@ function gracefulSessionSaveAndExit(sessionId, byeMessage = null) {
         try {
             if (byeMessage) {
                 ws.send(JSON.stringify({
-                    t: 'bye',
+                    t: packetType || 'bye',
+                    reason: packetType === 'hibernated' ? 'idle' : undefined,
                     detail: byeMessage,
-                    preservedSave: Boolean(!session.isDead && session.phase === 'play'),
+                    preservedSave: Boolean(!skipSave && !session.isDead && session.phase === 'play'),
                     saveSlot: session.save || session.user || null
                 }));
             }
@@ -3408,9 +3041,15 @@ function gracefulSessionSaveAndExit(sessionId, byeMessage = null) {
 
     if (child && !child.killed && child.exitCode === null) {
         try {
-            if (!session.isDead && session.phase === 'play' && child.stdin && child.stdin.writable) {
+            if (skipSave) {
+                if (child.stdin) { try { child.stdin.destroy(); } catch (_) {} }
+                child.kill();
+                setTimeout(() => { try { if (session.child && session.child.exitCode === null) session.child.kill('SIGKILL'); } catch (_) {} }, 1000).unref();
+                invalidateSavesCache(session.realm, session.save);
+            } else if (!session.isDead && session.phase === 'play' && child.stdin && child.stdin.writable) {
                 console.log(`[Session] Saving authoritative state for session ${sessionId}...`);
                 child.stdin.write('save\n');
+                scheduleStagedMirror(session, 900);
                 // Allow ample time (1200ms) for engine to flush savegame to disk without truncation
                 setTimeout(() => {
                     try {
@@ -3423,7 +3062,7 @@ function gracefulSessionSaveAndExit(sessionId, byeMessage = null) {
                                         child.kill();
                                         setTimeout(() => { try { if (session.child && session.child.exitCode === null) session.child.kill('SIGKILL'); } catch (_) {} }, 2000).unref();
                                     }
-                                    invalidateSavesCache();
+                                    invalidateSavesCache(session.realm, session.save);
                                 } catch (_) {}
                             }, 500);
                         }
@@ -3443,7 +3082,7 @@ function gracefulSessionSaveAndExit(sessionId, byeMessage = null) {
                             child.kill();
                             setTimeout(() => { try { if (session.child && session.child.exitCode === null) session.child.kill('SIGKILL'); } catch (_) {} }, 2000).unref();
                         }
-                        invalidateSavesCache();
+                        invalidateSavesCache(session.realm, session.save);
                     } catch (_) {}
                 }, 300);
             }
@@ -3481,6 +3120,7 @@ function handleSessionDisconnect(sessionId, socket = null) {
         if (!session.isDead && session.phase === 'play' && session.child.stdin && session.child.stdin.writable) {
             try {
                 session.child.stdin.write('save\n');
+                scheduleStagedMirror(session, 2000);
             } catch (err) {
                 console.warn(`[Session] Failed to issue disconnect save for ${sessionId}: ${err.message}`);
             }
@@ -3525,10 +3165,10 @@ function attachWebSocketToSession(session, ws) {
 
     // Relay guard (WS1.2). Exactly one bridge command per WS message, bounded, allowlisted.
     // Verbs derived from client senders (network.js sendKey/sendCommand, app.js, input.js,
-    // local_bridge.js) AND bridge dispatchers: key <spec> | keys <seq> | frame | map | save | ping.
+    // local_bridge.js) AND bridge dispatchers: key <spec> | keys <seq> | frame | map | save | ping | quickbirth.
     // 'quit' stays out on purpose: the JSON {t:'quit'} path saves gracefully first.
     // LESSON L1: never shrink this list without grepping every sender ('save' was nearly dropped once).
-    const ENGINE_VERBS = new Set(['key', 'keys', 'frame', 'map', 'save', 'ping']);
+    const ENGINE_VERBS = new Set(['key', 'keys', 'frame', 'map', 'save', 'ping', 'quickbirth']);
     const CANONICAL_KEY_MAP = {
         escape: 'escape',
         esc: 'escape',
@@ -3604,32 +3244,42 @@ function attachWebSocketToSession(session, ws) {
     };
 
     ws.on('message', message => {
-        session.lastActivityTime = Date.now();
         const str = message.toString();
-        // Respond immediately to latency heartbeat pings or explicit session terminations
+        // Respond immediately to latency heartbeat pings WITHOUT resetting session.lastActivityTime!
+        // Otherwise open idle browser tabs defeat IDLE_TIMEOUT_MS and pin Cloud Run instances 24/7.
         if (str.startsWith('{')) {
             try {
                 const parsed = JSON.parse(str);
-                if (parsed.t === 'ping') {
+                const msgType = parsed.t || parsed.type;
+                if (msgType === 'ping') {
                     if (ws.readyState === ws.OPEN) {
                         ws.send(JSON.stringify({ t: 'pong', time: parsed.time }));
                     }
                     return;
                 }
-                if (parsed.t === 'sync_client_state') {
+                session.lastActivityTime = Date.now();
+                if (msgType === 'quickbirth') {
+                    startQuickBirth(session);
+                    return;
+                }
+                if (msgType === 'sync_client_state') {
                     if (Array.isArray(parsed.commands) && session.child && session.child.stdin && session.child.stdin.writable) {
                         const replayCmds = parsed.commands.slice(0, 128);
                         let replayed = 0;
                         for (const rawCmd of replayCmds) {
                             const safeCmd = sanitizeEngineCommand(rawCmd);
-                            if (safeCmd) {
+                            if (safeCmd && safeCmd !== 'quickbirth') {
                                 session.child.stdin.write(safeCmd + '\n');
                                 replayed++;
                             }
                         }
+                        session.inputSeq = (session.inputSeq || 0) + replayed;
                         if (!session.isDead && session.phase === 'play') {
                             session.child.stdin.write('save\n');
-                            invalidateSavesCache();
+                            session.lastSavedTurn = session.currentTurn || 0;
+                            session.lastSavedInputSeq = session.inputSeq || 0;
+                            invalidateSavesCache(session.realm, session.save);
+                            scheduleStagedMirror(session, 2000);
                         }
                         session.child.stdin.write('frame\n');
                         if (ws.readyState === ws.OPEN) {
@@ -3643,13 +3293,16 @@ function attachWebSocketToSession(session, ws) {
                     }
                     return;
                 }
-                if (parsed.t === 'quit' || parsed.t === 'cancel') {
+                if (msgType === 'quit' || msgType === 'cancel') {
                     console.log(`[WebSocket] Client explicitly ended session ${session.sessionId}`);
                     gracefulSessionSaveAndExit(session.sessionId, 'Client requested exit.');
                     return;
                 }
             } catch (_) {}
         }
+
+        // Real player interaction resets the 15-minute idle reaper timer
+        session.lastActivityTime = Date.now();
 
         // Rate limit commands to protect engine stdio pipe
         const now = Date.now();
@@ -3662,12 +3315,27 @@ function attachWebSocketToSession(session, ws) {
             return;
         }
 
-        // Client sends command line e.g. "key left" or "frame"
+        // Client sends command line e.g. "key left", "frame", or "quickbirth"
         const safe = sanitizeEngineCommand(str);
         if (!safe) return; // silently drop: never forward unknown, JSON, or multi-line input to engine stdin
+        if (safe === 'quickbirth') {
+            startQuickBirth(session);
+            return;
+        }
+        // Manual key input cancels server-side quickbirth auto-advance so user retains full control
+        if (session.quickBirthActive && (safe.startsWith('key ') || safe.startsWith('keys '))) {
+            session.quickBirthActive = false;
+        }
         if (session.child && session.child.stdin && session.child.stdin.writable) {
             session.child.stdin.write(safe + '\n');
+            if (safe === 'save') {
+                session.lastSavedTurn = session.currentTurn || 0;
+                session.lastSavedInputSeq = session.inputSeq || 0;
+                invalidateSavesCache(session.realm, session.save);
+                scheduleStagedMirror(session, 2000);
+            }
             if (!session.isDead && session.phase === 'play' && (safe.startsWith('key ') || safe.startsWith('keys '))) {
+                session.inputSeq = (session.inputSeq || 0) + 1;
                 session.commandsSinceSave = (session.commandsSinceSave || 0) + 1;
                 if (session.autoSaveTimer) clearTimeout(session.autoSaveTimer);
                 if (session.commandsSinceSave >= 8) {
@@ -3677,7 +3345,10 @@ function attachWebSocketToSession(session, ws) {
                             session.commandsSinceSave = 0;
                             try {
                                 session.child.stdin.write('save\n');
-                                invalidateSavesCache();
+                                session.lastSavedTurn = session.currentTurn || 0;
+                                session.lastSavedInputSeq = session.inputSeq || 0;
+                                invalidateSavesCache(session.realm, session.save);
+                                scheduleStagedMirror(session, 2000);
                             } catch (_) {}
                         }
                     }, 3500).unref();
@@ -3731,22 +3402,33 @@ async function spawnGameSession(ws, request) {
 
     const isNew = urlObj.searchParams.get('new') === '1' || urlObj.searchParams.get('reroll') === '1';
     const isCustomBirth = urlObj.searchParams.get('custom') === '1';
+    const wantQuickBirth = urlObj.searchParams.get('quickbirth') === '1';
+    const persistentSaveDir = engineInfo.saveDir || SAVE_DIR;
+    const allRealmSaveDirs = getSaveDirsForRealm(realm);
     let targetSlot = save || user || 'Adventurer';
-    let savePath = path.join(engineInfo.saveDir || SAVE_DIR, targetSlot);
+
+    // Hydrate existing save slot + sidecars from fallback directories into primary persistentSaveDir if needed
+    await hydrateSlotToDirAsync(targetSlot, allRealmSaveDirs, persistentSaveDir);
+    let savePath = path.join(persistentSaveDir, targetSlot);
 
     let ownerToken = undefined;
     const reqToken = extractWsOwnerToken(request, urlObj);
 
-    // If we're creating a new character over an existing one, check ownership.
-    // If no explicit save file was targeted (e.g. random hero name collision or default 'Adventurer'),
+    // Check ownership whenever loading OR overwriting an existing save file on disk.
+    // If creating a new character with no explicit save target (e.g. random hero name collision),
     // allocate a fresh non-colliding slot instead of failing with an Engine Error.
-    if (isNew && fs.existsSync(savePath)) {
-        if (!verifyOwnerToken(savePath, reqToken)) {
-            if (!rawSave) {
-                const baseUser = (user || 'Adventurer').replace(/_[0-9a-z]+$/i, '').slice(0, 20) || 'Hero';
+    let saveExists = false;
+    try {
+        saveExists = (await fs.promises.stat(savePath)).isFile();
+    } catch (_) {}
+    if (saveExists) {
+        if (!(await verifyOwnerTokenAsync(savePath, reqToken))) {
+            if (isNew && !rawSave) {
+                const maxBase = realm === 'hengband' ? 10 : 20;
+                const baseUser = (user || 'Adventurer').replace(/_[0-9a-z]+$/i, '').slice(0, maxBase) || 'Hero';
                 for (let i = 0; i < 20; i++) {
                     const candidate = `${baseUser}_${crypto.randomInt(100, 1000)}`;
-                    const candPath = path.join(engineInfo.saveDir || SAVE_DIR, candidate);
+                    const candPath = path.join(persistentSaveDir, candidate);
                     if (!fs.existsSync(candPath)) {
                         user = candidate;
                         targetSlot = candidate;
@@ -3765,7 +3447,7 @@ async function spawnGameSession(ws, request) {
 
     // Generate token if it's a new character, or if it's a legacy save we are claiming (TOFU)
     if (isNew || !fs.existsSync(getOwnerTokenPath(savePath))) {
-        ownerToken = createOwnerToken(savePath);
+        ownerToken = await createOwnerTokenAsync(savePath, reqToken);
     }
 
     const sessionId = crypto.randomUUID();
@@ -3780,24 +3462,38 @@ async function spawnGameSession(ws, request) {
         ownerToken: ownerToken
     }));
 
+    // Stage active C/C++ saves in local tmpfs/overlayfs on Cloud Run to eliminate GCS FUSE latency & partial writes
+    let stageDir = null;
+    let activeEngineSaveDir = persistentSaveDir;
+    if (isActiveSaveStagingEnabled(realm)) {
+        stageDir = path.join(os.tmpdir(), 'angband3d-active', sessionId);
+        await fs.promises.mkdir(path.join(stageDir, 'panic'), { recursive: true }).catch(() => {});
+        if (!isNew) {
+            await hydrateSlotToDirAsync(targetSlot, [persistentSaveDir, ...allRealmSaveDirs], stageDir);
+        }
+        activeEngineSaveDir = stageDir;
+    }
+
     const frontendSwitch = engineInfo.cli?.frontend_switch || '-mbridge';
     const args = [frontendSwitch];
-    if (engineInfo.saveDir && engineInfo.cli?.save_dir_switch) {
-        args.push(engineInfo.cli.save_dir_switch.replace('{path}', engineInfo.saveDir));
+    if (activeEngineSaveDir && engineInfo.cli?.save_dir_switch) {
+        args.push(engineInfo.cli.save_dir_switch.replace('{path}', activeEngineSaveDir));
     }
-    if (engineInfo.saveDir && engineInfo.cli?.panic_dir_switch) {
-        args.push(engineInfo.cli.panic_dir_switch.replace('{path}', path.join(engineInfo.saveDir, 'panic')));
+    if (activeEngineSaveDir && engineInfo.cli?.panic_dir_switch) {
+        args.push(engineInfo.cli.panic_dir_switch.replace('{path}', path.join(activeEngineSaveDir, 'panic')));
     }
     const saveTokenFormat = engineInfo.cli?.save_token_format || '-u{name}';
     if (save) {
-        args.push(saveTokenFormat.replace('{name}', save));
+        args.push(saveTokenFormat.replace('{name}', targetSlot));
     } else if (user) {
-        args.push(saveTokenFormat.replace('{name}', user));
+        args.push(saveTokenFormat.replace('{name}', targetSlot));
     }
     if (isNew) {
         args.push(engineInfo.cli?.new_char_switch || '-n');
         if (isCustomBirth && (realm === 'dcss' || realm === 'brogue' || realm === 'rogue' || realm === 'nethack' || realm === 'ryod')) {
             args.push('-c');
+        } else if (!isCustomBirth && realm === 'nethack') {
+            args.push('-r');
         }
     }
 
@@ -3811,19 +3507,25 @@ async function spawnGameSession(ws, request) {
                 const decoded = RyodCompiler.decodePermalink(bpParam);
                 if (decoded) bp = RyodCompiler.normalizeConfig(decoded);
             }
-            if (!bp && engineInfo.saveDir && rawUser) {
-                const rawSidecar = path.join(engineInfo.saveDir, `${rawUser.replace(/[^a-zA-Z0-9_-]/g, '')}.ryod.json`);
+            if (!bp && persistentSaveDir && rawUser) {
+                const rawSidecar = path.join(persistentSaveDir, `${rawUser.replace(/[^a-zA-Z0-9_-]/g, '')}.ryod.json`);
                 if (fs.existsSync(rawSidecar)) {
                     bp = JSON.parse(fs.readFileSync(rawSidecar, 'utf8'));
                 }
             }
-            if (!bp && global.__latestRyodBlueprint) {
-                bp = global.__latestRyodBlueprint;
+            if (!bp) {
+                const slotKey = targetSlot ? String(targetSlot).replace(/\.sav$/i, '').toLowerCase() : '';
+                const userKey = rawUser ? String(rawUser).replace(/[^a-zA-Z0-9_-]/g, '').toLowerCase() : '';
+                bp = (slotKey ? ryodBlueprintStore('get', 'slot:' + slotKey) : null)
+                    || (userKey ? ryodBlueprintStore('get', 'slot:' + userKey) : null)
+                    || (reqToken ? ryodBlueprintStore('get', 'tok:' + reqToken) : null)
+                    || (ownerToken ? ryodBlueprintStore('get', 'tok:' + ownerToken) : null);
             }
             if (bp) {
                 ryodConfigEnvJson = JSON.stringify(bp);
-                if (isNew && engineInfo.saveDir && targetSlot) {
-                    const slotSidecar = path.join(engineInfo.saveDir, `${targetSlot.replace(/\.sav$/i, '')}.ryod.json`);
+                if (ownerToken) ryodBlueprintStore('set', 'tok:' + ownerToken, bp);
+                if (isNew && persistentSaveDir && targetSlot) {
+                    const slotSidecar = path.join(persistentSaveDir, `${targetSlot.replace(/\.sav$/i, '')}.ryod.json`);
                     try { fs.writeFileSync(slotSidecar, JSON.stringify(bp, null, 2), 'utf8'); } catch (_) {}
                 }
             }
@@ -3835,10 +3537,11 @@ async function spawnGameSession(ws, request) {
     // If starting a fresh character, purge any stale panic save files so the engine starts cleanly without prompts
     if (isNew) {
         const panicDirs = [
-            path.join(engineInfo.saveDir || SAVE_DIR, 'panic'),
+            path.join(persistentSaveDir, 'panic'),
+            stageDir ? path.join(stageDir, 'panic') : null,
             path.join(engineDir, 'lib/user/panic'),
             path.join(engineDir, 'lib/save/panic')
-        ];
+        ].filter(Boolean);
         for (const pDir of panicDirs) {
             try {
                 if (fs.existsSync(pDir)) {
@@ -3852,6 +3555,20 @@ async function spawnGameSession(ws, request) {
             } catch (_) {}
         }
     }
+    const isIronman = urlObj.searchParams.get('ironman') === '1';
+    if (savePath) {
+        try {
+            if (isIronman) {
+                await fs.promises.writeFile(savePath + '.ironman', '1', 'utf8');
+                await fs.promises.unlink(savePath + '.living.sav').catch(() => {});
+            } else if (isNew) {
+                saveVault.clearSaveDead(savePath);
+                await fs.promises.unlink(savePath + '.ironman').catch(() => {});
+                await fs.promises.unlink(savePath + '.living.sav').catch(() => {});
+            }
+            await ensureRealmSidecarAsync(savePath, realm, isIronman);
+        } catch (_) {}
+    }
     let child = null;
     let spawnError = null;
     for (let attempt = 0; attempt < 3; attempt++) {
@@ -3859,11 +3576,13 @@ async function spawnGameSession(ws, request) {
             const childEnv = {
                 ...process.env,
                 ...engineInfo.env,
+                SAVE_DIR: activeEngineSaveDir || SAVE_DIR,
                 LANG: process.env.LANG || 'C.UTF-8',
                 LC_ALL: process.env.LC_ALL || 'C.UTF-8',
                 LC_CTYPE: 'C.UTF-8',
                 TERM: 'xterm-256color',
                 HOME: process.env.HOME || '/app',
+                ANGBAND3D_IRONMAN: isIronman ? '1' : '0',
             };
             if (ryodConfigEnvJson) {
                 childEnv.RYOD_CONFIG_JSON = ryodConfigEnvJson;
@@ -3891,6 +3610,9 @@ async function spawnGameSession(ws, request) {
 
     if (!child || spawnError) {
         console.error(`[Session Spawn Failed] Unable to spawn engine "${engineInfo.exe}": ${spawnError?.message}`);
+        if (stageDir) {
+            fs.promises.rm(stageDir, { recursive: true, force: true }).catch(() => {});
+        }
         try {
             ws.send(JSON.stringify({
                 t: 'error',
@@ -3910,13 +3632,26 @@ async function spawnGameSession(ws, request) {
         user: targetSlot,
         save: targetSlot,
         savePath,
+        persistentSaveDir,
+        persistentSavePath: savePath,
+        stageDir,
+        stageMirrorTimer: null,
         realm,
         engineInfo,
         phase: 'setup',
         hasSavedInitialPlay: false,
         commandsSinceSave: 0,
+        currentTurn: 0,
+        lastSavedTurn: -1,
+        inputSeq: 0,
+        lastSavedInputSeq: 0,
         lastDepth: null,
         isDead: false,
+        ironman: isIronman,
+        quickBirthActive: wantQuickBirth,
+        quickBirthSteps: 0,
+        quickBirthLastSig: '',
+        quickBirthSameSigCount: 0,
         disconnectedAt: null,
         disconnectTimer: null,
         lastFrame: null,
@@ -3951,13 +3686,45 @@ async function spawnGameSession(ws, request) {
                         const prevPhase = session.phase;
                         const phaseMatch = headSlice.match(/"phase":"([^"]+)"/);
                         if (phaseMatch) session.phase = phaseMatch[1];
-                        if (headSlice.includes('"dead":true') || /"hp":-\d+,"hp_max":[1-9]/.test(headSlice)) {
+                        const turnMatch = headSlice.match(/"turn":(\d+)/);
+                        if (turnMatch) session.currentTurn = parseInt(turnMatch[1], 10);
+                        const isDeathFrame =
+                            headSlice.includes('"context":"death"') ||
+                            line.includes('"dead":true') ||
+                            /"hp":(?:0|-\d+),"(?:max_hp|hp_max)":[1-9]/.test(line.slice(0, 1400));
+                        if (isDeathFrame) {
                             session.isDead = true;
+                            session.quickBirthActive = false;
+                            if (session.autoSaveTimer) {
+                                clearTimeout(session.autoSaveTimer);
+                                session.autoSaveTimer = null;
+                            }
+                            if (session.stageMirrorTimer) {
+                                clearTimeout(session.stageMirrorTimer);
+                                session.stageMirrorTimer = null;
+                            }
+                            if (session.savePath) {
+                                saveVault.markSaveDeadAsync(session.savePath, session.realm);
+                                if (session.ironman) {
+                                    fs.promises.unlink(session.savePath + '.living.sav').catch(() => {});
+                                }
+                            }
                         }
                         const depthMatch = headSlice.match(/"depth":(-?\d+)/);
                         const curDepth = depthMatch ? parseInt(depthMatch[1], 10) : null;
                         const depthChanged = curDepth !== null && session.lastDepth !== null && curDepth !== session.lastDepth;
                         if (curDepth !== null) session.lastDepth = curDepth;
+
+                        if (session.quickBirthActive) {
+                            if (session.phase === 'play' || session.isDead) {
+                                session.quickBirthActive = false;
+                            } else {
+                                stepQuickBirth(session, line);
+                                if (session.quickBirthSteps > 1) {
+                                    continue;
+                                }
+                            }
+                        }
 
                         // Auto-flush save immediately when character finishes birth and enters 'play', or on dungeon depth change
                         if (!session.isDead && session.phase === 'play' && (!session.hasSavedInitialPlay || prevPhase !== 'play' || depthChanged)) {
@@ -3966,10 +3733,20 @@ async function spawnGameSession(ws, request) {
                                 try {
                                     if (!session.isDead && session.phase === 'play' && session.child && !session.child.killed && session.child.exitCode === null && session.child.stdin && session.child.stdin.writable) {
                                         session.child.stdin.write('save\n');
-                                        invalidateSavesCache();
-                                        setTimeout(() => {
-                                            if (!session.isDead && session.savePath) snapshotLivingSave(session.savePath);
-                                        }, 250).unref();
+                                        session.lastSavedTurn = session.currentTurn || 0;
+                                        session.lastSavedInputSeq = session.inputSeq || 0;
+                                        invalidateSavesCache(session.realm, session.save);
+                                        if (session.stageDir) {
+                                            scheduleStagedMirror(session, 900);
+                                        } else {
+                                            setTimeout(() => {
+                                                if (!session.isDead && !session.ironman && session.savePath) {
+                                                    ensureRealmSidecarAsync(session.savePath, session.realm, session.ironman)
+                                                        .then(() => snapshotLivingSaveAsync(session.savePath))
+                                                        .catch(() => {});
+                                                }
+                                            }, 250).unref();
+                                        }
                                     }
                                 } catch (_) {}
                             }, 180).unref();
@@ -3998,6 +3775,9 @@ async function spawnGameSession(ws, request) {
                         continue;
                     } catch (_) {}
                 }
+                if (session.stageDir && !session.isDead && line.includes('"t":"ok"') && line.includes('"saved"')) {
+                    scheduleStagedMirror(session, 200);
+                }
                 if (session.ws && session.ws.readyState === 1 /* OPEN */) {
                     // Backpressure Guard: If socket has >64KB queued in OS/Node buffer, drop intermediate visual frames
                     // to prevent latency delay and memory bloat for slow network connections.
@@ -4021,7 +3801,14 @@ async function spawnGameSession(ws, request) {
             clearTimeout(session.disconnectTimer);
             session.disconnectTimer = null;
         }
+        if (session.stageMirrorTimer) {
+            clearTimeout(session.stageMirrorTimer);
+            session.stageMirrorTimer = null;
+        }
         activeSessions.delete(sessionId);
+        if (session.stageDir) {
+            mirrorStagedSavesToPersistent(session, { cleanup: true });
+        }
         if (session.ws && session.ws.readyState === 1) {
             session.ws.send(JSON.stringify({ t: 'bye', detail: err.message }));
             session.ws.close();
@@ -4035,7 +3822,15 @@ async function spawnGameSession(ws, request) {
             clearTimeout(session.disconnectTimer);
             session.disconnectTimer = null;
         }
+        if (session.stageMirrorTimer) {
+            clearTimeout(session.stageMirrorTimer);
+            session.stageMirrorTimer = null;
+        }
         activeSessions.delete(sessionId);
+        if (session.stageDir) {
+            mirrorStagedSavesToPersistent(session, { cleanup: true });
+        }
+        invalidateSavesCache(session.realm, session.save);
         if (session.ws && session.ws.readyState === 1) {
             session.ws.send(JSON.stringify({ t: 'bye', detail: `process exited with code ${code}` }));
             session.ws.close();
@@ -4122,10 +3917,6 @@ wss.on('connection', (ws, request) => {
             const candidate = activeSessions.get(clientSessionId);
             const candRealm = candidate.realm || 'angband';
             if (candRealm === reqRealm && candidate.child && !candidate.child.killed && candidate.child.exitCode === null) {
-                // VERIFICATION GUARD: Only attach to clientSessionId if it actually matches the requested save/user,
-                // or if no specific save/user was requested.
-                // If the candidate session was in 'setup' (character creation) while the client requested a saved game,
-                // or if the candidate belongs to a different save, REJECT the hijack and let the server spawn the requested save cleanly!
                 const reqSave = normalizeSessionKey(save);
                 const candSave = normalizeSessionKey(candidate.save || (candidate.engineSavefile ? path.basename(candidate.engineSavefile) : ''));
                 const reqUser = normalizeSessionKey(user);
@@ -4150,7 +3941,6 @@ wss.on('connection', (ws, request) => {
         const isGenericUser = !user || normalizeSessionKey(user) === 'adventurer';
         if (!existingSession && (save || !isGenericUser)) {
             const targetKey = normalizeSessionKey(save || user);
-            // Search active sessions within the requested realm for a live engine running this character.
             for (const candidate of activeSessions.values()) {
                 const candRealm = candidate.realm || 'angband';
                 if (candRealm === reqRealm && !candidate.isDead && candidate.child && !candidate.child.killed && candidate.child.exitCode === null) {
@@ -4158,7 +3948,7 @@ wss.on('connection', (ws, request) => {
                     const candUser = normalizeSessionKey(candidate.user);
                     const candEngineSave = candidate.engineSavefile ? normalizeSessionKey(path.basename(candidate.engineSavefile)) : '';
                     if (candSave === targetKey || candUser === targetKey || candEngineSave === targetKey) {
-                        if (candidate.ws && candidate.ws.readyState === 1 && candidate.savePath && fs.existsSync(getOwnerTokenPath(candidate.savePath))) {
+                        if (candidate.savePath && fs.existsSync(getOwnerTokenPath(candidate.savePath))) {
                             if (!verifyOwnerToken(candidate.savePath, reqToken)) {
                                 continue;
                             }
@@ -4217,7 +4007,7 @@ wss.on('connection', (ws, request) => {
                             continue;
                         }
                         console.log(`[WebSocket] Terminating existing session ${sId} in realm ${candRealm} to begin fresh hero for ${targetKey}`);
-                        gracefulSessionSaveAndExit(sId, 'Starting new character.');
+                        gracefulSessionSaveAndExit(sId, 'Starting new character.', 'bye', { skipSave: true });
                     }
                 }
             }
@@ -4326,8 +4116,6 @@ wss.on('connection', (ws, request) => {
 });
 
 // WebSocket Heartbeat / Ghost Connection Terminator
-// Every 30 seconds, ping all active sockets. If a socket did not respond with a pong
-// since the last cycle (e.g. abrupt carrier drop, dead WiFi, suspended tab), terminate it.
 const wsLivenessInterval = setInterval(() => {
     wss.clients.forEach(ws => {
         if (ws.isAlive === false) {
@@ -4342,46 +4130,58 @@ const wsLivenessInterval = setInterval(() => {
 }, 30000);
 wsLivenessInterval.unref();
 
-// In-Flight Checkpointing: Periodically checkpoint active game sessions to disk every 60s
-// so that active battles, dungeon exploration, and player inventory changes are continuously written to disk
-// and never lost across unexpected client disconnects, power loss, or container restarts.
+// In-Flight Checkpointing (WS70 Dirty-Turn Gate): Periodically checkpoint active game sessions every 60s
+// ONLY when player turns or inputs have actually advanced since the last save (eliminating 2,880 GCS Class A writes/day on idle tabs!).
 setInterval(() => {
     for (const [sessionId, session] of activeSessions.entries()) {
         if (!session.isDead && session.phase === 'play' && session.child && !session.child.killed && session.child.exitCode === null && session.child.stdin && session.child.stdin.writable) {
+            const isDirty = (session.currentTurn !== session.lastSavedTurn) || (session.inputSeq !== session.lastSavedInputSeq);
+            if (!isDirty) continue;
             try {
                 session.child.stdin.write('save\n');
+                session.lastSavedTurn = session.currentTurn || 0;
+                session.lastSavedInputSeq = session.inputSeq || 0;
+                invalidateSavesCache(session.realm, session.save);
+                if (session.stageDir) {
+                    scheduleStagedMirror(session, 2000);
+                } else if (session.savePath && !session.ironman) {
+                    setTimeout(() => {
+                        if (!session.isDead && !session.ironman && session.savePath) {
+                            snapshotLivingSaveAsync(session.savePath);
+                        }
+                    }, 300).unref();
+                }
             } catch (_) {}
         }
     }
 }, 60000).unref();
 
-// Periodic idle session reaper: safely flush saves and release memory for inactive connected sessions
+// Periodic idle session reaper: safely flush dirty save, emit { t: 'hibernated' } so client pauses without auto-reconnecting,
+// and terminate engine process so Cloud Run scales cleanly to 0 instances.
 setInterval(() => {
     const now = Date.now();
     for (const [sessionId, session] of activeSessions.entries()) {
         // Disconnected sessions are governed by their own disconnectTimer (DISCONNECT_GRACE_PERIOD_MS)
         if (session.ws && (now - session.lastActivityTime > IDLE_TIMEOUT_MS)) {
-            console.log(`[Angband3D Cloud] Reaping idle session ${sessionId} (${Math.round((now - session.lastActivityTime) / 60000)}m inactive). Saving state...`);
-            gracefulSessionSaveAndExit(sessionId, 'Session timed out due to 20 minutes of inactivity. Progress has been safely saved.');
+            const idleMins = Math.round((now - session.lastActivityTime) / 60000);
+            console.log(`[Angband3D Cloud] Hibernating idle session ${sessionId} (${idleMins}m inactive). Saving state...`);
+            gracefulSessionSaveAndExit(
+                sessionId,
+                `zzz Dungeon Paused — ${idleMins}m inactive. Progress saved; press any key to resume.`,
+                'hibernated'
+            );
         }
     }
 }, 30000).unref();
 
-// Graceful container shutdown: terminate child processes before container exit
-function gracefulShutdown(signal) {
-    console.log(`[Angband3D Cloud] Received ${signal}. Terminating all ${activeSessions.size} active engine sessions...`);
-    for (const [sessionId, session] of activeSessions.entries()) {
-        try {
-            if (session.ws && session.ws.readyState === 1) {
-                session.ws.send(JSON.stringify({ t: 'bye', detail: 'Server shutting down' }));
-                session.ws.close();
-            }
-            if (session.child && !session.child.killed) {
-                session.child.kill('SIGTERM');
-            }
-        } catch (_) {}
-    }
-    activeSessions.clear();
+// Graceful container shutdown: flush active C/C++ saves (up to 1,500ms drain), mirror staged saves, and exit cleanly
+let isShuttingDown = false;
+async function gracefulShutdown(signal) {
+    if (isShuttingDown) return;
+    isShuttingDown = true;
+    const sessionsSnapshot = Array.from(activeSessions.values());
+    console.log(`[Angband3D Cloud] Received ${signal}. Draining saves across ${sessionsSnapshot.length} active engine sessions...`);
+
     for (const item of waitingQueue) {
         try {
             if (item.ws && item.ws.readyState === 1) {
@@ -4391,6 +4191,74 @@ function gracefulShutdown(signal) {
         } catch (_) {}
     }
     waitingQueue.length = 0;
+
+    const drainPromises = [];
+    for (const session of sessionsSnapshot) {
+        try {
+            if (session.disconnectTimer) clearTimeout(session.disconnectTimer);
+            if (session.autoSaveTimer) clearTimeout(session.autoSaveTimer);
+            if (session.stageMirrorTimer) clearTimeout(session.stageMirrorTimer);
+            session.quickBirthActive = false;
+
+            if (session.ws && session.ws.readyState === 1) {
+                session.ws.send(JSON.stringify({
+                    t: 'bye',
+                    detail: 'Server shutting down',
+                    preservedSave: Boolean(!session.isDead && session.phase === 'play'),
+                    saveSlot: session.save || session.user || null
+                }));
+                session.ws.close();
+            }
+
+            const child = session.child;
+            if (child && !child.killed && child.exitCode === null) {
+                drainPromises.push(new Promise(resolve => child.once('close', resolve)));
+                if (!session.isDead && session.phase === 'play' && child.stdin && child.stdin.writable) {
+                    try {
+                        child.stdin.write('save\nquit\n');
+                        child.stdin.end();
+                    } catch (_) {
+                        try { child.kill('SIGTERM'); } catch (__) {}
+                    }
+                } else {
+                    try {
+                        if (child.stdin && child.stdin.writable) {
+                            child.stdin.write('quit\n');
+                            child.stdin.end();
+                        } else {
+                            child.kill('SIGTERM');
+                        }
+                    } catch (_) {
+                        try { child.kill('SIGTERM'); } catch (__) {}
+                    }
+                }
+            }
+        } catch (_) {}
+    }
+
+    if (drainPromises.length > 0) {
+        await Promise.race([
+            Promise.allSettled(drainPromises),
+            new Promise(resolve => setTimeout(resolve, 1500))
+        ]);
+    }
+
+    for (const session of sessionsSnapshot) {
+        try {
+            if (session.child && !session.child.killed && session.child.exitCode === null) {
+                session.child.kill('SIGTERM');
+            }
+        } catch (_) {}
+    }
+
+    const mirrorPromises = sessionsSnapshot
+        .filter(s => Boolean(s.stageDir))
+        .map(s => mirrorStagedSavesToPersistent(s, { cleanup: true }));
+    if (mirrorPromises.length > 0) {
+        await Promise.allSettled(mirrorPromises);
+    }
+
+    activeSessions.clear();
     server.close(() => {
         console.log('[Angband3D Cloud] HTTP server closed cleanly. Exiting.');
         process.exit(0);
@@ -4398,11 +4266,11 @@ function gracefulShutdown(signal) {
     setTimeout(() => {
         console.warn('[Angband3D Cloud] Forcing exit after shutdown timeout.');
         process.exit(0);
-    }, 5000).unref();
+    }, 3000).unref();
 }
 
-process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
-process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+process.on('SIGTERM', () => { gracefulShutdown('SIGTERM'); });
+process.on('SIGINT', () => { gracefulShutdown('SIGINT'); });
 
 process.on('uncaughtException', (err) => {
     console.error('[Angband3D Server Uncaught Exception]', err);

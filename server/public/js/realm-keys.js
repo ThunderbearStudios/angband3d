@@ -46,17 +46,20 @@
         eat: Object.freeze({ angband: 'E', silq: 'E', frogcomposband: 'E', hengband: 'E', nethack: 'e', dcss: 'e', brogue: 'e', rogue: 'e', ryod: 'e' }),
         read: Object.freeze({ angband: 'r', silq: null, frogcomposband: 'r', hengband: 'r', nethack: 'r', dcss: 'r', brogue: 'r', rogue: 'r', ryod: 'r' }),
         rest: Object.freeze({ angband: 'R', silq: '%', frogcomposband: 'R', hengband: 'R', nethack: '.', dcss: '5', brogue: 'z', rogue: '.', ryod: '.' }),
-        open: Object.freeze({ angband: 'o', silq: 'o', frogcomposband: 'o', hengband: 'o', nethack: 'o', dcss: 'O', brogue: 'o', rogue: 'o', ryod: 'o' }),
+        open: Object.freeze({ angband: 'o', silq: 'o', frogcomposband: 'o', hengband: 'o', nethack: 'o', dcss: 'o', brogue: 'o', rogue: 'o', ryod: 'o' }),
         pickup: Object.freeze({ angband: 'g', silq: 'g', frogcomposband: 'g', hengband: 'g', nethack: ',', dcss: 'g', brogue: 'g', rogue: ',', ryod: 'g' }),
         inven: Object.freeze({ angband: 'i', silq: 'i', frogcomposband: 'i', hengband: 'i', nethack: 'i', dcss: 'i', brogue: 'i', rogue: 'i', ryod: 'i' }),
         equip: Object.freeze({ angband: 'e', silq: 'e', frogcomposband: 'e', hengband: 'e', nethack: 'e', dcss: 'e', brogue: 'e', rogue: 'e', ryod: 'e' }),
         use: Object.freeze({ angband: 'U', silq: 'u', frogcomposband: null, hengband: null, nethack: 'a', dcss: 'a', brogue: 'a', rogue: 'z', ryod: 'a' }),
+        activate: Object.freeze({ angband: 'A', silq: 'p', frogcomposband: 'A', hengband: 'A', nethack: 'a', dcss: 'a', brogue: 'a', rogue: 'z', ryod: 'a' }),
+        pet: Object.freeze({ angband: null, silq: null, frogcomposband: 'p', hengband: 'p', nethack: 'C', dcss: null, brogue: null, rogue: null, ryod: 'p' }),
         use_staff: Object.freeze({ angband: 'u', silq: 'a', frogcomposband: 'u', hengband: 'u', nethack: 'a', dcss: 'V', brogue: 'a', rogue: 'z', ryod: 'a' }),
         hold: Object.freeze({ angband: ',', silq: 'z', frogcomposband: ',', hengband: ',', nethack: '.', dcss: '.', brogue: '.', rogue: '.', ryod: '.' }),
         browse: Object.freeze({ angband: 'b', silq: null, frogcomposband: 'b', hengband: 'b', nethack: 'r', dcss: 'I', brogue: null, rogue: null, ryod: 'M' }),
         study: Object.freeze({ angband: 'G', silq: null, frogcomposband: 'G', hengband: 'G', nethack: 'r', dcss: 'M', brogue: null, rogue: null, ryod: 'M' }),
         power: Object.freeze({ angband: null, silq: null, frogcomposband: 'U', hengband: 'U', nethack: '#', dcss: 'a', brogue: null, rogue: null, ryod: 'm' }),
         skills: Object.freeze({ angband: null, silq: 'tab', frogcomposband: null, hengband: null, nethack: null, dcss: 'm', brogue: null, rogue: null, ryod: 'm' }),
+        abilities: Object.freeze({ angband: null, silq: 'tab', frogcomposband: null, hengband: null, nethack: 'C', dcss: 'm', brogue: null, rogue: null, ryod: 'm' }),
         quests: Object.freeze({ angband: null, silq: null, frogcomposband: null, hengband: null, nethack: null, dcss: null, brogue: null, rogue: null, ryod: null }),
         overland: Object.freeze({ angband: null, silq: null, frogcomposband: null, hengband: null, nethack: null, dcss: null, brogue: null, rogue: null, ryod: null }),
         search: Object.freeze({ angband: null, silq: null, frogcomposband: 'S', hengband: 'S', nethack: 's', dcss: 's', brogue: 's', rogue: 's', ryod: 's' }),
@@ -250,9 +253,14 @@
         for (const cfg of BUTTON_CONFIG) {
             if (cfg.id === verbOrId || cfg.verb === verbOrId) {
                 const isJp = (r === 'hengband') && (effLang === 'jp');
+                const isBi = (r === 'hengband') && (effLang === 'bilingual');
                 if (isJp && cfg.labels && cfg.labels.hengband_jp) return cfg.labels.hengband_jp;
-                if (cfg.labels && cfg.labels[r]) return cfg.labels[r];
-                if (cfg.labels && cfg.labels.default) return cfg.labels.default;
+                const baseLbl = (cfg.labels && cfg.labels[r]) ? cfg.labels[r] : (cfg.labels && cfg.labels.default ? cfg.labels.default : '');
+                if (isBi && baseLbl && cfg.labels && cfg.labels.hengband_jp) {
+                    const jpKanji = cfg.labels.hengband_jp.replace(/^[^\u3000-\u9fffA-Za-z0-9]+\s*/, '').trim();
+                    return jpKanji ? `${baseLbl} (${jpKanji})` : baseLbl;
+                }
+                if (baseLbl) return baseLbl;
             }
         }
 
@@ -302,9 +310,15 @@
                 const displayKey = (key === 'tab') ? 'Tab' : key;
 
                 const isJp = (r === 'hengband') && (effLang === 'jp');
-                const labelText = (isJp && cfg.labels && cfg.labels.hengband_jp)
+                const isBi = (r === 'hengband') && (effLang === 'bilingual');
+                const baseLbl = (cfg.labels && cfg.labels[r]) ? cfg.labels[r] : (cfg.labels ? cfg.labels.default : '');
+                let labelText = (isJp && cfg.labels && cfg.labels.hengband_jp)
                     ? cfg.labels.hengband_jp
-                    : ((cfg.labels && cfg.labels[r]) ? cfg.labels[r] : (cfg.labels ? cfg.labels.default : ''));
+                    : baseLbl;
+                if (isBi && baseLbl && cfg.labels && cfg.labels.hengband_jp) {
+                    const jpKanji = cfg.labels.hengband_jp.replace(/^[^\u3000-\u9fffA-Za-z0-9]+\s*/, '').trim();
+                    if (jpKanji) labelText = `${baseLbl} (${jpKanji})`;
+                }
 
                 const actLabel = btn.querySelector ? btn.querySelector('.act-label') : null;
                 if (actLabel && labelText) {

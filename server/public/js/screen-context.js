@@ -22,7 +22,7 @@
             'isSilqDrop', 'isSilqThrow', 'isSilqFire', 'isEquipView', 'isQuiverView'],
         inputTerminalKeyFlags: ['isChoiceMenu', 'isNamePrompt', 'isReviewScreen'],
         classify: ['mode', 'listKind', 'promptKind', 'verbPrompt', 'items', 'inPlay',
-            'needsTerminal', 'screenText', 'isItemPrompt', 'isStore', 'isTargeting',
+            'needsTerminal', 'screenText', 'isItemPrompt', 'isStore', 'isBuilding', 'isHome', 'isTargeting',
             'isTargetingPrompt', 'isYesNoPrompt', 'isQuantityPrompt', 'isChoiceMenu',
             'isNamePrompt', 'isReviewScreen', 'isMenuOrInteractive', 'isSplashPoem',
             'isPressAnyKey', 'isItemActions', 'isPopupCommandMenu']
@@ -112,11 +112,15 @@
 
     function isDirectionalTargetingText(fullText) {
         if (!fullText) return false;
-        return ['direction?', 'which direction?', 'in what direction', 'direction to fire', 'aim which direction?', 'target [', 'target:', 'select target',
+        return ['direction?', 'which direction?', 'in what direction', 'direction to fire', 'aim which direction?',
+            'direction or <click>', 'direction (', 'target [', 'target:', 'select target',
             '方向?', 'どの方向', 'どちらの方向', '標的:', '照準:', 'ターゲット:'].some(s => fullText.includes(s));
     }
 
     function needsTerminal(frame, opts) {
+        if (opts && opts.mirror3d) {
+            return screenModelOf(frame, (frame && frame.realm) || 'angband', opts).needsTerminal;
+        }
         const forceTerminal = Boolean(opts && opts.forceTerminal);
         const decode = opts && opts.decode;
         if (!frame || !frame.player) return true;
@@ -148,13 +152,20 @@
         screenText = screenText || '';
         const inPlay = Boolean(frame && frame.phase === 'play' && (frame.map || (frame.player && frame.player.name)));
         const playerFeat = playerFeatOf(frame);
-        const isStoreFeat = (playerFeat >= 7 && playerFeat <= 14) || (playerFeat >= 0x20 && playerFeat <= 0x28) || (isHeng && playerFeat === 4);
+        const isRetailStoreFeat = playerFeat >= 7 && playerFeat <= 13;
+        const isHomeFeat = playerFeat === 14;
+        const isBuildingFeat = (playerFeat >= 0x20 && playerFeat <= 0x28) || (isHeng && playerFeat === 4);
+        const isStoreFeat = isRetailStoreFeat || isHomeFeat || isBuildingFeat;
         const inOverlay = Boolean(frame && frame.ui && (frame.ui.overlay || 0) > 0);
         const hasStoreText = ['store inventory', 'home inventory', 'gold remaining', 'purchase which item', 'sell which item',
             'examine which item', '商品の一覧', '雑貨屋', '万屋', '防具屋', '武器屋', '寺院', '錬金術の店', '魔術師の店',
             'ブラック・マーケット', '我が家', '博物館'].some(s => screenText.includes(s)) || (screenText.includes('重さ') && screenText.includes('価格'));
         const isTargeting = inPlay && ['target [', 'target:', 'direction?', 'which direction?', 'in what direction', 'direction to fire', 'select target', 'aim which direction?'].some(s => screenText.includes(s));
+        const isStoreItemPrompt = ['purchase which item', 'buy which item', 'which item to buy', 'which item do you want to purchase',
+            'sell which item', 'which item to sell', 'drop which item', 'examine which item', 'inspect which item'].some(s => screenText.includes(s)) ||
+            (isHeng && ['どのアイテムを売', 'どれを売', '何を売りますか', 'どのアイテムを調', 'どれを調', 'どのアイテムを買', '何を買いますか', 'どれを落としますか'].some(s => screenText.includes(s)));
         const isItemPrompt = inPlay && !isTargeting && (
+            isStoreItemPrompt ||
             /inventory\s*\|\s*equipment/.test(screenText) ||
             ['select item:', 'inven:', '(inven', '(inventory)', 'inventory pack (', 'inventory |', '| equipment', 'equip:', '(equip', '(equipment)', 'equipped gear (',
             'quiver:', '(quiver', 'choice:', 'what do you want to ', 'which item do you wish to ', 'which item?', 'which potion?', 'drink which', 'which scroll?', 'which spell?', 'which prayer?',
@@ -162,14 +173,13 @@
             'throw which', 'fire which', 'shoot which', 'quaff which', 'read which', 'destroy which', 'eat which', 'use which', 'use or invoke which', 'use, zap, or evoke which',
             'aim which', 'zap which', 'activate which', 'inscribe which', 'uninscribe which', 'refill which', 'refill with which',
             'fuel with which', 'fuel which', 'browse which', 'cast which', 'study which'].some(s => screenText.includes(s)) ||
-            (!hasStoreText && screenText.includes('examine which item')) ||
             (isHeng && !hasStoreText && (
                 screenText.includes('持ち物：') || screenText.includes('装備：') ||
                 ((screenText.includes('inventory:') || screenText.includes('equipment:') || screenText.includes('(inventory)') || screenText.includes('(equipment)')) && screenText.includes('command:')) ||
                 ['どれを装備', 'どれを外しますか', 'どれを落としますか', 'どれを投げますか', 'どれを食べますか', 'どれを使いますか', 'どの杖', 'どのロッド', 'どれを発動', '銘を刻み', '銘を消', 'どの呪文', 'どれを学習'].some(s => screenText.includes(s))
             ))
         );
-        const isStore = !isItemPrompt && (hasStoreText || (isStoreFeat && inOverlay));
+        const isStore = !isItemPrompt && (hasStoreText || ((isRetailStoreFeat || isHomeFeat) && inOverlay));
         return { inPlay, playerFeat, isStoreFeat, inOverlay, hasStoreText, isTargeting, isItemPrompt, isStore };
     }
 
@@ -416,6 +426,9 @@
         const isItemActions = screenText.includes('command for ') || (screenText.includes('(enter to select') && screenText.includes('examine')) || (isHeng && screenText.includes('に対するコマンド'));
         const isSplashPoem = Boolean(['into the vast and echoing gloom', 'depths they went alone', 'menace dark enshrined', 'when the world is old and the days of wonder', 'rephial.org', 'last battle be gathered'].some(s => screenText.includes(s)));
         const isPopupCmd = isPopupCommandMenu(screenText);
+        const isBuildingFeat = (tb.playerFeat >= 0x20 && tb.playerFeat <= 0x28) || (isHeng && tb.playerFeat === 4);
+        const isBuilding = Boolean(!tb.isItemPrompt && isBuildingFeat && tb.inOverlay && !tb.hasStoreText);
+        const isHome = Boolean(tb.isStore && (tb.playerFeat === 14 || /\byour home\b|home inventory|我が家/i.test(screenText)));
 
         let mode = 'terminal';
         if (isPressAnyKey) mode = 'press-any-key';
@@ -423,6 +436,7 @@
         else if (isItemActions) mode = 'item-actions';
         else if (isPopupCmd) mode = 'popup-menu';
         else if (tb.isStore) mode = 'store';
+        else if (isBuilding) mode = 'building';
         else if (pf.isYesNoPrompt) mode = 'yesno';
         else if (pf.isQuantityPrompt) mode = 'quantity';
         else if (tb.isItemPrompt || (realm === 'frogcomposband' && (/inventory\s*\|\s*equipment/.test(screenText) || screenText.includes('inventory |') || screenText.includes('| equipment')))) mode = 'item-list';
@@ -472,12 +486,14 @@
 
             if (check('wear/wield') || check('wear which') || check('wield which') || check('put on which') || check('equip which') || check('what do you want to wear') || check('what do you want to wield') || check('what do you want to put on') || check('which item do you wish to wield') || check('which item do you wish to wear') || check('which item do you wish to put on') || check('どれを装備')) verbPrompt = 'wear';
             else if (check('remove which') || check('take off') || check('what do you want to take off') || check('what do you want to remove') || check('which item do you wish to take off') || check('which item do you wish to remove') || check('どれを外しますか')) verbPrompt = 'remove';
+            else if (check('sell which') || check('どのアイテムを売') || check('どれを売')) verbPrompt = 'sell';
+            else if (check('purchase which') || check('buy which')) verbPrompt = 'buy';
             else if (check('drop which') || check('what do you want to drop') || check('which item do you wish to drop') || check('どれを落としますか') || (realm === 'frogcomposband' && check('drop'))) verbPrompt = 'drop';
             else if (check('throw which') || check('what do you want to throw') || check('which item do you wish to throw') || check('どれを投げますか') || (realm === 'frogcomposband' && check('throw'))) verbPrompt = 'throw';
             else if (check('fire which') || check('shoot which') || check('what do you want to fire') || (realm === 'frogcomposband' && check('shoot'))) verbPrompt = 'fire';
             else if (check('quaff which') || check('drink which') || check('what do you want to drink') || check('what do you want to quaff') || check('which item do you wish to quaff') || check('which item do you wish to drink') || check('どの薬') || (realm === 'frogcomposband' && check('quaff'))) verbPrompt = 'quaff';
             else if (check('read which') || check('what do you want to read') || check('which item do you wish to read') || check('どの巻物') || (realm === 'frogcomposband' && check('read'))) verbPrompt = 'read';
-            else if (check('examine which') || check('どれを調べますか')) verbPrompt = 'examine';
+            else if (check('examine which') || check('inspect which') || check('どのアイテムを調') || check('どれを調')) verbPrompt = 'examine';
             else if (check('destroy which') || (realm === 'frogcomposband' && check('destroy'))) verbPrompt = 'destroy';
             else if (check('eat which') || check('what do you want to eat') || check('which item do you wish to eat') || check('どれを食べますか') || (realm === 'frogcomposband' && check('eat'))) verbPrompt = 'eat';
             else if (check('use which') || check('apply which') || check('what do you want to use') || check('what do you want to apply') || check('どれを使いますか') || (realm === 'frogcomposband' && check('use'))) verbPrompt = 'use';
@@ -494,16 +510,16 @@
             else if (realm === 'frogcomposband' && check('choice:')) verbPrompt = 'select';
         }
 
-        const items = (mode === 'item-list' || mode === 'item-actions' || mode === 'store' || mode === 'birth' || mode === 'review')
+        const items = (mode === 'item-list' || mode === 'item-actions' || mode === 'store' || mode === 'building' || mode === 'birth' || mode === 'review')
             ? extractItems(frame && frame.term ? frame.term.rows : [], isHeng, decode) : [];
 
-        const isMenuOrInteractive = Boolean(mode === 'item-list' || mode === 'item-actions' || mode === 'popup-menu' || mode === 'store' ||
+        const isMenuOrInteractive = Boolean(mode === 'item-list' || mode === 'item-actions' || mode === 'popup-menu' || mode === 'store' || mode === 'building' ||
             mode === 'birth' || mode === 'review' || mode === 'name' || mode === 'yesno' || mode === 'quantity' || mode === 'press-any-key');
 
         const result = {
             mode, listKind, promptKind, verbPrompt, items, inPlay,
             needsTerminal: nTerm, screenText, isItemPrompt: tb.isItemPrompt,
-            isStore: tb.isStore, isTargeting: tb.isTargeting, isTargetingPrompt,
+            isStore: tb.isStore, isBuilding, isHome, isTargeting: tb.isTargeting, isTargetingPrompt,
             isYesNoPrompt: pf.isYesNoPrompt, isQuantityPrompt: pf.isQuantityPrompt,
             isChoiceMenu: bf.isChoiceMenu, isNamePrompt: bf.isNamePrompt,
             isReviewScreen: bf.isReviewScreen, isMenuOrInteractive, isSplashPoem,
@@ -521,7 +537,7 @@
         return result;
     }
 
-    function resolveScreenModelItems(frame, legacy) {
+    function resolveScreenModelItems(frame, legacy, prompt, optMirror3d) {
         const player = frame && frame.player;
         const inv = (player && Array.isArray(player.inventory)) ? player.inventory : [];
         const eq = (player && Array.isArray(player.equipment)) ? player.equipment : [];
@@ -529,7 +545,23 @@
         const playerItems = [...inv, ...eq, ...quiv];
         const hasPlayerLists = Boolean(player && (Array.isArray(player.inventory) || Array.isArray(player.equipment) || Array.isArray(player.quiver)));
         const itemRows = (legacy && (legacy.itemRows || legacy.items)) || [];
-        if (!itemRows.length) return [];
+        if (!itemRows.length) {
+            if (!optMirror3d || !hasPlayerLists || !prompt || prompt.kind !== 'item') return [];
+            const v = String(prompt.verb || '').toLowerCase();
+            const cat = (typeof window !== 'undefined' && window.ActionCatalog) ? window.ActionCatalog : null;
+            const catVerb = v === 'wear' ? 'wield' : (v === 'remove' ? 'takeoff' : (v === 'use' ? 'use_staff' : v));
+            const bitIdx = (cat && Array.isArray(cat.VERB_BITS) && catVerb) ? cat.VERB_BITS.indexOf(catVerb) : -1;
+            const pool = (v === 'remove' || v === 'takeoff') ? eq : (v === 'fire' ? (quiv.length ? quiv : inv) : ((v === 'inscribe' || v === 'examine' || v === 'drop') ? [...inv, ...eq] : inv));
+            const filtered = pool.filter((it) => {
+                if (!it) return false;
+                if (bitIdx >= 0 && typeof it.vm === 'number') return (it.vm & (1 << bitIdx)) !== 0;
+                return true;
+            });
+            return filtered.map((it, idx) => {
+                const k = it.letter || it.key || it.label || String.fromCharCode(97 + (idx % 26));
+                return Object.assign({}, it, { key: k, letter: k, label: it.name || 'Item', display: `[${k}]` });
+            });
+        }
         if (hasPlayerLists) {
             const result = [];
             for (const row of itemRows) {
@@ -545,7 +577,7 @@
                 });
                 if (match) {
                     result.push(Object.assign({}, match, {
-                        key: row.key, letter: row.key, rowLabel: row.label,
+                        key: row.key, letter: row.key, label: match.name || row.label || match.label, rowLabel: row.label,
                         glyph: row.glyph || match.glyph || null, display: row.display || `[${row.key}]`
                     }));
                 }
@@ -592,7 +624,7 @@
             kind = 'count'; verb = null;
         } else if ((legacy && (legacy.isQuantityPrompt || legacy.mode === 'quantity')) || /(?:how\s+many|quantity|how\s+much|何個)/i.test(activeLower)) {
             kind = 'quantity'; verb = null;
-        } else if ((legacy && (legacy.isItemActions || legacy.isPopupCommandMenu || legacy.isChoiceMenu || legacy.isReviewScreen || legacy.mode === 'item-actions' || legacy.mode === 'popup-menu')) ||
+        } else if ((legacy && (legacy.isItemActions || legacy.isPopupCommandMenu || legacy.isChoiceMenu || legacy.isReviewScreen || legacy.isBuilding || legacy.mode === 'building' || legacy.mode === 'item-actions' || legacy.mode === 'popup-menu')) ||
                    row0Lower.includes('command for ') || row0Lower.includes('に対するコマンド')) {
             kind = 'menu'; verb = null;
         } else if (legacy && (legacy.isStore || legacy.mode === 'store')) {
@@ -602,7 +634,7 @@
             kind = 'spell'; verb = verb || 'cast';
         } else if ((legacy && legacy.mode === 'item-list' && legacy.promptKind === 'select') ||
                    (legacy && legacy.isItemPrompt && legacy.promptKind === 'select') ||
-                   /(?:select\s+item|what\s+do\s+you\s+want\s+to\s+|which\s+item\s+do\s+you\s+wish\s+to\s+|which\s+(?:item|potion|scroll|book|weapon|armour|wand|staff|rod|piece)|wear\/wield\s+which|wear\s+which|wield\s+which|put\s+on\s+which|equip\s+which|apply\s+which|evoke\s+which|take\s+off|remove\s+which|drop\s+which|throw\s+which|fire\s+which|shoot\s+which|quaff\s+which|drink\s+which|read\s+which|eat\s+which|destroy\s+which|examine\s+which|choice:)/i.test(activeLower)) {
+                   /(?:select\s+item|what\s+do\s+you\s+want\s+to\s+|which\s+item\s+do\s+you\s+wish\s+to\s+|which\s+(?:item|potion|scroll|book|weapon|armour|wand|staff|rod|piece)|wear\/wield\s+which|wear\s+which|wield\s+which|put\s+on\s+which|equip\s+which|apply\s+which|evoke\s+which|take\s+off|remove\s+which|drop\s+which|sell\s+which|purchase\s+which|buy\s+which|throw\s+which|fire\s+which|shoot\s+which|quaff\s+which|drink\s+which|read\s+which|eat\s+which|destroy\s+which|examine\s+which|inspect\s+which|choice:)/i.test(activeLower)) {
             kind = 'item'; verb = legacy ? legacy.verbPrompt : null;
             if (!verb) {
                 if (/what do you want to (?:wear|wield|put on)|put on which|equip which|which item do you wish to (?:wield|wear|put on)/i.test(activeLower)) verb = 'wear';
@@ -614,6 +646,9 @@
                 else if (/what do you want to (?:use|apply)|apply which/i.test(activeLower)) verb = 'use';
                 else if (/evoke which|aim which/i.test(activeLower)) verb = 'aim';
                 else if (/what do you want to drop|drop which|which item do you wish to drop/i.test(activeLower)) verb = 'drop';
+                else if (/sell which/i.test(activeLower)) verb = 'sell';
+                else if (/purchase which|buy which/i.test(activeLower)) verb = 'buy';
+                else if (/examine which|inspect which/i.test(activeLower)) verb = 'examine';
                 else if (/what do you want to throw|throw which|which item do you wish to throw/i.test(activeLower)) verb = 'throw';
             }
         } else if ((legacy && (legacy.isNamePrompt || legacy.mode === 'name')) ||
@@ -641,7 +676,7 @@
             (frame === smLastFrameObj || (frame.seq !== undefined && smLastSeq !== null && frame.seq === smLastSeq && (frame.term === smLastFrameObj?.term || frame.term?.rows === smLastFrameObj?.term?.rows)));
         if (isMatch) return cachedScreenModel;
 
-        const legacy = classify(frame, realm, opts);
+        const legacy = classify(frame, realm, { lang: opts.lang, decode: opts.decode, forceTerminal: optForceTerminal });
         let prompt;
         const bp = frame && frame.ui && frame.ui.prompt;
         if (bp && bp.kind) {
@@ -652,7 +687,9 @@
         }
 
         const inPlay = Boolean(legacy && legacy.inPlay), player = frame && frame.player, ui = (frame && frame.ui) || {}, overlay = ui.overlay || 0;
-        const isDead = Boolean((legacy && legacy.mode === 'death') || (player && (player.dead || (player.hp !== undefined && player.hp <= 0 && player.hp_max > 0))));
+        const rNorm = String(realm || (frame && frame.realm) || 'angband').toLowerCase();
+        const isCEngine = rNorm === 'angband' || rNorm === 'silq' || rNorm === 'frogcomposband' || rNorm === 'hengband';
+        const isDead = Boolean((legacy && legacy.mode === 'death') || (player && (player.dead || (player.hp !== undefined && (isCEngine ? (player.hp < 0) : (player.hp <= 0)) && player.hp_max > 0))));
         const isBirth = Boolean(!frame || !player || (frame.phase && frame.phase === 'birth') || (legacy && (legacy.mode === 'birth' || legacy.mode === 'name' || legacy.mode === 'review')) || (frame.phase && frame.phase !== 'play' && !isDead));
 
         const rows = (frame && frame.term && Array.isArray(frame.term.rows)) ? frame.term.rows : [];
@@ -673,6 +710,7 @@
                 else if (prompt.kind === 'item' || (legacy && legacy.mode === 'item-list' && legacy.promptKind === 'select')) mirror = 'item';
                 else if (prompt.kind === 'menu' && (row0Lower.includes('command for ') || prompt.text.toLowerCase().includes('command for '))) mirror = 'item-menu';
                 else if (prompt.kind === 'spell' && (Boolean(frame && frame.spells) || Boolean(opts && opts.hasBridgeSpells))) mirror = 'spell';
+                else if (prompt.kind === 'string' && /inscribe|inscription/i.test(prompt.text || row0)) mirror = 'string';
             }
         }
 
@@ -686,9 +724,9 @@
         let needsTerm;
         if (optForceTerminal || owner === 'birth' || owner === 'dead') needsTerm = true;
         else if (mirror !== null) needsTerm = false;
-        else needsTerm = needsTerminal(frame, opts);
+        else needsTerm = needsTerminal(frame, { forceTerminal: optForceTerminal, decode: opts.decode });
 
-        const items = resolveScreenModelItems(frame, legacy), isHeng = realm === 'hengband';
+        const items = resolveScreenModelItems(frame, legacy, prompt, optMirror3d), isHeng = realm === 'hengband';
         const regions = extractMultiColumnItems(rows, isHeng, decode);
 
         const result = { owner, prompt, mirror, needsTerminal: needsTerm, items, regions, legacy };

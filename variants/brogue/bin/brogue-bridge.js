@@ -66,6 +66,8 @@ const BROGUE_SPEC = {
     items: [
         { kind: 'potion', name: 'potion of life', glyph: '!', attr: 4, heal: 40, weight: 15, tval: 71, sval: 39 },
         { kind: 'potion', name: 'potion of strength', glyph: '!', attr: 14, strengthGain: 2, weight: 15, tval: 71, sval: 40 },
+        { kind: 'potion', name: 'potion of darkness', glyph: '!', attr: 8, blindTurns: 18, weight: 15, tval: 71, sval: 7 },
+        { kind: 'potion', name: 'potion of telepathy', glyph: '!', attr: 11, telepathyTurns: 35, grantsTelepathy: true, weight: 15, tval: 71, sval: 42 },
         { kind: 'scroll', name: 'scroll of enchanting', glyph: '?', attr: 11, enchantGain: 1, weight: 5, tval: 70, sval: 15 },
         { kind: 'scroll', name: 'scroll of magic mapping', glyph: '?', attr: 11, weight: 5, tval: 70, sval: 12 },
         { kind: 'food', name: 'food ration', glyph: ':', attr: 3, nutrition: 950, weight: 20, tval: 80, sval: 1 },
@@ -76,12 +78,247 @@ const BROGUE_SPEC = {
     ]
 };
 
-if (require.main === module) {
-    const defaultSaveDir = path.resolve(__dirname, '../lib/save');
-    runCartridgeMain(BROGUE_SPEC, defaultSaveDir);
-}
+const MINDLESS_RE = /jelly|mold|fungus|ooze|pudding|mound|vortex|light|golem|skeleton|zombie|turret/i;
 
 class BrogueEngine extends UniversalCartridgeEngine {
-    constructor(opts = {}) { super(BROGUE_SPEC, opts); }
+    constructor(opts = {}) {
+        const defaultSaveDir = path.resolve(__dirname, '../lib/save');
+        super(BROGUE_SPEC, { saveDir: defaultSaveDir, user: 'Adventurer', ...opts });
+    }
+
+    initNewState(roleIdx = 0) {
+        super.initNewState(roleIdx);
+        const p = this.state.player;
+        p.blind = 0;
+        p.telepathy = false;
+        p.esp = false;
+        p.telepathyTurns = 0;
+        p.rBlind = false;
+    }
+
+    loadSave() {
+        const ok = super.loadSave();
+        if (ok && this.state && this.state.player) {
+            const p = this.state.player;
+            p.blind = Number(p.blind || 0);
+            p.telepathy = Boolean(p.telepathy || p.esp);
+            p.esp = Boolean(p.esp || p.telepathy);
+        }
+        return ok;
+    }
+
+    updateVisibility() {
+        const p = this.state && this.state.player;
+        if (p && p.blind > 0 && Array.isArray(this.state.map)) {
+            for (let y = 0; y < this.state.map.length; y++) {
+                const row = this.state.map[y];
+                for (let x = 0; x < row.length; x++) row[x].inView = false;
+            }
+            if (this.state.map[p.y] && this.state.map[p.y][p.x]) {
+                this.state.map[p.y][p.x].inView = true;
+                this.state.map[p.y][p.x].known = true;
+            }
+            return;
+        }
+        super.updateVisibility();
+    }
+
+    _hasEsp() {
+        const p = this.state.player;
+        return Boolean(
+            p.telepathy || p.esp ||
+            (Array.isArray(p.inventory) && p.inventory.some(it => it.equipped && /telepathy|esp|clairvoyance/i.test(it.name || '')))
+        );
+    }
+
+    applyVerbToItem(verb, item) {
+        const p = this.state.player;
+        if (item && (verb === 'quaff' || (verb === 'use' && item.kind === 'potion'))) {
+            const nm = String(item.name || '');
+            if (item.blindTurns || /darkness|blindness/i.test(nm)) {
+                if (!p.rBlind) {
+                    p.blind = Math.max(p.blind || 0, (item.blindTurns || 18) + 1);
+                    this.updateVisibility();
+                    this.addMessage('A veil of darkness blinds you!', 6);
+                } else {
+                    this.addMessage('Darkness swirls harmlessly past your eyes.', 11);
+                }
+                item.count = (item.count || 1) - 1;
+                this.reindexInventory();
+                this.advanceTurn();
+                return;
+            }
+            if (item.grantsTelepathy || item.telepathyTurns || /telepathy|esp/i.test(nm)) {
+                p.telepathy = true;
+                p.esp = true;
+                p.telepathyTurns = Math.max(p.telepathyTurns || 0, (item.telepathyTurns || 35) + 1);
+                this.addMessage('You drink the potion of telepathy! Minds shimmer across the caverns!', 11);
+                item.count = (item.count || 1) - 1;
+                this.reindexInventory();
+                this.advanceTurn();
+                return;
+            }
+            if (item.heal || /life|heal|purif/i.test(nm)) {
+                if (p.blind > 0) {
+                    p.blind = 0;
+                    this.updateVisibility();
+                    this.addMessage('The potion of life purges the darkness from your eyes!', 11);
+                }
+            }
+        }
+        super.applyVerbToItem(verb, item);
+    }
+
+    handleMonsterKilled(mon) {
+        const p = this.state.player;
+        if (mon && /bloat/i.test(mon.race || '') && !p.rBlind && Math.hypot(mon.x - p.x, mon.y - p.y) <= 1.5) {
+            p.blind = Math.max(p.blind || 0, 9);
+            this.updateVisibility();
+            this.addMessage('The bloated creature ruptures in blindness gas! A veil of darkness blinds you!', 13);
+        }
+        super.handleMonsterKilled(mon);
+    }
+
+    advanceTurn() {
+        const p = this.state.player;
+        const wasBlind = p.blind > 0;
+        super.advanceTurn();
+        if (p.dead) return;
+        if (wasBlind && p.blind > 0) {
+            p.blind--;
+            if (p.blind === 0) {
+                this.updateVisibility();
+                this.addMessage('You can see again.', 11);
+            }
+        }
+        if (p.telepathyTurns > 0) {
+            p.telepathyTurns--;
+            if (p.telepathyTurns === 0 && !p.intrinsicTelepathy) {
+                p.telepathy = false;
+                p.esp = false;
+                this.addMessage('Your telepathic vision fades.', 8);
+            }
+        }
+    }
+
+    buildFrame() {
+        const frame = super.buildFrame();
+        const p = this.state.player;
+        const isBlind = Boolean(p.blind > 0);
+        const hasEsp = this._hasEsp();
+        frame.player.blind = isBlind;
+        frame.player.flags.esp = hasEsp;
+        frame.player.flags.telepathy = hasEsp;
+        frame.player.flags.rBlind = Boolean(p.rBlind || frame.player.flags.rBlind);
+
+        const hashRaceIdx = (raceName) => {
+            const s = String(raceName || 'unknown');
+            let h = 1;
+            for (let i = 0; i < s.length; i++) h = ((h * 31) + s.charCodeAt(i)) & 0x7ff;
+            return h || 1;
+        };
+        const serializeMon = (m, espFlag, sensedFlag) => ({
+            id: m.id,
+            r_idx: m.r_idx || hashRaceIdx(m.race),
+            y: m.y,
+            x: m.x,
+            attr: m.attr || 1,
+            glyph: m.glyph,
+            name: m.race,
+            race: m.race,
+            race_level: m.race_level || 1,
+            hp: m.hp,
+            hp_max: m.hp_max,
+            ac: m.ac != null ? m.ac : 8,
+            dmg: m.dmg || 4,
+            speed: (m.speed != null ? m.speed : 110) - 110,
+            unique: Boolean(m.isBoss || m.isNemesis || m.unique),
+            attitude: m.isPet ? 'pet' : ((m.peaceful || m.friendly) ? 'friendly' : 'hostile'),
+            exp: m.exp || 0,
+            lore: m.lore || '',
+            isPet: Boolean(m.isPet),
+            pet: Boolean(m.isPet),
+            friendly: Boolean(m.isPet || m.peaceful),
+            peaceful: Boolean(m.peaceful || m.isPet),
+            captive: Boolean(m.captive),
+            isBoss: Boolean(m.isBoss),
+            isNemesis: Boolean(m.isNemesis),
+            townRole: m.townRole || null,
+            esp: Boolean(espFlag),
+            sensed: Boolean(sensedFlag)
+        });
+
+        if (isBlind) {
+            if (!frame.player.statuses.some(s => s.name === 'Blind')) {
+                frame.player.statuses.unshift({ name: 'Blind', attr: 6, val: p.blind });
+            }
+            const sensedMons = [];
+            const sensedByCoord = new Map();
+            for (const m of this.state.monsters) {
+                if (m.hp <= 0) continue;
+                const espMind = hasEsp && !MINDLESS_RE.test(m.race || m.name || '');
+                const adj = Math.abs(m.x - p.x) <= 1 && Math.abs(m.y - p.y) <= 1;
+                if (espMind || adj) {
+                    sensedMons.push(serializeMon(m, espMind, true));
+                    sensedByCoord.set(`${m.x},${m.y}`, m);
+                }
+            }
+            frame.monsters = sensedMons;
+            frame.map.rows = this.state.map.map((row, y) => {
+                let g = '', a = '', f = '', l = '';
+                for (let x = 0; x < row.length; x++) {
+                    const cell = row[x];
+                    const isSelf = (x === p.x && y === p.y);
+                    const sm = !isSelf ? sensedByCoord.get(`${x},${y}`) : null;
+                    const ch = isSelf ? '@' : (sm ? sm.glyph : (cell.known ? cell.glyph : ' '));
+                    const at = isSelf ? 1 : (sm ? (sm.attr || 1) : (cell.known ? (cell.attr || 1) : 1));
+                    const featCode = cell.known ? cell.feat : 0;
+                    const lighting = isSelf ? 1 : 3;
+                    const flag = (cell.known ? 1 : 0) | (isSelf ? 2 : 0) | ((lighting & 3) << 2);
+                    g += ch;
+                    a += at.toString(16).padStart(2, '0');
+                    f += featCode.toString(16).padStart(2, '0');
+                    l += flag.toString(16);
+                }
+                return { g, a, f, l };
+            });
+        } else if (hasEsp) {
+            const seenIds = new Set(frame.monsters.map(m => m.id));
+            for (const m of this.state.monsters) {
+                if (m.hp > 0 && !seenIds.has(m.id) && !MINDLESS_RE.test(m.race || m.name || '')) {
+                    frame.monsters.push(serializeMon(m, true, true));
+                }
+            }
+        }
+        return frame;
+    }
 }
+
+if (require.main === module) {
+    const readline = require('readline');
+    const defaultSaveDir = path.resolve(__dirname, '../lib/save');
+    let user = 'Adventurer', saveDir = defaultSaveDir, isNew = false, customBirth = false, randomBirth = false;
+    for (let i = 2; i < process.argv.length; i++) {
+        const arg = String(process.argv[i] || '');
+        if (arg === '-n') isNew = true;
+        else if (arg === '-c' || arg === '--custom') customBirth = true;
+        else if (arg === '-r' || arg === '--random') randomBirth = true;
+        else if (arg.startsWith('-u')) user = arg.slice(2) || user;
+        else if (arg.startsWith('-dsave=')) saveDir = arg.slice(7) || saveDir;
+    }
+    const engine = new BrogueEngine({ user: user.replace(/[^a-zA-Z0-9_.-]/g, '_') || 'Adventurer', saveDir, isNew, customBirth, randomBirth });
+    const writeJson = (obj) => process.stdout.write(JSON.stringify(obj) + '\n');
+    writeJson({ t: 'hello', protocol: 1, protocol_minor: 2, version: BROGUE_SPEC.version, realm: BROGUE_SPEC.realm, savefile: engine.saveFile });
+    writeJson({ t: 'commands', realm: BROGUE_SPEC.realm, verbBits: ['quaff', 'read', 'eat', 'aim', 'use_staff', 'zap', 'activate', 'fire', 'throw', 'wield', 'takeoff', 'drop', 'inscribe', 'uninscribe', 'refill', 'browse', 'study', 'cast', 'ignore', 'examine'] });
+    writeJson(engine.buildFrame());
+    readline.createInterface({ input: process.stdin, terminal: false }).on('line', (rawLine) => {
+        const line = String(rawLine || '').trim();
+        if (!line) return;
+        if (line === 'save') { writeJson({ t: 'saved', ok: engine.saveGame() }); return; }
+        if (line === 'frame') { writeJson(engine.buildFrame()); return; }
+        if (line === 'quit' || line === 'exit') { engine.saveGame(); process.exit(0); return; }
+        if (line.startsWith('key ') || line.startsWith('keys ')) { engine.handleKey(line.replace(/^keys?\s+/, '')); writeJson(engine.buildFrame()); }
+    });
+}
+
 module.exports = { BROGUE_SPEC, BrogueEngine };

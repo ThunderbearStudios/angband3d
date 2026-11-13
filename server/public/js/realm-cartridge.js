@@ -672,14 +672,15 @@
                 evoke: { id: 'evoke', key: 'V', label: '🪄 Evoke' },
                 zap: { id: 'zap', key: 'z', label: '✨ Cast Spell' },
                 cast: { id: 'cast', key: 'z', label: '✨ Cast Spell' },
-                browse: { id: 'browse', key: 'M', label: '📖 Memorise / Browse' },
+                browse: { id: 'browse', key: 'I', label: '📖 Browse Spells' },
+                study: { id: 'study', key: 'M', label: '📚 Spell Library' },
                 skills: { id: 'skills', key: 'm', label: '📊 Skills' },
                 power: { id: 'power', key: 'a', label: '🙏 Divine Ability' },
                 pray: { id: 'pray', key: 'p', label: '⛩️ Pray at Altar' },
                 fire: { id: 'fire', key: 'f', label: '🏹 Fire' },
                 throw: { id: 'throw', key: 'f', label: '🎯 Throw' },
                 drop: { id: 'drop', key: 'd', label: '⬇️ Drop' },
-                inspect: { id: 'inspect', key: 'I', label: '🔍 Inspect' },
+                inspect: { id: 'inspect', key: 'v', label: '🔍 Examine' },
                 open: { id: 'open', key: 'o', label: '🚪 Open' },
                 close: { id: 'close', key: 'c', label: '🚪 Close' },
                 search: { id: 'search', key: 's', label: '👁️ Wait / Search' },
@@ -751,7 +752,7 @@
                 fire: { id: 'fire', key: 't', label: '🎯 Throw' },
                 throw: { id: 'throw', key: 't', label: '🎯 Throw' },
                 drop: { id: 'drop', key: 'd', label: '⬇️ Drop' },
-                inspect: { id: 'inspect', key: 'I', label: '🔍 Inspect' },
+                inspect: { id: 'inspect', key: 'x', label: '🔍 Examine' },
                 open: { id: 'open', key: 'o', label: '🚪 Open' },
                 close: { id: 'close', key: 'c', label: '🚪 Close' },
                 search: { id: 'search', key: 's', label: '👁️ Search' },
@@ -893,7 +894,9 @@
                 apply: { id: 'apply', key: 'a', label: '🔧 Apply' },
                 browse: { id: 'browse', key: 'M', label: '📖 Powers' },
                 cast: { id: 'cast', key: 'm', label: '✨ Cast / Power' },
+                abilities: { id: 'abilities', key: 'm', label: '✨ Abilities / Magic' },
                 study: { id: 'study', key: 'M', label: '📘 Powers' },
+                pet: { id: 'pet', key: 'p', label: '🐾 Pet / Interact' },
                 fire: { id: 'fire', key: 'f', label: '🏹 Fire' },
                 throw: { id: 'throw', key: 't', label: '🎯 Throw' },
                 drop: { id: 'drop', key: 'd', label: '⬇️ Drop' },
@@ -1192,7 +1195,7 @@
             } else if (cat === 'scroll') {
                 nhVerbs.push({ id: 'read', label: '📜 Read (r)', verb: 'r' }, { id: 'bind', label: '⚡ Bind', verb: 'r', isBind: true });
             } else if (cat === 'food') {
-                nhVerbs.push({ id: 'eat', label: '🍞 Eat (e)', verb: 'e' }, { id: 'offer', label: '🕯️ #offer', verb: '#offer\n', isExtended: true });
+                nhVerbs.push({ id: 'eat', label: '🍞 Eat (e)', verb: 'E' }, { id: 'offer', label: '🕯️ #offer', verb: '#offer\n', isExtended: true });
             } else if (cat === 'device') {
                 nhVerbs.push({ id: 'zap', label: '🪄 Zap (z)', verb: 'z' }, { id: 'apply', label: '🔧 Apply (a)', verb: 'a' }, { id: 'bind', label: '⚡ Bind', verb: 'z', isBind: true });
             } else if (cat === 'tome') {
@@ -1203,6 +1206,7 @@
                 nhVerbs.push({ id: 'apply', label: '🔧 Apply (a)', verb: 'a' }, { id: 'loot', label: '📦 #loot', verb: '#loot\n', isExtended: true });
             }
             nhVerbs.push(
+                { id: 'inspect', label: '🔍 Examine (:)', verb: ':' },
                 { id: 'dip', label: '⛲ #dip', verb: '#dip\n', isExtended: true },
                 { id: 'drop', label: '⬇️ Drop (d)', verb: 'd' }
             );
@@ -1240,9 +1244,20 @@
         }
 
         if (isEq) {
+            let takeoffKey = 't';
+            if (r === 'silq') {
+                takeoffKey = 'r';
+            } else if (cat === 'jewelry' && cart.verbs && cart.verbs.remove && cart.verbs.remove.key) {
+                takeoffKey = cart.verbs.remove.key;
+            } else if (r === 'dcss' || r === 'brogue' || r === 'rogue' || r === 'ryod' || r === 'nethack') {
+                takeoffKey = (cart.verbs && cart.verbs.takeoff && cart.verbs.takeoff.key) ? cart.verbs.takeoff.key : 'T';
+            } else if (cart.verbs && cart.verbs.takeoff && cart.verbs.takeoff.key) {
+                takeoffKey = cart.verbs.takeoff.key;
+            }
+
             const eqVerbs = [
-                { id: 'takeoff', label: lbl('🛡️ Take Off', '🛡️ 外す', '🛡️ Take Off (外)'), verb: 't' },
-                { id: 'activate', label: lbl('🔮 Activate', '🔮 発動', '🔮 Activate (発)'), verb: 'A' },
+                { id: 'takeoff', label: lbl('🛡️ Take Off', '🛡️ 外す', '🛡️ Take Off (外)'), verb: takeoffKey },
+                { id: 'activate', label: lbl('🔮 Activate', '🔮 発動', '🔮 Activate (発)'), verb: (r === 'nethack' || r === 'dcss' || r === 'brogue' || r === 'ryod') ? 'a' : 'A' },
                 { id: 'inspect', label: lbl('🔍 Inspect', '🔍 調査', '🔍 Inspect (調)'), verb: cart.verbs.inspect ? cart.verbs.inspect.key : 'I' },
                 { id: 'inscribe', label: lbl('✍️ Inscribe', '✍️ 銘刻', '✍️ Inscribe (銘)'), verb: '{' }
             ];

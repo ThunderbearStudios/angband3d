@@ -23,9 +23,9 @@ const path = require('path');
 const assert = require('assert');
 
 const SERVER_BESTIARY_DIR = path.resolve(__dirname, '../server/public/assets/models/monsters/bestiary');
-const CLIENT_BESTIARY_DIR = path.resolve(__dirname, '../client/assets/models/monsters/bestiary');
+const CLIENT_BESTIARY_DIR = path.resolve(__dirname, '../archive/godot-client-v1/assets/models/monsters/bestiary');
 const SERVER_ITEMS_DIR = path.resolve(__dirname, '../server/public/assets/models/items');
-const CLIENT_ITEMS_DIR = path.resolve(__dirname, '../client/assets/models/items');
+const CLIENT_ITEMS_DIR = path.resolve(__dirname, '../archive/godot-client-v1/assets/models/items');
 const SCRATCH_CANDIDATES_DIR = process.env.ANGBAND3D_CANDIDATES_DIR || path.join(os.tmpdir(), 'angband3d-candidates');
 
 const BESTIARY_SOURCES = [

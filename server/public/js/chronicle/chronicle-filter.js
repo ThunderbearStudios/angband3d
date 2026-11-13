@@ -257,33 +257,52 @@ class ChronicleFilter {
             : (player.depth || 0);
 
         // --- 1. MESSAGE STREAM DIFFING (Prevents Repeating Past Log Entries) ---
+        const realmForNorm = String(frame.realm || (typeof window !== 'undefined' && window.__activeRealm) || '').toLowerCase();
+        const normMsg = (raw) => {
+            const txt = typeof raw === 'string' ? raw : (raw && raw.text ? raw.text : '');
+            if (!txt || realmForNorm !== 'hengband') return txt;
+            if (typeof window !== 'undefined' && window.LocaleSpine && typeof window.LocaleSpine.normalizeMessageForChronicle === 'function') {
+                return window.LocaleSpine.normalizeMessageForChronicle(txt, realmForNorm);
+            }
+            if (typeof window !== 'undefined' && window.HengTranslate && typeof window.HengTranslate.translateLine === 'function') {
+                try { return window.HengTranslate.translateLine(txt, 'en') || txt; } catch (_) {}
+            }
+            return txt;
+        };
         const curList = (frame.messages || [])
-            .map(m => (typeof m === 'string' ? m : (m.text || '')))
+            .map(normMsg)
             .filter(s => s && s.trim().length > 0 && !s.trim().startsWith('===') && !s.trim().startsWith('---'));
 
+        const normalizeOverlapMsg = (s) => String(s || '').replace(/(?:\s*\(x\d+\))+$/i, '').trim();
+
         let newMsgs = [];
-        if (this.lastSeenMessages.length === 0) {
-            newMsgs = curList;
+        if (curList.length === 0) {
+            // Preserve lastSeenMessages across transient empty-message frames mid-session so historical logs never re-fire
+            newMsgs = [];
         } else {
-            // Suffix-overlap match against prior message buffer
-            let matchedOverlap = 0;
-            const maxK = Math.min(this.lastSeenMessages.length, curList.length);
-            for (let k = maxK; k > 0; k--) {
-                let match = true;
-                for (let j = 0; j < k; j++) {
-                    if (this.lastSeenMessages[this.lastSeenMessages.length - k + j] !== curList[j]) {
-                        match = false;
+            if (this.lastSeenMessages.length === 0) {
+                newMsgs = curList;
+            } else {
+                // Suffix-overlap match against prior message buffer (ignoring trailing (xN) repeat counters)
+                let matchedOverlap = 0;
+                const maxK = Math.min(this.lastSeenMessages.length, curList.length);
+                for (let k = maxK; k > 0; k--) {
+                    let match = true;
+                    for (let j = 0; j < k; j++) {
+                        if (normalizeOverlapMsg(this.lastSeenMessages[this.lastSeenMessages.length - k + j]) !== normalizeOverlapMsg(curList[j])) {
+                            match = false;
+                            break;
+                        }
+                    }
+                    if (match) {
+                        matchedOverlap = k;
                         break;
                     }
                 }
-                if (match) {
-                    matchedOverlap = k;
-                    break;
-                }
+                newMsgs = curList.slice(matchedOverlap);
             }
-            newMsgs = curList.slice(matchedOverlap);
+            this.lastSeenMessages = curList;
         }
-        this.lastSeenMessages = curList;
 
         // --- 2. GAMEPLAY TURN ADVANCEMENT & ACCUMULATION ---
         const currentTurn = (player && typeof player.turn === 'number') ? player.turn : (frame.turn || null);
@@ -1006,13 +1025,34 @@ class ChronicleFilter {
                     if (!slainMonsterNames.has(monLower) && (lastHit === undefined || lastHit === now || (now - lastHit > 8000))) {
                         this.recentAssailants.set(monName, now);
                         const monObj = (frame.monsters || []).find(m => (m.name || '').toLowerCase().includes(monLower));
-                        frameIncomingAttacks.push({
+                        const extractHitDamage = (s) => {
+                            if (!s) return null;
+                            const dm = s.match(/\(\s*[-+]?\s*(\d+)\s*(?:HP|dmg|damage|pts?)?\s*\)/i) ||
+                                       s.match(/\bfor\s+(\d+)\s*(?:points?(?:\s+of\s+damage)?|damage|dmg|hp)?\b/i) ||
+                                       s.match(/\b(\d+)\s*(?:damage|dmg)\b/i);
+                            if (!dm) return null;
+                            const val = parseInt(dm[1], 10);
+                            return (Number.isFinite(val) && val > 0) ? val : null;
+                        };
+                        let hitDamage = extractHitDamage(msg);
+                        if (hitDamage === null && Array.isArray(newMsgs)) {
+                            const rawHitMsg = newMsgs.find(rm => rm && rm.toLowerCase().includes(monLower) && extractHitDamage(rm) !== null);
+                            if (rawHitMsg) hitDamage = extractHitDamage(rawHitMsg);
+                        }
+                        if (typeof hitDamage === 'number' && hitDamage > 0) {
+                            this.episodeAccumulator.damageTaken += hitDamage;
+                        }
+                        const attackEntry = {
                             monsterName: monName,
                             action: action,
                             message: msg,
                             glyph: monObj ? monObj.glyph : '',
                             depth: depth
-                        });
+                        };
+                        if (typeof hitDamage === 'number') {
+                            attackEntry.damage = hitDamage;
+                        }
+                        frameIncomingAttacks.push(attackEntry);
                     }
                 }
             }

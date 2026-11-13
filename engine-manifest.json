@@ -1,7 +1,12 @@
 {
   "$schema": "./schemas/engine-manifest.schema.json",
-  "version": "2.0.0",
+  "version": "12.1.0",
   "default_realm": "angband",
+  "tier_groups": {
+    "tier_1_native": ["angband", "silq", "frogcomposband", "hengband"],
+    "tier_2_cartridges": ["ryod", "nethack", "dcss", "brogue", "rogue"],
+    "browser_worker_realms": ["angband", "ryod", "nethack", "dcss", "brogue", "rogue"]
+  },
   "realms": {
     "angband": {
       "id": "angband",

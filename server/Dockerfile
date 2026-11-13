@@ -17,15 +17,16 @@ RUN apt-get update && apt-get install -y \
     autoconf \
     autopoint \
     libtool \
+    nkf \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /src
 
 # 1. Clone & build official upstream Angband 4.2.6 release with bridge patch
 RUN git clone --depth 1 --branch 4.2.6 https://github.com/angband/angband.git /src/engine
-COPY engine-patch/0001-bridge-frontend.patch /src/
+COPY engine-patch /src/engine-patch
 WORKDIR /src/engine
-RUN git apply /src/0001-bridge-frontend.patch
+RUN git apply /src/engine-patch/0001-bridge-frontend.patch
 RUN mkdir -p build && cd build && \
     cmake .. -DCMAKE_BUILD_TYPE=Release \
              -DSUPPORT_BRIDGE_FRONTEND=ON \
@@ -36,10 +37,10 @@ RUN mkdir -p build && cd build && \
              -DSUPPORT_STATIC_LINKING=ON && \
     make -j$(nproc)
 
-# 2. Build FrogComposBand
+# 2. Build FrogComposBand (use build-cmake to avoid colliding with upstream './build' script file)
 COPY variants/frogcomposband-src /src/variants/frogcomposband-src
 WORKDIR /src/variants/frogcomposband-src
-RUN mkdir -p build && cd build && \
+RUN mkdir -p build-cmake && cd build-cmake && \
     cmake .. -DCMAKE_BUILD_TYPE=Release && \
     make -j$(nproc)
 
@@ -47,13 +48,13 @@ RUN mkdir -p build && cd build && \
 COPY variants/silq-src /src/variants/silq-src
 WORKDIR /src/variants/silq-src
 RUN sed -i 's/.*#define FIXED_PATHS.*/\/* #define FIXED_PATHS *\//g' src/config.h && \
-    mkdir -p build && cd build && \
+    mkdir -p build-cmake && cd build-cmake && \
     cmake .. -DCMAKE_BUILD_TYPE=Release \
              -DSUPPORT_X11_FRONTEND=OFF \
              -DSUPPORT_GCU_FRONTEND=ON && \
     make -j$(nproc) silq
 
-# 4. Build Hengband
+# 4. Build Hengband headless bridge binary
 COPY variants/hengband-src /src/variants/hengband-src
 WORKDIR /src/variants/hengband-src
 RUN find . -type f \( -name "*.ac" -o -name "*.am" -o -name "*.m4" -o -name "*.sh" -o -name "bootstrap" -o -name "configure" \) -exec sed -i 's/\r$//' {} + && \
@@ -61,7 +62,14 @@ RUN find . -type f \( -name "*.ac" -o -name "*.am" -o -name "*.m4" -o -name "*.s
     ./bootstrap && \
     chmod +x ./configure && \
     ./configure --disable-x11 --enable-gcu --disable-net && \
-    make -j$(nproc)
+    make -j$(nproc) -C src hengband-bridge
+
+# Stamp deterministic ABI hash of engine patches & C/C++ bridge/Hengband sources
+WORKDIR /src
+RUN ( LC_ALL=C find engine-patch variants/frogcomposband-src variants/silq-src variants/*/patches \
+        -type f \( -name "*.patch" -o -name "*bridge*.c" -o -name "*bridge*.h" -o -name "*bridge*.cpp" -o -name "*bridge*.hpp" -o -name "main-gcu.c" -o -name "main-gcu.cpp" \) 2>/dev/null; \
+      LC_ALL=C find variants/hengband-src/src -type f \( -name "*.cpp" -o -name "*.h" -o -name "*.hpp" -o -name "*.c" \) 2>/dev/null ) \
+      | LC_ALL=C sort -u | xargs -r sha256sum | sha256sum | awk '{print $1}' > /src/.engine-abi-hash
 
 # Stage 2: Runtime Image with Node.js WebSocket Daemon
 FROM node:22-bookworm-slim AS runtime
@@ -87,19 +95,21 @@ RUN npm ci --omit=dev
 
 WORKDIR /app
 
-# Copy compiled Vanilla engine and game library
+# Copy compiled Vanilla engine, ABI hash stamp, and game library
+COPY --from=engine-builder /src/.engine-abi-hash /app/.engine-abi-hash
 COPY --from=engine-builder /src/engine/build/game/angband /app/engine/angband
 COPY --from=engine-builder /src/engine/build/game/lib /app/engine/lib
 COPY --from=engine-builder /src/engine/docs /app/engine/docs
 
 # Copy compiled multi-realm variant engines and libraries
 COPY variants/frogcomposband/lib /app/variants/frogcomposband/lib
-COPY --from=engine-builder /src/variants/frogcomposband-src/build/frogcomposband /app/variants/frogcomposband/bin/frogcomposband
+COPY --from=engine-builder /src/variants/frogcomposband-src/build-cmake/frogcomposband /app/variants/frogcomposband/bin/frogcomposband
 
 COPY variants/silq/lib /app/variants/silq/lib
-COPY --from=engine-builder /src/variants/silq-src/build/silq /app/variants/silq/bin/silq
+COPY --from=engine-builder /src/variants/silq-src/build-cmake/silq /app/variants/silq/bin/silq
 
 COPY variants/hengband/lib /app/variants/hengband/lib
+RUN find /app/variants/hengband/lib -type f \( -name "*.prf" -o -name "*.txt" -o -name "*.jsonc" \) -exec sed -i 's/\r$//' {} +
 COPY --from=engine-builder /src/variants/hengband-src/src/hengband-bridge /app/variants/hengband/bin/hengband
 
 # Copy server & web assets last (fastest invalidation layer)
@@ -141,6 +151,7 @@ ENV DIST_DIR=/app/dist
 ENV WEB_DIR=/app/public
 ENV NODE_ENV=production
 ENV TRUST_PROXY=1
+ENV TRUST_CLOUDFLARE=1
 
 EXPOSE 8080
 

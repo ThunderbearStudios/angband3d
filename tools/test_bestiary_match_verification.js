@@ -26,8 +26,15 @@ const assert = require('assert');
 
 const ROOT = path.resolve(__dirname, '..');
 
+function resolveClientRel(relPath) {
+    if (relPath.startsWith('client/') && !fs.existsSync(path.join(ROOT, relPath))) {
+        return relPath.replace(/^client\//, 'archive/godot-client-v1/');
+    }
+    return relPath;
+}
+
 function read(relPath) {
-    return fs.readFileSync(path.join(ROOT, relPath), 'utf8');
+    return fs.readFileSync(path.join(ROOT, resolveClientRel(relPath)), 'utf8');
 }
 
 function test(name, fn) {
@@ -359,12 +366,12 @@ test('Live multi-realm resolveMonster3DConfig maps 40+ signature creatures acros
     assert.strictEqual(resolve({ race: 'Little dog', glyph: 'C' }, 'C', 'angband').templateKey, 'bestiary_shiba');
     assert.strictEqual(resolve({ race: 'Red fox', glyph: 'C' }, 'C', 'angband').templateKey, 'bestiary_fox');
     assert.strictEqual(resolve({ race: 'grid bug', glyph: 'x' }, 'x', 'nethack').templateKey, 'bestiary_beetle');
-    assert.strictEqual(resolve({ race: 'gelatinous cube', glyph: 'b' }, 'b', 'nethack').templateKey, 'env_ooze_mound');
+    assert.strictEqual(resolve({ race: 'gelatinous cube', glyph: 'b' }, 'b', 'nethack').templateKey, 'env_gelatinous_cube');
     assert.strictEqual(resolve({ race: 'gnome', glyph: 'G' }, 'G', 'nethack').templateKey, 'bestiary_goblin');
     assert.strictEqual(resolve({ race: 'owlbear', glyph: 'Y' }, 'Y', 'nethack').templateKey, 'bestiary_bear');
     assert.strictEqual(resolve({ race: 'rust monster', glyph: 'R' }, 'R', 'nethack').templateKey, 'bestiary_scorpion');
     assert(['bestiary_flamingo', 'bestiary_owl'].includes(resolve({ race: 'cockatrice', glyph: 'c' }, 'c', 'nethack').templateKey));
-    assert.strictEqual(resolve({ race: 'mind flayer', glyph: 'h' }, 'h', 'nethack').templateKey, 'char_male_priest');
+    assert.strictEqual(resolve({ race: 'mind flayer', glyph: 'h' }, 'h', 'nethack').templateKey, 'bestiary_mind_flayer');
     assert.strictEqual(resolve({ race: 'minotaur', glyph: 'H' }, 'H', 'nethack').templateKey, 'bestiary_guardian');
     assert.strictEqual(resolve({ race: 'Wizard of Yendor', glyph: '@' }, '@', 'nethack').templateKey, 'char_male_priest');
     assert(['char_male_peasant', 'char_male_steward'].includes(resolve({ race: 'Shopkeeper (peaceful)', glyph: '@' }, '@', 'nethack').templateKey));
@@ -475,7 +482,7 @@ test('Wave 16 held equipment alignment, static-rig stabilization & Artisan HUD c
 
     // 1. Wicker shield uses authentic shield_wooden.glb (never dinner plate carved_wooden_plate.gltf)
     assert(
-        /item_shield_wicker:\s*'\/assets\/models\/items\/shield_wooden\.glb'/.test(d3dSrc),
+        /['"]?item_shield_wicker['"]?:\s*'\/assets\/models\/items\/shield_wooden\.glb'/.test(d3dSrc),
         'item_shield_wicker must map to /assets/models/items/shield_wooden.glb'
     );
 
@@ -608,7 +615,7 @@ test('Wave 19 dedicated 3D .glb bestiary assets, UV/normal attributes, distinct 
 
     for (const file of [...wave19Glbs, ...upgradedAnimalGlbs]) {
         const webPath = path.join(ROOT, 'server/public/assets/models/monsters/bestiary', file);
-        const godotPath = path.join(ROOT, 'client/assets/models/monsters/bestiary', file);
+        const godotPath = path.join(ROOT, resolveClientRel(`client/assets/models/monsters/bestiary/${file}`));
         assert(fs.existsSync(webPath), `Missing Web bestiary GLB: ${webPath}`);
         assert(fs.existsSync(godotPath), `Missing Godot bestiary GLB: ${godotPath}`);
 
@@ -675,11 +682,11 @@ test('Wave 19 dedicated 3D .glb bestiary assets, UV/normal attributes, distinct 
     assert.strictEqual(resolve({ race: 'Giant green frog', glyph: 'R' }, 'R', 'angband').templateKey, 'obj_frog');
     assert.strictEqual(resolve({ race: 'Great white shark', glyph: 'l' }, 'l', 'frogcomposband').templateKey, 'bestiary_aquatic');
     assert.strictEqual(resolve({ race: 'Piranha', glyph: 'l' }, 'l', 'hengband').templateKey, 'bestiary_aquatic');
-    assert.strictEqual(resolve({ race: 'Huorn', glyph: 'l' }, 'l', 'angband').templateKey, 'env_tree');
+    assert.strictEqual(resolve({ race: 'Huorn', glyph: 'l' }, 'l', 'angband').templateKey, 'bestiary_treeman');
     assert.strictEqual(resolve({ race: 'Creeping copper coins', glyph: '$' }, '$', 'angband').templateKey, 'item_gold');
     assert.strictEqual(resolve({ race: 'Death sword', glyph: '|' }, '|', 'angband').templateKey, 'item_greatsword');
     assert.strictEqual(resolve({ race: 'Potion mimic', glyph: '!' }, '!', 'angband').templateKey, 'ph_potion_flask');
-    assert.strictEqual(resolve({ race: 'Scroll mimic', glyph: '?' }, '?', 'angband').templateKey, 'ph_book');
+    assert.strictEqual(resolve({ race: 'Scroll mimic', glyph: '?' }, '?', 'angband').templateKey, 'item_scroll');
 
     // Sil-Q realm collisions fixed:
     assert.strictEqual(resolve({ race: 'Spider hatchling', glyph: 'm' }, 'm', 'silq').templateKey, 'obj_spider');
@@ -697,7 +704,7 @@ test('Wave 19 dedicated 3D .glb bestiary assets, UV/normal attributes, distinct 
     const itemResolverSrc = read('client/scripts/ItemModelResolver.cs');
     for (const itemGlb of ['wand.glb', 'rod.glb', 'staff.glb']) {
         assert(fs.existsSync(path.join(ROOT, 'server/public/assets/models/items', itemGlb)), `Missing Web item GLB: ${itemGlb}`);
-        assert(fs.existsSync(path.join(ROOT, 'client/assets/models/items', itemGlb)), `Missing Godot item GLB: ${itemGlb}`);
+        assert(fs.existsSync(path.join(ROOT, resolveClientRel(`client/assets/models/items/${itemGlb}`))), `Missing Godot item GLB: ${itemGlb}`);
         assert(d3dSrc.includes(`/assets/models/items/${itemGlb}`), `dungeon3d.js must reference /assets/models/items/${itemGlb}`);
         assert(itemResolverSrc.includes(`res://assets/models/items/${itemGlb}`), `ItemModelResolver.cs must reference ${itemGlb}`);
     }

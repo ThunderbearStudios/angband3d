@@ -32,7 +32,11 @@
     "test_capability_ledger.js",
     "test_rev5_exemplar_contracts.js",
     "tests/universal_cartridge.test.js",
-    "test_ryod_engine_and_handshake.js"
+    "test_ryod_engine_and_handshake.js",
+    "test_ws80_visibility_and_storefronts.js",
+    "test_ws81_realm_environments_and_blindness.js",
+    "test_ws81_menu_action_parity_9realms.js",
+    "test_ws82_prelaunch_9pillars.js"
   ],
   "e2e": [
     "verify_cross_realm_menus.js",

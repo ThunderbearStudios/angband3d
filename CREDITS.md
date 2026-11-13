@@ -1,6 +1,6 @@
-# YASD 3D (`yasd3d.com`) & The Yendor Engine™ — Open-Source Credits & Attribution
+# YASD 3D (`angband3d.com`) & The Yendor Engine™ — Open-Source Credits & Attribution
 
-**YASD 3D** (*"Yet Another Stupid Death"*) is an open-source first-person 3D WebGL, CRT terminal, and AI-voiced frontend harness powered by the **Yendor Engine™**, created by **Thunderbear Studios™** (`https://thunderbearstudios.dev` / `https://yasd3d.com` / `https://angband3d.com`).
+**YASD 3D** (*"Yet Another Stupid Death"*) is an open-source first-person 3D WebGL, CRT terminal, and AI-voiced frontend harness powered by the **Yendor Engine™**, created by **Thunderbear Studios™** (`https://thunderbearstudios.dev` / `https://angband3d.com`).
 
 ## 1. Process Isolation & License Architecture ("Mere Aggregation")
 
@@ -43,18 +43,18 @@ We gratefully credit the original authors, maintainers, and contributors of the 
    - **Upstream**: `https://crawl.develz.org` / `https://github.com/crawl/crawl`
 
 7. **Brogue (Community Edition) (`brogue`)**
-   - **Authors**: Brian Walker (original Brogue 1.7.5) and the Brogue Community Edition Contributors (flend et al.).
+   - **Authors**: Brian Walker (original Brogue 1.7.5) and the Brogue Community Edition Contributors (`tmewett`, `flend`, et al.).
    - **License**: GNU Affero General Public License v3.0 (`AGPL-3.0`).
-   - **Upstream**: `https://sites.google.com/site/broguegame/` / `https://github.com/flend/BrogueCE`
+   - **Upstream**: `https://sites.google.com/site/broguegame/` / `https://github.com/tmewett/BrogueCE`
 
 8. **Classic Rogue 5.4 (`rogue` — 1980)**
    - **Authors**: Michael Toy, Glenn Wichman, Ken Arnold (UC Berkeley), and the Roguelike Restoration Project.
    - **License**: 3-Clause BSD License (`BSD-3-Clause`).
    - **Upstream**: `https://github.com/RoguelikeRestorationProject/rogue5.4`
 
-9. **Roll Your Own Dungeon — 6-Card Hybrid Tabletop World Forge (`ryod`)**
-   - **Authors**: **Thunderbear Studios™** (`https://thunderbearstudios.dev` / `https://yasd3d.com` / `https://angband3d.com`).
-   - **Architecture**: Deterministic `RYOD-XXXXXXXX` blueprint compiler (`ryod-compiler.js`), 6-Card Hybrid Roll-or-Pick Tabletop Forge (`ryod-forge.js`), 8 World Mutators, `d20` Starting Fate Boons, Playable 3D Creature Avatars, Floor 5/10/15 Subterranean Quartermaster Outposts, and Self-Hydrating `SaveRYOD` `.sav` Portability (`cartridge-core.js`).
+9. **Roll Your Own Dungeon — The Chimera Forge (`ryod` — RYOD 2.0)**
+   - **Authors**: **Thunderbear Studios™** (`https://thunderbearstudios.dev` / `https://angband3d.com`).
+   - **Architecture**: Deterministic `RYOD-XXXXXXXX` blueprint compiler (`ryod-compiler.js`), 8-Realm Cross-Pollinated Chimera Disciplines (`ryod-systems.js`), 6-Card Hybrid Roll-or-Pick Tabletop Forge (`ryod-forge.js`), Playable 3D Creature Avatars, Floor 5/10/15 Subterranean Quartermaster Outposts, and Self-Hydrating `SaveRYOD` `.sav` Portability (`cartridge-core.js`).
 
 ---
 
@@ -103,3 +103,19 @@ YASD 3D features an adaptive 58-track fantasy soundtrack across all 8 realms, co
 - **Additional OpenGameArt & Hengband BGM Contributors** (loop-arranged by **Sasahito Handa**):
   - **Emma_MA** (*Determined Pursuit*, *QaziJamJam* — `CC0`), **joeBaxterWebb** (*Mutant Orchestra* — `CC-BY 4.0`), **Axton Dylan Crolley** (*Menu or Level Select Theme* — `CC-BY 3.0`), **Doge** (*Fantasy - Grasslands* — `CC0`), **LokiF** (*Title Theme* — `CC0`), **CelestialGhost8** (*Dark Intro* — `CC0`), **Alexandr Zhelanov** (*Dark Ambience* — `CC-BY 3.0`), **Jobromedia** (*Menu Screen* — `CC-BY 3.0`), **Kistol** (*Snowing* — `CC0`), **Umplix** (*8-Bit Explorative* — `CC0`), **BigGiantCircles** (*Glory* — `CC-BY 3.0`), **Telaron** (*bedtime/quest complete* — `CC-BY 3.0`), **Remaxim** (*The Old Tower Inn* — `CC-BY-SA 3.0`).
 - **YASD 3D Original Theme (*Angband 3D Theme*) & Procedural Synthesizer**: © 2026 **Thunderbear Studios™** (`https://thunderbearstudios.dev`).
+
+---
+
+## 5. Realm Collector Card Nostalgia Plates (`server/public/assets/realms/*.webp`)
+
+The 8 classic Realm Collector Cards deliberately use authentic open-source engine title screens, documentation plates, and Public Domain fine-art engravings; newly commissioned illustration is used strictly for **RYOD**:
+
+- **`angband.webp`**: John Martin, *Le Pandémonium* (1841, Musée du Louvre — `Public Domain` via Wikimedia Commons).
+- **`silq.webp`**: Official Sil-Q / MicroChasm documentation tile plate (`variants/silq/lib/docs/sil-gfx-tiles_120x120.png` — `GPL-2.0`).
+- **`dcss.webp`**: Official Dungeon Crawl Stone Soup Minotaur splash plate (`crawl-ref/source/dat/tiles/title_Cws_Minotauros.png` by Cws — `CC0` / `GPL-2.0+`).
+- **`nethack.webp`**: Authentic NetHack djinni wish terminal plate (`File:Nethack_releasing_a_djinni.png` — `NetHack General Public License`).
+- **`brogue.webp`**: Official Brogue / BrogueCE flaming-chasm title screen (`io.github.tmewett.brogue.metainfo.xml` — `AGPL-3.0-or-later`).
+- **`frogcomposband.webp`**: Gustave Doré, *The Destruction of Leviathan* (1865 — `Public Domain` via Wikimedia Commons).
+- **`hengband.webp`**: Utagawa Kuniyoshi, *Takiyasha the Witch and the Skeleton Spectre* (c. 1844 — `Public Domain` Edo ukiyo-e woodblock print via Wikimedia Commons).
+- **`rogue.webp`**: Classic 1984 PC/BSD *Rogue: Exploring the Dungeons of Doom* dungeon screen (`File:Rogue_Screen_Shot_CAR.PNG` — `Public Domain` via Wikimedia Commons).
+- **`ryod.webp`**: *The Chimera Forge* original dark-fantasy illustration — © 2026 **Thunderbear Studios™** (`https://angband3d.com`).

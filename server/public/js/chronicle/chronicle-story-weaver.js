@@ -234,11 +234,96 @@
         constructor(options = {}) {
             this.preserveVoiceProfile = true;
             this.diversityGuard = new PhraseDiversityGuard(options.maxHistory || 24);
+            this._maxPassageWindow = Math.max(8, Number(options.maxPassageWindow) || 18);
+            this._passageWindow = [];
             this._milestones = [];
             this._maxMilestones = 36;
             this._nemesisLedger = new Map();
             this._relicLineage = new Map();
             this._lastNarratedTurn = -999;
+        }
+
+        reset() {
+            this.diversityGuard._history = [];
+            this.diversityGuard._rotateIdx = 0;
+            this._passageWindow = [];
+            this._milestones = [];
+            this._nemesisLedger.clear();
+            this._relicLineage.clear();
+            this._lastNarratedTurn = -999;
+        }
+
+        _extractFourGrams(normText) {
+            const s = String(normText || '').trim();
+            const words = s.split(' ').filter(Boolean);
+            const grams = new Set();
+            // Support CJK / unspaced scripts cleanly alongside space-delimited Latin scripts
+            if (words.length < 4 && /[\u3040-\u30ff\u3400-\u9fff]/.test(s)) {
+                const compact = s.replace(/\s+/g, '');
+                if (compact.length < 4) {
+                    if (compact) grams.add(compact);
+                    return grams;
+                }
+                for (let i = 0; i <= compact.length - 4; i++) {
+                    grams.add(compact.slice(i, i + 4));
+                }
+                return grams;
+            }
+            if (words.length < 4) {
+                if (s) grams.add(s);
+                return grams;
+            }
+            for (let i = 0; i <= words.length - 4; i++) {
+                grams.add(`${words[i]} ${words[i + 1]} ${words[i + 2]} ${words[i + 3]}`);
+            }
+            return grams;
+        }
+
+        /**
+         * Bounded sliding-window 4-gram deduplicator for live procedural & catch-up passages.
+         * Returns true if `prose` is identical or shares heavy 4-gram overlap with recent narration;
+         * otherwise records `prose` into the sliding window and returns false.
+         */
+        shouldSuppressDuplicateProse(prose, options = {}) {
+            const clean = String(prose || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+            if (!clean) return false;
+
+            const norm = clean.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, ' ').replace(/\s+/g, ' ').trim();
+            if (!norm) return false;
+
+            const ngrams = this._extractFourGrams(norm);
+            const overlapThreshold = typeof options.threshold === 'number' ? options.threshold : 0.48;
+
+            for (let i = 0; i < this._passageWindow.length; i++) {
+                const prev = this._passageWindow[i];
+                if (prev.norm === norm) {
+                    return true;
+                }
+                if (ngrams.size >= 4 && prev.ngrams.size >= 4) {
+                    let shared = 0;
+                    for (const g of ngrams) {
+                        if (prev.ngrams.has(g)) shared++;
+                    }
+                    if (shared > 0) {
+                        const minSize = Math.min(ngrams.size, prev.ngrams.size);
+                        const containment = shared / minSize;
+                        const unionSize = ngrams.size + prev.ngrams.size - shared;
+                        const jaccard = unionSize > 0 ? (shared / unionSize) : 0;
+                        if (containment >= overlapThreshold || jaccard >= 0.36 || shared >= 7) {
+                            return true;
+                        }
+                    }
+                }
+            }
+
+            if (options.record !== false) {
+                this._passageWindow.push({ norm, ngrams, ts: Date.now() });
+                if (this._passageWindow.length > this._maxPassageWindow) {
+                    this._passageWindow.shift();
+                }
+                this.diversityGuard.recordUtterance(clean);
+            }
+            return false;
         }
 
         /**
@@ -411,10 +496,12 @@
         PhraseDiversityGuard,
         ChronicleStoryWeaverController,
         getInstance: () => singleton,
+        reset: () => singleton.reset(),
         recordStoryBeat: (b) => singleton.recordStoryBeat(b),
         buildCallbackContext: (ctx) => singleton.buildCallbackContext(ctx),
         evaluateNarrativePacing: (st) => singleton.evaluateNarrativePacing(st),
         composeStoryDirective: (st) => singleton.composeStoryDirective(st),
-        diversifyUtterance: (txt, r) => singleton.diversityGuard.diversifyUtterance(txt, r)
+        diversifyUtterance: (txt, r) => singleton.diversityGuard.diversifyUtterance(txt, r),
+        shouldSuppressDuplicateProse: (prose, opts) => singleton.shouldSuppressDuplicateProse(prose, opts)
     };
 });

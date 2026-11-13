@@ -17,6 +17,11 @@ const path = require('path');
 const crypto = require('crypto');
 const readline = require('readline');
 
+let RyodSystems = null;
+try {
+    RyodSystems = require('./ryod-systems');
+} catch (_) {}
+
 const MAP_W = 66;
 const MAP_H = 22;
 const TERM_W = 80;
@@ -29,15 +34,19 @@ const FEAT = Object.freeze({
     OPEN_DOOR: 3,
     UP_STAIR: 5,
     DOWN_STAIR: 6,
-    TRAP: 16,
+    TRAP: 45,
     WALL: 21,
     PERM_WALL: 22,
-    LAVA: 30,
-    WATER: 31,
-    CHASM: 32,
-    GRASS: 33,
+    LAVA: 23,
+    WATER: 28,
+    CHASM: 41,
+    GRASS: 26,
     ALTAR: 43,
-    FOUNTAIN: 44
+    FOUNTAIN: 44,
+    ANVIL: 46,
+    CAGE: 47,
+    GAS_VENT: 48,
+    RUNE_VAULT: 49
 });
 
 function parseCliArgs(argv, defaultSaveDir) {
@@ -64,13 +73,14 @@ function isWalkableFeat(feat) {
 
 function computeVerbMask(item) {
     let vm = (1 << 8) | (1 << 11) | (1 << 12) | (1 << 19); // throw, drop, inscribe, examine
-    const k = String(item.kind || '').toLowerCase();
+    if (item && item.inscription) vm |= (1 << 13); // uninscribe
+    const k = String((item && item.kind) || '').toLowerCase();
     if (k === 'potion') vm |= (1 << 0);
     else if (k === 'scroll') vm |= (1 << 1);
     else if (k === 'food') vm |= (1 << 2);
     else if (k === 'wand') vm |= (1 << 3) | (1 << 5);
     else if (k === 'staff' || k === 'tool' || k === 'charm') vm |= (1 << 4) | (1 << 6);
-    else if (k === 'weapon' || k === 'armor' || k === 'ring' || k === 'amulet') {
+    else if (k === 'weapon' || k === 'armor' || k === 'ring' || k === 'amulet' || k === 'jewelry' || k === 'shield') {
         vm |= item.equipped ? (1 << 10) : (1 << 9);
     } else if (k === 'ranged' || k === 'ammo') {
         vm |= (1 << 7) | (1 << 9);
@@ -86,7 +96,8 @@ function formatItemDesc(it) {
     const bns = typeof it.bonus === 'number' ? (it.bonus >= 0 ? `+${it.bonus} ` : `${it.bonus} `) : '';
     const chg = typeof it.charges === 'number' ? ` (${it.charges} charges)` : '';
     const eq = it.equipped ? ` (worn: ${it.equipped})` : '';
-    return `${cnt}${bns}${it.name}${chg}${eq}`.trim();
+    const ins = it.inscription ? ` {${it.inscription}}` : '';
+    return `${cnt}${bns}${it.name}${chg}${eq}${ins}`.trim();
 }
 
 class UniversalCartridgeEngine {
@@ -98,7 +109,9 @@ class UniversalCartridgeEngine {
         this.user = cliOpts.user.replace(/\.sav$/i, '');
         this.saveFile = path.join(this.saveDir, `${this.user}.sav`);
         this.seq = 0;
-        this.rngState = (crypto.randomBytes(4).readUInt32LE(0) || ((Date.now() ^ 0x9e3779b9) >>> 0)) >>> 0;
+        const rawSeed = (cliOpts && cliOpts.seed) || (spec && spec.seed) || (spec && spec.ryodBlueprint && spec.ryodBlueprint.seed);
+        this.baseSeed = RyodSystems ? RyodSystems.parseSeed(rawSeed || crypto.randomBytes(4).readUInt32LE(0)) : ((Number(rawSeed) >>> 0) || crypto.randomBytes(4).readUInt32LE(0));
+        this.rngState = this.baseSeed;
 
         if (!cliOpts.isNew && this.loadSave()) {
             this.addMessage(`Welcome back to ${spec.title}, ${this.state.player.name}!`, 14);
@@ -251,17 +264,25 @@ class UniversalCartridgeEngine {
                 inv[0].beatitude = 'blessed';
             }
             inv.push({ kind: 'scroll', name: 'scroll of enchanting', glyph: '?', attr: 14, enchantGain: 1, count: 1, weight: 5, tval: 70, sval: 15 });
+            inv.push({ kind: 'ring', name: 'blessed ring of the sun', glyph: '=', attr: 14, ac: 3, bonus: 2, beatitude: 'blessed', isRelic: true, weight: 2, tval: 45, sval: 99 });
+            inv.push({ kind: 'potion', name: 'potion of extra healing', glyph: '!', attr: 4, heal: 45, count: 1, weight: 10, tval: 71, sval: 35 });
         } else if (this.realm === 'ryod' && bpFate >= 15) {
             if (inv[0] && inv[0].kind === 'weapon') inv[0].bonus = (inv[0].bonus || 1) + 1;
             inv.push({ kind: 'scroll', name: 'scroll of magic mapping', glyph: '?', attr: 14, count: 1, weight: 5, tval: 70, sval: 12 });
+            inv.push({ kind: 'potion', name: 'potion of speed', glyph: '!', attr: 11, speedTurns: 25, count: 1, weight: 10, tval: 71, sval: 18 });
         } else if (this.realm === 'ryod' && bpFate === 1) {
             inv.push({ kind: 'scroll', name: 'scroll of enchanting', glyph: '?', attr: 14, enchantGain: 1, count: 1, weight: 5, tval: 70, sval: 15 });
+        } else if (this.realm === 'ryod' && bpFate <= 7) {
+            inv.push({ kind: 'food', name: 'iron ration', glyph: ':', attr: 3, nutrition: 900, count: 2, weight: 20, tval: 80, sval: 1 });
         }
 
         this.state = {
             realm: this.realm,
             ryodHash: this.spec.ryodHash || null,
             ryodBlueprint: this.spec.ryodBlueprint || null,
+            scoreMultiplier: (this.realm === 'ryod' && bpFate === 1) ? 2.0 : 1.0,
+            huntedByShade: (this.realm === 'ryod' && bpFate === 1),
+            d20Fate: bpFate,
             slainActBosses: {},
             visitedActs: {},
             phase: 'setup',
@@ -278,7 +299,8 @@ class UniversalCartridgeEngine {
                 race: r.race || 'Human',
                 class: r.id || 'Warrior',
                 originId: r.originId || null,
-                isMonsterAvatar: Boolean(r.isMonsterAvatar),
+                avatarId: r.avatarId || this.spec.avatarId || (r.originId === 'beholder' ? 'beholder' : (r.originId === 'red_dragon' ? 'dragon' : (r.originId === 'arch_lich' ? 'lich' : (r.originId === 'vampire_scion' ? 'vampire' : (r.originId === 'iron_golem' ? 'golem' : (r.originId === 'minotaur' ? 'minotaur' : null)))))),
+                isMonsterAvatar: Boolean(r.isMonsterAvatar || r.avatarId || this.spec.isMonsterAvatar || this.spec.avatarId),
                 avatarMonsterName: r.avatarMonsterName || null,
                 innatePower: r.innatePower || null,
                 disciplinePowers: Array.isArray(r.disciplinePowers) ? r.disciplinePowers : null,
@@ -288,6 +310,8 @@ class UniversalCartridgeEngine {
                 align: r.align || 'Neutral',
                 deity: r.deity || (this.spec.defaultDeity || 'Fate'),
                 piety: r.piety != null ? r.piety : 2,
+                blessed: (this.realm === 'ryod' && bpFate === 20),
+                shrineBlessing: (this.realm === 'ryod' && bpFate === 20),
                 runes: 0,
                 lumenstones: 0,
                 enchantments: 0,
@@ -297,7 +321,7 @@ class UniversalCartridgeEngine {
                 exp: 0,
                 maxExp: 0,
                 expNext: hasLevels ? this.getExpNextForLevel(1) : 0,
-                gold: 35,
+                gold: (this.realm === 'ryod' && bpFate >= 15) ? 45 : ((this.realm === 'ryod' && bpFate === 1) ? 100 : 35),
                 hp: r.hp || 18,
                 hpMax: r.hp || 18,
                 pw: r.pw != null ? r.pw : 8,
@@ -571,6 +595,9 @@ class UniversalCartridgeEngine {
     }
 
     generateLevel(depth) {
+        if (RyodSystems && this.baseSeed) {
+            this.rngState = RyodSystems.mixSeed(this.baseSeed, depth);
+        }
         const survivingPets = Array.isArray(this.state && this.state.monsters)
             ? this.state.monsters.filter(m => m && m.isPet && m.hp > 0)
             : [];
@@ -682,8 +709,37 @@ class UniversalCartridgeEngine {
         for (let i = 0; i < rooms.length; i++) {
             for (let j = i + 1; j < rooms.length; j++) {
                 const manhattan = Math.abs(rooms[i].rx - rooms[j].rx) + Math.abs(rooms[i].ry - rooms[j].ry);
-                if (manhattan === 1 && this.rand(100) < 55) {
+                if (manhattan === 1 && (isLabyrinth || this.rand(100) < 55)) {
                     carveCorridor(rooms[i], rooms[j]);
+                }
+            }
+        }
+
+        if (isArena) {
+            // Carve central grand coliseum arena floor with colonnade pillars
+            const ax0 = 10, ay0 = 4, ax1 = MAP_W - 11, ay1 = MAP_H - 5;
+            for (let y = ay0; y <= ay1; y++) {
+                for (let x = ax0; x <= ax1; x++) {
+                    const isPillar = (x % 6 === 0) && (y % 4 === 0) && (x > ax0 + 3 && x < ax1 - 3 && y > ay0 + 2 && y < ay1 - 2);
+                    if (isPillar) {
+                        map[y][x] = { glyph: '#', attr: 1, feat: FEAT.WALL, known: false, inView: false, roomLit: true };
+                    } else {
+                        map[y][x] = { glyph: '.', attr: 1, feat: FEAT.FLOOR, known: false, inView: false, roomLit: true };
+                    }
+                }
+            }
+        } else if (isOrganicCavern) {
+            // Cavern cellular rock formations within larger chambers
+            for (let i = 0; i < rooms.length; i++) {
+                const r = rooms[i];
+                if ((r.x1 - r.x0) >= 8 && (r.y1 - r.y0) >= 5) {
+                    for (let cy = r.y0 + 1; cy < r.y1; cy++) {
+                        for (let cx = r.x0 + 1; cx < r.x1; cx++) {
+                            if (this.rand(100) < 12 && !(cx === r.cx && cy === r.cy)) {
+                                map[cy][cx] = { glyph: '#', attr: 2, feat: FEAT.WALL, known: false, inView: false, roomLit: r.lit };
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -742,6 +798,9 @@ class UniversalCartridgeEngine {
         }
 
         this.state.map = map;
+        if (RyodSystems && (this.realm === 'ryod' || (this.spec && this.spec.stampedVaults))) {
+            RyodSystems.stampMicroVault(this, rooms, depth);
+        }
         this.sanitizeDoorPlacement();
         this.state.monsters = [];
         this.state.objects = [];
@@ -847,10 +906,42 @@ class UniversalCartridgeEngine {
             }
         }
 
-        // Spawn floor items across shuffled rooms
+        // Spawn Nemesis Shade pursuer on floor if player chose Grim Dare (Nat 1)
+        if (this.state.huntedByShade && depth > 0 && shuffledRooms.length > 1) {
+            const shadeRoom = shuffledRooms[1];
+            this.state.monsters.push({
+                id: monId++,
+                race: 'Nemesis Shade',
+                glyph: 'S',
+                attr: 5,
+                x: shadeRoom.cx,
+                y: shadeRoom.cy,
+                hp: 30 + depth * 8,
+                hp_max: 30 + depth * 8,
+                ac: 12 + depth,
+                dmg: 8 + depth * 2,
+                exp: 50 * depth,
+                speed: 125,
+                lore: 'A vengeful shadow stalker summoned by your Grim Dare.',
+                isPet: false,
+                peaceful: false,
+                isNemesisShade: true,
+                aiBehavior: 'bolt_caster'
+            });
+            this.addMessage('A chilling dread settles over the dungeon... a Nemesis Shade hunts your scent!', 5);
+        }
+
+        // Spawn depth-gated floor items across shuffled rooms (Tier 1..4)
+        const currentTier = Math.min(4, Math.max(1, Math.ceil(depth / 3)));
+        const eligibleItems = Array.isArray(this.spec.items)
+            ? this.spec.items.filter(it => !it.tier || it.tier <= currentTier)
+            : [];
+        const itemPool = eligibleItems.length > 0 ? eligibleItems : (this.spec.items || []);
+
         for (let i = 1; i < shuffledRooms.length; i++) {
             const rm = shuffledRooms[i];
-            const tpl = this.spec.items[this.rand(this.spec.items.length)];
+            const tpl = itemPool.length > 0 ? itemPool[this.rand(itemPool.length)] : null;
+            if (!tpl) continue;
             const ox = rm.x0 + 1 + this.rand(Math.max(1, rm.x1 - rm.x0 - 1));
             const oy = rm.y0 + 1 + this.rand(Math.max(1, rm.y1 - rm.y0 - 1));
             if (map[oy] && map[oy][ox] && isWalkableFeat(map[oy][ox].feat)) {
@@ -945,6 +1036,15 @@ class UniversalCartridgeEngine {
 
         // Carry over surviving pets & liberated allies adjacent to the player!
         this.placeSurvivingPets(survivingPets, monId + 100);
+        if (RyodSystems && (this.realm === 'ryod' || (this.spec && this.spec.wantedBounties))) {
+            RyodSystems.assignFloorBounty(this);
+        }
+        if (RyodSystems && this.state && this.state.player) {
+            RyodSystems.checkAvatarScaleEvolution(this.state.player, depth);
+            if (this.state.player.hasAmulet) {
+                RyodSystems.onAscentFloorEnter(this);
+            }
+        }
         this.updateVisibility();
     }
 
@@ -991,7 +1091,7 @@ class UniversalCartridgeEngine {
                 const ty = p.y + dy;
                 if (tx < 0 || ty < 0 || tx >= MAP_W || ty >= MAP_H) continue;
                 if (dx * dx + dy * dy > radius * radius + 2) continue;
-                if (this.hasLineOfSight(p.x, p.y, tx, ty)) {
+                if ((Math.abs(dx) <= 1 && Math.abs(dy) <= 1) || this.hasLineOfSight(p.x, p.y, tx, ty)) {
                     map[ty][tx].inView = true;
                     map[ty][tx].known = true;
                 }
@@ -1030,6 +1130,10 @@ class UniversalCartridgeEngine {
         }
     }
 
+    logMsg(text, attr = 11) {
+        return this.addMessage(text, attr);
+    }
+
     saveGame() {
         try {
             const p = this.state && this.state.player;
@@ -1046,8 +1150,13 @@ class UniversalCartridgeEngine {
             header.writeUInt32LE(0, 32);
             const payload = Buffer.from(JSON.stringify(this.state), 'utf8');
             const full = Buffer.concat([header, descBuf, payload]);
+            const isIronman = Boolean(this.ironman || process.env.ANGBAND3D_IRONMAN === '1' || (this.state && this.state.ironman));
             fs.writeFileSync(this.saveFile, full);
-            fs.writeFileSync(this.saveFile + '.living.sav', full);
+            if (!isIronman) {
+                fs.writeFileSync(this.saveFile + '.living.sav', full);
+            } else if (fs.existsSync(this.saveFile + '.living.sav')) {
+                try { fs.unlinkSync(this.saveFile + '.living.sav'); } catch (_) {}
+            }
             const sidecar = {
                 realm: this.realm,
                 ryodHash: this.state.ryodHash || this.spec.ryodHash || null,
@@ -1214,27 +1323,57 @@ class UniversalCartridgeEngine {
                 return;
             }
             if (this.state.menuMode === 'inven' || this.state.menuMode === 'equip') {
-                if (k === '/' || k === '|' || (this.state.menuMode === 'inven' && k === 'e' && this.realm !== 'rogue') || (this.state.menuMode === 'equip' && k === 'i')) {
+                if (k === '/' || k === '|' || (this.state.menuMode === 'inven' && k === 'e') || (this.state.menuMode === 'equip' && k === 'i')) {
                     this.state.menuMode = this.state.menuMode === 'inven' ? 'equip' : 'inven';
                     return;
                 }
-                if (this.state.menuMode === 'equip' && (k === 'r' || k === 't' || k === 'T')) {
+                if (k === 'T' || k === 'R' || (this.state.menuMode === 'equip' && k === 'r')) {
                     this.openVerbPrompt('takeoff', 'Remove which item? [a-z or ESC]');
                     return;
                 }
-                if (/^[a-z]$/i.test(k)) {
-                    const item = p.inventory.find(it => it.letter === lower);
+                if (k === 'W' || k === 'P') {
+                    this.openVerbPrompt('wield', 'Equip which item? [a-z or ESC]');
+                    return;
+                }
+                if (k === 'E') {
+                    this.openVerbPrompt('eat', 'Eat which food item? [a-z or ESC]');
+                    return;
+                }
+                if (k === 'I' || k === ':') {
+                    this.openVerbPrompt('inspect', 'Examine which item? [a-z or ESC]');
+                    return;
+                }
+                if (k === '{') {
+                    this.openVerbPrompt('inscribe', 'Inscribe which item? [a-z or ESC]');
+                    return;
+                }
+                if (k === '}') {
+                    this.openVerbPrompt('uninscribe', 'Uninscribe which item? [a-z or ESC]');
+                    return;
+                }
+                if (/^[a-z]$/.test(k)) {
+                    const item = p.inventory.find(it => it.letter === k);
                     if (item) {
                         if (this.state.menuMode === 'equip' && item.kind === 'food') {
                             this.state.menuMode = 'none';
                             this.applyVerbToItem('eat', item);
                             return;
                         }
+                        const exKey = this.realm === 'dcss' ? 'v' : (this.realm === 'brogue' ? 'x' : 'I');
+                        const thKey = this.realm === 'dcss' ? 'f' : 't';
                         this.state.selectedItem = item;
                         this.state.menuMode = 'item_action';
-                        this.state.pendingPrompt = `${item.letter}) ${formatItemDesc(item)} — [Enter] Use/Equip [d]rop [t]hrow [x]Examine [ESC]`;
+                        this.state.pendingPrompt = `${item.letter}) ${formatItemDesc(item)} — [Enter] Use/Equip [d]rop [${thKey}]throw [${exKey}]Examine [ESC]`;
                         return;
                     }
+                    if (k === 'v' || k === 'x') {
+                        this.openVerbPrompt('inspect', 'Examine which item? [a-z or ESC]');
+                        return;
+                    }
+                    if (k === 'q') { this.openVerbPrompt('quaff', 'Drink which potion? [a-z or ESC]'); return; }
+                    if (k === 'r') { this.openVerbPrompt('read', 'Read which scroll? [a-z or ESC]'); return; }
+                    if (k === 'w') { this.openVerbPrompt('wield', 'Equip which item? [a-z or ESC]'); return; }
+                    if (k === 'd') { this.openVerbPrompt('drop', 'Drop which item? [a-z or ESC]'); return; }
                 }
                 this.state.menuMode = 'none';
                 return;
@@ -1246,33 +1385,52 @@ class UniversalCartridgeEngine {
                 this.state.pendingPrompt = '';
                 if (!item) return;
                 if (k === 'd') { this.applyVerbToItem('drop', item); return; }
-                if (k === 't' || k === 'f' || k === 'v') { this.fireOrThrowItem(item); return; }
-                if (k === 'T' || (k === 'r' && item.equipped)) { this.applyVerbToItem('takeoff', item); return; }
-                if (k === 'x' || k === 'I' || k === ';') { this.inspectItem(item); return; }
-                if (lower === 'enter' || /^[wWqreEazuU]$/.test(k)) {
+                if (k === 't' || k === 'f') { this.fireOrThrowItem(item); return; }
+                if (k === 'T' || k === 'R' || (k === 'r' && item.equipped)) { this.applyVerbToItem('takeoff', item); return; }
+                if (k === 'v' || k === 'x' || k === 'I' || k === ':' || k === ';') { this.inspectItem(item); return; }
+                if (k === '{') { this.applyVerbToItem('inscribe', item); return; }
+                if (k === '}') { this.applyVerbToItem('uninscribe', item); return; }
+                if (lower === 'enter' || /^[wWPqreEazuUV]$/.test(k)) {
                     const primaryVerb = item.kind === 'potion' ? 'quaff'
                         : (item.kind === 'scroll' ? 'read'
                         : (item.kind === 'food' ? 'eat'
-                        : ((item.kind === 'weapon' || item.kind === 'ranged' || item.kind === 'armor')
+                        : ((item.kind === 'weapon' || item.kind === 'ranged' || item.kind === 'armor' || item.kind === 'ring' || item.kind === 'amulet' || item.kind === 'jewelry' || item.kind === 'shield')
                             ? (item.equipped ? 'takeoff' : 'wield') : 'use')));
                     this.applyVerbToItem(primaryVerb, item);
                 }
                 return;
             }
-            if (this.state.menuMode === 'verb' && /^[a-z]$/i.test(k)) {
-                const item = p.inventory.find(it => it.letter === lower);
-                const verb = this.state.pendingVerb;
-                this.state.menuMode = 'none';
-                this.state.pendingVerb = null;
-                this.state.pendingPrompt = '';
-                if (!item) {
-                    this.addMessage('You do not have that item.');
+            if (this.state.menuMode === 'verb') {
+                if (this.state.pendingVerb === 'dcss_ability' && (k === '1' || lower === 'enter' || k === '!')) {
+                    this.state.menuMode = 'none';
+                    this.state.pendingVerb = null;
+                    this.state.pendingPrompt = '';
+                    this.invokeDeityPower();
                     return;
                 }
-                if (verb === 'inspect') this.inspectItem(item);
-                else if (verb === 'throw' || verb === 'fire') this.fireOrThrowItem(item);
-                else this.applyVerbToItem(verb, item);
-                return;
+                if ((this.state.pendingVerb === 'throw' || this.state.pendingVerb === 'fire') && (lower === 'enter' || k === '5' || k === '.' || lower === 'up' || lower === 'down' || lower === 'left' || lower === 'right' || lower === 'home' || lower === 'pageup' || lower === 'end' || lower === 'pagedown')) {
+                    const d = dirMap[lower] || [0, 0];
+                    this.state.menuMode = 'none';
+                    this.state.pendingVerb = null;
+                    this.state.pendingPrompt = '';
+                    this.executeDirectedAction('fire', d[0], d[1]);
+                    return;
+                }
+                if (/^[a-z]$/i.test(k)) {
+                    const item = p.inventory.find(it => it.letter === k) || p.inventory.find(it => it.letter === lower);
+                    const verb = this.state.pendingVerb;
+                    this.state.menuMode = 'none';
+                    this.state.pendingVerb = null;
+                    this.state.pendingPrompt = '';
+                    if (!item) {
+                        this.addMessage('You do not have that item.');
+                        return;
+                    }
+                    if (verb === 'inspect') this.inspectItem(item);
+                    else if (verb === 'throw' || verb === 'fire') this.fireOrThrowItem(item);
+                    else this.applyVerbToItem(verb === 'dcss_ability' ? 'use' : verb, item);
+                    return;
+                }
             }
             if (this.state.menuMode === 'direction') {
                 const verb = this.state.pendingVerb || 'fire';
@@ -1325,6 +1483,92 @@ class UniversalCartridgeEngine {
                         return;
                     }
                 }
+                if (this.realm === 'ryod' && this.state.menuMode === 'power_select' && (/^[056]$/.test(k) || /^[1-4a-d]$/.test(lower))) {
+                    const actSys = RyodSystems ? RyodSystems.resolveActiveSystems(this.spec) : {};
+                    this.state.menuMode = 'none';
+                    this.state.pendingPrompt = '';
+                    if (k === '0') {
+                        p.activeSong = null;
+                        p.activeStance = null;
+                        this.addMessage('You relax your martial stance and cease all weaving songs.', 11);
+                        this.advanceTurn();
+                        return;
+                    }
+                    if (k === '6') {
+                        if (RyodSystems) RyodSystems.invokeDeityPower(this);
+                        else this.invokeDeityPower();
+                        return;
+                    }
+                    if (k === '5') {
+                        if (p.avatarId === 'dragon') {
+                            const hostiles = this.state.monsters.filter(m => !m.isPet && !m.peaceful && !m.captive && this.state.map[m.y] && this.state.map[m.y][m.x] && this.state.map[m.y][m.x].inView);
+                            const dmg = 18 + this.rand(8);
+                            for (const h of hostiles) {
+                                h.hp -= dmg;
+                                if (h.hp <= 0) this.handleMonsterKilled(h);
+                            }
+                            this.addMessage(`You unleash a torrent of ancient dragon breath, searing ${hostiles.length} foes for ${dmg} damage!`, 14);
+                            this.advanceTurn();
+                            return;
+                        }
+                        if (p.avatarId === 'beholder') {
+                            this.state.menuMode = 'direction';
+                            this.state.pendingVerb = 'beholder_gaze';
+                            this.state.pendingPrompt = 'Direct Beholder Gaze Ray: [Direction, or Enter for nearest foe]';
+                            return;
+                        }
+                        if (p.avatarId === 'lich') {
+                            const target = this.state.monsters.find(m => !m.isPet && !m.peaceful && !m.captive && this.state.map[m.y] && this.state.map[m.y][m.x] && this.state.map[m.y][m.x].inView);
+                            if (target) {
+                                const d = 14 + this.rand(6);
+                                target.hp -= d;
+                                p.hp = Math.min(p.hpMax, p.hp + Math.floor(d / 2));
+                                p.pw = Math.min(p.pwMax, (p.pw || 0) + 3);
+                                this.addMessage(`You channel Necrotic Drain on ${target.race} for ${d} dmg (+${Math.floor(d / 2)} HP, +3 MP)!`, 14);
+                                if (target.hp <= 0) this.handleMonsterKilled(target);
+                                this.advanceTurn();
+                            } else {
+                                this.addMessage('No hostiles in sight to drain.');
+                            }
+                            return;
+                        }
+                        if (p.avatarId === 'vampire') {
+                            if (RyodSystems && RyodSystems.AVATARS && RyodSystems.AVATARS.vampire && RyodSystems.AVATARS.vampire.innatePower) {
+                                this.castActivePower(RyodSystems.AVATARS.vampire.innatePower);
+                            } else {
+                                p.hp = Math.min(p.hpMax, p.hp + 12);
+                                this.addMessage('You meld with the shadows and regenerate your lifeblood.', 11);
+                                this.advanceTurn();
+                            }
+                            return;
+                        }
+                        if (p.innatePower) {
+                            this.castActivePower(p.innatePower);
+                            return;
+                        }
+                        this.addMessage('You have no innate avatar power.');
+                        return;
+                    }
+                    const idx = /^[1-4]$/.test(k) ? parseInt(k, 10) : (/^[a-d]$/.test(lower) ? (lower.charCodeAt(0) - 96) : 0);
+                    if (idx >= 1 && idx <= 4) {
+                        if (actSys.wovenSongs) {
+                            const songIds = ['sharpness', 'silence', 'staying', 'slaying'];
+                            RyodSystems.toggleSong(this, songIds[idx - 1]);
+                            return;
+                        }
+                        if (actSys.martialStances) {
+                            const stanceIds = ['genbu', 'byakko', 'seiryu', 'suzaku'];
+                            RyodSystems.toggleStance(this, stanceIds[idx - 1]);
+                            return;
+                        }
+                        const ryodPowers = this.getAvailablePowers();
+                        if (ryodPowers[idx - 1]) {
+                            this.castActivePower(ryodPowers[idx - 1]);
+                            return;
+                        }
+                    }
+                    return;
+                }
                 const numIdx = /^[1-9]$/.test(k) ? (parseInt(k, 10) - 1) : (/^[a-d]$/.test(lower) ? (lower.charCodeAt(0) - 97) : -1);
                 if (numIdx >= 0 && numIdx < powers.length) {
                     this.state.menuMode = 'none';
@@ -1347,10 +1591,6 @@ class UniversalCartridgeEngine {
 
         if (k === 'i') { this.state.menuMode = 'inven'; return; }
         if (k === 'e' && this.realm !== 'nethack') {
-            if (this.realm === 'rogue') {
-                this.openVerbPrompt('eat', 'Eat which food item? [a-z or ESC]');
-                return;
-            }
             this.state.menuMode = 'equip';
             return;
         }
@@ -1361,15 +1601,49 @@ class UniversalCartridgeEngine {
         if (k === 'q') { this.openVerbPrompt('quaff', 'Drink which potion? [a-z or ESC]'); return; }
         if (k === 'r') { this.openVerbPrompt('read', 'Read which scroll? [a-z or ESC]'); return; }
         if (k === 'w' || k === 'W') { this.openVerbPrompt('wield', 'Equip which item? [a-z or ESC]'); return; }
-        if (k === 'T') { this.openVerbPrompt('takeoff', 'Remove which item? [a-z or ESC]'); return; }
-        if (k === 't' || k === 'f' || k === 'v') {
-            this.state.menuMode = 'direction';
-            this.state.pendingVerb = 'fire';
-            this.state.pendingPrompt = 'Direction to fire/throw? [dir or t/Enter for nearest, ESC]';
+        if (k === 'P') { this.openVerbPrompt('wield', 'Put on which ring or amulet? [a-z or ESC]'); return; }
+        if (k === 'T' || k === 'R') { this.openVerbPrompt('takeoff', 'Remove which item? [a-z or ESC]'); return; }
+        if (k === 't' || k === 'f') {
+            if (this.realm === 'ryod' && p.avatarId === 'beholder') {
+                this.state.menuMode = 'direction';
+                this.state.pendingVerb = 'beholder_gaze';
+                this.state.pendingPrompt = 'Direct Beholder Gaze Ray: [Direction, or Enter for nearest foe]';
+                return;
+            }
+            this.openVerbPrompt(k === 'f' ? 'fire' : 'throw', 'Throw/fire which item? [a-z, or Enter/arrows to shoot, ESC]');
             return;
         }
         if (k === 'd') { this.openVerbPrompt('drop', 'Drop which item? [a-z or ESC]'); return; }
-        if (k === 'I' || k === 'x') { this.openVerbPrompt('inspect', 'Examine which item? [a-z or ESC]'); return; }
+        if (k === '{') { this.openVerbPrompt('inscribe', 'Inscribe which item? [a-z or ESC]'); return; }
+        if (k === '}') { this.openVerbPrompt('uninscribe', 'Uninscribe which item? [a-z or ESC]'); return; }
+        if (k === 'I') {
+            if (this.realm === 'dcss' && this.getAvailablePowers().length > 0) {
+                this.state.menuMode = 'spells';
+                this.state.pendingPrompt = 'Spell Library & Abilities (Press 1-4 / a-d to Cast, or ESC to return)';
+                return;
+            }
+            this.openVerbPrompt('inspect', 'Examine which item? [a-z or ESC]');
+            return;
+        }
+        if (k === 'v' || (k === 'x' && this.realm === 'brogue')) {
+            this.openVerbPrompt('inspect', 'Examine which item? [a-z or ESC]');
+            return;
+        }
+        if (k === 'x' || k === "'") {
+            if ((this.realm === 'ryod' || k === "'") && p.inventory.filter(it => it.kind === 'weapon' || it.kind === 'ranged').length > 1) {
+                const weapons = p.inventory.filter(it => it.kind === 'weapon' || it.kind === 'ranged');
+                const curIdx = weapons.findIndex(it => it.equipped === 'weapon');
+                weapons.forEach(it => { if (it.equipped === 'weapon') it.equipped = null; });
+                const nextW = weapons[(curIdx + 1) % weapons.length];
+                nextW.equipped = 'weapon';
+                if (typeof this.recalcPlayerDefenses === 'function') this.recalcPlayerDefenses();
+                this.addMessage(`You swap weapons and now wield ${formatItemDesc(nextW)}.`, 11);
+                return;
+            }
+            const vis = this.state.monsters.filter(m => this.state.map[m.y] && this.state.map[m.y][m.x] && this.state.map[m.y][m.x].inView);
+            this.addMessage(vis.length ? `Visible: ${vis.map(m => `${m.race} (${m.hp}/${m.hp_max} HP)`).join(', ')}.` : `You survey ${this.state.branchName} ${this.state.depth}: no monsters in sight.`, 11);
+            return;
+        }
         if (k === 'G' && (p.godMode || this.spec.godMode)) {
             const nextDepth = Math.min(this.spec.goalDepth || 15, (this.state.depth || 0) + 1);
             p.hp = p.hpMax;
@@ -1385,9 +1659,20 @@ class UniversalCartridgeEngine {
             this.advanceTurn();
             return;
         }
+        if (k === 'z' && this.realm === 'dcss' && this.getAvailablePowers().length > 0) {
+            const powers = this.getAvailablePowers();
+            const labels = powers.map((pw, idx) => `[${idx + 1}/${String.fromCharCode(97 + idx)}] ${pw.name} (${pw.cost} ${this.spec.resourceLabel || 'MP'})`).join('  ');
+            this.state.menuMode = 'power_select';
+            this.state.pendingPrompt = `Cast Spell: ${labels}  [i] Item  [ESC]`;
+            return;
+        }
         if (k === 'a' || k === 'V' || k === 'z' || k === 'Z' || k === 'u' || k === 'U') {
-            if (this.realm === 'dcss' && k === 'a' && (p.piety || 0) >= 1) {
-                this.invokeDeityPower();
+            if (this.realm === 'ryod' && k === 'a') {
+                this.openVerbPrompt('use', 'Activate which item? [a-z or ESC]');
+                return;
+            }
+            if (this.realm === 'dcss' && k === 'a' && (p.piety || 0) >= 1 && p.deity) {
+                this.openVerbPrompt('dcss_ability', `[1/Enter] Invoke ${p.deity} Divine Power, or [a-z] Activate Item [ESC]`);
                 return;
             }
             if ((k === 'U' || k === 'Z') && p.innatePower) {
@@ -1398,6 +1683,13 @@ class UniversalCartridgeEngine {
             return;
         }
         if (k === 'm') {
+            if (this.realm === 'ryod') {
+                this.state.menuMode = 'power_select';
+                const actSys = RyodSystems ? RyodSystems.resolveActiveSystems(this.spec) : {};
+                const label = actSys.wovenSongs ? 'Songs' : (actSys.martialStances ? 'Stances' : 'Powers');
+                this.state.pendingPrompt = `Abilities & Magic: [1-4/a-d] ${label}  [5] Avatar Innate  [6] Divine Invocation  [0] End Stance/Song  [ESC]`;
+                return;
+            }
             if (this.realm === 'dcss') {
                 this.state.menuMode = 'skills';
                 this.state.pendingPrompt = 'Skills & Training (Press ESC or Space to return)';
@@ -1432,6 +1724,10 @@ class UniversalCartridgeEngine {
             return;
         }
         if (k === ';' || k === ':') {
+            if (k === ':' && p.inventory.length > 0) {
+                this.openVerbPrompt('inspect', 'Examine which item? [a-z or ESC]');
+                return;
+            }
             const vis = this.state.monsters.filter(m => this.state.map[m.y] && this.state.map[m.y][m.x] && this.state.map[m.y][m.x].inView);
             this.addMessage(vis.length ? `Visible: ${vis.map(m => `${m.race} (${m.hp}/${m.hp_max} HP)`).join(', ')}.` : `You survey ${this.state.branchName} ${this.state.depth}: no monsters in sight.`, 11);
             return;
@@ -1439,8 +1735,8 @@ class UniversalCartridgeEngine {
         if (k === 'o' || k === 'O') { this.openOrCloseDoor(true); return; }
         if (k === 'c') { this.openOrCloseDoor(false); return; }
         if (k === 'D') { this.disarmAdjacentTrap(); return; }
-        if (k === 'p' || k === 'P') {
-            this.prayAtAltar();
+        if (k === 'p') {
+            this.interactContextualFeature();
             return;
         }
         if (k === ',' || k === 'g') {
@@ -1487,7 +1783,26 @@ class UniversalCartridgeEngine {
             this.searchAround();
             return;
         }
-        if (k === '.' || k === '5' || k === 'R' || lower === 'space') {
+        if (lower === 'enter' || lower === 'return') {
+            const cell = this.state.map[p.y][p.x];
+            if (cell.feat === FEAT.ALTAR || cell.feat === FEAT.FOUNTAIN || cell.feat === FEAT.DOWN_STAIR || cell.feat === FEAT.UP_STAIR) {
+                this.interactContextualFeature();
+                return;
+            }
+            for (let dy = -1; dy <= 1; dy++) {
+                for (let dx = -1; dx <= 1; dx++) {
+                    const nx = p.x + dx, ny = p.y + dy;
+                    if (nx >= 0 && ny >= 0 && nx < MAP_W && ny < MAP_H) {
+                        const f = this.state.map[ny][nx].feat;
+                        if (f === FEAT.ANVIL || f === FEAT.CAGE) {
+                            this.interactContextualFeature();
+                            return;
+                        }
+                    }
+                }
+            }
+        }
+        if (k === '.' || k === '5' || lower === 'space') {
             if (p.hp < p.hpMax) p.hp = Math.min(p.hpMax, p.hp + 1);
             if (p.pw < p.pwMax && this.state.turn % 2 === 0) p.pw++;
             this.advanceTurn();
@@ -1526,6 +1841,30 @@ class UniversalCartridgeEngine {
         }
         if (verb === 'disarm') {
             this.disarmAdjacentTrap(dx, dy);
+            return;
+        }
+        if (verb === 'beholder_gaze') {
+            let target = null;
+            if (dx !== 0 || dy !== 0) {
+                for (let step = 1; step <= 8; step++) {
+                    const tx = p.x + dx * step, ty = p.y + dy * step;
+                    if (tx < 0 || ty < 0 || tx >= MAP_W || ty >= MAP_H) break;
+                    if (!isWalkableFeat(this.state.map[ty][tx].feat)) break;
+                    const mon = this.state.monsters.find(m => m.x === tx && m.y === ty && !m.isPet && !m.peaceful && !m.captive);
+                    if (mon) { target = mon; break; }
+                }
+            } else {
+                target = this.state.monsters.find(m => !m.isPet && !m.peaceful && !m.captive && this.state.map[m.y] && this.state.map[m.y][m.x] && this.state.map[m.y][m.x].inView);
+            }
+            if (target) {
+                const dmg = 18 + this.rand(6);
+                target.hp -= dmg;
+                this.addMessage(`Your central eye projects a ray of disintegration at ${target.race} for ${dmg} damage!`, 14);
+                if (target.hp <= 0) this.handleMonsterKilled(target);
+            } else {
+                this.addMessage('Your gaze pierces the shadows but strikes nothing.');
+            }
+            this.advanceTurn();
             return;
         }
         let target = null;
@@ -1618,7 +1957,23 @@ class UniversalCartridgeEngine {
 
     applyVerbToItem(verb, item) {
         const p = this.state.player;
+        if (verb === 'inscribe') {
+            item.inscription = item.inscription || '!k';
+            this.addMessage(`You inscribe ${formatItemDesc(item)}.`, 11);
+            return;
+        }
+        if (verb === 'uninscribe') {
+            delete item.inscription;
+            this.addMessage(`You erase the inscription on ${formatItemDesc(item)}.`, 11);
+            return;
+        }
         if (verb === 'quaff' || (verb === 'use' && item.kind === 'potion')) {
+            if (this.state && item) {
+                this.state.identifiedTypes = this.state.identifiedTypes || {};
+                this.state.identifiedTypes[item.name] = true;
+                item.identified = true;
+            }
+            const pLower = String(item.name || '').toLowerCase();
             if (item.levelGain) {
                 if (this.usesExpLevels()) {
                     const nextReq = this.getExpNextForLevel(p.level);
@@ -1636,6 +1991,35 @@ class UniversalCartridgeEngine {
                 p.hpMax += 6;
                 p.hp = p.hpMax;
                 this.addMessage(`You quaff the ${item.name}. Surge of power! Strength increases to ${p.str} and max health rises!`, 14);
+            } else if (item.speedTurns || /speed/i.test(pLower)) {
+                p.speedBoost = Math.max(p.speedBoost || 0, 25);
+                this.addMessage(`You drink the ${item.name}. Swiftness surges through your limbs!`, 14);
+            } else if (item.heroismTurns || /heroism/i.test(pLower)) {
+                p.heroism = 25;
+                p.hp = Math.min(p.hpMax, p.hp + 20);
+                p.ac += 4;
+                this.addMessage(`You drink the ${item.name}. Ancient heroism fills your soul! (+20 HP, +4 AC)`, 14);
+            } else if (item.levitationTurns || /levitation/i.test(pLower)) {
+                p.levitating = Math.max(p.levitating || 0, 30);
+                this.addMessage(`You drink the ${item.name}. Your feet rise gracefully off the stone floor!`, 14);
+            } else if (/restore/i.test(pLower)) {
+                p.pw = p.pwMax;
+                p.hp = p.hpMax;
+                p.poisoned = 0;
+                p.blind = 0;
+                p.confused = 0;
+                this.addMessage(`You drink the ${item.name}. Boundless vitality and mana are restored!`, 14);
+            } else if (/poison/i.test(pLower)) {
+                p.poisoned = Math.max(p.poisoned || 0, 10);
+                p.hp = Math.max(1, p.hp - 6);
+                this.addMessage(`You drink the ${item.name}. Burning poison sears your veins! (-6 HP)`, 12);
+            } else if (/confusion/i.test(pLower)) {
+                p.confused = Math.max(p.confused || 0, 8);
+                this.addMessage(`You drink the ${item.name}. Swirling confusion clouds your mind!`, 12);
+            } else if (item.grantsTelepathy || /telepathy/i.test(pLower)) {
+                p.telepathy = true;
+                p.telepathyTurns = 40;
+                this.addMessage(`You drink the ${item.name}. Your third eye opens, revealing all minds in the deep!`, 14);
             } else {
                 const heal = item.heal || 18;
                 p.hp = Math.min(p.hpMax, p.hp + heal);
@@ -1648,7 +2032,39 @@ class UniversalCartridgeEngine {
             return;
         }
         if (verb === 'read' || (verb === 'use' && item.kind === 'scroll')) {
-            if (item.enchantGain) {
+            if (this.state && item) {
+                this.state.identifiedTypes = this.state.identifiedTypes || {};
+                this.state.identifiedTypes[item.name] = true;
+                item.identified = true;
+            }
+            const sLower = String(item.name || '').toLowerCase();
+            if (/identify/i.test(sLower)) {
+                p.inventory.forEach(it => { it.identified = true; if (this.state.identifiedTypes) this.state.identifiedTypes[it.name] = true; });
+                this.addMessage(`You read the ${item.name}. Brilliant revelation illuminates every item in your pack!`, 14);
+            } else if (/remove curse/i.test(sLower)) {
+                let lifted = 0;
+                p.inventory.forEach(it => { if (it.beatitude === 'cursed') { it.beatitude = 'uncursed'; lifted++; } });
+                this.addMessage(`You read the ${item.name}. Holy radiance lifts ${lifted} curse(s) from your gear!`, 14);
+            } else if (/enchant weapon/i.test(sLower)) {
+                const wep = p.inventory.find(i => i.equipped === 'weapon') || p.inventory.find(i => i.kind === 'weapon');
+                if (wep) {
+                    wep.bonus = (wep.bonus || 0) + 1;
+                    p.enchantments = (p.enchantments || 0) + 1;
+                    this.addMessage(`Glowing runes infuse your ${wep.name} (+${wep.bonus})!`, 14);
+                } else {
+                    this.addMessage(`The magic fizzles; you hold no weapon to enchant.`);
+                }
+            } else if (/enchant armor/i.test(sLower)) {
+                const arm = p.inventory.find(i => i.equipped === 'body' || i.equipped === 'shield' || i.equipped === 'helm' || i.equipped === 'cloak' || i.equipped === 'gloves' || i.equipped === 'boots') || p.inventory.find(i => i.kind === 'armor');
+                if (arm) {
+                    arm.bonus = (arm.bonus || 0) + 1;
+                    p.enchantments = (p.enchantments || 0) + 1;
+                    this.recalcPlayerDefenses();
+                    this.addMessage(`Impervious steel runes harden your ${arm.name} (+${arm.bonus})!`, 14);
+                } else {
+                    this.addMessage(`The magic fizzles; you wear no armor to enchant.`);
+                }
+            } else if (item.enchantGain || /universal enchantment/i.test(sLower)) {
                 p.enchantments = (p.enchantments || 0) + 1;
                 const eq = p.inventory.find(i => i.equipped === 'weapon')
                     || p.inventory.find(i => i.equipped === 'body' || i.equipped === 'armor')
@@ -1657,7 +2073,24 @@ class UniversalCartridgeEngine {
                 eq.bonus = (eq.bonus || 0) + 1;
                 if (typeof eq.charges === 'number') eq.charges += 1;
                 this.recalcPlayerDefenses();
-                this.addMessage(`Glowing runes of enchantment infuse your ${eq.name} (+${eq.bonus})!`, 14);
+                this.addMessage(`Universal runes of enchantment infuse your ${eq.name} (+${eq.bonus})!`, 14);
+            } else if (/teleport/i.test(sLower)) {
+                p.x = 2 + this.rand(MAP_W - 4);
+                p.y = 2 + this.rand(MAP_H - 4);
+                this.updateVisibility();
+                this.addMessage(`You read the ${item.name}. Reality folds around you in a spatial jump!`, 11);
+            } else if (/genocide/i.test(sLower)) {
+                const nearestHostile = this.state.monsters.find(m => !m.isPet && !m.peaceful);
+                if (nearestHostile) {
+                    const doomed = nearestHostile.race;
+                    this.state.monsters = this.state.monsters.filter(m => m.race !== doomed || m.isPet);
+                    this.addMessage(`You speak the cosmic syllable of Genocide! All ${doomed}s are expunged!`, 14);
+                } else {
+                    this.addMessage(`A deafening thunderclap rattles the dungeon!`);
+                }
+            } else if (/recharging/i.test(sLower)) {
+                p.inventory.filter(i => i.kind === 'wand').forEach(w => { w.charges = w.maxCharges || 5; });
+                this.addMessage(`Crackling mana cascades through your pack; all wands are fully recharged!`, 14);
             } else {
                 for (let y = 0; y < MAP_H; y++) {
                     for (let x = 0; x < MAP_W; x++) {
@@ -1681,24 +2114,67 @@ class UniversalCartridgeEngine {
             return;
         }
         if (verb === 'wield') {
+            if (p.avatarId === 'beholder') {
+                const lowerItem = String(item.name || '').toLowerCase();
+                const k = String(item.kind || '').toLowerCase();
+                if (k === 'armor' || k === 'body' || k === 'cloak' || k === 'shield' || k === 'helm' || k === 'gloves' || k === 'boots' ||
+                    /\b(armor|mail|plate|robe|cloak|shield|buckler|helm|helmet|cap|gloves|gauntlets|boots|shoes)\b/.test(lowerItem)) {
+                    this.addMessage(`An eyestalk aberration cannot wear body armor or martial barding!`, 12);
+                    return;
+                }
+            }
             const lowerItem = String(item.name || '').toLowerCase();
-            let slot = 'weapon';
-            if (item.kind === 'shield' || /\b(shield|buckler|targe)\b/.test(lowerItem)) slot = 'shield';
-            else if (item.kind === 'bow' || /\b(bow|crossbow|sling)\b/.test(lowerItem)) slot = 'bow';
-            else if (item.kind === 'armor') slot = 'body';
-            else if (item.kind === 'ring') slot = 'ring';
-            else if (item.kind === 'amulet') slot = 'amulet';
-            p.inventory.forEach(it => { if (it.equipped === slot) it.equipped = null; });
+            const k = String(item.kind || '').toLowerCase();
+            let slot = item.slot;
+            if (!slot) {
+                if (k === 'bow' || k === 'ranged' || /\b(bow|crossbow|sling)\b/.test(lowerItem)) slot = 'bow';
+                else if (k === 'shield' || /\b(shield|buckler|targe)\b/.test(lowerItem)) slot = 'shield';
+                else if (k === 'cloak' || /\b(cloak|cape|mantle)\b/.test(lowerItem)) slot = 'cloak';
+                else if (k === 'helm' || /\b(helm|helmet|crown|cap|coif)\b/.test(lowerItem)) slot = 'helm';
+                else if (k === 'gloves' || /\b(gloves|gauntlets|bracers)\b/.test(lowerItem)) slot = 'gloves';
+                else if (k === 'boots' || /\b(boots|shoes|greaves)\b/.test(lowerItem)) slot = 'boots';
+                else if (k === 'light' || /\b(lantern|torch|phial)\b/.test(lowerItem)) slot = 'light';
+                else if (k === 'amulet' || /\b(amulet|necklace|periapt|talisman)\b/.test(lowerItem)) slot = 'amulet';
+                else if (k === 'ring' || /\b(ring|band)\b/.test(lowerItem)) {
+                    if (p.avatarId === 'beholder') {
+                        const used = new Set(p.inventory.filter(i => i.equipped && i.equipped.startsWith('ring')).map(i => i.equipped));
+                        const freeSlot = ['ring1', 'ring2', 'ring3', 'ring4', 'ring5', 'ring6'].find(s => !used.has(s));
+                        if (!freeSlot) {
+                            this.addMessage('All 6 of your eyestalks are already bearing rings! (Remove one first with [T]).', 12);
+                            return;
+                        }
+                        slot = freeSlot;
+                    } else {
+                        const hasLeft = p.inventory.some(i => i.equipped === 'ringLeft');
+                        slot = !hasLeft ? 'ringLeft' : 'ringRight';
+                    }
+                } else if (k === 'armor' || /\b(armor|mail|plate|robe|cuirass|hauberk|leather|tunic|vestment)\b/.test(lowerItem)) {
+                    slot = 'body';
+                } else {
+                    slot = 'weapon';
+                }
+            }
+            const existing = p.inventory.find(it => it.equipped === slot);
+            if (existing && existing.beatitude === 'cursed') {
+                this.addMessage(`The cursed ${existing.name} is welded to your flesh and cannot be removed!`, 12);
+                return;
+            }
+            if (existing) existing.equipped = null;
             item.equipped = slot;
             this.reindexInventory();
-            this.addMessage(`You equip the ${formatItemDesc(item)}.`, 11);
+            this.addMessage(`You equip the ${formatItemDesc(item)} on your ${slot}.`, 11);
             this.advanceTurn();
             return;
         }
         if (verb === 'takeoff') {
+            if (item.beatitude === 'cursed') {
+                this.addMessage(`The cursed ${item.name} is welded to your flesh and cannot be removed!`, 12);
+                return;
+            }
+            const prevSlot = item.equipped || 'equipment';
             item.equipped = null;
             this.reindexInventory();
-            this.addMessage(`You remove the ${formatItemDesc(item)}.`, 11);
+            this.addMessage(`You remove the ${formatItemDesc(item)} from your ${prevSlot}.`, 11);
             this.advanceTurn();
             return;
         }
@@ -1710,18 +2186,90 @@ class UniversalCartridgeEngine {
             this.advanceTurn();
             return;
         }
-        // Offensive wand/spell invocation against nearest visible hostile
-        const target = this.state.monsters.find(m => !m.isPet && !m.peaceful && this.state.map[m.y][m.x].inView);
-        if (target) {
-            const dmg = 8 + this.rand(8);
-            target.hp -= dmg;
-            this.addMessage(`Arcane energy blasts the ${target.race} for ${dmg} damage!`, 14);
-            if (target.hp <= 0) this.handleMonsterKilled(target);
-        } else {
-            p.speedBoost = 15;
-            this.addMessage(`You channel arcane power and feel yourself surge with haste!`, 11);
+        if (verb === 'zap' || (verb === 'use' && item.kind === 'wand')) {
+            if (this.state && item) {
+                this.state.identifiedTypes = this.state.identifiedTypes || {};
+                this.state.identifiedTypes[item.name] = true;
+                item.identified = true;
+            }
+            if (typeof item.charges === 'number') {
+                if (item.charges <= 0) {
+                    this.addMessage(`The ${item.name} clicks hollowly; it has no charges left.`, 12);
+                    return;
+                }
+                item.charges--;
+            }
+            const target = this.state.monsters.find(m => !m.isPet && !m.peaceful && this.state.map[m.y] && this.state.map[m.y][m.x] && this.state.map[m.y][m.x].inView);
+            const wLower = String(item.name || '').toLowerCase();
+            if (/disintegration/i.test(wLower)) {
+                if (target) {
+                    target.hp -= 35;
+                    this.addMessage(`A ray of pure disintegration annihilates the ${target.race} for 35 damage!`, 14);
+                    if (target.hp <= 0) this.handleMonsterKilled(target);
+                } else {
+                    this.addMessage(`A crackling disintegration ray punches through the dungeon darkness!`, 14);
+                }
+            } else if (/fire/i.test(wLower)) {
+                if (target) {
+                    target.hp -= 20;
+                    this.addMessage(`A roaring bolt of fire strikes the ${target.race} for 20 damage!`, 14);
+                    if (target.hp <= 0) this.handleMonsterKilled(target);
+                } else {
+                    this.addMessage(`A jet of fire shoots into the corridor!`, 14);
+                }
+            } else if (/frost|cold/i.test(wLower)) {
+                if (target) {
+                    target.hp -= 20;
+                    this.addMessage(`A chilling lance of frost strikes the ${target.race} for 20 damage!`, 14);
+                    if (target.hp <= 0) this.handleMonsterKilled(target);
+                } else {
+                    this.addMessage(`Freezing frost crystallizes in the air!`, 14);
+                }
+            } else if (/lightning/i.test(wLower)) {
+                if (target) {
+                    target.hp -= 24;
+                    this.addMessage(`A blinding bolt of lightning arcs through the ${target.race} for 24 damage!`, 14);
+                    if (target.hp <= 0) this.handleMonsterKilled(target);
+                } else {
+                    this.addMessage(`A brilliant fork of lightning illuminates the chamber!`, 14);
+                }
+            } else if (/teleport/i.test(wLower)) {
+                if (target) {
+                    target.x = 2 + this.rand(MAP_W - 4);
+                    target.y = 2 + this.rand(MAP_H - 4);
+                    this.addMessage(`The ${target.race} teleports away in a swirl of arcane smoke!`, 11);
+                } else {
+                    this.addMessage(`Space wavers around the wand tip.`, 11);
+                }
+            } else if (/sleep/i.test(wLower)) {
+                if (target) {
+                    target.energy = -200;
+                    this.addMessage(`The ${target.race} slumps into a deep magical slumber!`, 11);
+                } else {
+                    this.addMessage(`Drowsy blue mist wafts into the darkness.`, 11);
+                }
+            } else if (/polymorph/i.test(wLower)) {
+                if (target) {
+                    const randMon = this.spec.monsters[this.rand(this.spec.monsters.length)];
+                    target.race = randMon.name; target.hp = randMon.hp; target.hp_max = randMon.hp; target.glyph = randMon.glyph;
+                    this.addMessage(`A beam of shifting chaos transforms the target into a ${randMon.name}!`, 14);
+                } else {
+                    this.addMessage(`Sparks of chaotic flux fizzle against the stone.`, 11);
+                }
+            } else {
+                if (target) {
+                    const dmg = 8 + this.rand(8);
+                    target.hp -= dmg;
+                    this.addMessage(`Arcane energy blasts the ${target.race} for ${dmg} damage!`, 14);
+                    if (target.hp <= 0) this.handleMonsterKilled(target);
+                } else {
+                    p.speedBoost = 15;
+                    this.addMessage(`You channel arcane power and feel yourself surge with haste!`, 11);
+                }
+            }
+            this.advanceTurn();
+            return;
         }
-        this.advanceTurn();
     }
 
     getAvailablePowers() {
@@ -1737,7 +2285,7 @@ class UniversalCartridgeEngine {
         return out;
     }
 
-    castActivePower(power) {
+    castActivePower(power, targetX, targetY) {
         if (!power) return;
         const p = this.state.player;
         const resLabel = this.spec.resourceLabel || 'MP';
@@ -1775,6 +2323,25 @@ class UniversalCartridgeEngine {
         if (chaosBonus > 0) {
             p.speedBoost = Math.max(p.speedBoost || 0, 8);
         }
+
+        // Directional / Cursor Targeting for powers
+        const aim = (targetX != null && targetY != null)
+            ? { x: targetX, y: targetY }
+            : ((this.state.cursor && this.state.cursor.active) ? this.state.cursor : null);
+
+        if (aim && hostiles.length > 0) {
+            const targeted = hostiles.find(f => f.x === aim.x && f.y === aim.y) ||
+                hostiles.slice().sort((a, b) => Math.hypot(a.x - aim.x, a.y - aim.y) - Math.hypot(b.x - aim.x, b.y - aim.y))[0];
+            if (targeted && Math.hypot(targeted.x - p.x, targeted.y - p.y) <= (power.range || 8)) {
+                const dmg = (power.dmg || 15) + this.rand(6) + chaosBonus;
+                targeted.hp -= dmg;
+                this.addMessage(`You direct ${power.name}${chaosBonus ? ' [CHAOS SURGE]' : ''} at ${targeted.race} for ${dmg} damage!`, 14);
+                if (targeted.hp <= 0) this.handleMonsterKilled(targeted);
+                this.advanceTurn();
+                return;
+            }
+        }
+
         if (power.aoe && hostiles.length > 0) {
             const dmg = (power.dmg || 16) + this.rand(6) + chaosBonus;
             for (const foe of hostiles.slice()) {
@@ -1820,12 +2387,66 @@ class UniversalCartridgeEngine {
         this.advanceTurn();
     }
 
+    interactContextualFeature() {
+        const p = this.state.player;
+        const cell = this.state.map[p.y][p.x];
+        if (cell.feat === FEAT.ALTAR) {
+            if (RyodSystems && typeof RyodSystems.interactAltar === 'function') {
+                RyodSystems.interactAltar(this);
+                return true;
+            }
+            this.prayAtAltar();
+            return true;
+        }
+        if (cell.feat === FEAT.FOUNTAIN) {
+            if (RyodSystems && typeof RyodSystems.interactFountain === 'function') {
+                RyodSystems.interactFountain(this);
+                return true;
+            }
+            p.hp = Math.min(p.hpMax, p.hp + 20);
+            cell.feat = FEAT.FLOOR;
+            cell.glyph = '.';
+            this.addMessage('You drink the pure spring water (+20 HP). The fountain bubbles and dries to stone.', 11);
+            this.advanceTurn();
+            return true;
+        }
+        for (let dy = -1; dy <= 1; dy++) {
+            for (let dx = -1; dx <= 1; dx++) {
+                const nx = p.x + dx, ny = p.y + dy;
+                if (nx < 0 || ny < 0 || nx >= MAP_W || ny >= MAP_H) continue;
+                const c = this.state.map[ny][nx];
+                if (c.feat === FEAT.ANVIL) {
+                    if (RyodSystems) {
+                        const ok = RyodSystems.smithAtAnvil(this, 0);
+                        if (ok) this.advanceTurn();
+                        return true;
+                    }
+                } else if (c.feat === FEAT.CAGE) {
+                    if (RyodSystems) {
+                        const ok = RyodSystems.interactCage(this);
+                        if (ok) this.advanceTurn();
+                        return true;
+                    }
+                }
+            }
+        }
+        const pet = this.state.monsters.find(m => m.isPet);
+        if (pet) {
+            pet.stayClose = !pet.stayClose;
+            this.addMessage(pet.stayClose ? `You signal ${pet.race} to heel close.` : `You signal ${pet.race} to hunt freely.`, 11);
+            return true;
+        }
+        this.addMessage('Nothing here to interact with or pray at.');
+        return false;
+    }
+
     invokeDeityPower() {
         const p = this.state.player;
         if ((p.piety || 0) < 1) {
             this.addMessage(`${p.deity} ignores your plea for divine intervention.`);
             return;
         }
+        p.piety = Math.max(0, (p.piety || 0) - 1);
         p.hp = Math.min(p.hpMax, p.hp + 10);
         p.speedBoost = 20;
         this.addMessage(`${p.deity} grants you righteous fury and haste!`, 14);
@@ -1852,7 +2473,9 @@ class UniversalCartridgeEngine {
         } else {
             if (obj.isGoalArtifact) {
                 p.hasAmulet = true;
-                if (this.spec.victoryMode === 'three_runes' && (p.runes || 0) < 3) {
+                if (RyodSystems && typeof RyodSystems.checkRelicClaim === 'function') {
+                    RyodSystems.checkRelicClaim(this, obj);
+                } else if (this.spec.victoryMode === 'three_runes' && (p.runes || 0) < 3) {
                     this.addMessage(`You seize the ${obj.name}, but you still need ${3 - (p.runes || 0)} more Abyssal Rune(s) before it awakens!`, 14);
                 } else if (this.spec.victoryMode === 'boss_kill' || (this.spec.victoryMode === 'three_runes' && (p.runes || 0) >= 3)) {
                     p.winner = true;
@@ -1937,19 +2560,72 @@ class UniversalCartridgeEngine {
                 }
             }
             const mutMult = (this.spec && this.spec.mutatorId === 'blood_moon') ? 1.35 : ((this.spec && this.spec.mutatorId === 'stygian_fog') ? 1.30 : 1.0);
-            const dmg = Math.max(2, Math.round((baseRoll + strBonus + wepBonus) * mutMult));
+            const rawDmg = Math.max(2, Math.round((baseRoll + strBonus + wepBonus) * mutMult));
+
+            // AC vs DEX/Level/toHit hit roll
+            const dexBonus = p.dex ? Math.floor((p.dex - 10) / 2) : 0;
+            const toHitBonus = (wep ? (wep.toHit || wep.bonus || 0) : 0) + (p.level || 1);
+            const d20Attack = 1 + this.rand(20);
+            const hitRoll = 10 + dexBonus + toHitBonus + d20Attack;
+            const targetAC = mon.ac != null ? mon.ac : 8;
+
+            let hitQuality = 'hit';
+            let dmg = rawDmg;
+
+            if (d20Attack === 20 || hitRoll >= targetAC + 10) {
+                hitQuality = 'crit';
+                dmg = Math.max(2, Math.round(rawDmg * 1.75));
+            } else if (hitRoll >= targetAC) {
+                hitQuality = 'hit';
+                dmg = Math.max(1, rawDmg);
+            } else if (hitRoll >= targetAC - 4) {
+                hitQuality = 'graze';
+                dmg = Math.max(1, Math.round(rawDmg * 0.5));
+            } else {
+                hitQuality = 'miss';
+                dmg = 0;
+            }
+
+            if (hitQuality === 'miss') {
+                this.addMessage(`Your swing at the ${mon.race} is deflected by armor! (AC ${targetAC})`, 7);
+                this.advanceTurn();
+                return;
+            }
+
+            // Elemental weapon brands & Hydra cauterization
+            const isFlameWep = wep && (wep.brand === 'flame' || /flam|fire/i.test(wep.name || ''));
+            const isFrostWep = wep && (wep.brand === 'frost' || /frost|ice|cold/i.test(wep.name || ''));
+            const isVenomWep = wep && (wep.brand === 'venom' || /venom|poison/i.test(wep.name || ''));
+            const isLightningWep = wep && (wep.brand === 'lightning' || /lightning|storm|shock/i.test(wep.name || ''));
+
+            if (isFlameWep) dmg += 3;
+            else if (isFrostWep) dmg += 2;
+            else if (isVenomWep) dmg += 2;
+            else if (isLightningWep) dmg += 3;
+
             mon.hp -= dmg;
-            this.addMessage(`You strike the ${mon.race} with your ${p.weaponName}! (${dmg} dmg)`, 11);
+            if (hitQuality === 'crit') {
+                this.addMessage(`CRITICAL HIT! You strike the ${mon.race} for ${dmg} damage!`, 14);
+            } else if (hitQuality === 'graze') {
+                this.addMessage(`Glancing blow! You graze the ${mon.race} for ${dmg} damage.`, 8);
+            } else {
+                this.addMessage(`You strike the ${mon.race} with your ${p.weaponName}! (${dmg} dmg)`, 11);
+            }
+
             if (mon.hp <= 0) {
                 this.handleMonsterKilled(mon);
                 this.advanceTurn();
                 return;
             }
             const mLower = String(mon.race || '').toLowerCase();
-            if (mLower.includes('hydra') && wep && /sword|axe|blade|dagger|halberd/i.test(wep.name || '') && !/flam|fire/i.test(wep.name || '')) {
-                mon.hp = Math.min((mon.hp_max || 30) + 12, mon.hp + 6);
-                mon.dmg = (mon.dmg || 8) + 2;
-                this.addMessage(`Your edged ${wep.name} severs a head — two more grow back in its place!`, 12);
+            if (mLower.includes('hydra')) {
+                if (isFlameWep) {
+                    this.addMessage(`The fire of your ${wep.name} cauterizes the wound! No heads regrow!`, 14);
+                } else if (wep && /sword|axe|blade|dagger|halberd/i.test(wep.name || '')) {
+                    mon.hp = Math.min((mon.hp_max || 30) + 12, mon.hp + 6);
+                    mon.dmg = (mon.dmg || 8) + 2;
+                    this.addMessage(`Your edged ${wep.name} severs a head — two more grow back in its place!`, 12);
+                }
             } else if (mLower.includes('jelly') && mon.hp > 6 && this.state.monsters.length < 18) {
                 const half = Math.max(3, Math.floor(mon.hp / 2));
                 mon.hp = half;
@@ -1970,13 +2646,21 @@ class UniversalCartridgeEngine {
             this.advanceTurn();
             return;
         }
-        if (!isWalkableFeat(cell.feat)) {
-            this.addMessage('Solid stone blocks your way.');
+        const canFlyOverChasm = cell.feat === FEAT.CHASM && (p.levitating || p.avatarId === 'beholder' || p.avatarId === 'dragon' || p.activeStance === 'suzaku');
+        if (!isWalkableFeat(cell.feat) && !canFlyOverChasm) {
+            if (cell.feat === FEAT.CHASM) {
+                this.addMessage('A bottomless chasm yawns before you! (You need levitation or wings to cross).');
+            } else {
+                this.addMessage('Solid stone blocks your way.');
+            }
             return;
         }
 
         p.x = tx;
         p.y = ty;
+        if (cell.feat === FEAT.CHASM && canFlyOverChasm) {
+            this.addMessage('You glide gracefully above the bottomless chasm.', 11);
+        }
         const floorObj = this.state.objects.find(o => o.x === tx && o.y === ty);
         if (floorObj) {
             this.addMessage(`You see here ${formatItemDesc(floorObj)}. (Press [g] or [,] to pick up)`, 14);
@@ -1995,8 +2679,10 @@ class UniversalCartridgeEngine {
             p.hp = Math.min(p.hpMax, p.hp + 4);
             p.pw = Math.min(p.pwMax, (p.pw || 0) + 1);
         }
+        const scoreMult = this.state.scoreMultiplier || 1.0;
         if (this.usesExpLevels()) {
-            const xpGain = mon.exp !== undefined ? mon.exp : 10;
+            const rawXp = mon.exp !== undefined ? mon.exp : 10;
+            const xpGain = Math.round(rawXp * scoreMult);
             p.exp += xpGain;
             this.addMessage(`You slay ${mon.isBoss ? '' : 'the '}${mon.race}! (+${xpGain} XP)`, 10);
             this.checkExperience();
@@ -2019,6 +2705,18 @@ class UniversalCartridgeEngine {
                 tval: 70,
                 sval: 15
             });
+            // Guaranteed Act Boss Relic drop
+            const actNum = mon.actNumber || Math.min(5, Math.max(1, Math.ceil(this.state.depth / 3)));
+            const relic = Array.isArray(this.spec.items) ? this.spec.items.find(it => it.isRelic && it.actRelic === actNum) : null;
+            if (relic) {
+                this.state.objects.push({
+                    ...relic,
+                    x: Math.min(MAP_W - 2, mon.x + 1),
+                    y: mon.y,
+                    count: 1
+                });
+                this.addMessage(`The defeated boss drops its legendary relic: ${relic.name}!`, 14);
+            }
             if (mon.isNemesis) {
                 if (this.spec.victoryMode === 'boss_kill' || (this.spec.victoryMode === 'three_runes' && (p.runes || 0) >= 3)) {
                     p.hasAmulet = true;
@@ -2084,9 +2782,16 @@ class UniversalCartridgeEngine {
         }
 
         for (const mon of this.state.monsters.slice()) {
-            if (mon.captive || mon.townRole) continue;
+            if (mon.captive || mon.townRole || mon.hp <= 0) continue;
+
+            // Speed energy accumulator: +10 speed (110) gets extra turns, -10 speed (90) skips turns
+            const speedStep = mon.speed || 100;
+            mon.energy = (mon.energy || 0) + speedStep;
+            if (mon.energy < 100) continue;
+            mon.energy = Math.min(200, mon.energy - 100);
+
             if (mon.isPet) {
-                const adjFoe = this.state.monsters.find(f => !f.isPet && !f.peaceful && Math.hypot(f.x - mon.x, f.y - mon.y) <= 1.5);
+                const adjFoe = this.state.monsters.find(f => !f.isPet && !f.peaceful && f.hp > 0 && Math.hypot(f.x - mon.x, f.y - mon.y) <= 1.5);
                 if (adjFoe) {
                     const d = 3 + this.rand(5);
                     adjFoe.hp -= d;
@@ -2098,19 +2803,188 @@ class UniversalCartridgeEngine {
                     continue;
                 }
                 const dist = Math.hypot(p.x - mon.x, p.y - mon.y);
-                if (dist > 1.8) {
-                    const nx = mon.x + Math.sign(p.x - mon.x);
-                    const ny = mon.y + Math.sign(p.y - mon.y);
-                    if (this.state.map[ny] && this.state.map[ny][nx] && isWalkableFeat(this.state.map[ny][nx].feat) && !this.state.monsters.some(m => m.x === nx && m.y === ny) && !(nx === p.x && ny === p.y)) {
-                        mon.x = nx; mon.y = ny;
+                if (dist > 1.5) {
+                    const canPetStep = (nx, ny) => Boolean(
+                        this.state.map[ny] &&
+                        this.state.map[ny][nx] &&
+                        isWalkableFeat(this.state.map[ny][nx].feat) &&
+                        !this.state.monsters.some(m => m !== mon && m.x === nx && m.y === ny) &&
+                        !(nx === p.x && ny === p.y)
+                    );
+                    const stepPetTowardPlayer = () => {
+                        const dx = p.x - mon.x, dy = p.y - mon.y;
+                        const sx = Math.sign(dx), sy = Math.sign(dy);
+                        if (sx === 0 && sy === 0) return false;
+                        const candidates = [[mon.x + sx, mon.y + sy]];
+                        if (sx !== 0 && sy !== 0) {
+                            if (Math.abs(dx) >= Math.abs(dy)) {
+                                candidates.push([mon.x + sx, mon.y], [mon.x, mon.y + sy]);
+                            } else {
+                                candidates.push([mon.x, mon.y + sy], [mon.x + sx, mon.y]);
+                            }
+                        } else if (sx !== 0) {
+                            candidates.push([mon.x + sx, mon.y + 1], [mon.x + sx, mon.y - 1]);
+                        } else {
+                            candidates.push([mon.x + 1, mon.y + sy], [mon.x - 1, mon.y + sy]);
+                        }
+                        for (const [cx, cy] of candidates) {
+                            if (canPetStep(cx, cy)) {
+                                mon.x = cx;
+                                mon.y = cy;
+                                return true;
+                            }
+                        }
+                        return false;
+                    };
+                    const moved = stepPetTowardPlayer();
+                    if (moved) {
+                        if (dist > 2.2 && Math.hypot(p.x - mon.x, p.y - mon.y) > 1.5) {
+                            stepPetTowardPlayer();
+                        }
+                        if (typeof this.updateVisibility === 'function') {
+                            this.updateVisibility();
+                        }
                     }
                 }
                 continue;
             }
 
+            const mLower = String(mon.race || '').toLowerCase();
             const dist = Math.hypot(p.x - mon.x, p.y - mon.y);
+            const inView = Boolean(this.state.map[mon.y] && this.state.map[mon.y][mon.x] && this.state.map[mon.y][mon.x].inView);
+            const isProperName = Boolean(mon.isBoss || /^[A-Z]/.test(mon.race || ''));
+            const subjName = isProperName ? mon.race : `The ${mon.race}`;
+            const killerArticle = isProperName ? mon.race : (/^[aeiou]/i.test(mon.race || '') ? `an ${mon.race}` : `a ${mon.race}`);
+
+            const aiBehavior = mon.aiBehavior || (
+                /archer|bowman|ranger|hunter|skeleton archer|sniper/i.test(mLower) ? 'archer_kite' :
+                /mage|wizard|warlock|sorcerer|shade|caster|lich|priest/i.test(mLower) ? 'bolt_caster' :
+                /dragon|drake|wyrm|chimera|hellhound/i.test(mLower) ? 'telegraphed_cone_breath' :
+                /summoner|overseer|queen|hive|caller|necromancer/i.test(mLower) ? 'summoner' :
+                /charger|knight|centaur|bull|minotaur|paladin/i.test(mLower) ? 'shield_charger' :
+                'melee'
+            );
+
+            // AI 1: Telegraphed Cone Breath
+            if (aiBehavior === 'telegraphed_cone_breath') {
+                if (mon.telegraph) {
+                    mon.telegraph = null;
+                    if (dist <= 5 && inView) {
+                        const bDmg = Math.max(3, Math.round((mon.dmg || 10) * 1.5));
+                        p.hp -= bDmg;
+                        if (p.godMode || this.spec.godMode) p.hp = Math.max(1, p.hp);
+                        this.addMessage(`🔥 ${subjName} breathes a searing cone of fire directly at you! (-${bDmg} HP)`, 4);
+                        if (p.hp <= 0) {
+                            p.hp = 0; p.dead = true; p.diedFrom = killerArticle;
+                            this.addMessage(`You die... Killed by ${p.diedFrom} on ${this.state.branchName} ${this.state.depth}.`, 4);
+                            return;
+                        }
+                        continue;
+                    }
+                } else if (dist >= 2 && dist <= 5 && inView && this.rand(100) < 50) {
+                    mon.telegraph = { x: p.x, y: p.y };
+                    this.addMessage(`⚠️ ${subjName} inhales deeply, aiming a cone of fire at your position!`, 14);
+                    continue;
+                }
+            }
+
+            // AI 2: Shield Charger
+            if (aiBehavior === 'shield_charger' && dist >= 2 && dist <= 4 && inView) {
+                const dx = p.x - mon.x;
+                const dy = p.y - mon.y;
+                if ((dx === 0 || dy === 0 || Math.abs(dx) === Math.abs(dy)) && this.rand(100) < 65) {
+                    const stepX = Math.sign(dx);
+                    const stepY = Math.sign(dy);
+                    let clear = true;
+                    let cx = mon.x + stepX;
+                    let cy = mon.y + stepY;
+                    while (!(cx === p.x && cy === p.y)) {
+                        if (!this.state.map[cy] || !this.state.map[cy][cx] || !isWalkableFeat(this.state.map[cy][cx].feat) || this.state.monsters.some(m => m.x === cx && m.y === cy)) {
+                            clear = false; break;
+                        }
+                        cx += stepX; cy += stepY;
+                    }
+                    if (clear) {
+                        mon.x = p.x - stepX;
+                        mon.y = p.y - stepY;
+                        const sDmg = Math.max(2, (mon.dmg || 6) + 3);
+                        p.hp -= sDmg;
+                        if (p.godMode || this.spec.godMode) p.hp = Math.max(1, p.hp);
+                        this.addMessage(`💥 ${subjName} charges across the hall and slams into you! (-${sDmg} HP)`, 12);
+                        if (p.hp <= 0) {
+                            p.hp = 0; p.dead = true; p.diedFrom = killerArticle;
+                            this.addMessage(`You die... Killed by ${p.diedFrom} on ${this.state.branchName} ${this.state.depth}.`, 4);
+                            return;
+                        }
+                        continue;
+                    }
+                }
+            }
+
+            // AI 3: Summoner
+            if (aiBehavior === 'summoner' && dist >= 3 && dist <= 7 && inView && this.rand(100) < 35 && this.state.monsters.length < 18) {
+                const offsets = [[-1,0],[1,0],[0,-1],[0,1]];
+                for (const [ox, oy] of offsets) {
+                    const sx = mon.x + ox, sy = mon.y + oy;
+                    if (this.state.map[sy] && this.state.map[sy][sx] && isWalkableFeat(this.state.map[sy][sx].feat) && !this.state.monsters.some(m => m.x === sx && m.y === sy)) {
+                        const maxId = this.state.monsters.reduce((acc, m) => Math.max(acc, m.id || 0), 0);
+                        this.state.monsters.push({
+                            id: maxId + 1,
+                            race: `${mon.race} minion`,
+                            glyph: 'm',
+                            attr: 13,
+                            x: sx, y: sy,
+                            hp: Math.max(6, Math.floor((mon.hp_max || 20) / 3)),
+                            hp_max: Math.max(6, Math.floor((mon.hp_max || 20) / 3)),
+                            ac: 6, dmg: 4, exp: 15, speed: 105,
+                            isPet: false, peaceful: false, captive: false
+                        });
+                        this.addMessage(`${subjName} chants an invocation and summons a minion!`, 13);
+                        break;
+                    }
+                }
+                continue;
+            }
+
+            // AI 4: Archer Kite
+            if (aiBehavior === 'archer_kite') {
+                if (dist <= 2.2) {
+                    const rx = mon.x - Math.sign(p.x - mon.x);
+                    const ry = mon.y - Math.sign(p.y - mon.y);
+                    if (this.state.map[ry] && this.state.map[ry][rx] && isWalkableFeat(this.state.map[ry][rx].feat) && !this.state.monsters.some(m => m.x === rx && m.y === ry)) {
+                        mon.x = rx; mon.y = ry;
+                    }
+                }
+                if (dist <= 6 && inView && this.rand(100) < 80) {
+                    const arrowDmg = Math.max(1, (mon.dmg || 4) - 1);
+                    p.hp -= arrowDmg;
+                    if (p.godMode || this.spec.godMode) p.hp = Math.max(1, p.hp);
+                    this.addMessage(`${subjName} looses an arrow at you! (-${arrowDmg} HP)`, 11);
+                    if (p.hp <= 0) {
+                        p.hp = 0; p.dead = true; p.diedFrom = killerArticle;
+                        this.addMessage(`You die... Killed by ${p.diedFrom} on ${this.state.branchName} ${this.state.depth}.`, 4);
+                        return;
+                    }
+                    continue;
+                }
+            }
+
+            // AI 5: Bolt Caster
+            if (aiBehavior === 'bolt_caster' && dist >= 2 && dist <= 7 && inView && this.rand(100) < 70) {
+                const boltDmg = Math.max(2, (mon.dmg || 6) + 1);
+                p.hp -= boltDmg;
+                if (p.godMode || this.spec.godMode) p.hp = Math.max(1, p.hp);
+                this.addMessage(`${subjName} hurls a shimmering magical bolt at you! (-${boltDmg} HP)`, 13);
+                if (p.hp <= 0) {
+                    p.hp = 0; p.dead = true; p.diedFrom = killerArticle;
+                    this.addMessage(`You die... Killed by ${p.diedFrom} on ${this.state.branchName} ${this.state.depth}.`, 4);
+                    return;
+                }
+                continue;
+            }
+
+            // Standard Melee Attack when adjacent
             if (dist <= 1.5) {
-                const mLower = String(mon.race || '').toLowerCase();
                 const wornBody = p.inventory.find(it => it.equipped === 'body' || it.equipped === 'armor');
                 if ((mLower.includes('aquator') || mLower.includes('acid') || mLower.includes('rust')) && wornBody && !/leather|robe|cloak/i.test(wornBody.name || '')) {
                     wornBody.bonus = Math.max(-3, (wornBody.bonus || 0) - 1);
@@ -2141,24 +3015,39 @@ class UniversalCartridgeEngine {
                 if (p.godMode || this.spec.godMode) {
                     p.hp = Math.max(1, p.hp);
                 }
-                const isProperName = Boolean(mon.isBoss || /^[A-Z]/.test(mon.race || ''));
-                const subjName = isProperName ? mon.race : `The ${mon.race}`;
-                const killerArticle = isProperName ? mon.race : (/^[aeiou]/i.test(mon.race || '') ? `an ${mon.race}` : `a ${mon.race}`);
                 this.addMessage(`${subjName} hits you! (-${dmg} HP)`, 4);
                 if (p.hp <= 0) {
                     p.hp = 0;
                     p.dead = true;
                     p.diedFrom = killerArticle;
+                    if (this.ironman || process.env.ANGBAND3D_IRONMAN === '1' || (this.state && this.state.ironman)) {
+                        try { if (fs.existsSync(this.saveFile + '.living.sav')) fs.unlinkSync(this.saveFile + '.living.sav'); } catch (_) {}
+                        try { if (fs.existsSync(this.saveFile)) fs.unlinkSync(this.saveFile); } catch (_) {}
+                    }
                     this.addMessage(`You die... Killed by ${p.diedFrom} on ${this.state.branchName} ${this.state.depth}.`, 4);
                     return;
                 }
-            } else if (dist <= 7 && this.state.map[mon.y][mon.x].inView) {
+            } else if (dist <= 7 && inView) {
                 const nx = mon.x + Math.sign(p.x - mon.x);
                 const ny = mon.y + Math.sign(p.y - mon.y);
                 if (this.state.map[ny] && this.state.map[ny][nx] && isWalkableFeat(this.state.map[ny][nx].feat) && !this.state.monsters.some(m => m.x === nx && m.y === ny) && !(nx === p.x && ny === p.y)) {
                     mon.x = nx; mon.y = ny;
                 }
             }
+        }
+
+        if (p.activeSong && p.pw > 0) {
+            p.pw--;
+            if (p.pw <= 0) {
+                this.addMessage(`Your concentration breaks as your mana drains empty. The Song of ${p.activeSong} ends.`, 12);
+                p.activeSong = null;
+            }
+        }
+        if (RyodSystems && typeof RyodSystems.tickActiveHazards === 'function') {
+            RyodSystems.tickActiveHazards(this);
+        }
+        if (RyodSystems && typeof RyodSystems.checkAvatarScaleEvolution === 'function') {
+            RyodSystems.checkAvatarScaleEvolution(this);
         }
     }
 
@@ -2465,6 +3354,7 @@ class UniversalCartridgeEngine {
             sval: it.sval || 1,
             number: it.count || 1,
             weight: it.weight || 20,
+            inscription: it.inscription || '',
             vm: computeVerbMask(it),
             attr: 1
         }));
@@ -2478,6 +3368,7 @@ class UniversalCartridgeEngine {
             sval: it.sval || 1,
             number: it.count || 1,
             weight: it.weight || 10,
+            inscription: it.inscription || '',
             vm: computeVerbMask(it),
             attr: 1
         }));
@@ -2489,6 +3380,7 @@ class UniversalCartridgeEngine {
             tval: it.tval || 16,
             number: it.count || 1,
             weight: it.weight || 5,
+            inscription: it.inscription || '',
             vm: computeVerbMask(it)
         }));
         const floorList = this.state.objects.filter(o => o.x === p.x && o.y === p.y).map((o, idx) => ({
@@ -2505,18 +3397,103 @@ class UniversalCartridgeEngine {
             ? 'direction'
             : (this.state.menuMode === 'spells' || this.state.menuMode === 'skills' || this.state.menuMode === 'power_select' ? 'spell' : 'item');
 
-        return {
+        const computedResists = {
+            acid: 0, elec: 0, fire: 0, cold: 0, pois: 0,
+            light: 0, dark: 0, sound: 0, shards: 0, nexus: 0, nether: 0, chaos: 0, disen: 0,
+            ...(p.resists || {})
+        };
+        const computedFlags = {
+            rFear: false, rBlind: false, rConf: false, rStun: false,
+            freeAct: false, holdLife: false, seeInvis: false, esp: false,
+            regen: false, feather: false, slowDigest: false,
+            ...(p.flags || {})
+        };
+        for (const it of p.inventory) {
+            if (!it.equipped) continue;
+            if (it.resists && typeof it.resists === 'object') {
+                for (const [rk, rv] of Object.entries(it.resists)) {
+                    if (rk in computedResists && Number.isFinite(rv)) {
+                        computedResists[rk] = Math.max(-1, Math.min(3, (computedResists[rk] || 0) + rv));
+                    }
+                }
+            }
+            if (it.flags && typeof it.flags === 'object') {
+                for (const [fk, fv] of Object.entries(it.flags)) {
+                    if (fk in computedFlags && fv) computedFlags[fk] = true;
+                }
+            }
+            if (it.brand === 'fire') computedResists.fire = Math.max(computedResists.fire, 1);
+            if (it.brand === 'cold') computedResists.cold = Math.max(computedResists.cold, 1);
+            if (it.brand === 'elec') computedResists.elec = Math.max(computedResists.elec, 1);
+            if (it.brand === 'pois') computedResists.pois = Math.max(computedResists.pois, 1);
+        }
+
+        const uiCursor = (this.state.cursor && this.state.cursor.active) ? {
+            active: true,
+            mode: this.state.cursor.mode || 'target',
+            x: this.state.cursor.x,
+            y: this.state.cursor.y,
+            has_los: typeof this.hasLineOfSight === 'function'
+                ? Boolean(this.hasLineOfSight(p.x, p.y, this.state.cursor.x, this.state.cursor.y))
+                : true,
+            blast_rad: this.state.cursor.blast_rad || 0,
+            mon_id: this.state.cursor.mon_id || 0
+        } : null;
+
+        if (!this._sentLoreSigs) this._sentLoreSigs = new Map();
+        const pxNow = this.state.player.x;
+        const pyNow = this.state.player.y;
+        const visibleMonsters = this.state.monsters
+            .filter(m => (this.state.map[m.y] && this.state.map[m.y][m.x] && this.state.map[m.y][m.x].inView) || (m.isPet && Math.abs(m.x - pxNow) <= 2 && Math.abs(m.y - pyNow) <= 2));
+        const frameLore = {};
+        let hasNewLore = false;
+        const hashRaceIdx = (raceName) => {
+            const s = String(raceName || 'unknown');
+            let h = 1;
+            for (let i = 0; i < s.length; i++) h = ((h * 31) + s.charCodeAt(i)) & 0x7ff;
+            return h || 1;
+        };
+        for (const m of visibleMonsters) {
+            const rIdx = m.r_idx || hashRaceIdx(m.race);
+            const relSpeed = (m.speed != null ? m.speed : 110) - 110;
+            const sig = `${m.ac != null ? m.ac : 8}|${relSpeed}|${m.dmg || 4}|${m.ai || 'melee'}`;
+            if (this._sentLoreSigs.get(rIdx) !== sig) {
+                this._sentLoreSigs.set(rIdx, sig);
+                const spells = [];
+                if (m.ai === 'bolt_caster' || m.rangedElement) spells.push(`BOLT_${String(m.rangedElement || 'MANA').toUpperCase()} (${(m.dmg || 6) * 2})`);
+                if (m.ai === 'telegraphed_cone_breath' || m.breathElement) spells.push(`BR_${String(m.breathElement || 'FIRE').toUpperCase()} (${(m.dmg || 8) * 3})`);
+                if (m.ai === 'summoner') spells.push('S_MONSTER');
+                if (m.ai === 'archer_kite') spells.push(`ARROW (${m.dmg || 5})`);
+                const knownResists = [];
+                if (/hydra/i.test(m.race || '')) knownResists.push('regen', 'vulnFire');
+                if (m.resistElement) knownResists.push(`im${m.resistElement[0].toUpperCase()}${m.resistElement.slice(1)}`);
+                frameLore[String(rIdx)] = {
+                    ac: m.ac != null ? m.ac : 8,
+                    speed: relSpeed,
+                    kills: (this.state.killLedger && this.state.killLedger[m.race]) || 0,
+                    deaths: 0,
+                    blows: [`Hit/Hurt ~${m.dmg || 4}`],
+                    spells,
+                    known_resists: knownResists
+                };
+                hasNewLore = true;
+            }
+        }
+
+        const outFrame = {
             t: 'frame',
             realm: this.realm,
             seq: this.seq,
             phase: this.state.phase,
+            victory: Boolean(p.winner),
             ryodMeta,
             ui: {
                 overlay: isOverlay ? 3 : 0,
                 awaiting_command: !isOverlay,
                 more: false,
                 context: isOverlay ? 'menu' : 'play',
-                prompt: this.state.menuMode !== 'none' ? { kind: promptKind, text: this.state.pendingPrompt || 'Inventory' } : null
+                prompt: this.state.menuMode !== 'none' ? { kind: promptKind, text: this.state.pendingPrompt || 'Inventory' } : null,
+                cursor: uiCursor
             },
             inventory: inventoryList,
             equipment: equipmentList,
@@ -2526,12 +3503,15 @@ class UniversalCartridgeEngine {
                 name: p.name,
                 race: p.race,
                 class: p.class,
+                avatarId: p.avatarId || null,
                 isMonsterAvatar: Boolean(p.isMonsterAvatar),
                 avatarMonsterName: p.avatarMonsterName || null,
                 progression_mode: p.progressionMode || (this.usesExpLevels() ? 'xp' : 'brogue_item'),
                 power_discipline: p.powerDiscipline || 'arcane',
                 resource_label: this.spec.resourceLabel || 'MANA',
                 god_mode: Boolean(p.godMode || this.spec.godMode),
+                stakes_mode: p.stakesMode || (bp && bp.stakesMode) || 'ironman',
+                resurrection_count: p.resurrectionCount || 0,
                 deity: p.deity,
                 piety: p.piety,
                 runes: p.runes || 0,
@@ -2587,39 +3567,46 @@ class UniversalCartridgeEngine {
                     dex: { use: p.dex, max: p.dex, top: p.dex, reduced: false },
                     con: { use: p.con, max: p.con, top: p.con, reduced: false }
                 },
+                resists: computedResists,
+                flags: computedFlags,
                 statuses,
                 equipment: equipmentList,
                 inventory: inventoryList,
                 quiver: quiverList
             },
             map: { h: MAP_H, w: MAP_W, height: MAP_H, width: MAP_W, rows: mapRows },
-            monsters: this.state.monsters
-                .filter(m => this.state.map[m.y] && this.state.map[m.y][m.x] && this.state.map[m.y][m.x].inView)
-                .map(m => ({
-                    id: m.id,
-                    y: m.y,
-                    x: m.x,
-                    attr: m.attr || 1,
-                    glyph: m.glyph,
-                    name: m.race,
-                    race: m.race,
-                    race_level: m.race_level || 1,
-                    hp: m.hp,
-                    hp_max: m.hp_max,
-                    ac: m.ac != null ? m.ac : 8,
-                    dmg: m.dmg || 4,
-                    speed: m.speed || 110,
-                    exp: m.exp || 0,
-                    lore: m.lore || '',
-                    isPet: Boolean(m.isPet),
-                    pet: Boolean(m.isPet),
-                    friendly: Boolean(m.isPet || m.peaceful),
-                    peaceful: Boolean(m.peaceful || m.isPet),
-                    captive: Boolean(m.captive),
-                    isBoss: Boolean(m.isBoss),
-                    isNemesis: Boolean(m.isNemesis),
-                    townRole: m.townRole || null
-                })),
+            monsters: visibleMonsters
+                .map(m => {
+                    const rIdx = m.r_idx || hashRaceIdx(m.race);
+                    return {
+                        id: m.id,
+                        r_idx: rIdx,
+                        y: m.y,
+                        x: m.x,
+                        attr: m.attr || 1,
+                        glyph: m.glyph,
+                        name: m.race,
+                        race: m.race,
+                        race_level: m.race_level || 1,
+                        hp: m.hp,
+                        hp_max: m.hp_max,
+                        ac: m.ac != null ? m.ac : 8,
+                        dmg: m.dmg || 4,
+                        speed: (m.speed != null ? m.speed : 110) - 110,
+                        unique: Boolean(m.isBoss || m.isNemesis || m.unique),
+                        attitude: m.isPet ? 'pet' : ((m.peaceful || m.friendly) ? 'friendly' : 'hostile'),
+                        exp: m.exp || 0,
+                        lore: m.lore || '',
+                        isPet: Boolean(m.isPet),
+                        pet: Boolean(m.isPet),
+                        friendly: Boolean(m.isPet || m.peaceful),
+                        peaceful: Boolean(m.peaceful || m.isPet),
+                        captive: Boolean(m.captive),
+                        isBoss: Boolean(m.isBoss),
+                        isNemesis: Boolean(m.isNemesis),
+                        townRole: m.townRole || null
+                    };
+                }),
             objects: this.state.objects
                 .filter(o => this.state.map[o.y] && this.state.map[o.y][o.x] && this.state.map[o.y][o.x].known)
                 .map(o => ({
@@ -2642,6 +3629,8 @@ class UniversalCartridgeEngine {
                 rows: this.buildTerminalRows()
             }
         };
+        if (hasNewLore) outFrame.lore = frameLore;
+        return outFrame;
     }
 }
 
@@ -2655,6 +3644,8 @@ function runCartridgeMain(spec, defaultSaveDir) {
 
     writeJson({
         t: 'hello',
+        protocol: 1,
+        protocol_minor: 2,
         version: spec.version || '1.0.0-bridge',
         realm: spec.realm,
         savefile: engine.saveFile

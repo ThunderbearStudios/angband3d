@@ -86,7 +86,7 @@ public class MainForm : Form
             Directory.CreateDirectory(userDataFolder);
 
             var options = new CoreWebView2EnvironmentOptions(
-                additionalBrowserArguments: "--enable-features=SharedArrayBuffer,UnrestrictedSharedArrayBuffer --allow-file-access-from-files"
+                additionalBrowserArguments: "--enable-features=SharedArrayBuffer,UnrestrictedSharedArrayBuffer"
             );
 
             var env = await CoreWebView2Environment.CreateAsync(null, userDataFolder, options);

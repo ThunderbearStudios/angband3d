@@ -98,6 +98,10 @@
 
         _storageKey(realm, charName) {
             const r = String(realm || 'angband').toLowerCase(), cn = charName ? String(charName).trim().toLowerCase() : '';
+            return cn ? `a3d.quickBelt.v2.${r}_${cn}` : `a3d.quickBelt.v2.${r}`;
+        }
+        _legacyKey(realm, charName) {
+            const r = String(realm || 'angband').toLowerCase(), cn = charName ? String(charName).trim().toLowerCase() : '';
             return cn ? `${STORAGE_PREFIX}${r}_${cn}` : `${STORAGE_PREFIX}${r}`;
         }
 
@@ -116,8 +120,8 @@
             let loaded = null;
             if (typeof localStorage !== 'undefined') {
                 try {
-                    const raw = cn ? (localStorage.getItem(this._storageKey(r, cn)) || localStorage.getItem(this._storageKey(r))) : localStorage.getItem(this._storageKey(r));
-                    if (raw) { const p = JSON.parse(raw); if (Array.isArray(p) && p.length === 4) loaded = p; }
+                    const raw = (cn && (localStorage.getItem(this._storageKey(r, cn)) || localStorage.getItem(this._legacyKey(r, cn)))) || localStorage.getItem(this._storageKey(r)) || localStorage.getItem(this._legacyKey(r));
+                    if (raw) { const p = JSON.parse(raw); if (Array.isArray(p) && p.length >= 4) loaded = p; }
                 } catch (_) {}
             }
             return (this.slotsByRealm[cacheKey] = loaded || getDefaultSlots(r));
@@ -142,7 +146,8 @@
         }
 
         setSlot(realm, slotIdx, slotDef, charName) {
-            const idx = Math.max(0, Math.min(3, Number(slotIdx) || 0)), slots = this.getSlots(realm, charName).slice();
+            const idx = Math.max(0, Math.min(8, Number(slotIdx) || 0)), slots = this.getSlots(realm, charName).slice();
+            while (slots.length <= idx) slots.push(null);
             slots[idx] = Object.assign({ slotIndex: idx }, slotDef);
             this.saveSlots(realm, slots, charName);
             return slots[idx];
@@ -274,7 +279,7 @@
             if (frame && frame.phase && frame.phase !== 'play') return false;
             const ui = (frame && frame.ui) ? frame.ui : {}, overlay = Number(ui.overlay || 0), awaiting = Boolean(ui.awaiting_command), more = Boolean(ui.more);
             if (overlay === 0 && !awaiting && !more) { if (typeof toastFn === 'function') toastFn('Cannot use quick actions during an active prompt'); return false; }
-            const idx = Math.max(0, Math.min(3, Number(slotIdx) || 0)), r = String(realm || 'angband').toLowerCase(), lang = (typeof window !== 'undefined' && window.__langMode) ? window.__langMode : 'en';
+            const idx = Math.max(0, Math.min(8, Number(slotIdx) || 0)), r = String(realm || 'angband').toLowerCase(), lang = (typeof window !== 'undefined' && window.__langMode) ? window.__langMode : 'en';
             const slots = this.getSlots(r), resolved = this.resolveSlot(slots[idx], frame, r, lang);
             if (!resolved.available || !resolved.sequence || resolved.sequence.length === 0) {
                 if (typeof toastFn === 'function') toastFn(`Quick Slot ${idx + 1}: ${resolved.tooltip || 'Unavailable'}`);

@@ -1,7 +1,7 @@
 {
   "name": "YASD 3D — Yet Another Stupid Death (Yendor Engine)",
   "short_name": "YASD 3D",
-  "description": "First-Person 3D Roguelike Platform powered by the Yendor Engine across 8 classic realms (Angband, Sil-Q, FrogComposBand, Hengband, NetHack, DCSS, Brogue, Classic Rogue)",
+  "description": "First-Person 3D Roguelike Platform powered by the Yendor Engine across 9 classic realms (Angband, Sil-Q, FrogComposBand, Hengband, NetHack, DCSS, Brogue, Classic Rogue, RYOD)",
   "start_url": "/",
   "display": "standalone",
   "orientation": "any",
@@ -37,31 +37,17 @@
   "screenshots": [
     {
       "src": "/assets/video/frames/kf_15_dragon_target_fire_clash_205s.png",
-      "sizes": "1920x1080",
+      "sizes": "1904x928",
       "type": "image/png",
       "form_factor": "wide",
       "label": "Tactical First-Person Dragon Clash in 3D"
     },
     {
-      "src": "/assets/video/frames/kf_01_town_street_shops_24s.png",
-      "sizes": "1920x1080",
+      "src": "/assets/yasd3d_logo.png",
+      "sizes": "1024x601",
       "type": "image/png",
       "form_factor": "wide",
-      "label": "Authentic Angband Town Square with 3D Armorers & Alchemists"
-    },
-    {
-      "src": "/assets/video/frames/kf_06_dual_reality_terminal_crt_78s.png",
-      "sizes": "1920x1080",
-      "type": "image/png",
-      "form_factor": "wide",
-      "label": "Dual Reality: Instant [Tab] Toggle to Classic 80x24 CRT ASCII Terminal"
-    },
-    {
-      "src": "/assets/video/frames/kf_13_chronicle_lorekeeper_aoede_164s.png",
-      "sizes": "1920x1080",
-      "type": "image/png",
-      "form_factor": "wide",
-      "label": "The Living Chronicle: Real-Time AI Voiced Adventure Tome"
+      "label": "YASD 3D — 9 Classic Roguelike Realms Powered by the Yendor Engine"
     }
   ]
 }

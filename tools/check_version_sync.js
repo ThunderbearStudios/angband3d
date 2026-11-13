@@ -59,5 +59,16 @@ for (const relPkg of ['package.json', 'server/package.json']) {
     }
 }
 
+// 5. Check engine-manifest.json top-level version
+const engineManifestPath = path.join(rootDir, 'engine-manifest.json');
+assert(fs.existsSync(engineManifestPath), 'engine-manifest.json must exist');
+const engineManifest = JSON.parse(fs.readFileSync(engineManifestPath, 'utf8'));
+assert.strictEqual(
+    engineManifest.version,
+    canonical,
+    `engine-manifest.json version (${engineManifest.version}) must match canonical (${canonical})`
+);
+console.log(`  engine-manifest.json matches: version "${canonical}"`);
+
 console.log('✓ All client & package versions are in sync!');
 process.exit(0);

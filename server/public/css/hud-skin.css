@@ -25,6 +25,8 @@
   --yasd-safe-bottom: env(safe-area-inset-bottom, 0px);
   --yasd-safe-left: env(safe-area-inset-left, 0px);
   --yasd-safe-right: env(safe-area-inset-right, 0px);
+  --font-ui: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif, 'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', 'Segoe UI Symbol';
+  --font-display: 'Cinzel', serif, 'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', 'Segoe UI Symbol';
 
   /* Subtle Procedural Weathered Slate-Stone Micro-Grain */
   --yasd-slate-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)' opacity='0.055'/%3E%3C/svg%3E");
@@ -130,8 +132,8 @@
 /* --- Character Status Panel & Apothecary Vitals --- */
 #char-panel {
   position: relative;
-  width: var(--char-panel-w, 224px) !important;
-  min-width: 196px !important;
+  width: var(--char-panel-w, 232px) !important;
+  min-width: 232px !important;
   max-width: 380px !important;
   padding: 7px 9px !important;
 }
@@ -404,14 +406,34 @@
     align-items: center !important;
   }
   #char-panel {
-    width: 95% !important;
-    max-width: 95% !important;
+    width: calc(100vw - 156px) !important;
+    max-width: calc(100vw - 156px) !important;
     margin-bottom: 4px !important;
+  }
+  #char-panel.char-details-open {
+    width: calc(100vw - 16px) !important;
+    max-width: calc(100vw - 16px) !important;
+    z-index: 55 !important;
+  }
+  #char-panel:not(.char-details-open) #char-resist-strip {
+    display: none !important;
   }
   #action-bar {
     width: 95% !important;
     display: flex !important;
     overflow-x: auto !important;
+  }
+}
+
+@media (max-width: 767px) {
+  #hud-footer .status-center {
+    justify-content: flex-start !important;
+    flex: 0 0 auto !important;
+    overflow: visible !important;
+  }
+  #hud-footer #footer-diagonal-hint,
+  #hud-footer #footer-badges {
+    display: none !important;
   }
 }
 
@@ -807,12 +829,16 @@
 }
 
 .sketch-loading-placeholder {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  min-height: 156px;
+  min-height: 0;
+  height: 100%;
   width: 100%;
   padding: 14px 10px;
   border-radius: 6px;
@@ -823,15 +849,72 @@
   box-sizing: border-box;
 }
 
+.sketch-loading-placeholder.hidden,
+.chronicle-sketch-loading.hidden {
+  display: none !important;
+}
+
+#chronicle-sketch-modal .chronicle-sketch-modal-body {
+  position: relative;
+}
+
+.chronicle-sketch-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 240px;
+  padding: 22px 18px;
+  border-radius: 8px;
+  background: radial-gradient(circle at 50% 35%, rgba(229, 185, 60, 0.12) 0%, rgba(15, 18, 24, 0.96) 78%);
+  border: 1px solid rgba(229, 185, 60, 0.42);
+  text-align: center;
+  box-sizing: border-box;
+}
+
+.chronicle-sketch-spinner,
 .sketch-loading-spinner {
-  width: 28px;
-  height: 28px;
+  width: 34px;
+  height: 34px;
   border-radius: 50%;
-  border: 2.5px solid rgba(216, 177, 90, 0.22);
+  border: 3px solid rgba(216, 177, 90, 0.22);
   border-top-color: var(--yasd-gold-accent);
-  border-right-color: var(--yasd-gold-bright);
+  border-right-color: #fde68a;
   animation: yasdSketchSpin 0.95s linear infinite;
-  box-shadow: 0 0 12px rgba(216, 177, 90, 0.25);
+  box-shadow: 0 0 14px rgba(216, 177, 90, 0.28);
+}
+
+.chronicle-sketch-stage {
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #fde68a;
+}
+
+.chronicle-sketch-progress-track {
+  width: min(360px, 88%);
+  height: 7px;
+  border-radius: 999px;
+  background: rgba(12, 15, 21, 0.92);
+  border: 1px solid var(--yasd-border-iron);
+  overflow: hidden;
+}
+
+.chronicle-sketch-progress-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #b45309 0%, #e5b93c 55%, #fef08a 100%);
+  transition: width 220ms ease;
+}
+
+.chronicle-sketch-timer {
+  font-family: var(--font-terminal, monospace);
+  font-size: 11.5px;
+  color: var(--yasd-text-muted);
+  font-variant-numeric: tabular-nums;
 }
 
 .sketch-loading-label {
@@ -841,7 +924,7 @@
   color: var(--yasd-gold-bright);
 }
 
-/* Death Modal: Compact 184px Sketch Sidebar + Maximized Classic Terminal (>82% Width) */
+/* Death Modal: Generous 16:9 Hero Sketch + YasdAutopsy Left Column alongside Classic Terminal */
 #death-modal .death-panel {
   width: min(96vw, 1340px) !important;
   max-width: 1340px !important;
@@ -849,35 +932,48 @@
 
 #death-modal .death-tombstone-split {
   display: grid !important;
-  grid-template-columns: 196px minmax(0, 1fr) !important;
-  gap: 12px !important;
+  grid-template-columns: minmax(320px, min(46vw, 520px)) minmax(0, 1fr) !important;
+  gap: 14px !important;
   align-items: stretch !important;
 }
 
+@media (max-width: 900px) {
+  #death-modal .death-tombstone-split {
+    grid-template-columns: 1fr !important;
+  }
+}
+
 #death-sketch-wrap {
-  width: 196px !important;
-  max-width: 196px !important;
-  padding: 8px !important;
+  width: 100% !important;
+  max-width: min(46vw, 520px) !important;
+  padding: 10px !important;
   display: flex !important;
   flex-direction: column !important;
-  align-items: center !important;
-  gap: 6px !important;
+  align-items: stretch !important;
+  gap: 8px !important;
   background: rgba(15, 17, 21, 0.86) !important;
   border: 1px solid var(--yasd-border-control) !important;
   border-top: 2px solid var(--yasd-gold-accent) !important;
-  border-radius: 7px !important;
+  border-radius: 8px !important;
   box-sizing: border-box !important;
   align-self: start !important;
 }
 
+@media (max-width: 900px) {
+  #death-sketch-wrap {
+    max-width: 100% !important;
+  }
+}
+
 #death-sketch-img {
-  width: 176px !important;
-  height: 176px !important;
-  max-width: 176px !important;
-  max-height: 176px !important;
+  width: 100% !important;
+  height: auto !important;
+  max-width: 100% !important;
+  max-height: 300px !important;
+  aspect-ratio: 16 / 9 !important;
   object-fit: cover !important;
-  border-radius: 5px !important;
-  border: 1px solid var(--yasd-gold-border) !important;
+  border-radius: 6px !important;
+  border: 1.5px solid var(--yasd-gold-accent) !important;
   cursor: zoom-in !important;
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.7) !important;
 }
@@ -1024,38 +1120,42 @@
   display: none !important;
 }
 
-/* Realm-Specific Heraldic Card Crests */
-.realm-card[data-realm="vanilla"] {
+/* Realm-Specific Heraldic Card Crests (All 9 Playable Realms) */
+.realm-card[data-realm="angband"] {
   border-top: 2.5px solid #d8b15a !important;
-  background: radial-gradient(120% 90% at 50% 0%, rgba(216, 177, 90, 0.13) 0%, var(--yasd-slate-card) 68%) !important;
+  background: radial-gradient(120% 90% at 50% 0%, rgba(216, 177, 90, 0.14) 0%, var(--yasd-slate-card) 68%) !important;
 }
-.realm-card[data-realm="sil"] {
+.realm-card[data-realm="silq"] {
   border-top: 2.5px solid #9cc2e6 !important;
   background: radial-gradient(120% 90% at 50% 0%, rgba(156, 194, 230, 0.14) 0%, var(--yasd-slate-card) 68%) !important;
 }
-.realm-card[data-realm="FAangband"] {
-  border-top: 2.5px solid #5ec28f !important;
-  background: radial-gradient(120% 90% at 50% 0%, rgba(94, 194, 143, 0.13) 0%, var(--yasd-slate-card) 68%) !important;
-}
-.realm-card[data-realm="Furyband"] {
-  border-top: 2.5px solid #e05a47 !important;
-  background: radial-gradient(120% 90% at 50% 0%, rgba(224, 90, 71, 0.14) 0%, var(--yasd-slate-card) 68%) !important;
-}
-.realm-card[data-realm="FrogComposband"] {
+.realm-card[data-realm="frogcomposband"] {
   border-top: 2.5px solid #b57edc !important;
   background: radial-gradient(120% 90% at 50% 0%, rgba(181, 126, 220, 0.14) 0%, var(--yasd-slate-card) 68%) !important;
 }
-.realm-card[data-realm="Hengband"] {
+.realm-card[data-realm="hengband"] {
   border-top: 2.5px solid #e67e9c !important;
   background: radial-gradient(120% 90% at 50% 0%, rgba(230, 126, 156, 0.14) 0%, var(--yasd-slate-card) 68%) !important;
 }
-.realm-card[data-realm="ToME"] {
+.realm-card[data-realm="nethack"] {
+  border-top: 2.5px solid #5ec28f !important;
+  background: radial-gradient(120% 90% at 50% 0%, rgba(94, 194, 143, 0.14) 0%, var(--yasd-slate-card) 68%) !important;
+}
+.realm-card[data-realm="dcss"] {
   border-top: 2.5px solid #4db8d6 !important;
   background: radial-gradient(120% 90% at 50% 0%, rgba(77, 184, 214, 0.14) 0%, var(--yasd-slate-card) 68%) !important;
 }
-.realm-card[data-realm="moria"] {
+.realm-card[data-realm="brogue"] {
+  border-top: 2.5px solid #e05a47 !important;
+  background: radial-gradient(120% 90% at 50% 0%, rgba(224, 90, 71, 0.14) 0%, var(--yasd-slate-card) 68%) !important;
+}
+.realm-card[data-realm="rogue"] {
   border-top: 2.5px solid #cd8c52 !important;
   background: radial-gradient(120% 90% at 50% 0%, rgba(205, 140, 82, 0.14) 0%, var(--yasd-slate-card) 68%) !important;
+}
+.realm-card[data-realm="ryod"] {
+  border-top: 2.5px solid #e11d48 !important;
+  background: radial-gradient(120% 90% at 50% 0%, rgba(225, 29, 72, 0.15) 0%, var(--yasd-slate-card) 68%) !important;
 }
 
 /* Apothecary Glass Specular Highlight on Health & Mana Vials */
@@ -1186,10 +1286,6 @@ body:has(#command-palette-modal:not(.hidden)) #global-audio-bar {
   word-spacing: 0.32em !important;
 }
 
-#death-term-toolbar {
-  display: none !important;
-}
-
 #main-menu-overlay:not(.hidden) {
   opacity: 1 !important;
   visibility: visible !important;
@@ -1254,25 +1350,37 @@ body:has(#command-palette-modal:not(.hidden)) #global-audio-bar {
   z-index: 1;
 }
 
-/* Triad Alchemical HUD Vials (#hp-fill, #sp-fill, #exp-fill) driven by VIAL_FRAG_SRC WebGL shader */
+/* Triad Alchemical HUD Vials (#hp-fill, #sp-fill, #exp-fill) */
 #hp-fill,
 #sp-fill,
 #exp-fill {
-  position: relative !important;
+  position: absolute !important;
+  top: 0 !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  height: 100% !important;
   overflow: hidden !important;
+}
+
+.gauge-ghost-fill {
+  transition: width 0.68s cubic-bezier(0.22, 1, 0.36, 1) 0.22s !important;
+}
+
+.gauge-ghost-fill.is-healing {
+  transition: width 0.16s cubic-bezier(0.22, 1, 0.36, 1) 0s !important;
 }
 
 #hp-fill .vial-fluid-canvas,
 #sp-fill .vial-fluid-canvas,
 #exp-fill .vial-fluid-canvas {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  display: block;
-  pointer-events: none;
-  border-radius: inherit;
-  opacity: 0.92;
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  display: block !important;
+  pointer-events: none !important;
+  border-radius: inherit !important;
+  opacity: 0.90;
 }
 
 /* 3rd Living Alchemical Vial: Experience / Progression (#exp-fill) */
@@ -1445,13 +1553,13 @@ body:has(#command-palette-modal:not(.hidden)) #global-audio-bar {
 
   #action-bar .action-btn,
   #action-bar .act-btn {
-    min-width: 0 !important;
+    min-width: max-content !important;
     height: 30px !important;
     min-height: 30px !important;
     padding: 2px 7px !important;
     font-size: 10px !important;
     gap: 4px !important;
-    flex: 0 1 auto !important;
+    flex: 0 0 auto !important;
     white-space: nowrap !important;
   }
 
@@ -2078,12 +2186,61 @@ body:has(#command-palette-modal:not(.hidden)) #global-audio-bar {
   align-items: center;
   gap: 3px;
   font-family: var(--font-terminal, monospace);
-  font-size: 9.5px;
+  font-size: 11px;
   font-weight: 700;
-  padding: 1px 5px;
+  padding: 1px 6px;
   border-radius: 3px;
   letter-spacing: 0.03em;
   line-height: 1.25;
+}
+
+/* WS79-I: Single-Row Desktop Action Deck, Clean Minimap Footer, Popover Anchor & Deduplicated Telemetry */
+#minimap-container #camera-tilt-bar {
+  display: none !important;
+}
+
+#top-message-banner.banner-suppressed {
+  display: none !important;
+}
+
+#hud-overlay:has(#char-panel:not(.hidden):not(.hud-panel-hidden):not(.window-minimized)) #hud-footer #footer-level,
+#hud-overlay:has(#char-panel:not(.hidden):not(.hud-panel-hidden):not(.window-minimized)) #hud-footer #footer-exp,
+#hud-overlay:has(#char-panel:not(.hidden):not(.hud-panel-hidden):not(.window-minimized)) #hud-footer #footer-badges:empty {
+  display: none !important;
+}
+
+@media (min-width: 768px) {
+  #entity-inspect-popover:not([style*="top"]) {
+    top: 138px !important;
+  }
+}
+
+@media (min-width: 1200px) {
+  #hud-overlay:not(:has(#touch-controls:not(.dpad-hidden):not(.hidden))) #hud-center-column {
+    max-width: calc(100vw - 260px) !important;
+  }
+
+  #action-bar,
+  #quick-action-bar {
+    flex-wrap: wrap !important;
+    padding: 4px 8px !important;
+    gap: 3px 4px !important;
+    overflow: visible !important;
+  }
+
+  #action-bar .action-btn,
+  #action-bar .act-btn,
+  #quick-action-bar .action-btn {
+    padding: 2px 6px !important;
+    gap: 3px !important;
+    min-width: max-content !important;
+    flex: 0 0 auto !important;
+    white-space: nowrap !important;
+  }
+
+  #action-bar #btn-hero-action {
+    min-width: 70px !important;
+  }
 }
 
 .char-status-pill.pill-danger {
@@ -2337,3 +2494,583 @@ body:has(#command-palette-modal:not(.hidden)) #global-audio-bar {
 
 
 
+
+/* ==========================================================================
+   WS74 v12.0 — WEB-SCOTOPIC-02 Palette, Native <dialog> Top-Layer,
+   Immersive HUD De-Cockpitization, 13-Rune Resistance Strip & Title Deck
+   ========================================================================== */
+:root {
+  color-scheme: dark;
+  --bg-dark: #161920;
+  --yasd-slate-deep: #14171e;
+  --yasd-slate-canvas: #161920;
+  --yasd-slate-card: #1f2430;
+  --yasd-slate-card-hover: #272e3c;
+  --yasd-text-heading: #dfd9cc;
+  --yasd-text-prose: #c8c3b8;
+  --yasd-text-muted: #939ba9;
+  --yasd-border-iron: #4b5365;
+  --yasd-border-control: #6c778c;
+  --text-primary: #c8c3b8;
+  --text-muted: #939ba9;
+  --hud-text: #dfd9cc;
+  --hud-dim: #939ba9;
+}
+
+html, body {
+  background-color: #161920;
+  color: var(--yasd-text-prose);
+  font-family: var(--font-ui, 'Outfit', sans-serif);
+}
+
+/* Restrict decorative serif ('Cinzel') strictly to >= 15px display headings */
+.stat-label, .stat-value, .gauge-header, .gauge-val, .status-pill,
+.action-btn, .msg-ctrl-btn, .map-ctrl-btn, .dpad-btn, .footer-badge,
+.res-rune, .hud-feeling-pill, .target-dist-chip, .target-lore-chip, .target-act-pill {
+  font-family: var(--font-ui, 'Outfit', sans-serif) !important;
+  font-variant-numeric: tabular-nums;
+}
+
+#char-panel #stats-strip .stat-value,
+#char-panel .gauge-val {
+  font-family: var(--font-terminal, 'Fira Code', monospace) !important;
+  font-variant-numeric: tabular-nums;
+  font-size: 12px !important;
+  letter-spacing: -0.2px;
+  white-space: nowrap;
+}
+
+/* Native <dialog> Top-Layer Architecture (@starting-style + allow-discrete + overscroll-behavior) */
+dialog.yasd-modal-dialog {
+  margin: auto;
+  padding: 12px;
+  border: none;
+  background: transparent;
+  color: var(--yasd-text-prose);
+  max-width: 100vw;
+  max-height: 100dvh;
+  width: 100vw;
+  height: 100dvh;
+  overscroll-behavior: contain;
+  opacity: 0;
+  transform: scale(0.985);
+  transition:
+    opacity 160ms ease-out,
+    transform 160ms ease-out,
+    overlay 160ms ease-out allow-discrete,
+    display 160ms ease-out allow-discrete;
+}
+
+dialog.yasd-modal-dialog[open]:not(.hidden) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 1;
+  transform: scale(1);
+}
+
+dialog.yasd-modal-dialog.hidden,
+dialog.yasd-modal-dialog:not([open]) {
+  display: none !important;
+}
+
+@starting-style {
+  dialog.yasd-modal-dialog[open]:not(.hidden) {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+}
+
+dialog.yasd-modal-dialog::backdrop {
+  background: rgba(10, 12, 16, 0.82);
+  -webkit-backdrop-filter: blur(5px);
+  backdrop-filter: blur(5px);
+  transition:
+    background-color 160ms ease-out,
+    overlay 160ms ease-out allow-discrete,
+    display 160ms ease-out allow-discrete;
+}
+
+@starting-style {
+  dialog.yasd-modal-dialog[open]::backdrop {
+    background: rgba(10, 12, 16, 0);
+  }
+}
+
+/* Optional Immersive HUD Preset (Opt-In Only; Never Locks Movable/Resizable Window Geometry) */
+body.hud-preset-immersive #top-message-banner {
+  display: none !important;
+}
+body.hud-preset-immersive #message-feed-window:hover {
+  opacity: 1 !important;
+}
+body.hud-preset-immersive #streetview-nav-rosette,
+body.hud-preset-immersive #action-bar #btn-attack,
+body.hud-preset-immersive #action-bar #btn-throw,
+body.hud-preset-immersive #action-bar #btn-eat,
+body.hud-preset-immersive #action-bar #btn-door,
+body.hud-preset-immersive #action-bar #btn-pickup,
+body.hud-preset-immersive #action-bar #btn-equipment,
+body.hud-preset-immersive #action-bar #btn-wield,
+body.hud-preset-immersive #action-bar #btn-drop,
+body.hud-preset-immersive #action-bar #btn-aim,
+body.hud-preset-immersive #action-bar #btn-search,
+body.hud-preset-immersive #action-bar #btn-run-toggle,
+body.hud-preset-immersive #action-bar #btn-guide-hud,
+body.hud-preset-immersive #hud-footer #footer-place,
+body.hud-preset-immersive #hud-footer #footer-level,
+body.hud-preset-immersive #hud-footer #footer-exp {
+  display: none !important;
+}
+
+/* Compact 13-Rune Resistance & Intrinsic Matrix */
+.char-resist-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  margin: 4px 0 3px;
+  padding: 3px 4px;
+  background: rgba(14, 17, 23, 0.9);
+  border: 1px solid var(--yasd-border-iron);
+  border-radius: 4px;
+}
+.res-rune {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 19px;
+  height: 16px;
+  padding: 0 3px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  border: 1px solid rgba(108, 119, 140, 0.35);
+}
+.res-rune.tier-off { color: #7a8394; background: rgba(20, 24, 32, 0.7); }
+.res-rune.tier-on { color: #6ee7b7; background: rgba(16, 85, 60, 0.55); border-color: rgba(110, 231, 183, 0.55); }
+.res-rune.tier-dbl { color: #a7f3d0; background: rgba(6, 120, 82, 0.75); border-color: #34d399; }
+.res-rune.tier-imm { color: #fde68a; background: rgba(120, 84, 12, 0.78); border-color: #f5b942; }
+.res-rune.tier-vuln { color: #fca5a5; background: rgba(127, 29, 29, 0.75); border-color: #f87171; }
+.res-rune-sep { color: #5c6577; font-size: 10px; padding: 0 2px; }
+@keyframes yasdResistWarnPulse {
+  0%, 100% { border-color: #f59e0b; color: #fcd34d; background: rgba(120, 53, 15, 0.55); }
+  50% { border-color: #fbbf24; color: #fef3c7; background: rgba(180, 83, 9, 0.82); }
+}
+.res-rune.resist-warn-pulse {
+  animation: yasdResistWarnPulse 1.6s ease-in-out infinite;
+}
+
+/* Dungeon Feeling & Sil-Q Stealth/Song Pill */
+.hud-feeling-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 700;
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  background: rgba(22, 26, 36, 0.9);
+  color: #dfd9cc;
+  white-space: nowrap;
+}
+.hud-feeling-pill.feeling-warn { color: #fcd34d; border-color: rgba(245, 158, 11, 0.65); background: rgba(92, 52, 10, 0.65); }
+.hud-feeling-pill.feeling-deadly { color: #fca5a5; border-color: rgba(239, 68, 68, 0.75); background: rgba(112, 20, 24, 0.75); }
+.hud-feeling-pill.feeling-silq { color: #bae6fd; border-color: rgba(125, 211, 252, 0.55); background: rgba(15, 42, 66, 0.7); }
+
+.target-lore-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #fde68a;
+  background: rgba(45, 32, 12, 0.78);
+  border: 1px solid rgba(212, 175, 55, 0.45);
+}
+
+/* Title Deck Permadeath Segmented Toggle & Primary CTA */
+.permadeath-mode-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px;
+  background: rgba(15, 18, 25, 0.92);
+  border: 1px solid var(--yasd-border-control);
+  border-radius: 7px;
+  margin-top: 6px;
+}
+.permadeath-pill {
+  min-height: 34px;
+  padding: 5px 11px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--yasd-text-muted);
+  font-family: var(--font-ui, 'Outfit', sans-serif);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.permadeath-pill.active[data-permadeath-mode="adventure"] {
+  background: rgba(22, 78, 99, 0.65);
+  border-color: #38bdf8;
+  color: #dfd9cc;
+}
+.permadeath-pill.active[data-permadeath-mode="ironman"] {
+  background: rgba(127, 29, 29, 0.75);
+  border-color: #f87171;
+  color: #fecaca;
+}
+#btn-menu-random.btn-primary-cta {
+  border-color: #e5b93c !important;
+  background: linear-gradient(180deg, rgba(58, 44, 16, 0.92) 0%, rgba(28, 22, 10, 0.96) 100%) !important;
+  box-shadow: 0 0 18px rgba(229, 185, 60, 0.25), inset 0 1px 0 rgba(255, 232, 165, 0.28) !important;
+}
+.realm-tier-heading {
+  grid-column: 1 / -1;
+  padding: 6px 10px;
+  margin-top: 4px;
+  border-left: 3px solid #e5b93c;
+  background: rgba(22, 26, 36, 0.88);
+  color: #dfd9cc;
+  font-family: var(--font-display, 'Cinzel', serif);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+/* 3-Step Non-Blocking First-Run Coachmark */
+.ftue-coachmark-pill {
+  position: fixed;
+  top: max(54px, calc(var(--yasd-safe-top) + 46px));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 950;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  background: rgba(22, 25, 32, 0.95);
+  border: 1.5px solid #e5b93c;
+  border-radius: 999px;
+  color: #dfd9cc;
+  font-family: var(--font-ui, 'Outfit', sans-serif);
+  font-size: 13px;
+  font-weight: 600;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.82);
+}
+.ftue-coachmark-btn, .ftue-coachmark-dismiss {
+  min-height: 30px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--yasd-border-control);
+  background: #272e3c;
+  color: #dfd9cc;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* Mobile >= 44x44px Touch Targets & >= 16px Inputs */
+@media (pointer: coarse), (max-width: 768px) {
+  input, select, textarea { font-size: 16px !important; }
+  #action-bar .action-btn, #top-right-bar .icon-btn, .dpad-btn, .menu-option-btn {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after, dialog.yasd-modal-dialog, dialog.yasd-modal-dialog::backdrop {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ==========================================================================
+   WS77 v12.0 — Hero-Scale YASD Autopsy, Crypt of Fallen Heroes,
+   Graphical Store Split-Sheet & Custom Hero Birth Wizard
+   ========================================================================== */
+#death-sketch-wrap {
+  width: min(560px, 100%) !important;
+  max-width: 600px !important;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+#death-sketch-img {
+  width: 100%;
+  max-height: 340px;
+  aspect-ratio: 600 / 340;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1.5px solid #d4af37;
+}
+.death-term-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 5px 8px;
+  margin-bottom: 6px;
+  background: #1f2430;
+  border: 1px solid var(--yasd-border-iron);
+  border-radius: 6px;
+}
+.death-term-lbl {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--yasd-text-heading);
+}
+.yasd-autopsy-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  background: #1b202b;
+  border: 1px solid var(--yasd-border-control);
+  border-radius: 8px;
+  text-align: left;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--yasd-text-prose);
+}
+.autopsy-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.autopsy-kicker {
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  color: #e5b93c;
+}
+.autopsy-stakes-chip {
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 700;
+  border: 1px solid var(--yasd-border-control);
+}
+.autopsy-stakes-chip.is-ironman, .yasd-crypt-badge.is-ironman {
+  background: rgba(127, 29, 29, 0.72);
+  border-color: #f87171;
+  color: #fecaca;
+}
+.autopsy-stakes-chip.is-adventure, .yasd-crypt-badge.is-adventure {
+  background: rgba(22, 78, 99, 0.65);
+  border-color: #38bdf8;
+  color: #e0f2fe;
+}
+.autopsy-hp-trail {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--font-terminal, 'Fira Code', monospace);
+  font-size: 11px;
+}
+.autopsy-hp-step {
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: #252b38;
+  border: 1px solid #4b5365;
+}
+.autopsy-hp-step.is-fatal {
+  background: rgba(127, 29, 29, 0.75);
+  border-color: #f87171;
+  color: #fecaca;
+}
+.autopsy-defense-box {
+  padding: 5px 8px;
+  border-left: 3px solid #f59e0b;
+  background: rgba(45, 32, 14, 0.55);
+  border-radius: 4px;
+  color: #fde68a;
+}
+.autopsy-regret-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+.autopsy-regret-chip {
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: #252b38;
+  border: 1px solid #6c778c;
+  color: #dfd9cc;
+  font-size: 11px;
+}
+.autopsy-regret-clean {
+  color: #6ee7b7;
+  font-size: 11.5px;
+  margin-top: 2px;
+}
+.autopsy-bard-roast {
+  margin: 2px 0 0;
+  padding: 5px 8px;
+  border-left: 2px solid #939ba9;
+  font-style: italic;
+  color: #c8c3b8;
+}
+.yasd-crypt-container {
+  margin-top: 14px;
+  padding: 12px;
+  background: #1b202b;
+  border: 1px solid var(--yasd-border-iron);
+  border-radius: 8px;
+}
+.yasd-crypt-title {
+  margin: 0 0 8px;
+  font-family: var(--font-display, 'Cinzel', serif);
+  font-size: 16px;
+  color: #dfd9cc;
+}
+.yasd-crypt-heading {
+  margin: 8px 0 4px;
+  font-size: 12.5px;
+  color: #e5b93c;
+}
+.yasd-crypt-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.yasd-crypt-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  background: #232936;
+  border: 1px solid #4b5365;
+  border-radius: 5px;
+  font-size: 12px;
+}
+.yasd-crypt-badge {
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 10.5px;
+  font-weight: 700;
+  border: 1px solid #6c778c;
+}
+.yasd-crypt-cause {
+  color: var(--yasd-text-muted);
+  margin-left: auto;
+}
+
+/* Graphical Store Split-Sheet & Custom Birth Wizard */
+.grimoire-store-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(260px, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+@media (max-width: 900px) {
+  .grimoire-store-split { grid-template-columns: 1fr; }
+}
+.grimoire-store-pane {
+  background: rgba(24, 28, 38, 0.92);
+  border: 1px solid var(--yasd-border-iron);
+  border-radius: 8px;
+  padding: 8px;
+}
+.grimoire-pane-heading {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #e5b93c;
+  margin-bottom: 8px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid rgba(108, 119, 140, 0.35);
+}
+.grimoire-purse-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: rgba(58, 44, 16, 0.85);
+  border: 1px solid #e5b93c;
+  color: #fde68a;
+  font-size: 12px;
+  font-weight: 700;
+}
+.grimoire-pack-sell-list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  max-height: 52vh;
+  overflow-y: auto;
+}
+.grimoire-pack-sell-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  background: #1f2430;
+  border: 1px solid #4b5365;
+  border-radius: 6px;
+  font-size: 12px;
+}
+.grimoire-pack-sell-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #dfd9cc;
+}
+.grimoire-birth-wizard {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 8px;
+}
+.grimoire-birth-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.grimoire-birth-stat-pill {
+  padding: 3px 8px;
+  border-radius: 5px;
+  background: #1f2430;
+  border: 1px solid #6c778c;
+  font-family: var(--font-terminal, 'Fira Code', monospace);
+  font-size: 12px;
+  color: #dfd9cc;
+}
+.grimoire-birth-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 8px;
+}
+.grimoire-birth-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 8px 10px;
+  border-radius: 7px;
+  background: #1f2430;
+  border: 1px solid var(--yasd-border-control);
+  color: #dfd9cc;
+  font-family: var(--font-ui, 'Outfit', sans-serif);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+}
+.grimoire-birth-card:hover {
+  background: #272e3c;
+  border-color: #e5b93c;
+}

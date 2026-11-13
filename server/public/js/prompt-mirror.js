@@ -119,7 +119,8 @@
 
             case 'spell': {
                 actions = [{ key: 'escape', label: 'Cancel', badge: '[Esc]' }];
-                const rawSpells = (frame && Array.isArray(frame.spells)) ? frame.spells : (model.items || []);
+                const appSpells = (typeof window !== 'undefined' && window.__app && Array.isArray(window.__app.lastSpells)) ? window.__app.lastSpells : null;
+                const rawSpells = (frame && Array.isArray(frame.spells) && frame.spells.length > 0) ? frame.spells : (appSpells && appSpells.length > 0 ? appSpells : (model.items || []));
                 items = rawSpells.map((s) => ({
                     letter: s.letter || s.key || '',
                     name: s.name || s.label || 'Spell',
@@ -129,6 +130,14 @@
                     fail: s.fail,
                     level: s.level
                 }));
+                break;
+            }
+
+            case 'string': {
+                actions = [
+                    { key: 'enter', label: 'Apply', badge: '[Enter]', primary: true },
+                    { key: 'escape', label: 'Cancel', badge: '[Esc]' }
+                ];
                 break;
             }
 
@@ -149,6 +158,7 @@
             case 'item-menu': return 'Item Command';
             case 'direction': return 'Target / Direction';
             case 'spell': return 'Choose Spell';
+            case 'string': return 'Enter Inscription';
             default: return 'Prompt';
         }
     }
@@ -157,12 +167,8 @@
         if (typeof document === 'undefined') return null;
         let c = document.getElementById('prompt-mirror') || document.getElementById('prompt-mirror-container');
         if (!c) {
-            c = document.createElement('div');
-            c.id = 'prompt-mirror';
-            c.className = 'prompt-mirror hidden';
-            c.hidden = true;
-            c.setAttribute('role', 'region');
-            c.setAttribute('aria-label', '3D Engine Prompt Mirror');
+            c = document.createElement('div'); c.id = 'prompt-mirror'; c.className = 'prompt-mirror hidden'; c.hidden = true;
+            c.setAttribute('role', 'region'); c.setAttribute('aria-label', '3D Engine Prompt Mirror');
             document.body.appendChild(c);
         }
         return c;
@@ -171,16 +177,11 @@
     function attachDelegatedListener(container) {
         if (!container || container._hasMirrorListener) return;
         container._hasMirrorListener = true;
-
         container.addEventListener('click', function (e) {
             const btn = e.target.closest('[data-mirror-key]');
-            if (!btn) return;
-            const key = btn.getAttribute('data-mirror-key');
+            const key = btn && btn.getAttribute('data-mirror-key');
             if (!key) return;
-
-            e.preventDefault();
-            e.stopPropagation();
-
+            e.preventDefault(); e.stopPropagation();
             const fn = _activeSendKey || (typeof window !== 'undefined' && window.__app && window.__app.network && typeof window.__app.network.sendKey === 'function' ? window.__app.network.sendKey.bind(window.__app.network) : null);
             if (fn) fn(key);
         });
@@ -225,6 +226,20 @@
         header.appendChild(titleEl);
         container.appendChild(header);
 
+        if (spec.mirror === 'string') {
+            const inp = document.createElement('input');
+            inp.type = 'text'; inp.className = 'prompt-mirror-input'; inp.placeholder = 'Type inscription & press Enter…';
+            inp.addEventListener('keydown', (ev) => {
+                ev.stopPropagation();
+                const fn = _activeSendKey || (window.__app && window.__app.network && window.__app.network.sendKey.bind(window.__app.network));
+                if (!fn) return;
+                if (ev.key === 'Escape') { ev.preventDefault(); fn('escape'); }
+                else if (ev.key === 'Enter') { ev.preventDefault(); for (const ch of inp.value) fn(ch); fn('enter'); }
+            });
+            container.appendChild(inp);
+            setTimeout(() => { try { inp.focus(); } catch (_) {} }, 0);
+        }
+
         // Switch chips
         if (spec.switchChips && spec.switchChips.length > 0) {
             const chipRow = document.createElement('div');
@@ -267,6 +282,17 @@
                     costEl.className = 'prompt-mirror-item-cost';
                     costEl.textContent = `${item.cost}mp`;
                     row.appendChild(costEl);
+                }
+                if (item.fail !== undefined && item.fail !== null) {
+                    const failNum = Number(item.fail);
+                    if (Number.isFinite(failNum)) {
+                        const failEl = document.createElement('span');
+                        failEl.className = `prompt-mirror-item-fail ${failNum <= 5 ? 'fail-low' : (failNum <= 25 ? 'fail-med' : 'fail-high')}`;
+                        failEl.style.color = failNum <= 5 ? '#4ade80' : (failNum <= 25 ? '#fbbf24' : '#f87171');
+                        failEl.style.marginLeft = '6px';
+                        failEl.textContent = `${failNum}%`;
+                        row.appendChild(failEl);
+                    }
                 }
 
                 listEl.appendChild(row);

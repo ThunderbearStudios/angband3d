@@ -27,6 +27,8 @@
 !variants/brogue/**
 !variants/dcss
 !variants/dcss/**
+!variants/ryod
+!variants/ryod/**
 
 variants/**/lib/save/*.sav
 variants/**/.git
@@ -35,12 +37,17 @@ variants/**/build
 variants/**/build/**
 variants/**/build-bridge
 variants/**/build-bridge/**
+variants/**/build-cmake
+variants/**/build-cmake/**
 variants/**/VisualStudio
 variants/**/VisualStudio/**
 variants/**/msvc2022
 variants/**/msvc2022/**
-variants/**/bin/*.exe
-variants/**/bin/*.pdb
+variants/**/*.o
+variants/**/*.obj
+variants/**/*.a
+variants/**/*.exe
+variants/**/*.pdb
 variants/**/lib/xtra/music/**
 
 !server

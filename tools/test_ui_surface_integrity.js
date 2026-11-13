@@ -73,7 +73,7 @@ const EXPECTED_BUTTON_IDS = [
     'btn-queue-cancel'
 ];
 
-// The 13 Core Containers / Modals
+// The 12 Core Containers / Modals
 const EXPECTED_CONTAINER_IDS = [
     'terminal-container',
     'message-feed-window',
@@ -85,7 +85,6 @@ const EXPECTED_CONTAINER_IDS = [
     'char-panel',
     'action-bar',
     'hud-footer',
-    'compass-container',
     'death-modal',
     'splash-overlay'
 ];

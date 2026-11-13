@@ -63,6 +63,7 @@
             r: { icon: '🛡', label: 'Take off', listOnly: 'equip' },
             E: { icon: '🍖', label: 'Eat', glyphs: ',' },
             q: { icon: '🧪', label: 'Quaff', glyphs: '!' },
+            s: { icon: '🎵', label: 'Sing Song' },
             u: { icon: '🪄', label: 'Use staff', glyphs: '_' },
             a: { icon: '⚡', label: 'Activate staff', glyphs: '_' },
             t: { icon: '🎯', label: 'Throw' },
@@ -137,12 +138,15 @@
             a: { icon: '🔧', label: 'Apply Tool', glyphs: '(' },
             t: { icon: '🎯', label: 'Throw' },
             d: { icon: '📦', label: 'Drop' },
+            ':': { icon: '🔍', label: 'Examine' },
             I: { icon: '🔍', label: 'Examine' }
         },
         dcss: {
             w: { icon: '⚔', label: 'Wield', glyphs: ')' },
             W: { icon: '🛡', label: 'Wear Armor', glyphs: '[' },
             T: { icon: '🛡', label: 'Take Off', listOnly: 'equip' },
+            P: { icon: '💍', label: 'Put On', glyphs: '="' },
+            R: { icon: '💍', label: 'Remove', listOnly: 'equip' },
             e: { icon: '🍖', label: 'Eat', glyphs: '%' },
             q: { icon: '🧪', label: 'Quaff', glyphs: '!' },
             r: { icon: '📜', label: 'Read', glyphs: '?' },
@@ -150,7 +154,7 @@
             z: { icon: '✨', label: 'Cast Spell' },
             f: { icon: '🎯', label: 'Fire / Throw' },
             d: { icon: '📦', label: 'Drop' },
-            I: { icon: '🔍', label: 'Examine' }
+            v: { icon: '🔍', label: 'Examine' }
         },
         brogue: {
             w: { icon: '⚔', label: 'Equip', glyphs: ')[' },
@@ -161,7 +165,7 @@
             a: { icon: '🪄', label: 'Apply / Zap', glyphs: '/' },
             t: { icon: '🎯', label: 'Throw' },
             d: { icon: '📦', label: 'Drop' },
-            I: { icon: '🔍', label: 'Examine' }
+            x: { icon: '🔍', label: 'Examine' }
         },
         rogue: {
             w: { icon: '⚔', label: 'Wield', glyphs: ')' },
@@ -174,6 +178,25 @@
             t: { icon: '🎯', label: 'Throw' },
             d: { icon: '📦', label: 'Drop' },
             I: { icon: '🔍', label: 'Examine' }
+        },
+        ryod: {
+            w: { icon: '⚔', label: 'Wield', glyphs: '|/\\}()=["~{[' },
+            T: { icon: '🛡', label: 'Take Off', listOnly: 'equip' },
+            b: { icon: '📖', label: 'Browse', glyphs: '?' },
+            m: { icon: '✨', label: 'Cast / Power', glyphs: '?' },
+            E: { icon: '🍖', label: 'Eat', glyphs: ',%' },
+            q: { icon: '🧪', label: 'Quaff', glyphs: '!' },
+            r: { icon: '📜', label: 'Read scroll', glyphs: '?' },
+            u: { icon: '🪄', label: 'Use staff', glyphs: '_' },
+            a: { icon: '⚡', label: 'Aim wand', glyphs: '-/' },
+            z: { icon: '💥', label: 'Zap rod', glyphs: '-/' },
+            A: { icon: '🔮', label: 'Activate', listOnly: 'equip' },
+            t: { icon: '🎯', label: 'Throw' },
+            d: { icon: '📦', label: 'Drop' },
+            i: { icon: '🎒', label: 'Inventory' },
+            e: { icon: '🛡', label: 'Equipment' },
+            I: { icon: '🔍', label: 'Examine' },
+            k: { icon: '🗑', label: 'Destroy' }
         }
     };
 
@@ -287,8 +310,29 @@
             listKind = 'inven';
         }
         if (listKind === 'equip') {
+            const glyph = item.glyph || '';
+            const label = (item.label || item.name || '').toLowerCase();
+            if ((realm === 'nethack' || realm === 'dcss') && (glyph === '=' || glyph === '"' || /ring|amulet/i.test(label))) {
+                return 'R';
+            }
+            const cat = (typeof ActionCatalog !== 'undefined' ? ActionCatalog : null)
+                || (typeof window !== 'undefined' ? window.ActionCatalog : null)
+                || (typeof global !== 'undefined' ? global.ActionCatalog : null)
+                || (typeof require === 'function' ? (() => { try { return require('./action-catalog.js'); } catch { return null; } })() : null);
+            if (cat && typeof cat.keyFor === 'function') {
+                const k = cat.keyFor('takeoff', realm);
+                if (k) return k;
+            }
+            const rk = (typeof RealmKeys !== 'undefined' ? RealmKeys : null)
+                || (typeof window !== 'undefined' ? window.RealmKeys : null)
+                || (typeof global !== 'undefined' ? global.RealmKeys : null)
+                || (typeof require === 'function' ? (() => { try { return require('./realm-keys.js'); } catch { return null; } })() : null);
+            if (rk && typeof rk.realmKey === 'function') {
+                const k = rk.realmKey('takeoff', realm);
+                if (k) return k;
+            }
             if (realm === 'silq') return 'r';
-            if (realm === 'nethack' || realm === 'dcss' || realm === 'brogue' || realm === 'rogue') return 'T';
+            if (realm === 'nethack' || realm === 'dcss' || realm === 'brogue' || realm === 'rogue' || realm === 'ryod') return 'T';
             return 't'; // Take off
         }
 
@@ -352,7 +396,7 @@
         }
 
         // Food
-        const eatKey = (realm === 'nethack' || realm === 'dcss' || realm === 'rogue' || realm === 'brogue') ? 'e' : 'E';
+        const eatKey = (realm === 'nethack' || realm === 'dcss' || realm === 'rogue') ? 'e' : 'E';
         if ((glyph === ',' && realm !== 'nethack' && realm !== 'rogue') || glyph === '%' || (glyph === ':' && (realm === 'rogue' || realm === 'brogue'))) return eatKey;
         if (label.includes('food') || label.includes('ration') || label.includes('bread') ||
             label.includes('mushroom') || label.includes('mold') || label.includes('corpse') || label.includes('食料')) {
@@ -400,7 +444,7 @@
 
         html += `<button type="button" class="term-ctx-btn" data-key="up" title="Previous Item [↑]">[▲] Prev</button>`;
         html += `<button type="button" class="term-ctx-btn" data-key="down" title="Next Item [↓]">[▼] Next</button>`;
-        html += `<button type="button" class="term-ctx-btn" data-verb="Escape" title="Back [Esc]">[Esc] ⎋ Back</button>`;
+        html += `<button type="button" class="term-ctx-btn" data-verb="Escape" title="Back [Esc]">[Esc] Back</button>`;
         html += `</div>`;
         return html;
     }

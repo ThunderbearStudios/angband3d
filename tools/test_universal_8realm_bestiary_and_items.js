@@ -183,7 +183,7 @@ check(dungeon3dSrc.includes('purgeAllSceneEntities()'), 'Bug 1 Fix: purgeAllScen
 check(dungeon3dSrc.includes('parentBone.updateWorldMatrix(false, false);'), 'P1 Optimization: targeted bone updateWorldMatrix(false, false) missing');
 check(dungeon3dSrc.includes('const isDistantIdle = (!isMoving && entityDistSq > 100);'), 'P1 Optimization: 30Hz distant idle mixer throttle missing');
 check(dungeon3dSrc.includes('this.createNameplateSprite(m, isTargeted, isSensed, entity.nameplate)'), 'P2 Optimization: in-place nameplate reuse missing');
-check(dungeon3dSrc.includes('const showCaption = Boolean(isVisible && itemDistSq <= 36 && it.name);'), 'P3 Optimization: lazy item caption creation missing');
+check(dungeon3dSrc.includes('const showCaption = Boolean(inLitView && itemDistSq <= 36 && it.name);'), 'P3 Optimization: lazy item caption creation gated on inLitView missing');
 check(!dungeon3dSrc.includes('this._raycaster.intersectObjects(candidates, true)'), 'P4 Optimization: slow CPU SkinnedMesh.raycast() should be removed from getMonsterAtScreenCoords/getItemAtScreenCoords');
 check(!dungeon3dSrc.includes('configureCreatureEquipment(mesh, role)'), 'P5 Optimization: dead configureCreatureEquipment should be removed');
 check(!dungeon3dSrc.includes('resolveMonsterModelConfig(glyph, rawName'), 'P5 Optimization: dead resolveMonsterModelConfig should be removed');

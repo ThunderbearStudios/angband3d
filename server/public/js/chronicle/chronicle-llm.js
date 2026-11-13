@@ -8,10 +8,9 @@
 // Curated Google AI Studio Free Tier model chain for automatic failover in order of confirmed working capability
 const FREE_TIER_CHAIN = [
     'gemini-3.8-flash',      // Flagship Flash (Highest intelligence, New Stable)
-    'gemini-3.7-flash',      // High-performance agentic Flash (Stable)
+    'gemini-3.5-flash-lite', // High-throughput, ultra-cost-effective skirmish/parley tier (Stable)
     'gemini-3.6-flash',      // Balanced Flash (Stable)
     'gemini-3.5-flash',      // Foundational Flash (Stable)
-    'gemini-3.5-flash-lite', // High-throughput, ultra-cost-effective (Stable)
     'gemini-3.1-flash-lite', // Frontier-class lightweight (Stable)
     'gemini-4-argon',        // Next-gen frontier reasoning & narrative model
     'gemini-2.5-flash',      // Proven hybrid reasoning (Stable)

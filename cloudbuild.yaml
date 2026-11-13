@@ -4,9 +4,20 @@ steps:
     args:
       - '-c'
       - |
+        ABI_HASH=$$( ( LC_ALL=C find engine-patch variants/frogcomposband-src variants/silq-src variants/*/patches \
+          -type f \( -name "*.patch" -o -name "*bridge*.c" -o -name "*bridge*.h" -o -name "*bridge*.cpp" -o -name "*bridge*.hpp" -o -name "main-gcu.c" -o -name "main-gcu.cpp" \) 2>/dev/null; \
+          LC_ALL=C find variants/hengband-src/src -type f \( -name "*.cpp" -o -name "*.h" -o -name "*.hpp" -o -name "*.c" \) 2>/dev/null ) \
+          | LC_ALL=C sort -u | xargs -r sha256sum | sha256sum | cut -d' ' -f1)
+        echo "Current repo C/C++ Engine ABI hash: $${ABI_HASH}"
+        PREV_HASH=""
         if docker pull gcr.io/$PROJECT_ID/angband3d-cloud:latest; then
-          cat << 'EOF' > Dockerfile.fast
-        FROM gcr.io/${PROJECT_ID}/angband3d-cloud:latest AS prev
+          PREV_HASH=$$(docker run --rm --entrypoint cat gcr.io/$PROJECT_ID/angband3d-cloud:latest /app/.engine-abi-hash 2>/dev/null | tr -d '[:space:]' || true)
+          echo "Cached :latest Engine ABI hash: $${PREV_HASH:-<missing>}"
+        fi
+        if [ -n "$$ABI_HASH" ] && [ "$$PREV_HASH" = "$$ABI_HASH" ]; then
+          echo "Engine ABI unchanged — using fast overlay Dockerfile.fast"
+          cat << EOF > Dockerfile.fast
+        FROM gcr.io/$PROJECT_ID/angband3d-cloud:latest AS prev
         FROM node:22-bookworm-slim
         RUN apt-get update && apt-get install -y --no-install-recommends \
             libncursesw6 \
@@ -23,11 +34,13 @@ steps:
             DIST_DIR=/app/dist \
             WEB_DIR=/app/public \
             NODE_ENV=production \
-            TRUST_PROXY=1
+            TRUST_PROXY=1 \
+            TRUST_CLOUDFLARE=1
         WORKDIR /app
         COPY --from=prev /app /app
         COPY server/src/ /app/server/src/
         COPY server/public/ /app/public/
+        COPY variants/hengband/lib /app/variants/hengband/lib
         COPY variants/nethack/ /app/variants/nethack/
         COPY variants/rogue/ /app/variants/rogue/
         COPY variants/brogue/ /app/variants/brogue/
@@ -35,15 +48,16 @@ steps:
         COPY variants/ryod/ /app/variants/ryod/
         COPY engine-manifest.json /app/engine-manifest.json
         COPY CREDITS.md /app/CREDITS.md
-        RUN mkdir -p /data/save /app/dist /app/public && ln -sfn /app/public /app/server/public
+        RUN find /app/variants/hengband/lib -type f \( -name "*.prf" -o -name "*.txt" -o -name "*.jsonc" \) -exec sed -i 's/\r$$//' {} + && \
+            mkdir -p /data/save /app/dist /app/public && ln -sfn /app/public /app/server/public
         VOLUME /data/save
         WORKDIR /app/server
         EXPOSE 8080
         CMD ["node", "src/server.js"]
         EOF
-          sed -i "s/\${PROJECT_ID}/$PROJECT_ID/g" Dockerfile.fast
           docker build -t gcr.io/$PROJECT_ID/angband3d-cloud:latest -f Dockerfile.fast .
         else
+          echo "Engine ABI changed or missing — compiling all 4 C/C++ engines via server/Dockerfile"
           docker build -t gcr.io/$PROJECT_ID/angband3d-cloud:latest -f server/Dockerfile .
         fi
 images:

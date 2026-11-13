@@ -252,10 +252,10 @@ index 000000000..e00b887fd
 +#endif /* INCLUDED_BRIDGE_JSON_H */
 diff --git a/src/cmake/macros/BRIDGE_Frontend.cmake b/src/cmake/macros/BRIDGE_Frontend.cmake
 new file mode 100644
-index 000000000..86bc4945d
+index 000000000..0350760fc
 --- /dev/null
 +++ b/src/cmake/macros/BRIDGE_Frontend.cmake
-@@ -0,0 +1,24 @@
+@@ -0,0 +1,25 @@
 +macro(configure_bridge_frontend _NAME_TARGET)
 +
 +    target_compile_definitions(${_NAME_TARGET} PRIVATE -D USE_BRIDGE)
@@ -274,6 +274,7 @@ index 000000000..86bc4945d
 +            "SHELL:--preload-file ${CMAKE_SOURCE_DIR}/lib@/lib"
 +            "SHELL:--exclude-file *tiles*"
 +            "SHELL:--exclude-file *sounds*"
++            "SHELL:--exclude-file *demo_*"
 +        )
 +    endif()
 +
@@ -282,10 +283,10 @@ index 000000000..86bc4945d
 +endmacro()
 diff --git a/src/main-bridge.c b/src/main-bridge.c
 new file mode 100644
-index 000000000..c67b12b9c
+index 000000000..6f5075e19
 --- /dev/null
 +++ b/src/main-bridge.c
-@@ -0,0 +1,2149 @@
+@@ -0,0 +1,2464 @@
 +/**
 + * \file main-bridge.c
 + * \brief JSON state bridge front end, for driving Angband from an external client.
@@ -342,10 +343,15 @@ index 000000000..c67b12b9c
 +#include "player-spell.h"
 +#include "ui-keymap.h"
 +#include "z-quark.h"
++#include "mon-blows.h"
++#include "mon-lore.h"
++#include "mon-spell.h"
++#include "project.h"
 +
 +#ifdef USE_BRIDGE
 +
 +#define BRIDGE_PROTOCOL 1
++#define BRIDGE_PROTOCOL_MINOR 2
 +
 +/* Generous upper bounds; values are clamped rather than trusted. */
 +#define BRIDGE_MAX_W 1024
@@ -868,6 +874,66 @@ index 000000000..c67b12b9c
 +	}
 +	fputc(']', fp);
 +
++	/* WS72 Protocol v2: Player Resistance Matrix (-1..3) */
++	fputc(',', fp);
++	bj_key(fp, "resists");
++	fputc('{', fp);
++	{
++		static const struct { int elem; const char *key; int opp_tmd; } res_map[13] = {
++			{ ELEM_ACID,   "acid",   TMD_OPP_ACID },
++			{ ELEM_ELEC,   "elec",   TMD_OPP_ELEC },
++			{ ELEM_FIRE,   "fire",   TMD_OPP_FIRE },
++			{ ELEM_COLD,   "cold",   TMD_OPP_COLD },
++			{ ELEM_POIS,   "pois",   TMD_OPP_POIS },
++			{ ELEM_LIGHT,  "light",  -1 },
++			{ ELEM_DARK,   "dark",   -1 },
++			{ ELEM_SOUND,  "sound",  -1 },
++			{ ELEM_SHARD,  "shards", -1 },
++			{ ELEM_NEXUS,  "nexus",  -1 },
++			{ ELEM_NETHER, "nether", -1 },
++			{ ELEM_CHAOS,  "chaos",  -1 },
++			{ ELEM_DISEN,  "disen",  -1 }
++		};
++		for (int r = 0; r < 13; r++) {
++			int lvl = player->known_state.el_info[res_map[r].elem].res_level;
++			if (res_map[r].opp_tmd >= 0 && player->timed[res_map[r].opp_tmd] > 0 && lvl < 3) {
++				lvl = (lvl <= 0) ? (lvl + 1) : 2;
++			}
++			if (lvl < -1) lvl = -1;
++			if (lvl > 3) lvl = 3;
++			if (r) fputc(',', fp);
++			bj_kv_int(fp, res_map[r].key, lvl);
++		}
++	}
++	fputc('}', fp);
++
++	/* WS72 Protocol v2: Player Intrinsic Protection & Utility Flags */
++	fputc(',', fp);
++	bj_key(fp, "flags");
++	fputc('{', fp);
++	bj_kv_bool(fp, "rFear", of_has(player->known_state.flags, OF_PROT_FEAR) || player->timed[TMD_BOLD] > 0 || player->timed[TMD_HERO] > 0 || player->timed[TMD_SHERO] > 0);
++	fputc(',', fp);
++	bj_kv_bool(fp, "rBlind", of_has(player->known_state.flags, OF_PROT_BLIND));
++	fputc(',', fp);
++	bj_kv_bool(fp, "rConf", of_has(player->known_state.flags, OF_PROT_CONF) || player->timed[TMD_OPP_CONF] > 0);
++	fputc(',', fp);
++	bj_kv_bool(fp, "rStun", of_has(player->known_state.flags, OF_PROT_STUN));
++	fputc(',', fp);
++	bj_kv_bool(fp, "freeAct", of_has(player->known_state.flags, OF_FREE_ACT) || player->timed[TMD_FREE_ACT] > 0);
++	fputc(',', fp);
++	bj_kv_bool(fp, "holdLife", of_has(player->known_state.flags, OF_HOLD_LIFE));
++	fputc(',', fp);
++	bj_kv_bool(fp, "seeInvis", of_has(player->known_state.flags, OF_SEE_INVIS) || player->timed[TMD_SINVIS] > 0);
++	fputc(',', fp);
++	bj_kv_bool(fp, "esp", of_has(player->known_state.flags, OF_TELEPATHY) || player->timed[TMD_TELEPATHY] > 0);
++	fputc(',', fp);
++	bj_kv_bool(fp, "regen", of_has(player->known_state.flags, OF_REGEN));
++	fputc(',', fp);
++	bj_kv_bool(fp, "feather", of_has(player->known_state.flags, OF_FEATHER));
++	fputc(',', fp);
++	bj_kv_bool(fp, "slowDigest", of_has(player->known_state.flags, OF_SLOW_DIGEST));
++	fputc('}', fp);
++
 +	/* Target / Tracked Monster */
 +	struct monster *target_mon = player->upkeep->health_who;
 +	if (!target_mon && target_is_set()) {
@@ -1117,6 +1183,7 @@ index 000000000..c67b12b9c
 +			int a = 0, ta = 0;
 +			wchar_t c = L' ', tc = L' ';
 +			unsigned flags = 0;
++			unsigned lighting = 3;
 +			unsigned feat;
 +
 +			memset(&g, 0, sizeof(g));
@@ -1125,7 +1192,12 @@ index 000000000..c67b12b9c
 +
 +			if (square_isknown(cave, grid)) flags |= 0x1;
 +			if (g.in_view) flags |= 0x2;
-+			flags |= ((unsigned)g.lighting & 0x3) << 2;
++			if (cave && (square_isknown(cave, grid) || g.in_view || cave->depth == 0) && square_isglow(cave, grid)) {
++				lighting = 2;
++			} else if (g.in_view) {
++				lighting = (cave && sqinfo_has(square(cave, grid)->info, SQUARE_CLOSE_PLAYER)) ? 1 : 0;
++			}
++			flags |= (lighting & 0x3) << 2;
 +
 +			feat = (unsigned)g.f_idx & 0xff;
 +			if (feat == FEAT_NONE && cave && (cave->depth == 0 || g.in_view)) {
@@ -1209,6 +1281,8 @@ index 000000000..c67b12b9c
 +
 +		if (mon && mon->race) {
 +			fputc(',', fp);
++			bj_kv_int(fp, "r_idx", mon->race->ridx);
++			fputc(',', fp);
 +			bj_kv_string(fp, "race", mon->race->name);
 +			fputc(',', fp);
 +			bj_kv_int(fp, "race_level", mon->race->level);
@@ -1216,6 +1290,12 @@ index 000000000..c67b12b9c
 +			bj_kv_int(fp, "hp", mon->hp);
 +			fputc(',', fp);
 +			bj_kv_int(fp, "hp_max", mon->maxhp);
++			fputc(',', fp);
++			bj_kv_int(fp, "speed", (int)mon->mspeed - 110);
++			fputc(',', fp);
++			bj_kv_bool(fp, "unique", rf_has(mon->race->flags, RF_UNIQUE) ? true : false);
++			fputc(',', fp);
++			bj_kv_string(fp, "attitude", "hostile");
 +			if (monster_is_invisible(mon) || rf_has(mon->race->flags, RF_INVISIBLE)) {
 +				fputc(',', fp);
 +				bj_kv_bool(fp, "invisible", true);
@@ -1248,6 +1328,179 @@ index 000000000..c67b12b9c
 +		fputc('}', fp);
 +	}
 +	fputc(']', fp);
++}
++
++#define BRIDGE_MAX_LORE_RACES 2048
++static uint32_t sent_lore_sig[BRIDGE_MAX_LORE_RACES];
++
++static uint32_t compute_race_lore_sig(const struct monster_race *race, const struct monster_lore *lore)
++{
++	uint32_t h = 2166136261u;
++	if (!race || !lore) return 1u;
++	h = (h ^ (uint32_t)lore->sights) * 16777619u;
++	h = (h ^ (uint32_t)lore->pkills) * 16777619u;
++	h = (h ^ (uint32_t)lore->tkills) * 16777619u;
++	h = (h ^ (uint32_t)lore->deaths) * 16777619u;
++	h = (h ^ (uint32_t)(lore->armour_known ? 1 : 0)) * 16777619u;
++	h = (h ^ (uint32_t)(lore->all_known ? 1 : 0)) * 16777619u;
++	if (z_info && lore->blow_known) {
++		for (int b = 0; b < z_info->mon_blows_max; b++) {
++			h = (h ^ (uint32_t)(lore->blow_known[b] ? 1 : 0)) * 16777619u;
++		}
++	}
++	for (size_t k = 0; k < RF_SIZE; k++) {
++		h = (h ^ (uint32_t)lore->flags[k]) * 16777619u;
++	}
++	for (size_t k = 0; k < RSF_SIZE; k++) {
++		h = (h ^ (uint32_t)lore->spell_flags[k]) * 16777619u;
++	}
++	return h ? h : 1u;
++}
++
++static void emit_lore_if_changed(FILE *fp)
++{
++	if (!bridge_in_play() || !cave || !l_list || !z_info || frame_seq <= 1) {
++		memset(sent_lore_sig, 0, sizeof(sent_lore_sig));
++		if (!bridge_in_play() || !cave || !l_list || !z_info) return;
++	}
++
++	bool any_changed = false;
++	for (int i = 0; i < mon_count; i++) {
++		if (mon_buf[i].idx >= (uint32_t)cave->mon_max) continue;
++		struct monster *mon = cave_monster(cave, mon_buf[i].idx);
++		if (!mon || !mon->race) continue;
++		unsigned int ridx = mon->race->ridx;
++		if (ridx == 0 || ridx >= BRIDGE_MAX_LORE_RACES || ridx >= z_info->r_max) continue;
++		const struct monster_lore *lore = get_lore(mon->race);
++		uint32_t sig = compute_race_lore_sig(mon->race, lore);
++		if (sent_lore_sig[ridx] != sig) {
++			any_changed = true;
++			break;
++		}
++	}
++	if (!any_changed) return;
++
++	fputc(',', fp);
++	bj_key(fp, "lore");
++	fputc('{', fp);
++	bool first_race = true;
++
++	for (int i = 0; i < mon_count; i++) {
++		if (mon_buf[i].idx >= (uint32_t)cave->mon_max) continue;
++		struct monster *mon = cave_monster(cave, mon_buf[i].idx);
++		if (!mon || !mon->race) continue;
++		const struct monster_race *race = mon->race;
++		unsigned int ridx = race->ridx;
++		if (ridx == 0 || ridx >= BRIDGE_MAX_LORE_RACES || ridx >= z_info->r_max) continue;
++		const struct monster_lore *lore = get_lore(race);
++		uint32_t sig = compute_race_lore_sig(race, lore);
++		if (sent_lore_sig[ridx] == sig) continue;
++		sent_lore_sig[ridx] = sig;
++
++		if (!first_race) fputc(',', fp);
++		first_race = false;
++
++		char kbuf[16];
++		snprintf(kbuf, sizeof(kbuf), "%u", ridx);
++		bj_key(fp, kbuf);
++		fputc('{', fp);
++		bool know_ac = lore->armour_known || lore->all_known;
++		bj_kv_int(fp, "ac", know_ac ? race->ac : -1);
++		fputc(',', fp);
++		bj_kv_int(fp, "speed", (int)race->speed - 110);
++		fputc(',', fp);
++		bj_kv_int(fp, "kills", lore->pkills);
++		fputc(',', fp);
++		bj_kv_int(fp, "deaths", lore->deaths);
++
++		/* Known melee blows */
++		fputc(',', fp);
++		bj_key(fp, "blows");
++		fputc('[', fp);
++		bool first_blow = true;
++		if (race->blow && lore->blow_known) {
++			for (int b = 0; b < z_info->mon_blows_max; b++) {
++				if (!race->blow[b].method) continue;
++				if (!lore->blow_known[b] && !lore->all_known) continue;
++				if (!first_blow) fputc(',', fp);
++				first_blow = false;
++				char bbuf[96];
++				const char *mname = race->blow[b].method->name ? race->blow[b].method->name : "HIT";
++				const char *ename = (race->blow[b].effect && race->blow[b].effect->name) ? race->blow[b].effect->name : "";
++				random_value d = race->blow[b].dice;
++				if (d.dice && d.sides) {
++					snprintf(bbuf, sizeof(bbuf), "%s/%s %dd%d", mname, ename, d.dice, d.sides);
++				} else if (d.base) {
++					snprintf(bbuf, sizeof(bbuf), "%s/%s %d", mname, ename, d.base);
++				} else {
++					snprintf(bbuf, sizeof(bbuf), "%s/%s", mname, ename);
++				}
++				bj_string(fp, bbuf);
++			}
++		}
++		fputc(']', fp);
++
++		/* Known spells & breaths with max damage */
++		fputc(',', fp);
++		bj_key(fp, "spells");
++		fputc('[', fp);
++		bool first_sp = true;
++		for (int sp = rsf_next(lore->spell_flags, FLAG_START); sp != FLAG_END; sp = rsf_next(lore->spell_flags, sp + 1)) {
++			if (!rsf_has(race->spell_flags, sp) && !lore->all_known) continue;
++			if (!rsf_has(race->spell_flags, sp)) continue;
++			const char *sdesc = mon_spell_lore_description(sp, race);
++			if (!sdesc || !*sdesc) continue;
++			int sdam = mon_spell_lore_damage(sp, race, know_ac);
++			if (!first_sp) fputc(',', fp);
++			first_sp = false;
++			char sbuf[96];
++			if (sdam > 0) {
++				snprintf(sbuf, sizeof(sbuf), "%s (%d)", sdesc, sdam);
++			} else {
++				snprintf(sbuf, sizeof(sbuf), "%s", sdesc);
++			}
++			bj_string(fp, sbuf);
++		}
++		fputc(']', fp);
++
++		/* Known resistances, immunities & vulnerabilities */
++		fputc(',', fp);
++		bj_key(fp, "known_resists");
++		fputc('[', fp);
++		bitflag known_rf[RF_SIZE];
++		monster_flags_known(race, lore, known_rf);
++		static const struct { int flag; const char *tag; } rf_tags[] = {
++			{ RF_IM_ACID,    "imAcid" },
++			{ RF_IM_ELEC,    "imElec" },
++			{ RF_IM_FIRE,    "imFire" },
++			{ RF_IM_COLD,    "imCold" },
++			{ RF_IM_POIS,    "imPois" },
++			{ RF_IM_NETHER,  "imNether" },
++			{ RF_IM_WATER,   "imWater" },
++			{ RF_IM_PLASMA,  "imPlasma" },
++			{ RF_IM_NEXUS,   "imNexus" },
++			{ RF_IM_DISEN,   "imDisen" },
++			{ RF_HURT_FIRE,  "vulnFire" },
++			{ RF_HURT_COLD,  "vulnCold" },
++			{ RF_HURT_LIGHT, "vulnLight" },
++			{ RF_HURT_ROCK,  "vulnRock" },
++			{ RF_NO_FEAR,    "noFear" },
++			{ RF_NO_STUN,    "noStun" },
++			{ RF_NO_CONF,    "noConf" },
++			{ RF_NO_SLEEP,   "noSleep" }
++		};
++		bool first_rf = true;
++		for (size_t k = 0; k < sizeof(rf_tags) / sizeof(rf_tags[0]); k++) {
++			if (rf_has(known_rf, rf_tags[k].flag)) {
++				if (!first_rf) fputc(',', fp);
++				first_rf = false;
++				bj_string(fp, rf_tags[k].tag);
++			}
++		}
++		fputc(']', fp);
++		fputc('}', fp);
++	}
++	fputc('}', fp);
 +}
 +
 +
@@ -1732,6 +1985,64 @@ index 000000000..c67b12b9c
 +		fputc('}', fp);
 +	}
 +
++	/* WS72 Protocol v2: 3D Targeting / Look / Locked Cursor */
++	fputc(',', fp);
++	bj_key(fp, "cursor");
++	{
++		bool cur_active = false;
++		const char *cur_mode = "locked";
++		int cur_x = 0, cur_y = 0;
++		if (bridge_in_play() && cave && player) {
++			if (!in_dungeon && overlay == 0 && Term && Term->scr && !Term->scr->cu && Term->scr->cv) {
++				int tw = (tile_width > 0) ? tile_width : 1;
++				int th = (tile_height > 0) ? tile_height : 1;
++				int gx = ((Term->scr->cx - COL_MAP) / tw) + Term->offset_x;
++				int gy = ((Term->scr->cy - ROW_MAP) / th) + Term->offset_y;
++				if (Term->scr->cx >= COL_MAP && Term->scr->cy >= ROW_MAP && square_in_bounds(cave, loc(gx, gy))) {
++					char r0[160];
++					bridge_get_row0_text(r0, sizeof(r0));
++					cur_active = true;
++					cur_mode = (strstr(r0, "Look") != NULL) ? "look" : "target";
++					cur_x = gx;
++					cur_y = gy;
++				}
++			}
++			if (!cur_active && target_is_set()) {
++				struct loc tgrid;
++				target_get(&tgrid);
++				if (square_in_bounds(cave, tgrid)) {
++					cur_active = true;
++					cur_mode = "locked";
++					cur_x = tgrid.x;
++					cur_y = tgrid.y;
++				}
++			}
++		}
++		if (cur_active) {
++			struct loc cgrid = loc(cur_x, cur_y);
++			bool has_los = los(cave, player->grid, cgrid);
++			struct monster *cmon = square_monster(cave, cgrid);
++			int mon_id = (cmon && monster_is_visible(cmon)) ? cmon->midx : 0;
++			fputc('{', fp);
++			bj_kv_bool(fp, "active", true);
++			fputc(',', fp);
++			bj_kv_string(fp, "mode", cur_mode);
++			fputc(',', fp);
++			bj_kv_int(fp, "x", cur_x);
++			fputc(',', fp);
++			bj_kv_int(fp, "y", cur_y);
++			fputc(',', fp);
++			bj_kv_bool(fp, "has_los", has_los);
++			fputc(',', fp);
++			bj_kv_int(fp, "blast_rad", 0);
++			fputc(',', fp);
++			bj_kv_int(fp, "mon_id", mon_id);
++			fputc('}', fp);
++		} else {
++			fputs("null", fp);
++		}
++	}
++
 +	/* Evaluates prereq for primary commands when awaiting a command */
 +	if (in_dungeon) {
 +		uint64_t avail = 0;
@@ -2092,6 +2403,7 @@ index 000000000..c67b12b9c
 +
 +	bj_key(fp, "monsters");
 +	emit_monsters(fp);
++	emit_lore_if_changed(fp);
 +	fputc(',', fp);
 +
 +	bj_key(fp, "objects");
@@ -2236,6 +2548,7 @@ index 000000000..c67b12b9c
 +		return 0;
 +	}
 +
++#ifdef ANGBAND3D_DEBUG_VERBS
 +	if (streq(cmd, "banish")) {
 +		if (cave) {
 +			int i;
@@ -2252,6 +2565,7 @@ index 000000000..c67b12b9c
 +		}
 +		return 0;
 +	}
++#endif
 +
 +	if (cmd[0] == '#') return 0;
 +
@@ -2421,6 +2735,8 @@ index 000000000..c67b12b9c
 +	bj_kv_string(fp, "t", "hello");
 +	fputc(',', fp);
 +	bj_kv_int(fp, "protocol", BRIDGE_PROTOCOL);
++	fputc(',', fp);
++	bj_kv_int(fp, "protocol_minor", BRIDGE_PROTOCOL_MINOR);
 +	fputc(',', fp);
 +	bj_kv_string(fp, "build", buildid);
 +	fputc(',', fp);

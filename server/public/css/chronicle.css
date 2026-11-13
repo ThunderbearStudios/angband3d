@@ -1247,6 +1247,8 @@ body.is-standalone #chronicle-window {
 }
 
 /* Interrupted Story Beat Indicators */
+.is-coalesced-into-epoch,
+.chapter-card.is-coalesced-into-epoch,
 .flowing-paragraph-block.is-coalesced-into-epoch {
     display: none !important;
 }
@@ -1667,20 +1669,32 @@ body.is-standalone #chronicle-window {
 }
 
 .chronicle-transport-deck {
+    display: flex;
     flex-wrap: wrap;
-    padding: 3px 5px !important;
-    gap: 4px !important;
+    align-items: center;
+    padding: 4px 6px !important;
+    gap: 5px !important;
 }
 
 .chronicle-audio-toggles {
+    display: flex;
     flex-wrap: wrap;
-    gap: 3px !important;
+    align-items: center;
+    gap: 4px !important;
 }
 
 .chronicle-ctrl-btn {
-    height: 21px !important;
-    padding: 1px 6px !important;
-    font-size: 9.5px !important;
+    height: 26px !important;
+    min-height: 26px !important;
+    padding: 2px 9px !important;
+    font-size: 11px !important;
+    line-height: 1.15 !important;
+    border-radius: 999px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 4px !important;
+    white-space: nowrap !important;
 }
 
 /* Chapter Header Row & Replay Button */

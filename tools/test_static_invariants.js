@@ -25,7 +25,18 @@ const JS_FILES = [
     'server/src/server.js',
     'server/src/http-guard.js',
     'server/src/rate-limit.js',
+    'server/src/save-vault-routes.js',
+    'server/src/sketch-service.js',
+    'server/src/cartridges/ryod-systems.js',
+    'server/src/cartridges/ryod-compiler.js',
+    'server/src/cartridges/cartridge-core.js',
     'server/public/js/app.js',
+    'server/public/js/i18n-locale.js',
+    'server/public/js/audio-director.js',
+    'server/public/js/save-vault-client.js',
+    'server/public/js/realm-carousel.js',
+    'server/public/js/ryod-compiler.js',
+    'server/public/js/ryod-forge.js',
     'server/public/js/input.js',
     'server/public/js/screen-context.js',
     'server/public/js/prompt-mirror.js',
@@ -43,6 +54,8 @@ const JS_FILES = [
     'server/public/js/terminal.js',
     'server/public/js/hud.js',
     'server/public/js/dungeon3d.js',
+    'server/public/js/dungeon3d-proc-textures.js',
+    'server/public/js/dungeon3d-environment.js',
     'server/public/js/audio.js',
     'server/public/js/network.js',
     'server/public/js/local_bridge.js',
@@ -189,15 +202,16 @@ assert.ok(
 );
 
 // 7. Wave 20 Studio Audio Bank, Convolution Reverb & Zero-Leak Shared 3D Action VFX Invariants
+const godotArchiveBase = fs.existsSync(path.join(ROOT, 'client')) ? 'client' : 'archive/godot-client-v1';
 const webManifestPath = path.join(ROOT, 'server/public/assets/audio/sfx/manifest.json');
-const godotManifestPath = path.join(ROOT, 'client/assets/audio/sfx/manifest.json');
+const godotManifestPath = path.join(ROOT, `${godotArchiveBase}/assets/audio/sfx/manifest.json`);
 assert.ok(fs.existsSync(webManifestPath), 'Missing web studio SFX manifest.json');
 assert.ok(fs.existsSync(godotManifestPath), 'Missing Godot studio SFX manifest.json');
 const sfxManifest = JSON.parse(fs.readFileSync(webManifestPath, 'utf8'));
 assert.ok(Array.isArray(sfxManifest.files) && sfxManifest.files.length >= 60, 'Studio SFX manifest must list at least 60 open-source sound files');
 for (const entry of sfxManifest.files) {
     const wf = path.join(ROOT, 'server/public/assets/audio/sfx', entry.file);
-    const gf = path.join(ROOT, 'client/assets/audio/sfx', entry.file);
+    const gf = path.join(ROOT, `${godotArchiveBase}/assets/audio/sfx`, entry.file);
     assert.ok(fs.existsSync(wf) && fs.statSync(wf).size > 64, `Missing or empty web studio SFX file: ${entry.file}`);
     assert.ok(fs.existsSync(gf) && fs.statSync(gf).size > 64, `Missing or empty Godot studio SFX file: ${entry.file}`);
 }
@@ -281,7 +295,7 @@ assert.ok(
     !audioJsSrc.includes("heal: ['heal_spell.wav'") && !audioJsSrc.includes("prayer: ['magic_holy_1.ogg'"),
     'STUDIO_POOL_MAP in audio.js must not map heal/prayer to piercing heal_spell.wav or magic_holy_1.ogg chimes (L49)'
 );
-const csWorldSrc = fs.readFileSync(path.join(ROOT, 'client/scripts/DungeonWorld.cs'), 'utf8');
+const csWorldSrc = fs.readFileSync(path.join(ROOT, `${godotArchiveBase}/scripts/DungeonWorld.cs`), 'utf8');
 const csHpBlock = csWorldSrc.slice(
     csWorldSrc.indexOf('else if (_lastPlayerHp >= 0 && curHp > _lastPlayerHp)'),
     csWorldSrc.indexOf('_lastPlayerHp = curHp;')

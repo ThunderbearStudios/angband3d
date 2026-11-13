@@ -15,6 +15,68 @@
 })(typeof self !== 'undefined' ? self : this, function (Pool) {
     'use strict';
 
+    function parseSeed(raw) {
+        if (typeof raw === 'number' && !isNaN(raw)) return (raw >>> 0) || 0x59415344;
+        const str = String(raw || '').trim();
+        if (!str) return 0x59415344;
+        const hexMatch = str.match(/^RYOD-([0-9a-fA-F]{1,8})$/i);
+        if (hexMatch) return (parseInt(hexMatch[1], 16) >>> 0) || 0x59415344;
+        if (/^\d+$/.test(str)) return (Number(str) >>> 0) || 0x59415344;
+        let h = 0x811c9dc5 >>> 0;
+        for (let i = 0; i < str.length; i++) {
+            h ^= str.charCodeAt(i);
+            h = Math.imul(h, 0x01000193) >>> 0;
+        }
+        return (h >>> 0) || 0x59415344;
+    }
+
+    function mulberry32(seed) {
+        let s = (Number(seed) >>> 0) || 0x59415344;
+        return function next() {
+            s = (s + 0x6D2B79F5) >>> 0;
+            let t = Math.imul(s ^ (s >>> 15), 1 | s);
+            t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+            return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+        };
+    }
+
+    const SYNTHETIC_BEHOLDER = {
+        id: 'beholder',
+        label: '👁️ Eldritch Beholder Eye (Creature Avatar)',
+        isMonsterAvatar: true,
+        avatarMonsterName: 'floating eye',
+        avatarId: 'beholder',
+        race: 'Aberration',
+        roleName: 'Beholder Eye',
+        align: 'Chaotic',
+        defaultDiscipline: 'arcane',
+        hp: 36, pw: 30, ac: 4,
+        str: 10, int: 20, wis: 16, dex: 16, con: 14,
+        weapon: { name: 'occular telekinesis', dmg: '2d4', bonus: 2, weight: 5, tval: 23, sval: 1 },
+        armor: { name: 'eyestalk warding aura', ac: 4, bonus: 2, weight: 10, tval: 36, sval: 1 },
+        extra: { kind: 'ring', name: 'ring of gaze focusing', glyph: '=', count: 1, weight: 2, tval: 45, sval: 1 },
+        innatePower: { name: 'Disintegration Ray', cost: 2, dmg: 22, desc: 'Unleash a disintegrating energy ray from your central eye.' }
+    };
+
+    function getAllHeroOrigins() {
+        const base = Pool.HERO_ORIGINS || {};
+        return {
+            ...base,
+            beholder: base.beholder || SYNTHETIC_BEHOLDER
+        };
+    }
+
+    function resolveAvatarId(originId) {
+        if (!originId) return null;
+        if (originId === 'red_dragon' || originId === 'dragon') return 'dragon';
+        if (originId === 'beholder') return 'beholder';
+        if (originId === 'arch_lich' || originId === 'lich') return 'lich';
+        if (originId === 'vampire_scion' || originId === 'vampire') return 'vampire';
+        if (originId === 'iron_golem' || originId === 'golem') return 'golem';
+        if (originId === 'minotaur') return 'minotaur';
+        return null;
+    }
+
     function xorshift32(seed) {
         let s = (Number(seed) >>> 0) || 0x9E3779B9;
         return function next() {
@@ -48,6 +110,7 @@
             godMode: Boolean(config.godMode),
             seed: (Number(config.seed) >>> 0) || 1337,
             customTitle: config.customTitle || '',
+            customNemesisName: config.customNemesisName || '',
             ...(config.mapLayout && config.mapLayout !== 'classic' ? { mapLayout: config.mapLayout } : {}),
             ...(config.mutatorId && config.mutatorId !== 'balanced' ? { mutatorId: config.mutatorId } : {})
         });
@@ -72,7 +135,7 @@
         const archetypes = Pool.WORLD_ARCHETYPES || [];
         const baseArch = archetypes.find(a => a.id === raw.archetypeId) || archetypes[0];
 
-        const seed = (Number(raw.seed) >>> 0) || 0x59415344;
+        const seed = parseSeed(raw.seed);
         const biomeId = Pool.BIOMES[raw.biome] ? raw.biome : baseArch.biome;
         const biomeSpec = Pool.BIOMES[biomeId];
 
@@ -87,13 +150,14 @@
             resolvedBestiaryId = biomeSpec.defaultBestiary || baseArch.bestiary || 'warbands';
         }
 
+        const allHeroes = getAllHeroOrigins();
         const rng = xorshift32(seed);
-        let heroOriginId = raw.heroOrigin || baseArch.heroOrigin || 'warrior';
-        if (heroOriginId === 'random' || !Pool.HERO_ORIGINS[heroOriginId]) {
-            const heroKeys = Object.keys(Pool.HERO_ORIGINS);
+        let heroOriginId = raw.heroOrigin || raw.heroOriginId || (raw.avatarId && allHeroes[raw.avatarId] ? raw.avatarId : (baseArch.heroOrigin || 'warrior'));
+        if (heroOriginId === 'random' || !allHeroes[heroOriginId]) {
+            const heroKeys = Object.keys(allHeroes);
             heroOriginId = heroKeys[rng() % heroKeys.length];
         }
-        const heroSpec = Pool.HERO_ORIGINS[heroOriginId] || Pool.HERO_ORIGINS.warrior;
+        const heroSpec = allHeroes[heroOriginId] || allHeroes.warrior;
 
         let powerDiscipline = raw.powerDiscipline || 'auto';
         let resolvedDiscipline = powerDiscipline;
@@ -108,7 +172,7 @@
         const rawDepth = Number(raw.goalDepth);
         const goalDepth = Number.isFinite(rawDepth) ? Math.min(30, Math.max(5, Math.round(rawDepth))) : (baseArch.goalDepth || 15);
 
-        const victoryMode = ['boss_kill', 'ascension', 'three_runes'].includes(raw.victoryMode)
+        const victoryMode = ['boss_kill', 'ascension', 'three_runes', 'relic_ascent'].includes(raw.victoryMode)
             ? raw.victoryMode
             : (baseArch.victoryMode || 'boss_kill');
 
@@ -152,9 +216,21 @@
             ? raw.customActs
             : storySpec.acts;
 
+        const resolvedAid = raw.avatarId || resolveAvatarId(heroOriginId);
         const normalized = {
             version: '1.0',
             archetypeId: baseArch.id,
+            presetId: raw.presetId || undefined,
+            chimeraChaos: Boolean(raw.chimeraChaos || raw.presetId === 'true_chimera_chaos'),
+            mithrilSmithing: Boolean(raw.mithrilSmithing),
+            wovenSongs: Boolean(raw.wovenSongs),
+            martialStances: Boolean(raw.martialStances),
+            wantedBounties: Boolean(raw.wantedBounties),
+            pantheonAltars: Boolean(raw.pantheonAltars),
+            livingPhysics: Boolean(raw.livingPhysics),
+            evolvingAllies: Boolean(raw.evolvingAllies),
+            unidentifiedAppearances: Boolean(raw.unidentifiedAppearances),
+            stampedVaults: raw.stampedVaults !== false,
             seed,
             title,
             subtitle,
@@ -166,6 +242,8 @@
             bestiary: bestiaryId,
             resolvedBestiary: resolvedBestiaryId,
             heroOrigin: heroOriginId,
+            avatarId: resolvedAid,
+            isMonsterAvatar: Boolean(raw.isMonsterAvatar || heroSpec.isMonsterAvatar || resolvedAid),
             powerDiscipline,
             resolvedDiscipline,
             progressionMode,
@@ -183,7 +261,7 @@
             nemesisName,
             elderRumor,
             chronicler: storySpec.chronicler,
-            deity: storySpec.deity,
+            deity: raw.deity || storySpec.deity,
             traditionKey: storySpec.traditionKey,
             acts
         };
@@ -291,7 +369,8 @@
             c.customTitle || '',
             c.mapLayout || 'classic',
             c.mutatorId || 'balanced',
-            c.d20Fate || 15
+            c.d20Fate || 15,
+            c.customNemesisName || ''
         ];
         const json = JSON.stringify(compact);
         if (typeof Buffer !== 'undefined') {
@@ -332,7 +411,8 @@
                 customTitle: arr[17] || '',
                 mapLayout: arr[18] || undefined,
                 mutatorId: arr[19] || undefined,
-                d20Fate: arr[20] != null ? Number(arr[20]) : undefined
+                d20Fate: arr[20] != null ? Number(arr[20]) : undefined,
+                customNemesisName: arr[21] || ''
             });
         } catch (_) {
             return null;
@@ -420,25 +500,28 @@
         const biomeSpec = Pool.BIOMES[bp.biome] || Pool.BIOMES.obsidian;
         const storySpec = Pool.STORY_ARCS[bp.storyArc] || Pool.STORY_ARCS.shattered_covenant;
         const disciplineSpec = Pool.POWER_DISCIPLINES[bp.resolvedDiscipline] || Pool.POWER_DISCIPLINES.arcane;
-        const selectedHero = Pool.HERO_ORIGINS[bp.heroOrigin] || Pool.HERO_ORIGINS.warrior;
+        const allHeroes = getAllHeroOrigins();
+        const selectedHero = allHeroes[bp.heroOrigin] || allHeroes.warrior;
         const petSpec = Pool.PET_COMPANIONS[bp.pet] || null;
 
         // Build roles list with the chosen heroOrigin first (`key: 'a'`) so Quick-Start selects it automatically,
         // while Custom Birth (`-c`) displays all 12 roles/avatars (`a..l`).
         const orderedOrigins = [
             selectedHero,
-            ...Object.values(Pool.HERO_ORIGINS).filter(h => h.id !== selectedHero.id)
+            ...Object.values(allHeroes).filter(h => h.id !== selectedHero.id)
         ];
 
         const hpFactor = bp.difficulty === 'story' ? 1.5 : 1.0;
         const roles = orderedOrigins.slice(0, 12).map((h, idx) => {
             const disc = Pool.POWER_DISCIPLINES[bp.powerDiscipline === 'auto' ? h.defaultDiscipline : bp.resolvedDiscipline] || disciplineSpec;
+            const aid = h.avatarId || resolveAvatarId(h.id);
             return {
                 key: String.fromCharCode(97 + idx),
                 id: h.roleName,
                 originId: h.id,
+                avatarId: aid || null,
                 race: h.race,
-                isMonsterAvatar: Boolean(h.isMonsterAvatar),
+                isMonsterAvatar: Boolean(h.isMonsterAvatar || aid),
                 avatarMonsterName: h.avatarMonsterName || null,
                 align: h.align,
                 hp: bp.godMode ? 999 : Math.round(h.hp * hpFactor),
@@ -507,11 +590,64 @@
         }
 
         const items = Pool.BASE_LOOT_POOL.map(it => ({ ...it }));
+        const extraRyodItems = [
+            { kind: 'potion', name: 'potion of speed', glyph: '!', attr: 12, speedTurns: 20, weight: 10, tval: 71, sval: 12, tier: 1 },
+            { kind: 'potion', name: 'potion of heroism', glyph: '!', attr: 14, heroismTurns: 25, heal: 15, weight: 10, tval: 71, sval: 14, tier: 1 },
+            { kind: 'potion', name: 'potion of levitation', glyph: '!', attr: 3, levitationTurns: 30, weight: 10, tval: 71, sval: 18, tier: 1 },
+            { kind: 'potion', name: 'potion of restore abilities', glyph: '!', attr: 11, restoreStats: true, weight: 10, tval: 71, sval: 20, tier: 2 },
+            { kind: 'potion', name: 'potion of poison', glyph: '!', attr: 2, poisonTurns: 10, weight: 10, tval: 71, sval: 4, tier: 1 },
+            { kind: 'potion', name: 'potion of confusion', glyph: '!', attr: 6, confusionTurns: 10, weight: 10, tval: 71, sval: 5, tier: 1 },
+            { kind: 'potion', name: 'potion of telepathy', glyph: '!', attr: 11, telepathyTurns: 40, grantsTelepathy: true, weight: 15, tval: 71, sval: 42, tier: 2 },
+            { kind: 'scroll', name: 'scroll of identify', glyph: '?', attr: 7, count: 1, weight: 5, tval: 70, sval: 1, tier: 1 },
+            { kind: 'scroll', name: 'scroll of remove curse', glyph: '?', attr: 7, count: 1, weight: 5, tval: 70, sval: 2, tier: 1 },
+            { kind: 'scroll', name: 'scroll of enchant weapon', glyph: '?', attr: 7, count: 1, weight: 5, tval: 70, sval: 3, tier: 2 },
+            { kind: 'scroll', name: 'scroll of enchant armor', glyph: '?', attr: 7, count: 1, weight: 5, tval: 70, sval: 4, tier: 2 },
+            { kind: 'scroll', name: 'scroll of universal enchantment', glyph: '?', attr: 14, enchantGain: 1, count: 1, weight: 5, tval: 70, sval: 15, tier: 2 },
+            { kind: 'scroll', name: 'scroll of teleportation', glyph: '?', attr: 7, count: 1, weight: 5, tval: 70, sval: 8, tier: 1 },
+            { kind: 'scroll', name: 'scroll of magic mapping', glyph: '?', attr: 7, count: 1, weight: 5, tval: 70, sval: 9, tier: 2 },
+            { kind: 'scroll', name: 'scroll of genocide', glyph: '?', attr: 4, genocide: true, count: 1, weight: 5, tval: 70, sval: 20, tier: 3 },
+            { kind: 'scroll', name: 'scroll of recharging', glyph: '?', attr: 11, recharging: true, count: 1, weight: 5, tval: 70, sval: 11, tier: 2 },
+            { kind: 'wand', name: 'wand of firebolt', glyph: '-', charges: 5, maxCharges: 5, attr: 4, boltDmg: 20, weight: 12, tval: 66, sval: 1, tier: 1 },
+            { kind: 'wand', name: 'wand of frost', glyph: '-', charges: 5, maxCharges: 5, attr: 3, boltDmg: 20, weight: 12, tval: 66, sval: 2, tier: 1 },
+            { kind: 'wand', name: 'wand of lightning', glyph: '-', charges: 5, maxCharges: 5, attr: 14, boltDmg: 24, weight: 12, tval: 66, sval: 3, tier: 2 },
+            { kind: 'wand', name: 'wand of teleportation', glyph: '-', charges: 5, maxCharges: 5, attr: 7, weight: 12, tval: 66, sval: 4, tier: 1 },
+            { kind: 'wand', name: 'wand of sleep', glyph: '-', charges: 5, maxCharges: 5, attr: 6, weight: 12, tval: 66, sval: 5, tier: 1 },
+            { kind: 'wand', name: 'wand of polymorph', glyph: '-', charges: 4, maxCharges: 4, attr: 5, weight: 12, tval: 66, sval: 6, tier: 2 },
+            { kind: 'wand', name: 'wand of disintegration', glyph: '-', charges: 3, maxCharges: 3, attr: 11, boltDmg: 35, weight: 12, tval: 66, sval: 7, tier: 3 },
+            { kind: 'ranged', name: 'short bow', glyph: '}', dmg: '1d6', bonus: 1, weight: 20, tval: 19, sval: 5, slot: 'bow' },
+            { kind: 'ranged', name: 'long bow', glyph: '}', dmg: '1d8', bonus: 2, weight: 30, tval: 19, sval: 12, slot: 'bow' },
+            { kind: 'ammo', name: 'flight arrows', glyph: '{', count: 30, dmg: '1d4', weight: 15, tval: 16, sval: 1 },
+            { kind: 'cloak', name: 'elven cloak', glyph: '(', ac: 2, bonus: 1, weight: 10, tval: 35, sval: 2, slot: 'cloak' },
+            { kind: 'shield', name: 'round shield', glyph: ')', ac: 3, bonus: 1, weight: 40, tval: 34, sval: 2, slot: 'shield' },
+            { kind: 'helm', name: 'iron helm', glyph: ']', ac: 2, bonus: 1, weight: 30, tval: 32, sval: 3, slot: 'helm' },
+            { kind: 'gloves', name: 'leather gloves', glyph: '[', ac: 1, bonus: 1, weight: 8, tval: 31, sval: 1, slot: 'gloves' },
+            { kind: 'boots', name: 'iron shod boots', glyph: '[', ac: 2, bonus: 1, weight: 25, tval: 30, sval: 2, slot: 'boots' },
+            { kind: 'amulet', name: 'amulet of reflection', glyph: '"', weight: 5, tval: 40, sval: 5, slot: 'amulet' },
+            { kind: 'ring', name: 'ring of protection', glyph: '=', acBonus: 2, bonus: 2, weight: 2, tval: 45, sval: 2, slot: 'ring' },
+            { kind: 'light', name: 'brass lantern', glyph: '~', lightRadius: 3, weight: 20, tval: 39, sval: 1, slot: 'light' }
+        ];
+        for (const it of extraRyodItems) {
+            if (!items.some(existing => existing.name === it.name)) items.push(it);
+        }
 
         return {
             realm: 'ryod',
             magic: 'SaveRYOD',
             version: '11.8.0-ryod',
+            seed: bp.seed,
+            presetId: bp.presetId || null,
+            avatarId: bp.avatarId || (selectedHero && selectedHero.avatarId) || null,
+            isMonsterAvatar: Boolean(bp.isMonsterAvatar || (selectedHero && selectedHero.isMonsterAvatar)),
+            chimeraChaos: Boolean(bp.chimeraChaos),
+            mithrilSmithing: Boolean(bp.mithrilSmithing),
+            wovenSongs: Boolean(bp.wovenSongs),
+            martialStances: Boolean(bp.martialStances),
+            wantedBounties: Boolean(bp.wantedBounties),
+            pantheonAltars: Boolean(bp.pantheonAltars),
+            livingPhysics: Boolean(bp.livingPhysics),
+            evolvingAllies: Boolean(bp.evolvingAllies),
+            stampedVaults: bp.stampedVaults !== false,
+            unidentifiedAppearances: Boolean(bp.unidentifiedAppearances),
             ryodHash: bp.ryodHash,
             ryodBlueprint: bp,
             title: `${bp.title} [${bp.ryodHash}]`,
@@ -529,6 +665,17 @@
             mapLayout: bp.mapLayout || 'classic',
             mutatorId: bp.mutatorId || 'balanced',
             d20Fate: bp.d20Fate || 15,
+            d20FateTitle: bp.d20Fate === 20 ? 'Vault Relic Boon & Shrine Blessing' : (bp.d20Fate >= 15 ? 'Explorer Cache & Speed' : (bp.d20Fate === 1 ? 'Nemesis Shade Hunt & 2× Score' : (bp.d20Fate <= 7 ? 'Hardscrabble Provisions' : 'Adventurer Gold'))),
+            d20FateDescription: bp.d20Fate === 20
+                ? 'Starts with blessed relic ring, supreme healing, and persistent shrine favor.'
+                : (bp.d20Fate >= 15 ? 'Starts with 45 gold, potion of speed, and magic mapping scroll.'
+                : (bp.d20Fate === 1 ? 'Hunted across floors by a deadly Nemesis Shade, but all score/XP is doubled (2× multiplier)!'
+                : (bp.d20Fate <= 7 ? 'Starts with meager hardscrabble provisions.'
+                : 'Starts with 15 gold and a standard healing draught.'))),
+            d20FateType: bp.d20Fate === 20 ? 'nat20_boon' : (bp.d20Fate >= 15 ? 'high_boon' : (bp.d20Fate === 1 ? 'nat1_dare' : (bp.d20Fate <= 7 ? 'low_burden' : 'standard'))),
+            nemesisName: bp.nemesisName,
+            customNemesisName: bp.customNemesisName || undefined,
+            customTitle: bp.customTitle || undefined,
             hazardDensity: bp.hazardDensity,
             startingPet: petSpec,
             captiveAllies: bp.captiveAllies,
@@ -571,6 +718,135 @@
         };
     }
 
+    const MASTERWORK_PRESETS = [
+        {
+            id: 'first_age_anvil',
+            title: 'The First Age Mithril Forge',
+            subtitle: 'Halls of Gondolin ring with ancient song and adamantine craft.',
+            archetypeId: 'obsidian_covenant',
+            biome: 'obsidian',
+            storyArc: 'shattered_covenant',
+            heroOrigin: 'warrior',
+            powerDiscipline: 'martial',
+            progressionMode: 'xp',
+            goalDepth: 15,
+            victoryMode: 'boss_kill',
+            mithrilSmithing: true,
+            wovenSongs: true,
+            stampedVaults: true
+        },
+        {
+            id: 'mazes_of_alchemy',
+            title: 'The Mazes of Alchemy',
+            subtitle: 'NetHack-style unidentified draughts, sacred fountains, and fickle BUC beatitude.',
+            archetypeId: 'gothic_necropolis',
+            biome: 'catacombs',
+            storyArc: 'ossuary_crown',
+            heroOrigin: 'rogue',
+            powerDiscipline: 'auto',
+            progressionMode: 'xp',
+            goalDepth: 15,
+            beatitude: true,
+            unidentifiedAppearances: true,
+            stampedVaults: true
+        },
+        {
+            id: 'luminous_crucible',
+            title: 'The Luminous Spore Crucible',
+            subtitle: 'Brogue-inspired caustic gases, living wildfire, and captive allies evolving across grottos.',
+            archetypeId: 'underdark_plague',
+            biome: 'bioluminescent',
+            storyArc: 'spore_choir',
+            heroOrigin: 'warrior',
+            powerDiscipline: 'auto',
+            progressionMode: 'brogue_item',
+            goalDepth: 15,
+            livingPhysics: true,
+            captiveAllies: true,
+            evolvingAllies: true
+        },
+        {
+            id: 'pantheon_gauntlet',
+            title: 'The Ecumenical Pantheon Gauntlet',
+            subtitle: 'DCSS six-deity pantheon altars, piety tithes, and celestial weapon gifts.',
+            archetypeId: 'gothic_necropolis',
+            biome: 'catacombs',
+            storyArc: 'ossuary_crown',
+            heroOrigin: 'priest',
+            powerDiscipline: 'piety',
+            progressionMode: 'xp',
+            goalDepth: 15,
+            pantheonAltars: true,
+            deity: 'Trog'
+        },
+        {
+            id: 'wyrm_beholder_ascendant',
+            title: 'Ascendant Eyestalk of Chaos',
+            subtitle: 'True playable creature avatar: 6 eyestalk ring slots, chasm levitation, and disintegration rays.',
+            archetypeId: 'clockwork_abyss',
+            biome: 'chaos_rift',
+            storyArc: 'clockwork_abyss',
+            heroOrigin: 'beholder',
+            avatarId: 'beholder',
+            isMonsterAvatar: true,
+            powerDiscipline: 'arcane',
+            progressionMode: 'xp',
+            goalDepth: 15
+        },
+        {
+            id: 'bushido_bounty_tower',
+            title: 'Tower of the Shogunate Bounties',
+            subtitle: 'Hengband martial stances (Genbu, Byakko, Seiryu, Suzaku) and wanted criminal floor bounties.',
+            archetypeId: 'shadow_shogunate',
+            biome: 'shadow_keep',
+            storyArc: 'crown_of_cinders',
+            heroOrigin: 'warrior',
+            powerDiscipline: 'martial',
+            martialStances: true,
+            wantedBounties: true,
+            goalDepth: 15
+        },
+        {
+            id: 'yendor_relic_ascent',
+            title: 'The Descent for the Relic of Yendor',
+            subtitle: 'Rogue classic ascent pursuit: retrieve the Amulet from the depths and escape to DL 1 while hunted.',
+            archetypeId: 'glacial_bastion',
+            biome: 'frozen_wastes',
+            storyArc: 'frozen_throne',
+            heroOrigin: 'rogue',
+            powerDiscipline: 'auto',
+            progressionMode: 'xp',
+            goalDepth: 10,
+            victoryMode: 'relic_ascent'
+        },
+        {
+            id: 'true_chimera_chaos',
+            title: 'The True Chimera Forge',
+            subtitle: 'All 8 roguelike disciplines ignited simultaneously in glorious cross-realm chaos.',
+            archetypeId: 'clockwork_abyss',
+            biome: 'chaos_rift',
+            storyArc: 'clockwork_abyss',
+            heroOrigin: 'beholder',
+            avatarId: 'beholder',
+            isMonsterAvatar: true,
+            powerDiscipline: 'arcane',
+            chimeraChaos: true,
+            mithrilSmithing: true,
+            wovenSongs: true,
+            martialStances: true,
+            wantedBounties: true,
+            pantheonAltars: true,
+            livingPhysics: true,
+            captiveAllies: true,
+            evolvingAllies: true,
+            beatitude: true,
+            stampedVaults: true,
+            unidentifiedAppearances: true,
+            victoryMode: 'relic_ascent',
+            goalDepth: 15
+        }
+    ];
+
     return {
         computeRyodHash,
         normalizeConfig,
@@ -578,6 +854,9 @@
         encodePermalink,
         decodePermalink,
         buildFloorCohorts,
-        compileEngineSpec
+        compileEngineSpec,
+        parseSeed,
+        mulberry32,
+        MASTERWORK_PRESETS
     };
 });

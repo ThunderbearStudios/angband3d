@@ -38,10 +38,10 @@
     --text-muted: #8c9ba5;
     --glass-bg: rgba(12, 14, 20, 0.78);
     --glass-border: rgba(212, 175, 55, 0.25);
-    --font-fantasy: 'Cinzel', serif, -apple-system;
+    --font-fantasy: 'Cinzel', serif, -apple-system, 'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', 'Segoe UI Symbol';
     --font-terminal: 'Fira Code', 'Courier New', monospace;
-    --font-ui: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    --font-display: 'Cinzel', serif;
+    --font-ui: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif, 'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', 'Segoe UI Symbol';
+    --font-display: 'Cinzel', serif, 'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', 'Segoe UI Symbol';
     --safe-top: env(safe-area-inset-top, 0px);
     --safe-bottom: env(safe-area-inset-bottom, 0px);
     --safe-left: env(safe-area-inset-left, 0px);
@@ -831,12 +831,12 @@ html.has-touch .grimoire-ritual-btn {
 #message-feed-window {
     position: absolute;
     top: 42px;
-    left: 320px;
+    left: 290px;
     transform: none;
     z-index: 6;
-    width: min(580px, calc(100vw - 340px));
-    min-width: 360px;
-    max-width: 90vw;
+    width: min(460px, calc(100vw - 660px));
+    min-width: 240px;
+    max-width: calc(100vw - 660px);
     height: 106px; /* Default 4 visible lines (WS9.4) */
     min-height: 70px;
     max-height: 80vh;
@@ -947,7 +947,8 @@ html.has-touch .grimoire-ritual-btn {
     border-color: var(--gold-bright);
 }
 
-.message-feed-scroll {
+.message-feed-scroll,
+#message-feed-scroll {
     flex: 1;
     min-height: 50px;
     height: auto;
@@ -955,6 +956,7 @@ html.has-touch .grimoire-ritual-btn {
     overflow-y: auto;
     overflow-x: hidden;
     padding: 4px 8px;
+    padding-top: 6px !important;
     display: flex;
     flex-direction: column;
     background: rgba(8, 11, 18, 0.92);
@@ -3260,7 +3262,7 @@ to { opacity: 1; transform: translateY(0); }
 .splash-realm-grid { grid-template-columns: 1fr; gap: 8px; }
 }
 
-/* Hide in-game HUD chrome when Splash or Main Menu is active so only the 3D Celestial Diorama shines behind the menu */
+/* Hide in-game HUD chrome when Splash, Realm Carousel, or Main Menu is active so only the 3D Celestial Diorama shines behind the menu */
 #app-container:has(#splash-overlay:not(.hidden)) #hud-overlay,
 #app-container:has(#splash-overlay:not(.hidden)) #top-right-bar,
 #app-container:has(#splash-overlay:not(.hidden)) #minimap-container,
@@ -3268,6 +3270,13 @@ to { opacity: 1; transform: translateY(0); }
 #app-container:has(#splash-overlay:not(.hidden)) #top-message-banner,
 #app-container:has(#splash-overlay:not(.hidden)) #message-feed-window,
 #app-container:has(#splash-overlay:not(.hidden)) #diegetic-reticle,
+#app-container:has(#realm-selector-modal:not(.hidden)) #hud-overlay,
+#app-container:has(#realm-selector-modal:not(.hidden)) #top-right-bar,
+#app-container:has(#realm-selector-modal:not(.hidden)) #minimap-container,
+#app-container:has(#realm-selector-modal:not(.hidden)) #touch-controls,
+#app-container:has(#realm-selector-modal:not(.hidden)) #top-message-banner,
+#app-container:has(#realm-selector-modal:not(.hidden)) #message-feed-window,
+#app-container:has(#realm-selector-modal:not(.hidden)) #diegetic-reticle,
 #app-container:has(#main-menu-overlay:not(.hidden)) #hud-overlay,
 #app-container:has(#main-menu-overlay:not(.hidden)) #top-right-bar,
 #app-container:has(#main-menu-overlay:not(.hidden)) #minimap-container,
@@ -7263,106 +7272,7 @@ to { opacity: 1; transform: translateY(0) scale(1); }
 
 .realm-voice-audit-banner strong { color: #ffd700; }
 
-.realm-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-    gap: 16px;
-    margin: 16px 0;
-    text-align: left;
-}
-
-.realm-card {
-    position: relative;
-    background: rgba(15, 23, 42, 0.7);
-    border: 1px solid rgba(148, 163, 184, 0.2);
-    border-radius: 10px;
-    padding: 18px 20px;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    transition: all 0.25s ease;
-    cursor: pointer;
-    -webkit-user-select: none;
-    user-select: none;
-}
-
-.realm-card:hover {
-    border-color: rgba(56, 189, 248, 0.6);
-    transform: translateY(-2px);
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.6);
-}
-
-.realm-card.active {
-    border: 2px solid #38bdf8;
-    background: rgba(15, 28, 52, 0.95);
-    box-shadow: 0 0 25px rgba(56, 189, 248, 0.4), inset 0 0 15px rgba(56, 189, 248, 0.15);
-}
-
-.realm-card-badge {
-    position: absolute;
-    top: 12px;
-    right: 12px;
-    background: #38bdf8;
-    color: #0b1120;
-    font-size: 10px;
-    font-weight: 800;
-    padding: 2px 8px;
-    border-radius: 6px;
-    letter-spacing: 1px;
-    box-shadow: 0 2px 8px rgba(56, 189, 248, 0.5);
-}
-
-.realm-card-icon { font-size: 28px; line-height: 1; }
-
-.realm-card-title {
-    font-family: var(--font-title);
-    font-size: 19px;
-    font-weight: 700;
-    color: #f8fafc;
-    margin: 0;
-}
-
-.realm-card.active .realm-card-title { color: #ffd700; }
-
-.realm-card-tagline {
-    font-size: 12.5px;
-    font-weight: 600;
-    color: #38bdf8;
-}
-
-.realm-card-desc {
-    font-size: 12px;
-    color: #94a3b8;
-    line-height: 1.5;
-    margin: 0;
-    flex-grow: 1;
-}
-
-.realm-card-features {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    margin: 6px 0 10px;
-}
-
-.realm-feat-chip {
-    font-size: 10.5px;
-    background: rgba(30, 41, 59, 0.8);
-    border: 1px solid rgba(212, 175, 55, 0.25);
-    color: #e2e8f0;
-    padding: 3px 8px;
-    border-radius: 4px;
-}
-
-.btn-realm-select {
-    width: 100%;
-    padding: 8px 14px;
-    font-size: 13px;
-    font-weight: 700;
-    cursor: pointer;
-    border-radius: 6px;
-    transition: all 0.2s ease;
-}
+/* Legacy .realm-grid / .realm-card rules migrated to server/public/css/realm-cards.css (WS82) */
 
 /* Realm Attunement Toast Banner */
 .realm-toast {
@@ -8144,9 +8054,7 @@ to { opacity: 1; transform: translateY(0); }
 }
 
 #char-panel .gauge-hp .gauge-track { border: 1px solid rgba(212, 162, 76, 0.72) !important; }
-
 #char-panel .gauge-sp .gauge-track { border: 1px solid rgba(104, 159, 212, 0.72) !important; }
-
 #char-panel .gauge-ghost-fill {
     position: absolute !important;
     top: 0 !important;
@@ -8155,18 +8063,20 @@ to { opacity: 1; transform: translateY(0); }
     height: 100% !important;
     width: var(--vial-pct, 100%) !important;
     background: linear-gradient(180deg, rgba(255, 236, 179, 0.85) 0%, rgba(245, 158, 11, 0.75) 100%) !important;
-    transition: width 0.68s cubic-bezier(0.22, 1, 0.36, 1) !important;
+    transition: width 0.68s cubic-bezier(0.22, 1, 0.36, 1) 0.22s !important;
     z-index: 1 !important;
     pointer-events: none !important;
 }
-
+#char-panel .gauge-ghost-fill.is-healing { transition: width 0.16s cubic-bezier(0.22, 1, 0.36, 1) 0s !important; }
 #char-panel #hp-fill,
-#char-panel #sp-fill {
+#char-panel #sp-fill,
+#char-panel #exp-fill {
     position: absolute !important;
     top: 0 !important;
     bottom: 0 !important;
     left: 0 !important;
     height: 100% !important;
+    overflow: hidden !important;
     width: var(--vial-pct, 100%) !important;
     transition: width 0.16s cubic-bezier(0.22, 1, 0.36, 1) !important;
     z-index: 2 !important;
@@ -9079,9 +8989,10 @@ html.device-desktop #btn-action-more.is-needed { display: none !important; }
 #app-container #message-feed-window:not(.expanded):not(.mobile-expanded),
 #hud-overlay #message-feed-window:not(.expanded):not(.mobile-expanded) {
     top: 38px;
-    left: 204px;
-    width: min(460px, calc(100vw - 420px));
-    min-width: 240px;
+    left: 290px;
+    width: min(460px, calc(100vw - 660px));
+    max-width: calc(100vw - 660px);
+    min-width: 220px;
     height: 106px;
     max-height: 80vh;
     min-height: 84px;
@@ -9093,6 +9004,7 @@ html.device-desktop #btn-action-more.is-needed { display: none !important; }
         left: 10px !important;
         right: 10px !important;
         width: auto !important;
+        max-width: none !important;
         min-width: 0 !important;
     }
 }
@@ -9201,12 +9113,20 @@ body.grimoire-primary-open #entity-inspect-popover { display: none !important; }
 
 #hud-overlay #message-feed-window {
     top: 38px;
-    left: 204px;
-    width: min(460px, calc(100vw - 420px));
-    min-width: 240px;
+    left: 290px;
+    width: min(460px, calc(100vw - 660px));
+    max-width: calc(100vw - 660px);
+    min-width: 220px;
     height: 106px;
     min-height: 84px;
     max-height: 80vh;
+}
+
+@media (min-width: 961px) {
+    #app-container:has(#reticle-target-card:not(.hidden)) #message-feed-window:not([style*="left"]),
+    #hud-overlay:has(#reticle-target-card:not(.hidden)) #message-feed-window:not([style*="left"]) {
+        max-width: min(460px, calc(50vw - 310px));
+    }
 }
 
 #hud-overlay #message-feed-window.expanded { height: 180px; max-height: 80vh; }
@@ -9760,12 +9680,17 @@ body[data-realm="nethack"] { --realm-surface-top: #0f1916; --realm-surface-bot: 
 body[data-realm="dcss"] { --realm-surface-top: #131620; --realm-surface-bot: #07090f; --realm-border-outer: rgba(234, 179, 8, 0.58); --realm-border-inner: rgba(254, 240, 138, 0.18); --realm-accent-bright: #fde047; --realm-accent-glow: rgba(234, 179, 8, 0.34); --realm-socket-bg: linear-gradient(180deg, #191d2b 0%, #0b0d14 100%); }
 body[data-realm="brogue"] { --realm-surface-top: #1d120e; --realm-surface-bot: #0c0705; --realm-border-outer: rgba(249, 115, 22, 0.56); --realm-border-inner: rgba(254, 215, 170, 0.18); --realm-accent-bright: #fdba74; --realm-accent-glow: rgba(249, 115, 22, 0.34); --realm-socket-bg: linear-gradient(180deg, #261610 0%, #100906 100%); }
 body[data-realm="rogue"] { --realm-surface-top: #16130d; --realm-surface-bot: #090805; --realm-border-outer: rgba(245, 158, 11, 0.58); --realm-border-inner: rgba(253, 230, 138, 0.18); --realm-accent-bright: #fcd34d; --realm-accent-glow: rgba(245, 158, 11, 0.34); --realm-socket-bg: linear-gradient(180deg, #1f1a10 0%, #0d0b06 100%); }
+body[data-realm="ryod"] { --realm-surface-top: #1c1013; --realm-surface-bot: #0b0608; --realm-border-outer: rgba(225, 29, 72, 0.58); --realm-border-inner: rgba(254, 205, 211, 0.18); --realm-accent-bright: #fda4af; --realm-accent-glow: rgba(225, 29, 72, 0.34); --realm-socket-bg: linear-gradient(180deg, #251217 0%, #10070a 100%); }
 #action-bar .action-cluster-sep { display: inline-block; width: 1px; height: 22px; background: linear-gradient(180deg, transparent 0%, rgba(212, 175, 55, 0.48) 50%, transparent 100%); margin: 0 3px; align-self: center; flex-shrink: 0; pointer-events: none; }
 .death-panel { width: min(1060px, 96vw) !important; max-width: min(1060px, 96vw) !important; max-height: min(94dvh, 880px) !important; } .death-body { max-height: 520px !important; overflow-x: hidden !important; overflow-y: auto !important; }
 .death-tombstone-split { display: grid; grid-template-columns: minmax(280px, 370px) minmax(0, 1fr); gap: 16px; align-items: stretch; width: 100%; }
 @media (max-width: 860px) { .death-tombstone-split { grid-template-columns: 1fr; } }
 #death-terminal-container { min-width: 0; overflow: hidden; border: 1px solid rgba(212, 175, 55, 0.32); box-shadow: inset 0 0 18px rgba(0, 0, 0, 0.9); } #death-terminal-canvas { width: 100% !important; height: auto !important; max-width: 100% !important; max-height: 360px !important; object-fit: contain !important; }
-.death-sketch-wrap { display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(14, 10, 7, 0.94); border: 1.5px solid rgba(212, 175, 55, 0.65); border-radius: 8px; padding: 10px; box-shadow: inset 0 0 18px rgba(0, 0, 0, 0.85), 0 6px 20px rgba(0, 0, 0, 0.7); }
+.death-sketch-wrap { position: relative; min-height: 220px; display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(14, 10, 7, 0.94); border: 1.5px solid rgba(212, 175, 55, 0.65); border-radius: 8px; padding: 10px; box-shadow: inset 0 0 18px rgba(0, 0, 0, 0.85), 0 6px 20px rgba(0, 0, 0, 0.7); }
+#death-sketch-loader, .chronicle-sketch-loader { position: absolute; inset: 10px; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 8px; background: rgba(10, 8, 6, 0.74); border-radius: 6px; color: #f5d77f; font-size: 12px; font-weight: 700; text-align: center; z-index: 3; pointer-events: none; }
+#death-sketch-loader::before, .chronicle-sketch-loader::before { content: ""; width: 28px; height: 28px; border-radius: 50%; border: 2.5px solid rgba(212, 175, 55, 0.28); border-top-color: #f5d77f; animation: yasd-sketch-spin 0.9s linear infinite; }
+@keyframes yasd-sketch-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { #death-sketch-loader::before, .chronicle-sketch-loader::before { animation: none; border-color: #f5d77f; } }
 .death-sketch-img { width: 100%; max-height: 310px; aspect-ratio: 1 / 1; object-fit: contain; border-radius: 6px; border: 1px solid rgba(212, 175, 55, 0.45); background: #090705; transition: transform 0.15s ease, box-shadow 0.15s ease; }
 .death-sketch-img:hover { transform: scale(1.015); box-shadow: 0 0 16px rgba(245, 215, 127, 0.45); }
 .death-sketch-status { font-size: 11px; color: #f5d77f; margin-top: 6px; text-align: center; font-family: var(--font-title, 'Cinzel', serif); letter-spacing: 0.4px; }

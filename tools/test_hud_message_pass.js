@@ -95,13 +95,15 @@ const requiredUiAssets = [
 
 for (const asset of requiredUiAssets) {
     const webAssetPath = path.resolve(__dirname, '../server/public/assets/ui', asset);
-    const clientAssetPath = path.resolve(__dirname, '../client/assets/ui', asset);
+    const clientAssetPath = fs.existsSync(path.resolve(__dirname, '../client/assets/ui', asset))
+        ? path.resolve(__dirname, '../client/assets/ui', asset)
+        : path.resolve(__dirname, '../archive/godot-client-v1/assets/ui', asset);
 
     assert.ok(fs.existsSync(webAssetPath), `server/public/assets/ui/${asset} must exist`);
     assert.ok(fs.statSync(webAssetPath).size > 0, `server/public/assets/ui/${asset} must be non-empty`);
 
-    assert.ok(fs.existsSync(clientAssetPath), `client/assets/ui/${asset} must exist (mirrored)`);
-    assert.ok(fs.statSync(clientAssetPath).size > 0, `client/assets/ui/${asset} must be non-empty`);
+    assert.ok(fs.existsSync(clientAssetPath), `archived godot assets/ui/${asset} must exist (mirrored)`);
+    assert.ok(fs.statSync(clientAssetPath).size > 0, `archived godot assets/ui/${asset} must be non-empty`);
 }
 
 // Verify dungeon.css rules

@@ -170,8 +170,11 @@ async function runTests() {
     const glbRes = await get('/assets/models/monsters/Imp.glb');
     assert.strictEqual(glbRes.status, 200);
     assert.strictEqual(glbRes.headers['content-type'], 'model/gltf-binary');
-    assert(glbRes.headers['cache-control'].includes('immutable'));
-    console.log('  -> /assets/models/monsters/Imp.glb served with model/gltf-binary (200 OK)');
+    assert(glbRes.headers['cache-control'].includes('must-revalidate'));
+    const glbVerRes = await get('/assets/models/monsters/Imp.glb?v=12.0.3');
+    assert.strictEqual(glbVerRes.status, 200);
+    assert(glbVerRes.headers['cache-control'].includes('immutable'));
+    console.log('  -> /assets/models/monsters/Imp.glb served with model/gltf-binary & ETag/versioned cache headers (200 OK)');
 
     const puglinRes = await get('/assets/models/monsters/Puglin.glb');
     assert.strictEqual(puglinRes.status, 200);
@@ -240,7 +243,10 @@ async function runTests() {
     const dungeonCss = fs.readFileSync(path.join(__dirname, '../public/css/dungeon.css'), 'utf8');
     const freshAppJs = fs.readFileSync(path.join(__dirname, '../public/js/app.js'), 'utf8');
     assert(freshAppJs.includes("const terminalTitle = document.getElementById('term-title') || document.getElementById('terminal-title');"), 'app.js must lookup term-title correctly');
-    assert(combinedAppAndContext.includes("const isStore = !isItemPrompt && (hasStoreText || (isStoreFeat && inOverlay));"), 'screen-context.js must accurately detect store interface without misclassifying item menus');
+    assert(
+        combinedAppAndContext.includes("const isStore = !isItemPrompt && (hasStoreText || ((isRetailStoreFeat || isHomeFeat) && inOverlay));"),
+        'screen-context.js must accurately detect retail/home store interface without misclassifying item menus or special buildings'
+    );
     assert(dungeonCss.includes("flex: 1;"), 'dungeon.css message-feed-scroll must flex: 1 to fill message feed window');
     // Test 15: Unified Minimap Controls Bar & Responsive Flex Sizing
     console.log('Test 15: Unified Minimap Controls Bar & Responsive Flex Sizing');
@@ -314,9 +320,10 @@ async function runTests() {
     // Test 19: Mobile Touch Sensitivity & Menu Interface Integrity
     console.log('Test 19: Mobile Touch Sensitivity & Menu Interface Integrity');
     const swJs = fs.readFileSync(path.join(__dirname, '../public/sw.js'), 'utf8');
-    assert(swJs.includes("angband3d-v11") || swJs.includes("angband3d-v10") || swJs.includes("angband3d-v9") || swJs.includes("angband3d-v8"), 'sw.js must be bumped to angband3d-v8 or higher');
-    assert(indexRes.body.includes('/css/dungeon.css?v=11.') || indexRes.body.includes('/css/dungeon.css?v=10.') || indexRes.body.includes('/css/dungeon.css?v=9.'), 'index.html must load dungeon.css');
-    assert(indexRes.body.includes('/js/app.js?v=11.') || indexRes.body.includes('/js/app.js?v=10.') || indexRes.body.includes('/js/app.js?v=9.'), 'index.html must load app.js');
+    const swVerMatch = swJs.match(/angband3d-v(\d+)/);
+    assert(swVerMatch && parseInt(swVerMatch[1], 10) >= 8, 'sw.js must be bumped to angband3d-v8 or higher');
+    assert(/\/css\/dungeon\.css\?v=(\d+)\./.test(indexRes.body), 'index.html must load versioned dungeon.css');
+    assert(/\/js\/app\.js\?v=(\d+)\./.test(indexRes.body), 'index.html must load versioned app.js');
     assert(indexRes.body.includes('id="quick-volume-popover"'), 'index.html must contain #quick-volume-popover');
     assert(dungeonCss.includes('.quick-volume-popover'), 'dungeon.css must style .quick-volume-popover');
     assert(dungeonCss.includes('touch-action: pan-x;'), 'dungeon.css .term-letter-ribbon must have touch-action: pan-x');

@@ -171,3 +171,20 @@ For players with motor disabilities, limited right-hand mobility, or RSI requiri
 
 - All turn events, combat rolls, damage notifications, and prompt descriptions are mirrored to DOM containers configured with `role="status"` and `aria-live="polite"`.
 - Announcements queue cleanly without cutting off existing speech synthesis, allowing blind and low-vision players using screen readers (NVDA, JAWS, VoiceOver, Narrator) to receive complete tactical awareness.
+
+---
+
+## 9. `v12.0` Scotopic Anti-Halation, Vestibular & Cognitive Load Upgrades (`WS74`–`WS77`)
+
+1. **`WEB-SCOTOPIC-02` Anti-Halation Dark Slate Palette**:
+   - Replaces pure `#000000` backgrounds and `#ffffff` text glare with warm dark slate (`#161920` / `#1f2430`) and warm parchment (`#dfd9cc` / `#c8c3b8`), keeping body contrast between `4.5:1` and `12.5:1` to prevent astigmatism halation during multi-hour dungeon sessions.
+   - Decorative serif (`Cinzel`) is restricted strictly to `>= 15px` display headings; all dense numeric HUD gauges, 13-rune resistance strips, and damage deltas render in `Outfit` / `Fira Code` `tabular-nums`.
+2. **Unlocked Viewport Pinch-Zoom & Native `<dialog>` Top-Layer Focus**:
+   - `maximum-scale=1.0, user-scalable=no` has been removed so low-vision mobile and tablet players can freely pinch-zoom up to `500%`.
+   - All 9 modal surfaces use native `<dialog>` `showModal()` top-layer focus management with `Escape` unwind and `overscroll-behavior: contain`.
+3. **Granular Camera Head Bob & Hit Shake Slider (`0%–100%`)**:
+   - Alongside instant `[Tab]` 2D CRT switching and `prefers-reduced-motion: reduce`, players can dial 3D camera head bob and combat hit shake continuously from `100%` down to `0%` in the Pause Menu (`#pause-headbob-slider`).
+4. **Immersive (`~14` Controls) vs. Veteran HUD Preset (`#btn-hud-preset`)**:
+   - Defaults to the streamlined **Immersive** HUD (`~14` essential controls, zero duplicate banners) to minimize cognitive overload for neurodivergent and new players, while preserving 1-click access to the full **Veteran** cockpit.
+5. **Opt-In Stakes: Ironman Permadeath vs. Adventure Checkpoints**:
+   - On the Title Deck (`#permadeath-mode-toggle`), players choose between **Adventure Checkpoints** (stress-free accessibility reload after death) and **Ironman Permadeath** (classic roguelike stakes with verified Crypt Hall badges).

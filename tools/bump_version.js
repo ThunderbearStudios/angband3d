@@ -48,9 +48,10 @@ if (fs.existsSync(gradlePath)) {
     console.log(`Updated ${gradlePath} -> versionName "${newVersion}"`);
 }
 
-// 5. Update desktop/Angband3D.csproj and client/angband3d.csproj
+// 5. Update desktop/Angband3D.csproj and archive/godot-client-v1/angband3d.csproj
 const csprojPaths = [
     path.join(rootDir, 'desktop/Angband3D.csproj'),
+    path.join(rootDir, 'archive/godot-client-v1/angband3d.csproj'),
     path.join(rootDir, 'client/angband3d.csproj')
 ];
 const fourPartVersion = newVersion.split('.').length === 3 ? `${newVersion}.0` : newVersion;
@@ -82,6 +83,18 @@ for (const pkgPath of pkgPaths) {
         fs.writeFileSync(pkgPath, updatedPkg, 'utf8');
         console.log(`Updated ${pkgPath} -> version "${newVersion}"`);
     }
+}
+
+// 7. Update top-level version in engine-manifest.json
+const engineManifestPath = path.join(rootDir, 'engine-manifest.json');
+if (fs.existsSync(engineManifestPath)) {
+    const emContent = fs.readFileSync(engineManifestPath, 'utf8');
+    const updatedEm = emContent.replace(
+        /^(\{\s*"\$schema"\s*:\s*"[^"]+"\s*,\s*"version"\s*:\s*")[^"]+(")/,
+        `$1${newVersion}$2`
+    );
+    fs.writeFileSync(engineManifestPath, updatedEm, 'utf8');
+    console.log(`Updated ${engineManifestPath} -> version "${newVersion}"`);
 }
 
 console.log(`Version bump to ${newVersion} complete across all clients and packages.`);

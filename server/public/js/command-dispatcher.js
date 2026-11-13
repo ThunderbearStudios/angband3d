@@ -43,74 +43,74 @@
         return map[lower] || key;
     }
     const CANONICAL_KEYS = Object.freeze({
-        quaff: Object.freeze({ angband: 'q', silq: 'q', frogcomposband: 'q', hengband: 'q', nethack: 'q', dcss: 'q', brogue: 'q', rogue: 'q' }),
-        read: Object.freeze({ angband: 'r', silq: null, frogcomposband: 'r', hengband: 'r', nethack: 'r', dcss: 'r', brogue: 'r', rogue: 'r' }),
-        eat: Object.freeze({ angband: 'E', silq: 'E', frogcomposband: 'E', hengband: 'E', nethack: 'e', dcss: 'e', brogue: 'e', rogue: 'e' }),
-        wield: Object.freeze({ angband: 'w', silq: 'w', frogcomposband: 'w', hengband: 'w', nethack: 'w', dcss: 'w', brogue: 'w', rogue: 'w' }),
-        wear: Object.freeze({ angband: 'w', silq: 'w', frogcomposband: 'w', hengband: 'w', nethack: 'W', dcss: 'W', brogue: 'w', rogue: 'W' }),
-        puton: Object.freeze({ angband: 'w', silq: 'w', frogcomposband: 'w', hengband: 'w', nethack: 'P', dcss: 'P', brogue: 'w', rogue: 'P' }),
-        takeoff: Object.freeze({ angband: 't', silq: 'r', frogcomposband: 't', hengband: 't', nethack: 'T', dcss: 'T', brogue: 'T', rogue: 'T' }),
-        remove: Object.freeze({ angband: 't', silq: 'r', frogcomposband: 't', hengband: 't', nethack: 'R', dcss: 'R', brogue: 'T', rogue: 'R' }),
-        drop: Object.freeze({ angband: 'd', silq: 'd', frogcomposband: 'd', hengband: 'd', nethack: 'd', dcss: 'd', brogue: 'd', rogue: 'd' }),
-        aim: Object.freeze({ angband: 'a', silq: null, frogcomposband: 'a', hengband: 'a', nethack: 'z', dcss: 'V', brogue: 'a', rogue: 'z' }),
-        use_staff: Object.freeze({ angband: 'u', silq: 'a', frogcomposband: 'u', hengband: 'u', nethack: 'a', dcss: 'V', brogue: 'a', rogue: 'z' }),
-        zap: Object.freeze({ angband: 'z', silq: null, frogcomposband: 'z', hengband: 'z', nethack: 'z', dcss: 'V', brogue: 'a', rogue: 'z' }),
-        activate: Object.freeze({ angband: 'A', silq: 'p', frogcomposband: 'A', hengband: 'A', nethack: 'a', dcss: 'a', brogue: 'a', rogue: 'z' }),
-        use: Object.freeze({ angband: 'U', silq: 'u', frogcomposband: null, hengband: null, nethack: 'a', dcss: 'a', brogue: 'a', rogue: 'z' }),
-        play_horn: Object.freeze({ angband: null, silq: 'p', frogcomposband: null, hengband: null, nethack: 'a', dcss: 'V', brogue: null, rogue: null }),
-        throw: Object.freeze({ angband: 'v', silq: 't', frogcomposband: 'v', hengband: 'v', nethack: 't', dcss: 'f', brogue: 't', rogue: 't' }),
-        fire: Object.freeze({ angband: 'f', silq: 'f', frogcomposband: 'f', hengband: 'f', nethack: 'f', dcss: 'f', brogue: 't', rogue: 't' }),
-        examine: Object.freeze({ angband: 'I', silq: 'x', frogcomposband: 'I', hengband: 'I', nethack: ':', dcss: 'v', brogue: 'x', rogue: 'I' }),
-        ignore: Object.freeze({ angband: 'k', silq: 'k', frogcomposband: 'k', hengband: 'k', nethack: null, dcss: 'k', brogue: null, rogue: null }),
-        inscribe: Object.freeze({ angband: '{', silq: '{', frogcomposband: '{', hengband: '{', nethack: '{', dcss: '{', brogue: '{', rogue: '{' }),
-        uninscribe: Object.freeze({ angband: '}', silq: null, frogcomposband: '}', hengband: '}', nethack: '}', dcss: '}', brogue: '}', rogue: '}' }),
-        refill: Object.freeze({ angband: 'F', silq: null, frogcomposband: 'F', hengband: 'F', nethack: 'a', dcss: null, brogue: null, rogue: null }),
-        cast: Object.freeze({ angband: 'm', silq: null, frogcomposband: 'm', hengband: 'm', nethack: 'Z', dcss: 'z', brogue: null, rogue: null }),
-        browse: Object.freeze({ angband: 'b', silq: null, frogcomposband: 'b', hengband: 'b', nethack: 'r', dcss: 'I', brogue: null, rogue: null }),
-        study: Object.freeze({ angband: 'G', silq: null, frogcomposband: 'G', hengband: 'G', nethack: 'r', dcss: 'M', brogue: null, rogue: null }),
-        song: Object.freeze({ angband: null, silq: 's', frogcomposband: null, hengband: null, nethack: null, dcss: null, brogue: null, rogue: null }),
-        abilities: Object.freeze({ angband: null, silq: 'tab', frogcomposband: null, hengband: null, nethack: 'C', dcss: 'm', brogue: null, rogue: null }),
-        skills: Object.freeze({ angband: null, silq: 'tab', frogcomposband: null, hengband: null, nethack: null, dcss: 'm', brogue: null, rogue: null }),
-        smithing: Object.freeze({ angband: null, silq: '0', frogcomposband: null, hengband: null, nethack: null, dcss: null, brogue: null, rogue: null }),
-        power: Object.freeze({ angband: null, silq: null, frogcomposband: 'U', hengband: 'U', nethack: '#', dcss: 'a', brogue: null, rogue: null }),
-        pet: Object.freeze({ angband: null, silq: null, frogcomposband: 'p', hengband: 'p', nethack: 'C', dcss: 't', brogue: null, rogue: null }),
-        rest: Object.freeze({ angband: 'R', silq: '%', frogcomposband: 'R', hengband: 'R', nethack: '.', dcss: '5', brogue: 'z', rogue: '.' }),
-        open: Object.freeze({ angband: 'o', silq: 'o', frogcomposband: 'o', hengband: 'o', nethack: 'o', dcss: 'O', brogue: 'o', rogue: 'o' }),
-        close: Object.freeze({ angband: 'c', silq: 'c', frogcomposband: 'c', hengband: 'c', nethack: 'c', dcss: 'c', brogue: 'c', rogue: 'c' }),
-        bash: Object.freeze({ angband: null, silq: 'b', frogcomposband: 'B', hengband: 'B', nethack: 'a', dcss: 'O', brogue: null, rogue: null }),
-        spike: Object.freeze({ angband: null, silq: null, frogcomposband: 'j', hengband: 'j', nethack: null, dcss: null, brogue: null, rogue: null }),
-        disarm: Object.freeze({ angband: 'D', silq: 'D', frogcomposband: 'D', hengband: 'D', nethack: 'u', dcss: 'D', brogue: 'D', rogue: 'D' }),
-        tunnel: Object.freeze({ angband: 'T', silq: 'T', frogcomposband: 'T', hengband: 'T', nethack: 'a', dcss: 'T', brogue: 'T', rogue: 'T' }),
-        alter: Object.freeze({ angband: '+', silq: '/', frogcomposband: '+', hengband: '+', nethack: 'a', dcss: '+', brogue: null, rogue: null }),
-        exchange: Object.freeze({ angband: null, silq: 'X', frogcomposband: null, hengband: null, nethack: 'x', dcss: "'", brogue: null, rogue: null }),
-        steal: Object.freeze({ angband: 's', silq: null, frogcomposband: null, hengband: null, nethack: null, dcss: null, brogue: null, rogue: null }),
-        pickup: Object.freeze({ angband: 'g', silq: 'g', frogcomposband: 'g', hengband: 'g', nethack: ',', dcss: 'g', brogue: 'g', rogue: ',' }),
-        hold: Object.freeze({ angband: ',', silq: 'z', frogcomposband: ',', hengband: ',', nethack: '.', dcss: '.', brogue: '.', rogue: '.' }),
-        walk: Object.freeze({ angband: ';', silq: ';', frogcomposband: ';', hengband: ';', nethack: 'm', dcss: ';', brogue: ';', rogue: ';' }),
-        run: Object.freeze({ angband: '.', silq: '.', frogcomposband: '.', hengband: '.', nethack: 'g', dcss: '.', brogue: '.', rogue: '.' }),
-        search_mode: Object.freeze({ angband: null, silq: 'S', frogcomposband: 'S', hengband: 'S', nethack: 's', dcss: 's', brogue: 's', rogue: 's' }),
-        search: Object.freeze({ angband: null, silq: null, frogcomposband: 'S', hengband: 'S', nethack: 's', dcss: 's', brogue: 's', rogue: 's' }),
-        explore: Object.freeze({ angband: 'p', silq: null, frogcomposband: null, hengband: null, nethack: null, dcss: 'o', brogue: null, rogue: null }),
-        travel: Object.freeze({ angband: null, silq: null, frogcomposband: '`', hengband: '`', nethack: '_', dcss: 'G', brogue: '_', rogue: '_' }),
-        stairs_up: Object.freeze({ angband: '<', silq: '<', frogcomposband: '<', hengband: '<', nethack: '<', dcss: '<', brogue: '<', rogue: '<' }),
-        stairs_down: Object.freeze({ angband: '>', silq: '>', frogcomposband: '>', hengband: '>', nethack: '>', dcss: '>', brogue: '>', rogue: '>' }),
-        repeat: Object.freeze({ angband: 'n', silq: 'n', frogcomposband: 'n', hengband: 'n', nethack: 'n', dcss: '`', brogue: 'n', rogue: 'n' }),
-        count: Object.freeze({ angband: '0', silq: 'R', frogcomposband: '0', hengband: '0', nethack: '0', dcss: '0', brogue: '0', rogue: '0' }),
-        char_sheet: Object.freeze({ angband: 'C', silq: '@', frogcomposband: 'C', hengband: 'C', nethack: 'C', dcss: '%', brogue: 'C', rogue: 'C' }),
-        knowledge: Object.freeze({ angband: '~', silq: '~', frogcomposband: '~', hengband: '~', nethack: '\\', dcss: '\\', brogue: '~', rogue: '\\' }),
-        inven: Object.freeze({ angband: 'i', silq: 'i', frogcomposband: 'i', hengband: 'i', nethack: 'i', dcss: 'i', brogue: 'i', rogue: 'i' }),
-        inventory: Object.freeze({ angband: 'i', silq: 'i', frogcomposband: 'i', hengband: 'i', nethack: 'i', dcss: 'i', brogue: 'i', rogue: 'i' }),
-        equip: Object.freeze({ angband: 'e', silq: 'e', frogcomposband: 'e', hengband: 'e', nethack: 'e', dcss: 'e', brogue: 'e', rogue: 'e' }),
-        equipment: Object.freeze({ angband: 'e', silq: 'e', frogcomposband: 'e', hengband: 'e', nethack: 'e', dcss: 'e', brogue: 'e', rogue: 'e' }),
-        quiver: Object.freeze({ angband: '|', silq: null, frogcomposband: null, hengband: null, nethack: 'Q', dcss: 'Q', brogue: null, rogue: null }),
-        look: Object.freeze({ angband: 'l', silq: 'l', frogcomposband: 'l', hengband: 'l', nethack: ';', dcss: 'x', brogue: 'x', rogue: ';' }),
-        target: Object.freeze({ angband: '*', silq: null, frogcomposband: '*', hengband: '*', nethack: ';', dcss: 'x', brogue: 'x', rogue: ';' }),
-        map: Object.freeze({ angband: 'M', silq: 'M', frogcomposband: 'M', hengband: 'M', nethack: 'M', dcss: 'X', brogue: 'M', rogue: 'M' }),
-        locate: Object.freeze({ angband: 'L', silq: 'L', frogcomposband: 'L', hengband: 'L', nethack: '@', dcss: '@', brogue: 'L', rogue: '@' }),
-        messages: Object.freeze({ angband: 'C-p', silq: 'C-p', frogcomposband: 'C-p', hengband: 'C-p', nethack: 'C-p', dcss: 'C-p', brogue: 'C-p', rogue: 'C-p' }),
-        save: Object.freeze({ angband: 'C-s', silq: 'C-s', frogcomposband: 'C-s', hengband: 'C-s', nethack: 'S', dcss: 'S', brogue: 'S', rogue: 'S' }),
-        options: Object.freeze({ angband: '=', silq: 'O', frogcomposband: '=', hengband: '=', nethack: 'O', dcss: '=', brogue: '=', rogue: '=' }),
-        help: Object.freeze({ nethack: '?', dcss: '?', angband: '?', brogue: '?', rogue: '?', silq: '?', frogcomposband: '?', hengband: '?' })
+        quaff: Object.freeze({ angband: 'q', silq: 'q', frogcomposband: 'q', hengband: 'q', nethack: 'q', dcss: 'q', brogue: 'q', rogue: 'q', ryod: 'q' }),
+        read: Object.freeze({ angband: 'r', silq: null, frogcomposband: 'r', hengband: 'r', nethack: 'r', dcss: 'r', brogue: 'r', rogue: 'r', ryod: 'r' }),
+        eat: Object.freeze({ angband: 'E', silq: 'E', frogcomposband: 'E', hengband: 'E', nethack: 'E', dcss: 'E', brogue: 'E', rogue: 'E', ryod: 'E' }),
+        wield: Object.freeze({ angband: 'w', silq: 'w', frogcomposband: 'w', hengband: 'w', nethack: 'w', dcss: 'w', brogue: 'w', rogue: 'w', ryod: 'w' }),
+        wear: Object.freeze({ angband: 'w', silq: 'w', frogcomposband: 'w', hengband: 'w', nethack: 'W', dcss: 'W', brogue: 'w', rogue: 'W', ryod: 'W' }),
+        puton: Object.freeze({ angband: 'w', silq: 'w', frogcomposband: 'w', hengband: 'w', nethack: 'P', dcss: 'P', brogue: 'w', rogue: 'P', ryod: 'P' }),
+        takeoff: Object.freeze({ angband: 't', silq: 'r', frogcomposband: 't', hengband: 't', nethack: 'T', dcss: 'T', brogue: 'T', rogue: 'T', ryod: 'T' }),
+        remove: Object.freeze({ angband: 't', silq: 'r', frogcomposband: 't', hengband: 't', nethack: 'R', dcss: 'R', brogue: 'T', rogue: 'R', ryod: 'R' }),
+        drop: Object.freeze({ angband: 'd', silq: 'd', frogcomposband: 'd', hengband: 'd', nethack: 'd', dcss: 'd', brogue: 'd', rogue: 'd', ryod: 'd' }),
+        aim: Object.freeze({ angband: 'a', silq: null, frogcomposband: 'a', hengband: 'a', nethack: 'z', dcss: 'V', brogue: 'a', rogue: 'z', ryod: 'a' }),
+        use_staff: Object.freeze({ angband: 'u', silq: 'a', frogcomposband: 'u', hengband: 'u', nethack: 'a', dcss: 'V', brogue: 'a', rogue: 'z', ryod: 'a' }),
+        zap: Object.freeze({ angband: 'z', silq: null, frogcomposband: 'z', hengband: 'z', nethack: 'z', dcss: 'V', brogue: 'a', rogue: 'z', ryod: 'a' }),
+        activate: Object.freeze({ angband: 'A', silq: 'p', frogcomposband: 'A', hengband: 'A', nethack: 'a', dcss: 'a', brogue: 'a', rogue: 'z', ryod: 'a' }),
+        use: Object.freeze({ angband: 'U', silq: 'u', frogcomposband: null, hengband: null, nethack: 'a', dcss: 'a', brogue: 'a', rogue: 'z', ryod: 'a' }),
+        play_horn: Object.freeze({ angband: null, silq: 'p', frogcomposband: null, hengband: null, nethack: 'a', dcss: 'V', brogue: null, rogue: null, ryod: 'a' }),
+        throw: Object.freeze({ angband: 'v', silq: 't', frogcomposband: 'v', hengband: 'v', nethack: 't', dcss: 'f', brogue: 't', rogue: 't', ryod: 't' }),
+        fire: Object.freeze({ angband: 'f', silq: 'f', frogcomposband: 'f', hengband: 'f', nethack: 'f', dcss: 'f', brogue: 't', rogue: 't', ryod: 'f' }),
+        examine: Object.freeze({ angband: 'I', silq: 'x', frogcomposband: 'I', hengband: 'I', nethack: ':', dcss: 'v', brogue: 'x', rogue: 'I', ryod: 'I' }),
+        ignore: Object.freeze({ angband: 'k', silq: 'k', frogcomposband: 'k', hengband: 'k', nethack: null, dcss: null, brogue: null, rogue: null, ryod: null }),
+        inscribe: Object.freeze({ angband: '{', silq: '{', frogcomposband: '{', hengband: '{', nethack: '{', dcss: '{', brogue: '{', rogue: '{', ryod: '{' }),
+        uninscribe: Object.freeze({ angband: '}', silq: null, frogcomposband: '}', hengband: '}', nethack: '}', dcss: '}', brogue: '}', rogue: '}', ryod: '}' }),
+        refill: Object.freeze({ angband: 'F', silq: null, frogcomposband: 'F', hengband: 'F', nethack: 'a', dcss: null, brogue: null, rogue: null, ryod: null }),
+        cast: Object.freeze({ angband: 'm', silq: null, frogcomposband: 'm', hengband: 'm', nethack: 'Z', dcss: 'z', brogue: null, rogue: null, ryod: 'm' }),
+        browse: Object.freeze({ angband: 'b', silq: null, frogcomposband: 'b', hengband: 'b', nethack: 'r', dcss: 'I', brogue: null, rogue: null, ryod: 'M' }),
+        study: Object.freeze({ angband: 'G', silq: null, frogcomposband: 'G', hengband: 'G', nethack: 'r', dcss: 'M', brogue: null, rogue: null, ryod: 'M' }),
+        song: Object.freeze({ angband: null, silq: 's', frogcomposband: null, hengband: null, nethack: null, dcss: null, brogue: null, rogue: null, ryod: 'm' }),
+        abilities: Object.freeze({ angband: null, silq: 'tab', frogcomposband: null, hengband: null, nethack: 'C', dcss: 'm', brogue: null, rogue: null, ryod: 'm' }),
+        skills: Object.freeze({ angband: null, silq: 'tab', frogcomposband: null, hengband: null, nethack: null, dcss: 'm', brogue: null, rogue: null, ryod: 'm' }),
+        smithing: Object.freeze({ angband: null, silq: '0', frogcomposband: null, hengband: null, nethack: null, dcss: null, brogue: null, rogue: null, ryod: null }),
+        power: Object.freeze({ angband: null, silq: null, frogcomposband: 'U', hengband: 'U', nethack: '#', dcss: 'a', brogue: null, rogue: null, ryod: 'm' }),
+        pet: Object.freeze({ angband: null, silq: null, frogcomposband: 'p', hengband: 'p', nethack: 'C', dcss: null, brogue: null, rogue: null, ryod: 'p' }),
+        rest: Object.freeze({ angband: 'R', silq: '%', frogcomposband: 'R', hengband: 'R', nethack: '.', dcss: '5', brogue: 'z', rogue: '.', ryod: '.' }),
+        open: Object.freeze({ angband: 'o', silq: 'o', frogcomposband: 'o', hengband: 'o', nethack: 'o', dcss: 'o', brogue: 'o', rogue: 'o', ryod: 'o' }),
+        close: Object.freeze({ angband: 'c', silq: 'c', frogcomposband: 'c', hengband: 'c', nethack: 'c', dcss: 'c', brogue: 'c', rogue: 'c', ryod: 'c' }),
+        bash: Object.freeze({ angband: null, silq: 'b', frogcomposband: 'B', hengband: 'B', nethack: 'a', dcss: 'O', brogue: null, rogue: null, ryod: 'o' }),
+        spike: Object.freeze({ angband: null, silq: null, frogcomposband: 'j', hengband: 'j', nethack: null, dcss: null, brogue: null, rogue: null, ryod: null }),
+        disarm: Object.freeze({ angband: 'D', silq: 'D', frogcomposband: 'D', hengband: 'D', nethack: 'u', dcss: 'D', brogue: 'D', rogue: 'D', ryod: 'D' }),
+        tunnel: Object.freeze({ angband: 'T', silq: 'T', frogcomposband: 'T', hengband: 'T', nethack: 'a', dcss: 'T', brogue: 'T', rogue: 'T', ryod: 'T' }),
+        alter: Object.freeze({ angband: '+', silq: '/', frogcomposband: '+', hengband: '+', nethack: 'a', dcss: '+', brogue: null, rogue: null, ryod: '+' }),
+        exchange: Object.freeze({ angband: null, silq: 'X', frogcomposband: null, hengband: null, nethack: 'x', dcss: "'", brogue: null, rogue: null, ryod: 'x' }),
+        steal: Object.freeze({ angband: 's', silq: null, frogcomposband: null, hengband: null, nethack: null, dcss: null, brogue: null, rogue: null, ryod: null }),
+        pickup: Object.freeze({ angband: 'g', silq: 'g', frogcomposband: 'g', hengband: 'g', nethack: ',', dcss: 'g', brogue: 'g', rogue: ',', ryod: 'g' }),
+        hold: Object.freeze({ angband: ',', silq: 'z', frogcomposband: ',', hengband: ',', nethack: '.', dcss: '.', brogue: '.', rogue: '.', ryod: '.' }),
+        walk: Object.freeze({ angband: ';', silq: ';', frogcomposband: ';', hengband: ';', nethack: 'm', dcss: ';', brogue: ';', rogue: ';', ryod: ';' }),
+        run: Object.freeze({ angband: '.', silq: '.', frogcomposband: '.', hengband: '.', nethack: 'g', dcss: '.', brogue: '.', rogue: '.', ryod: '.' }),
+        search_mode: Object.freeze({ angband: null, silq: 'S', frogcomposband: 'S', hengband: 'S', nethack: 's', dcss: 's', brogue: 's', rogue: 's', ryod: 's' }),
+        search: Object.freeze({ angband: null, silq: null, frogcomposband: 'S', hengband: 'S', nethack: 's', dcss: 's', brogue: 's', rogue: 's', ryod: 's' }),
+        explore: Object.freeze({ angband: 'p', silq: null, frogcomposband: null, hengband: null, nethack: null, dcss: null, brogue: null, rogue: null, ryod: null }),
+        travel: Object.freeze({ angband: null, silq: null, frogcomposband: '`', hengband: '`', nethack: '_', dcss: 'G', brogue: '_', rogue: '_', ryod: '_' }),
+        stairs_up: Object.freeze({ angband: '<', silq: '<', frogcomposband: '<', hengband: '<', nethack: '<', dcss: '<', brogue: '<', rogue: '<', ryod: '<' }),
+        stairs_down: Object.freeze({ angband: '>', silq: '>', frogcomposband: '>', hengband: '>', nethack: '>', dcss: '>', brogue: '>', rogue: '>', ryod: '>' }),
+        repeat: Object.freeze({ angband: 'n', silq: 'n', frogcomposband: 'n', hengband: 'n', nethack: 'n', dcss: '`', brogue: 'n', rogue: 'n', ryod: 'n' }),
+        count: Object.freeze({ angband: '0', silq: 'R', frogcomposband: '0', hengband: '0', nethack: '0', dcss: '0', brogue: '0', rogue: '0', ryod: '0' }),
+        char_sheet: Object.freeze({ angband: 'C', silq: '@', frogcomposband: 'C', hengband: 'C', nethack: 'C', dcss: '%', brogue: 'C', rogue: 'C', ryod: 'C' }),
+        knowledge: Object.freeze({ angband: '~', silq: '~', frogcomposband: '~', hengband: '~', nethack: '\\', dcss: '\\', brogue: '~', rogue: '\\', ryod: '~' }),
+        inven: Object.freeze({ angband: 'i', silq: 'i', frogcomposband: 'i', hengband: 'i', nethack: 'i', dcss: 'i', brogue: 'i', rogue: 'i', ryod: 'i' }),
+        inventory: Object.freeze({ angband: 'i', silq: 'i', frogcomposband: 'i', hengband: 'i', nethack: 'i', dcss: 'i', brogue: 'i', rogue: 'i', ryod: 'i' }),
+        equip: Object.freeze({ angband: 'e', silq: 'e', frogcomposband: 'e', hengband: 'e', nethack: 'e', dcss: 'e', brogue: 'e', rogue: 'e', ryod: 'e' }),
+        equipment: Object.freeze({ angband: 'e', silq: 'e', frogcomposband: 'e', hengband: 'e', nethack: 'e', dcss: 'e', brogue: 'e', rogue: 'e', ryod: 'e' }),
+        quiver: Object.freeze({ angband: '|', silq: null, frogcomposband: null, hengband: null, nethack: 'Q', dcss: 'Q', brogue: null, rogue: null, ryod: 'Q' }),
+        look: Object.freeze({ angband: 'l', silq: 'l', frogcomposband: 'l', hengband: 'l', nethack: ';', dcss: 'x', brogue: 'x', rogue: ';', ryod: 'x' }),
+        target: Object.freeze({ angband: '*', silq: null, frogcomposband: '*', hengband: '*', nethack: ';', dcss: 'x', brogue: 'x', rogue: ';', ryod: 'x' }),
+        map: Object.freeze({ angband: 'M', silq: 'M', frogcomposband: 'M', hengband: 'M', nethack: 'M', dcss: 'X', brogue: 'M', rogue: 'M', ryod: 'M' }),
+        locate: Object.freeze({ angband: 'L', silq: 'L', frogcomposband: 'L', hengband: 'L', nethack: '@', dcss: '@', brogue: 'L', rogue: '@', ryod: '@' }),
+        messages: Object.freeze({ angband: 'C-p', silq: 'C-p', frogcomposband: 'C-p', hengband: 'C-p', nethack: 'C-p', dcss: 'C-p', brogue: 'C-p', rogue: 'C-p', ryod: 'C-p' }),
+        save: Object.freeze({ angband: 'C-s', silq: 'C-s', frogcomposband: 'C-s', hengband: 'C-s', nethack: 'S', dcss: 'S', brogue: 'S', rogue: 'S', ryod: 'S' }),
+        options: Object.freeze({ angband: '=', silq: 'O', frogcomposband: '=', hengband: '=', nethack: 'O', dcss: '=', brogue: '=', rogue: '=', ryod: '=' }),
+        help: Object.freeze({ nethack: '?', dcss: '?', angband: '?', brogue: '?', rogue: '?', silq: '?', frogcomposband: '?', hengband: '?', ryod: '?' })
     });
     function resolveTargetKey(realm, target) {
         const r = (realm || 'angband').toLowerCase();
@@ -153,7 +153,7 @@
             const combined = row0 + ' ' + cyRow;
             let kind = null;
             if (isMore) {
-                kind = 'more'; } else if (/quaff|read|wear|wield|take off|drop|throw|destroy|identify|use|item|choice:/i.test(combined)) {
+                kind = 'more'; } else if (/quaff|drink|read|wear|wield|put on|take off|remove|drop|throw|fire|shoot|destroy|identify|examine|inspect|inscribe|uninscribe|eat|activate|evoke|zap|aim|refill|fuel|use|item|choice:/i.test(combined)) {
                 kind = 'item'; } else if (/target|direction|open door/i.test(combined)) {
                 kind = 'direction'; } else if (/how many|count|repeat/i.test(combined)) {
                 kind = 'quantity'; } else if (/\(y\/n\)/i.test(combined)) {
@@ -297,6 +297,14 @@
             return;
         }
         const step = this.plan[this.stepIndex];
+        if (typeof step.dynamic === 'function') {
+            const frame = this.lastFrame || this.getLastFrame();
+            const model = this._classify(frame);
+            const extraSteps = step.dynamic(model, frame);
+            this.plan.splice(this.stepIndex, 1, ...(Array.isArray(extraSteps) ? extraSteps : []));
+            this._executeStep();
+            return;
+        }
         if (typeof step.verify === 'function') {
             const frame = this.lastFrame || this.getLastFrame();
             const model = this._classify(frame);
@@ -314,11 +322,11 @@
             return;
         }
         const key = step.send;
-        this.sendKey(key);
         this.sentSeq = (this.lastFrame && this.lastFrame.seq !== undefined) ? this.lastFrame.seq : null;
         this.state = 'Awaiting';
         this.onEvent('dispatcher:step', { stepIndex: this.stepIndex, key, desc: step.desc });
         this._startDeadlineTimer();
+        this.sendKey(key);
     };
     CommandDispatcher.prototype.compilePlan = function (intent, frame, realm) {
         if (!intent) return null;
@@ -378,19 +386,39 @@
             return steps;
         }
         if (intent.verb === 'store_buy') {
+            const buyCmd = (intent.buyCmd === 'g' || intent.buyKey === 'g') ? 'g' : 'p';
             const itemLetter = typeof intent.item === 'string'
                 ? intent.item
                 : (intent.item && (intent.item.letter || intent.item.label)) || 'a';
             const qtyStr = String(intent.qty !== undefined ? intent.qty : 1);
-            const steps = [
-                { send: 'p', expect: () => true, desc: 'store-purchase' },
-                { send: itemLetter, expect: () => true, desc: `store-item:${itemLetter}` }
+            const frameTextOf = (model, fr) => {
+                const rawTxt = (fr && fr.term && Array.isArray(fr.term.rows)) ? fr.term.rows.map(rw => rw.g || '').join('\n') : '';
+                return ((model && model.prompt && model.prompt.text) || '') + '\n' + ((model && model.legacy && model.legacy.screenText) || '') + '\n' + rawTxt;
+            };
+            const checkConfirmStep = {
+                dynamic: (model, fr) => {
+                    const pTxt = frameTextOf(model, fr).toLowerCase();
+                    const isYN = Boolean((model && model.prompt && model.prompt.kind === 'yesno') || (model && model.legacy && model.legacy.isYesNoPrompt) || /\[y\/n\]|\(y\/n\)|\[yn\]|\(yn\)|よろしいですか/.test(pTxt));
+                    return isYN ? [{ send: 'y', expect: () => true, desc: 'confirm-buy-yn' }] : [];
+                }
+            };
+            return [
+                { send: buyCmd, expect: () => true, desc: buyCmd === 'g' ? 'home-get' : 'store-purchase' },
+                { send: itemLetter, expect: () => true, desc: `store-item:${itemLetter}` },
+                {
+                    dynamic: (model, fr) => {
+                        const pTxt = frameTextOf(model, fr).toLowerCase();
+                        const isQty = Boolean((model && model.prompt && model.prompt.kind === 'quantity') || (model && model.legacy && model.legacy.isQuantityPrompt) || /quantity|how many|how much|いくつ|何個/.test(pTxt));
+                        if (isQty) {
+                            const qSteps = [];
+                            for (const d of qtyStr) qSteps.push({ send: d, expect: () => true, desc: `qty-digit:${d}` });
+                            qSteps.push({ send: 'enter', expect: () => true, desc: 'confirm-qty' }, checkConfirmStep);
+                            return qSteps;
+                        }
+                        return [checkConfirmStep];
+                    }
+                }
             ];
-            for (const d of qtyStr) {
-                steps.push({ send: d, expect: () => true, desc: `qty-digit:${d}` });
-            }
-            steps.push({ send: 'enter', expect: () => true, desc: 'confirm-qty' });
-            return steps;
         }
         if (intent.verb === 'char_sheet' || intent.verb === 'knowledge' || intent.verb === 'options' ||
             intent.verb === 'help' || intent.verb === 'inven' || intent.verb === 'inventory' ||
@@ -423,7 +451,7 @@
         }
         if (intent.verb === 'rest') {
             const restKey = this.resolveVerbKey('rest', r) || (r === 'silq' ? '%' : 'R');
-            const isAtomicRest = (r === 'silq' || r === 'nethack' || r === 'dcss' || r === 'brogue' || r === 'rogue');
+            const isAtomicRest = (r === 'silq' || r === 'nethack' || r === 'dcss' || r === 'brogue' || r === 'rogue' || r === 'ryod');
             if (isAtomicRest && !intent.qty) {
                 return [{
                     send: restKey,
@@ -516,11 +544,10 @@
         }
         let verbKey;
         if (intent.verb === 'fire') {
-            if (r === 'angband' && intent.target === 'nearest') {
-                verbKey = 'h'; } else {
-                verbKey = this.resolveVerbKey('fire', r) || 'f';
-            } } else {
+            if (r === 'angband' && intent.target === 'nearest') { verbKey = 'h'; } else { verbKey = this.resolveVerbKey('fire', r) || 'f'; }
+        } else {
             verbKey = this.resolveVerbKey(intent.verb, r) || intent.key;
+            if (intent.verb === 'eat' && verbKey === 'e') verbKey = 'E';
         }
         if (!verbKey) return null;
         if (verbKey === 'h') {
@@ -537,7 +564,7 @@
             let targetLetter = typeof intent.item === 'string' ? intent.item : (intent.item.letter || intent.item.label);
             if (!targetLetter && r === 'angband' && intent.item && typeof intent.item.slot === 'number') { targetLetter = getVanillaLetter(intent.item.slot); }
             if (targetLetter) {
-                steps.push({ send: targetLetter, itemObj: typeof intent.item === 'object' ? intent.item : null, verify: (model) => { const visible = (model.items && model.items.length) ? model.items : (model.legacy && model.legacy.items) || []; if (visible.length > 0) { const match = visible.find(it => (it.key || it.letter) === targetLetter); if (!match) return 'handoff'; if (intent.item && intent.item.name) { const expectName = intent.item.name.toLowerCase(); const actualName = (match.label || match.name || '').toLowerCase(); if (!actualName.includes(expectName)) { return 'handoff'; } } } return true; }, expect: (model, fr) => { if (intent.verb === 'drop' && intent.qty !== undefined) { return (model.prompt && model.prompt.kind === 'quantity') || (model.legacy && model.legacy.isQuantityPrompt) || true; } if ((intent.verb === 'aim' || intent.verb === 'zap' || intent.verb === 'throw' || intent.verb === 'fire') && (intent.dir || intent.target)) { return (model.prompt && model.prompt.kind === 'direction') || (model.legacy && model.legacy.isTargeting) || true; } return model.isIdle || (fr.ui && fr.ui.more); }, desc: `item:${targetLetter}` });
+                steps.push({ send: targetLetter, itemObj: typeof intent.item === 'object' ? intent.item : null, verify: (model) => { const visible = (model.items && model.items.length) ? model.items : (model.legacy && model.legacy.items) || []; if (visible.length > 0) { const match = visible.find(it => (it.key || it.letter) === targetLetter); if (!match) return 'handoff'; if (intent.item && intent.item.name) { const expectName = intent.item.name.toLowerCase(); const actualName = (match.name || match.rowLabel || (match.label && match.label.length > 1 ? match.label : '') || '').toLowerCase(); if (actualName && !actualName.includes(expectName) && !(actualName.length >= 6 && expectName.includes(actualName))) { return 'handoff'; } } } return true; }, expect: (model, fr) => { if (intent.verb === 'drop' && intent.qty !== undefined) { return (model.prompt && model.prompt.kind === 'quantity') || (model.legacy && model.legacy.isQuantityPrompt) || true; } if (intent.verb === 'aim' || intent.verb === 'zap' || intent.verb === 'throw' || intent.verb === 'fire') { return (intent.dir || intent.target) ? ((model.prompt && model.prompt.kind === 'direction') || (model.legacy && model.legacy.isTargeting) || true) : (model.isIdle || (fr.ui && fr.ui.more) || Boolean(model.prompt && model.prompt.kind === 'direction') || Boolean(model.legacy && model.legacy.isTargeting)); } return model.isIdle || (fr.ui && fr.ui.more); }, desc: `item:${targetLetter}` });
             }
         }
         if (intent.verb === 'drop' && intent.qty !== undefined) {

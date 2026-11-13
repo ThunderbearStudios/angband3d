@@ -186,10 +186,25 @@ global.window = {
     }
 };
 
-// Load WebHUD from hud.js
+// Load ActionCatalog, RealmKeys, HudTelemetry, and WebHUD onto window
+global.self = global.window;
+const catalogMod = require('../server/public/js/action-catalog.js');
+global.ActionCatalog = global.window.ActionCatalog = catalogMod;
+
+const realmKeysCode = fs.readFileSync(path.join(__dirname, '../server/public/js/realm-keys.js'), 'utf8');
+new Function('window', 'document', 'ActionCatalog', realmKeysCode).call(global.window, global.window, global.document, global.ActionCatalog);
+global.RealmKeys = global.window.RealmKeys;
+
+const hudTelemetryPath = path.join(__dirname, '../server/public/js/hud-telemetry.js');
+if (fs.existsSync(hudTelemetryPath)) {
+    const telemetryCode = fs.readFileSync(hudTelemetryPath, 'utf8');
+    new Function('window', 'document', telemetryCode).call(global.window, global.window, global.document);
+    global.HudTelemetry = global.window.HudTelemetry;
+}
+
 const hudCode = fs.readFileSync(path.join(__dirname, '../server/public/js/hud.js'), 'utf8');
-const fn = new Function('document', 'window', `${hudCode}; return WebHUD;`);
-const WebHUD = fn(global.document, global.window);
+const fn = new Function('document', 'window', 'ActionCatalog', 'RealmKeys', 'HudTelemetry', `${hudCode}; return WebHUD;`);
+const WebHUD = fn(global.document, global.window, global.ActionCatalog, global.RealmKeys, global.HudTelemetry);
 
 const hud = new WebHUD('minimap-canvas');
 
@@ -201,7 +216,7 @@ assert.strictEqual(domElements.get('#stat-item-dex .stat-label').textContent, 'D
 assert.strictEqual(domElements.get('#stat-item-gold .stat-label').textContent, 'GOLD');
 assert.ok(domElements.get('btn-attack').innerHTML.includes('Attack'));
 assert.ok(domElements.get('btn-term-advance').textContent.includes('Advance'));
-assert.strictEqual(deathTabs[0].textContent, '1. Tombstone & Menus');
+assert.strictEqual(deathTabs[0].textContent, '1. YASD Autopsy & Tomb');
 assert.strictEqual(deathTabs[1].textContent, '2. Equipment');
 assert.strictEqual(domElements.get('action-run-text').textContent, 'Walk');
 assert.strictEqual(turnLeftText.textContent, 'Turn L');
@@ -215,10 +230,10 @@ assert.strictEqual(domElements.get('#stat-item-str .stat-label').textContent, 'S
 assert.strictEqual(domElements.get('#stat-item-dex .stat-label').textContent, 'DEX (器用)');
 assert.strictEqual(domElements.get('#stat-item-gold .stat-label').textContent, 'AU (金貨)');
 assert.ok(domElements.get('btn-attack').innerHTML.includes('Attack (攻撃)'));
-assert.ok(domElements.get('btn-cast').innerHTML.includes('Cast (呪文)'));
+assert.ok(domElements.get('btn-cast').innerHTML.includes('Cast (詠唱)'));
 assert.ok(domElements.get('btn-term-advance').textContent.includes('Advance (決定)'));
 assert.ok(domElements.get('btn-term-reroll').textContent.includes('Reroll (再生成)'));
-assert.strictEqual(deathTabs[0].textContent, '1. Tombstone (墓碑)');
+assert.strictEqual(deathTabs[0].textContent, '1. YASD Autopsy & Tomb (墓碑)');
 assert.strictEqual(deathTabs[1].textContent, '2. Equipment (装備)');
 assert.strictEqual(deathTabs[2].textContent, '3. Inventory (持物)');
 assert.strictEqual(domElements.get('action-run-text').textContent, 'Walk (歩く)');
@@ -240,9 +255,9 @@ assert.strictEqual(domElements.get('#stat-item-gold .stat-label').textContent, '
 assert.strictEqual(hpHeader.textContent, '体力');
 assert.strictEqual(spHeader.textContent, '魔力');
 assert.ok(domElements.get('btn-attack').innerHTML.includes('⚔ 攻撃'));
-assert.ok(domElements.get('btn-cast').innerHTML.includes('✨ 呪文'));
-assert.ok(domElements.get('btn-quaff').innerHTML.includes('🧪 薬飲'));
-assert.ok(domElements.get('btn-read').innerHTML.includes('📜 巻読'));
+assert.ok(domElements.get('btn-cast').innerHTML.includes('✨ 詠唱'));
+assert.ok(domElements.get('btn-quaff').innerHTML.includes('🧪 薬'));
+assert.ok(domElements.get('btn-read').innerHTML.includes('📜 巻物'));
 assert.strictEqual(domElements.get('btn-term-advance').textContent, '決定 (Enter)');
 assert.strictEqual(domElements.get('btn-term-escape').textContent, '戻る (Esc)');
 assert.strictEqual(domElements.get('btn-term-reroll').textContent, '🎲 英雄再生成 (R)');

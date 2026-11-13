@@ -36,8 +36,33 @@ function decodeBase64(b64) {
   return bytes.buffer;
 }
 
+function preserveAffinitySetCookies(upstreamHeaders, outHeaders, pathname) {
+  if (pathname.startsWith("/api/") || pathname === "/ws") {
+    return Boolean(outHeaders.get("Set-Cookie"));
+  }
+  if (pathname === "/" || pathname === "/index.html") {
+    const rawList =
+      typeof upstreamHeaders.getSetCookie === "function"
+        ? upstreamHeaders.getSetCookie()
+        : [upstreamHeaders.get("Set-Cookie")].filter(Boolean);
+    outHeaders.delete("Set-Cookie");
+    let kept = false;
+    for (const cookieStr of rawList) {
+      if (typeof cookieStr === "string" && /\bGAESA=/i.test(cookieStr)) {
+        outHeaders.append("Set-Cookie", cookieStr);
+        kept = true;
+      }
+    }
+    return kept;
+  }
+  outHeaders.delete("Set-Cookie");
+  return false;
+}
+
+let _anonLandingHtmlCache = { host: "", html: "", status: 200, expiresAt: 0 };
+
 export default {
-  async fetch(request) {
+  async fetch(request, env = {}) {
     const url = new URL(request.url);
     if (url.hostname === "www.yasd3d.com") {
       url.hostname = "yasd3d.com";
@@ -47,9 +72,13 @@ export default {
       url.hostname = "angband3d.com";
       return Response.redirect(url.toString(), 301);
     }
+    if (url.pathname === "/demo" || url.pathname === "/demo/" || url.pathname === "/demo.html" || url.pathname === "/watch" || url.pathname === "/showcase") {
+      const dest = new URL("/?demo=1", url.origin);
+      return Response.redirect(dest.toString(), 302);
+    }
 
     if (url.pathname === "/.well-known/gpc.json") {
-      return new Response(JSON.stringify({ gpc: true, lastUpdate: "2026-11-07" }, null, 2), {
+      return new Response(JSON.stringify({ gpc: true, lastUpdate: "2026-11-10" }, null, 2), {
         status: 200,
         headers: {
           "Content-Type": "application/json; charset=utf-8",
@@ -75,6 +104,7 @@ export default {
       });
     }
 
+    const edgeSecret = env && env.EDGE_PROXY_SECRET ? String(env.EDGE_PROXY_SECRET) : "";
     const upgrade = (request.headers.get("Upgrade") || "").toLowerCase();
     if (upgrade === "websocket" || url.pathname === "/ws") {
       const wsUrl = new URL(url.pathname + url.search, ORIGIN);
@@ -82,7 +112,41 @@ export default {
       wsReq.headers.set("Host", "angband3d-cloud-564958309282.us-central1.run.app");
       wsReq.headers.set("X-Forwarded-Host", url.hostname);
       wsReq.headers.set("X-Forwarded-Proto", "https");
+      if (edgeSecret) wsReq.headers.set("X-Edge-Proxy-Secret", edgeSecret);
       return fetch(wsReq);
+    }
+
+    const reqCookie = request.headers.get("Cookie") || "";
+    const hasAuthHeaders = Boolean(
+      request.headers.get("Authorization") ||
+        request.headers.get("X-Owner-Token") ||
+        request.headers.get("X-Save-Owner-Token") ||
+        request.headers.get("X-Vault-Id")
+    );
+    const isRootHtmlPath = url.pathname === "/" || url.pathname === "/index.html";
+    const isAnonymousRootGet = request.method === "GET" && isRootHtmlPath && !hasAuthHeaders;
+
+    if (
+      isAnonymousRootGet &&
+      /\bGAESA=/i.test(reqCookie) &&
+      _anonLandingHtmlCache.html &&
+      _anonLandingHtmlCache.host === url.hostname &&
+      Date.now() < _anonLandingHtmlCache.expiresAt
+    ) {
+      return new Response(_anonLandingHtmlCache.html, {
+        status: _anonLandingHtmlCache.status,
+        headers: {
+          "Content-Type": "text/html; charset=utf-8",
+          "Cache-Control": "public, max-age=0, s-maxage=30, stale-while-revalidate=60, no-transform",
+          "Content-Security-Policy": CLEAN_CSP,
+          "Permissions-Policy": PERMISSIONS_POLICY,
+          "Cross-Origin-Opener-Policy": "same-origin",
+          "Cross-Origin-Embedder-Policy": "credentialless",
+          "X-Content-Type-Options": "nosniff",
+          "Referrer-Policy": "strict-origin-when-cross-origin",
+          "Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
+        },
+      });
     }
 
     const targetUrl = new URL(url.pathname + url.search, ORIGIN);
@@ -90,10 +154,12 @@ export default {
     headers.delete("host");
     headers.set("X-Forwarded-Host", url.hostname);
     headers.set("X-Forwarded-Proto", "https");
+    if (edgeSecret) headers.set("X-Edge-Proxy-Secret", edgeSecret);
 
+    const isWasmOrAssets = url.pathname.startsWith("/wasm/") || url.pathname.startsWith("/assets/");
     const isCacheableStatic =
       (request.method === "GET" || request.method === "HEAD") &&
-      (url.pathname.startsWith("/assets/") ||
+      (isWasmOrAssets ||
         url.pathname.startsWith("/js/vendor/") ||
         ((url.pathname.startsWith("/js/") || url.pathname.startsWith("/css/")) && url.search.includes("v=")));
 
@@ -106,33 +172,53 @@ export default {
     if (isCacheableStatic) {
       fetchOpts.cf = {
         cacheEverything: true,
-        cacheTtlByStatus: { "200-299": 604800, "404": 30, "500-599": 0 },
+        cacheTtlByStatus: { "200-299": 86400, "404": 30, "500-599": 0 },
+      };
+    } else if (isAnonymousRootGet && !reqCookie) {
+      fetchOpts.cf = {
+        cacheTtlByStatus: { "200-299": 30, "404": 10, "500-599": 0 },
       };
     }
 
     const upstreamResp = await fetch(targetUrl.toString(), fetchOpts);
 
     const outHeaders = new Headers(upstreamResp.headers);
-    if (!url.pathname.startsWith("/api/")) {
-      outHeaders.delete("Set-Cookie");
-    }
+    const hasSetCookie = preserveAffinitySetCookies(upstreamResp.headers, outHeaders, url.pathname);
     outHeaders.delete("Link");
     outHeaders.set("Content-Security-Policy", CLEAN_CSP);
     outHeaders.set("Permissions-Policy", PERMISSIONS_POLICY);
     outHeaders.set("Cross-Origin-Opener-Policy", "same-origin");
+    if (url.pathname === "/" || url.pathname === "/index.html" || url.pathname.startsWith("/wasm/") || /\.(js|wasm|pck|data)$/i.test(url.pathname)) {
+      outHeaders.set("Cross-Origin-Embedder-Policy", "credentialless");
+    }
+    if (isWasmOrAssets && upstreamResp.status >= 200 && upstreamResp.status < 300) {
+      outHeaders.set("Cache-Control", "public, max-age=86400");
+    }
     outHeaders.set("X-Content-Type-Options", "nosniff");
     outHeaders.set("Referrer-Policy", "strict-origin-when-cross-origin");
     outHeaders.set("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload");
 
     const ct = (outHeaders.get("Content-Type") || "").toLowerCase();
     if (ct.includes("text/html") && request.method === "GET") {
-      outHeaders.set("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0, no-transform");
+      if (isAnonymousRootGet && !hasSetCookie) {
+        outHeaders.set("Cache-Control", "public, max-age=0, s-maxage=30, stale-while-revalidate=60, no-transform");
+      } else {
+        outHeaders.set("Cache-Control", "private, no-store, no-cache, must-revalidate, max-age=0, no-transform");
+      }
       outHeaders.delete("Content-Length");
       let html = await upstreamResp.text();
       if (html.includes("fonts.googleapis.com")) {
         html = html
           .replace(/<link[^>]+fonts\.googleapis\.com[^>]*>\s*/gi, "")
           .replace(/<link[^>]+fonts\.gstatic\.com[^>]*>\s*/gi, SELF_HOSTED_FONT_STYLE + "\n    ");
+      }
+      if (isAnonymousRootGet && upstreamResp.status === 200) {
+        _anonLandingHtmlCache = {
+          host: url.hostname,
+          html,
+          status: 200,
+          expiresAt: Date.now() + 30_000,
+        };
       }
       return new Response(html, {
         status: upstreamResp.status,

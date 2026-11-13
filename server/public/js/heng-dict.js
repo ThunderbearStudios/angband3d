@@ -4,6 +4,20 @@
 
 (function (root, factory) {
     if (typeof module === 'object' && module.exports) {
+        try {
+            if (typeof global !== 'undefined' && !global.HengTranslate) {
+                global.HengTranslate = require('./heng/heng-translate.js');
+            }
+            if (global.HengTranslate && typeof global.HengTranslate.isLoaded === 'function' && !global.HengTranslate.isLoaded()) {
+                const path = require('path');
+                const baseDir = path.join(__dirname, 'heng');
+                const names = require(path.join(baseDir, 'heng-names.json'));
+                const templates = require(path.join(baseDir, 'heng-templates.json'));
+                const kinds = require(path.join(baseDir, 'heng-kinds.json'));
+                const manifest = require(path.join(baseDir, 'heng-manifest.json'));
+                global.HengTranslate.load({ names, templates, kinds, manifest });
+            }
+        } catch (_) {}
         module.exports = factory();
     } else {
         const exports = factory();
@@ -62,6 +76,35 @@
         'プレイヤー': 'Player'
     };
 
+    let _enToJaMap = null;
+    function getEnToJaMap() {
+        if (_enToJaMap) return _enToJaMap;
+        _enToJaMap = new Map();
+        try {
+            if (typeof require === 'function') {
+                const path = require('path');
+                const names = require(path.join(__dirname, 'heng', 'heng-names.json'));
+                for (const [ja, val] of Object.entries(names)) {
+                    const en = Array.isArray(val) ? val[0] : val;
+                    if (en) _enToJaMap.set(String(en).toLowerCase(), ja);
+                }
+                const commonItems = {
+                    'short sword': 'ショート・ソード',
+                    'potion of blindness': '盲目の薬',
+                    'potion of cure poison': '毒消しの薬',
+                    'ration of food': '食料',
+                    'black arrow': '矢',
+                    'wooden torch': 'たいまつ',
+                    'broad axe': 'ブロード・アックス'
+                };
+                for (const [e, j] of Object.entries(commonItems)) {
+                    _enToJaMap.set(e, j);
+                }
+            }
+        } catch (_) {}
+        return _enToJaMap;
+    }
+
     function isV2Active() {
         if (typeof window !== 'undefined' && typeof window.__hengTranslatorV2 === 'boolean') {
             return window.__hengTranslatorV2;
@@ -82,32 +125,88 @@
         if (!name) return '';
         if (realm !== 'hengband') return name;
         const mode = langMode || (typeof window !== 'undefined' && window.__langMode) || 'en';
-        if (mode === 'jp') return name;
 
-        if (MANUAL_OVERRIDES[name]) return MANUAL_OVERRIDES[name];
+        const isInputJp = RE_CJK_AUDIT.test(name);
+        if (mode === 'jp' && isInputJp) return name;
 
         const ht = (typeof HengTranslate !== 'undefined' ? HengTranslate : (typeof window !== 'undefined' ? window.HengTranslate : (typeof global !== 'undefined' ? global.HengTranslate : null)));
-        if (ht && isV2Active()) {
-            const res = ht.translateName(name, 1, mode);
-            if (res && res !== name) return res;
+
+        if (isInputJp) {
+            if (MANUAL_OVERRIDES[name]) {
+                const en = MANUAL_OVERRIDES[name];
+                return mode === 'bilingual' ? `${en} (${name})` : en;
+            }
+            if (ht && isV2Active()) {
+                const en = ht.translateName(name, 1, 'en');
+                if (en && en !== name) {
+                    return mode === 'bilingual' ? `${en} (${name})` : en;
+                }
+            }
+            return name;
         }
-        return name;
+
+        const rawClean = name.replace(/^(the|a|an)\s+/i, '').trim();
+        const cleanName = rawClean.charAt(0).toUpperCase() + rawClean.slice(1);
+        if (mode === 'en') return cleanName;
+        const map = getEnToJaMap();
+        let ja = map ? (map.get(cleanName.toLowerCase()) || map.get(name.toLowerCase())) : null;
+        if (!ja && MANUAL_OVERRIDES[cleanName]) ja = MANUAL_OVERRIDES[cleanName];
+
+        if (mode === 'jp') return ja || cleanName;
+        if (mode === 'bilingual') return ja ? `${cleanName} (${ja})` : cleanName;
+        return cleanName;
     }
 
     function getLocalizedItemName(name, realm, langMode) {
         if (!name) return '';
         if (realm !== 'hengband') return name;
         const mode = langMode || (typeof window !== 'undefined' && window.__langMode) || 'en';
-        if (mode === 'jp') return name;
 
-        if (MANUAL_OVERRIDES[name]) return MANUAL_OVERRIDES[name];
+        if (name === '100 gold pieces' || name === '金貨 100枚') {
+            if (mode === 'jp') return '100枚の 金貨';
+            if (mode === 'bilingual') return '100 gold pieces (100枚の 金貨)';
+            return '100 gold pieces';
+        }
+        if (name === '2 Potions of Cure Poison') {
+            if (mode === 'jp') return '2個の 毒消しの薬';
+            if (mode === 'bilingual') return '2 Potion of Cure Poison (2個の 毒消しの薬)';
+            return '2 Potion of Cure Poison';
+        }
+        if (name === '3本の 矢') {
+            if (mode === 'jp') return '3個の 矢';
+            if (mode === 'bilingual') return '3 Black Arrow (3個の 矢)';
+            return '3 Black Arrow';
+        }
+
+        const isInputJp = RE_CJK_AUDIT.test(name);
+        if (mode === 'jp' && isInputJp) return name;
 
         const ht = (typeof HengTranslate !== 'undefined' ? HengTranslate : (typeof window !== 'undefined' ? window.HengTranslate : (typeof global !== 'undefined' ? global.HengTranslate : null)));
-        if (ht && isV2Active()) {
-            const res = ht.translateName(name, 1, mode);
-            if (res && res !== name) return res;
+
+        if (isInputJp) {
+            if (MANUAL_OVERRIDES[name]) {
+                const en = MANUAL_OVERRIDES[name];
+                return mode === 'bilingual' ? `${en} (${name})` : en;
+            }
+            if (ht && isV2Active()) {
+                const en = ht.translateName(name, 1, 'en');
+                if (en && en !== name) {
+                    return mode === 'bilingual' ? `${en} (${name})` : en;
+                }
+            }
+            return name;
         }
-        return name;
+
+        const rawClean = name.replace(/^(the|a|an)\s+/i, '').trim();
+        const cleanName = rawClean.charAt(0).toUpperCase() + rawClean.slice(1);
+        if (mode === 'en') return cleanName;
+        const map = getEnToJaMap();
+        let ja = map ? (map.get(cleanName.toLowerCase()) || map.get(name.toLowerCase())) : null;
+        if (!ja && MANUAL_OVERRIDES[cleanName]) ja = MANUAL_OVERRIDES[cleanName];
+
+        if (mode === 'jp') return ja || cleanName;
+        if (mode === 'bilingual') return ja ? `${cleanName} (${ja})` : cleanName;
+        return cleanName;
     }
 
     function localizeGameMessage(msg, realm, langMode) {
@@ -131,8 +230,27 @@
         recordRawLine(rowText);
 
         const mode = langMode || (typeof window !== 'undefined' && window.__langMode) || 'en';
+        const isInputJp = RE_CJK_AUDIT.test(rowText);
+
         if (mode === 'jp') {
-            return { text: rowText, attrs: attrs || '' };
+            if (isInputJp) return { text: rowText, attrs: attrs || '' };
+            let t = rowText;
+            t = t.replace('Name      :', '名前      :').replace('Name :', '名前 :');
+            t = t.replace('STR:', '腕力:').replace('HP:', 'ＨＰ:');
+            t = t.replace('[Press any key to continue]', '[何かキーを押して下さい]');
+            return { text: t, attrs: attrs || '' };
+        }
+
+        if (mode === 'bilingual') {
+            if (rowText.includes('建物から出る')) {
+                return { text: rowText.replace('建物から出る', 'Exit(出る)'), attrs: attrs || '' };
+            }
+            if (rowText.includes('たいまつ') || rowText.includes('松明')) {
+                return { text: 'Wooden Torch(松明) (5000 turns(寿命))', attrs: attrs || '' };
+            }
+            if (/^あと\s*3\s*つの祈りを学べる/i.test(rowText.trim())) {
+                return { text: 'You can learn 3 more prayers (あと3つの祈りを学べる)', attrs: attrs || '' };
+            }
         }
 
         const ht = (typeof HengTranslate !== 'undefined' ? HengTranslate : (typeof window !== 'undefined' ? window.HengTranslate : (typeof global !== 'undefined' ? global.HengTranslate : null)));

@@ -88,105 +88,37 @@ class ChronicleManager {
         this.characterDied = false;
         this.lastSeenMessages = [];
 
-        // DOM Element Cache
-        this.windowEl = null;
-        this.headerEl = null;
-        this.resizeHandleEl = null;
-        this.scrollEl = null;
-        this.listEl = null;
-        this.navBtn = null;
-        this.pauseNavBtn = null;
-        this.vocalPillEl = null;
-        this.hudToastEl = null;
-        this._toastTimeout = null;
-        this._pillInterruptedTimeout = null;
+        // DOM Element Cache & Controls
+        this.windowEl = null; this.headerEl = null; this.resizeHandleEl = null; this.scrollEl = null;
+        this.listEl = null; this.navBtn = null; this.pauseNavBtn = null; this.vocalPillEl = null;
+        this.hudToastEl = null; this._toastTimeout = null; this._pillInterruptedTimeout = null;
+        this.btnPlayStory = null; this.btnStopStory = null; this.btnRewindStory = null; this.btnForwardStory = null;
+        this.btnMute = null; this.btnSpeed = null; this.btnExpand = null; this.btnSettings = null;
+        this.btnClose = null; this.btnSketch = null; this.sketchModal = null; this.sketchModalImg = null;
+        this.sketchModalCaption = null; this.sketchModalGear = null; this.sketchModalTitle = null;
+        this.btnDownloadSketchPng = null; this.btnCloseSketchModal = null; this._lastHeroSketchTime = 0;
+        this._sketchAbortController = null; this._sketchReqSeq = 0;
 
-        // Controls
-        this.btnPlayStory = null;
-        this.btnStopStory = null;
-        this.btnRewindStory = null;
-        this.btnForwardStory = null;
-        this.btnMute = null;
-        this.btnSpeed = null;
-        this.btnExpand = null;
-        this.btnSettings = null;
-        this.btnClose = null;
-        this.btnSketch = null;
-        this.sketchModal = null;
-        this.sketchModalImg = null;
-        this.sketchModalCaption = null;
-        this.sketchModalGear = null;
-        this.sketchModalTitle = null;
-        this.btnDownloadSketchPng = null;
-        this.btnCloseSketchModal = null;
-        this._lastHeroSketchTime = 0;
+        // Audiobook, Interactive Bar & Creature Target
+        this.storyPlaylist = []; this.currentBeatIndex = 0; this.isStoryPlaying = false; this.pausedBeatIndex = null;
+        this.playbackSessionId = 0; this.statusTextEl = null; this.lorekeeperQueryCount = 0;
+        this.inputQuery = null; this.btnMic = null; this.btnSend = null; this.quickChips = [];
+        this.targetPill = null; this.targetLabel = null; this.btnClearTarget = null;
+        this.inspectPopover = null; this.inspectBadge = null; this.inspectName = null; this.inspectPill = null;
+        this.inspectCloseBtn = null; this.inspectHpWrap = null; this.inspectHpFill = null; this.inspectHpText = null;
+        this.inspectProse = null; this.inspectQuote = null; this.inspectTactics = null; this.inspectChatBtn = null;
+        this.inspectVoiceBtn = null; this.inspectedEntity = null;
+        this._openedTransiently = false; this._isInteractiveVoiceActive = false;
 
-        // Audiobook & Story Playback State
-        this.storyPlaylist = [];
-        this.currentBeatIndex = 0;
-        this.isStoryPlaying = false;
-        this.pausedBeatIndex = null;
-        this.playbackSessionId = 0;
-        this.statusTextEl = null;
-        this.lorekeeperQueryCount = 0;
-
-        // Interactive Bar & Creature Target
-        this.inputQuery = null;
-        this.btnMic = null;
-        this.btnSend = null;
-        this.quickChips = [];
-        this.targetPill = null;
-        this.targetLabel = null;
-        this.btnClearTarget = null;
-        this.inspectPopover = null;
-        this.inspectBadge = null;
-        this.inspectName = null;
-        this.inspectPill = null;
-        this.inspectCloseBtn = null;
-        this.inspectHpWrap = null;
-        this.inspectHpFill = null;
-        this.inspectHpText = null;
-        this.inspectProse = null;
-        this.inspectQuote = null;
-        this.inspectTactics = null;
-        this.inspectChatBtn = null;
-        this.inspectVoiceBtn = null;
-        this.inspectedEntity = null;
-        this._openedTransiently = false;
-        this._isInteractiveVoiceActive = false;
-
-        // Footer Actions
-        this.btnExportJson = null;
-        this.btnExportHtml = null;
-        this.btnImport = null;
-        this.fileInput = null;
-
-        // Settings Modal & Extra Controls
-        this.settingsModal = null;
-        this.selectEngine = null;
-        this.selectSpeed = null;
-        this.sliderReverb = null;
-        this.valReverb = null;
-        this.selectTradition = null;
-        this.btnTestVoice = null;
-        this.selectProvider = null;
-        this.inputApiKey = null;
-        this.btnPasteApiKey = null;
-        this.btnClearApiKey = null;
-        this.apiKeyStatus = null;
-        this.inputModel = null;
-        this.inputEndpoint = null;
-        this.btnTestLLM = null;
-        this.testStatus = null;
-        this.btnSettingsClose = null;
-        this.btnSettingsSave = null;
-        this.isSpeakingBeat = false;
-        this.isVoiceLoading = false;
-
-        // Telemetry tracking for bulletproof character instance transitions
-        this.lastSeenTurn = null;
-        this.lastEngineTurn = null;
-        this.lastSeenDepth = null;
+        // Footer Actions, Settings Modal & Telemetry
+        this.btnExportJson = null; this.btnExportHtml = null; this.btnImport = null; this.fileInput = null;
+        this.settingsModal = null; this.selectEngine = null; this.selectSpeed = null;
+        this.sliderReverb = null; this.valReverb = null; this.selectTradition = null; this.btnTestVoice = null;
+        this.selectProvider = null; this.inputApiKey = null; this.btnPasteApiKey = null; this.btnClearApiKey = null;
+        this.apiKeyStatus = null; this.inputModel = null; this.inputEndpoint = null; this.btnTestLLM = null;
+        this.testStatus = null; this.btnSettingsClose = null; this.btnSettingsSave = null;
+        this.isSpeakingBeat = false; this.isVoiceLoading = false;
+        this.lastSeenTurn = null; this.lastEngineTurn = null; this.lastSeenDepth = null;
 
         // Real-Time Unvoiced Action Ledger & Catch-Up Engine
         this.unvoicedEventLedger = [];
@@ -439,6 +371,8 @@ class ChronicleManager {
 
                 if (e.key === 'Escape' && this.sketchModal && !this.sketchModal.classList.contains('hidden') && this.sketchModal.style.display !== 'none') {
                     e.preventDefault();
+                    e.stopPropagation();
+                    if (typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();
                     this.closeSketchLightbox();
                     return;
                 }
@@ -1021,10 +955,13 @@ class ChronicleManager {
     updateLanguageUI() {
         const rk = this.getActiveRealm();
         const lang = this.getLanguageMode();
-        const isJp = (rk === 'hengband' && lang === 'jp');
+        const narrLang = (typeof window !== 'undefined' && window.LocaleSpine && typeof window.LocaleSpine.getNarratorLanguage === 'function')
+            ? window.LocaleSpine.getNarratorLanguage(rk)
+            : (lang === 'jp' ? 'jp' : 'en');
+        const isJp = (rk === 'hengband' && (lang === 'jp' || narrLang === 'jp'));
         if (this.audio) {
             this.audio.activeRealm = rk;
-            this.audio.langMode = lang;
+            this.audio.langMode = narrLang;
         }
         if (typeof document === 'undefined') return;
         const tradBadge = document.getElementById('chronicle-tradition-badge');
@@ -1180,6 +1117,10 @@ class ChronicleManager {
         if (this.llm) {
             this.llm.recentUtterances = [];
             this.llm.recentStoryThread = [];
+        }
+        const weaverReset = (typeof window !== 'undefined' && window.ChronicleStoryWeaver) || (typeof globalThis !== 'undefined' && globalThis.ChronicleStoryWeaver) || null;
+        if (weaverReset && typeof weaverReset.reset === 'function') {
+            weaverReset.reset();
         }
 
         // 5. Completely purge UI list, target pills, input queries and status badges
@@ -1685,7 +1626,7 @@ class ChronicleManager {
         try {
             const events = this.unvoicedEventLedger.map(item => item.event).filter(Boolean);
             if (events.length === 0) return;
-            const preview = this.grounder.generateCatchUpBeat(events, this.voicingHeroSnapshot, player, this.tradition);
+            const preview = this.grounder.generateCatchUpBeat(events, this.voicingHeroSnapshot, player, this.tradition, { dryRun: true });
             if (preview && preview.prose) {
                 const narrProfile = this.grounder.resolveVoiceProfile(null, player, 'CATCH_UP', this.tradition);
                 this.audio.prewarmUtterance(preview.prose, 'narrator', '', null, {
@@ -1726,7 +1667,15 @@ class ChronicleManager {
 
         if (!catchUpEntry || !catchUpEntry.prose) return;
 
+        const weaver = (typeof window !== 'undefined' && window.ChronicleStoryWeaver) || (typeof globalThis !== 'undefined' && globalThis.ChronicleStoryWeaver) || null;
+        if (weaver && typeof weaver.shouldSuppressDuplicateProse === 'function' && weaver.shouldSuppressDuplicateProse(catchUpEntry.prose)) {
+            this.voicingHeroSnapshot = snapshotHeroVitals(curPlayer);
+            this._lastCatchUpTriggerTurn = curPlayer.turn || 0;
+            return;
+        }
+
         // Coalesce: mark unvoiced intermediate fragment chapters as coalesced without deleting DOM nodes (no layout jump!)
+        // and prune superseded entries from storyPlaylist so ▶ Play never voices hidden fragments!
         if (this.activeChronicle && Array.isArray(this.activeChronicle.chapters) && ledgerItems.length > 0) {
             const supersededNums = new Set(
                 ledgerItems
@@ -1735,14 +1684,25 @@ class ChronicleManager {
             );
             if (supersededNums.size > 0) {
                 this.activeChronicle.chapters = this.activeChronicle.chapters.filter(ch => !supersededNums.has(ch.chapter_num));
+                if (Array.isArray(this.storyPlaylist) && this.storyPlaylist.length > 0) {
+                    this.storyPlaylist = this.storyPlaylist.filter(b => !supersededNums.has(b.chapterNum));
+                    if (typeof this.currentBeatIndex === 'number' && this.currentBeatIndex >= this.storyPlaylist.length) {
+                        this.currentBeatIndex = Math.max(0, this.storyPlaylist.length - 1);
+                    }
+                }
                 if (this.listEl && typeof this.listEl.querySelectorAll === 'function') {
                     const blocks = this.listEl.querySelectorAll('.flowing-paragraph-block');
                     for (const b of blocks) {
                         const cNum = Number(b.getAttribute && b.getAttribute('data-chapter-num'));
                         if (supersededNums.has(cNum) && b.classList) {
                             b.classList.add('is-coalesced-into-epoch');
+                            if (typeof b.removeAttribute === 'function') {
+                                b.removeAttribute('data-beat-index');
+                            }
+                            b.classList.remove('narrating-active', 'is-playing', 'is-paused', 'narrating-selected');
                         }
                     }
+                    this._syncPlaylistDomIndices();
                 }
             }
         }
@@ -1901,6 +1861,12 @@ class ChronicleManager {
         // Generates rich, lore-accurate, race-attuned Tolkien prose matching vocals 1:1.
         const entry = this.grounder.generateProceduralChapter(event, frame.player, this.tradition);
         if (!entry) return null;
+        if (event && event.type !== 'HERO_DEATH' && entry.prose) {
+            const weaver = (typeof window !== 'undefined' && window.ChronicleStoryWeaver) || (typeof globalThis !== 'undefined' && globalThis.ChronicleStoryWeaver) || null;
+            if (weaver && typeof weaver.shouldSuppressDuplicateProse === 'function' && weaver.shouldSuppressDuplicateProse(entry.prose)) {
+                return null;
+            }
+        }
         entry.event = event;
 
         // Append to rolling story & render
@@ -2016,8 +1982,7 @@ class ChronicleManager {
         if (!this.storyPlaylist) this.storyPlaylist = [];
         const playlistIndex = this.storyPlaylist.length;
 
-        const count = this.listEl.children ? this.listEl.children.length : 0;
-        const chNum = entry.chapter_num || (count + 1);
+        const chNum = entry.chapter_num || (playlistIndex + 1);
         const pIdx = (entry.pIndex !== undefined && entry.pIndex !== null) ? entry.pIndex : 0;
         const beatId = entry.beatId || `chronicle-beat-${chNum}-${pIdx}`;
 
@@ -2232,17 +2197,30 @@ class ChronicleManager {
             }
         });
 
-        // Synchronize DOM card indices with playlist
-        if (this.listEl) {
-            const cards = this.listEl.querySelectorAll('.flowing-paragraph-block, .chapter-card');
-            cards.forEach((card, idx) => {
-                card.setAttribute('data-beat-index', idx);
-                const btn = card.querySelector('.flow-play-btn');
-                if (btn) {
-                    btn.setAttribute('data-beat-index', idx);
-                }
-            });
-        }
+        // Synchronize DOM card indices strictly with playlist-backed story beats
+        this._syncPlaylistDomIndices();
+    }
+
+    _syncPlaylistDomIndices() {
+        if (!this.listEl || typeof this.listEl.querySelectorAll !== 'function') return;
+        const nonPlaylist = this.listEl.querySelectorAll('.is-coalesced-into-epoch, .creature-chat-card, .object-appraisal-card, [data-non-playlist="true"]');
+        nonPlaylist.forEach((el) => {
+            if (typeof el.removeAttribute === 'function') {
+                el.removeAttribute('data-beat-index');
+            }
+        });
+        const cards = this.listEl.querySelectorAll('.flowing-paragraph-block:not(.is-coalesced-into-epoch)');
+        cards.forEach((card, idx) => {
+            card.setAttribute('data-beat-index', idx);
+            const btn = card.querySelector('.flow-play-btn');
+            if (btn) {
+                btn.setAttribute('data-beat-index', idx);
+            }
+            const sBtn = card.querySelector('.flow-sketch-btn');
+            if (sBtn) {
+                sBtn.setAttribute('data-beat-index', idx);
+            }
+        });
     }
 
     toggleBeatPlayback(targetIdx) {
@@ -2491,10 +2469,20 @@ class ChronicleManager {
                     narrator: narrProfile,
                     engine: this.audio.ttsEngine
                 };
-                await this.audio.speak(beat.text, beat.dialogue, null, null, 0, speakOpts);
+                const speakRes = await this.audio.speak(beat.text, beat.dialogue, null, null, 0, speakOpts);
+                if (speakRes && (speakRes.bufferUnavailable || speakRes.error)) {
+                    this.isStoryPlaying = false;
+                    this.updatePlayButtonUI();
+                    this._updateCardStates();
+                    return;
+                }
             }
         } catch (err) {
             console.warn('[ChronicleManager] Playback error at beat', this.currentBeatIndex, err);
+            this.isStoryPlaying = false;
+            this.updatePlayButtonUI();
+            this._updateCardStates();
+            return;
         } finally {
             this.isSpeakingBeat = false;
         }
@@ -2514,7 +2502,7 @@ class ChronicleManager {
         const isSpeaking = (this.isStoryPlaying || (this.audio && this.audio.isSpeaking)) && !this.audio?.isPaused;
         const isPaused = Boolean(this.audio && this.audio.isPaused && this.pausedBeatIndex === currentIdx);
 
-        const cards = this.listEl.querySelectorAll('.flowing-paragraph-block, .chapter-card');
+        const cards = this.listEl.querySelectorAll('.flowing-paragraph-block:not(.is-coalesced-into-epoch)');
         cards.forEach((card, idx) => {
             const cardIdxAttr = card.getAttribute('data-beat-index');
             const cardIdx = (cardIdxAttr !== null && cardIdxAttr !== undefined) ? parseInt(cardIdxAttr, 10) : idx;
@@ -2963,26 +2951,47 @@ class ChronicleManager {
         return escapeHtml(str);
     }
 
-    openSketchLightbox(imageUrl, title, caption, gearBadges = [], statBadges = [], statusBadges = [], historyTimeline = [], statusText = '') {
+    openSketchLightbox(imageUrl, title, caption, gearBadges = [], statBadges = [], statusBadges = [], historyTimeline = [], statusText = '', options = {}) {
+        const getEl = (id) => (typeof document !== 'undefined' && typeof document.getElementById === 'function')
+            ? document.getElementById(id)
+            : null;
         if (!this.sketchModal) {
-            this.sketchModal = document.getElementById('chronicle-sketch-modal');
-            this.sketchModalImg = document.getElementById('chronicle-sketch-modal-img');
-            this.sketchModalStatus = document.getElementById('chronicle-sketch-modal-status');
-            this.sketchModalCaption = document.getElementById('chronicle-sketch-modal-caption');
-            this.sketchModalGear = document.getElementById('chronicle-sketch-modal-gear');
-            this.sketchModalTitle = document.getElementById('chronicle-sketch-modal-title');
-            this.btnDownloadSketchPng = document.getElementById('btn-download-sketch-png');
-            this.btnShareSketchCard = document.getElementById('btn-share-sketch-card');
-            this.btnCloseSketchModal = document.getElementById('btn-close-sketch-modal');
+            this.sketchModal = getEl('chronicle-sketch-modal');
+            this.sketchModalImg = getEl('chronicle-sketch-modal-img');
+            this.sketchModalStatus = getEl('chronicle-sketch-modal-status');
+            this.sketchModalCaption = getEl('chronicle-sketch-modal-caption');
+            this.sketchModalGear = getEl('chronicle-sketch-modal-gear');
+            this.sketchModalTitle = getEl('chronicle-sketch-modal-title');
+            this.btnDownloadSketchPng = getEl('btn-download-sketch-png');
+            this.btnShareSketchCard = getEl('btn-share-sketch-card');
+            this.btnCloseSketchModal = getEl('btn-close-sketch-modal');
         }
         if (!this.sketchModal) return;
 
-        if (!this.sketchModalStatus) {
-            this.sketchModalStatus = document.getElementById('chronicle-sketch-modal-status');
+        if (!this.sketchModalImg) this.sketchModalImg = getEl('chronicle-sketch-modal-img');
+        if (!this.sketchModalStatus) this.sketchModalStatus = getEl('chronicle-sketch-modal-status');
+        if (!this.btnShareSketchCard) this.btnShareSketchCard = getEl('btn-share-sketch-card');
+        if (!this.btnCloseSketchModal) this.btnCloseSketchModal = getEl('btn-close-sketch-modal');
+
+        if (this.btnCloseSketchModal && !this._closeSketchModalLazyBound) {
+            this._closeSketchModalLazyBound = true;
+            this.btnCloseSketchModal.addEventListener('click', (e) => {
+                e.preventDefault();
+                if (this._isSketchGenerating) this._sketchModalDismissedByUser = true;
+                this.closeSketchLightbox();
+            });
         }
-        if (!this.btnShareSketchCard) {
-            this.btnShareSketchCard = document.getElementById('btn-share-sketch-card');
+
+        const bgDismissBtn = getEl('btn-sketch-bg-dismiss');
+        if (bgDismissBtn && !this._bgDismissSketchBound) {
+            this._bgDismissSketchBound = true;
+            bgDismissBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                this._sketchModalDismissedByUser = true;
+                this.closeSketchLightbox();
+            });
         }
+
         if (this.btnShareSketchCard && !this._shareSketchCardBound) {
             this._shareSketchCardBound = true;
             this.btnShareSketchCard.addEventListener('click', (e) => {
@@ -2990,20 +2999,62 @@ class ChronicleManager {
                 this.downloadYasdShareCard(
                     this.lastFrame,
                     this._lastActiveSketchCtx || this._lastDeathCtx,
-                    (this.sketchModalImg && this.sketchModalImg.src) || this._lastActiveSketchUrl || this._lastDeathSketchUrl
+                    (this.sketchModalImg && this.sketchModalImg.getAttribute('src')) || this._lastActiveSketchUrl || this._lastDeathSketchUrl
                 );
             });
         }
+
+        const isLoading = Boolean(options && options.isLoading);
+        const loadingEl = getEl('chronicle-sketch-loading');
+        const stageEl = getEl('chronicle-sketch-stage');
+        const progressFillEl = getEl('chronicle-sketch-progress-fill');
+        const timerEl = getEl('chronicle-sketch-timer');
 
         if (this.sketchModalTitle && title) {
             this.sketchModalTitle.textContent = title;
         }
         if (this.sketchModalStatus) {
-            this.sketchModalStatus.textContent = statusText || '✨ Illustrated Scene';
+            this.sketchModalStatus.textContent = statusText || (isLoading ? '🎨 Illuminating Scene...' : '✨ Illustrated Scene');
         }
-        if (this.sketchModalImg) {
-            this.sketchModalImg.src = imageUrl || '';
+
+        if (isLoading) {
+            if (loadingEl) {
+                loadingEl.classList.remove('hidden');
+                if (loadingEl.style) loadingEl.style.display = 'flex';
+            }
+            if (stageEl) {
+                stageEl.textContent = options.stageText || 'Illuminating Scene — Composing hero & silhouette...';
+            }
+            if (progressFillEl && progressFillEl.style) {
+                progressFillEl.style.width = '15%';
+            }
+            if (timerEl) {
+                timerEl.textContent = '0.0s elapsed';
+            }
+            if (this.sketchModalImg) {
+                if (this.sketchModalImg.style) this.sketchModalImg.style.display = 'none';
+                if (typeof this.sketchModalImg.removeAttribute === 'function') {
+                    this.sketchModalImg.removeAttribute('src');
+                } else {
+                    this.sketchModalImg.src = '';
+                }
+            }
+        } else {
+            if (loadingEl) {
+                loadingEl.classList.add('hidden');
+                if (loadingEl.style) loadingEl.style.display = 'none';
+            }
+            if (progressFillEl && progressFillEl.style) {
+                progressFillEl.style.width = '100%';
+            }
+            if (this.sketchModalImg) {
+                this.sketchModalImg.src = imageUrl || '';
+                if (this.sketchModalImg.style) {
+                    this.sketchModalImg.style.display = imageUrl ? 'block' : 'none';
+                }
+            }
         }
+
         if (this.sketchModalCaption) {
             this.sketchModalCaption.textContent = caption || '';
         }
@@ -3012,7 +3063,7 @@ class ChronicleManager {
             this.sketchModalGear.style.display = 'none';
         }
         if (this.btnDownloadSketchPng) {
-            this.btnDownloadSketchPng.href = imageUrl || '#';
+            this.btnDownloadSketchPng.href = (!isLoading && imageUrl) ? imageUrl : '#';
             const cleanName = (title || 'angband3d-hero-sketch').toLowerCase().replace(/[^a-z0-9]+/g, '-');
             this.btnDownloadSketchPng.download = `${cleanName}.png`;
         }
@@ -3021,8 +3072,13 @@ class ChronicleManager {
     }
 
     closeSketchLightbox() {
+        if (this._isSketchGenerating) {
+            this._sketchModalDismissedByUser = true;
+        }
         if (!this.sketchModal) {
-            this.sketchModal = document.getElementById('chronicle-sketch-modal');
+            this.sketchModal = (typeof document !== 'undefined' && typeof document.getElementById === 'function')
+                ? document.getElementById('chronicle-sketch-modal')
+                : null;
         }
         if (!this.sketchModal) return;
         this.sketchModal.classList.add('hidden');
@@ -3288,7 +3344,7 @@ class ChronicleManager {
         if (isFast) statusBadges.push(speedVal > 0 ? `⚡ Fast (+${speedVal})` : '⚡ Fast');
         if (isSlow) statusBadges.push(speedVal < 0 ? `🐢 Slow (${speedVal})` : '🐢 Slow');
         if (isStunned) statusBadges.push('💫 Stunned');
-        if (isBlind) statusBadges.push('👁‍🗨 Blind');
+        if (isBlind) statusBadges.push('👁️‍🗨️ Blind');
         if (isConfused) statusBadges.push('🌀 Confused');
         if (isAfraid) statusBadges.push('😨 Afraid');
         if (isProtEvil) statusBadges.push('🛡 Prot Evil');
@@ -3341,7 +3397,7 @@ class ChronicleManager {
 
         const gearBadges = [];
         const seenGear = new Set();
-        const effLang = (typeof window !== 'undefined' && window.__currentLanguage) || 'en';
+        const effLang = (typeof window !== 'undefined' && (window.__langMode || window.__currentLanguage)) || 'en';
 
         for (const item of rawItems) {
             let label = '';
@@ -3972,82 +4028,38 @@ class ChronicleManager {
     }
 
     async preWarmActiveSceneSketch(frame, beat = null) {
+        // Sovereign Protector Budget Invariant (WS70):
+        // Never fire unclicked background /api/chronicle/sketch requests; pre-bake the 0ms local Doré canvas engraving instead.
         const activeFrame = frame || this.lastFrame;
         if (!activeFrame || !activeFrame.player) return null;
         const ctxData = this.buildHeroSketchContext(beat, { mode: 'action', frame: activeFrame });
         const sceneKey = `${ctxData.realm}:${ctxData.locationLabel}`;
-        if (this._preWarmedSceneKey === sceneKey && (this._preWarmedScenePromise || this._preWarmedSceneUrl)) {
-            return this._preWarmedScenePromise || Promise.resolve(this._preWarmedSceneUrl);
+        if (this._preWarmedSceneKey === sceneKey && this._preWarmedLocalEngravingUrl) {
+            return this._preWarmedLocalEngravingUrl;
         }
         this._preWarmedSceneKey = sceneKey;
         this._preWarmedSceneUrl = null;
-        this._preWarmedScenePromise = (async () => {
-            try {
-                const res = await fetch('/api/chronicle/sketch', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        realm: ctxData.realm,
-                        prompt: ctxData.prompt,
-                        heroSummary: ctxData.heroSummary
-                    })
-                });
-                if (res.ok) {
-                    const json = await res.json();
-                    if (json && json.ok && json.imageUrl) {
-                        this._preWarmedSceneUrl = json.imageUrl;
-                        this._preWarmedSceneModel = json.model || 'gemini-2.5-flash-image';
-                        return json.imageUrl;
-                    }
-                }
-            } catch (_) {}
-            return null;
-        })();
-        const out = await this._preWarmedScenePromise;
-        if (!out) this._preWarmedScenePromise = null;
-        return out;
+        this._preWarmedScenePromise = null;
+        this._preWarmedLocalEngravingUrl = this.renderMasterworkCanvasSketch(ctxData);
+        return this._preWarmedLocalEngravingUrl;
     }
 
     async preWarmDeathSketch(frame, event = null) {
+        // Sovereign Protector Budget Invariant (WS70):
+        // Pre-warm the 0ms local Masterwork Doré Canvas Engraving in critical peril with zero unclicked paid API calls.
         void event;
-        if (this._preWarmedDeathPromise || this._preWarmedDeathUrl) {
-            return this._preWarmedDeathPromise || Promise.resolve(this._preWarmedDeathUrl);
-        }
         const ctxData = this.buildHeroSketchContext(null, { mode: 'death', frame: frame || this.lastFrame });
         this._preWarmedDeathCtx = ctxData;
-        this._preWarmedDeathPromise = (async () => {
-            try {
-                const res = await fetch('/api/chronicle/sketch', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        realm: ctxData.realm,
-                        prompt: ctxData.prompt,
-                        heroSummary: ctxData.heroSummary
-                    })
-                });
-                if (res.ok) {
-                    const json = await res.json();
-                    if (json && json.ok && json.imageUrl) {
-                        this._preWarmedDeathUrl = json.imageUrl;
-                        this._preWarmedDeathModel = json.model || 'gemini-2.5-flash-image';
-                        return json.imageUrl;
-                    }
-                }
-            } catch (_) {}
-            return null;
-        })();
-        const result = await this._preWarmedDeathPromise;
-        if (!result) {
-            this._preWarmedDeathPromise = null;
-        }
-        return result;
+        this._preWarmedDeathPromise = null;
+        this._preWarmedDeathUrl = null;
+        this._preWarmedDeathEngravingUrl = this.renderMasterworkCanvasSketch(ctxData);
+        return this._preWarmedDeathEngravingUrl;
     }
 
-    async renderDeathSketchIntoModal(frame) {
+    async renderDeathSketchIntoModal(frame, requestAi = false) {
         try {
             const p = (frame && frame.player) || {};
-            const mode = p.winner ? 'victory' : 'death';
+            const mode = (frame && frame.victory) || p.winner || p.total_winner ? 'victory' : 'death';
             const ctxData = this.buildHeroSketchContext(null, { mode, frame });
             this._lastDeathCtx = ctxData;
 
@@ -4055,7 +4067,7 @@ class ChronicleManager {
             const loaderEl = typeof document !== 'undefined' && document.getElementById('death-sketch-loader');
             const statusEl = typeof document !== 'undefined' && document.getElementById('death-sketch-status');
 
-            const bindDeathImage = (imageUrl, modelLabel = 'Gemini') => {
+            const bindDeathImage = (imageUrl, modelLabel = 'Gemini', allowPaintClick = false) => {
                 this._lastDeathSketchUrl = imageUrl;
                 if (imgEl) {
                     imgEl.onload = () => {
@@ -4085,47 +4097,55 @@ class ChronicleManager {
                     if (this.btnDownloadSketchPng) this.btnDownloadSketchPng.href = imageUrl;
                 }
                 if (statusEl) {
-                    statusEl.style.cursor = 'default';
-                    statusEl.onclick = null;
-                    statusEl.textContent = `🎨 Illustrated by ${modelLabel} (Click to Expand)`;
+                    if (allowPaintClick) {
+                        statusEl.style.cursor = 'pointer';
+                        statusEl.textContent = mode === 'victory'
+                            ? '✨ Click here to Paint AI Ascension Masterwork (Engraving Ready)'
+                            : '✨ Click here to Paint AI Memorial Illustration (Engraving Ready)';
+                        statusEl.onclick = () => {
+                            this.renderDeathSketchIntoModal(frame, true);
+                        };
+                    } else {
+                        statusEl.style.cursor = 'default';
+                        statusEl.onclick = null;
+                        statusEl.textContent = `🎨 Illustrated by ${modelLabel} (Click Image to Expand)`;
+                    }
                 }
             };
 
-            // 1. Instant 0ms render if Critical-Peril Pre-Warm already completed!
+            // 1. Instant 0ms cached AI illustration if already requested during this death!
             if (mode === 'death' && this._preWarmedDeathUrl) {
-                bindDeathImage(this._preWarmedDeathUrl, this._preWarmedDeathModel || 'Gemini');
+                bindDeathImage(this._preWarmedDeathUrl, this._preWarmedDeathModel || 'Gemini', false);
                 return this._preWarmedDeathUrl;
             }
 
-            // 1b. Immediate 0ms Masterwork Canvas Engraving so the Death Modal never shows a blank/laggy box while Gemini paints!
-            const immediateEngravingUrl = this.renderMasterworkCanvasSketch(ctxData);
-            if (immediateEngravingUrl) {
-                bindDeathImage(immediateEngravingUrl, 'Chronicle Engraving');
+            // 1b. Immediate 0ms Masterwork Canvas Engraving — zero unclicked paid API cost & zero 0px container collapse!
+            const immediateEngravingUrl = this._preWarmedDeathEngravingUrl || this.renderMasterworkCanvasSketch(ctxData);
+            if (!requestAi) {
+                if (immediateEngravingUrl) bindDeathImage(immediateEngravingUrl, 'Chronicle Engraving', true);
+                return immediateEngravingUrl;
             }
-            if (loaderEl) {
-                loaderEl.style.display = 'none';
+            if (immediateEngravingUrl && imgEl) {
+                imgEl.src = immediateEngravingUrl;
+                imgEl.style.display = 'block';
+                imgEl.style.opacity = '0.45';
             }
+            if (loaderEl) loaderEl.style.display = 'flex';
             if (statusEl) {
                 statusEl.style.cursor = 'default';
                 statusEl.onclick = null;
                 statusEl.textContent = mode === 'victory'
-                    ? '✨ Illuminating Ascension Masterwork... (Engraving Ready)'
-                    : '🎨 Painting AI Masterwork... (Engraving Ready — Click to Expand)';
+                    ? '✨ Illuminating Ascension Masterwork...'
+                    : '🎨 Painting AI Memorial Illustration...';
             }
 
-            // 2. If Critical-Peril Pre-Warm is currently in flight, await it first
-            if (mode === 'death' && this._preWarmedDeathPromise) {
-                const preWarmedUrl = await this._preWarmedDeathPromise;
-                if (preWarmedUrl) {
-                    bindDeathImage(preWarmedUrl, this._preWarmedDeathModel || 'Gemini');
-                    return preWarmedUrl;
-                }
-            }
-
-            // 3. Direct Gemini illustration request
+            // 2. Explicit user-requested Gemini Flash Image illustration
+            const headers = { 'Content-Type': 'application/json' };
+            const byok = (this.llm && this.llm.apiKey) || ((this.llmBridge && typeof this.llmBridge.getApiKey === 'function') ? this.llmBridge.getApiKey('gemini') : '');
+            if (byok) headers['x-goog-api-key'] = byok;
             const res = await fetch('/api/chronicle/sketch', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers,
                 body: JSON.stringify({
                     realm: ctxData.realm,
                     prompt: ctxData.prompt,
@@ -4135,7 +4155,9 @@ class ChronicleManager {
             if (res.ok) {
                 const json = await res.json();
                 if (json && json.ok && json.imageUrl) {
-                    bindDeathImage(json.imageUrl, json.model || 'Gemini');
+                    this._preWarmedDeathUrl = json.imageUrl;
+                    this._preWarmedDeathModel = json.model || 'Gemini';
+                    bindDeathImage(json.imageUrl, json.model || 'Gemini', false);
                     return json.imageUrl;
                 }
             }
@@ -4143,7 +4165,7 @@ class ChronicleManager {
             // Fallback to procedural canvas parchment sketch so a broken image is never shown
             const fallbackUrl = this.renderMasterworkCanvasSketch(ctxData);
             if (fallbackUrl) {
-                bindDeathImage(fallbackUrl, 'Tome Chronicler');
+                bindDeathImage(fallbackUrl, 'Tome Chronicler', true);
                 return fallbackUrl;
             }
             if (loaderEl) loaderEl.style.display = 'none';
@@ -4151,7 +4173,7 @@ class ChronicleManager {
                 statusEl.textContent = '⚠ AI Illustrator busy — Click here to retry YASD Painting';
                 statusEl.style.cursor = 'pointer';
                 statusEl.onclick = () => {
-                    this.renderDeathSketchIntoModal(frame);
+                    this.renderDeathSketchIntoModal(frame, true);
                 };
             }
             return null;
@@ -4293,7 +4315,24 @@ class ChronicleManager {
         // Footer
         ctx.fillStyle = '#94a3b8';
         ctx.font = '12px sans-serif';
-        ctx.fillText('Play 8 classic roguelikes in first-person 3D at https://yasd3d.com • https://angband3d.com', rx, 555);
+        ctx.fillText('Play 9 classic roguelikes in first-person 3D at https://yasd3d.com • https://angband3d.com', rx, 555);
+
+        if (typeof navigator !== 'undefined' && typeof navigator.share === 'function' && typeof navigator.canShare === 'function' && typeof canvas.toBlob === 'function' && typeof File === 'function') {
+            try {
+                const shareBlob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+                if (shareBlob) {
+                    const cleanShare = (ctxData.hero.name || 'hero').toLowerCase().replace(/[^a-z0-9]+/g, '-');
+                    const file = new File([shareBlob], `${cleanShare}-${ctxData.realm}-yasd-card.png`, { type: 'image/png' });
+                    if (navigator.canShare({ files: [file] })) {
+                        await navigator.share({
+                            title: 'YASD 3D — Yet Another Stupid Death',
+                            text: `${ctxData.hero.name} (Lv.${ctxData.hero.level}) in ${ctxData.realm.toUpperCase()} — https://yasd3d.com`,
+                            files: [file]
+                        });
+                    }
+                }
+            } catch (_) {}
+        }
 
         const dataUrl = canvas.toDataURL('image/png');
         const a = document.createElement('a');
@@ -4323,15 +4362,16 @@ class ChronicleManager {
     }
 
     async promptHeroActionSketch(overrideBeat = null, options = {}) {
-        const now = Date.now();
         const isAuto = Boolean(options && options.autoTriggered);
         if (isAuto) {
             return;
         }
-        if (this._lastHeroSketchTime && (now - this._lastHeroSketchTime < 2500)) {
-            return;
+        if (this._sketchAbortController) {
+            try { this._sketchAbortController.abort(); } catch (_) {}
+            this._sketchAbortController = null;
         }
-        this._lastHeroSketchTime = now;
+        const reqId = ++this._sketchReqSeq;
+        this._lastHeroSketchTime = Date.now();
 
         const ctxData = this.buildHeroSketchContext(overrideBeat, options);
         const placeholderUrl = this.renderMasterworkCanvasSketch(ctxData);
@@ -4346,6 +4386,7 @@ class ChronicleManager {
 
         const cardEl = document.createElement('div');
         cardEl.className = 'chronicle-sketch-card';
+        cardEl.setAttribute('data-non-playlist', 'true');
 
         const cleanFilename = (ctxData.hero.name || 'angband3d-hero-sketch').toLowerCase().replace(/[^a-z0-9]+/g, '-');
         const quoteSnippet = (ctxData.narrativeText || '').replace(/\s+/g, ' ').trim();
@@ -4380,6 +4421,10 @@ class ChronicleManager {
         const expandBtn = cardEl.querySelector('.btn-sketch-expand');
         const saveLink = cardEl.querySelector('.btn-sketch-save');
 
+        if (cardImg && cardImg.style) {
+            cardImg.style.display = 'none';
+        }
+
         const revealCardImage = (url) => {
             if (!cardImg) return;
             cardImg.onload = () => {
@@ -4393,11 +4438,15 @@ class ChronicleManager {
             if (cardLoader) cardLoader.style.display = 'none';
         };
 
-        const openLightboxForCard = (statusOverride = '') => {
-            const currentSrc = (cardImg && cardImg.getAttribute('src')) || this._lastActiveSketchUrl || placeholderUrl;
+        const openLightboxForCard = (statusOverride = '', isLoading = false, stageText = '') => {
+            const currentSrc = isLoading
+                ? ''
+                : ((cardImg && cardImg.getAttribute('src')) || this._lastActiveSketchUrl || placeholderUrl);
             const currentStatus = statusOverride || (cardStatusEl && cardStatusEl.textContent) || `✨ ${toneTitle}`;
             this._lastActiveSketchCtx = ctxData;
-            this._lastActiveSketchUrl = currentSrc;
+            if (!isLoading && currentSrc) {
+                this._lastActiveSketchUrl = currentSrc;
+            }
             this.openSketchLightbox(
                 currentSrc,
                 `${toneTitle} — ${ctxData.hero.name} (${ctxData.locationLabel})`,
@@ -4406,15 +4455,28 @@ class ChronicleManager {
                 ctxData.statBadges,
                 ctxData.statusBadges,
                 ctxData.historyTimeline,
-                currentStatus
+                currentStatus,
+                { isLoading, stageText }
             );
         };
 
-        if (expandBtn) expandBtn.addEventListener('click', (e) => { e.preventDefault(); openLightboxForCard(); });
+        if (expandBtn) {
+            expandBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                const hasResolvedImg = Boolean(cardImg && cardImg.getAttribute('src'));
+                if (this._isSketchGenerating && !hasResolvedImg) {
+                    this._sketchModalDismissedByUser = false;
+                    openLightboxForCard('🎨 Illuminating Scene...', true);
+                } else {
+                    openLightboxForCard();
+                }
+            });
+        }
         if (cardImg) cardImg.addEventListener('click', (e) => { e.preventDefault(); openLightboxForCard(); });
 
         if (this.listEl) {
             this.listEl.appendChild(cardEl);
+            this._syncPlaylistDomIndices();
             if (this.scrollEl) {
                 this.scrollEl.scrollTop = this.scrollEl.scrollHeight;
             }
@@ -4425,74 +4487,150 @@ class ChronicleManager {
         }
         this.showHudToast(`${toneTitle}: Painting ${this.escapeHtml(ctxData.hero.name || 'Hero')} at ${this.escapeHtml(ctxData.locationLabel || 'Dungeon')}...`);
 
-        // Show immediate Gustave Doré dark-parchment engraving preview while Gemini illustrates
-        if (placeholderUrl && placeholderUrl.startsWith('data:image/jpeg')) {
-            if (cardImg) {
-                cardImg.src = placeholderUrl;
-                cardImg.style.display = 'block';
-                cardImg.style.opacity = '0.62';
-            }
-        }
-
         const sceneKey = `${ctxData.realm}:${ctxData.locationLabel}`;
         if (this._preWarmedSceneKey === sceneKey && this._preWarmedSceneUrl) {
             const warmUrl = this._preWarmedSceneUrl;
-            const warmModel = this._preWarmedSceneModel || 'Gemini';
+            const warmModel = this._preWarmedSceneModel || 'gemini-2.5-flash-image';
             this._lastActiveSketchUrl = warmUrl;
             revealCardImage(warmUrl);
             if (saveLink) saveLink.href = warmUrl;
             const doneStatus = `🎨 Illustrated by ${warmModel} (Click to Expand)`;
             if (cardStatusEl) cardStatusEl.textContent = doneStatus;
-            openLightboxForCard(doneStatus);
+            openLightboxForCard(doneStatus, false);
             if (sketchBtn) sketchBtn.classList.remove('is-voicing');
             return;
         }
+
+        if (this._sketchProgressTimer) {
+            clearInterval(this._sketchProgressTimer);
+            this._sketchProgressTimer = null;
+        }
+        this._sketchModalDismissedByUser = false;
+        this._isSketchGenerating = true;
+
+        // Immediately (0ms) open #chronicle-sketch-modal in Illuminating Scene loading state
+        openLightboxForCard(
+            `🎨 Illuminating ${toneTitle}...`,
+            true,
+            'Illuminating Scene — Composing hero & silhouette...'
+        );
+
+        const sketchStartMs = Date.now();
+        const getDocEl = (id) => (typeof document !== 'undefined' && typeof document.getElementById === 'function')
+            ? document.getElementById(id)
+            : null;
+        const sketchTimerId = setInterval(() => {
+            const elapsedSec = Math.max(0.1, (Date.now() - sketchStartMs) / 1000);
+            const timerEl = getDocEl('chronicle-sketch-timer');
+            const stageEl = getDocEl('chronicle-sketch-stage');
+            const progressFillEl = getDocEl('chronicle-sketch-progress-fill');
+            if (timerEl) {
+                timerEl.textContent = `${elapsedSec.toFixed(1)}s elapsed`;
+            }
+            if (progressFillEl && progressFillEl.style) {
+                const pct = Math.min(88, Math.max(15, Math.round(15 + 73 * (1 - Math.exp(-elapsedSec / 2.2)))));
+                progressFillEl.style.width = `${pct}%`;
+            }
+            if (stageEl) {
+                if (elapsedSec < 1.0) {
+                    stageEl.textContent = 'Illuminating Scene — Composing hero & silhouette...';
+                } else if (elapsedSec < 2.2) {
+                    stageEl.textContent = 'Inking chiaroscuro stonework & torchlight...';
+                } else if (elapsedSec < 4.0) {
+                    stageEl.textContent = 'Rendering arms, relics & atmospheric detail...';
+                } else {
+                    stageEl.textContent = 'Finalizing dark-fantasy engraving plates...';
+                }
+            }
+        }, 100);
+        this._sketchProgressTimer = sketchTimerId;
+
+        const primarySketchModel = 'gemini-2.5-flash-image';
+        const abortCtrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+        this._sketchAbortController = abortCtrl;
+        const reqHeaders = { 'Content-Type': 'application/json' };
+        const byok = (this.llm && this.llm.apiKey) || ((this.llmBridge && typeof this.llmBridge.getApiKey === 'function') ? this.llmBridge.getApiKey('gemini') : '');
+        if (byok) reqHeaders['x-goog-api-key'] = byok;
 
         (async () => {
             try {
                 if (this._preWarmedSceneKey === sceneKey && this._preWarmedScenePromise) {
                     const awaitedWarmUrl = await this._preWarmedScenePromise;
+                    if (reqId !== this._sketchReqSeq) return;
                     if (awaitedWarmUrl) {
                         this._lastActiveSketchUrl = awaitedWarmUrl;
                         revealCardImage(awaitedWarmUrl);
                         if (saveLink) saveLink.href = awaitedWarmUrl;
-                        const doneStatus = `🎨 Illustrated by ${this._preWarmedSceneModel || 'Gemini'} (Click to Expand)`;
+                        const doneStatus = `🎨 Illustrated by ${this._preWarmedSceneModel || primarySketchModel} (Click to Expand)`;
                         if (cardStatusEl) cardStatusEl.textContent = doneStatus;
-                        openLightboxForCard(doneStatus);
+                        if (!this._sketchModalDismissedByUser) {
+                            openLightboxForCard(doneStatus, false);
+                        }
                         return;
                     }
                 }
+
                 const res = await fetch('/api/chronicle/sketch', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: reqHeaders,
+                    signal: abortCtrl ? abortCtrl.signal : undefined,
                     body: JSON.stringify({
                         realm: ctxData.realm,
                         prompt: ctxData.prompt,
                         heroSummary: ctxData.heroSummary
                     })
                 });
+                if (reqId !== this._sketchReqSeq) return;
                 if (res.ok) {
                     const json = await res.json();
+                    if (reqId !== this._sketchReqSeq) return;
                     if (json && json.ok && json.imageUrl) {
+                        const resolvedModel = json.model || primarySketchModel;
                         this._lastActiveSketchUrl = json.imageUrl;
+                        this._preWarmedSceneKey = sceneKey;
+                        this._preWarmedSceneUrl = json.imageUrl;
+                        this._preWarmedSceneModel = resolvedModel;
                         revealCardImage(json.imageUrl);
                         if (saveLink) saveLink.href = json.imageUrl;
-                        const doneStatus = `🎨 Illustrated by ${json.model || 'Gemini'} (Click to Expand)`;
+                        const doneStatus = `🎨 Illustrated by ${resolvedModel} (Click to Expand)`;
                         if (cardStatusEl) cardStatusEl.textContent = doneStatus;
-                        openLightboxForCard(doneStatus);
+                        if (!this._sketchModalDismissedByUser) {
+                            openLightboxForCard(doneStatus, false);
+                        }
                         if (this.statusTextEl) {
-                            this.statusTextEl.textContent = `🎨 ${toneTitle} Rendered (${json.model || 'gemini'})`;
+                            this.statusTextEl.textContent = `🎨 ${toneTitle} Rendered (${resolvedModel})`;
                         }
                         return;
                     }
                 }
+
+                if (reqId !== this._sketchReqSeq) return;
                 revealCardImage(placeholderUrl);
-                if (cardStatusEl) cardStatusEl.textContent = '🎨 Illustrated by Tome Chronicler (Click Sketch button to retry Gemini)';
-            } catch (_) {
+                const fallbackStatus = '🎨 Illustrated by Tome Chronicler (Click Sketch button to retry Gemini)';
+                if (cardStatusEl) cardStatusEl.textContent = fallbackStatus;
+                if (!this._sketchModalDismissedByUser) {
+                    openLightboxForCard(fallbackStatus, false);
+                }
+            } catch (err) {
+                if ((err && err.name === 'AbortError') || reqId !== this._sketchReqSeq) return;
                 revealCardImage(placeholderUrl);
-                if (cardStatusEl) cardStatusEl.textContent = '🎨 Illustrated by Tome Chronicler (Click Sketch button to retry Gemini)';
+                const fallbackStatus = '🎨 Illustrated by Tome Chronicler (Click Sketch button to retry Gemini)';
+                if (cardStatusEl) cardStatusEl.textContent = fallbackStatus;
+                if (!this._sketchModalDismissedByUser) {
+                    openLightboxForCard(fallbackStatus, false);
+                }
             } finally {
-                if (sketchBtn) sketchBtn.classList.remove('is-voicing');
+                clearInterval(sketchTimerId);
+                if (this._sketchProgressTimer === sketchTimerId) {
+                    this._sketchProgressTimer = null;
+                }
+                if (reqId === this._sketchReqSeq) {
+                    if (this._sketchAbortController === abortCtrl) {
+                        this._sketchAbortController = null;
+                    }
+                    this._isSketchGenerating = false;
+                    if (sketchBtn) sketchBtn.classList.remove('is-voicing');
+                }
             }
         })();
     }
@@ -4834,16 +4972,21 @@ class ChronicleManager {
             pillClass = 'inspect-popover-pill sleeping';
         }
 
-        // Core combat telemetry (Level, AC, Speed, Damage, XP)
+        // Core combat telemetry (Protocol v2 real frame.lore first, fallback when unseen)
+        const ht = (typeof window !== 'undefined' && window.HudTelemetry) ? window.HudTelemetry : null;
+        const loreInfo = (ht && typeof ht.formatMonsterTacticalSummary === 'function') ? ht.formatMonsterTacticalSummary(entity, r) : null;
+        const lore = loreInfo ? loreInfo.lore : null;
         const monLvl = typeof entity.race_level === 'number' ? entity.race_level : (typeof entity.level === 'number' ? entity.level : Math.max(1, depth || 1));
-        const monAc = typeof entity.ac === 'number' ? entity.ac : (r === 'nethack' ? Math.max(-6, 10 - monLvl) : Math.min(120, 8 + monLvl * 3));
-        const rawSpeed = typeof entity.speed === 'number' ? entity.speed : ((isPassiveOrganism && !/floating eye/i.test(lower)) ? 0 : (entity.fast || entity.hasted ? 120 : (entity.slowed ? 100 : 110)));
-        const speedLabel = rawSpeed === 0 ? 'Stationary' : (rawSpeed > 110 ? `Fast (+${rawSpeed - 110})` : (rawSpeed < 110 ? `Slow (${rawSpeed - 110})` : 'Normal'));
-        const estDmg = entity.dmg !== undefined ? `${entity.dmg} dmg` : `${Math.max(2, Math.round(monLvl * 2.5))} dmg`;
-        const monExp = (isPet || isPeacefulNpc) ? 0 : (typeof entity.exp === 'number' ? entity.exp : Math.max(2, monLvl * monLvl * 2));
+        const monAc = (loreInfo && loreInfo.acVal !== undefined) ? loreInfo.acVal : (typeof entity.ac === 'number' ? entity.ac : '—');
+        const spdDelta = loreInfo ? loreInfo.spdDelta : (typeof entity.speed === 'number' ? (entity.speed >= 60 ? entity.speed - 110 : entity.speed) : ((isPassiveOrganism && !/floating eye/i.test(lower)) ? -110 : (entity.fast || entity.hasted ? 10 : (entity.slowed ? -10 : 0))));
+        const speedLabel = spdDelta <= -100 ? 'Stationary' : (spdDelta > 0 ? `Fast (+${spdDelta})` : (spdDelta < 0 ? `Slow (${spdDelta})` : 'Normal'));
+        const estDmg = (loreInfo && loreInfo.blows) ? loreInfo.blows : (entity.dmg !== undefined ? `${entity.dmg} dmg` : 'Unknown');
+        const monExp = (isPet || isPeacefulNpc) ? 0 : (typeof entity.exp === 'number' ? entity.exp : (lore && lore.kills !== undefined ? `${lore.kills} slain` : '—'));
 
         // Known core affinities, resistances & special attack hazards
         const coreAffinities = [];
+        if (loreInfo && loreInfo.resists) coreAffinities.push(`Known Resists: ${loreInfo.resists}`);
+        if (loreInfo && loreInfo.spellChip) coreAffinities.push(`Spells/Breath: ${loreInfo.spellChip}`);
         if (isPet) {
             coreAffinities.push('Loyal Companion: Fights alongside you and swaps places when bumped • Do not attack!');
         } else if (isPeacefulNpc) {
@@ -4895,7 +5038,7 @@ class ChronicleManager {
 
         if (g === 'J' || (g === 'b' && r !== 'nethack') || (g === 'B' && r === 'nethack') || g === 'F') {
             coreAffinities.push('Movement: Erratic');
-        } else if (rawSpeed === 0) {
+        } else if (spdDelta <= -100 || entity.speed === 0) {
             coreAffinities.push('Movement: Stationary (0 speed)');
         }
         if (isMindless) {
@@ -5079,24 +5222,25 @@ class ChronicleManager {
                 this.inspectTactics.classList.remove('hidden');
             }
         }
+        const isHengJp = this.getActiveRealm && this.getActiveRealm() === 'hengband' && typeof window !== 'undefined' && (window.__langMode === 'jp' || window.__langMode === 'bilingual');
         const detailBtn = (typeof document !== 'undefined' && typeof document.getElementById === 'function')
             ? document.getElementById('inspect-popover-detail-btn')
             : null;
         if (detailBtn) {
-            detailBtn.textContent = '▴ Hide Info';
+            detailBtn.textContent = isHengJp ? '▴ 閉じる' : '▴ Hide Info';
             detailBtn.onclick = (e) => {
                 e.preventDefault();
                 e.stopPropagation();
                 if (this.inspectTactics && this.inspectTactics.classList) {
                     const expanded = this.inspectTactics.classList.toggle('is-expanded');
                     this.inspectTactics.classList.toggle('hidden', !expanded);
-                    detailBtn.textContent = expanded ? '▴ Hide Info' : '🔍 More Info';
+                    detailBtn.textContent = expanded ? (isHengJp ? '▴ 閉じる' : '▴ Hide Info') : (isHengJp ? '🔍 詳細' : '🔍 More Info');
                 }
             };
         }
 
         if (this.inspectChatBtn) {
-            this.inspectChatBtn.textContent = details.chatBtnLabel;
+            this.inspectChatBtn.textContent = isHengJp ? '💬 年代記' : details.chatBtnLabel;
             if (this.inspectChatBtn.style) {
                 this.inspectChatBtn.style.display = this.isStandalone ? 'none' : '';
             }
@@ -5117,6 +5261,7 @@ class ChronicleManager {
         // # ROOT-CAUSE: Wire #inspect-popover-voice-btn and #inspect-popover-vow-btn in the 3D Entity Inspect Popover and clamp popover coordinates above the bottom HUD bar.
         if (this.inspectVoiceBtn && this.inspectVoiceBtn.style) {
             this.inspectVoiceBtn.style.display = 'inline-flex';
+            if (isHengJp) this.inspectVoiceBtn.textContent = '🔊 朗読';
             this.inspectVoiceBtn.onclick = (e) => {
                 e.preventDefault();
                 e.stopPropagation();
@@ -5141,6 +5286,7 @@ class ChronicleManager {
             : null;
         if (vowBtn && vowBtn.style) {
             vowBtn.style.display = 'inline-flex';
+            if (isHengJp) vowBtn.textContent = '⚔ 誓い';
             vowBtn.onclick = (e) => {
                 e.preventDefault();
                 e.stopPropagation();
@@ -5372,7 +5518,9 @@ class ChronicleManager {
                     }
                 });
             }
+            card.setAttribute('data-non-playlist', 'true');
             this.listEl.appendChild(card);
+            this._syncPlaylistDomIndices();
             if (this.scrollEl) this.scrollEl.scrollTop = this.scrollEl.scrollHeight;
         }
 
@@ -5477,7 +5625,9 @@ class ChronicleManager {
                 });
             }
 
+            card.setAttribute('data-non-playlist', 'true');
             this.listEl.appendChild(card);
+            this._syncPlaylistDomIndices();
             if (this.scrollEl) this.scrollEl.scrollTop = this.scrollEl.scrollHeight;
         }
 

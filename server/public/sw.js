@@ -1,22 +1,19 @@
-// Angband3D Service Worker — v9.1.0 PWA & Multi-Realm Standalone Client Caching
-const CACHE_NAME = 'angband3d-v11.9.9';
+// Angband3D Service Worker — v12.0.5 PWA & Multi-Realm Standalone Client Caching
+const CACHE_NAME = 'angband3d-v12.1.0';
 const SHELL_ASSETS = [
   '/',
   '/index.html',
   '/manifest.json',
+  '/css/dungeon.css',
   '/assets/favicon.png',
-  '/assets/yasd3d_badge.png',
-  '/assets/yasd3d_icon_192.png',
-  '/assets/thunderbear_logo.png'
+  '/assets/yasd3d_icon_192.png'
 ];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(SHELL_ASSETS).catch((err) => {
-        console.warn('[SW] Cache prefetch non-fatal error:', err);
-      });
-    }).then(() => self.skipWaiting())
+    caches.open(CACHE_NAME).then((cache) =>
+      Promise.allSettled(SHELL_ASSETS.map((u) => cache.add(new Request(u, { cache: 'reload' }))))
+    ).then(() => self.skipWaiting())
   );
 });
 
@@ -51,8 +48,11 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Cache-first strategy for immutable static 3D models, textures, sprites, SFX, fonts, and versioned JS/CSS
-  const isVersionedCode = (url.pathname.startsWith('/js/') || url.pathname.startsWith('/css/')) && url.search.includes('v=');
+  // Cache-first strategy for static 3D models, textures, sprites, SFX, fonts, and versioned JS/CSS
+  const hasVersionParam = url.searchParams.has('v');
+  const bypassDiskCache = event.request.mode !== 'navigate' && (url.pathname.startsWith('/assets/') || hasVersionParam);
+  const fetchFresh = () => bypassDiskCache ? fetch(event.request, { cache: 'reload' }) : fetch(event.request);
+  const isVersionedCode = (url.pathname.startsWith('/js/') || url.pathname.startsWith('/css/')) && hasVersionParam;
   if (
     url.pathname.startsWith('/assets/models/') ||
     url.pathname.startsWith('/assets/polyhaven/') ||
@@ -61,12 +61,13 @@ self.addEventListener('fetch', (event) => {
     url.pathname.startsWith('/assets/audio/sfx/') ||
     url.pathname.startsWith('/assets/fonts/') ||
     url.pathname.startsWith('/js/vendor/') ||
+    url.pathname.startsWith('/wasm/') ||
     isVersionedCode
   ) {
     event.respondWith(
-      caches.match(event.request, { ignoreSearch: !isVersionedCode }).then((cached) => {
+      caches.match(event.request, { ignoreSearch: !hasVersionParam }).then((cached) => {
         if (cached) return cached;
-        return fetch(event.request).then((response) => {
+        return fetchFresh().then((response) => {
           if (response && response.status === 200 && response.type === 'basic') {
             const responseToCache = response.clone();
             caches.open(CACHE_NAME).then((cache) => {
@@ -74,6 +75,9 @@ self.addEventListener('fetch', (event) => {
             });
           }
           return response;
+        }).catch(() => {
+          return caches.match(event.request, { ignoreSearch: true })
+            .then((alt) => alt || new Response('Offline', { status: 503, statusText: 'Offline' }));
         });
       })
     );
@@ -82,7 +86,7 @@ self.addEventListener('fetch', (event) => {
 
   // Network-first strategy for live updates with cache fallback
   event.respondWith(
-    fetch(event.request)
+    fetchFresh()
       .then((response) => {
         // Cache successful static asset responses
         if (response && response.status === 200 && response.type === 'basic') {

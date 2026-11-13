@@ -1,22 +1,22 @@
-# Angband 3D — Official Press Kit
+# YASD 3D ("Yet Another Stupid Death") — Official Press Kit (`v12.0`)
 
-> **A 35-year-old roguelike legend reborn in real-time first-person 3D.**  
-> *Bit-for-bit Angband 4.2.6 C engine, 0-turn camera yaw, dual-reality CRT terminal mode, universal .SAV portability, and AI-voiced chronicle.*
+> **Nine classic roguelike realms reborn in 60 FPS first-person 3D.**  
+> *4 Native C/C++ Upstream Engines (`Angband 4.2.6`, `Sil-Q`, `FrogComposBand`, `Hengband`) + 5 Instant Offline Yendor 3D Browser-Worker Cartridges (`RYOD Forge`, `NetHack`, `DCSS`, `Brogue`, `Rogue`), 0-turn camera yaw, `[Tab]` CRT dual-reality, forensic YASD Autopsy cards, and fact-checked Gemini voice chronicle.*
 
 ---
 
 ## 📊 Factsheet
 
-* **Developer**: Thunderbear Studios
-* **Website**: [https://angband3d.com](https://angband3d.com)
-* **Release Date**: October 2026 (Continuous Web & Standalone Release)
+* **Developer**: Thunderbear Studios ([https://thunderbearstudios.dev](https://thunderbearstudios.dev))
+* **Websites**: [https://yasd3d.com](https://yasd3d.com) • [https://angband3d.com](https://angband3d.com)
+* **Current Release**: **`v12.0`** (Continuous Web, Desktop & Android Release)
 * **Platforms**:
-  * **Web**: Instant Play in any modern browser (Chrome, Safari, Edge, Firefox — Desktop & Mobile)
-  * **Windows PC**: Standalone 64-bit Desktop Client (WebView2 & Godot 4 .NET C#)
-  * **Android**: Standalone Native APK (Android 14+, Target SDK 34)
-* **Price**: **100% Free & Open Source Software (FOSS)** — Zero Microtransactions, Zero Ads, Zero Paywalls
+  * **Web & PWA**: Instant Play in any modern browser (Desktop, Tablet & Mobile; 6 realms run 100% offline in a `0ms` Web Worker)
+  * **Windows PC**: Standalone 64-bit Desktop Client (WebView2)
+  * **Android**: Standalone Native APK (Android 14+, Target SDK 34, Portrait & Landscape `fullUser`)
+* **Price**: **100% Free & Open Source Software (FOSS)** — Zero Microtransactions, Zero Ads, Zero Trackers
 * **Licence**: GNU General Public License v2 (GPLv2) & Permissive Open Source Assets
-* **Engine**: Authoritative Upstream Angband 4.2.6 C Engine + Three.js WebGL / Godot 4.3+ .NET
+* **Engine**: **Yendor Engine™ Protocol `v2`** — 4 Authoritative Native C/C++ Engines + 5 Browser-Worker Cartridges + Three.js WebGL2
 * **Repository**: [https://github.com/ThunderbearStudios/angband3d](https://github.com/ThunderbearStudios/angband3d)
 * **Press & Curators Contact**: `press@thunderbearstudios.dev` / GitHub Discussions
 
@@ -25,7 +25,7 @@
 ## 📜 Description
 
 ### 50-Word Elevator Pitch
-**Angband 3D** brings the foundational 35-year-old classic roguelike *Angband* into immersive first-person 3D. Rather than creating a shallow action clone, it runs the authentic, unmodified Angband 4.2.6 C engine behind a continuous 3D world—preserving bit-for-bit mathematical rules, 0-turn camera yaw, dual-reality CRT terminal switching, and universal save compatibility.
+**YASD 3D** (*Yet Another Stupid Death*, [yasd3d.com](https://yasd3d.com)) bridges nine classic roguelike realms into atmospheric first-person 3D. Combining four unmodified upstream C/C++ engines (*Angband 4.2.6*, *Sil-Q*, *FrogComposBand*, *Hengband*) with five `0ms` offline browser cartridges (*RYOD*, *NetHack*, *DCSS*, *Brogue*, *Rogue*), it delivers 0-turn camera scouting, `[Tab]` CRT terminal switching, and forensic YASD Autopsy memorials.
 
 ### Full Summary
 Classic roguelikes like *Moria* (1983) and *Angband* (1990) represent over three decades of continuous balance, complex item generation algorithms, tactical monster AI, and emergent dungeon ecology. Most modern attempts to bring classic roguelikes into 3D make a fatal mistake: they rewrite the game from scratch, discarding decades of battle-tested depth in favor of generic action-RPG mechanics.

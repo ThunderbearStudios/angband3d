@@ -103,6 +103,7 @@
     let _currentBlueprint = null;
     let _savedLibrary = [];
     let _modalEl = null;
+    let _hasImportedBlueprint = false;
 
     // 6-Die Hybrid Roll-or-Pick Tabletop State + Locks
     const _diceState = {
@@ -122,6 +123,8 @@
         goalDepth: 15,
         difficulty: 'standard',
         d20Roll: 18,
+        customTitle: '',
+        customNemesisName: '',
         seed: 133742,
         locks: { biome: false, bestiary: false, story: false, hero: false, discipline: false, mutator: false }
     };
@@ -230,6 +233,45 @@
             }
             .ryod-prompt-mini:focus {
                 border-color: #e5c158; outline: none; box-shadow: 0 0 10px rgba(212, 175, 55, 0.28);
+            }
+            .ryod-preset-bar {
+                display: flex; align-items: center; gap: 5px; flex-wrap: wrap; margin-bottom: 2px;
+            }
+            .ryod-preset-pill {
+                background: linear-gradient(180deg, #1c2230 0%, #10141e 100%);
+                border: 1px solid rgba(212, 175, 55, 0.35); border-radius: 999px;
+                padding: 3px 9px; font-size: 0.69rem; color: #cbd5e1; cursor: pointer;
+                transition: all 0.15s ease;
+            }
+            .ryod-preset-pill:hover { border-color: #f5d77f; color: #fde68a; background: #262115; }
+            .ryod-preset-pill.active {
+                background: linear-gradient(180deg, #d4af37 0%, #a8841a 100%);
+                border-color: #ffd700; color: #0a0d14; font-weight: 800;
+                box-shadow: 0 0 10px rgba(212, 175, 55, 0.45);
+            }
+            .ryod-masterwork-strip {
+                display: flex; align-items: center; gap: 5px; flex-wrap: wrap; margin-top: 6px;
+                padding: 4px 8px; background: #0e121b; border: 1px solid rgba(212, 175, 55, 0.44); border-radius: 6px;
+            }
+            .ryod-masterwork-label {
+                font-family: var(--font-title, 'Cinzel', serif); font-size: 0.69rem; font-weight: 800;
+                color: #d4af37; letter-spacing: 0.5px; margin-right: 4px;
+            }
+            .ryod-masterwork-pill {
+                background: linear-gradient(180deg, #1b202e 0%, #0e121b 100%);
+                border: 1px solid rgba(212, 175, 55, 0.4); border-radius: 4px;
+                padding: 3px 8px; font-size: 0.68rem; color: #d4af37; cursor: pointer;
+                transition: all 0.14s ease;
+            }
+            .ryod-masterwork-pill:hover {
+                border-color: #e5c158; color: #fff6d6; background: #262115; transform: translateY(-1px);
+            }
+            .ryod-masterwork-pill.active {
+                background: linear-gradient(180deg, #d4af37 0%, #a8841a 100%);
+                border-color: #ffd700; color: #0e121b; font-weight: 800;
+            }
+            .ryod-naming-row {
+                display: flex; gap: 8px; align-items: center; width: 100%;
             }
             .ryod-dice-grid {
                 display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px; width: 100%;
@@ -378,6 +420,17 @@
         ];
         const stories = pool ? Object.values(pool.STORY_ARCS || {}) : [];
         const heroes = pool ? Object.values(pool.HERO_ORIGINS || {}) : [];
+        if (!heroes.some(h => h.id === 'beholder')) {
+            heroes.push({
+                id: 'beholder',
+                label: '👁️ Eldritch Beholder Eye (Creature Avatar)',
+                isMonsterAvatar: true,
+                avatarMonsterName: 'floating eye',
+                avatarId: 'beholder',
+                race: 'Aberration',
+                roleName: 'Beholder Eye'
+            });
+        }
         const discEntries = pool ? Object.values(pool.POWER_DISCIPLINES || {}) : [];
         const disciplines = [
             { id: 'auto', label: '✨ Hero Signature Discipline (Auto)', resourceLabel: 'AUTO', verbLabel: 'Signature Power' },
@@ -455,6 +508,8 @@
         _diceState.goalDepth = bp.goalDepth || 15;
         _diceState.difficulty = bp.difficulty || 'standard';
         _diceState.d20Roll = bp.d20Fate || 18;
+        _diceState.customTitle = bp.customTitle || '';
+        _diceState.customNemesisName = bp.customNemesisName || '';
         _diceState.seed = bp.seed || 133742;
     }
 
@@ -471,6 +526,8 @@
 
         return {
             seed: _diceState.seed || 133742,
+            customTitle: _diceState.customTitle || undefined,
+            customNemesisName: _diceState.customNemesisName || undefined,
             archetypeId: matchingArch.id,
             biome: biome.id,
             mapLayout: _diceState.mapLayout || 'classic',
@@ -500,14 +557,23 @@
             if (typeof window !== 'undefined' && window.location && window.location.search) {
                 const params = new URLSearchParams(window.location.search);
                 const bpParam = params.get('bp');
+                const seedParam = params.get('seed');
                 if (bpParam) {
                     const decoded = compiler.decodePermalink(bpParam);
                     if (decoded) {
                         const bp = compiler.normalizeConfig(decoded);
+                        _hasImportedBlueprint = true;
                         syncDiceStateFromBlueprint(bp);
                         applyBlueprintToRuntime(bp);
                         return bp;
                     }
+                } else if (seedParam) {
+                    const seed = compiler.parseSeed ? compiler.parseSeed(seedParam) : (Number(seedParam) || 133742);
+                    const bp = compiler.rollCoherentBlueprint({ seed });
+                    _hasImportedBlueprint = true;
+                    syncDiceStateFromBlueprint(bp);
+                    applyBlueprintToRuntime(bp);
+                    return bp;
                 }
             }
             if (typeof localStorage !== 'undefined') {
@@ -668,6 +734,17 @@
                     <div>
                         <h2 class="ryod-forge-title">🎲 ROLL YOUR OWN DUNGEON — TABLETOP FORGE</h2>
                         <div class="ryod-forge-subtitle">Roll Any Die [🎲], Pick Directly from Any Dropdown [▾], Lock Favorites [🔒], or Drop Straight In!</div>
+                        <div class="ryod-masterwork-strip">
+                            <span class="ryod-masterwork-label">⚡ MASTERWORK:</span>
+                            <button type="button" class="ryod-masterwork-pill" data-masterwork="first_age_anvil" title="Sil-Q Woven Songs &amp; Mithril Smithing">🔨 Mithril Anvil</button>
+                            <button type="button" class="ryod-masterwork-pill" data-masterwork="mazes_of_alchemy" title="NetHack Unidentified Draughts, BUC &amp; Fountains">🧪 Alchemical Mazes</button>
+                            <button type="button" class="ryod-masterwork-pill" data-masterwork="luminous_crucible" title="Brogue Living Gases, Wildfire &amp; Evolving Allies">🍄 Spore Crucible</button>
+                            <button type="button" class="ryod-masterwork-pill" data-masterwork="pantheon_gauntlet" title="DCSS 6-Deity Pantheon, Piety &amp; Gifts">⚡ Pantheon Gauntlet</button>
+                            <button type="button" class="ryod-masterwork-pill" data-masterwork="wyrm_beholder_ascendant" title="Playable Beholder Avatar: 6 Rings &amp; Disintegration">👁️ Beholder Chaos</button>
+                            <button type="button" class="ryod-masterwork-pill" data-masterwork="bushido_bounty_tower" title="Hengband Martial Stances &amp; Wanted Bounties">⚔️ Bushido Bounties</button>
+                            <button type="button" class="ryod-masterwork-pill" data-masterwork="yendor_relic_ascent" title="Rogue Relic Ascent Pursuit &amp; Apex Hunters">🏆 Relic Ascent</button>
+                            <button type="button" class="ryod-masterwork-pill" data-masterwork="true_chimera_chaos" title="All 8 Canonical Disciplines Simultaneously">🌀 True Chimera</button>
+                        </div>
                     </div>
                     <div class="ryod-btn-row">
                         <button type="button" id="btn-ryod-quick-dropin" class="ryod-btn-instant" title="Roll all dice and drop straight into 3D play!">⚡ Quick Roll &amp; Play</button>
@@ -676,6 +753,9 @@
                 </div>
 
                 <div class="ryod-forge-body">
+                    <div class="ryod-preset-bar">
+                        ${STAKES_PRESETS.map(p => `<button type="button" class="ryod-preset-pill" data-preset-id="${p.id}" title="${esc(p.sub)}">${esc(p.label)}</button>`).join('')}
+                    </div>
                     <div class="ryod-dice-tray">
                         <button type="button" class="ryod-d20-badge" id="ryod-d20-display" title="Click to reroll your d20 Starting Fate Boon! (20 = Blessed +3 Relic + Extra Heal, 15-19 = +45 Au &amp; Speed, 1 = Cursed Grim Dare)">🎲 d20: 18 ★</button>
                         <button type="button" id="btn-ryod-reroll-spine" class="ryod-btn-roll-all" title="Roll all unlocked dice!">🎲 Roll the Bones (Reroll Unlocked)</button>
@@ -818,6 +898,11 @@
                         </div>
                     </div>
 
+                    <div class="ryod-naming-row">
+                        <input type="text" id="ryod-custom-title" class="ryod-prompt-mini" maxlength="60" placeholder="Custom Dungeon Title (e.g. 'Citadel of the Wyrm Sovereign')...">
+                        <input type="text" id="ryod-custom-nemesis" class="ryod-prompt-mini" maxlength="60" placeholder="Custom Nemesis Name (e.g. 'Malakor the Undying')...">
+                    </div>
+
                     <div class="ryod-summary-strip">
                         <div class="ryod-summary-top">
                             <span class="ryod-preview-title" id="ryod-preview-title">The Shattered Covenant</span>
@@ -866,8 +951,20 @@
         const setTxt = (id, t) => { const el = document.getElementById(id); if (el) el.textContent = t; };
         const setSel = (id, idx) => { const el = document.getElementById(id); if (el) el.value = String(idx); };
 
-        const d20Quality = _diceState.d20Roll === 20 ? 'NAT 20! ★ (+3 Relic)' : (_diceState.d20Roll >= 15 ? 'Boon! (+45 Au)' : (_diceState.d20Roll === 1 ? 'Grim Dare! (+100 Au)' : ''));
+        const d20Quality = _diceState.d20Roll === 20 ? 'NAT 20! ★ (Relic Boon + Blessing)' : (_diceState.d20Roll >= 15 ? 'Boon! (+45 Au & Map)' : (_diceState.d20Roll === 1 ? 'NAT 1! 💀 (Shade Hunt + 2× Score)' : (_diceState.d20Roll <= 7 ? 'Hardscrabble (Rations)' : 'Adventurer (+15 Au)')));
         setTxt('ryod-d20-display', `🎲 d20: ${_diceState.d20Roll} ${d20Quality}`);
+
+        const titleIn = document.getElementById('ryod-custom-title');
+        if (titleIn && document.activeElement !== titleIn) titleIn.value = _diceState.customTitle || '';
+        const nemIn = document.getElementById('ryod-custom-nemesis');
+        if (nemIn && document.activeElement !== nemIn) nemIn.value = _diceState.customNemesisName || '';
+
+        _modalEl.querySelectorAll('.ryod-preset-pill').forEach(btn => {
+            const pid = btn.getAttribute('data-preset-id');
+            const p = STAKES_PRESETS.find(x => x.id === pid);
+            const active = p && _diceState.goalDepth === p.goalDepth && _diceState.progressionMode === p.progressionMode && _diceState.difficulty === p.difficulty && Boolean(_diceState.beatitude) === Boolean(p.beatitude);
+            btn.classList.toggle('active', Boolean(active));
+        });
 
         setSel('ryod-select-biome', _diceState.biomeIdx);
         setSel('ryod-select-bestiary', _diceState.bestiaryIdx);
@@ -984,6 +1081,52 @@
     }
 
     function bindModalEvents(overlay) {
+        overlay.querySelectorAll('[data-masterwork]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const presetId = btn.getAttribute('data-masterwork');
+                applyMasterworkPreset(presetId);
+                overlay.querySelectorAll('[data-masterwork]').forEach(b => b.classList.toggle('active', b === btn));
+            });
+        });
+
+        overlay.querySelectorAll('.ryod-preset-pill').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const presetId = btn.getAttribute('data-preset-id');
+                const p = STAKES_PRESETS.find(x => x.id === presetId);
+                if (p) {
+                    _diceState.goalDepth = p.goalDepth;
+                    _diceState.progressionMode = p.progressionMode;
+                    _diceState.difficulty = p.difficulty;
+                    _diceState.beatitude = p.beatitude;
+                    _diceState.captiveAllies = p.captiveAllies;
+                    if (p.godMode) {
+                        const lists = getLists();
+                        const gIdx = lists.mutators.findIndex(m => m.id === 'god_sandbox');
+                        if (gIdx >= 0) _diceState.mutatorIdx = gIdx;
+                    }
+                    playDiceSfx();
+                    recompileFromDice();
+                    setStatus(`Stakes preset: ${p.label}`);
+                }
+            });
+        });
+
+        const titleIn = overlay.querySelector('#ryod-custom-title');
+        if (titleIn) {
+            titleIn.addEventListener('input', () => {
+                _diceState.customTitle = titleIn.value.trim();
+                recompileFromDice();
+            });
+        }
+
+        const nemIn = overlay.querySelector('#ryod-custom-nemesis');
+        if (nemIn) {
+            nemIn.addEventListener('input', () => {
+                _diceState.customNemesisName = nemIn.value.trim();
+                recompileFromDice();
+            });
+        }
+
         overlay.querySelectorAll('[data-roll-die]').forEach(el => {
             el.addEventListener('click', () => rollSingleDie(el.getAttribute('data-roll-die')));
         });
@@ -1218,6 +1361,7 @@
                     const rawBp = parsed.blueprint || parsed.ryodConfig || parsed;
                     const compiler = getCompiler();
                     const bp = compiler ? compiler.normalizeConfig(rawBp) : rawBp;
+                    _hasImportedBlueprint = true;
                     syncDiceStateFromBlueprint(bp);
                     applyBlueprintToRuntime(bp);
                     saveBlueprintToLibrary(bp);
@@ -1246,6 +1390,20 @@
         }
     }
 
+    function applyMasterworkPreset(presetId) {
+        const compiler = getCompiler();
+        if (!compiler || !compiler.MASTERWORK_PRESETS) return null;
+        const preset = compiler.MASTERWORK_PRESETS.find(p => p.id === presetId);
+        if (!preset) return null;
+        const bp = compiler.normalizeConfig(preset);
+        _hasImportedBlueprint = true;
+        syncDiceStateFromBlueprint(bp);
+        applyBlueprintToRuntime(bp);
+        renderDiceUI();
+        setStatus(`✨ Preset Loaded: "${bp.title}"!`);
+        return bp;
+    }
+
     function downloadBlueprintJSON(bp) {
         const target = bp || _currentBlueprint || initDefaultBlueprint();
         if (!target || typeof document === 'undefined') return;
@@ -1261,11 +1419,13 @@
         setTimeout(() => URL.revokeObjectURL(url), 1500);
     }
 
-    function open() {
+    function open(opts = {}) {
         const modal = buildModalDOM();
         if (!modal) return;
         // Every time you open the RYOD Dice Forge, give the unlocked dice a fresh roll so it immediately feels alive!
-        rollAllUnlockedDice();
+        if (!opts.preserveBlueprint && !_hasImportedBlueprint) {
+            rollAllUnlockedDice();
+        }
         modal.classList.remove('hidden');
     }
 
@@ -1288,6 +1448,7 @@
     return {
         initDefaultBlueprint,
         getActiveBlueprint: () => _currentBlueprint || initDefaultBlueprint(),
+        getCurrentBlueprint: () => _currentBlueprint || initDefaultBlueprint(),
         applyBlueprintToRuntime,
         persistBlueprintToServer,
         downloadBlueprintJSON,
@@ -1298,6 +1459,8 @@
         open,
         close,
         isOpen,
-        quickRandomizeAndLaunch
+        quickRandomizeAndLaunch,
+        applyMasterworkPreset,
+        MASTERWORK_PRESETS: (getCompiler() && getCompiler().MASTERWORK_PRESETS) || []
     };
 });

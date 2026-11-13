@@ -121,1103 +121,6 @@ window.getAngbandColorString = getAngbandColorString;
 // 2. Procedural Texture Engine (Exact Mathematical Parity with Godot C# DungeonWorld.cs)
 // ==============================================================================
 
-function procHash(x, y, seed = 0) {
-    let n = (x + y * 57 + seed * 131) | 0;
-    n = ((n << 13) ^ n) | 0;
-    const inner = (Math.imul(Math.imul(n, n), 15731) + 789221) | 0;
-    const val = (Math.imul(n, inner) + 1376312589) & 0x7fffffff;
-    return (1.0 - val / 1073741824.0) * 0.5 + 0.5;
-}
-
-function procSmoothNoise(x, y, seed = 0) {
-    const x0 = Math.floor(x) | 0;
-    const y0 = Math.floor(y) | 0;
-    const x1 = (x0 + 1) | 0;
-    const y1 = (y0 + 1) | 0;
-    const fx = x - x0;
-    const fy = y - y0;
-    const sx = fx * fx * (3.0 - 2.0 * fx);
-    const sy = fy * fy * (3.0 - 2.0 * fy);
-    const n00 = procHash(x0, y0, seed);
-    const n10 = procHash(x1, y0, seed);
-    const n01 = procHash(x0, y1, seed);
-    const n11 = procHash(x1, y1, seed);
-    const nx0 = n00 + (n10 - n00) * sx;
-    const nx1 = n01 + (n11 - n01) * sx;
-    return nx0 + (nx1 - nx0) * sy;
-}
-
-function procFractalNoise(x, y, octaves = 3, seed = 0) {
-    let value = 0;
-    let amplitude = 0.5;
-    let frequency = 1.0;
-    let maxVal = 0;
-    for (let i = 0; i < octaves; i++) {
-        value += procSmoothNoise(x * frequency, y * frequency, seed + i * 37) * amplitude;
-        maxVal += amplitude;
-        frequency *= 2.0;
-        amplitude *= 0.5;
-    }
-    return value / maxVal;
-}
-
-function procCreateTexture(size, pixelFunc, isColor = false) {
-    const canvas = document.createElement('canvas');
-    canvas.width = size;
-    canvas.height = size;
-    const ctx = canvas.getContext('2d');
-    const imgData = ctx.createImageData(size, size);
-    const data = imgData.data;
-    let idx = 0;
-    for (let y = 0; y < size; y++) {
-        for (let x = 0; x < size; x++) {
-            const col = pixelFunc(x, y);
-            data[idx++] = Math.min(255, Math.max(0, (col[0] * 255 + 0.5) | 0));
-            data[idx++] = Math.min(255, Math.max(0, (col[1] * 255 + 0.5) | 0));
-            data[idx++] = Math.min(255, Math.max(0, (col[2] * 255 + 0.5) | 0));
-            data[idx++] = Math.min(255, Math.max(0, (col[3] !== undefined ? col[3] * 255 + 0.5 : 255) | 0));
-        }
-    }
-    ctx.putImageData(imgData, 0, 0);
-    const tex = new THREE.CanvasTexture(canvas);
-    tex.wrapS = THREE.RepeatWrapping;
-    tex.wrapT = THREE.RepeatWrapping;
-    if (isColor) tex.encoding = THREE.sRGBEncoding;
-    return tex;
-}
-
-const DIGIT_PATTERNS = [
-    // 1
-    [0b00100, 0b01100, 0b00100, 0b00100, 0b00100, 0b00100, 0b01110],
-    // 2
-    [0b01110, 0b10001, 0b00001, 0b00010, 0b00100, 0b01000, 0b11111],
-    // 3
-    [0b11110, 0b00001, 0b00001, 0b01110, 0b00001, 0b00001, 0b11110],
-    // 4
-    [0b00010, 0b00110, 0b01010, 0b10010, 0b11111, 0b00010, 0b00010],
-    // 5
-    [0b11111, 0b10000, 0b11110, 0b00001, 0b00001, 0b10001, 0b01110],
-    // 6
-    [0b00110, 0b01000, 0b10000, 0b11110, 0b10001, 0b10001, 0b01110],
-    // 7
-    [0b11111, 0b00001, 0b00010, 0b00100, 0b00100, 0b01000, 0b01000],
-    // 8
-    [0b01110, 0b10001, 0b10001, 0b01110, 0b10001, 0b10001, 0b01110]
-];
-
-function procStoreColor(shopNum) {
-    switch (shopNum) {
-        case 1: return [1.0, 0.88, 0.35]; // General Store: Warm Gold
-        case 2: return [0.70, 0.90, 1.0];  // Armoury: Steel Cyan
-        case 3: return [1.0, 0.60, 0.35];  // Weaponsmith: Fiery Orange
-        case 4: return [0.55, 0.95, 0.65]; // Bookseller: Jade Green
-        case 5: return [0.40, 1.0, 0.85];  // Alchemy: Mystic Emerald
-        case 6: return [0.85, 0.65, 1.0];  // Magic: Arcane Violet
-        case 7: return [1.0, 0.45, 0.65];  // Black Market: Crimson Rose
-        case 8: return [1.0, 0.95, 0.70];  // Home: Cozy Amber
-        default: return [1.0, 0.90, 0.50];
-    }
-}
-
-function getStoreColorHex(shopNum) {
-    const rgb = procStoreColor(shopNum);
-    const r = Math.round(rgb[0] * 255);
-    const g = Math.round(rgb[1] * 255);
-    const b = Math.round(rgb[2] * 255);
-    return `rgb(${r},${g},${b})`;
-}
-
-// ==============================================================================
-// 2b. Contextual Lore, Location & Realm Themes Catalog
-// ==============================================================================
-const CONTEXTUAL_THEMES = {
-    // 1. Vanilla Angband / Bree Market Town
-    'angband_town': {
-        id: 'angband_town',
-        name: 'Bree Market Town (Cobblestones & Medieval Fieldstone)',
-        courses: 4,
-        wallRoughness: 0.82,
-        floorRoughness: 0.84,
-        wallBase: [0.65, 0.60, 0.54],
-        wallMortar: [0.18, 0.16, 0.14],
-        floorBase: [0.55, 0.52, 0.48],
-        floorMortar: [0.15, 0.14, 0.12],
-        pbrWall: true,
-        pbrFloor: true
-    },
-    // 2. Vanilla Chapter 1: Upper Crypts (Levels 1–4 / 50–200 ft)
-    'angband_crypts': {
-        id: 'angband_crypts',
-        name: 'Upper Crypts (Ashlar Slate & Cold Barrow Granite)',
-        courses: 4,
-        wallRoughness: 0.82,
-        floorRoughness: 0.80,
-        wallBase: [0.42, 0.43, 0.46],
-        wallMortar: [0.08, 0.08, 0.10],
-        floorBase: [0.38, 0.39, 0.42],
-        floorMortar: [0.06, 0.06, 0.08],
-        grainScale: 1.0,
-        chisel: 0.06
-    },
-    // 3. Vanilla Chapter 2: Flooded Undercrofts (Levels 5–8 / 250–400 ft)
-    'angband_flooded': {
-        id: 'angband_flooded',
-        name: 'Flooded Undercrofts (Wet Slate & Sunken Cistern Pools)',
-        courses: 4,
-        wallRoughness: 0.70,
-        floorRoughness: 0.38,
-        wallBase: [0.32, 0.38, 0.42],
-        wallMortar: [0.06, 0.10, 0.09],
-        floorBase: [0.26, 0.32, 0.38],
-        floorMortar: [0.04, 0.06, 0.08],
-        algaeBleed: true,
-        waterPuddles: true,
-        grainScale: 0.9,
-        chisel: 0.04
-    },
-    // 4. Vanilla Chapter 3: Deep Sepulchre (Levels 9–12 / 450–600 ft)
-    'angband_sepulchre': {
-        id: 'angband_sepulchre',
-        name: 'Deep Sepulchre (Ancient Sandstone Necropolis & Saltpeter)',
-        courses: 4,
-        wallRoughness: 0.88,
-        floorRoughness: 0.86,
-        wallBase: [0.55, 0.46, 0.36],
-        wallMortar: [0.26, 0.20, 0.15],
-        floorBase: [0.48, 0.40, 0.30],
-        floorMortar: [0.20, 0.16, 0.12],
-        saltpeterBloom: true,
-        grainScale: 1.2,
-        chisel: 0.08
-    },
-    // 5. Vanilla Chapter 4: Overgrown Catacombs (Levels 13–16 / 650–800 ft)
-    'angband_catacombs': {
-        id: 'angband_catacombs',
-        name: 'Overgrown Catacombs (Verdant Lichen & Spore Barrow)',
-        courses: 4,
-        wallRoughness: 0.78,
-        floorRoughness: 0.60,
-        wallBase: [0.34, 0.44, 0.32],
-        wallMortar: [0.08, 0.16, 0.08],
-        floorBase: [0.30, 0.40, 0.28],
-        floorMortar: [0.06, 0.12, 0.06],
-        lichenPatches: true,
-        grainScale: 1.1,
-        chisel: 0.05
-    },
-    // 6. Vanilla Chapter 5: Chasm Threshold (Levels 17–20 / 850–1000 ft)
-    'angband_chasm': {
-        id: 'angband_chasm',
-        name: 'Chasm Threshold (Ironstone Deeps & Rust-Veined Quarry)',
-        courses: 4,
-        wallRoughness: 0.82,
-        floorRoughness: 0.78,
-        wallBase: [0.46, 0.40, 0.42],
-        wallMortar: [0.16, 0.10, 0.12],
-        floorBase: [0.38, 0.34, 0.36],
-        floorMortar: [0.12, 0.08, 0.10],
-        hematiteVeins: true,
-        grainScale: 1.4,
-        chisel: 0.10
-    },
-    // 7. Vanilla Chapter 6: Crystal Caverns (Levels 21–35 / 1050–1750 ft)
-    'angband_crystal': {
-        id: 'angband_crystal',
-        name: 'Crystal Caverns (Luminous Quartz & Amethyst Geodes)',
-        courses: 4,
-        wallRoughness: 0.68,
-        floorRoughness: 0.48,
-        wallBase: [0.44, 0.48, 0.58],
-        wallMortar: [0.14, 0.16, 0.24],
-        floorBase: [0.40, 0.44, 0.54],
-        floorMortar: [0.12, 0.14, 0.20],
-        crystalVeins: true,
-        grainScale: 0.8,
-        chisel: 0.04
-    },
-    // 8. Vanilla Chapter 7: Deep Nether Mines (Levels 36–60 / 1800–3000 ft)
-    'angband_nether': {
-        id: 'angband_nether',
-        name: 'Deep Nether Mines (Pyrite Seams & Brimstone Vaults)',
-        courses: 4,
-        wallRoughness: 0.74,
-        floorRoughness: 0.60,
-        wallBase: [0.36, 0.34, 0.32],
-        wallMortar: [0.12, 0.11, 0.08],
-        floorBase: [0.32, 0.30, 0.28],
-        floorMortar: [0.10, 0.09, 0.07],
-        pyriteSulfur: true,
-        grainScale: 1.3,
-        chisel: 0.08
-    },
-    // 9. Vanilla Chapter 8: Magma Underworld (Levels 61–85 / 3050–4250 ft)
-    'angband_magma': {
-        id: 'angband_magma',
-        name: 'Magma Underworld (Scorched Basalt & Thermal Fissures)',
-        courses: 4,
-        wallRoughness: 0.78,
-        floorRoughness: 0.65,
-        wallBase: [0.26, 0.20, 0.18],
-        wallMortar: [0.14, 0.05, 0.03],
-        floorBase: [0.24, 0.18, 0.16],
-        floorMortar: [0.16, 0.06, 0.03],
-        thermalCracks: true,
-        grainScale: 1.2,
-        chisel: 0.08
-    },
-    // 10. Vanilla Chapter 9: The Abyssal Citadel (Levels 86–100 / 4300–5000 ft)
-    'angband_abyss': {
-        id: 'angband_abyss',
-        name: 'The Abyssal Citadel (Monolithic Black Obsidian & Blood-Iron)',
-        courses: 2,
-        wallRoughness: 0.65,
-        floorRoughness: 0.30,
-        wallBase: [0.18, 0.14, 0.22],
-        wallMortar: [0.06, 0.02, 0.08],
-        floorBase: [0.14, 0.11, 0.17],
-        floorMortar: [0.04, 0.01, 0.06],
-        abyssalRunes: true,
-        grainScale: 0.7,
-        chisel: 0.03
-    },
-    // 11. Sil-Q Iron Pits of Angband (Gates of Slag & Upper Deeps, 50–250 ft)
-    'silq_slag': {
-        id: 'silq_slag',
-        name: 'The Gates of Slag & Iron Pits of Angband',
-        courses: 4,
-        wallRoughness: 0.85,
-        floorRoughness: 0.88,
-        wallBase: [0.30, 0.30, 0.32],
-        wallMortar: [0.08, 0.08, 0.09],
-        floorBase: [0.26, 0.26, 0.28],
-        floorMortar: [0.06, 0.06, 0.07],
-        ironStrips: true,
-        grainScale: 1.3,
-        chisel: 0.09
-    },
-    // 12. Sil-Q Morgoth's Armouries (300–500 ft)
-    'silq_armouries': {
-        id: 'silq_armouries',
-        name: "Morgoth's Armouries (Dark Foundries & Forge Deeps)",
-        courses: 4,
-        wallRoughness: 0.82,
-        floorRoughness: 0.84,
-        wallBase: [0.34, 0.28, 0.26],
-        wallMortar: [0.10, 0.08, 0.07],
-        floorBase: [0.28, 0.24, 0.22],
-        floorMortar: [0.08, 0.06, 0.05],
-        slagDrips: true,
-        grainScale: 1.2,
-        chisel: 0.07
-    },
-    // 13. Sil-Q Deep Torment (550–750 ft)
-    'silq_torment': {
-        id: 'silq_torment',
-        name: 'Deep Torment (Barrows of Thangorodrim & Balrog Halls)',
-        courses: 4,
-        wallRoughness: 0.80,
-        floorRoughness: 0.78,
-        wallBase: [0.26, 0.24, 0.28],
-        wallMortar: [0.08, 0.06, 0.09],
-        floorBase: [0.22, 0.20, 0.24],
-        floorMortar: [0.06, 0.05, 0.07],
-        charMarks: true,
-        grainScale: 1.1,
-        chisel: 0.07
-    },
-    // 14. Sil-Q Citadel of the Iron Crown & Throne of Morgoth (800–1000 ft / Level 20)
-    'silq_throne': {
-        id: 'silq_throne',
-        name: 'Citadel of the Iron Crown (Throne of Morgoth)',
-        courses: 2,
-        wallRoughness: 0.60,
-        floorRoughness: 0.24,
-        wallBase: [0.16, 0.15, 0.18],
-        wallMortar: [0.05, 0.04, 0.06],
-        floorBase: [0.12, 0.11, 0.14],
-        floorMortar: [0.03, 0.03, 0.04],
-        ironInlay: true,
-        grainScale: 0.6,
-        chisel: 0.02
-    },
-    // 15. Hengband Eastern Overworld / Castle Town (Depth 0)
-    'hengband_town': {
-        id: 'hengband_town',
-        name: 'Eastern Overworld (Japanese Shikkui Plaster & Hinoki Cedar)',
-        courses: 4,
-        wallRoughness: 0.80,
-        floorRoughness: 0.82,
-        wallBase: [0.82, 0.80, 0.78],
-        wallMortar: [0.22, 0.16, 0.12],
-        floorBase: [0.55, 0.53, 0.50],
-        floorMortar: [0.18, 0.16, 0.14],
-        japaneseTimberPlaster: true,
-        grainScale: 0.9,
-        chisel: 0.04
-    },
-    // 16. Hengband Dungeons (Fuji Caverns & Pagoda Crypts)
-    'hengband_dungeon': {
-        id: 'hengband_dungeon',
-        name: 'Eastern Pagoda Crypts & Fuji Basalt Caverns',
-        courses: 3,
-        wallRoughness: 0.78,
-        floorRoughness: 0.76,
-        wallBase: [0.42, 0.40, 0.42],
-        wallMortar: [0.12, 0.10, 0.10],
-        floorBase: [0.38, 0.36, 0.38],
-        floorMortar: [0.10, 0.08, 0.08],
-        ishigakiStyle: true,
-        grainScale: 1.1,
-        chisel: 0.07
-    },
-    // 17. FrogComposBand Wilderness Town & High Fantasy Dungeons
-    'frog_town': {
-        id: 'frog_town',
-        name: 'Highland Frontier Town (Rustic Fieldstone & Cobblestone)',
-        courses: 4,
-        wallRoughness: 0.82,
-        floorRoughness: 0.84,
-        wallBase: [0.70, 0.66, 0.60],
-        wallMortar: [0.22, 0.18, 0.14],
-        floorBase: [0.58, 0.56, 0.52],
-        floorMortar: [0.18, 0.16, 0.12],
-        pbrWall: true,
-        pbrFloor: true
-    }
-};
-
-function resolveContextualTheme(realm, depth, levelSeed = 0) {
-    let r = (realm || 'angband').toLowerCase();
-    if (r === 'ryod') {
-        const bp = (typeof window !== 'undefined' && window.__activeRyodBlueprint) || null;
-        const b = bp && bp.biome ? String(bp.biome).toLowerCase() : 'obsidian_vaults';
-        if (depth <= 0) {
-            if (b === 'eastern_keep') return CONTEXTUAL_THEMES['hengband_town'];
-            if (b === 'iron_crown_throne') return CONTEXTUAL_THEMES['silq_slag'];
-            return CONTEXTUAL_THEMES['angband_town'];
-        }
-        if (b === 'eastern_keep') return depth <= 6 ? CONTEXTUAL_THEMES['hengband_dungeon'] : CONTEXTUAL_THEMES['angband_crystal'];
-        if (b === 'iron_crown_throne') return depth <= 4 ? CONTEXTUAL_THEMES['silq_slag'] : (depth <= 8 ? CONTEXTUAL_THEMES['silq_armouries'] : CONTEXTUAL_THEMES['silq_throne']);
-        if (b === 'bioluminescent_caverns') return depth <= 5 ? CONTEXTUAL_THEMES['angband_flooded'] : CONTEXTUAL_THEMES['angband_crystal'];
-        if (b === 'gothic_crypts') return depth <= 5 ? CONTEXTUAL_THEMES['angband_crypts'] : (depth <= 10 ? CONTEXTUAL_THEMES['angband_sepulchre'] : CONTEXTUAL_THEMES['angband_catacombs']);
-    }
-    if (depth <= 0) {
-        if (r === 'silq') return CONTEXTUAL_THEMES['silq_slag'];
-        if (r === 'hengband') return CONTEXTUAL_THEMES['hengband_town'];
-        if (r === 'frogcomposband') return CONTEXTUAL_THEMES['frog_town'];
-        return CONTEXTUAL_THEMES['angband_town'];
-    }
-
-    if (r === 'silq') {
-        if (depth <= 5) return CONTEXTUAL_THEMES['silq_slag'];
-        if (depth <= 10) return CONTEXTUAL_THEMES['silq_armouries'];
-        if (depth <= 15) return CONTEXTUAL_THEMES['silq_torment'];
-        return CONTEXTUAL_THEMES['silq_throne'];
-    }
-
-    if (r === 'hengband') {
-        if (depth <= 8) return CONTEXTUAL_THEMES['hengband_dungeon'];
-        if (depth <= 20) return CONTEXTUAL_THEMES['angband_chasm'];
-        if (depth <= 40) return CONTEXTUAL_THEMES['angband_crystal'];
-        if (depth <= 70) return CONTEXTUAL_THEMES['angband_magma'];
-        return CONTEXTUAL_THEMES['angband_abyss'];
-    }
-
-    // Default: Vanilla Angband & FrogComposBand
-    if (depth <= 4) return CONTEXTUAL_THEMES['angband_crypts'];
-    if (depth <= 8) return CONTEXTUAL_THEMES['angband_flooded'];
-    if (depth <= 12) return CONTEXTUAL_THEMES['angband_sepulchre'];
-    if (depth <= 16) return CONTEXTUAL_THEMES['angband_catacombs'];
-    if (depth <= 20) return CONTEXTUAL_THEMES['angband_chasm'];
-    if (depth <= 35) return CONTEXTUAL_THEMES['angband_crystal'];
-    if (depth <= 60) return CONTEXTUAL_THEMES['angband_nether'];
-    if (depth <= 85) return CONTEXTUAL_THEMES['angband_magma'];
-    return CONTEXTUAL_THEMES['angband_abyss'];
-}
-
-function procCreateContextualWallTexture(theme, size = 512) {
-    const courses = theme.courses || 4;
-    const rowHeight = Math.floor(size / courses);
-    const blockWidth = rowHeight * 2;
-    const halfWidth = rowHeight;
-    const wallBase = theme.wallBase || [0.42, 0.43, 0.46];
-    const wallMortar = theme.wallMortar || [0.08, 0.08, 0.10];
-    const gScale = theme.grainScale || 1.0;
-    const chiselScale = theme.chisel || 0.06;
-
-    return procCreateTexture(size, (x, y) => {
-        const row = Math.floor(y / rowHeight);
-        const yInRow = y % rowHeight;
-        const distY = Math.min(yInRow, rowHeight - 1 - yInRow);
-        const xOff = (row % 2 === 1) ? halfWidth : 0;
-        let inBlockX = (x + size - xOff) % blockWidth;
-        let distX = Math.min(inBlockX, blockWidth - 1 - inBlockX);
-
-        if (theme.ishigakiStyle) {
-            const skew = (yInRow - rowHeight * 0.5) * 0.22;
-            const skewedX = (inBlockX + skew + blockWidth) % blockWidth;
-            distX = Math.min(skewedX, blockWidth - 1 - skewedX);
-        }
-
-        const mortarDist = Math.min(distX, distY);
-
-        if (mortarDist <= 4) {
-            if (theme.thermalCracks && mortarDist <= 2) {
-                const fissureNoise = procSmoothNoise(x * 0.05, y * 0.05, 99);
-                if (fissureNoise > 0.58) {
-                    return [0.96, 0.42, 0.08];
-                }
-            }
-            const mn = (procSmoothNoise(x * 0.25, y * 0.25, 101) - 0.5) * 0.04;
-            return [
-                Math.max(0, wallMortar[0] + mn),
-                Math.max(0, wallMortar[1] + mn),
-                Math.max(0, wallMortar[2] + mn)
-            ];
-        }
-
-        if (theme.japaneseTimberPlaster) {
-            // Authentic Japanese Machiya Post-and-Beam: continuous vertical Hinoki cedar pillars & horizontal lintels
-            const pillarSpacing = Math.floor(size / 4); // 4 columns across 512px
-            const distToPillar = Math.min(x % pillarSpacing, pillarSpacing - (x % pillarSpacing));
-            const beamSpacing = Math.floor(size / 2); // 2 course tiers
-            const distToBeam = Math.min(y % beamSpacing, beamSpacing - (y % beamSpacing));
-            const isWood = (distToPillar <= 14) || (distToBeam <= 14);
-
-            if (isWood) {
-                // Hinoki / Sugi Cedar wood texture with authentic directional grain
-                const grain = (procSmoothNoise(x * 0.08, y * 0.40, 31) - 0.5) * 0.07;
-                return [
-                    Math.max(0, Math.min(1, 0.26 + grain)),
-                    Math.max(0, Math.min(1, 0.17 + grain * 0.8)),
-                    Math.max(0, Math.min(1, 0.11 + grain * 0.6))
-                ];
-            }
-            // Traditional Japanese white Shikkui lime plaster with subtle wabi-sabi mineral flecks
-            const plasterGrain = (procSmoothNoise(x * 0.12, y * 0.12, 19) - 0.5) * 0.03;
-            const plasterWabi = (procSmoothNoise(x * 0.02, y * 0.02, 53) - 0.5) * 0.04;
-            return [
-                Math.max(0, Math.min(1, 0.90 + plasterGrain + plasterWabi)),
-                Math.max(0, Math.min(1, 0.88 + plasterGrain + plasterWabi)),
-                Math.max(0, Math.min(1, 0.83 + plasterGrain + plasterWabi))
-            ];
-        }
-
-        const blockId = row * 4 + Math.floor((x + size - xOff) / blockWidth);
-        const blockHue = procHash(blockId, 0, 77);
-
-        let rBase = wallBase[0] + (blockHue - 0.5) * 0.10;
-        let gBase = wallBase[1] + (blockHue - 0.5) * 0.09;
-        let bBase = wallBase[2] + (0.5 - blockHue) * 0.09;
-
-        const bevel = Math.min(1.0, (mortarDist - 4) / 18.0);
-        const macroGrain = (procFractalNoise(x * 0.04 * gScale, y * 0.04 * gScale, 3, 11) - 0.5) * 0.14;
-        const microGrain = (procSmoothNoise(x * 0.16 * gScale, y * 0.16 * gScale, 2) - 0.5) * 0.07;
-        const chisel = (procSmoothNoise(x * 0.28, y * 0.07, 14) - 0.5) * chiselScale;
-        const speckle = procHash(x, y, 42);
-        const fleck = speckle > 0.96 ? 0.16 : (speckle < 0.04 ? -0.16 : 0.0);
-
-        const shade = 0.72 + bevel * 0.28;
-        let r = rBase * shade + macroGrain + microGrain + chisel + fleck;
-        let g = gBase * shade + macroGrain + microGrain + chisel + fleck;
-        let b = bBase * shade + macroGrain + microGrain + chisel + fleck;
-
-        if (theme.algaeBleed) {
-            const algae = Math.max(0, procSmoothNoise(x * 0.06, y * 0.02, 88) - 0.44) * (y / size) * 0.45;
-            g += algae * 0.38;
-            r -= algae * 0.15;
-            b -= algae * 0.10;
-        }
-
-        if (theme.saltpeterBloom) {
-            const sp = Math.max(0, procSmoothNoise(x * 0.05, y * 0.05, 44) - 0.62) * 0.40;
-            r += sp * 0.45;
-            g += sp * 0.42;
-            b += sp * 0.38;
-        }
-
-        if (theme.lichenPatches) {
-            const lic = Math.max(0, procFractalNoise(x * 0.05, y * 0.05, 3, 55) - 0.48) * 0.45;
-            g += lic * 0.48;
-            r += lic * 0.12;
-            b += lic * 0.08;
-        }
-
-        if (theme.hematiteVeins) {
-            const hem = Math.max(0, procSmoothNoise(x * 0.03, y * 0.12, 63) - 0.55) * 0.40;
-            r += hem * 0.40;
-            g -= hem * 0.10;
-            b -= hem * 0.12;
-        }
-
-        if (theme.crystalVeins) {
-            const dist = Math.abs(x - y * 0.75 + Math.sin(y * 0.05) * 18 - 180);
-            if (dist < 12) {
-                const cv = (1.0 - dist / 12.0) * 0.42;
-                b += cv * 0.48;
-                r += cv * 0.30;
-                g += cv * 0.25;
-            }
-        }
-
-        if (theme.pyriteSulfur) {
-            if (procHash(x, y, 77) > 0.97) {
-                r += 0.44;
-                g += 0.38;
-                b += 0.05;
-            } else {
-                const sulf = Math.max(0, procSmoothNoise(x * 0.08, y * 0.08, 33) - 0.68) * 0.32;
-                r += sulf * 0.32;
-                g += sulf * 0.30;
-                b += sulf * 0.05;
-            }
-        }
-
-        if (theme.abyssalRunes) {
-            const distR = Math.abs(y - x * 0.65 + Math.cos(x * 0.04) * 25 - 240);
-            if (distR < 8) {
-                const ar = (1.0 - distR / 8.0) * 0.55;
-                r += ar * 0.58;
-                b += ar * 0.48;
-            }
-        }
-
-        if (theme.charMarks || theme.slagDrips) {
-            const slag = Math.max(0, procSmoothNoise(x * 0.05, y * 0.02, 19) - 0.50) * 0.35;
-            r -= slag * 0.25;
-            g -= slag * 0.25;
-            b -= slag * 0.25;
-        }
-
-        return [
-            Math.max(0, Math.min(1, r)),
-            Math.max(0, Math.min(1, g)),
-            Math.max(0, Math.min(1, b))
-        ];
-    }, true);
-}
-
-function procCreateContextualWallNormal(theme, size = 512) {
-    const courses = theme.courses || 4;
-    const rowHeight = Math.floor(size / courses);
-    const blockWidth = rowHeight * 2;
-    const halfWidth = rowHeight;
-    const gScale = theme.grainScale || 1.0;
-
-    return procCreateTexture(size, (x, y) => {
-        const row = Math.floor(y / rowHeight);
-        const yInRow = y % rowHeight;
-        const distY = Math.min(yInRow, rowHeight - 1 - yInRow);
-        const xOff = (row % 2 === 1) ? halfWidth : 0;
-        let inBlockX = (x + size - xOff) % blockWidth;
-        let distX = Math.min(inBlockX, blockWidth - 1 - inBlockX);
-
-        if (theme.ishigakiStyle) {
-            const skew = (yInRow - rowHeight * 0.5) * 0.22;
-            const skewedX = (inBlockX + skew + blockWidth) % blockWidth;
-            distX = Math.min(skewedX, blockWidth - 1 - skewedX);
-        }
-
-        if (theme.japaneseTimberPlaster) {
-            const pillarSpacing = Math.floor(size / 4);
-            const distToPillar = Math.min(x % pillarSpacing, pillarSpacing - (x % pillarSpacing));
-            const beamSpacing = Math.floor(size / 2);
-            const distToBeam = Math.min(y % beamSpacing, beamSpacing - (y % beamSpacing));
-            const isWood = (distToPillar <= 14) || (distToBeam <= 14);
-            if (isWood) {
-                const wg = (procSmoothNoise(x * 0.08, y * 0.40, 31) - 0.5) * 0.15;
-                const len = Math.hypot(wg, -wg, 1.0);
-                return [wg / len * 0.5 + 0.5, -wg / len * 0.5 + 0.5, 1.0 / len * 0.5 + 0.5];
-            }
-            const pgX = (procSmoothNoise(x * 0.12, y * 0.12, 19) - 0.5) * 0.08;
-            const pgY = (procSmoothNoise(x * 0.12, y * 0.12, 20) - 0.5) * 0.08;
-            const len = Math.hypot(pgX, pgY, 1.0);
-            return [pgX / len * 0.5 + 0.5, pgY / len * 0.5 + 0.5, 1.0 / len * 0.5 + 0.5];
-        }
-
-        const mortarDist = Math.min(distX, distY);
-        if (mortarDist <= 4) return [0.5, 0.5, 1.0];
-
-        let dx = 0, dy = 0;
-        const bevelWidth = 18;
-        if (mortarDist < 4 + bevelWidth) {
-            const t = (mortarDist - 4) / bevelWidth;
-            if (distX < distY) {
-                dx = (inBlockX < halfWidth) ? (1.0 - t) : -(1.0 - t);
-            } else {
-                dy = (yInRow < rowHeight / 2) ? (1.0 - t) : -(1.0 - t);
-            }
-        }
-
-        const rockBump = (procFractalNoise(x * 0.05 * gScale, y * 0.05 * gScale, 3, 50) - 0.5) * 0.22;
-        const chiselBump = (procSmoothNoise(x * 0.28, y * 0.07, 51) - 0.5) * (theme.chisel || 0.06) * 2.0;
-
-        let extraBump = 0;
-        if (theme.crystalVeins) {
-            const dist = Math.abs(x - y * 0.75 + Math.sin(y * 0.05) * 18 - 180);
-            if (dist < 12) extraBump += (1.0 - dist / 12.0) * 0.20;
-        }
-
-        const nx = dx * 0.65 + rockBump + chiselBump + extraBump;
-        const ny = -(dy * 0.65 + rockBump + chiselBump + extraBump);
-        const nz = 1.0;
-        const len = Math.hypot(nx, ny, nz);
-        return [nx / len * 0.5 + 0.5, ny / len * 0.5 + 0.5, nz / len * 0.5 + 0.5];
-    }, false);
-}
-
-function procCreateContextualWallRoughness(theme, size = 512) {
-    const baseR = theme.wallRoughness || 0.82;
-    return procCreateTexture(size, (x, y) => {
-        const grain = (procSmoothNoise(x * 0.08, y * 0.08, 11) - 0.5) * 0.08;
-        let r = baseR + grain;
-
-        if (theme.algaeBleed) {
-            const algae = Math.max(0, procSmoothNoise(x * 0.06, y * 0.02, 88) - 0.44) * (y / size);
-            r -= algae * 0.28;
-        }
-        if (theme.abyssalRunes) {
-            r = Math.min(r, 0.42);
-        }
-        if (theme.saltpeterBloom) {
-            r = Math.min(0.98, r + 0.12);
-        }
-
-        const cr = Math.max(0.05, Math.min(0.98, r));
-        return [cr, cr, cr];
-    }, false);
-}
-
-function procCreateContextualFloorTexture(theme, size = 512) {
-    const tileSize = 256;
-    const floorBase = theme.floorBase || [0.38, 0.39, 0.42];
-    const floorMortar = theme.floorMortar || [0.06, 0.06, 0.08];
-    const gScale = theme.grainScale || 1.0;
-
-    return procCreateTexture(size, (x, y) => {
-        const inTileX = x % tileSize;
-        const inTileY = y % tileSize;
-        const distX = Math.min(inTileX, tileSize - 1 - inTileX);
-        const distY = Math.min(inTileY, tileSize - 1 - inTileY);
-        const mortarDist = Math.min(distX, distY);
-
-        if (mortarDist <= 4) {
-            if (theme.thermalCracks && mortarDist <= 2) {
-                if (procSmoothNoise(x * 0.06, y * 0.06, 115) > 0.56) {
-                    return [0.98, 0.44, 0.09];
-                }
-            }
-            const mn = (procSmoothNoise(x * 0.25, y * 0.25, 202) - 0.5) * 0.04;
-            return [
-                Math.max(0, floorMortar[0] + mn),
-                Math.max(0, floorMortar[1] + mn),
-                Math.max(0, floorMortar[2] + mn)
-            ];
-        }
-
-        const tileId = Math.floor(y / tileSize) * 2 + Math.floor(x / tileSize);
-        const tileHue = procHash(tileId, 0, 99);
-
-        let rBase = floorBase[0] + (tileHue - 0.5) * 0.08;
-        let gBase = floorBase[1] + (tileHue - 0.5) * 0.07;
-        let bBase = floorBase[2] + (0.5 - tileHue) * 0.07;
-
-        const bevel = Math.min(1.0, (mortarDist - 4) / 16.0);
-        const centerDist = Math.hypot(inTileX - tileSize / 2, inTileY - tileSize / 2) / (tileSize * 0.707);
-        const wear = 0.88 + Math.min(1.0, centerDist) * 0.12;
-
-        const grain = (procFractalNoise(x * 0.05 * gScale, y * 0.05 * gScale, 3, 3) - 0.5) * 0.12;
-        const microGrain = (procSmoothNoise(x * 0.18 * gScale, y * 0.18 * gScale, 4) - 0.5) * 0.06;
-
-        let r = rBase * bevel * wear + grain + microGrain;
-        let g = gBase * bevel * wear + grain + microGrain;
-        let b = bBase * bevel * wear + grain + microGrain;
-
-        if (theme.waterPuddles) {
-            const puddle = Math.max(0, procSmoothNoise(x * 0.04, y * 0.04, 120) - 0.50) * 2.2;
-            if (puddle > 0) {
-                const darkFactor = 1.0 - Math.min(0.60, puddle * 0.60);
-                r *= darkFactor;
-                g = g * darkFactor + Math.min(0.08, puddle * 0.06);
-                b = b * darkFactor + Math.min(0.12, puddle * 0.10);
-            }
-        }
-
-        if (theme.lichenPatches) {
-            const jointReach = Math.max(0, (18 - mortarDist) / 18.0);
-            const mossCluster = procSmoothNoise(x * 0.08, y * 0.08, 88);
-            if (mossCluster > 0.40) {
-                const moss = jointReach * (mossCluster - 0.40) * 1.5;
-                g += moss * 0.45;
-                r += moss * 0.10;
-                b += moss * 0.05;
-            }
-        }
-
-        if (theme.crystalVeins) {
-            const dist = Math.abs(x + y * 0.60 - 260);
-            if (dist < 10) {
-                const cv = (1.0 - dist / 10.0) * 0.35;
-                b += cv * 0.45;
-                r += cv * 0.30;
-                g += cv * 0.25;
-            }
-        }
-
-        if (theme.abyssalRunes) {
-            const voidPulse = (procSmoothNoise(x * 0.03, y * 0.03, 66) - 0.5) * 0.08;
-            r = Math.max(0, r * 0.85 + voidPulse);
-            g = Math.max(0, g * 0.80);
-            b = Math.max(0, b * 0.90 + voidPulse * 1.5);
-        }
-
-        return [
-            Math.max(0, Math.min(1, r)),
-            Math.max(0, Math.min(1, g)),
-            Math.max(0, Math.min(1, b))
-        ];
-    }, true);
-}
-
-function procCreateContextualFloorNormal(theme, size = 512) {
-    const tileSize = 256;
-    const gScale = theme.grainScale || 1.0;
-
-    return procCreateTexture(size, (x, y) => {
-        const inTileX = x % tileSize;
-        const inTileY = y % tileSize;
-        const distX = Math.min(inTileX, tileSize - 1 - inTileX);
-        const distY = Math.min(inTileY, tileSize - 1 - inTileY);
-        const mortarDist = Math.min(distX, distY);
-
-        if (mortarDist <= 4) return [0.5, 0.5, 1.0];
-
-        if (theme.waterPuddles) {
-            const puddle = Math.max(0, procSmoothNoise(x * 0.04, y * 0.04, 120) - 0.50);
-            if (puddle > 0.15) {
-                return [0.5, 0.5, 1.0];
-            }
-        }
-
-        let dx = 0, dy = 0;
-        const bevelWidth = 16;
-        if (mortarDist < 4 + bevelWidth) {
-            const t = (mortarDist - 4) / bevelWidth;
-            if (distX < distY) {
-                dx = (inTileX < tileSize / 2) ? (1.0 - t) : -(1.0 - t);
-            } else {
-                dy = (inTileY < tileSize / 2) ? (1.0 - t) : -(1.0 - t);
-            }
-        }
-
-        const rockBump = (procFractalNoise(x * 0.05 * gScale, y * 0.05 * gScale, 3, 4) - 0.5) * 0.20;
-        const nx = dx * 0.60 + rockBump;
-        const ny = -(dy * 0.60 + rockBump);
-        const nz = 1.0;
-        const len = Math.hypot(nx, ny, nz);
-        return [nx / len * 0.5 + 0.5, ny / len * 0.5 + 0.5, nz / len * 0.5 + 0.5];
-    }, false);
-}
-
-function procCreateContextualFloorRoughness(theme, size = 512) {
-    const baseR = theme.floorRoughness || 0.74;
-    return procCreateTexture(size, (x, y) => {
-        let r = baseR;
-        if (theme.waterPuddles) {
-            const puddle = Math.max(0, procSmoothNoise(x * 0.04, y * 0.04, 120) - 0.50) * 2.5;
-            if (puddle > 0) {
-                r = Math.max(0.18, r - puddle * 0.55);
-            }
-        }
-        if (theme.abyssalRunes) {
-            r = Math.min(r, 0.28);
-        }
-        if (theme.crystalVeins) {
-            r = Math.min(r, 0.45);
-        }
-        if (theme.saltpeterBloom) {
-            r = Math.min(0.96, r + 0.10);
-        }
-        const cr = Math.max(0.05, Math.min(0.98, r));
-        return [cr, cr, cr];
-    }, false);
-}
-
-function procCreateContextualPermWallTexture(theme, size = 512) {
-    const wallBase = (theme.id === 'hengband_town')
-        ? [0.32, 0.30, 0.32] // Authentic Japanese curved Ishigaki castle masonry
-        : (theme.wallBase || [0.35, 0.35, 0.38]);
-    return procCreateTexture(size, (x, y) => {
-        const strata = Math.sin(y * 0.04 + procSmoothNoise(x * 0.03, y * 0.015, 11) * 6.0) * 0.09;
-        const fracture = (procFractalNoise(x * 0.03, y * 0.03, 4, 15) - 0.5) * 0.16;
-        const mineralGrain = (procSmoothNoise(x * 0.15, y * 0.15, 17) - 0.5) * 0.05;
-
-        let r = wallBase[0] * 0.85 + strata + fracture + mineralGrain;
-        let g = wallBase[1] * 0.85 + strata + fracture + mineralGrain;
-        let b = wallBase[2] * 0.90 + strata * 1.2 + fracture + mineralGrain;
-
-        if (theme.thermalCracks) {
-            r = Math.max(0, r * 0.70 + Math.max(0, fracture * 0.40));
-            g = Math.max(0, g * 0.60);
-            b = Math.max(0, b * 0.55);
-        }
-
-        return [
-            Math.max(0, Math.min(1, r)),
-            Math.max(0, Math.min(1, g)),
-            Math.max(0, Math.min(1, b))
-        ];
-    }, true);
-}
-
-function procCreateContextualPermWallNormal(theme, size = 512) {
-    return procCreateTexture(size, (x, y) => {
-        const h0 = procFractalNoise(x * 0.03, y * 0.03, 4, 15);
-        const hx = procFractalNoise((x + 1) * 0.03, y * 0.03, 4, 15);
-        const hy = procFractalNoise(x * 0.03, (y + 1) * 0.03, 4, 15);
-
-        const dx = (hx - h0) * 4.0;
-        const dy = (hy - h0) * 4.0;
-        const nx = dx;
-        const ny = -dy;
-        const nz = 1.0;
-        const len = Math.hypot(nx, ny, nz);
-        return [nx / len * 0.5 + 0.5, ny / len * 0.5 + 0.5, nz / len * 0.5 + 0.5];
-    }, false);
-}
-
-function procCreateContextualCeilingTexture(theme, size = 512) {
-    const wallBase = theme.wallBase || [0.35, 0.35, 0.38];
-    return procCreateTexture(size, (x, y) => {
-        const n1 = (procFractalNoise(x * 0.06, y * 0.06, 3, 10) - 0.5) * 0.16;
-        const n2 = (procSmoothNoise(x * 0.20, y * 0.20, 20) - 0.5) * 0.08;
-        const r = wallBase[0] * 0.70 + n1 + n2;
-        const g = wallBase[1] * 0.70 + n1 + n2;
-        const b = wallBase[2] * 0.72 + n1 + n2;
-        return [
-            Math.max(0, Math.min(1, r)),
-            Math.max(0, Math.min(1, g)),
-            Math.max(0, Math.min(1, b))
-        ];
-    }, true);
-}
-
-function procCreateContextualCeilingNormal(theme, size = 512) {
-    return procCreateTexture(size, (x, y) => {
-        const h0 = procFractalNoise(x * 0.06, y * 0.06, 3, 10);
-        const hx = procFractalNoise((x + 1) * 0.06, y * 0.06, 3, 10);
-        const hy = procFractalNoise(x * 0.06, (y + 1) * 0.06, 3, 10);
-
-        const dx = (hx - h0) * 3.0;
-        const dy = (hy - h0) * 3.0;
-        const nx = dx;
-        const ny = -dy;
-        const nz = 1.0;
-        const len = Math.hypot(nx, ny, nz);
-        return [nx / len * 0.5 + 0.5, ny / len * 0.5 + 0.5, nz / len * 0.5 + 0.5];
-    }, false);
-}
-
-function procCreateStoneWallTexture() {
-    const size = 512;
-    const rowHeight = 128; // 4 horizontal courses of dressed ashlar stone
-    const blockWidth = 256;
-    const halfWidth = 128;
-    return procCreateTexture(size, (x, y) => {
-        const row = Math.floor(y / rowHeight);
-        const yInRow = y % rowHeight;
-        const distY = Math.min(yInRow, rowHeight - 1 - yInRow);
-        const xOff = (row % 2 === 1) ? halfWidth : 0;
-        const inBlockX = (x + size - xOff) % blockWidth;
-        const distX = Math.min(inBlockX, blockWidth - 1 - inBlockX);
-        const mortarDist = Math.min(distX, distY);
-
-        // Deep dark charcoal recessed mortar joints with sand grit
-        if (mortarDist <= 4) {
-            const mn = (procSmoothNoise(x * 0.25, y * 0.25, 101) - 0.5) * 0.04;
-            return [0.06 + mn, 0.06 + mn, 0.08 + mn];
-        }
-
-        const blockId = row * 4 + Math.floor((x + size - xOff) / blockWidth);
-        const blockHue = procHash(blockId, 0, 77);
-        // Rich natural quarried stone block variation (slate grays to warm granite)
-        const rBase = 0.38 + (blockHue - 0.5) * 0.14;
-        const gBase = 0.38 + (blockHue - 0.5) * 0.12;
-        const bBase = 0.40 + (0.5 - blockHue) * 0.12;
-
-        // Chamfered edge shadow towards recessed mortar
-        const bevel = Math.min(1.0, (mortarDist - 4) / 18.0);
-        // Multi-scale tactile stone grain, granite flecks & chisel grooves
-        const macroGrain = (procFractalNoise(x * 0.04, y * 0.04, 3, 11) - 0.5) * 0.16;
-        const microGrain = (procSmoothNoise(x * 0.16, y * 0.16, 2) - 0.5) * 0.08;
-        const chisel = (procSmoothNoise(x * 0.28, y * 0.07, 14) - 0.5) * 0.06;
-        const speckle = procHash(x, y, 42);
-        const fleck = speckle > 0.96 ? 0.20 : (speckle < 0.04 ? -0.22 : 0.0);
-
-        const shade = 0.70 + bevel * 0.30;
-        const r = Math.max(0, Math.min(1, rBase * shade + macroGrain + microGrain + chisel + fleck));
-        const g = Math.max(0, Math.min(1, gBase * shade + macroGrain + microGrain + chisel + fleck));
-        const b = Math.max(0, Math.min(1, bBase * shade + macroGrain + microGrain + chisel + fleck));
-        return [r, g, b];
-    }, true);
-}
-
-function procCreateStoneWallNormal() {
-    const size = 512;
-    const rowHeight = 128;
-    const blockWidth = 256;
-    const halfWidth = 128;
-    return procCreateTexture(size, (x, y) => {
-        const row = Math.floor(y / rowHeight);
-        const yInRow = y % rowHeight;
-        const distY = Math.min(yInRow, rowHeight - 1 - yInRow);
-        const xOff = (row % 2 === 1) ? halfWidth : 0;
-        const inBlockX = (x + size - xOff) % blockWidth;
-        const distX = Math.min(inBlockX, blockWidth - 1 - inBlockX);
-        const mortarDist = Math.min(distX, distY);
-
-        if (mortarDist <= 4) return [0.5, 0.5, 1.0];
-
-        // Chamfered bevel slope at block perimeter
-        let dx = 0, dy = 0;
-        const bevelWidth = 18;
-        if (mortarDist < 4 + bevelWidth) {
-            const t = (mortarDist - 4) / bevelWidth;
-            if (distX < distY) {
-                dx = (inBlockX < halfWidth) ? (1.0 - t) : -(1.0 - t);
-            } else {
-                dy = (yInRow < rowHeight / 2) ? (1.0 - t) : -(1.0 - t);
-            }
-        }
-
-        // Tactile stone surface chisel relief & rock roughness across entire face
-        const rockBump = (procFractalNoise(x * 0.05, y * 0.05, 3, 50) - 0.5) * 0.24;
-        const chiselBump = (procSmoothNoise(x * 0.28, y * 0.07, 51) - 0.5) * 0.12;
-        const speckle = procHash(x, y, 42);
-        const fleckBump = speckle > 0.96 ? 0.18 : (speckle < 0.04 ? -0.18 : 0.0);
-
-        const nx = (dx * 0.65 + rockBump + chiselBump + fleckBump);
-        const ny = -(dy * 0.65 + rockBump + chiselBump + fleckBump);
-        const nz = 1.0;
-        const len = Math.hypot(nx, ny, nz);
-        return [nx / len * 0.5 + 0.5, ny / len * 0.5 + 0.5, nz / len * 0.5 + 0.5];
-    }, false);
-}
-
-function procCreatePermWallTexture() {
-    const size = 512;
-    return procCreateTexture(size, (x, y) => {
-        // Primordial cyclopean bedrock: flowing geological strata, tectonic fissures, no brick seams
-        const strata = Math.sin(y * 0.04 + procSmoothNoise(x * 0.03, y * 0.015, 11) * 6.0) * 0.08;
-        const fracture = (procFractalNoise(x * 0.03, y * 0.03, 4, 15) - 0.5) * 0.16;
-        const mineralGrain = (procSmoothNoise(x * 0.15, y * 0.15, 17) - 0.5) * 0.05;
-
-        const rBase = 0.28 + strata + fracture + mineralGrain;
-        const gBase = 0.28 + strata + fracture + mineralGrain;
-        const bBase = 0.30 + strata * 1.2 + fracture + mineralGrain;
-
-        return [
-            Math.max(0, Math.min(1, rBase)),
-            Math.max(0, Math.min(1, gBase)),
-            Math.max(0, Math.min(1, bBase))
-        ];
-    });
-}
-
-function procCreatePermWallNormal() {
-    const size = 512;
-    return procCreateTexture(size, (x, y) => {
-        const h0 = procFractalNoise(x * 0.03, y * 0.03, 4, 15);
-        const hx = procFractalNoise((x + 1) * 0.03, y * 0.03, 4, 15);
-        const hy = procFractalNoise(x * 0.03, (y + 1) * 0.03, 4, 15);
-
-        const dx = (hx - h0) * 4.0;
-        const dy = (hy - h0) * 4.0;
-        const nx = dx;
-        const ny = -dy;
-        const nz = 1.0;
-        const len = Math.hypot(nx, ny, nz);
-        return [nx / len * 0.5 + 0.5, ny / len * 0.5 + 0.5, nz / len * 0.5 + 0.5];
-    });
-}
-
-function procCreateFloorTexture() {
-    const size = 512;
-    const tileSize = 256;
-    return procCreateTexture(size, (x, y) => {
-        const tileX = Math.floor(x / tileSize);
-        const tileY = Math.floor(y / tileSize);
-        const inTileX = x % tileSize;
-        const inTileY = y % tileSize;
-        const distX = Math.min(inTileX, tileSize - 1 - inTileX);
-        const distY = Math.min(inTileY, tileSize - 1 - inTileY);
-        const mortarDist = Math.min(distX, distY);
-
-        // Recessed charcoal mortar seam with sand grit
-        if (mortarDist <= 4) {
-            const mn = (procSmoothNoise(x * 0.25, y * 0.25, 202) - 0.5) * 0.03;
-            return [0.06 + mn, 0.06 + mn, 0.08 + mn];
-        }
-
-        const tileId = tileY * 2 + tileX;
-        const tileHue = procHash(tileId, 0, 99);
-        // Flagstone stone hue variation (slate, basalt, cold granite)
-        const rBase = 0.34 + (tileHue - 0.5) * 0.10;
-        const gBase = 0.34 + (tileHue - 0.5) * 0.09;
-        const bBase = 0.36 + (0.5 - tileHue) * 0.09;
-
-        // Chamfer edge shadow towards mortar
-        const bevel = Math.min(1.0, (mortarDist - 4) / 16.0);
-        // Multi-scale tactile stone grain, subtle center wear, and flecks
-        const macroGrain = (procFractalNoise(x * 0.04, y * 0.04, 3, 21) - 0.5) * 0.14;
-        const microGrain = (procSmoothNoise(x * 0.18, y * 0.18, 4) - 0.5) * 0.06;
-        const speckle = procHash(x, y, 99);
-        const fleck = speckle > 0.96 ? 0.16 : (speckle < 0.04 ? -0.18 : 0.0);
-        const centerDist = Math.hypot(inTileX - 128, inTileY - 128) / 128.0;
-        const wornCenter = (1.0 - Math.min(1.0, centerDist)) * 0.06;
-
-        const shade = 0.72 + bevel * 0.28 + wornCenter;
-        const r = Math.max(0, Math.min(1, rBase * shade + macroGrain + microGrain + fleck));
-        const g = Math.max(0, Math.min(1, gBase * shade + macroGrain + microGrain + fleck));
-        const b = Math.max(0, Math.min(1, bBase * shade + macroGrain + microGrain + fleck));
-        return [r, g, b];
-    }, true);
-}
-
-function procCreateFloorNormal() {
-    const size = 512;
-    const tileSize = 256;
-    return procCreateTexture(size, (x, y) => {
-        const inTileX = x % tileSize;
-        const inTileY = y % tileSize;
-        const distX = Math.min(inTileX, tileSize - 1 - inTileX);
-        const distY = Math.min(inTileY, tileSize - 1 - inTileY);
-        const mortarDist = Math.min(distX, distY);
-
-        if (mortarDist <= 4) return [0.5, 0.5, 1.0];
-
-        // Chamfered slope at paver perimeter
-        let dx = 0, dy = 0;
-        const bevelWidth = 16;
-        if (mortarDist < 4 + bevelWidth) {
-            const t = (mortarDist - 4) / bevelWidth;
-            if (distX < distY) {
-                dx = (inTileX < tileSize / 2) ? (1.0 - t) : -(1.0 - t);
-            } else {
-                dy = (inTileY < tileSize / 2) ? (1.0 - t) : -(1.0 - t);
-            }
-        }
-
-        const rockBump = (procFractalNoise(x * 0.05, y * 0.05, 3, 62) - 0.5) * 0.20;
-        const microBump = (procSmoothNoise(x * 0.16, y * 0.16, 52) - 0.5) * 0.08;
-        const nx = (dx * 0.55 + rockBump + microBump);
-        const ny = -(dy * 0.55 + rockBump + microBump);
-        const nz = 1.0;
-        const len = Math.hypot(nx, ny, nz);
-        return [nx / len * 0.5 + 0.5, ny / len * 0.5 + 0.5, nz / len * 0.5 + 0.5];
-    }, false);
-}
-
 function procCreateShadowTexture() {
     const size = 64;
     const canvas = document.createElement('canvas');
@@ -1305,607 +208,7 @@ function procCreateStarTexture() {
     return tex;
 }
 
-function procCreateShopDoorTexture(shopNum, heraldicColor) {
-    const size = 512;
-    const plankWidth = 128;
-    const pattern = (shopNum >= 1 && shopNum <= 8) ? DIGIT_PATTERNS[shopNum - 1] : null;
-
-    return procCreateTexture(size, (x, y) => {
-        const plankIdx = Math.floor(x / plankWidth);
-        const inPlankX = x % plankWidth;
-        const seamDist = Math.min(inPlankX, plankWidth - 1 - inPlankX);
-
-        // Horizontal forged-iron reinforcement straps
-        const isIronStrap = (y >= 88 && y <= 124) || (y >= 388 && y <= 424);
-        if (isIronStrap) {
-            const rivetX = inPlankX - plankWidth / 2;
-            const rivetY = (y < 200) ? (y - 106) : (y - 406);
-            const isRivet = rivetX * rivetX + rivetY * rivetY <= 64;
-            if (isRivet) return [0.48, 0.48, 0.52];
-            const ironGrain = (procSmoothNoise(x * 0.1, y * 0.1, 31) - 0.5) * 0.04;
-            return [0.20 + ironGrain, 0.20 + ironGrain, 0.22 + ironGrain];
-        }
-
-        // Central Emblazoned Heraldic Shield at (256, 256)
-        const dx = x - 256;
-        const dy = y - 256;
-        const absDx = Math.abs(dx);
-
-        const inShield = (dy >= -92 && dy <= 0 && absDx <= 88) ||
-                         (dy > 0 && dy <= 100 && absDx <= 88 - (dy * dy) / 116.0);
-
-        if (inShield) {
-            const isShieldRim = (dy <= -84 || absDx >= 80 || (dy > 0 && absDx >= 80 - (dy * dy) / 116.0));
-            if (isShieldRim) {
-                const bevel = (dx < 0 || dy < -76) ? 0.14 : -0.10;
-                return [0.88 + bevel, 0.74 + bevel, 0.28 + bevel];
-            }
-
-            if (pattern) {
-                const gx = Math.floor((x - 226) / 12);
-                const gy = Math.floor((y - 214) / 12);
-                if (gx >= 0 && gx < 5 && gy >= 0 && gy < 7) {
-                    const isBit = (pattern[gy] & (1 << (4 - gx))) !== 0;
-                    if (isBit) return [1.0, 0.90, 0.35]; // Gold digit
-                }
-            }
-
-            const bgR = Math.max(0, Math.min(1, heraldicColor[0] * 0.48 + 0.10));
-            const bgG = Math.max(0, Math.min(1, heraldicColor[1] * 0.48 + 0.08));
-            const bgB = Math.max(0, Math.min(1, heraldicColor[2] * 0.48 + 0.06));
-            return [bgR, bgG, bgB];
-        }
-
-        if (seamDist <= 4) return [0.10, 0.07, 0.04];
-
-        const woodGrain = (procSmoothNoise(x * 0.08, y * 0.04, 55) - 0.5) * 0.04;
-        const plankHue = procHash(plankIdx, 0, 88 + shopNum);
-        const r = Math.max(0, Math.min(1, 0.32 + (plankHue - 0.5) * 0.03 + woodGrain));
-        const g = Math.max(0, Math.min(1, 0.22 + (plankHue - 0.5) * 0.02 + woodGrain * 0.8));
-        const b = Math.max(0, Math.min(1, 0.14 + (plankHue - 0.5) * 0.02 + woodGrain * 0.5));
-        return [r, g, b];
-    });
-}
-
-function procCreateWoodDoorTexture() {
-    const size = 512;
-    const plankWidth = 128;
-    return procCreateTexture(size, (x, y) => {
-        const plankIdx = Math.floor(x / plankWidth);
-        const inPlankX = x % plankWidth;
-        const seamDist = Math.min(inPlankX, plankWidth - 1 - inPlankX);
-
-        const isIronStrap = (y >= 100 && y <= 136) || (y >= 376 && y <= 412);
-        if (isIronStrap) {
-            const rivetX = inPlankX - plankWidth / 2;
-            const rivetY = (y < 200) ? (y - 118) : (y - 394);
-            const isRivet = rivetX * rivetX + rivetY * rivetY <= 64;
-            if (isRivet) return [0.44, 0.44, 0.48];
-            const ironGrain = (procSmoothNoise(x * 0.1, y * 0.1, 31) - 0.5) * 0.04;
-            return [0.20 + ironGrain, 0.20 + ironGrain, 0.22 + ironGrain];
-        }
-
-        if (seamDist <= 4) return [0.10, 0.07, 0.04];
-
-        const woodGrain = (procSmoothNoise(x * 0.08, y * 0.04, 55) - 0.5) * 0.04;
-        const plankHue = procHash(plankIdx, 0, 88);
-        const r = Math.max(0, Math.min(1, 0.34 + (plankHue - 0.5) * 0.03 + woodGrain));
-        const g = Math.max(0, Math.min(1, 0.24 + (plankHue - 0.5) * 0.02 + woodGrain * 0.8));
-        const b = Math.max(0, Math.min(1, 0.15 + (plankHue - 0.5) * 0.02 + woodGrain * 0.5));
-        return [r, g, b];
-    });
-}
-
-function procCreateStoreTexture() {
-    const size = 512;
-    return procCreateTexture(size, (x, y) => {
-        const isBorderBeam = x < 36 || x > 475 || y < 36 || y > 475;
-        const isCrossBeam = Math.abs(x - 256) < 20 || Math.abs(y - 256) < 20;
-        const isDiagonal = Math.abs((x - y) % 256) < 16 || Math.abs((x + y) % 256) < 16;
-
-        if (isBorderBeam || isCrossBeam || isDiagonal) {
-            const woodGrain = (procSmoothNoise(x * 0.08, y * 0.08, 12) - 0.5) * 0.04;
-            return [0.24 + woodGrain, 0.16 + woodGrain * 0.7, 0.11 + woodGrain * 0.5];
-        }
-
-        const plasterGrain = (procSmoothNoise(x * 0.08, y * 0.08, 22) - 0.5) * 0.04;
-        return [0.65 + plasterGrain, 0.62 + plasterGrain, 0.56 + plasterGrain];
-    });
-}
-
-function procCreateCeilingTexture() {
-    const size = 512;
-    return procCreateTexture(size, (x, y) => {
-        const grain = (procSmoothNoise(x * 0.06, y * 0.06, 5) - 0.5) * 0.06;
-        const microGrain = (procSmoothNoise(x * 0.18, y * 0.18, 6) - 0.5) * 0.03;
-        const r = Math.max(0, Math.min(1, 0.22 + grain + microGrain));
-        const g = Math.max(0, Math.min(1, 0.23 + grain + microGrain));
-        const b = Math.max(0, Math.min(1, 0.25 + grain + microGrain));
-        return [r, g, b];
-    });
-}
-
-function procCreateMagmaTexture() {
-    const size = 512;
-    return procCreateTexture(size, (x, y) => {
-        const vein = (procFractalNoise(x * 0.02, y * 0.02, 4, 77) - 0.5) * 2.0;
-        if (Math.abs(vein) < 0.24) {
-            const heat = 1.0 - Math.min(1, Math.abs(vein) / 0.24);
-            return [0.94 + heat * 0.06, 0.32 + heat * 0.44, 0.04 + heat * 0.12];
-        }
-        const rockGrain = (procSmoothNoise(x * 0.08, y * 0.08, 88) - 0.5) * 0.05;
-        return [0.24 + rockGrain, 0.22 + rockGrain, 0.24 + rockGrain];
-    });
-}
-
-function procCreateMagmaEmission() {
-    const size = 512;
-    return procCreateTexture(size, (x, y) => {
-        const vein = (procFractalNoise(x * 0.02, y * 0.02, 4, 77) - 0.5) * 2.0;
-        if (Math.abs(vein) < 0.24) {
-            const heat = 1.0 - Math.min(1, Math.abs(vein) / 0.24);
-            return [0.96, 0.34 + heat * 0.40, 0.04 + heat * 0.12];
-        }
-        return [0, 0, 0];
-    });
-}
-
-function procCreateLavaTexture(w = 256, h = 256) {
-    const size = w || 256;
-    return procCreateTexture(size, (x, y) => {
-        const nx = x / size;
-        const ny = y / size;
-        const qx = procFractalNoise(nx * 3.5, ny * 3.5, 4, 31) - 0.5;
-        const qy = procFractalNoise(nx * 3.5 + 5.2, ny * 3.5 + 1.3, 4, 47) - 0.5;
-        const rx = procFractalNoise((nx + qx * 0.8) * 4.0, (ny + qy * 0.8) * 4.0, 4, 83) - 0.5;
-        const ry = procFractalNoise((nx + qx * 0.8 + 1.7) * 4.0, (ny + qy * 0.8 + 9.2) * 4.0, 4, 19) - 0.5;
-        const warp = procFractalNoise((nx + rx * 0.9) * 4.2, (ny + ry * 0.9) * 4.2, 4, 59);
-
-        if (warp < 0.42) {
-            const crustGrain = (procSmoothNoise(nx * 32, ny * 32, 101) - 0.5) * 0.03;
-            const crustT = warp / 0.42;
-            const r = 0.09 + crustT * 0.04 + crustGrain;
-            const g = 0.07 + crustT * 0.02 + crustGrain;
-            const b = 0.06 + crustGrain;
-            return [Math.max(0, r), Math.max(0, g), Math.max(0, b)];
-        } else if (warp < 0.60) {
-            const t = (warp - 0.42) / 0.18;
-            const r = 0.78 + t * 0.22;
-            const g = 0.11 + t * 0.37;
-            const b = 0.0;
-            return [r, g, b];
-        } else if (warp < 0.80) {
-            const t = (warp - 0.60) / 0.20;
-            const r = 1.0;
-            const g = 0.48 + t * 0.48;
-            const b = t * 0.69;
-            return [r, g, b];
-        } else {
-            const t = Math.min(1.0, (warp - 0.80) / 0.20);
-            return [1.0, 0.96 + t * 0.04, 0.69 + t * 0.31];
-        }
-    });
-}
-
-function procCreateLavaEmission(w = 256, h = 256) {
-    const size = w || 256;
-    return procCreateTexture(size, (x, y) => {
-        const nx = x / size;
-        const ny = y / size;
-        const qx = procFractalNoise(nx * 3.5, ny * 3.5, 4, 31) - 0.5;
-        const qy = procFractalNoise(nx * 3.5 + 5.2, ny * 3.5 + 1.3, 4, 47) - 0.5;
-        const rx = procFractalNoise((nx + qx * 0.8) * 4.0, (ny + qy * 0.8) * 4.0, 4, 83) - 0.5;
-        const ry = procFractalNoise((nx + qx * 0.8 + 1.7) * 4.0, (ny + qy * 0.8 + 9.2) * 4.0, 4, 19) - 0.5;
-        const warp = procFractalNoise((nx + rx * 0.9) * 4.2, (ny + ry * 0.9) * 4.2, 4, 59);
-
-        if (warp < 0.42) {
-            const fissure = procFractalNoise(nx * 18, ny * 18, 2, 73);
-            if (fissure > 0.82) {
-                return [0.45, 0.08, 0.0];
-            }
-            return [0.0, 0.0, 0.0];
-        } else if (warp < 0.60) {
-            const t = (warp - 0.42) / 0.18;
-            return [0.85 + t * 0.15, 0.15 + t * 0.40, 0.0];
-        } else {
-            const t = Math.min(1.0, (warp - 0.60) / 0.40);
-            return [1.0, 0.55 + t * 0.45, t * 0.75];
-        }
-    });
-}
-
-function procCreateQuartzTexture() {
-    const size = 512;
-    return procCreateTexture(size, (x, y) => {
-        const crystalVein = (procFractalNoise((x * 1.2 - y * 0.8) * 0.025, (x * 0.5 + y) * 0.025, 4, 44) - 0.5) * 2.0;
-        if (Math.abs(crystalVein) < 0.22) {
-            const glint = procSmoothNoise(x * 0.2, y * 0.2, 12) * 0.12;
-            return [0.74 + glint, 0.80 + glint, 0.86 + glint];
-        }
-        const grain = (procSmoothNoise(x * 0.08, y * 0.08, 9) - 0.5) * 0.06;
-        return [0.40 + grain, 0.41 + grain, 0.43 + grain];
-    });
-}
-
-function procCreateGoldVeinTexture() {
-    const size = 512;
-    return procCreateTexture(size, (x, y) => {
-        const vein = (procFractalNoise(x * 0.025, y * 0.025, 4, 83) - 0.5) * 2.0;
-        const goldNugget = procSmoothNoise(x * 0.15, y * 0.15, 105);
-        const inVein = Math.abs(vein) < 0.22;
-        const isNugget = (inVein && goldNugget > 0.42) || (!inVein && Math.abs(vein) < 0.32 && goldNugget > 0.70);
-
-        if (isNugget) {
-            // Raw glittering native gold ore
-            const luster = procSmoothNoise(x * 0.35, y * 0.35, 120) * 0.15;
-            return [0.96 + luster * 0.04, 0.80 + luster, 0.15 + luster * 0.5];
-        }
-        if (inVein) {
-            // Quartz border around gold vein
-            const rim = procSmoothNoise(x * 0.1, y * 0.1, 91) * 0.08;
-            return [0.46 + rim, 0.40 + rim, 0.28 + rim];
-        }
-        const rockGrain = (procSmoothNoise(x * 0.08, y * 0.08, 88) - 0.5) * 0.05;
-        return [0.22 + rockGrain, 0.20 + rockGrain, 0.22 + rockGrain];
-    });
-}
-
-function procCreateGoldVeinEmission() {
-    const size = 512;
-    return procCreateTexture(size, (x, y) => {
-        const vein = (procFractalNoise(x * 0.025, y * 0.025, 4, 83) - 0.5) * 2.0;
-        const goldNugget = procSmoothNoise(x * 0.15, y * 0.15, 105);
-        const inVein = Math.abs(vein) < 0.22;
-        const isNugget = (inVein && goldNugget > 0.42) || (!inVein && Math.abs(vein) < 0.32 && goldNugget > 0.70);
-
-        if (isNugget) {
-            return [0.55, 0.42, 0.06]; // Warm golden glint in torchlight
-        }
-        return [0, 0, 0];
-    });
-}
-
-function procCreateGemVeinTexture() {
-    const size = 512;
-    return procCreateTexture(size, (x, y) => {
-        const crystalVein = (procFractalNoise((x * 1.2 - y * 0.8) * 0.025, (x * 0.5 + y) * 0.025, 4, 44) - 0.5) * 2.0;
-        const gemCluster = procSmoothNoise(x * 0.18, y * 0.18, 215);
-        const inVein = Math.abs(crystalVein) < 0.24;
-        const isGem = inVein && gemCluster > 0.56;
-
-        if (isGem) {
-            // Multi-faceted sparkling gemstones: Emeralds, Rubies, Sapphires, Amethysts!
-            const gemType = Math.floor(procHash(Math.floor(x / 24), Math.floor(y / 24), 77) * 4);
-            const facet = (procSmoothNoise(x * 0.4, y * 0.4, 301) - 0.5) * 0.25;
-            if (gemType === 0) {
-                // Brilliant Emerald Green
-                return [0.08 + facet * 0.5, 0.92 + facet, 0.32 + facet * 0.8];
-            } else if (gemType === 1) {
-                // Brilliant Ruby Red
-                return [0.96 + facet, 0.12 + facet * 0.5, 0.24 + facet * 0.8];
-            } else if (gemType === 2) {
-                // Brilliant Sapphire Blue
-                return [0.12 + facet * 0.5, 0.45 + facet * 0.8, 0.98 + facet];
-            } else {
-                // Brilliant Amethyst
-                return [0.88 + facet, 0.35 + facet * 0.5, 0.95 + facet];
-            }
-        }
-        if (inVein) {
-            const glint = procSmoothNoise(x * 0.2, y * 0.2, 12) * 0.12;
-            return [0.72 + glint, 0.78 + glint, 0.84 + glint];
-        }
-        const grain = (procSmoothNoise(x * 0.08, y * 0.08, 9) - 0.5) * 0.06;
-        return [0.38 + grain, 0.39 + grain, 0.42 + grain];
-    });
-}
-
-function procCreateGemVeinEmission() {
-    const size = 512;
-    return procCreateTexture(size, (x, y) => {
-        const crystalVein = (procFractalNoise((x * 1.2 - y * 0.8) * 0.025, (x * 0.5 + y) * 0.025, 4, 44) - 0.5) * 2.0;
-        const gemCluster = procSmoothNoise(x * 0.18, y * 0.18, 215);
-        const inVein = Math.abs(crystalVein) < 0.24;
-        const isGem = inVein && gemCluster > 0.56;
-
-        if (isGem) {
-            const gemType = Math.floor(procHash(Math.floor(x / 24), Math.floor(y / 24), 77) * 4);
-            if (gemType === 0) return [0.04, 0.45, 0.15]; // Emerald luminescence
-            if (gemType === 1) return [0.48, 0.06, 0.12]; // Ruby luminescence
-            if (gemType === 2) return [0.06, 0.22, 0.50]; // Sapphire luminescence
-            return [0.42, 0.15, 0.48]; // Amethyst luminescence
-        }
-        return [0, 0, 0];
-    });
-}
-
-function procCreateGrassTexture() {
-    const size = 512;
-    return procCreateTexture(size, (x, y) => {
-        // High-frequency directional blade striations (blade angle ~ 75-80 deg)
-        const bladeAngle = x * 0.85 + y * 0.18;
-        const bladeWave = Math.sin(bladeAngle * 1.6 + procSmoothNoise(x * 0.10, y * 0.10, 61) * 6.0);
-        const fineBlade = (bladeWave * 0.5 + 0.5) * (procSmoothNoise(x * 0.35, y * 0.12, 62) * 0.4 + 0.6);
-
-        // Turf clumps & soil patches
-        const clumpNoise = procSmoothNoise(x * 0.04, y * 0.04, 63);
-        const soilPatch = procSmoothNoise(x * 0.015, y * 0.015, 64);
-        const cloverNoise = procSmoothNoise(x * 0.12, y * 0.12, 65);
-
-        // Color palette: Lush spring meadow green with golden blade tips and dark thatch roots
-        let r = 0.14 + fineBlade * 0.26 + clumpNoise * 0.08;
-        let g = 0.34 + fineBlade * 0.40 + clumpNoise * 0.12;
-        let b = 0.08 + fineBlade * 0.12 + clumpNoise * 0.04;
-
-        // Soil loam peeking through in thin turf patches
-        if (soilPatch < 0.24) {
-            const t = (0.24 - soilPatch) / 0.24;
-            r = r * (1 - t) + 0.36 * t;
-            g = g * (1 - t) + 0.26 * t;
-            b = b * (1 - t) + 0.16 * t;
-        }
-
-        // Occasional clover / micro-flora flecks
-        if (cloverNoise > 0.82) {
-            const c = (cloverNoise - 0.82) / 0.18;
-            r = r * (1 - c) + 0.42 * c;
-            g = g * (1 - c) + 0.72 * c;
-            b = b * (1 - c) + 0.26 * c;
-        }
-
-        return [Math.max(0, Math.min(1, r)), Math.max(0, Math.min(1, g)), Math.max(0, Math.min(1, b))];
-    }, true);
-}
-
-function procCreateGrassNormal() {
-    const size = 512;
-    return procCreateTexture(size, (x, y) => {
-        const h = (u, v) => {
-            const bladeWave = Math.sin((u * 0.85 + v * 0.18) * 1.6 + procSmoothNoise(u * 0.10, v * 0.10, 61) * 6.0);
-            return bladeWave * 0.6 + procSmoothNoise(u * 0.04, v * 0.04, 63) * 0.4;
-        };
-        const h0 = h(x, y);
-        const hx = h(x + 1, y);
-        const hy = h(x, y + 1);
-
-        const dx = (hx - h0) * 2.2;
-        const dy = (hy - h0) * 2.2;
-        const nx = dx;
-        const ny = -dy;
-        const nz = 1.0;
-        const len = Math.sqrt(nx * nx + ny * ny + nz * nz);
-        return [
-            Math.max(0, Math.min(1, nx / len * 0.5 + 0.5)),
-            Math.max(0, Math.min(1, ny / len * 0.5 + 0.5)),
-            Math.max(0, Math.min(1, nz / len * 0.5 + 0.5))
-        ];
-    });
-}
-
-function procCreateDirtTexture() {
-    const size = 512;
-    return procCreateTexture(size, (x, y) => {
-        const soilGrain = (procSmoothNoise(x * 0.12, y * 0.12, 71) - 0.5) * 0.08;
-        const pebbleNoise = procSmoothNoise(x * 0.3, y * 0.3, 72);
-        const pebble = pebbleNoise > 0.78 ? (pebbleNoise - 0.78) * 0.8 : 0;
-
-        const r = 0.44 + soilGrain + pebble * 0.2;
-        const g = 0.34 + soilGrain * 0.8 + pebble * 0.2;
-        const b = 0.24 + soilGrain * 0.6 + pebble * 0.2;
-        return [Math.max(0, Math.min(1, r)), Math.max(0, Math.min(1, g)), Math.max(0, Math.min(1, b))];
-    });
-}
-
-function procCreateWaterTexture() {
-    const size = 512;
-    return procCreateTexture(size, (x, y) => {
-        const n1 = procSmoothNoise(x * 0.05, y * 0.05, 81);
-        const n2 = procSmoothNoise(x * 0.11 + n1 * 2.2, y * 0.11 - n1 * 2.2, 82);
-        const n3 = procSmoothNoise(x * 0.24 - n2 * 1.5, y * 0.24 + n2 * 1.5, 83);
-        const caustic = Math.pow(Math.max(0, 1.0 - Math.abs(n2 - 0.5) * 3.2), 2.2) * 0.22;
-        const ripple = (n1 * 0.45 + n2 * 0.35 + n3 * 0.20 - 0.5) * 0.14;
-
-        const r = 0.09 + ripple * 0.4 + caustic * 0.75;
-        const g = 0.34 + ripple * 0.8 + caustic * 0.95;
-        const b = 0.52 + ripple * 1.0 + caustic * 1.05;
-        return [Math.max(0, Math.min(1, r)), Math.max(0, Math.min(1, g)), Math.max(0, Math.min(1, b))];
-    });
-}
-
-function procCreateDeepWaterTexture() {
-    const size = 512;
-    return procCreateTexture(size, (x, y) => {
-        const n1 = procSmoothNoise(x * 0.04, y * 0.04, 84);
-        const n2 = procSmoothNoise(x * 0.09 + n1 * 2.0, y * 0.09 - n1 * 2.0, 85);
-        const swell = (n1 * 0.6 + n2 * 0.4 - 0.5) * 0.12;
-        const crest = Math.pow(Math.max(0, 1.0 - Math.abs(n2 - 0.5) * 3.4), 2.4) * 0.14;
-        const r = 0.05 + swell * 0.3 + crest * 0.5;
-        const g = 0.18 + swell * 0.6 + crest * 0.7;
-        const b = 0.36 + swell * 0.9 + crest * 0.9;
-        return [Math.max(0, Math.min(1, r)), Math.max(0, Math.min(1, g)), Math.max(0, Math.min(1, b))];
-    });
-}
-
-function procCreateWaterNormal() {
-    const size = 256;
-    return procCreateTexture(size, (x, y) => {
-        const h = (u, v) => {
-            const n1 = procSmoothNoise(u * 0.06, v * 0.06, 86);
-            const n2 = procSmoothNoise(u * 0.14 + n1 * 1.8, v * 0.14 - n1 * 1.8, 87);
-            return n1 * 0.6 + n2 * 0.4;
-        };
-        const h0 = h(x, y);
-        const dx = (h(x + 1, y) - h0) * 3.2;
-        const dy = (h(x, y + 1) - h0) * 3.2;
-        const len = Math.sqrt(dx * dx + dy * dy + 1.0);
-        return [
-            Math.max(0, Math.min(1, (dx / len) * 0.5 + 0.5)),
-            Math.max(0, Math.min(1, (-dy / len) * 0.5 + 0.5)),
-            Math.max(0, Math.min(1, (1.0 / len) * 0.5 + 0.5))
-        ];
-    });
-}
-
-function procCreateTreeLeavesTexture() {
-    const size = 512;
-    return procCreateTexture(size, (x, y) => {
-        // Cluster grid (leaf bunches / puffs of canopy)
-        const clusterScale = 0.04;
-        const cx = x * clusterScale;
-        const cy = y * clusterScale;
-
-        // Voronoi-like clump center distance
-        const clumpNoise = procSmoothNoise(cx, cy, 91);
-        const clumpDist = Math.sin(cx * 3.14) * Math.sin(cy * 3.14);
-
-        // Overlapping leaf edges and silhouettes
-        const leafSerration = (procSmoothNoise(x * 0.22, y * 0.22, 92) - 0.5) * 0.24;
-        const microLeaves = (procSmoothNoise(x * 0.45, y * 0.45, 93) - 0.5) * 0.14;
-
-        // Density of foliage cluster: high inside clump, drops off into deep canopy shadow crevices
-        const puff = Math.max(0, Math.min(1, clumpNoise * 0.6 + clumpDist * 0.3 + 0.2 + leafSerration));
-
-        // Deep ancient arbor canopy palette:
-        let r, g, b;
-        if (puff < 0.35) {
-            // Deep canopy shadow void between leaf bunches
-            const t = puff / 0.35;
-            r = 0.03 * (1 - t) + 0.10 * t;
-            g = 0.09 * (1 - t) + 0.30 * t;
-            b = 0.04 * (1 - t) + 0.13 * t;
-        } else {
-            const t = (puff - 0.35) / 0.65;
-            r = 0.10 * (1 - t) + 0.28 * t + microLeaves * 0.3;
-            g = 0.30 * (1 - t) + 0.62 * t + microLeaves;
-            b = 0.13 * (1 - t) + 0.25 * t + microLeaves * 0.3;
-        }
-
-        return [Math.max(0, Math.min(1, r)), Math.max(0, Math.min(1, g)), Math.max(0, Math.min(1, b))];
-    }, true);
-}
-
-function procCreateTreeLeavesNormal() {
-    const size = 512;
-    return procCreateTexture(size, (x, y) => {
-        const h = (u, v) => {
-            const cx = u * 0.04;
-            const cy = v * 0.04;
-            const puff = procSmoothNoise(cx, cy, 91) * 0.6 + (procSmoothNoise(u * 0.22, v * 0.22, 92) - 0.5) * 0.20;
-            return puff;
-        };
-        const h0 = h(x, y);
-        const hx = h(x + 1, y);
-        const hy = h(x, y + 1);
-
-        const dx = (hx - h0) * 3.5;
-        const dy = (hy - h0) * 3.5;
-        const nx = dx;
-        const ny = -dy;
-        const nz = 1.0;
-        const len = Math.sqrt(nx * nx + ny * ny + nz * nz);
-        return [
-            Math.max(0, Math.min(1, nx / len * 0.5 + 0.5)),
-            Math.max(0, Math.min(1, ny / len * 0.5 + 0.5)),
-            Math.max(0, Math.min(1, nz / len * 0.5 + 0.5))
-        ];
-    });
-}
-
-function procCreateTreeBarkTexture() {
-    const size = 512;
-    return procCreateTexture(size, (x, y) => {
-        const furrow = Math.sin(x * 0.30 + procSmoothNoise(x * 0.04, y * 0.15, 94) * 4.0) * 0.14;
-        const grain = (procSmoothNoise(x * 0.06, y * 0.30, 95) - 0.5) * 0.12;
-        const microGrain = (procSmoothNoise(x * 0.25, y * 0.50, 96) - 0.5) * 0.05;
-        const mossFleck = procSmoothNoise(x * 0.06, y * 0.06, 97);
-
-        let r = 0.32 + furrow + grain + microGrain;
-        let g = 0.22 + furrow * 0.8 + grain * 0.7 + microGrain * 0.7;
-        let b = 0.13 + furrow * 0.5 + grain * 0.5 + microGrain * 0.5;
-
-        // Organic pale moss nestled in deep furrow crevices
-        if (mossFleck > 0.66 && furrow < -0.02) {
-            const m = (mossFleck - 0.66) / 0.34;
-            r = r * (1 - m) + 0.22 * m;
-            g = g * (1 - m) + 0.40 * m;
-            b = b * (1 - m) + 0.16 * m;
-        }
-
-        return [Math.max(0, Math.min(1, r)), Math.max(0, Math.min(1, g)), Math.max(0, Math.min(1, b))];
-    }, true);
-}
-
-function procCreateTreeBarkNormal() {
-    const size = 512;
-    return procCreateTexture(size, (x, y) => {
-        const h = (u, v) => {
-            const furrow = Math.sin(u * 0.30 + procSmoothNoise(u * 0.04, v * 0.15, 94) * 4.0);
-            const grain = procSmoothNoise(u * 0.06, v * 0.30, 95) * 0.3;
-            return furrow * 0.7 + grain;
-        };
-        const h0 = h(x, y);
-        const hx = h(x + 1, y);
-        const hy = h(x, y + 1);
-
-        const dx = (hx - h0) * 3.8;
-        const dy = (hy - h0) * 1.5;
-        const nx = dx;
-        const ny = -dy;
-        const nz = 1.0;
-        const len = Math.sqrt(nx * nx + ny * ny + nz * nz);
-        return [
-            Math.max(0, Math.min(1, nx / len * 0.5 + 0.5)),
-            Math.max(0, Math.min(1, ny / len * 0.5 + 0.5)),
-            Math.max(0, Math.min(1, nz / len * 0.5 + 0.5))
-        ];
-    });
-}
-
-
-function procCreateOrganicNormal() {
-    const size = 256;
-    return procCreateTexture(size, (x, y) => {
-        const nx = procSmoothNoise(x * 0.12, y * 0.12, 101);
-        const ny = procSmoothNoise(x * 0.12, (y + 1) * 0.12, 101);
-        const dx = (procSmoothNoise((x + 1) * 0.12, y * 0.12, 101) - nx) * 1.8;
-        const dy = (ny - nx) * 1.8;
-        return [0.5 + dx, 0.5 + dy, 1.0];
-    });
-}
-
-function procCreateScaleNormal() {
-    const size = 256;
-    return procCreateTexture(size, (x, y) => {
-        const u = (x % 32) - 16;
-        const v = (y % 32) - 16;
-        const dist = Math.sqrt(u * u + v * v) / 16.0;
-        const h = Math.max(0, 1.0 - dist);
-        const dx = (u / 16.0) * h * 0.8;
-        const dy = (v / 16.0) * h * 0.8;
-        return [0.5 - dx, 0.5 - dy, 1.0];
-    });
-}
-
-function procCreateChitinNormal() {
-    const size = 256;
-    return procCreateTexture(size, (x, y) => {
-        const segment = Math.sin(y * 0.15) * 0.25;
-        const fineNoise = (procSmoothNoise(x * 0.25, y * 0.25, 202) - 0.5) * 0.15;
-        return [0.5 + fineNoise, 0.5 + segment + fineNoise, 1.0];
-    });
-}
-
-function procCreateFurNormal() {
-    const size = 256;
-    return procCreateTexture(size, (x, y) => {
-        const strand = Math.sin((x + y * 0.3) * 0.8) * 0.3;
-        const noise = (procSmoothNoise(x * 0.3, y * 0.08, 303) - 0.5) * 0.2;
-        return [0.5 + strand, 0.5 + noise, 1.0];
-    });
-}
-
-
-function createChamferedWallGeometry(cellSize, wallHeight, chamfer = 0.40) {
+function createChamferedWallGeometry(cellSize, wallHeight, chamfer = 0.40, vScale = 1.0) {
     const half = cellSize / 2;
     const c = chamfer;
     const shape = new THREE.Shape();
@@ -1944,7 +247,7 @@ function createChamferedWallGeometry(cellSize, wallHeight, chamfer = 0.40) {
             const vz = pos.getZ(i);
             if (Math.abs(ny) < 0.5) {
                 const uArc = ((Math.atan2(vz, vx) + Math.PI) / (2 * Math.PI)) * 4.0;
-                const vH = (vy + halfH) / wallHeight;
+                const vH = ((vy + halfH) / wallHeight) * vScale;
                 uvs[i * 2] = uArc;
                 uvs[i * 2 + 1] = vH;
             } else {
@@ -2034,73 +337,39 @@ function applyCeilingVertexAO(geo, cellSize) {
 // 2. Main 3D Dungeon Crawler Engine
 // ==============================================================================
 
-const POLYHAVEN_ITEM_GLTF_PATHS = {
-    ph_saber: '/assets/polyhaven/models/wooden_handle_saber/wooden_handle_saber.gltf',
-    ph_estoc: '/assets/polyhaven/models/antique_estoc/antique_estoc.gltf',
-    ph_katana: '/assets/polyhaven/models/antique_katana_01/antique_katana_01.gltf',
-    ph_dagger: '/assets/polyhaven/models/ornate_medieval_dagger/ornate_medieval_dagger.gltf',
-    ph_axe: '/assets/polyhaven/models/wooden_axe/wooden_axe.gltf',
-    ph_hatchet: '/assets/polyhaven/models/hatchet/hatchet.gltf',
-    ph_hammer: '/assets/polyhaven/models/ornate_war_hammer/ornate_war_hammer.gltf',
-    ph_sledgehammer: '/assets/polyhaven/models/sledgehammer_01/sledgehammer_01.gltf',
-    ph_mace: '/assets/polyhaven/models/ornate_medieval_mace/ornate_medieval_mace.gltf',
-    ph_shield: '/assets/polyhaven/models/kite_shield/kite_shield.gltf',
-    ph_potion_bottle: '/assets/models/items/healing_potion.glb',
-    ph_potion_flask: '/assets/models/items/greater_healing_potion.glb',
-    ph_potion_urn: '/assets/models/items/supreme_healing_potion.glb',
-    ph_goblet: '/assets/polyhaven/models/brass_goblets/brass_goblets.gltf',
-    ph_lantern: '/assets/polyhaven/models/wooden_lantern_01/wooden_lantern_01.gltf',
-    ph_candle: '/assets/polyhaven/models/brass_candleholders/brass_candleholders.gltf',
-    ph_chest: '/assets/models/items/Chest_Wood.gltf',
-    item_bow: '/assets/models/items/bow.glb',
-    item_spear: '/assets/models/items/spear.glb',
-    item_torch: '/assets/models/items/torch.glb',
-    item_greatsword: '/assets/models/items/great_sword.glb',
-    item_rune_blade: '/assets/models/items/rune_blade.glb',
-    item_goblin_sword: '/assets/models/items/goblin_sword.glb',
-    item_morningstar: '/assets/models/items/morningstar.glb',
-    item_whip: '/assets/models/items/morningstar.glb',
-    // # ROOT-CAUSE: Preserve steel_longsword.glb static asset contract while mapping item_longsword to higher-detail sword_pbr.glb.
-    item_greatclub: '/assets/models/items/greatclub.glb',
-    item_longsword: '/assets/models/items/sword_pbr.glb', // upgrades legacy '/assets/models/items/steel_longsword.glb'
-    item_shield_wooden: '/assets/models/items/shield_wooden.glb',
-    item_shield_raven: '/assets/models/items/shield_raven.glb',
-    item_helmet: '/assets/models/items/iron_helmet.glb',
-    item_plate_armor: '/assets/models/items/plate_armor.glb',
-    item_leather_armor: '/assets/models/items/leather_armor.glb',
-    item_boots: '/assets/models/items/iron_boots.glb',
-    item_gauntlets: '/assets/models/items/iron_gauntlets.glb',
-    item_cloak: '/assets/models/items/wool_cape.glb',
-    item_scroll: '/assets/models/items/scroll.glb',
-    item_scroll_enchant: '/assets/models/items/scroll_enchant.glb',
-    item_coins: '/assets/models/items/coin_pile_spill.glb',
-    item_key: '/assets/models/items/dungeon_key_gold.glb',
-    item_bread: '/assets/models/items/bread.glb',
-    item_lembas: '/assets/models/items/lembas_wafer.glb',
-    item_shovel: '/assets/polyhaven/models/rusted_spade_01/rusted_spade_01.gltf',
-    item_pickaxe: '/assets/polyhaven/models/picke_dirty_01/picke_dirty_01.gltf',
-    // # ROOT-CAUSE: Use dedicated staff.glb for item_staff_branch and clean filesystem path for item_wand (/assets/models/items/wand.glb) so disk-existence contract tests pass while sw.js CACHE_NAME eviction refreshes client caches.
-    item_wand: '/assets/models/items/wand.glb',
-    item_rod: '/assets/models/items/rod.glb',
-    item_staff: '/assets/models/items/staff.glb',
-    item_staff_branch: '/assets/models/items/staff.glb',
-    item_book: '/assets/polyhaven/models/decorative_book_set_01/decorative_book_set_01.gltf',
-    item_shield_wicker: '/assets/models/items/shield_wooden.glb',
-    item_shield_leather: '/assets/models/items/shield_wooden.glb',
-    item_shield_metal: '/assets/models/items/shield_wooden.glb',
-    item_arrow: '/assets/models/items/steel_arrow.glb',
-    item_talisman: '/assets/models/items/phoenix_talisman.glb',
-    item_chainmail: '/assets/models/items/chain_mail.glb',
-    item_crown: '/assets/models/items/helm_of_brilliance.glb',
-    item_ring: '/assets/models/items/helm_of_brilliance.glb',
-    item_gold: '/assets/models/items/coin_pile_spill.glb',
-    ph_book: '/assets/polyhaven/models/decorative_book_set_01/decorative_book_set_01.gltf',
-    ph_crystal: '/assets/models/items/crystal_cluster_pbr.glb',
-    ph_boulder: '/assets/polyhaven/models/moon_rock_02/moon_rock_02.gltf',
-    ph_statue_item: '/assets/polyhaven/models/gothic_statue/gothic_statue.gltf',
-    item_anvil: '/assets/models/items/Anvil.gltf',
-    item_shrine_candles: '/assets/models/items/shrine_candles.gltf'
-};
+// Canonical item paths live in window.MASTER_ITEM_REGISTRY.POLYHAVEN_ITEM_GLTF_PATHS; keep minimal contract aliases merged
+const POLYHAVEN_ITEM_GLTF_PATHS = Object.assign({
+    'ph_sledgehammer': '/assets/polyhaven/models/sledgehammer_01/sledgehammer_01.gltf',
+    'ph_potion_bottle': '/assets/models/items/healing_potion.glb',
+    'ph_potion_urn': '/assets/models/items/supreme_healing_potion.glb',
+    'ph_chest': '/assets/models/items/Chest_Wood.gltf',
+    'ph_lantern': '/assets/polyhaven/models/wooden_lantern_01/wooden_lantern_01.gltf',
+    'ph_shield': '/assets/polyhaven/models/kite_shield/kite_shield.gltf',
+    'ph_book': '/assets/polyhaven/models/decorative_book_set_01/decorative_book_set_01.gltf',
+    'ph_goblet': '/assets/polyhaven/models/brass_goblets/brass_goblets.gltf',
+    'item_plate_armor': '/assets/models/items/plate_armor.glb',
+    'item_anvil': '/assets/models/items/Anvil.gltf',
+    'item_shrine_candles': '/assets/models/items/shrine_candles.gltf',
+    'item_gold': '/assets/models/items/coin_pile_spill.glb',
+    'item_bow': '/assets/models/items/bow.glb',
+    'item_spear': '/assets/models/items/spear.glb',
+    'item_torch': '/assets/models/items/torch.glb',
+    'item_greatsword': '/assets/models/items/great_sword.glb',
+    'item_rune_blade': '/assets/models/items/rune_blade.glb',
+    'item_goblin_sword': '/assets/models/items/goblin_sword.glb',
+    'item_morningstar': '/assets/models/items/morningstar.glb',
+    'item_greatclub': '/assets/models/items/greatclub.glb',
+    'item_longsword': '/assets/models/items/sword_pbr.glb', // upgrades legacy '/assets/models/items/steel_longsword.glb'
+    'item_shield_wooden': '/assets/models/items/shield_wooden.glb',
+    'item_shield_wicker': '/assets/models/items/shield_wooden.glb',
+    'item_shield_raven': '/assets/models/items/shield_raven.glb',
+    'item_scroll': '/assets/models/items/scroll.glb',
+    'item_coins': '/assets/models/items/coin_pile_spill.glb',
+    'item_wand': '/assets/models/items/wand.glb',
+    'item_rod': '/assets/models/items/rod.glb',
+    'item_staff': '/assets/models/items/staff.glb',
+    'ph_statue_item': '/assets/polyhaven/models/gothic_statue/gothic_statue.gltf'
+}, (typeof window !== 'undefined' && window.MASTER_ITEM_REGISTRY && window.MASTER_ITEM_REGISTRY.POLYHAVEN_ITEM_GLTF_PATHS) || {});
 
 if (typeof window !== 'undefined' && !window.DeviceProfile) {
     window.DeviceProfile = {
@@ -2117,9 +386,34 @@ if (typeof window !== 'undefined' && !window.DeviceProfile) {
     };
 }
 
+function createLatheFrustumGeo(rTop = 0.5, rBottom = 0.5, height = 1.0, segs = 12, openEnded = false) {
+    const halfH = height * 0.5;
+    const pts = openEnded
+        ? [new THREE.Vector2(Math.max(0.0001, rBottom), -halfH), new THREE.Vector2(Math.max(0.0001, rTop), halfH)]
+        : [
+            new THREE.Vector2(0, -halfH),
+            new THREE.Vector2(Math.max(0.0001, rBottom), -halfH),
+            new THREE.Vector2(Math.max(0.0001, rTop), halfH),
+            new THREE.Vector2(0, halfH)
+        ];
+    const geo = new THREE.LatheGeometry(pts, Math.max(4, segs | 0));
+    geo.computeVertexNormals();
+    return geo;
+}
+
 class Dungeon3D {
-    constructor(canvasId) {
-        this.canvas = document.getElementById(canvasId);
+    constructor(canvasId, opts = {}) {
+        this._canvasId = canvasId;
+        this._initOpts = opts || {};
+        this._deferGpuInit = Boolean(this._initOpts.deferGpuInit === true);
+        this._gpuInitialized = false;
+        this._animLoopScheduled = false;
+        this._pendingResize = false;
+        this._pendingGraphicsPreset = null;
+        this._pendingEnvTexArgs = null;
+        this._visibilityOverlayEnabled = false;
+
+        this.canvas = typeof document !== 'undefined' ? document.getElementById(canvasId) : null;
         this.cellSize = 2.0; // 2.0m per grid cell matching Godot DungeonWorld
         this.wallHeight = 3.0;
         this.eyeHeight = 1.62;
@@ -2148,14 +442,26 @@ class Dungeon3D {
         this.trauma = 0.0;
         this.lastPlayerHp = null;
         this.lastPlayerLevel = null;
+        this.lastDepth = null;
+        this._prevHp = null;
+        this._prevLev = null;
+        this._prevDepth = null;
+        this._prevTurn = 0;
+        this._lastSessionRealm = null;
         this.attackAnimationTime = 0.0;
         this.hurtAnimationTime = 0.0;
         this.castAnimationTime = 0.0;
-        this.lastDepth = null;
         this.audio = null;
         this.lastPlayerStatuses = new Set();
 
-        this.realm = 'angband';
+        this.realm = String((this._initOpts && this._initOpts.realmHint) || 'angband').toLowerCase();
+        this._reducedMotionMql = (typeof window !== 'undefined' && typeof window.matchMedia === 'function')
+            ? window.matchMedia('(prefers-reduced-motion: reduce)')
+            : null;
+        this._acceptedNameplates = [];
+        this._hoveredTileObj = { x: 0, y: 0 };
+        this._lastHoverTileX = -1;
+        this._lastHoverTileY = -1;
 
         // Zero-allocation scratch math objects for fast high-fps grid updates
         this._scratchWallColor = new THREE.Color();
@@ -2176,13 +482,156 @@ class Dungeon3D {
         this._tintMemLit = new THREE.Color(0.55, 0.58, 0.65);
         this._tintMemDark = new THREE.Color(0.22, 0.24, 0.30);
 
+        this.animate = this.animate.bind(this);
+        if (!this._deferGpuInit) {
+            this.ensureGpuInitialized(this.realm);
+        }
+    }
+
+    ensureGpuInitialized(realmHint = null) {
+        if (realmHint) {
+            this.realm = String(realmHint).toLowerCase();
+        }
+        if (this._gpuInitialized) {
+            return true;
+        }
+        if (!this.canvas && this._canvasId && typeof document !== 'undefined') {
+            this.canvas = document.getElementById(this._canvasId);
+        }
         this.initThree();
         this.initTextures();
         this.initMeshes();
         this.initViewmodel();
         this.initModelResolvers();
-        this.animate = this.animate.bind(this);
-        requestAnimationFrame(this.animate);
+        this._gpuInitialized = true;
+
+        if (this._pendingGraphicsPreset !== null) {
+            const preset = this._pendingGraphicsPreset;
+            this._pendingGraphicsPreset = null;
+            this.setGraphicsPreset(preset);
+        }
+        if (this._visibilityOverlayEnabled) {
+            this.setVisibilityOverlay(true);
+        }
+        if (this._pendingResize) {
+            this._pendingResize = false;
+            this.resize();
+        }
+        if (this._pendingEnvTexArgs) {
+            const envArgs = this._pendingEnvTexArgs;
+            this._pendingEnvTexArgs = null;
+            this.applyEnvironmentTextures(envArgs[0], envArgs[1], envArgs[2], envArgs[3], envArgs[4]);
+        }
+        this._scheduleAnimLoop();
+        return true;
+    }
+
+    resetSessionState(opts = {}) {
+        const clearMem = !opts || opts.clearMemory !== false;
+        this._prevHp = null;
+        this._prevLev = null;
+        this._prevDepth = null;
+        this._prevTurn = 0;
+        this.lastPlayerHp = null;
+        this.lastPlayerSp = null;
+        this.lastPlayerLevel = null;
+        this.lastDepth = null;
+        this.trauma = 0.0;
+        this.hurtAnimationTime = 0.0;
+        this.attackAnimationTime = 0.0;
+        this.castAnimationTime = 0.0;
+        this.actionAnimationTime = 0.0;
+        this._lastHoverTileX = -1;
+        this._lastHoverTileY = -1;
+        this._hoveredTile = null;
+        this.lastPlayerStatuses = new Set();
+        if (clearMem) {
+            this._levelTileMemory = null;
+            this._levelMemKey = null;
+            this._levelMemW = 0;
+            this._levelMemH = 0;
+            this._levelMemTotal = 0;
+        }
+        if (Array.isArray(this.floatingTexts) && this.floatingTexts.length > 0) {
+            for (const ft of this.floatingTexts) {
+                if (ft && ft.sprite && this.scene) this.scene.remove(ft.sprite);
+                if (ft && ft.material && typeof ft.material.dispose === 'function') ft.material.dispose();
+                if (ft && ft.texture && typeof ft.texture.dispose === 'function') ft.texture.dispose();
+            }
+            this.floatingTexts.length = 0;
+        }
+        if (typeof document !== 'undefined') {
+            const vignetteEl = document.getElementById('dungeon-vignette');
+            if (vignetteEl) {
+                vignetteEl.classList.remove('danger-pulse', 'hurt-flash', 'level-up-flash');
+            }
+            const dmgFlashEl = document.getElementById('damage-flash');
+            if (dmgFlashEl) {
+                dmgFlashEl.classList.remove('active');
+                dmgFlashEl.style.opacity = '0';
+            }
+        }
+    }
+
+    resize() {
+        if (!this._gpuInitialized || !this.renderer || !this.camera) {
+            this._pendingResize = true;
+            return;
+        }
+        const nextBudget = (typeof window !== 'undefined' && window.DeviceProfile && typeof window.DeviceProfile.getRenderBudget === 'function')
+            ? window.DeviceProfile.getRenderBudget()
+            : (this.renderBudget || {});
+        this.renderBudget = nextBudget;
+        const scale = (this.renderGovernor && this.renderGovernor.dynamicResolutionScale) || 1.0;
+        const w = (typeof window !== 'undefined' && window.innerWidth) || 1280;
+        const h = (typeof window !== 'undefined' && window.innerHeight) || 720;
+        this.camera.aspect = w / Math.max(1, h);
+        this.camera.far = Math.max(110, nextBudget.farDistance || 110);
+        this.camera.updateProjectionMatrix();
+        this.renderer.setSize(w, h);
+        const dprCap = nextBudget.dprCap || (nextBudget.tier === 'phone' ? 1.25 : 1.5);
+        const dprFloor = Math.min(dprCap, 0.75);
+        const rawDpr = Math.min((typeof window !== 'undefined' && window.devicePixelRatio) || 1, dprCap) * scale;
+        this.renderer.setPixelRatio(Math.max(dprFloor, Math.min(dprCap, rawDpr)));
+        if (this.renderGovernor) this.renderGovernor.wake(350);
+    }
+
+    setGraphicsPreset(presetName) {
+        this._graphicsPreset = presetName || 'balanced';
+        if (!this._gpuInitialized) {
+            this._pendingGraphicsPreset = this._graphicsPreset;
+            return;
+        }
+        if (this.renderBudget && presetName) {
+            this.renderBudget.tier = String(presetName).toLowerCase();
+        }
+        this.applyGraphicsConfig();
+    }
+
+    setVisibilityOverlay(enabled) {
+        this._visibilityOverlayEnabled = Boolean(enabled);
+        if (!this._gpuInitialized) return;
+        this._lastTerrainSig = null;
+        if (this.lastFrame) this.updateDungeon(this.lastFrame);
+        if (this.renderGovernor && typeof this.renderGovernor.wake === 'function') {
+            this.renderGovernor.wake(350);
+        }
+    }
+
+    clearScene() {
+        this.resetSessionState({ clearMemory: true });
+        if (!this._gpuInitialized) return;
+        if (typeof this.purgeAllSceneEntities === 'function') {
+            this.purgeAllSceneEntities();
+        }
+        this._lastTerrainSig = null;
+    }
+
+    renderFrame(frame) {
+        if (!frame) return;
+        const hintRealm = frame.realm || (frame.player && frame.player.realm) || this.realm;
+        this.ensureGpuInitialized(hintRealm);
+        this.update(frame);
     }
 
     initThree() {
@@ -2199,7 +648,7 @@ class Dungeon3D {
         const initialFogDensity = budget.fogDensity || 0.014;
 
         if (window.Dungeon3DLightmap) {
-            this.renderGovernor = new window.Dungeon3DLightmap.DemandRenderGovernor();
+            this.renderGovernor = new window.Dungeon3DLightmap.DemandRenderGovernor({ idleIntervalMs: Math.min(budget.idleIntervalMs || 83, 83) });
             this.vertexLighter = new window.Dungeon3DLightmap.InstanceVertexLighter();
             this.nameplatePool = new window.Dungeon3DLightmap.NameplateTexturePool(budget.nameplatePoolCap || 64);
         }
@@ -2295,9 +744,10 @@ class Dungeon3D {
             this.camera.far = Math.max(110, nextBudget.farDistance || 110);
             this.camera.updateProjectionMatrix();
             this.renderer.setSize(window.innerWidth, window.innerHeight);
-            const dprFloor = nextBudget.tier === 'phone' ? 0.85 : 1.15;
-            const dprCap = nextBudget.tier === 'phone' ? Math.max(1.25, nextBudget.dprCap || 1.25) : Math.max(1.5, nextBudget.dprCap || 1.5);
-            this.renderer.setPixelRatio(Math.max(dprFloor, Math.min(window.devicePixelRatio || 1, dprCap) * Math.max(0.9, scale)));
+            const dprCap = nextBudget.dprCap || (nextBudget.tier === 'phone' ? 1.25 : 1.5);
+            const dprFloor = Math.min(dprCap, 0.75);
+            const rawDpr = Math.min(window.devicePixelRatio || 1, dprCap) * scale;
+            this.renderer.setPixelRatio(Math.max(dprFloor, Math.min(dprCap, rawDpr)));
             if (this.renderGovernor) this.renderGovernor.wake(350);
         });
     }
@@ -2309,1288 +759,93 @@ class Dungeon3D {
     }
 
     getBiomeProfile(depth, levelSeed = 0, realm = 'angband') {
-        const r = (realm || this.realm || 'angband').toLowerCase();
-        const useVar = (!window.GRAPHICS_CONFIG || window.GRAPHICS_CONFIG.biomeVariation) && (levelSeed !== 0);
-        const sub = useVar ? (((levelSeed ^ ((depth * 2654435761) >>> 0)) >>> 0) % 4) : 0;
-
-        if (depth <= 0) {
-            if (r === 'hengband') {
-                const names = ['Eastern Overworld (Mount Fuji Foothills)', 'Eastern Overworld (Bamboo Forest Glade)', 'Eastern Overworld (Jingu Shrine Valley)', 'Eastern Overworld (Ancient Pine Sanctuary)'];
-                return {
-                    name: names[sub],
-                    bgColor: 0x141e33,
-                    ambientColor: 0x948aa3,
-                    ambientEnergy: 0.85,
-                    sunLight: true,
-                    sunEnergy: 1.05,
-                    fogColor: 0x141e33,
-                    fogDensity: 0.0035,
-                    exposure: 1.08,
-                    torchColor: 0xffe099,
-                    torchEnergy: 2.2,
-                    wallColor: new THREE.Color(0.85, 0.85, 0.88),
-                    floorColor: new THREE.Color(0.80, 0.78, 0.76),
-                    ceilingColor: new THREE.Color(0.70, 0.70, 0.75),
-                    floorRoughness: 0.82,
-                    wallRoughness: 0.80
-                };
-            }
-            if (r === 'frogcomposband') {
-                const names = ['Wilderness Overworld (Verdant Meadow)', 'Wilderness Overworld (Whispering Woods)', 'Wilderness Overworld (Highland Moors)', 'Wilderness Overworld (Sunlit Dale)'];
-                return {
-                    name: names[sub],
-                    bgColor: 0x0f1933,
-                    ambientColor: 0x8f9eb8,
-                    ambientEnergy: 0.88,
-                    sunLight: true,
-                    sunEnergy: 1.10,
-                    fogColor: 0x0f1933,
-                    fogDensity: 0.003,
-                    exposure: 1.06,
-                    torchColor: 0xffe0a6,
-                    torchEnergy: 2.2,
-                    wallColor: new THREE.Color(0.88, 0.86, 0.82),
-                    floorColor: new THREE.Color(0.82, 0.80, 0.78),
-                    ceilingColor: new THREE.Color(0.70, 0.70, 0.75),
-                    floorRoughness: 0.84,
-                    wallRoughness: 0.82
-                };
-            }
-            return {
-                name: 'Town & Overworld',
-                bgColor: 0x141e38,
-                ambientColor: 0x808aa8,
-                ambientEnergy: 0.75,
-                sunLight: true,
-                sunEnergy: 0.95,
-                fogColor: 0x141e38,
-                fogDensity: 0.004,
-                exposure: 1.05,
-                torchColor: 0xffdc99,
-                torchEnergy: 1.8,
-                wallColor: new THREE.Color(0.88, 0.88, 0.88),
-                floorColor: new THREE.Color(0.84, 0.82, 0.80),
-                ceilingColor: new THREE.Color(0.70, 0.70, 0.75),
-                floorRoughness: 0.84,
-                wallRoughness: 0.82
-            };
+        if (typeof window !== 'undefined' && window.Dungeon3DTactical && typeof window.Dungeon3DTactical.resolveRealmBiomeProfile === 'function') {
+            return window.Dungeon3DTactical.resolveRealmBiomeProfile(this, depth, levelSeed, realm, this.lastFrame);
         }
-
-        // Sil-Q First Age Beleriand - The Iron Pits of Angband beneath Thangorodrim
-        if (r === 'silq') {
-            if (depth <= 5) {
-                // 50ft – 250ft: Iron Pits (Gates of Slag & Ash Galleries)
-                const names = ['Iron Pits (Gates of Slag)', 'Iron Pits (Ash-Stained Delvings)', 'Iron Pits (Smoky Galleries)', 'Iron Pits (Orc Barracks)'];
-                const wcs = [[0.55, 0.54, 0.56], [0.50, 0.50, 0.54], [0.58, 0.52, 0.50], [0.52, 0.52, 0.55]];
-                const fcs = [[0.46, 0.44, 0.48], [0.42, 0.42, 0.46], [0.48, 0.44, 0.42], [0.44, 0.44, 0.46]];
-                const ccs = [[0.38, 0.36, 0.40], [0.34, 0.34, 0.38], [0.40, 0.36, 0.34], [0.36, 0.36, 0.38]];
-                return {
-                    name: names[sub],
-                    bgColor: 0x030304,
-                    ambientColor: 0x33333d,
-                    ambientEnergy: 0.25,
-                    sunLight: false,
-                    sunEnergy: 0.0,
-                    fogColor: 0x030304,
-                    fogDensity: 0.016,
-                    exposure: 1.15,
-                    torchColor: 0xf5dcb0,
-                    torchEnergy: 2.4,
-                    wallColor: new THREE.Color(...wcs[sub]),
-                    floorColor: new THREE.Color(...fcs[sub]),
-                    ceilingColor: new THREE.Color(...ccs[sub]),
-                    floorRoughness: 0.88,
-                    wallRoughness: 0.85
-                };
-            }
-            if (depth <= 10) {
-                // 300ft – 500ft: Morgoth's Armouries (Furnace Deeps & Dark Foundries)
-                const names = ["Morgoth's Armouries (Furnace Deep)", "Morgoth's Armouries (Dark Foundries)", "Morgoth's Armouries (Soot Vaults)", "Morgoth's Armouries (Iron Cisterns)"];
-                const wcs = [[0.60, 0.50, 0.46], [0.55, 0.48, 0.44], [0.62, 0.52, 0.45], [0.54, 0.50, 0.48]];
-                const fcs = [[0.50, 0.42, 0.38], [0.46, 0.40, 0.36], [0.52, 0.44, 0.38], [0.45, 0.42, 0.40]];
-                const ccs = [[0.40, 0.34, 0.30], [0.36, 0.32, 0.28], [0.42, 0.35, 0.30], [0.38, 0.34, 0.32]];
-                return {
-                    name: names[sub],
-                    bgColor: 0x040202,
-                    ambientColor: 0x523326,
-                    ambientEnergy: 0.28,
-                    sunLight: false,
-                    sunEnergy: 0.0,
-                    fogColor: 0x040202,
-                    fogDensity: 0.018,
-                    exposure: 1.18,
-                    torchColor: 0xffcc8c,
-                    torchEnergy: 2.6,
-                    wallColor: new THREE.Color(...wcs[sub]),
-                    floorColor: new THREE.Color(...fcs[sub]),
-                    ceilingColor: new THREE.Color(...ccs[sub]),
-                    floorRoughness: 0.85,
-                    wallRoughness: 0.82
-                };
-            }
-            if (depth <= 15) {
-                // 550ft – 750ft: Deep Torment (Barrows of Thangorodrim & Balrog Halls)
-                const names = ["Deep Torment (Barrows of Thangorodrim)", "Deep Torment (Balrog Halls)", "Deep Torment (Dragon Kennels)", "Deep Torment (Dungeon of Shackles)"];
-                const wcs = [[0.46, 0.44, 0.50], [0.42, 0.40, 0.46], [0.48, 0.42, 0.48], [0.40, 0.42, 0.45]];
-                const fcs = [[0.38, 0.36, 0.42], [0.35, 0.34, 0.40], [0.40, 0.35, 0.40], [0.34, 0.36, 0.38]];
-                const ccs = [[0.30, 0.28, 0.34], [0.28, 0.26, 0.32], [0.32, 0.28, 0.32], [0.28, 0.28, 0.30]];
-                return {
-                    name: names[sub],
-                    bgColor: 0x030204,
-                    ambientColor: 0x382e47,
-                    ambientEnergy: 0.24,
-                    sunLight: false,
-                    sunEnergy: 0.0,
-                    fogColor: 0x030204,
-                    fogDensity: 0.018,
-                    exposure: 1.16,
-                    torchColor: 0xebd6b8,
-                    torchEnergy: 2.4,
-                    wallColor: new THREE.Color(...wcs[sub]),
-                    floorColor: new THREE.Color(...fcs[sub]),
-                    ceilingColor: new THREE.Color(...ccs[sub]),
-                    floorRoughness: 0.80,
-                    wallRoughness: 0.82
-                };
-            }
-            // 800ft – 1000ft: Citadel of the Iron Crown (Morgoth's Throne Room at 1000ft / Level 20)
-            const silqEndNames = ["Citadel of the Iron Crown (Throne of Morgoth)", "Citadel of the Iron Crown (The Iron Pit)", "Citadel of the Iron Crown (Abyss of Thangorodrim)", "Citadel of the Iron Crown (Vault of the Silmarils)"];
-            return {
-                name: silqEndNames[sub],
-                bgColor: 0x040205,
-                ambientColor: 0x3d1f47,
-                ambientEnergy: 0.26,
-                sunLight: false,
-                sunEnergy: 0.0,
-                fogColor: 0x040205,
-                fogDensity: 0.018,
-                exposure: 1.20,
-                torchColor: 0xebe0f5,
-                torchEnergy: 2.4,
-                wallColor: new THREE.Color(0.34, 0.34, 0.38), // Pitch-black volcanic basalt and obsidian of Thangorodrim
-                floorColor: new THREE.Color(0.28, 0.26, 0.30),
-                ceilingColor: new THREE.Color(0.22, 0.21, 0.24),
-                floorRoughness: 0.35, // Smooth polished obsidian
-                wallRoughness: 0.70
-            };
-        }
-
-        // Progressive 4-Level Depth Chapters: Every ~200 ft brings a distinct, palpable visual transformation
-        if (depth <= 4) {
-            // Chapter 1: Upper Crypts (Levels 1–4 / 50–200 ft) - Ashlar stone, dry vaults, cold slate mist
-            const subThemes = [
-                { name: 'Upper Crypts (Ashlar Sepulchre)', wc: [0.84, 0.84, 0.86], fc: [0.76, 0.76, 0.78], cc: [0.62, 0.62, 0.66], fr: 0.82, wr: 0.82, tc: 0xffdc99, fog: 0x10141a, amb: 0x626880 },
-                { name: 'Upper Crypts (Cold Slate Barrow)', wc: [0.78, 0.80, 0.86], fc: [0.70, 0.72, 0.78], cc: [0.56, 0.58, 0.65], fr: 0.80, wr: 0.84, tc: 0xffd890, fog: 0x0e121c, amb: 0x586078 },
-                { name: 'Upper Crypts (Dry Granite Vault)', wc: [0.86, 0.84, 0.82], fc: [0.78, 0.76, 0.74], cc: [0.65, 0.63, 0.60], fr: 0.84, wr: 0.86, tc: 0xffdca0, fog: 0x141212, amb: 0x686460 },
-                { name: 'Upper Crypts (Cobblestone Undercroft)', wc: [0.80, 0.82, 0.80], fc: [0.72, 0.74, 0.72], cc: [0.60, 0.62, 0.60], fr: 0.78, wr: 0.82, tc: 0xffd485, fog: 0x101412, amb: 0x606660 }
-            ];
-            const t = subThemes[sub];
-            return {
-                name: t.name,
-                bgColor: 0x06080c,
-                ambientColor: t.amb,
-                ambientEnergy: 0.38,
-                sunLight: false,
-                sunEnergy: 0.0,
-                fogColor: t.fog,
-                fogDensity: 0.012,
-                exposure: 1.16,
-                torchColor: t.tc,
-                torchEnergy: 2.6,
-                wallColor: new THREE.Color(...t.wc),
-                floorColor: new THREE.Color(...t.fc),
-                ceilingColor: new THREE.Color(...t.cc),
-                floorRoughness: t.fr,
-                wallRoughness: t.wr
-            };
-        }
-        if (depth <= 8) {
-            // Chapter 2: Flooded Undercrofts (Levels 5–8 / 250–400 ft) - Wet slate, reflective water floors (roughness 0.44), damp aquamarine mist
-            const subThemes = [
-                { name: 'Flooded Undercroft (Sunken Cistern)', wc: [0.64, 0.72, 0.84], fc: [0.52, 0.62, 0.76], cc: [0.46, 0.54, 0.66], fr: 0.44, wr: 0.72, tc: 0xffd485, fog: 0x0c1622, amb: 0x485c7a },
-                { name: 'Flooded Undercroft (Wet Slate Crypt)', wc: [0.68, 0.74, 0.86], fc: [0.56, 0.64, 0.78], cc: [0.50, 0.56, 0.68], fr: 0.46, wr: 0.74, tc: 0xffd690, fog: 0x0e1826, amb: 0x4c6080 },
-                { name: 'Flooded Undercroft (Algae Dripway)', wc: [0.62, 0.76, 0.80], fc: [0.50, 0.65, 0.72], cc: [0.44, 0.56, 0.62], fr: 0.42, wr: 0.70, tc: 0xf4df94, fog: 0x0a1820, amb: 0x44626e },
-                { name: 'Flooded Undercroft (Drowned Sarcophagi)', wc: [0.66, 0.70, 0.82], fc: [0.54, 0.60, 0.74], cc: [0.48, 0.52, 0.64], fr: 0.45, wr: 0.75, tc: 0xffcc80, fog: 0x0d1420, amb: 0x4a5874 }
-            ];
-            const t = subThemes[sub];
-            return {
-                name: t.name,
-                bgColor: 0x040810,
-                ambientColor: t.amb,
-                ambientEnergy: 0.34,
-                sunLight: false,
-                sunEnergy: 0.0,
-                fogColor: t.fog,
-                fogDensity: 0.014,
-                exposure: 1.18,
-                torchColor: t.tc,
-                torchEnergy: 2.8,
-                wallColor: new THREE.Color(...t.wc),
-                floorColor: new THREE.Color(...t.fc),
-                ceilingColor: new THREE.Color(...t.cc),
-                floorRoughness: t.fr,
-                wallRoughness: t.wr
-            };
-        }
-        if (depth <= 12) {
-            // Chapter 3: Deep Sepulchre & Ancient Tombs (Levels 9–12 / 450–600 ft) - Ancient sandstone, dusty sarcophagi, violet-black shadow fog, deep amber flame
-            const subThemes = [
-                { name: 'Deep Sepulchre (Sandstone Necropolis)', wc: [0.90, 0.78, 0.60], fc: [0.78, 0.68, 0.50], cc: [0.62, 0.52, 0.38], fr: 0.88, wr: 0.88, tc: 0xffc060, fog: 0x180e1e, amb: 0x6e5242 },
-                { name: 'Deep Sepulchre (Dusty Crypt of Kings)', wc: [0.86, 0.74, 0.64], fc: [0.75, 0.64, 0.54], cc: [0.58, 0.48, 0.40], fr: 0.86, wr: 0.86, tc: 0xffb866, fog: 0x160c1c, amb: 0x684c44 },
-                { name: 'Deep Sepulchre (Ancestral Sarcophagi)', wc: [0.84, 0.76, 0.68], fc: [0.72, 0.65, 0.58], cc: [0.56, 0.50, 0.44], fr: 0.85, wr: 0.85, tc: 0xffba70, fog: 0x1a1020, amb: 0x645048 },
-                { name: 'Deep Sepulchre (Cinder Vault)', wc: [0.88, 0.72, 0.58], fc: [0.76, 0.62, 0.48], cc: [0.60, 0.48, 0.36], fr: 0.88, wr: 0.88, tc: 0xffb258, fog: 0x180a18, amb: 0x6a483e }
-            ];
-            const t = subThemes[sub];
-            return {
-                name: t.name,
-                bgColor: 0x08040a,
-                ambientColor: t.amb,
-                ambientEnergy: 0.32,
-                sunLight: false,
-                sunEnergy: 0.0,
-                fogColor: t.fog,
-                fogDensity: 0.014,
-                exposure: 1.18,
-                torchColor: t.tc,
-                torchEnergy: 2.8,
-                wallColor: new THREE.Color(...t.wc),
-                floorColor: new THREE.Color(...t.fc),
-                ceilingColor: new THREE.Color(...t.cc),
-                floorRoughness: t.fr,
-                wallRoughness: t.wr
-            };
-        }
-        if (depth <= 16) {
-            // Chapter 4: Overgrown Catacombs (Levels 13–16 / 650–800 ft) - Verdant lichen, fungal spores, emerald mist
-            const subThemes = [
-                { name: 'Overgrown Catacombs (Emerald Sanctuary)', wc: [0.60, 0.85, 0.58], fc: [0.50, 0.75, 0.48], cc: [0.42, 0.62, 0.40], fr: 0.60, wr: 0.78, tc: 0xf5dda0, fog: 0x0c1e10, amb: 0x3e6844 },
-                { name: 'Overgrown Catacombs (Lichen Hollows)', wc: [0.64, 0.82, 0.65], fc: [0.54, 0.72, 0.55], cc: [0.45, 0.60, 0.46], fr: 0.62, wr: 0.80, tc: 0xf8e0a4, fog: 0x0e1c12, amb: 0x426448 },
-                { name: 'Overgrown Catacombs (Spore Barrow)', wc: [0.58, 0.86, 0.62], fc: [0.48, 0.76, 0.52], cc: [0.40, 0.64, 0.44], fr: 0.58, wr: 0.76, tc: 0xf2dea8, fog: 0x0a2012, amb: 0x3a6a48 },
-                { name: 'Overgrown Catacombs (Peat Brambles)', wc: [0.68, 0.80, 0.56], fc: [0.58, 0.70, 0.46], cc: [0.48, 0.58, 0.38], fr: 0.64, wr: 0.82, tc: 0xf6d892, fog: 0x101a0e, amb: 0x485e3c }
-            ];
-            const t = subThemes[sub];
-            return {
-                name: t.name,
-                bgColor: 0x030604,
-                ambientColor: t.amb,
-                ambientEnergy: 0.30,
-                sunLight: false,
-                sunEnergy: 0.0,
-                fogColor: t.fog,
-                fogDensity: 0.015,
-                exposure: 1.18,
-                torchColor: t.tc,
-                torchEnergy: 2.7,
-                wallColor: new THREE.Color(...t.wc),
-                floorColor: new THREE.Color(...t.fc),
-                ceilingColor: new THREE.Color(...t.cc),
-                floorRoughness: t.fr,
-                wallRoughness: t.wr
-            };
-        }
-        if (depth <= 20) {
-            // Chapter 5: Chasm Threshold (Levels 17–20 / 850–1000 ft) - Rough ironstone, deep echoes, dark charcoal fog
-            const subThemes = [
-                { name: 'Chasm Threshold (Ironstone Vaults)', wc: [0.74, 0.70, 0.76], fc: [0.64, 0.60, 0.66], cc: [0.50, 0.46, 0.52], fr: 0.75, wr: 0.80, tc: 0xffd078, fog: 0x121014, amb: 0x544e58 },
-                { name: 'Chasm Threshold (Deep Echo)', wc: [0.70, 0.68, 0.74], fc: [0.60, 0.58, 0.64], cc: [0.48, 0.45, 0.50], fr: 0.76, wr: 0.82, tc: 0xffc870, fog: 0x100e12, amb: 0x504a54 },
-                { name: 'Chasm Threshold (Basalt Ledge)', wc: [0.72, 0.72, 0.74], fc: [0.62, 0.62, 0.64], cc: [0.50, 0.50, 0.52], fr: 0.74, wr: 0.78, tc: 0xffcc75, fog: 0x121214, amb: 0x525256 },
-                { name: 'Chasm Threshold (Shadow Pit)', wc: [0.68, 0.65, 0.72], fc: [0.58, 0.55, 0.62], cc: [0.46, 0.42, 0.48], fr: 0.72, wr: 0.84, tc: 0xffc268, fog: 0x0e0c10, amb: 0x4c4650 }
-            ];
-            const t = subThemes[sub];
-            return {
-                name: t.name,
-                bgColor: 0x040406,
-                ambientColor: t.amb,
-                ambientEnergy: 0.32,
-                sunLight: false,
-                sunEnergy: 0.0,
-                fogColor: t.fog,
-                fogDensity: 0.015,
-                exposure: 1.18,
-                torchColor: t.tc,
-                torchEnergy: 2.9,
-                wallColor: new THREE.Color(...t.wc),
-                floorColor: new THREE.Color(...t.fc),
-                ceilingColor: new THREE.Color(...t.cc),
-                floorRoughness: t.fr,
-                wallRoughness: t.wr
-            };
-        }
-        if (depth <= 35) {
-            // Chapter 6: Crystal Caverns (Levels 21–35 / 1050–1750 ft) - Luminous quartz, beryl, amethyst geode
-            const subThemes = [
-                { name: 'Crystal Caverns (Sapphire Quartz)', wc: [0.68, 0.80, 0.96], fc: [0.58, 0.70, 0.90], cc: [0.45, 0.55, 0.75], fr: 0.50, wr: 0.68, tc: 0xfadc7b, fog: 0x081224, amb: 0x425c85 },
-                { name: 'Crystal Caverns (Amethyst Geode)', wc: [0.76, 0.68, 0.94], fc: [0.68, 0.60, 0.86], cc: [0.56, 0.48, 0.72], fr: 0.48, wr: 0.68, tc: 0xf4d08c, fog: 0x0e081c, amb: 0x544078 },
-                { name: 'Crystal Caverns (Beryl Depths)', wc: [0.62, 0.84, 0.88], fc: [0.54, 0.75, 0.80], cc: [0.44, 0.62, 0.68], fr: 0.52, wr: 0.72, tc: 0xf8e090, fog: 0x06141c, amb: 0x365868 },
-                { name: 'Crystal Caverns (Prismatic Seam)', wc: [0.80, 0.76, 0.84], fc: [0.72, 0.68, 0.76], cc: [0.58, 0.54, 0.62], fr: 0.50, wr: 0.74, tc: 0xfad880, fog: 0x0c0e14, amb: 0x4c4a56 }
-            ];
-            const t = subThemes[sub];
-            return {
-                name: t.name,
-                bgColor: 0x030408,
-                ambientColor: t.amb,
-                ambientEnergy: 0.32,
-                sunLight: false,
-                sunEnergy: 0.0,
-                fogColor: t.fog,
-                fogDensity: 0.015,
-                exposure: 1.20,
-                torchColor: t.tc,
-                torchEnergy: 2.8,
-                wallColor: new THREE.Color(...t.wc),
-                floorColor: new THREE.Color(...t.fc),
-                ceilingColor: new THREE.Color(...t.cc),
-                floorRoughness: t.fr,
-                wallRoughness: t.wr
-            };
-        }
-        if (depth <= 60) {
-            // Chapter 7: Deep Nether Mines (Levels 36–60 / 1800–3000 ft) - Pyrite, amethyst, deep mineral chill
-            const subThemes = [
-                { name: 'Deep Nether Mines (Pyrite Seam)', wc: [0.82, 0.76, 0.62], fc: [0.72, 0.66, 0.52], cc: [0.58, 0.52, 0.40], fr: 0.60, wr: 0.75, tc: 0xffd880, fog: 0x14100c, amb: 0x584e3c },
-                { name: 'Deep Nether Mines (Amethyst Vaults)', wc: [0.78, 0.65, 0.92], fc: [0.68, 0.55, 0.84], cc: [0.52, 0.42, 0.68], fr: 0.54, wr: 0.72, tc: 0xf4cf8c, fog: 0x14081e, amb: 0x523868 },
-                { name: 'Deep Nether Mines (Obsidian Seam)', wc: [0.64, 0.60, 0.68], fc: [0.54, 0.50, 0.58], cc: [0.42, 0.38, 0.46], fr: 0.42, wr: 0.65, tc: 0xf6d490, fog: 0x0c0810, amb: 0x443a4e },
-                { name: 'Deep Nether Mines (Brimstone Cavern)', wc: [0.85, 0.75, 0.58], fc: [0.75, 0.65, 0.48], cc: [0.60, 0.50, 0.36], fr: 0.70, wr: 0.78, tc: 0xffcc70, fog: 0x161208, amb: 0x5a4830 }
-            ];
-            const t = subThemes[sub];
-            return {
-                name: t.name,
-                bgColor: 0x040306,
-                ambientColor: t.amb,
-                ambientEnergy: 0.32,
-                sunLight: false,
-                sunEnergy: 0.0,
-                fogColor: t.fog,
-                fogDensity: 0.015,
-                exposure: 1.20,
-                torchColor: t.tc,
-                torchEnergy: 2.8,
-                wallColor: new THREE.Color(...t.wc),
-                floorColor: new THREE.Color(...t.fc),
-                ceilingColor: new THREE.Color(...t.cc),
-                floorRoughness: t.fr,
-                wallRoughness: t.wr
-            };
-        }
-        if (depth <= 85) {
-            // Chapter 8: Magma Underworld (Levels 61–85 / 3050–4250 ft) - Basalt obsidian, volcanic ash, glowing fissures
-            const subThemes = [
-                { name: 'Magma Underworld (Basalt Crucible)', wc: [0.90, 0.70, 0.60], fc: [0.78, 0.58, 0.48], cc: [0.60, 0.42, 0.35], fr: 0.68, wr: 0.80, tc: 0xffc070, fog: 0x1e0a04, amb: 0x7a4024 },
-                { name: 'Magma Underworld (Obsidian Abyss)', wc: [0.65, 0.58, 0.62], fc: [0.55, 0.48, 0.52], cc: [0.42, 0.36, 0.40], fr: 0.35, wr: 0.60, tc: 0xffbf78, fog: 0x100404, amb: 0x5a3020 },
-                { name: 'Magma Underworld (Brimstone Wastes)', wc: [0.92, 0.80, 0.58], fc: [0.82, 0.70, 0.50], cc: [0.65, 0.55, 0.38], fr: 0.80, wr: 0.84, tc: 0xffc86a, fog: 0x1c0e04, amb: 0x7c4e20 },
-                { name: 'Magma Underworld (White-Hot Core)', wc: [0.96, 0.68, 0.54], fc: [0.86, 0.58, 0.46], cc: [0.68, 0.44, 0.34], fr: 0.65, wr: 0.78, tc: 0xffda9a, fog: 0x220c04, amb: 0x8c4424 }
-            ];
-            const t = subThemes[sub];
-            return {
-                name: t.name,
-                bgColor: 0x080302,
-                ambientColor: t.amb,
-                ambientEnergy: 0.36,
-                sunLight: false,
-                sunEnergy: 0.0,
-                fogColor: t.fog,
-                fogDensity: 0.016,
-                exposure: 1.22,
-                torchColor: t.tc,
-                torchEnergy: 3.2,
-                wallColor: new THREE.Color(...t.wc),
-                floorColor: new THREE.Color(...t.fc),
-                ceilingColor: new THREE.Color(...t.cc),
-                floorRoughness: t.fr,
-                wallRoughness: t.wr
-            };
-        }
-        // Chapter 9: The Abyssal Citadel of Morgoth (Levels 86–100 / 4300–5000 ft) - Blood-iron, nether void, eerie crimson mist
-        const subThemes = [
-            { name: 'Abyssal Throne (Void Citadel)', wc: [0.72, 0.55, 0.78], fc: [0.62, 0.45, 0.68], cc: [0.46, 0.32, 0.52], fr: 0.45, wr: 0.70, tc: 0xe8c8f0, fog: 0x140418, amb: 0x613370 },
-            { name: 'Abyssal Throne (Necrotic Pit)', wc: [0.68, 0.68, 0.72], fc: [0.60, 0.60, 0.64], cc: [0.45, 0.45, 0.50], fr: 0.75, wr: 0.82, tc: 0xe8d0b5, fog: 0x08060a, amb: 0x484252 },
-            { name: 'Abyssal Throne (Blood-Iron Vaults)', wc: [0.85, 0.54, 0.64], fc: [0.75, 0.46, 0.56], cc: [0.55, 0.32, 0.42], fr: 0.55, wr: 0.76, tc: 0xf5cbb0, fog: 0x180408, amb: 0x6c2c42 },
-            { name: 'Abyssal Throne (Nether Core)', wc: [0.60, 0.65, 0.88], fc: [0.52, 0.56, 0.78], cc: [0.40, 0.44, 0.62], fr: 0.38, wr: 0.65, tc: 0xe0d4f5, fog: 0x06040e, amb: 0x403666 }
-        ];
-        const t = subThemes[sub];
         return {
-            name: t.name,
-            bgColor: 0x060208,
-            ambientColor: t.amb,
-            ambientEnergy: 0.30,
-            sunLight: false,
-            sunEnergy: 0.0,
-            fogColor: t.fog,
-            fogDensity: 0.016,
-            exposure: 1.22,
-            torchColor: t.tc,
-            torchEnergy: 2.6,
-            wallColor: new THREE.Color(...t.wc),
-            floorColor: new THREE.Color(...t.fc),
-            ceilingColor: new THREE.Color(...t.cc),
-            floorRoughness: t.fr,
-            wallRoughness: t.wr
+            name: 'Dungeon',
+            bgColor: 0x080a0f,
+            ambientColor: 0x4e586e,
+            ambientEnergy: 0.17,
+            sunLight: depth <= 0,
+            sunEnergy: depth <= 0 ? 1.0 : 0.0,
+            fogColor: 0x0b0d14,
+            fogDensity: 0.012,
+            exposure: 1.10,
+            torchColor: 0xffbd70,
+            torchEnergy: 2.5,
+            wallColor: new THREE.Color(0.76, 0.75, 0.72),
+            floorColor: new THREE.Color(0.70, 0.69, 0.66),
+            ceilingColor: new THREE.Color(0.56, 0.56, 0.58),
+            floorRoughness: 0.80,
+            wallRoughness: 0.82
         };
-    }
-
-    initTextures() {
-        const maxAniso = this.renderer.capabilities.getMaxAnisotropy();
-        const aniso = Math.min(16, maxAniso || 1);
-        this.contextualTextureCache = new Map();
-        this._currentThemeId = null;
-
-        // 1. Instant Procedural Textures (Exact Godot DungeonWorld Parity fallback)
-        this.wallTex = procCreateStoneWallTexture();
-        this.wallNormal = procCreateStoneWallNormal();
-        this.floorTex = procCreateFloorTexture();
-        this.floorNormal = procCreateFloorNormal();
-        this.ceilingTex = procCreateCeilingTexture();
-        this.doorTex = procCreateWoodDoorTexture();
-        this.storeTex = procCreateStoreTexture();
-        this.magmaTex = procCreateMagmaTexture();
-        this.magmaEmission = procCreateMagmaEmission();
-        this.quartzTex = procCreateQuartzTexture();
-        this.goldVeinTex = procCreateGoldVeinTexture();
-        this.goldVeinEmission = procCreateGoldVeinEmission();
-        this.gemVeinTex = procCreateGemVeinTexture();
-        this.gemVeinEmission = procCreateGemVeinEmission();
-        this.grassTex = procCreateGrassTexture();
-        this.grassNormal = procCreateGrassNormal();
-        this.dirtTex = procCreateDirtTexture();
-        this.waterTex = procCreateWaterTexture();
-        this.deepWaterTex = procCreateDeepWaterTexture();
-        this.waterNormal = procCreateWaterNormal();
-        this.treeLeavesTex = procCreateTreeLeavesTexture();
-        this.treeLeavesNormal = procCreateTreeLeavesNormal();
-        this.treeBarkTex = procCreateTreeBarkTexture();
-        this.treeBarkNormal = procCreateTreeBarkNormal();
-        this.permWallTex = procCreatePermWallTexture();
-        this.permWallNormal = procCreatePermWallNormal();
-        this.shadowTex = procCreateShadowTexture();
-
-        // Procedural Creature Normal Maps (eliminates flat untextured models)
-        this.organicNormal = procCreateOrganicNormal();
-        this.scaleNormal = procCreateScaleNormal();
-        this.chitinNormal = procCreateChitinNormal();
-        this.furNormal = procCreateFurNormal();
-
-        for (const tex of [
-            this.wallTex, this.wallNormal, this.floorTex, this.floorNormal, this.ceilingTex,
-            this.doorTex, this.storeTex, this.magmaTex, this.magmaEmission, this.quartzTex,
-            this.goldVeinTex, this.goldVeinEmission, this.gemVeinTex, this.gemVeinEmission,
-            this.grassTex, this.grassNormal, this.dirtTex, this.waterTex, this.deepWaterTex, this.waterNormal,
-            this.treeLeavesTex, this.treeLeavesNormal, this.treeBarkTex, this.treeBarkNormal,
-            this.permWallTex, this.permWallNormal, this.organicNormal, this.scaleNormal,
-            this.chitinNormal, this.furNormal
-        ]) {
-            if (tex) tex.anisotropy = aniso;
-        }
-
-        // Procedural PMREM Metallic Environment Reflection Map for 3D Weapons, Armor, Shields & Water
-        if (this.scene && this.renderer && typeof THREE.PMREMGenerator !== 'undefined') {
-            try {
-                const ew = 64, eh = 32;
-                const envData = new Uint8Array(ew * eh * 4);
-                for (let y = 0; y < eh; y++) {
-                    const v = y / (eh - 1);
-                    for (let x = 0; x < ew; x++) {
-                        const u = x / ew;
-                        const torchGlow = Math.exp(-Math.pow((v - 0.52) * 3.8, 2)) * (0.65 + 0.35 * Math.cos(u * Math.PI * 4.0));
-                        const skyGlow = Math.max(0, 1.0 - v * 1.8);
-                        const idx = (y * ew + x) * 4;
-                        envData[idx]     = Math.min(255, Math.round((0.18 + skyGlow * 0.25 + torchGlow * 0.95) * 255));
-                        envData[idx + 1] = Math.min(255, Math.round((0.20 + skyGlow * 0.32 + torchGlow * 0.68) * 255));
-                        envData[idx + 2] = Math.min(255, Math.round((0.26 + skyGlow * 0.52 + torchGlow * 0.35) * 255));
-                        envData[idx + 3] = 255;
-                    }
-                }
-                const eqTex = new THREE.DataTexture(envData, ew, eh, THREE.RGBAFormat);
-                eqTex.mapping = THREE.EquirectangularReflectionMapping;
-                if (typeof THREE.sRGBEncoding !== 'undefined') eqTex.encoding = THREE.sRGBEncoding;
-                eqTex.needsUpdate = true;
-                const pmremGen = new THREE.PMREMGenerator(this.renderer);
-                pmremGen.compileEquirectangularShader();
-                const envRT = pmremGen.fromEquirectangular(eqTex);
-                this.scene.environment = envRT.texture;
-                eqTex.dispose();
-                pmremGen.dispose();
-            } catch (_) {}
-        }
-
-        // Materials with Authentic PBR Settings matching Godot StandardMaterial3D
-        this.wallMaterial = new THREE.MeshStandardMaterial({
-            map: this.wallTex,
-            normalMap: this.wallNormal,
-            normalScale: new THREE.Vector2(1.35, 1.35),
-            roughness: 0.82,
-            metalness: 0.02,
-            vertexColors: true
-        });
-
-        this.floorMaterial = new THREE.MeshStandardMaterial({
-            map: this.floorTex,
-            normalMap: this.floorNormal,
-            normalScale: new THREE.Vector2(1.25, 1.25),
-            roughness: 0.72,
-            metalness: 0.04,
-            side: THREE.DoubleSide,
-            vertexColors: true
-        });
-
-        this.ceilingMaterial = new THREE.MeshStandardMaterial({
-            map: this.ceilingTex,
-            normalScale: new THREE.Vector2(1.35, 1.35),
-            roughness: 0.95,
-            metalness: 0.0,
-            side: THREE.DoubleSide,
-            vertexColors: true
-        });
-
-        this.doorMaterial = new THREE.MeshStandardMaterial({
-            map: this.doorTex,
-            normalScale: new THREE.Vector2(0.80, 0.80),
-            roughness: 0.75,
-            metalness: 0.10
-        });
-
-        this.storeMaterial = new THREE.MeshStandardMaterial({
-            map: this.storeTex,
-            roughness: 0.85,
-            metalness: 0.02
-        });
-
-        // 8 Shop Entrance Doors with Heraldic Shield & Gold Number Plaque
-        this.shopDoorMaterials = [];
-        for (let i = 0; i < 8; i++) {
-            const shopNum = i + 1;
-            const shopTex = procCreateShopDoorTexture(shopNum, procStoreColor(shopNum));
-            this.shopDoorMaterials.push(new THREE.MeshStandardMaterial({
-                map: shopTex,
-                roughness: 0.70,
-                metalness: 0.15
-            }));
-        }
-
-        // Magma Fissures (Incandescent emission)
-        this.magmaMaterial = new THREE.MeshStandardMaterial({
-            map: this.magmaTex,
-            emissiveMap: this.magmaEmission,
-            emissive: new THREE.Color(0xff4400),
-            emissiveIntensity: 2.2,
-            roughness: 0.70,
-            metalness: 0.04,
-            vertexColors: true
-        });
-
-        // Quartz Veins (Glinting crystal)
-        this.quartzMaterial = new THREE.MeshStandardMaterial({
-            map: this.quartzTex,
-            roughness: 0.50,
-            metalness: 0.10,
-            vertexColors: true
-        });
-
-        // Magma Vein with Gold Treasure (feat 19: MAGMA_K) - Rich metallic gold nuggets in dark basalt
-        this.goldVeinMaterial = new THREE.MeshStandardMaterial({
-            map: this.goldVeinTex,
-            emissiveMap: this.goldVeinEmission,
-            emissive: new THREE.Color(0xffaa22),
-            emissiveIntensity: 1.6,
-            roughness: 0.32,
-            metalness: 0.88,
-            vertexColors: true
-        });
-
-        // Quartz Vein with Gemstones (feat 20: QUARTZ_K) - Faceted sparkling emeralds, rubies, sapphires
-        this.gemVeinMaterial = new THREE.MeshStandardMaterial({
-            map: this.gemVeinTex,
-            emissiveMap: this.gemVeinEmission,
-            emissive: new THREE.Color(0x33eebb),
-            emissiveIntensity: 1.8,
-            roughness: 0.22,
-            metalness: 0.18,
-            vertexColors: true
-        });
-
-        // Verdant Outdoor Grass / Meadow (feat 26: GRASS)
-        this.grassMaterial = new THREE.MeshStandardMaterial({
-            map: this.grassTex,
-            normalMap: this.grassNormal,
-            normalScale: new THREE.Vector2(1.20, 1.20),
-            roughness: 0.88,
-            metalness: 0.0,
-            side: THREE.DoubleSide,
-            vertexColors: true
-        });
-
-        // Packed Dirt / Earthen Road (feat 27: DIRT)
-        this.dirtMaterial = new THREE.MeshStandardMaterial({
-            map: this.dirtTex,
-            roughness: 0.88,
-            metalness: 0.0,
-            side: THREE.DoubleSide,
-            vertexColors: true
-        });
-
-        // Shallow Sparkling Water (feat 28: SHALLOW_WATER)
-        this.waterMaterial = new THREE.MeshStandardMaterial({
-            map: this.waterTex,
-            normalMap: this.waterNormal,
-            normalScale: new THREE.Vector2(0.85, 0.85),
-            roughness: 0.14,
-            metalness: 0.22,
-            side: THREE.DoubleSide,
-            transparent: true,
-            opacity: 0.88,
-            vertexColors: true
-        });
-
-        // Deep Oceanic Water (feat 29: DEEP_WATER)
-        this.deepWaterMaterial = new THREE.MeshStandardMaterial({
-            map: this.deepWaterTex,
-            normalMap: this.waterNormal,
-            normalScale: new THREE.Vector2(0.95, 0.95),
-            roughness: 0.16,
-            metalness: 0.25,
-            side: THREE.DoubleSide,
-            transparent: true,
-            opacity: 0.94,
-            vertexColors: true
-        });
-
-        // Alpine Mountain Peaks (feat 30: MOUNTAIN)
-        this.mountainMaterial = new THREE.MeshStandardMaterial({
-            map: this.wallTex,
-            normalMap: this.wallNormal,
-            roughness: 0.92,
-            metalness: 0.04,
-            vertexColors: true
-        });
-
-        // Photogrammetry Boulders / Rubble (feat 16: RUBBLE)
-        this.rubbleMaterial = new THREE.MeshStandardMaterial({
-            map: this.wallTex,
-            normalMap: this.wallNormal,
-            roughness: 0.88,
-            metalness: 0.04,
-            vertexColors: true
-        });
-
-        // Swamp & Wetland Marsh (feat 31: SWAMP)
-        this.swampMaterial = new THREE.MeshStandardMaterial({
-            map: this.dirtTex,
-            roughness: 0.40,
-            metalness: 0.08,
-            side: THREE.DoubleSide,
-            vertexColors: true
-        });
-
-        // Forest Trees (feat 25: TREE) - Foliage canopy with organic bark trunk
-        this.treeTrunkMat = new THREE.MeshStandardMaterial({
-            color: 0xffffff,
-            map: this.treeBarkTex,
-            normalMap: this.treeBarkNormal,
-            normalScale: new THREE.Vector2(1.40, 1.40),
-            roughness: 0.90,
-            metalness: 0.02,
-            side: THREE.DoubleSide,
-            vertexColors: true
-        });
-        this.treeTrunkMaterial = this.treeTrunkMat;
-
-        this.treeLeavesMat = new THREE.MeshStandardMaterial({
-            color: 0xffffff,
-            map: this.treeLeavesTex,
-            normalMap: this.treeLeavesNormal,
-            normalScale: new THREE.Vector2(1.35, 1.35),
-            roughness: 0.68,
-            metalness: 0.02,
-            alphaTest: 0.35,
-            side: THREE.DoubleSide,
-            vertexColors: true
-        });
-        this.treeMaterial = this.treeLeavesMat;
-
-        // Incandescent Domain-Warped Molten Lava (feat 23) & Cooled Basalt
-        this.lavaTex = procCreateLavaTexture(256, 256);
-        this.lavaEmission = procCreateLavaEmission(256, 256);
-        this.procCreateLavaTexture = procCreateLavaTexture;
-        this.procCreateLavaEmission = procCreateLavaEmission;
-        if (this.lavaTex) {
-            this.lavaTex.wrapS = THREE.RepeatWrapping;
-            this.lavaTex.wrapT = THREE.RepeatWrapping;
-            this.lavaTex.repeat.set(2, 2);
-        }
-        if (this.lavaEmission) {
-            this.lavaEmission.wrapS = THREE.RepeatWrapping;
-            this.lavaEmission.wrapT = THREE.RepeatWrapping;
-            this.lavaEmission.repeat.set(2, 2);
-        }
-
-        this.lavaMaterial = new THREE.MeshStandardMaterial({
-            color: 0xffffff,
-            map: this.lavaTex,
-            emissive: 0xff5500,
-            emissiveMap: this.lavaEmission,
-            emissiveIntensity: 2.35,
-            normalMap: this.townPermWallNormal || this.wallNormal,
-            normalScale: new THREE.Vector2(1.50, 1.50),
-            roughness: 0.32,
-            metalness: 0.08,
-            side: THREE.DoubleSide
-        });
-
-        this.lavaCooledMaterial = new THREE.MeshStandardMaterial({
-            color: 0x55382e,
-            map: this.lavaTex,
-            emissive: 0xff3300,
-            emissiveMap: this.lavaEmission,
-            emissiveIntensity: 0.35,
-            normalMap: this.townPermWallNormal || this.wallNormal,
-            normalScale: new THREE.Vector2(1.40, 1.40),
-            roughness: 0.78,
-            metalness: 0.12,
-            side: THREE.DoubleSide
-        });
-
-        this.stairsMaterial = new THREE.MeshStandardMaterial({
-            map: this.wallTex,
-            normalMap: this.wallNormal,
-            roughness: 0.82,
-            metalness: 0.04,
-            vertexColors: true
-        });
-
-        // Cyclopean Permanent Bedrock / Fortress Ramparts (feat 22) - default white so vertex colors illuminate properly
-        this.permWallMaterial = new THREE.MeshStandardMaterial({
-            map: this.permWallTex,
-            normalMap: this.permWallNormal,
-            normalScale: new THREE.Vector2(1.35, 1.35),
-            roughness: 0.90,
-            metalness: 0.05,
-            vertexColors: true
-        });
-
-        // Separate town PBR textures from subterranean dungeon procedural textures
-        this.townWallTex = null;
-        this.townWallNormal = null;
-        this.townWallRoughness = null;
-        this.townPermWallTex = null;
-        this.townPermWallNormal = null;
-        this.townPermWallRoughness = null;
-        this.townFloorTex = null;
-        this.townFloorNormal = null;
-        this.townFloorRoughness = null;
-
-        // # ROOT-CAUSE: Register 13 Poly Haven and 7 Local 2K PBR texture sets on-demand via ensurePbrSetReady(id) and coalesce applyEnvironmentTextures via requestAnimationFrame so cold boot downloads 0 unused biome maps and never displays procedural fallback textures before awaiting active biome sets.
-        // Legacy contract refs: loadPBR('/assets/textures/T_Brick_BaseColor.png', this.wallMaterial, 'map', true, 2, 3)
-        // loadPBR('/assets/textures/T_UnevenBrick_BaseColor.png', this.floorMaterial, 'map', true, 2, 2)
-        this.polyHavenSets = new Map();
-        this.polyhavenSets = this.polyHavenSets;
-        this._pbrSetSpecs = new Map();
-        const loader = new THREE.TextureLoader();
-
-        this.scheduleEnvironmentTextureApply = () => {
-            if (this._envTexApplyRaf) return;
-            const runApply = () => {
-                this._envTexApplyRaf = null;
-                this._currentThemeId = null;
-                this._currentTexturesAreOutdoors = null;
-                const isOut = (this.lastDepth === 0 || this.lastDepth === null || this.lastDepth === undefined);
-                this.applyEnvironmentTextures(isOut, this.currentBiome, this.realm || 'angband', this.lastDepth || 0, this.levelSeed || 0);
-            };
-            if (typeof requestAnimationFrame === 'function') {
-                this._envTexApplyRaf = requestAnimationFrame(runApply);
-            } else {
-                runApply();
-            }
-        };
-
-        const loadTexPromise = (url, cfgFn) => new Promise((resolve) => {
-            loader.load(
-                url,
-                (tex) => {
-                    try { cfgFn(tex); } catch (_) {}
-                    resolve(tex);
-                },
-                undefined,
-                () => resolve(null)
-            );
-        });
-
-        this.ensurePbrSetReady = (id) => {
-            if (!id) return Promise.resolve(null);
-            const entry = this.polyHavenSets.get(id);
-            if (!entry) return Promise.resolve(null);
-            if (entry._loaded) return Promise.resolve(entry);
-            if (entry._promise) return entry._promise;
-            const spec = this._pbrSetSpecs.get(id);
-            if (!spec) return Promise.resolve(entry);
-
-            const cfgTex = (tex, isSRGB) => {
-                tex.wrapS = THREE.RepeatWrapping;
-                tex.wrapT = THREE.RepeatWrapping;
-                tex.repeat.set(spec.repX, spec.repY);
-                if (isSRGB && typeof THREE.sRGBEncoding !== 'undefined') tex.encoding = THREE.sRGBEncoding;
-                tex.anisotropy = Math.min(16, maxAniso || 1);
-            };
-            const notifyCallbacks = () => {
-                if (Array.isArray(spec.callbacks)) {
-                    for (const cb of spec.callbacks) {
-                        if (typeof cb === 'function') {
-                            try { cb(entry); } catch (_) {}
-                        }
-                    }
-                }
-                this.scheduleEnvironmentTextureApply();
-            };
-
-            if (spec.kind === 'polyhaven') {
-                const base = `/assets/polyhaven/textures/${id}`;
-                entry._promise = Promise.all([
-                    loadTexPromise(`${base}/diff.jpg`, (tex) => { cfgTex(tex, true); entry.diff = tex; notifyCallbacks(); }),
-                    loadTexPromise(`${base}/nor_gl.jpg`, (tex) => { cfgTex(tex, false); entry.nor = tex; notifyCallbacks(); }),
-                    loadTexPromise(`${base}/arm.jpg`, (tex) => { cfgTex(tex, false); entry.arm = tex; notifyCallbacks(); })
-                ]).then(() => {
-                    entry._loaded = true;
-                    notifyCallbacks();
-                    return entry;
-                });
-            } else {
-                const prefix = spec.prefix;
-                const base = `/assets/textures/${prefix}`;
-                const norUrl = prefix === 'T_RedBrick' ? '/assets/textures/T_Brick_Normal.png' : `${base}_Normal.png`;
-                const roughUrl = prefix === 'T_Plaster'
-                    ? '/assets/textures/T_Plaster_ORM.png'
-                    : (prefix === 'T_RedBrick' ? '/assets/textures/T_Brick_Roughness.png' : `${base}_Roughness.png`);
-                const tasks = [
-                    loadTexPromise(`${base}_BaseColor.png`, (tex) => { cfgTex(tex, true); entry.diff = tex; notifyCallbacks(); })
-                ];
-                if (prefix !== 'T_WindowGradient') {
-                    tasks.push(
-                        loadTexPromise(norUrl, (tex) => { cfgTex(tex, false); entry.nor = tex; notifyCallbacks(); }),
-                        loadTexPromise(roughUrl, (tex) => { cfgTex(tex, false); entry.arm = tex; notifyCallbacks(); })
-                    );
-                }
-                entry._promise = Promise.all(tasks).then(() => {
-                    entry._loaded = true;
-                    notifyCallbacks();
-                    return entry;
-                });
-            }
-            return entry._promise;
-        };
-
-        this.loadPolyHavenSet = (id, repX = 1, repY = 1, onReady = null) => {
-            if (this.polyHavenSets.has(id)) {
-                const existing = this.polyHavenSets.get(id);
-                const spec = this._pbrSetSpecs.get(id);
-                if (onReady && spec && !spec.callbacks.includes(onReady)) {
-                    spec.callbacks.push(onReady);
-                }
-                if (onReady && existing.diff) onReady(existing);
-                return existing;
-            }
-            const entry = { id, diff: null, nor: null, arm: null, _loaded: false, _promise: null };
-            this.polyHavenSets.set(id, entry);
-            this._pbrSetSpecs.set(id, { kind: 'polyhaven', id, repX, repY, callbacks: onReady ? [onReady] : [] });
-            return entry;
-        };
-
-        // 13 Poly Haven 2K Photogrammetry PBR Texture Sets
-        // Town walls
-        this.loadPolyHavenSet('castle_brick_broken_06', 2, 3, (e) => {
-            this.townWallTex = e.diff || this.townWallTex;
-            this.townWallNormal = e.nor || this.townWallNormal;
-            this.townWallRoughness = e.arm || this.townWallRoughness;
-        });
-
-        // Town cobblestone floors
-        this.loadPolyHavenSet('cobblestone_floor_08', 1, 1, (e) => {
-            this.townFloorTex = e.diff || this.townFloorTex;
-            this.townFloorNormal = e.nor || this.townFloorNormal;
-            this.townFloorRoughness = e.arm || this.townFloorRoughness;
-        });
-
-        // Permanent bedrock & fortress ramparts + ceiling
-        this.loadPolyHavenSet('medieval_blocks_05', 2, 3, (e) => {
-            this.townPermWallTex = e.diff || this.townPermWallTex;
-            this.townPermWallNormal = e.nor || this.townPermWallNormal;
-            this.townPermWallRoughness = e.arm || this.townPermWallRoughness;
-        });
-
-        // Doors
-        this.loadPolyHavenSet('bark_willow_02', 1, 1, (e) => {
-            if (this.doorMaterial) {
-                if (e.diff) this.doorMaterial.map = e.diff;
-                if (e.nor) this.doorMaterial.normalMap = e.nor;
-                if (e.arm) this.doorMaterial.roughnessMap = e.arm;
-                this.doorMaterial.needsUpdate = true;
-            }
-            if (this.treeTrunkMaterial && !this._hasPolyHavenTreeTex) {
-                if (e.diff) this.treeTrunkMaterial.map = e.diff;
-                if (e.nor) this.treeTrunkMaterial.normalMap = e.nor;
-                this.treeTrunkMaterial.needsUpdate = true;
-            }
-        });
-
-        // Storefronts
-        this.loadPolyHavenSet('plastered_stone_wall', 1, 1, (e) => {
-            if (this.storeMaterial) {
-                if (e.diff) this.storeMaterial.map = e.diff;
-                if (e.nor) this.storeMaterial.normalMap = e.nor;
-                if (e.arm) this.storeMaterial.roughnessMap = e.arm;
-                this.storeMaterial.needsUpdate = true;
-            }
-        });
-
-        // Lava crust normal map
-        this.loadPolyHavenSet('rock_boulder_cracked', 1, 1, (e) => {
-            if (e.nor) {
-                if (this.lavaMaterial) {
-                    this.lavaMaterial.normalMap = e.nor;
-                    this.lavaMaterial.needsUpdate = true;
-                }
-                if (this.lavaCooledMaterial) {
-                    this.lavaCooledMaterial.normalMap = e.nor;
-                    this.lavaCooledMaterial.needsUpdate = true;
-                }
-            }
-        });
-
-        // Biome and dungeon sets
-        this.loadPolyHavenSet('monastery_stone_floor', 2, 2);
-        this.loadPolyHavenSet('rock_wall_10', 2, 3);
-        this.loadPolyHavenSet('rock_embedded_floor', 2, 2);
-        this.loadPolyHavenSet('cliff_side', 2, 3, (e) => {
-            this.townMountainDiff = e.diff || this.townMountainDiff;
-            this.townMountainNormal = e.nor || this.townMountainNormal;
-            this.townMountainRoughness = e.arm || this.townMountainRoughness;
-            if (this.mountainMaterial && !this._hasPolyHavenMountainTex) {
-                if (e.diff) this.mountainMaterial.map = e.diff;
-                if (e.nor) this.mountainMaterial.normalMap = e.nor;
-                this.mountainMaterial.needsUpdate = true;
-            }
-            if (this.chasmSideMaterial) {
-                if (this.townMountainDiff) this.chasmSideMaterial.map = this.townMountainDiff;
-                if (this.townMountainNormal) this.chasmSideMaterial.normalMap = this.townMountainNormal;
-                if (this.townMountainRoughness) this.chasmSideMaterial.roughnessMap = this.townMountainRoughness;
-                this.chasmSideMaterial.needsUpdate = true;
-            }
-        });
-        this.loadPolyHavenSet('japanese_stone_wall', 2, 3);
-        this.loadPolyHavenSet('aerial_grass_rock', 2, 2, (e) => {
-            if (this.grassMaterial) {
-                if (e.diff) this.grassMaterial.map = e.diff;
-                if (e.nor) this.grassMaterial.normalMap = e.nor;
-                this.grassMaterial.needsUpdate = true;
-            }
-        });
-        this.loadPolyHavenSet('brown_mud_rocks_01', 2, 2, (e) => {
-            if (this.dirtMaterial) {
-                if (e.diff) this.dirtMaterial.map = e.diff;
-                if (e.nor) this.dirtMaterial.normalMap = e.nor;
-                this.dirtMaterial.needsUpdate = true;
-            }
-            if (this.swampMaterial) {
-                if (e.diff) this.swampMaterial.map = e.diff;
-                if (e.nor) this.swampMaterial.normalMap = e.nor;
-                this.swampMaterial.needsUpdate = true;
-            }
-        });
-
-        // Promoted Architectural & Creature Detail PBR Sets (/assets/textures/)
-        this.loadLocalPbrSet = (id, prefix, repX = 2, repY = 2, onReady = null) => {
-            if (this.polyHavenSets.has(id)) {
-                const existing = this.polyHavenSets.get(id);
-                const spec = this._pbrSetSpecs.get(id);
-                if (onReady && spec && !spec.callbacks.includes(onReady)) {
-                    spec.callbacks.push(onReady);
-                }
-                if (onReady && existing.diff) onReady(existing);
-                return existing;
-            }
-            const entry = { id, diff: null, nor: null, arm: null, _loaded: false, _promise: null };
-            this.polyHavenSets.set(id, entry);
-            this._pbrSetSpecs.set(id, { kind: 'local', id, prefix, repX, repY, callbacks: onReady ? [onReady] : [] });
-            return entry;
-        };
-        this.loadLocalPbrSet('local_brick', 'T_Brick', 2, 3);
-        this.loadLocalPbrSet('local_uneven_brick', 'T_UnevenBrick', 2, 3);
-        this.loadLocalPbrSet('local_plaster', 'T_Plaster', 2, 2);
-        this.loadLocalPbrSet('local_rock_trim', 'T_RockTrim', 2, 2, (e) => {
-            if (this.townTimberMaterial) {
-                if (e.diff) this.townTimberMaterial.map = e.diff;
-                if (e.nor) this.townTimberMaterial.normalMap = e.nor;
-                if (e.arm) this.townTimberMaterial.roughnessMap = e.arm;
-                this.townTimberMaterial.needsUpdate = true;
-            }
-            if (this.townRoofMaterial) {
-                if (e.diff) this.townRoofMaterial.map = e.diff;
-                if (e.nor) this.townRoofMaterial.normalMap = e.nor;
-                if (e.arm) this.townRoofMaterial.roughnessMap = e.arm;
-                this.townRoofMaterial.needsUpdate = true;
-            }
-        });
-        this.loadLocalPbrSet('local_wood_trim', 'T_WoodTrim', 2, 2, (e) => {
-            if (this.shopFrameMaterial) {
-                if (e.diff) this.shopFrameMaterial.map = e.diff;
-                if (e.nor) this.shopFrameMaterial.normalMap = e.nor;
-                if (e.arm) this.shopFrameMaterial.roughnessMap = e.arm;
-                this.shopFrameMaterial.needsUpdate = true;
-            }
-        });
-        this.loadLocalPbrSet('local_round_tiles', 'T_RoundTiles', 2, 2);
-        this.loadLocalPbrSet('local_red_brick', 'T_RedBrick', 2, 3);
-
-        this.ensureSharedDetailTexturesReady = () => {
-            if (this._sharedDetailTexPromise) return this._sharedDetailTexPromise;
-            this._sharedDetailTexPromise = Promise.all([
-                loadTexPromise('/assets/textures/T_BrushedNoise.png', (tex) => {
-                    tex.wrapS = THREE.RepeatWrapping;
-                    tex.wrapT = THREE.RepeatWrapping;
-                    tex.repeat.set(4, 4);
-                    tex._sharedTexture = true;
-                    this.brushedNoiseTex = tex;
-                }),
-                loadTexPromise('/assets/textures/T_Noise_Terrain.png', (tex) => {
-                    tex.wrapS = THREE.RepeatWrapping;
-                    tex.wrapT = THREE.RepeatWrapping;
-                    tex.repeat.set(3, 3);
-                    tex._sharedTexture = true;
-                    this.terrainNoiseTex = tex;
-                }),
-                loadTexPromise('/assets/polyhaven/models/large_castle_door/textures/large_castle_door_nor_gl_1k.jpg', (nor) => {
-                    nor.wrapS = THREE.RepeatWrapping;
-                    nor.wrapT = THREE.RepeatWrapping;
-                    nor.anisotropy = Math.min(16, maxAniso || 1);
-                    if (this.doorMaterial) {
-                        this.doorMaterial.normalMap = nor;
-                        this.doorMaterial.normalScale.set(1.45, 1.45);
-                        this.doorMaterial.needsUpdate = true;
-                    }
-                    if (this.shopDoorMaterials) {
-                        for (const mat of this.shopDoorMaterials) {
-                            mat.normalMap = nor;
-                            mat.normalScale = new THREE.Vector2(1.45, 1.45);
-                            mat.needsUpdate = true;
-                        }
-                    }
-                }),
-                loadTexPromise('/assets/polyhaven/models/large_castle_door/textures/large_castle_door_arm_1k.jpg', (arm) => {
-                    arm.wrapS = THREE.RepeatWrapping;
-                    arm.wrapT = THREE.RepeatWrapping;
-                    if (this.shopDoorMaterials) {
-                        for (const mat of this.shopDoorMaterials) {
-                            mat.roughnessMap = arm;
-                            mat.needsUpdate = true;
-                        }
-                    }
-                })
-            ]).then(() => {
-                this._sharedDetailTexLoaded = true;
-                return true;
-            });
-            return this._sharedDetailTexPromise;
-        };
-    }
-
-    getContextualTextureSet(theme, outdoors) {
-        if (!this.contextualTextureCache) this.contextualTextureCache = new Map();
-        const ph = this.polyHavenSets || this.polyhavenSets || new Map();
-
-        let wallPhId = 'medieval_blocks_05';
-        let floorPhId = 'monastery_stone_floor';
-        let permPhId = 'medieval_blocks_05';
-        let ceilPhId = 'rock_wall_10';
-
-        const tid = (theme && theme.id) ? theme.id : 'angband_town';
-        const curRealm = String(this.realm || (typeof window !== 'undefined' && window.__activeRealm) || 'angband').toLowerCase();
-        const isHeng = (curRealm === 'hengband');
-
-        if (outdoors) {
-            // Town Shop Building Facades use plastered stone / limewashed masonry; Outer Ramparts use broken castle stone
-            wallPhId = isHeng ? 'japanese_stone_wall' : (ph.get('plastered_stone_wall')?.diff ? 'plastered_stone_wall' : 'local_plaster');
-            const isWild = tid.includes('wild') || (this.currentBiome && (this.currentBiome.id === 'wilderness' || this.currentBiome.id === 'grassland'));
-            floorPhId = isWild ? 'aerial_grass_rock' : 'cobblestone_floor_08';
-            permPhId = isHeng ? 'japanese_stone_wall' : (ph.get('castle_brick_broken_06')?.diff ? 'castle_brick_broken_06' : 'medieval_blocks_05');
-            ceilPhId = 'rock_wall_10';
-        } else {
-            // Dungeon depths > 0 across all 8 realms
-            if (isHeng || tid.includes('heng') || tid.includes('eastern')) {
-                wallPhId = 'japanese_stone_wall';
-                floorPhId = 'monastery_stone_floor';
-                ceilPhId = 'japanese_stone_wall';
-            } else if (curRealm === 'silq') {
-                wallPhId = 'local_rock_trim';
-                floorPhId = 'rock_embedded_floor';
-                ceilPhId = 'cliff_side';
-            } else if (curRealm === 'brogue') {
-                wallPhId = 'cliff_side';
-                floorPhId = 'rock_embedded_floor';
-                ceilPhId = 'rock_boulder_cracked';
-            } else if (curRealm === 'nethack') {
-                wallPhId = 'local_uneven_brick';
-                floorPhId = 'monastery_stone_floor';
-                ceilPhId = 'plastered_stone_wall';
-            } else if (curRealm === 'dcss') {
-                wallPhId = 'local_red_brick';
-                floorPhId = 'monastery_stone_floor';
-                ceilPhId = 'medieval_blocks_05';
-            } else if (curRealm === 'rogue') {
-                wallPhId = 'local_brick';
-                floorPhId = 'monastery_stone_floor';
-                ceilPhId = 'rock_wall_10';
-            } else if (tid.includes('chasm') || tid.includes('cliff') || tid.includes('torment') || tid.includes('mountain') || tid.includes('mine') || tid.includes('nether')) {
-                wallPhId = 'cliff_side';
-                floorPhId = 'rock_embedded_floor';
-                ceilPhId = 'cliff_side';
-            } else if (tid.includes('abyss') || tid.includes('magma') || tid.includes('inferno') || tid.includes('throne')) {
-                wallPhId = 'rock_wall_10';
-                floorPhId = 'rock_embedded_floor';
-                ceilPhId = 'rock_boulder_cracked';
-            } else if (tid.includes('cavern') || tid.includes('slag') || tid.includes('crystal')) {
-                wallPhId = 'rock_wall_10';
-                floorPhId = 'rock_embedded_floor';
-                ceilPhId = 'cliff_side';
-            } else if (tid.includes('labyrinth') || tid.includes('sepulchre')) {
-                wallPhId = 'local_uneven_brick';
-                floorPhId = 'monastery_stone_floor';
-                ceilPhId = 'plastered_stone_wall';
-            } else if (tid.includes('swamp') || tid.includes('mud')) {
-                wallPhId = 'rock_wall_10';
-                floorPhId = 'brown_mud_rocks_01';
-                ceilPhId = 'rock_wall_10';
-            } else {
-                wallPhId = 'medieval_blocks_05';
-                floorPhId = 'monastery_stone_floor';
-                ceilPhId = 'rock_wall_10';
-            }
-            permPhId = 'medieval_blocks_05';
-        }
-
-        if (typeof this.ensurePbrSetReady === 'function') {
-            this.ensurePbrSetReady(wallPhId);
-            this.ensurePbrSetReady(floorPhId);
-            this.ensurePbrSetReady(permPhId);
-            this.ensurePbrSetReady(ceilPhId);
-        }
-
-        const wSet = (ph.get(wallPhId) && ph.get(wallPhId).diff) ? ph.get(wallPhId) : ph.get('medieval_blocks_05');
-        const fSet = (ph.get(floorPhId) && ph.get(floorPhId).diff) ? ph.get(floorPhId) : ph.get('monastery_stone_floor');
-        const pSet = ph.get(permPhId);
-        const cSet = ph.get(ceilPhId);
-
-        if (wSet && wSet.diff && fSet && fSet.diff) {
-            return {
-                wallTex: wSet.diff,
-                wallNormal: wSet.nor || this.wallNormal,
-                wallRoughness: wSet.arm || null,
-                floorTex: fSet.diff,
-                floorNormal: fSet.nor || this.floorNormal,
-                floorRoughness: fSet.arm || null,
-                permWallTex: (pSet && pSet.diff) ? pSet.diff : (this.townPermWallTex || this.permWallTex),
-                permWallNormal: (pSet && pSet.nor) ? pSet.nor : (this.townPermWallNormal || this.permWallNormal),
-                permWallRoughness: (pSet && pSet.arm) ? pSet.arm : (this.townPermWallRoughness || null),
-                ceilingTex: (cSet && cSet.diff) ? cSet.diff : this.ceilingTex,
-                ceilingNormal: (cSet && cSet.nor) ? cSet.nor : null,
-                ceilingRoughness: (cSet && cSet.arm) ? cSet.arm : null
-            };
-        }
-
-        const cacheKey = theme.id;
-        if (this.contextualTextureCache.has(cacheKey)) {
-            return this.contextualTextureCache.get(cacheKey);
-        }
-
-        const texSz = Math.max(512, (this.renderBudget && this.renderBudget.proceduralTexSize) || 512);
-        const maxAniso = (this.renderer && this.renderer.capabilities && typeof this.renderer.capabilities.getMaxAnisotropy === 'function')
-            ? Math.min(16, this.renderer.capabilities.getMaxAnisotropy() || 1)
-            : 8;
-
-        const wallTex = procCreateContextualWallTexture(theme, texSz);
-        const wallNormal = procCreateContextualWallNormal(theme, texSz);
-        const wallRoughness = procCreateContextualWallRoughness(theme, texSz);
-
-        const floorTex = procCreateContextualFloorTexture(theme, texSz);
-        const floorNormal = procCreateContextualFloorNormal(theme, texSz);
-        const floorRoughness = procCreateContextualFloorRoughness(theme, texSz);
-
-        const permWallTex = procCreateContextualPermWallTexture(theme, texSz);
-        const permWallNormal = procCreateContextualPermWallNormal(theme, texSz);
-
-        const ceilingTex = procCreateContextualCeilingTexture(theme, texSz);
-        const ceilingNormal = procCreateContextualCeilingNormal(theme, texSz);
-
-        const set = {
-            wallTex,
-            wallNormal,
-            wallRoughness,
-            floorTex,
-            floorNormal,
-            floorRoughness,
-            permWallTex,
-            permWallNormal,
-            permWallRoughness: null,
-            ceilingTex,
-            ceilingNormal
-        };
-        for (const t of Object.values(set)) {
-            if (t && typeof t === 'object') t.anisotropy = maxAniso;
-        }
-
-        this.contextualTextureCache.set(cacheKey, set);
-        return set;
     }
 
     applyEnvironmentTextures(outdoors, biome, realm = 'angband', depth = 0, levelSeed = 0) {
-        const theme = resolveContextualTheme(realm, depth, levelSeed);
-        if (this._currentThemeId === theme.id && this._currentTexturesAreOutdoors === outdoors) return;
-        this._currentThemeId = theme.id;
+        if (!this._gpuInitialized || !this.wallMaterial) {
+            this._pendingEnvTexArgs = [outdoors, biome, realm, depth, levelSeed];
+            return;
+        }
+        const branchKey = (this.lastFrame && ((this.lastFrame.player && (this.lastFrame.player.branch || this.lastFrame.player.branch_name)) || this.lastFrame.branch || this.lastFrame.branch_name)) || '';
+        const ryodBiome = String(
+            (this.lastFrame && (this.lastFrame.biomeTheme || (this.lastFrame.map && this.lastFrame.map.biomeTheme)))
+            || (biome && (biome.ryodBiome || biome.biomeId))
+            || (typeof window !== 'undefined' && window.__activeRyodBlueprint && window.__activeRyodBlueprint.biome)
+            || ''
+        ).toLowerCase();
+        const theme = resolveContextualTheme(realm, depth, levelSeed, String(realm || '').toLowerCase() === 'ryod' ? (ryodBiome || branchKey) : (branchKey || ryodBiome));
+        const themeKey = `${theme.id}|${branchKey}|${ryodBiome}`;
+        if (this._currentThemeId === themeKey && this._currentTexturesAreOutdoors === outdoors) return;
+        this._currentThemeId = themeKey;
         this._currentTexturesAreOutdoors = outdoors;
 
-        const texSet = this.getContextualTextureSet(theme, outdoors);
+        const texSet = this.getContextualTextureSet(theme, outdoors) || {};
+        this._lastContextualTexSet = texSet;
+        const fallbackRough = this._neutralRoughnessTex || null;
+        const syncMatSlots = (mat, mapTex, norTex, roughTex) => {
+            if (!mat) return;
+            const hadMap = Boolean(mat.map);
+            const hadNor = Boolean(mat.normalMap);
+            const hadRough = Boolean(mat.roughnessMap);
+            if (mapTex !== undefined) mat.map = mapTex;
+            if (norTex !== undefined && norTex !== null) mat.normalMap = norTex;
+            if (roughTex !== undefined) mat.roughnessMap = roughTex || fallbackRough;
+            if (Boolean(mat.map) !== hadMap || Boolean(mat.normalMap) !== hadNor || Boolean(mat.roughnessMap) !== hadRough) {
+                mat.needsUpdate = true;
+            }
+        };
 
-        this.wallMaterial.map = texSet.wallTex;
-        this.wallMaterial.normalMap = texSet.wallNormal;
-        this.wallMaterial.roughnessMap = texSet.wallRoughness || null;
+        syncMatSlots(this.wallMaterial, texSet.wallTex, texSet.wallNormal, texSet.wallRoughness);
         this.wallMaterial.roughness = theme.wallRoughness || 0.82;
         this.wallMaterial.normalScale.set(1.65, 1.65);
-        this.wallMaterial.needsUpdate = true;
 
-        this.floorMaterial.map = texSet.floorTex;
-        this.floorMaterial.normalMap = texSet.floorNormal;
-        this.floorMaterial.roughnessMap = texSet.floorRoughness || null;
+        syncMatSlots(this.floorMaterial, texSet.floorTex, texSet.floorNormal, texSet.floorRoughness);
         this.floorMaterial.roughness = theme.floorRoughness || 0.74;
         this.floorMaterial.normalScale.set(1.50, 1.50);
-        this.floorMaterial.needsUpdate = true;
 
-        this.permWallMaterial.map = texSet.permWallTex;
-        this.permWallMaterial.normalMap = texSet.permWallNormal;
-        this.permWallMaterial.roughnessMap = texSet.permWallRoughness || null;
+        syncMatSlots(this.permWallMaterial, texSet.permWallTex, texSet.permWallNormal, texSet.permWallRoughness);
         this.permWallMaterial.normalScale.set(1.65, 1.65);
-        this.permWallMaterial.needsUpdate = true;
 
-        this.ceilingMaterial.map = texSet.ceilingTex;
-        if (texSet.ceilingNormal) {
-            this.ceilingMaterial.normalMap = texSet.ceilingNormal;
-        }
-        this.ceilingMaterial.roughnessMap = texSet.ceilingRoughness || null;
+        syncMatSlots(this.ceilingMaterial, texSet.ceilingTex, texSet.ceilingNormal || this.wallNormal, texSet.ceilingRoughness);
         if (this.ceilingMaterial.normalScale) {
             this.ceilingMaterial.normalScale.set(1.35, 1.35);
         }
-        this.ceilingMaterial.needsUpdate = true;
 
-        this.stairsMaterial.map = texSet.wallTex;
-        this.stairsMaterial.normalMap = texSet.wallNormal;
-        this.stairsMaterial.roughnessMap = texSet.wallRoughness || null;
+        syncMatSlots(this.stairsMaterial, texSet.wallTex, texSet.wallNormal, texSet.wallRoughness);
         this.stairsMaterial.normalScale.set(1.65, 1.65);
-        this.stairsMaterial.needsUpdate = true;
 
         if (this.mountainMaterial && !this._hasPolyHavenMountainTex) {
-            this.mountainMaterial.map = texSet.permWallTex;
-            this.mountainMaterial.normalMap = texSet.permWallNormal;
-            this.mountainMaterial.needsUpdate = true;
+            syncMatSlots(this.mountainMaterial, texSet.permWallTex, texSet.permWallNormal, undefined);
         }
         if (this.rubbleMaterial && !this._hasPolyHavenRubbleTex) {
-            this.rubbleMaterial.map = texSet.wallTex;
-            this.rubbleMaterial.normalMap = texSet.wallNormal;
-            this.rubbleMaterial.needsUpdate = true;
+            syncMatSlots(this.rubbleMaterial, texSet.wallTex, texSet.wallNormal, undefined);
+        }
+        if (this._syncWorldPbrUniforms) {
+            this._syncWorldPbrUniforms(texSet);
+        }
+        if (biome && biome.fixtureArchetype && window.Dungeon3DTactical && window.Dungeon3DTactical.setWallFixtureArchetype) {
+            window.Dungeon3DTactical.setWallFixtureArchetype(this, biome.fixtureArchetype);
         }
     }
 
@@ -3598,17 +853,31 @@ class Dungeon3D {
         this.maxInstances = 4096;
         this.createChamferedWallGeometry = createChamferedWallGeometry;
         this.applyWallVertexAO = applyWallVertexAO;
-        // 45-degree chamfered geometry creates a visible 0.57m aperture between diagonal blocks
-        const wallGeo = createChamferedWallGeometry(this.cellSize, this.wallHeight + 0.10, 0.40);
-        applyWallVertexAO(wallGeo, this.wallHeight + 0.10);
+        const tac = (typeof window !== 'undefined' && window.Dungeon3DTactical) || null;
+        const cloneBevelGeo = (geo, cap) => (tac && tac.cloneWallGeoWithBevelAttr) ? tac.cloneWallGeoWithBevelAttr(geo, cap) : geo.clone();
+        const safeWallAttrs = (geo) => (tac && tac.cloneWallGeoSafeAttrs) ? tac.cloneWallGeoSafeAttrs(geo) : geo;
 
-        // Subdivided floor with baked edge contact ambient occlusion
-        const floorGeo = new THREE.PlaneGeometry(this.cellSize, this.cellSize, 2, 2);
+        // WS81: Adaptive GPU per-corner bevel prism (flush 0.0m straight walls, 0.28m indoor convex corners, 0.03m town corners)
+        const wallGeo = (tac && tac.createAdaptiveWallGeometry)
+            ? tac.createAdaptiveWallGeometry(this.cellSize, 3.05, false)
+            : createChamferedWallGeometry(this.cellSize, this.wallHeight + 0.10, 0.40);
+        if (!(tac && tac.createAdaptiveWallGeometry)) applyWallVertexAO(wallGeo, this.wallHeight + 0.10);
+        // Overhead lintel spandrel prism (flat bottom AO = 1.0 so ceiling step-downs never bake floor shadow!)
+        const upperWallGeo = (tac && tac.createAdaptiveWallGeometry)
+            ? tac.createAdaptiveWallGeometry(this.cellSize, 3.05, true)
+            : createChamferedWallGeometry(this.cellSize, 1.27, 0.40, 1.27 / (this.wallHeight + 0.10));
+        if (!(tac && tac.createAdaptiveWallGeometry)) applyWallVertexAO(upperWallGeo, 1.27);
+        this._cloneBevelGeo = cloneBevelGeo;
+        this._safeWallAttrs = safeWallAttrs;
+
+        // Watertight 2.06m x 2.06m floor & ceiling with 0.03m skirt overlap
+        const skirtSpan = this.cellSize + 0.06;
+        const floorGeo = new THREE.PlaneGeometry(skirtSpan, skirtSpan, 2, 2);
         floorGeo.rotateX(-Math.PI / 2);
-        applyFloorVertexAO(floorGeo, this.cellSize);
+        applyFloorVertexAO(floorGeo, skirtSpan);
 
         // Subdivided ceiling with subtle vaulted subterranean stone arch & perimeter shadow
-        const ceilingGeo = new THREE.PlaneGeometry(this.cellSize, this.cellSize, 2, 2);
+        const ceilingGeo = new THREE.PlaneGeometry(skirtSpan, skirtSpan, 2, 2);
         ceilingGeo.rotateX(Math.PI / 2);
         const ceilPos = ceilingGeo.attributes.position;
         for (let i = 0; i < ceilPos.count; i++) {
@@ -3619,7 +888,7 @@ class Dungeon3D {
             }
         }
         ceilingGeo.computeVertexNormals();
-        applyCeilingVertexAO(ceilingGeo, this.cellSize);
+        applyCeilingVertexAO(ceilingGeo, skirtSpan);
 
         // Helper to construct composite PBR geometries (1:1 with Godot SurfaceTool / BuildDoorMesh)
         // # ROOT-CAUSE: Altars and fountains looked cheap and incorrect because _loadPolyHavenEnvironmentModels overwrote fountainMesh with low-poly cartoon building_well_blue.gltf and merged incompatible shrine_candles.gltf UVs into altarMesh, while createMergedBoxGeometry only supported flat BoxGeometry cubes on a single material darkened by floorShade.
@@ -3636,12 +905,11 @@ class Dungeon3D {
                     );
                     geo.computeVertexNormals();
                 } else if (b.type === 'cylinder') {
-                    geo = new THREE.CylinderGeometry(
+                    geo = createLatheFrustumGeo(
                         b.rTop !== undefined ? b.rTop : 0.5,
                         b.rBottom !== undefined ? b.rBottom : 0.5,
                         b.height !== undefined ? b.height : 1.0,
                         b.segments || 16,
-                        b.heightSegments || 1,
                         Boolean(b.openEnded)
                     );
                 } else if (b.type === 'torus') {
@@ -3676,6 +944,14 @@ class Dungeon3D {
                 if (b.pos) geo.translate(b.pos[0], b.pos[1], b.pos[2]);
                 const nonIndexed = geo.index ? geo.toNonIndexed() : geo;
                 if (b.color) nonIndexed._boxColor = b.color;
+                if (b.uvRect && nonIndexed.attributes.uv) {
+                    const [u0, v0, u1, v1] = b.uvRect;
+                    const uvs = nonIndexed.attributes.uv.array;
+                    for (let ui = 0; ui < uvs.length; ui += 2) {
+                        uvs[ui] = u0 + uvs[ui] * (u1 - u0);
+                        uvs[ui + 1] = v0 + uvs[ui + 1] * (v1 - v0);
+                    }
+                }
                 if (nonIndexed !== geo) geo.dispose();
                 return nonIndexed;
             });
@@ -3724,48 +1000,12 @@ class Dungeon3D {
             { pos: [-0.72, 0.55, 0.04], size: [0.10, 0.14, 0.16] }  // Bottom hinge bracket
         ]);
 
-        // 1b. Authentic Medieval Town Storefront Architecture (Carved Timber Jambs, Display Plinths, Pediment & Brackets)
-        const shopFrameGeo = createMergedBoxGeometry([
-            { pos: [-0.835, 1.14, 0.0], size: [0.31, 2.28, 1.98], color: [0.42, 0.28, 0.16] },  // Left heavy carved oak pier (disjoint below lintel & inside cell)
-            { pos: [0.835, 1.14, 0.0], size: [0.31, 2.28, 1.98], color: [0.42, 0.28, 0.16] },   // Right heavy carved oak pier (disjoint below lintel & inside cell)
-            { pos: [0, 2.66, 0.0], size: [1.992, 0.74, 1.992], color: [0.38, 0.25, 0.14] },     // Top heavy timber lintel & architrave (Y [2.29, 3.03], X/Z ±0.996)
-            { pos: [0, 1.14, -0.52], size: [1.35, 2.28, 0.88], color: [0.68, 0.62, 0.54] },     // Back solid masonry wall sealing interior (disjoint from piers & lintel)
-            { pos: [0, 0.04, 0.48], size: [1.34, 0.12, 0.96], color: [0.76, 0.70, 0.62] },      // Stepped cut-stone entrance threshold
-            { pos: [-0.76, 0.22, 0.54], size: [0.42, 0.44, 0.48], color: [0.72, 0.66, 0.58] },  // Left merchant display stone plinth
-            { pos: [0.76, 0.22, 0.54], size: [0.42, 0.44, 0.48], color: [0.72, 0.66, 0.58] },   // Right merchant display stone plinth
-            { pos: [-0.72, 1.14, 0.20], size: [0.16, 2.26, 0.34], color: [0.34, 0.22, 0.12] },  // Front carved oak pilaster left
-            { pos: [0.72, 1.14, 0.20], size: [0.16, 2.26, 0.34], color: [0.34, 0.22, 0.12] },   // Front carved oak pilaster right
-            { pos: [-0.48, 2.16, 0.22], size: [0.52, 0.14, 0.28], rotZ: 0.42, color: [0.34, 0.22, 0.12] }, // Left gothic timber corbel arch
-            { pos: [0.48, 2.16, 0.22], size: [0.52, 0.14, 0.28], rotZ: -0.42, color: [0.34, 0.22, 0.12] }, // Right gothic timber corbel arch
-            { pos: [0, 2.38, 0.86], size: [1.96, 0.18, 0.32], color: [0.32, 0.20, 0.11] },      // Storefront transom crossbeam
-            { pos: [-0.76, 2.02, 0.44], size: [0.08, 0.10, 0.42], color: [0.18, 0.17, 0.16] },  // Left wrought-iron lantern sconce arm
-            { pos: [0.76, 2.02, 0.44], size: [0.08, 0.10, 0.42], color: [0.18, 0.17, 0.16] },   // Right wrought-iron lantern sconce arm
-            { pos: [-0.64, 1.75, 0.12], size: [0.08, 0.14, 0.14], color: [0.18, 0.17, 0.16] },  // Top iron hinge bracket
-            { pos: [-0.64, 0.55, 0.12], size: [0.08, 0.14, 0.14], color: [0.18, 0.17, 0.16] }   // Bottom iron hinge bracket
-        ]);
-
-        // 1c. Sloped Merchant Storefront Canopy / Awning (colored per-shop via instanceColor)
-        const shopAwningGeo = createMergedBoxGeometry([
-            { pos: [0, 2.52, 0.58], size: [1.92, 0.09, 0.92], rotX: 0.34, color: [1.0, 1.0, 1.0] },      // Sloped canvas/shingle awning roof
-            { pos: [0, 2.32, 0.98], size: [1.92, 0.16, 0.06], color: [0.92, 0.85, 0.70] },               // Front guild valance trim
-            { pos: [-0.82, 2.18, 0.46], size: [0.10, 0.72, 0.10], rotX: -0.68, color: [0.36, 0.23, 0.13] }, // Left timber awning strut
-            { pos: [0.82, 2.18, 0.46], size: [0.10, 0.72, 0.10], rotX: -0.68, color: [0.36, 0.23, 0.13] }   // Right timber awning strut
-        ]);
-
-        // 1d. Medieval Dressed Stone & Dark Timber Framing (100% non-overlapping & non-coplanar in X, Y, Z to eliminate Z-fighting)
-        const townTimberGeo = createMergedBoxGeometry([
-            { pos: [0, 0.125, 0], size: [1.992, 0.24, 1.992], color: [0.44, 0.42, 0.40] },         // Foundation plinth: Y [0.005, 0.245], X/Z ±0.996
-            { pos: [0, 1.580, 0], size: [1.992, 0.14, 1.992], color: [0.28, 0.26, 0.25] },         // Mid-wall horizontal band: Y [1.510, 1.650], X/Z ±0.996
-            { pos: [0, 2.950, 0], size: [1.996, 0.18, 1.996], color: [0.26, 0.25, 0.24] },         // Upper eaves cornice: Y [2.860, 3.040], X/Z ±0.998
-            { pos: [-0.905, 0.8775, -0.905], size: [0.17, 1.259, 0.17], color: [0.25, 0.24, 0.23] }, // Lower NW post: Y [0.248, 1.507], outer X/Z ±0.990
-            { pos: [0.905, 0.8775, -0.905], size: [0.17, 1.259, 0.17], color: [0.25, 0.24, 0.23] },  // Lower NE post
-            { pos: [-0.905, 0.8775, 0.905], size: [0.17, 1.259, 0.17], color: [0.25, 0.24, 0.23] },  // Lower SW post
-            { pos: [0.905, 0.8775, 0.905], size: [0.17, 1.259, 0.17], color: [0.25, 0.24, 0.23] },   // Lower SE post
-            { pos: [-0.905, 2.255, -0.905], size: [0.17, 1.204, 0.17], color: [0.25, 0.24, 0.23] },  // Upper NW post: Y [1.653, 2.857], outer X/Z ±0.990
-            { pos: [0.905, 2.255, -0.905], size: [0.17, 1.204, 0.17], color: [0.25, 0.24, 0.23] },   // Upper NE post
-            { pos: [-0.905, 2.255, 0.905], size: [0.17, 1.204, 0.17], color: [0.25, 0.24, 0.23] },   // Upper SW post
-            { pos: [0.905, 2.255, 0.905], size: [0.17, 1.204, 0.17], color: [0.25, 0.24, 0.23] }    // Upper SE post
-        ]);
+        // 1b-1d. Disjoint Town Storefronts, Canopies, Doors & Threshold Cutaways (dungeon3d-environment.js)
+        const {
+            shopStoneGeo, shopStoneOccupiedGeo, shopFrameGeo, shopAwningGeo, shopDoorGeo,
+            townTimberGeo, townCornerPostGeo, stairsUpOccupiedGeo, altarOccupiedGeo, fountainOccupiedGeo
+        } = this._buildThresholdAndStorefrontGeos(createMergedBoxGeometry);
+        this._thresholdCutawayGeos = { stairsUpOccupiedGeo, altarOccupiedGeo, fountainOccupiedGeo };
 
         // Continuous flat/beveled dark weathered slate & stone parapet cap (strictly disjoint above Y=3.040m & inside ±0.997m)
         const townRoofGeo = createMergedBoxGeometry([
@@ -3773,76 +1013,85 @@ class Dungeon3D {
             { pos: [0, 3.208, 0], size: [1.920, 0.08, 1.920], color: [0.24, 0.25, 0.28] }          // Low-profile dark stone parapet cap: Y [3.168, 3.248]
         ]);
 
-        // 2. Closed Wooden Door Panel with Horizontal Iron Straps (DungeonWorld.cs:1581-1593)
+        // 2. Closed Watertight Heavy Oak & Iron-Strapped Medieval Door (feat 2)
         const doorClosedGeo = createMergedBoxGeometry([
-            { pos: [0, 1.15, 0], size: [1.40, 2.20, 0.12] },       // Wooden door leaf
-            { pos: [0, 1.75, 0], size: [1.36, 0.12, 0.16] },       // Top iron strap
-            { pos: [0, 0.55, 0], size: [1.36, 0.12, 0.16] },       // Bottom iron strap
-            { pos: [0.45, 1.10, 0.08], size: [0.10, 0.16, 0.06] },  // Front latch ring
-            { pos: [0.45, 1.10, -0.08], size: [0.10, 0.16, 0.06] } // Back latch ring
+            { pos: [0, 1.16, 0], size: [1.42, 2.30, 0.12], color: [0.92, 0.84, 0.74] },       // Solid oak plank door leaf
+            { pos: [0, 1.82, 0], size: [1.38, 0.11, 0.16], color: [0.30, 0.29, 0.28], uvRect: [0.08, 0.20, 0.92, 0.24] },
+            { pos: [0, 1.16, 0], size: [1.38, 0.09, 0.15], color: [0.30, 0.29, 0.28], uvRect: [0.08, 0.20, 0.92, 0.24] },
+            { pos: [0, 0.50, 0], size: [1.38, 0.11, 0.16], color: [0.30, 0.29, 0.28], uvRect: [0.08, 0.20, 0.92, 0.24] },
+            { pos: [0.46, 1.12, 0.08], size: [0.10, 0.16, 0.06], color: [0.36, 0.34, 0.30], uvRect: [0.18, 0.20, 0.30, 0.24] },
+            { pos: [0.46, 1.12, -0.08], size: [0.10, 0.16, 0.06], color: [0.36, 0.34, 0.30], uvRect: [0.18, 0.20, 0.30, 0.24] }
         ]);
 
-        // 2b. Shop Door Leaf with Iron Straps recessed slightly at z = 0.05 (DungeonWorld.cs:1686-1693)
-        const shopDoorGeo = createMergedBoxGeometry([
-            { pos: [0, 1.15, 0.05], size: [1.40, 2.20, 0.12] },       // Wooden door leaf
-            { pos: [0, 1.75, 0.07], size: [1.36, 0.12, 0.14] },       // Top iron strap
-            { pos: [0, 0.55, 0.07], size: [1.36, 0.12, 0.14] },       // Bottom iron strap
-            { pos: [0.45, 1.10, 0.12], size: [0.10, 0.16, 0.06] }     // Front latch ring
-        ]);
-
-        // 3. Swung-Open Door Panel Angled Ajar 70° (DungeonWorld.cs:1594-1631)
-        const openYaw = 70 * Math.PI / 180;
-        const panelCenterX = -0.68 + 0.64 * Math.cos(openYaw);
-        const panelCenterZ = 0.64 * Math.sin(openYaw);
+        // 3. Swung-Open Medieval Door Leaf Angled Ajar 64° (strictly bounded within z <= 0.95m)
+        const openYaw = 64 * Math.PI / 180;
+        const panelCenterX = -0.68 + 0.50 * Math.cos(openYaw);
+        const panelCenterZ = 0.02 + 0.50 * Math.sin(openYaw);
         const doorOpenGeo = createMergedBoxGeometry([
-            { pos: [panelCenterX, 1.15, panelCenterZ], size: [1.28, 2.18, 0.10], rotY: -openYaw },
-            { pos: [panelCenterX, 1.75, panelCenterZ], size: [1.24, 0.12, 0.14], rotY: -openYaw },
-            { pos: [panelCenterX, 0.55, panelCenterZ], size: [1.24, 0.12, 0.14], rotY: -openYaw },
-            { pos: [-0.68 + 1.05 * Math.cos(openYaw), 1.10, 1.05 * Math.sin(openYaw)], size: [0.10, 0.16, 0.15], rotY: -openYaw }
+            { pos: [panelCenterX, 1.16, panelCenterZ], size: [1.00, 2.28, 0.10], rotY: -openYaw, color: [0.92, 0.84, 0.74] },
+            { pos: [panelCenterX, 1.80, panelCenterZ], size: [0.98, 0.11, 0.14], rotY: -openYaw, color: [0.30, 0.29, 0.28], uvRect: [0.08, 0.20, 0.92, 0.24] },
+            { pos: [panelCenterX, 0.52, panelCenterZ], size: [0.98, 0.11, 0.14], rotY: -openYaw, color: [0.30, 0.29, 0.28], uvRect: [0.08, 0.20, 0.92, 0.24] },
+            { pos: [-0.68 + 0.84 * Math.cos(openYaw), 1.12, 0.02 + 0.84 * Math.sin(openYaw)], size: [0.09, 0.15, 0.14], rotY: -openYaw, color: [0.36, 0.34, 0.30], uvRect: [0.18, 0.20, 0.30, 0.24] }
         ]);
 
-        // 4. Shattered Broken Door Planks & Splinters (DungeonWorld.cs:1632-1643)
+        // 4. Shattered Broken Door Planks & Splinters (explicit warm-wood vertex colors so broken doors never render black)
         const doorBrokenGeo = createMergedBoxGeometry([
-            { pos: [-0.35, 0.06, 0.15], size: [0.85, 0.06, 0.26] },
-            { pos: [0.35, 0.05, -0.15], size: [0.75, 0.05, 0.22] },
-            { pos: [0.10, 0.09, 0.30], size: [0.60, 0.06, 0.18] },
-            { pos: [-0.15, 0.08, -0.25], size: [0.50, 0.05, 0.20] },
-            { pos: [-0.62, 1.70, 0.08], size: [0.26, 0.48, 0.08], rotY: -0.35 }
+            { pos: [-0.35, 0.06, 0.15], size: [0.85, 0.06, 0.26], rotY: 0.18, color: [0.62, 0.45, 0.28] },
+            { pos: [0.35, 0.05, -0.15], size: [0.75, 0.05, 0.22], rotY: -0.24, color: [0.58, 0.42, 0.26] },
+            { pos: [0.10, 0.09, 0.30], size: [0.60, 0.06, 0.18], rotY: 0.42, color: [0.64, 0.47, 0.30] },
+            { pos: [-0.15, 0.08, -0.25], size: [0.50, 0.05, 0.20], rotY: -0.35, color: [0.60, 0.43, 0.27] },
+            { pos: [-0.62, 1.70, 0.08], size: [0.26, 0.48, 0.08], rotY: -0.35, color: [0.62, 0.45, 0.28] }
         ]);
 
-        // 5. Authentic 3D Stepped Staircases (Matches Godot DungeonWorld.cs:1708-1735)
-        const buildStairsBoxes = (down) => {
-            const boxes = [
-                { pos: [-0.90, 0.20, 0], size: [0.20, 0.45, 2.0] }, // Left low stone stringer
-                { pos: [0.90, 0.20, 0], size: [0.20, 0.45, 2.0] }   // Right low stone stringer
-            ];
-            const stepCount = 5;
-            const stepWidth = 1.60;
-            const stepDepth = 2.0 / stepCount;
-            for (let i = 0; i < stepCount; i++) {
-                const z = -1.0 + stepDepth * (i + 0.5);
-                const stepHeight = down ? (0.45 - i * 0.08) : (0.10 + i * 0.08);
-                const yCenter = stepHeight / 2.0;
-                boxes.push({ pos: [0, yCenter, z], size: [stepWidth, stepHeight, stepDepth] });
-            }
-            return boxes;
-        };
-        const stairsDownGeo = createMergedBoxGeometry(buildStairsBoxes(true));
-        const stairsUpGeo = createMergedBoxGeometry(buildStairsBoxes(false));
+        // 5a. Watertight Sunken Descending Stone Stairwell (feat 6 '>': entrance mouth at +Z descending to -1.92m at -Z)
+        const downBoxes = [
+            { pos: [-0.87, -0.04, 0], size: [0.28, 0.12, 2.02], color: [0.84, 0.82, 0.78] },    // Left stone floor collar rim
+            { pos: [0.87, -0.04, 0], size: [0.28, 0.12, 2.02], color: [0.84, 0.82, 0.78] },     // Right stone floor collar rim
+            { pos: [0, -0.08, 0.90], size: [1.48, 0.08, 0.22], color: [0.88, 0.86, 0.82] },     // Front entrance threshold rim (+Z)
+            { pos: [0, -0.04, -0.92], size: [1.48, 0.12, 0.18], color: [0.74, 0.72, 0.68] },    // Back stairwell coping rim (-Z)
+            { pos: [-0.86, -0.98, 0], size: [0.26, 1.96, 1.98], color: [0.56, 0.54, 0.52] },    // Left enclosed pit wall (0..-1.96m)
+            { pos: [0.86, -0.98, 0], size: [0.26, 1.96, 1.98], color: [0.56, 0.54, 0.52] },     // Right enclosed pit wall (0..-1.96m)
+            { pos: [0, -0.98, -0.91], size: [1.50, 1.96, 0.18], color: [0.16, 0.16, 0.20] },    // Back deep portal shadow wall (-Z)
+            { pos: [0, -1.02, 0.88], size: [1.50, 1.88, 0.18], color: [0.46, 0.44, 0.42] },     // Front under-threshold riser seal
+            { pos: [0, -1.94, 0], size: [1.54, 0.06, 1.88], color: [0.10, 0.10, 0.13] }         // Dark shadow bottom landing slab (-1.91m)
+        ];
+        for (let i = 0; i < 8; i++) {
+            const stepTop = -0.15 - i * (1.70 / 7);
+            const hStep = stepTop - (-1.95);
+            const zStep = 0.70 - i * 0.18;
+            const shade = 0.84 - i * 0.085;
+            downBoxes.push({
+                pos: [0, -1.95 + hStep * 0.5, zStep],
+                size: [1.46, hStep, 0.20],
+                color: [shade, shade * 0.98, shade * 0.95]
+            });
+        }
+        const stairsDownGeo = createMergedBoxGeometry(downBoxes);
+
+        // 5b. Grand Ascending Stone Staircase (feat 5 '<': 9 cut-stone steps + side stringers rising 0.0m -> 2.55m from +Z to -Z)
+        const upBoxes = [];
+        for (let i = 0; i < 9; i++) {
+            const stepH = 0.28 + i * ((2.55 - 0.28) / 8);
+            const zStep = 0.80 - i * 0.20;
+            const stShade = 0.80 + (i / 8) * 0.12;
+            upBoxes.push({
+                pos: [0, stepH * 0.5, zStep],
+                size: [1.52, stepH, 0.22],
+                color: [stShade, stShade * 0.98, stShade * 0.94]
+            });
+            const strH = stepH + 0.18;
+            upBoxes.push({ pos: [-0.86, strH * 0.5, zStep], size: [0.22, strH, 0.22], color: [0.72, 0.70, 0.66] });
+            upBoxes.push({ pos: [0.86, strH * 0.5, zStep], size: [0.22, strH, 0.22], color: [0.72, 0.70, 0.66] });
+        }
+        const stairsUpGeo = createMergedBoxGeometry(upBoxes);
 
         // 6. Impassable Rubble Piles (Collapsed masonry boulders & stone talus)
         const rubbleGeo = createMergedBoxGeometry([
-            // Central high boulder peak
             { pos: [0.05, 0.65, -0.05], size: [1.20, 1.25, 1.10], rotY: 0.35, rotX: 0.12 },
-            // Left flank boulder
             { pos: [-0.52, 0.45, 0.20], size: [0.95, 0.90, 0.95], rotY: -0.45, rotZ: 0.15 },
-            // Right flank boulder
             { pos: [0.55, 0.42, -0.22], size: [0.95, 0.85, 0.90], rotY: 0.55, rotZ: -0.18 },
-            // Forward spilled rock
             { pos: [-0.18, 0.28, 0.55], size: [1.00, 0.55, 0.80], rotY: -0.20, rotX: -0.15 },
-            // Rear spilled rock
             { pos: [0.22, 0.30, -0.55], size: [0.95, 0.60, 0.75], rotY: 0.40, rotX: 0.18 },
-            // Perimeter rock skirts filling the 2.0m width
             { pos: [0.68, 0.18, 0.45], size: [0.70, 0.35, 0.65], rotY: -0.65, rotZ: 0.10 },
             { pos: [-0.68, 0.16, -0.45], size: [0.65, 0.32, 0.70], rotY: 0.75, rotZ: -0.12 },
             { pos: [-0.10, 0.85, 0.08], size: [0.70, 0.50, 0.65], rotY: 0.80, rotX: 0.22 }
@@ -3850,10 +1099,10 @@ class Dungeon3D {
 
         // 6b. Discovered Floor Traps (feat 1 with glyph '^'): Metallic trigger plate with crossbar runes
         const trapGeo = createMergedBoxGeometry([
-            { pos: [0, 0.02, 0], size: [1.10, 0.04, 1.10] },         // Base trigger plate
-            { pos: [0, 0.05, 0], size: [0.70, 0.03, 0.14] },         // Longitudinal raised rune/crossbar
-            { pos: [0, 0.05, 0], size: [0.14, 0.03, 0.70] },         // Transverse raised rune/crossbar
-            { pos: [-0.40, 0.05, -0.40], size: [0.08, 0.03, 0.08] },   // Corner rivets
+            { pos: [0, 0.02, 0], size: [1.10, 0.04, 1.10] },
+            { pos: [0, 0.05, 0], size: [0.70, 0.03, 0.14] },
+            { pos: [0, 0.05, 0], size: [0.14, 0.03, 0.70] },
+            { pos: [-0.40, 0.05, -0.40], size: [0.08, 0.03, 0.08] },
             { pos: [0.40, 0.05, -0.40], size: [0.08, 0.03, 0.08] },
             { pos: [-0.40, 0.05, 0.40], size: [0.08, 0.03, 0.08] },
             { pos: [0.40, 0.05, 0.40], size: [0.08, 0.03, 0.08] }
@@ -3867,14 +1116,22 @@ class Dungeon3D {
         this.trapMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
         this.scene.add(this.trapMesh);
 
-        this.wallMesh = new THREE.InstancedMesh(wallGeo, this.wallMaterial, this.maxInstances);
+        this.wallMesh = new THREE.InstancedMesh(cloneBevelGeo(wallGeo, this.maxInstances * 2), this.wallMaterial, this.maxInstances * 2);
         this.wallMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
         this.scene.add(this.wallMesh);
 
+        this.upperWallMesh = new THREE.InstancedMesh(cloneBevelGeo(upperWallGeo, this.maxInstances), this.wallMaterial, this.maxInstances);
+        this.upperWallMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+        this.scene.add(this.upperWallMesh);
+
         // Cyclopean Permanent Bedrock & Outer Fortress Ramparts (feat 22)
-        this.permWallMesh = new THREE.InstancedMesh(wallGeo, this.permWallMaterial, this.maxInstances);
+        this.permWallMesh = new THREE.InstancedMesh(cloneBevelGeo(wallGeo, this.maxInstances * 2), this.permWallMaterial, this.maxInstances * 2);
         this.permWallMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
         this.scene.add(this.permWallMesh);
+
+        this.upperPermWallMesh = new THREE.InstancedMesh(cloneBevelGeo(upperWallGeo, this.maxInstances), this.permWallMaterial, this.maxInstances);
+        this.upperPermWallMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+        this.scene.add(this.upperPermWallMesh);
 
         this.floorMesh = new THREE.InstancedMesh(floorGeo, this.floorMaterial, this.maxInstances);
         this.floorMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
@@ -3882,20 +1139,21 @@ class Dungeon3D {
         this.floorMesh.receiveShadow = true;
         this.scene.add(this.floorMesh);
 
-        this.ceilingMesh = new THREE.InstancedMesh(ceilingGeo, this.ceilingMaterial, this.maxInstances);
+        this.ceilingMesh = new THREE.InstancedMesh(ceilingGeo, this.ceilingMaterial, this.maxInstances * 2);
         this.ceilingMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
         this.ceilingMesh.castShadow = false;
         this.ceilingMesh.receiveShadow = true;
         this.scene.add(this.ceilingMesh);
 
         // Stone Doorways (Frames & Lintels for town & dungeon)
-        this.doorFrameMesh = new THREE.InstancedMesh(doorFrameGeo, this.wallMaterial, 512);
+        this.doorFrameMesh = new THREE.InstancedMesh(safeWallAttrs(doorFrameGeo), this.wallMaterial, 512);
         this.doorFrameMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
         this.scene.add(this.doorFrameMesh);
 
-        // Full-depth Town Shop Entrance Timber & Stone Storefront Facade
+        // Disjoint Town Storefront Timber & Stone Masonry Meshes
         const woodPbr = this.polyHavenSets && this.polyHavenSets.get('local_wood_trim');
         const roofPbr = this.polyHavenSets && this.polyHavenSets.get('local_round_tiles');
+        const rockTrimPbr = this.polyHavenSets && this.polyHavenSets.get('local_rock_trim');
         this.shopFrameMaterial = new THREE.MeshStandardMaterial({
             map: (woodPbr && woodPbr.diff) || this.doorTex || this.wallTex,
             normalMap: (woodPbr && woodPbr.nor) || this.treeBarkNormal || this.wallNormal,
@@ -3908,6 +1166,23 @@ class Dungeon3D {
         this.shopFrameMesh = new THREE.InstancedMesh(shopFrameGeo, this.shopFrameMaterial, 64);
         this.shopFrameMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
         this.scene.add(this.shopFrameMesh);
+
+        this.shopStoneMaterial = new THREE.MeshStandardMaterial({
+            map: (rockTrimPbr && rockTrimPbr.diff) || this.wallTex,
+            normalMap: (rockTrimPbr && rockTrimPbr.nor) || this.wallNormal,
+            roughnessMap: (rockTrimPbr && rockTrimPbr.arm) || null,
+            normalScale: new THREE.Vector2(1.30, 1.30),
+            roughness: 0.80,
+            metalness: 0.05,
+            vertexColors: true
+        });
+        this.shopStoneMesh = new THREE.InstancedMesh(shopStoneGeo, this.shopStoneMaterial, 64);
+        this.shopStoneMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+        this.scene.add(this.shopStoneMesh);
+
+        this.shopStoneOccupiedMesh = new THREE.InstancedMesh(shopStoneOccupiedGeo, this.shopStoneMaterial, 16);
+        this.shopStoneOccupiedMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+        this.scene.add(this.shopStoneOccupiedMesh);
 
         // Sloped Merchant Storefront Canopy / Awning
         this.shopAwningMaterial = new THREE.MeshStandardMaterial({
@@ -3922,8 +1197,7 @@ class Dungeon3D {
         this.shopAwningMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
         this.scene.add(this.shopAwningMesh);
 
-        // Town Building Dressed Stone & Dark Timber Framing + Flat Architectural Slate Cornice
-        const rockTrimPbr = this.polyHavenSets && this.polyHavenSets.get('local_rock_trim');
+        // Town Building Dressed Stone & Dark Timber Framing + Exterior Corner Posts
         this.townTimberMaterial = new THREE.MeshStandardMaterial({
             map: (rockTrimPbr && rockTrimPbr.diff) || this.wallTex,
             normalMap: (rockTrimPbr && rockTrimPbr.nor) || this.wallNormal,
@@ -3936,6 +1210,10 @@ class Dungeon3D {
         this.townTimberMesh = new THREE.InstancedMesh(townTimberGeo, this.townTimberMaterial, this.maxInstances);
         this.townTimberMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
         this.scene.add(this.townTimberMesh);
+
+        this.townTimberPostMesh = new THREE.InstancedMesh(townCornerPostGeo, this.townTimberMaterial, this.maxInstances);
+        this.townTimberPostMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+        this.scene.add(this.townTimberPostMesh);
 
         this.townRoofMaterial = new THREE.MeshStandardMaterial({
             map: (rockTrimPbr && rockTrimPbr.diff) || this.wallTex,
@@ -3951,11 +1229,16 @@ class Dungeon3D {
         this.scene.add(this.townRoofMesh);
 
         // Impassable Rubble Piles (feat 16)
-        this.rubbleMesh = new THREE.InstancedMesh(rubbleGeo, this.rubbleMaterial || this.wallMaterial, 256);
+        this.rubbleMesh = new THREE.InstancedMesh(safeWallAttrs(rubbleGeo), this.rubbleMaterial || this.wallMaterial, 256);
         this.rubbleMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
         this.scene.add(this.rubbleMesh);
 
         // Closed Dungeon Door (feat 2)
+        if (this.doorMaterial) {
+            this.doorMaterial.roughness = 0.80;
+            this.doorMaterial.metalness = 0.12;
+            this.doorMaterial.vertexColors = true;
+        }
         this.doorMesh = new THREE.InstancedMesh(doorClosedGeo, this.doorMaterial, 512);
         this.doorMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
         this.scene.add(this.doorMesh);
@@ -3979,27 +1262,37 @@ class Dungeon3D {
             this.shopMeshes.push(mesh);
         }
 
-
-
-        this.magmaMesh = new THREE.InstancedMesh(wallGeo, this.magmaMaterial, 256);
+        if (this.magmaMaterial) {
+            this.magmaMaterial.roughness = 0.72;
+            this.magmaMaterial.metalness = 0.06;
+            this.magmaMaterial.emissive = new THREE.Color(0xff4400);
+            this.magmaMaterial.emissiveIntensity = 1.85;
+        }
+        this.magmaMesh = new THREE.InstancedMesh(cloneBevelGeo(wallGeo, 1024), this.magmaMaterial, 1024);
         this.magmaMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
         this.scene.add(this.magmaMesh);
 
-        this.quartzMesh = new THREE.InstancedMesh(wallGeo, this.quartzMaterial, 256);
+        if (this.quartzMaterial) {
+            this.quartzMaterial.roughness = 0.48;
+            this.quartzMaterial.metalness = 0.12;
+            this.quartzMaterial.emissive = new THREE.Color(0x38bdf8);
+            this.quartzMaterial.emissiveIntensity = 0.55;
+        }
+        this.quartzMesh = new THREE.InstancedMesh(cloneBevelGeo(wallGeo, 1024), this.quartzMaterial, 1024);
         this.quartzMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
         this.scene.add(this.quartzMesh);
 
-        // Magma Vein with Gold Treasure (feat 19: MAGMA_K) - Rich metallic gold nuggets in dark basalt
-        this.goldVeinMesh = new THREE.InstancedMesh(wallGeo, this.goldVeinMaterial, 512);
+        // Magma Vein with Gold Treasure (feat 19: MAGMA_K)
+        this.goldVeinMesh = new THREE.InstancedMesh(cloneBevelGeo(wallGeo, 1024), this.goldVeinMaterial, 1024);
         this.goldVeinMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
         this.scene.add(this.goldVeinMesh);
 
-        // Quartz Vein with Gemstones (feat 20: QUARTZ_K) - Sparkling faceted emeralds, rubies, sapphires
-        this.gemVeinMesh = new THREE.InstancedMesh(wallGeo, this.gemVeinMaterial, 512);
+        // Quartz Vein with Gemstones (feat 20: QUARTZ_K)
+        this.gemVeinMesh = new THREE.InstancedMesh(cloneBevelGeo(wallGeo, 1024), this.gemVeinMaterial, 1024);
         this.gemVeinMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
         this.scene.add(this.gemVeinMesh);
 
-        // Forest Trees (feat 25: TREE) - Lightweight Cone + Dodecahedron Placeholders (upgraded by Poly Haven)
+        // Forest Trees (feat 25: TREE)
         const addWhiteVertexColors = (geo) => {
             const count = geo.attributes.position ? geo.attributes.position.count : 0;
             if (count > 0) geo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(count * 3).fill(1.0), 3));
@@ -4021,7 +1314,7 @@ class Dungeon3D {
         this.treeLeavesMesh.receiveShadow = true;
         this.scene.add(this.treeLeavesMesh);
 
-        // Dense Brush / Thicket / Flowers (feat 42: BUSH / BRAKE) - Lightweight Dodecahedron Placeholder
+        // Dense Brush / Thicket / Flowers (feat 42: BUSH / BRAKE)
         const bushGeo = addWhiteVertexColors(new THREE.DodecahedronGeometry(0.48, 1));
         bushGeo.translate(0, 0.35, 0);
         this.bushMesh = new THREE.InstancedMesh(bushGeo, this.treeLeavesMat, this.maxInstances);
@@ -4058,6 +1351,14 @@ class Dungeon3D {
         this.deepWaterMesh.receiveShadow = true;
         this.scene.add(this.deepWaterMesh);
 
+        // Watertight Cut-Stone Shoreline Curbs along liquid tile borders
+        const waterBankGeo = createMergedBoxGeometry([
+            { pos: [0, 0, 0], size: [2.04, 0.16, 0.16], color: [0.68, 0.66, 0.62] }
+        ]);
+        this.waterBankMesh = new THREE.InstancedMesh(safeWallAttrs(waterBankGeo), this.wallMaterial, 1024);
+        this.waterBankMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+        this.scene.add(this.waterBankMesh);
+
         // Alpine Mountain Crags (feat 30: MOUNTAIN)
         const mountainGeo = createMergedBoxGeometry([
             { pos: [0, 1.5, 0], size: [2.0, 3.0, 2.0] },
@@ -4087,6 +1388,7 @@ class Dungeon3D {
         this.lavaCooledMesh.receiveShadow = true;
         this.scene.add(this.lavaCooledMesh);
 
+        if (this.stairsMaterial) this.stairsMaterial.vertexColors = true;
         // Down Staircase (feat 6)
         this.stairsMesh = new THREE.InstancedMesh(stairsDownGeo, this.stairsMaterial, 128);
         this.stairsMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
@@ -4240,6 +1542,35 @@ class Dungeon3D {
         this.altarFlameMesh = new THREE.InstancedMesh(altarFlameGeo, this.altarFlameMaterial, 64);
         this.altarFlameMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
         this.scene.add(this.altarFlameMesh);
+
+        // Wrought-Iron Dungeon Wall Torch Sconces & Flickering Torch Flames
+        const wallTorchGeo = createMergedBoxGeometry([
+            { pos: [0, -0.02, 0.02], size: [0.10, 0.24, 0.04], color: [0.24, 0.23, 0.22] },
+            { pos: [0, 0.02, 0.10], size: [0.05, 0.05, 0.16], color: [0.24, 0.23, 0.22] },
+            { type: 'cylinder', rTop: 0.032, rBottom: 0.022, height: 0.34, segments: 8, rotX: 0.32, pos: [0, 0.08, 0.16], color: [0.55, 0.38, 0.22] },
+            { type: 'cylinder', rTop: 0.058, rBottom: 0.036, height: 0.07, segments: 8, rotX: 0.32, pos: [0, 0.22, 0.21], color: [0.26, 0.24, 0.22] }
+        ]);
+        this.wallTorchMaterial = new THREE.MeshStandardMaterial({
+            color: 0xffffff,
+            normalMap: this.wallNormal,
+            normalScale: new THREE.Vector2(0.55, 0.55),
+            roughness: 0.52,
+            metalness: 0.68,
+            vertexColors: true
+        });
+        this.wallTorchMesh = new THREE.InstancedMesh(wallTorchGeo, this.wallTorchMaterial, 128);
+        this.wallTorchMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+        this.scene.add(this.wallTorchMesh);
+
+        const wallTorchFlameGeo = createMergedBoxGeometry([
+            { type: 'lathe', points: chaliceFlameProfile, segments: 12, pos: [0, 0.24, 0.22], color: [1.00, 0.76, 0.22] },
+            { type: 'cone', radius: 0.042, height: 0.15, segments: 10, pos: [0, 0.30, 0.22], color: [1.00, 0.98, 0.85] }
+        ]);
+        this.wallTorchFlameMesh = new THREE.InstancedMesh(wallTorchFlameGeo, this.altarFlameMaterial, 128);
+        this.wallTorchFlameMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+        this.scene.add(this.wallTorchFlameMesh);
+        if (this._initMasonryTrimAndPortals) this._initMasonryTrimAndPortals(createMergedBoxGeometry);
+        if (this._initWallFixtureArchetypes) this._initWallFixtureArchetypes(createMergedBoxGeometry);
 
         // Dwarven Smithing Forge & Horned Anvil (feat 60 / Sil-Q '0')
         const forgeGeo = createMergedBoxGeometry([
@@ -4493,59 +1824,74 @@ class Dungeon3D {
             this.chasmSideMaterial.normalMap = this.townMountainNormal;
             this.chasmSideMaterial.roughnessMap = this.townMountainRoughness;
         }
-        this.chasmMesh = new THREE.InstancedMesh(wallGeo, this.chasmSideMaterial, this.maxInstances);
+        this.chasmMesh = new THREE.InstancedMesh(cloneBevelGeo(wallGeo, this.maxInstances), this.chasmSideMaterial, this.maxInstances);
         this.chasmMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
         this.chasmMesh.castShadow = false;
         this.chasmMesh.receiveShadow = true;
         this.scene.add(this.chasmMesh);
 
-        // Pre-allocate instance color buffers with 1.0 (pure white albedo multiplier)
-        const initInstancedColors = (mesh, count) => {
-            const colors = new Float32Array(count * 3).fill(1.0);
+        if (this._thresholdCutawayGeos) {
+            const cg = this._thresholdCutawayGeos;
+            this.stairsUpOccupiedMesh = new THREE.InstancedMesh(cg.stairsUpOccupiedGeo, this.stairsMaterial, 32);
+            this.stairsUpOccupiedMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+            this.scene.add(this.stairsUpOccupiedMesh);
+            this.altarOccupiedMesh = new THREE.InstancedMesh(cg.altarOccupiedGeo, this.altarMaterial, 16);
+            this.altarOccupiedMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+            this.scene.add(this.altarOccupiedMesh);
+            this.fountainOccupiedMesh = new THREE.InstancedMesh(cg.fountainOccupiedGeo, this.fountainMaterial, 16);
+            this.fountainOccupiedMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+            this.scene.add(this.fountainOccupiedMesh);
+        }
+
+        if (tac && tac.applyWorldPbrShader) {
+            tac.applyWorldPbrShader(this, this.wallMaterial, 'wall');
+            tac.applyWorldPbrShader(this, this.permWallMaterial, 'wall');
+            tac.applyWorldPbrShader(this, this.chasmSideMaterial, 'wall');
+            tac.applyWorldPbrShader(this, this.floorMaterial, 'floor');
+            tac.applyWorldPbrShader(this, this.ceilingMaterial, 'ceiling');
+            tac.applyWorldPbrShader(this, this.magmaMaterial, 'vein');
+            tac.applyWorldPbrShader(this, this.quartzMaterial, 'vein');
+            tac.applyWorldPbrShader(this, this.goldVeinMaterial, 'vein');
+            tac.applyWorldPbrShader(this, this.gemVeinMaterial, 'vein');
+            if (this._syncWorldPbrUniforms && this._lastContextualTexSet) {
+                this._syncWorldPbrUniforms(this._lastContextualTexSet);
+            }
+        }
+
+        // Pre-allocate instance color buffers with 1.0 (pure white albedo multiplier) matching exact capacity
+        const initInstancedColors = (mesh) => {
+            if (!mesh || !mesh.instanceMatrix) return;
+            mesh.frustumCulled = false;
+            const colors = new Float32Array(mesh.instanceMatrix.count * 3).fill(1.0);
             mesh.instanceColor = new THREE.InstancedBufferAttribute(colors, 3);
+            mesh.instanceColor.setUsage(THREE.DynamicDrawUsage);
             mesh.count = 0; // Initialize to 0 so unpopulated instances are never drawn
         };
-        initInstancedColors(this.wallMesh, this.maxInstances);
-        initInstancedColors(this.permWallMesh, this.maxInstances);
-        initInstancedColors(this.floorMesh, this.maxInstances);
-        initInstancedColors(this.ceilingMesh, this.maxInstances);
-        initInstancedColors(this.doorFrameMesh, 512);
-        initInstancedColors(this.shopFrameMesh, 64);
-        initInstancedColors(this.shopAwningMesh, 256);
-        initInstancedColors(this.townTimberMesh, this.maxInstances);
-        initInstancedColors(this.townRoofMesh, this.maxInstances);
-        initInstancedColors(this.rubbleMesh, 256);
-        initInstancedColors(this.doorMesh, 512);
-        initInstancedColors(this.doorOpenMesh, 256);
-        initInstancedColors(this.doorBrokenMesh, 256);
-        initInstancedColors(this.stairsMesh, 128);
-        initInstancedColors(this.stairsUpMesh, 128);
-        initInstancedColors(this.altarMesh, 64);
-        initInstancedColors(this.altarBrassMesh, 64);
-        initInstancedColors(this.altarFlameMesh, 64);
-        initInstancedColors(this.forgeMesh, 32);
-        initInstancedColors(this.fountainMesh, 64);
-        initInstancedColors(this.fountainBrassMesh, 64);
-        initInstancedColors(this.fountainWaterMesh, 64);
-        initInstancedColors(this.trapMesh, 128);
-        initInstancedColors(this.magmaMesh, 256);
-        initInstancedColors(this.quartzMesh, 256);
-        initInstancedColors(this.goldVeinMesh, 512);
-        initInstancedColors(this.gemVeinMesh, 512);
-        initInstancedColors(this.treeTrunkMesh, this.maxInstances);
-        initInstancedColors(this.treeLeavesMesh, this.maxInstances);
-        initInstancedColors(this.bushMesh, this.maxInstances);
-        initInstancedColors(this.grassMesh, this.maxInstances);
-        initInstancedColors(this.dirtMesh, this.maxInstances);
-        initInstancedColors(this.waterMesh, this.maxInstances);
-        initInstancedColors(this.deepWaterMesh, this.maxInstances);
-        initInstancedColors(this.mountainMesh, this.maxInstances);
-        initInstancedColors(this.swampMesh, this.maxInstances);
-        initInstancedColors(this.chasmMesh, this.maxInstances);
-        initInstancedColors(this.chasmVoidMesh, this.maxInstances);
-        initInstancedColors(this.lavaMesh, 512);
-        initInstancedColors(this.lavaCooledMesh, 512);
-        for (let i = 0; i < 8; i++) initInstancedColors(this.shopMeshes[i], 64);
+        [
+            this.wallMesh, this.upperWallMesh, this.permWallMesh, this.upperPermWallMesh,
+            this.floorMesh, this.ceilingMesh, this.doorFrameMesh,
+            this.wallPlinthMesh, this.wallCorniceMesh, this.darkPortalMesh,
+            this.shopFrameMesh, this.shopStoneMesh, this.shopStoneOccupiedMesh, this.shopAwningMesh,
+            this.townTimberMesh, this.townTimberPostMesh, this.townRoofMesh, this.rubbleMesh,
+            this.doorMesh, this.doorOpenMesh, this.doorBrokenMesh,
+            this.stairsMesh, this.stairsUpMesh, this.stairsUpOccupiedMesh,
+            this.altarMesh, this.altarOccupiedMesh, this.altarBrassMesh, this.altarFlameMesh,
+            this.wallTorchMesh, this.wallTorchFlameMesh, this.forgeMesh,
+            this.fountainMesh, this.fountainOccupiedMesh, this.fountainBrassMesh, this.fountainWaterMesh,
+            this.trapMesh, this.magmaMesh, this.quartzMesh, this.goldVeinMesh, this.gemVeinMesh,
+            this.treeTrunkMesh, this.treeLeavesMesh, this.bushMesh,
+            this.grassMesh, this.dirtMesh, this.waterMesh, this.deepWaterMesh, this.waterBankMesh,
+            this.mountainMesh, this.swampMesh, this.chasmMesh, this.chasmVoidMesh,
+            this.lavaMesh, this.lavaCooledMesh, ...this.shopMeshes
+        ].forEach(initInstancedColors);
+        if (this.scene) {
+            this.scene.traverse((obj) => {
+                if (obj && obj.isInstancedMesh) {
+                    obj.frustumCulled = false;
+                    if (!obj.instanceColor) initInstancedColors(obj);
+                }
+            });
+        }
 
         this.dummy = new THREE.Object3D();
 
@@ -4568,539 +1914,6 @@ class Dungeon3D {
 
         // High-Quality Celestial Star Canopy (Middle-earth night sky overhead in town)
         this.initStarCanopy();
-    }
-
-    _mergeBufferGeometries(geometries) {
-        if (!geometries || geometries.length === 0) return new THREE.BufferGeometry();
-        let totalVerts = 0;
-        let totalIndices = 0;
-        for (const g of geometries) {
-            totalVerts += g.attributes.position ? g.attributes.position.count : 0;
-            totalIndices += g.index ? g.index.count : (g.attributes.position ? g.attributes.position.count : 0);
-        }
-        const posArr = new Float32Array(totalVerts * 3);
-        const normArr = new Float32Array(totalVerts * 3);
-        const uvArr = new Float32Array(totalVerts * 2);
-        const colArr = new Float32Array(totalVerts * 3);
-        colArr.fill(1.0);
-        const IndexArrayType = totalVerts > 65535 ? Uint32Array : Uint16Array;
-        const indexArr = new IndexArrayType(totalIndices);
-
-        let vOffset = 0;
-        let iOffset = 0;
-        for (const g of geometries) {
-            const vCount = g.attributes.position ? g.attributes.position.count : 0;
-            if (vCount === 0) continue;
-            posArr.set(g.attributes.position.array, vOffset * 3);
-            if (g.attributes.normal) {
-                normArr.set(g.attributes.normal.array, vOffset * 3);
-            }
-            if (g.attributes.uv) {
-                uvArr.set(g.attributes.uv.array, vOffset * 2);
-            }
-            if (g.attributes.color && g.attributes.color.array) {
-                const cArr = g.attributes.color.array;
-                const itemSize = g.attributes.color.itemSize || 3;
-                for (let vi = 0; vi < vCount; vi++) {
-                    const dst = (vOffset + vi) * 3;
-                    const src = vi * itemSize;
-                    colArr[dst] = cArr[src];
-                    colArr[dst + 1] = cArr[src + 1];
-                    colArr[dst + 2] = cArr[src + 2];
-                }
-            }
-            if (g.index) {
-                const idx = g.index.array;
-                for (let i = 0; i < idx.length; i++) {
-                    indexArr[iOffset++] = idx[i] + vOffset;
-                }
-            } else {
-                for (let i = 0; i < vCount; i++) {
-                    indexArr[iOffset++] = i + vOffset;
-                }
-            }
-            vOffset += vCount;
-        }
-
-        const merged = new THREE.BufferGeometry();
-        merged.setAttribute('position', new THREE.BufferAttribute(posArr, 3));
-        merged.setAttribute('normal', new THREE.BufferAttribute(normArr, 3));
-        merged.setAttribute('uv', new THREE.BufferAttribute(uvArr, 2));
-        merged.setAttribute('color', new THREE.BufferAttribute(colArr, 3));
-        merged.setIndex(new THREE.BufferAttribute(indexArr, 1));
-        merged.computeBoundingBox();
-        merged.computeBoundingSphere();
-        return merged;
-    }
-
-    _loadPolyHavenEnvironmentModels() {
-        if (this._polyHavenEnvLoaded) return Promise.resolve(true);
-        if (this._polyHavenEnvPromise) return this._polyHavenEnvPromise;
-        const loader = this.gltfLoader || (typeof THREE.GLTFLoader !== 'undefined' ? new THREE.GLTFLoader() : null);
-        if (!loader) {
-            this._polyHavenEnvLoaded = true;
-            return Promise.resolve(false);
-        }
-
-        this._hasPolyHavenTreeTex = true;
-        const texLoader = new THREE.TextureLoader();
-        const envTasks = [];
-        const addTexTask = (url, onDone) => {
-            envTasks.push(new Promise((resolve) => {
-                texLoader.load(url, (tex) => {
-                    try { onDone(tex); } catch (_) {}
-                    resolve(tex);
-                }, undefined, () => resolve(null));
-            }));
-        };
-        const addGltfTask = (url, onDone) => {
-            envTasks.push(new Promise((resolve) => {
-                loader.load(url, (gltf) => {
-                    try {
-                        const maybePromise = onDone(gltf);
-                        if (maybePromise && typeof maybePromise.then === 'function') {
-                            maybePromise.then(() => resolve(true)).catch(() => resolve(false));
-                            return;
-                        }
-                    } catch (_) {}
-                    resolve(true);
-                }, undefined, () => resolve(false));
-            }));
-        };
-
-        addTexTask('/assets/polyhaven/models/pachira_aquatica_01/textures/pachira_aquatica_01_bark_diff_1k.jpg', (diff) => {
-            diff.encoding = THREE.sRGBEncoding;
-            diff.flipY = false;
-            if (this.treeTrunkMat) {
-                this.treeTrunkMat.map = diff;
-                this.treeTrunkMat.needsUpdate = true;
-            }
-        });
-        addTexTask('/assets/polyhaven/models/pachira_aquatica_01/textures/pachira_aquatica_01_bark_nor_gl_1k.jpg', (nor) => {
-            nor.flipY = false;
-            this.treeBarkNormal = nor;
-            if (this.treeTrunkMat) {
-                this.treeTrunkMat.normalMap = nor;
-                this.treeTrunkMat.needsUpdate = true;
-            }
-        });
-        addTexTask('/assets/polyhaven/models/pachira_aquatica_01/textures/pachira_aquatica_01_leaves_diff_1k.jpg', (diff) => {
-            diff.encoding = THREE.sRGBEncoding;
-            diff.flipY = false;
-            if (this.treeLeavesMat) {
-                this.treeLeavesMat.map = diff;
-                this.treeLeavesMat.needsUpdate = true;
-            }
-            this._lastTerrainSig = null;
-        });
-        addTexTask('/assets/polyhaven/models/pachira_aquatica_01/textures/pachira_aquatica_01_leaves_nor_gl_1k.jpg', (nor) => {
-            nor.flipY = false;
-            if (this.treeLeavesMat) {
-                this.treeLeavesMat.normalMap = nor;
-                this.treeLeavesMat.needsUpdate = true;
-            }
-        });
-
-        // 1. Pachira Aquatica (Photogrammetry Tree trunk, leaves & bush in local mesh space)
-        addGltfTask('/assets/polyhaven/models/pachira_aquatica_01/pachira_aquatica_01.gltf', (gltf) => {
-            const scene = gltf.scene || (gltf.scenes && gltf.scenes[0]);
-            if (!scene) return;
-
-            const trunkParts = [];
-            const leafParts = [];
-            const bushParts = [];
-
-            scene.traverse((child) => {
-                if (child.isMesh && child.geometry) {
-                    const fullName = ((child.name || '') + ' ' + (child.parent ? child.parent.name || '' : '')).toLowerCase();
-                    const isBark = fullName.includes('bark_c') || fullName.includes('circle.001');
-                    const isLeavesB = fullName.includes('leaves_b') || fullName.includes('cylinder.118');
-                    const isLeavesC = fullName.includes('leaves_c') || fullName.includes('cylinder.092');
-                    if (!isBark && !isLeavesB && !isLeavesC) return;
-
-                    const g = child.geometry.clone();
-                    if (g.attributes.color) g.deleteAttribute('color');
-                    const colArr = new Float32Array(g.attributes.position.count * 3);
-                    colArr.fill(1.0);
-                    g.setAttribute('color', new THREE.BufferAttribute(colArr, 3));
-
-                    if (isBark) {
-                        trunkParts.push(g);
-                    } else if (isLeavesB) {
-                        bushParts.push(g);
-                    } else if (isLeavesC) {
-                        if (g.index && g.index.count > 1800) {
-                            const srcIdx = g.index.array;
-                            const decimated = [];
-                            for (let ti = 0; ti + 2 < srcIdx.length; ti += 15) {
-                                decimated.push(srcIdx[ti], srcIdx[ti + 1], srcIdx[ti + 2]);
-                            }
-                            g.setIndex(decimated);
-                        }
-                        leafParts.push(g);
-                    }
-                }
-            });
-
-            if (trunkParts.length > 0 && leafParts.length > 0) {
-                const trunkGeo = this._mergeBufferGeometries(trunkParts);
-                const leavesGeo = this._mergeBufferGeometries(leafParts);
-
-                const unionBox = new THREE.Box3();
-                if (trunkGeo.boundingBox) unionBox.union(trunkGeo.boundingBox);
-                if (leavesGeo.boundingBox) unionBox.union(leavesGeo.boundingBox);
-
-                const centerX = (unionBox.min.x + unionBox.max.x) * 0.5;
-                const centerZ = (unionBox.min.z + unionBox.max.z) * 0.5;
-                const spanXZ = Math.max(unionBox.max.x - unionBox.min.x, unionBox.max.z - unionBox.min.z) || 1.0;
-                const spanY = (unionBox.max.y - unionBox.min.y) || 1.0;
-
-                trunkGeo.translate(-centerX, -unionBox.min.y, -centerZ);
-                leavesGeo.translate(-centerX, -unionBox.min.y, -centerZ);
-
-                const scaleX = 2.35 / spanXZ;
-                const scaleY = 2.85 / spanY;
-                const scaleZ = 2.35 / spanXZ;
-                trunkGeo.scale(scaleX, scaleY, scaleZ);
-                leavesGeo.scale(scaleX, scaleY, scaleZ);
-
-                this._tanglethornTrunkGeo = trunkGeo.clone();
-                this._tanglethornLeavesGeo = leavesGeo.clone();
-
-                if (this.treeTrunkMesh && this.treeTrunkMesh.geometry) this.treeTrunkMesh.geometry.dispose();
-                if (this.treeLeavesMesh && this.treeLeavesMesh.geometry) this.treeLeavesMesh.geometry.dispose();
-                if (this.treeTrunkMesh) this.treeTrunkMesh.geometry = trunkGeo;
-                if (this.treeLeavesMesh) this.treeLeavesMesh.geometry = leavesGeo;
-
-                this._lastTerrainSig = null;
-            }
-
-            if (bushParts.length > 0) {
-                const bushGeo = this._mergeBufferGeometries(bushParts);
-                bushGeo.computeBoundingBox();
-                const bBox = bushGeo.boundingBox;
-                const bCenterX = (bBox.min.x + bBox.max.x) * 0.5;
-                const bCenterZ = (bBox.min.z + bBox.max.z) * 0.5;
-                const bSpanXZ = Math.max(bBox.max.x - bBox.min.x, bBox.max.z - bBox.min.z) || 1.0;
-                const bSpanY = (bBox.max.y - bBox.min.y) || 1.0;
-
-                bushGeo.translate(-bCenterX, -bBox.min.y, -bCenterZ);
-                bushGeo.scale(1.28 / bSpanXZ, 0.82 / bSpanY, 1.28 / bSpanXZ);
-                bushGeo.computeVertexNormals();
-
-                if (this.bushMesh && this.bushMesh.geometry) this.bushMesh.geometry.dispose();
-                if (this.bushMesh) this.bushMesh.geometry = bushGeo;
-            }
-        });
-
-        // 2. Moon Rock 02 (Photogrammetry Rubble Boulders)
-        addGltfTask('/assets/polyhaven/models/moon_rock_02/moon_rock_02.gltf', (gltf) => {
-            const scene = gltf.scene || (gltf.scenes && gltf.scenes[0]);
-            if (!scene) return;
-            const parts = [];
-            scene.traverse((c) => {
-                if (c.isMesh && c.geometry) {
-                    c.updateMatrixWorld(true);
-                    const g = c.geometry.clone();
-                    g.applyMatrix4(c.matrixWorld);
-                    if (g.attributes.color) g.deleteAttribute('color');
-                    const colArr = new Float32Array(g.attributes.position.count * 3);
-                    colArr.fill(1.0);
-                    g.setAttribute('color', new THREE.BufferAttribute(colArr, 3));
-                    parts.push(g);
-                }
-            });
-            if (parts.length > 0) {
-                const geo = this._mergeBufferGeometries(parts);
-                geo.computeBoundingBox();
-                const bbox = geo.boundingBox;
-                const cx = (bbox.min.x + bbox.max.x) * 0.5;
-                const cz = (bbox.min.z + bbox.max.z) * 0.5;
-                const spanXZ = Math.max(bbox.max.x - bbox.min.x, bbox.max.z - bbox.min.z) || 1.0;
-                const spanY = (bbox.max.y - bbox.min.y) || 1.0;
-                geo.translate(-cx, -bbox.min.y, -cz);
-                geo.scale(1.42 / spanXZ, 1.08 / spanY, 1.42 / spanXZ);
-                geo.computeVertexNormals();
-
-                if (this.rubbleMesh && this.rubbleMesh.geometry) this.rubbleMesh.geometry.dispose();
-                if (this.rubbleMesh) this.rubbleMesh.geometry = geo;
-
-                return new Promise((resolveTex) => {
-                    texLoader.load('/assets/polyhaven/models/moon_rock_02/textures/moon_rock_02_diff_1k.jpg', (diff) => {
-                        diff.encoding = THREE.sRGBEncoding;
-                        diff.flipY = false;
-                        texLoader.load('/assets/polyhaven/models/moon_rock_02/textures/moon_rock_02_nor_gl_1k.jpg', (nor) => {
-                            nor.flipY = false;
-                            if (this.rubbleMaterial) {
-                                this.rubbleMaterial.map = diff;
-                                this.rubbleMaterial.normalMap = nor;
-                                this.rubbleMaterial.needsUpdate = true;
-                            }
-                            this._hasPolyHavenRubbleTex = true;
-                            this._lastTerrainSig = null;
-                            resolveTex(true);
-                        }, undefined, () => resolveTex(false));
-                    }, undefined, () => resolveTex(false));
-                });
-            }
-        });
-
-        // 3. Rock 07 (Photogrammetry Mountain Crag)
-        addGltfTask('/assets/polyhaven/models/rock_07/rock_07.gltf', (gltf) => {
-            const scene = gltf.scene || (gltf.scenes && gltf.scenes[0]);
-            if (!scene) return;
-            const parts = [];
-            scene.traverse((c) => {
-                if (c.isMesh && c.geometry) {
-                    c.updateMatrixWorld(true);
-                    const g = c.geometry.clone();
-                    g.applyMatrix4(c.matrixWorld);
-                    if (g.attributes.color) g.deleteAttribute('color');
-                    const colArr = new Float32Array(g.attributes.position.count * 3);
-                    colArr.fill(1.0);
-                    g.setAttribute('color', new THREE.BufferAttribute(colArr, 3));
-                    parts.push(g);
-                }
-            });
-            if (parts.length > 0) {
-                const geo = this._mergeBufferGeometries(parts);
-                geo.computeBoundingBox();
-                const bbox = geo.boundingBox;
-                const cx = (bbox.min.x + bbox.max.x) * 0.5;
-                const cz = (bbox.min.z + bbox.max.z) * 0.5;
-                const spanXZ = Math.max(bbox.max.x - bbox.min.x, bbox.max.z - bbox.min.z) || 1.0;
-                const spanY = (bbox.max.y - bbox.min.y) || 1.0;
-                geo.translate(-cx, -bbox.min.y, -cz);
-                geo.scale(2.15 / spanXZ, 3.80 / spanY, 2.15 / spanXZ);
-                geo.computeVertexNormals();
-
-                if (this.mountainMesh && this.mountainMesh.geometry) this.mountainMesh.geometry.dispose();
-                if (this.mountainMesh) this.mountainMesh.geometry = geo;
-
-                return new Promise((resolveTex) => {
-                    texLoader.load('/assets/polyhaven/models/rock_07/textures/rock_07_diff_1k.jpg', (diff) => {
-                        diff.encoding = THREE.sRGBEncoding;
-                        diff.flipY = false;
-                        texLoader.load('/assets/polyhaven/models/rock_07/textures/rock_07_nor_gl_1k.jpg', (nor) => {
-                            nor.flipY = false;
-                            if (this.mountainMaterial) {
-                                this.mountainMaterial.map = diff;
-                                this.mountainMaterial.normalMap = nor;
-                                this.mountainMaterial.needsUpdate = true;
-                            }
-                            this._hasPolyHavenMountainTex = true;
-                            this._lastTerrainSig = null;
-                            resolveTex(true);
-                        }, undefined, () => resolveTex(false));
-                    }, undefined, () => resolveTex(false));
-                });
-            }
-        });
-
-        addGltfTask('/assets/models/items/Anvil_Log.gltf', (gltf) => {
-            if (!gltf || !gltf.scene || !this.forgeMesh) return;
-            gltf.scene.updateMatrixWorld(true);
-            const geos = [];
-            let firstMap = null;
-            gltf.scene.traverse((c) => {
-                if (c.isMesh && c.geometry) {
-                    const g = c.geometry.clone();
-                    g.applyMatrix4(c.matrixWorld);
-                    if (c.material && c.material.map && !firstMap) firstMap = c.material.map;
-                    const vCount = g.attributes.position ? g.attributes.position.count : 0;
-                    if (vCount > 0 && !g.attributes.color) {
-                        const colors = new Float32Array(vCount * 3);
-                        const mc = (c.material && c.material.color) ? c.material.color : { r: 0.72, g: 0.68, b: 0.64 };
-                        for (let i = 0; i < vCount; i++) {
-                            colors[i * 3] = mc.r;
-                            colors[i * 3 + 1] = mc.g;
-                            colors[i * 3 + 2] = mc.b;
-                        }
-                        g.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-                    }
-                    geos.push(g);
-                }
-            });
-            if (geos.length > 0) {
-                const merged = this._mergeBufferGeometries(geos);
-                merged.computeBoundingBox();
-                const bbox = merged.boundingBox;
-                const cx = (bbox.min.x + bbox.max.x) * 0.5;
-                const cz = (bbox.min.z + bbox.max.z) * 0.5;
-                const span = Math.max(bbox.max.x - bbox.min.x, bbox.max.y - bbox.min.y, bbox.max.z - bbox.min.z) || 1.0;
-                merged.translate(-cx, -bbox.min.y, -cz);
-                merged.scale(1.10 / span, 1.10 / span, 1.10 / span);
-                merged.computeVertexNormals();
-                if (this.forgeMesh.geometry) this.forgeMesh.geometry.dispose();
-                this.forgeMesh.geometry = merged;
-                if (firstMap && this.forgeMaterial) {
-                    if (typeof THREE.sRGBEncoding !== 'undefined') firstMap.encoding = THREE.sRGBEncoding;
-                    this.forgeMaterial.map = firstMap;
-                    this.forgeMaterial.needsUpdate = true;
-                }
-                this._lastTerrainSig = null;
-            }
-        });
-
-        // # ROOT-CAUSE: Preserve the 3-layer sculpted Gothic High Altar and 3-layer Tiered Marble Fountain geometries instead of overwriting them with broken shrine_candles.gltf UV merges or low-poly cartoon building_well_blue.gltf.
-        // 4 & 5. Bind 2K PBR Carved Stone Normal & Roughness Maps to Sculpted High Altars (feat 43) & Magic Fountains (feat 44)
-        this.loadPolyHavenSet('monastery_stone_floor', 2, 2, (stoneSet) => {
-            if (stoneSet && stoneSet.nor) {
-                if (this.altarMaterial) {
-                    this.altarMaterial.normalMap = stoneSet.nor;
-                    if (stoneSet.arm) this.altarMaterial.roughnessMap = stoneSet.arm;
-                    this.altarMaterial.normalScale = new THREE.Vector2(1.20, 1.20);
-                    this.altarMaterial.needsUpdate = true;
-                }
-                if (this.fountainMaterial) {
-                    this.fountainMaterial.normalMap = stoneSet.nor;
-                    if (stoneSet.arm) this.fountainMaterial.roughnessMap = stoneSet.arm;
-                    this.fountainMaterial.normalScale = new THREE.Vector2(1.15, 1.15);
-                    this.fountainMaterial.needsUpdate = true;
-                }
-            }
-        });
-        if (typeof this.ensurePbrSetReady === 'function') {
-            envTasks.push(this.ensurePbrSetReady('monastery_stone_floor'));
-        }
-
-        // 6. Sculpted Iron-Strapped Wooden Doors, Stone Arch Frames & Stepped Stone Staircases
-        addGltfTask('/assets/models/items/Door_4_Flat.gltf', (gltf) => {
-            if (!gltf || !gltf.scene || !this.doorMesh) return;
-            gltf.scene.updateMatrixWorld(true);
-            const geos = [];
-            gltf.scene.traverse((c) => {
-                if (c.isMesh && c.geometry) {
-                    const g = c.geometry.clone();
-                    g.applyMatrix4(c.matrixWorld);
-                    const vCount = g.attributes.position ? g.attributes.position.count : 0;
-                    const isMetal = c.material && /metal/i.test(c.material.name || '');
-                    if (vCount > 0) {
-                        const colors = new Float32Array(vCount * 3);
-                        const r = isMetal ? 0.36 : 0.88;
-                        const gr = isMetal ? 0.36 : 0.82;
-                        const b = isMetal ? 0.38 : 0.76;
-                        for (let i = 0; i < vCount; i++) {
-                            colors[i * 3] = r;
-                            colors[i * 3 + 1] = gr;
-                            colors[i * 3 + 2] = b;
-                        }
-                        g.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-                    }
-                    geos.push(g);
-                }
-            });
-            if (geos.length > 0) {
-                const closedGeo = this._mergeBufferGeometries(geos);
-                closedGeo.computeBoundingBox();
-                const bbox = closedGeo.boundingBox;
-                const cx = (bbox.min.x + bbox.max.x) * 0.5;
-                const cz = (bbox.min.z + bbox.max.z) * 0.5;
-                const sx = (bbox.max.x - bbox.min.x) || 1.0;
-                const sy = (bbox.max.y - bbox.min.y) || 1.0;
-                const sz = (bbox.max.z - bbox.min.z) || 0.2;
-                closedGeo.translate(-cx, -bbox.min.y, -cz);
-                closedGeo.scale(1.42 / sx, 2.26 / sy, 0.22 / sz);
-                closedGeo.computeVertexNormals();
-                if (this.doorMaterial) {
-                    this.doorMaterial.vertexColors = true;
-                    this.doorMaterial.needsUpdate = true;
-                }
-                if (this.doorMesh.geometry) this.doorMesh.geometry.dispose();
-                this.doorMesh.geometry = closedGeo;
-
-                if (this.doorOpenMesh) {
-                    const openGeo = closedGeo.clone();
-                    openGeo.translate(0.68, 0, 0);
-                    openGeo.rotateY(-86 * Math.PI / 180);
-                    openGeo.translate(-0.68, 0, 0);
-                    openGeo.computeVertexNormals();
-                    if (this.doorOpenMesh.geometry) this.doorOpenMesh.geometry.dispose();
-                    this.doorOpenMesh.geometry = openGeo;
-                }
-                this._lastTerrainSig = null;
-            }
-        });
-
-        addGltfTask('/assets/models/items/DoorFrame_Flat_Brick.gltf', (gltf) => {
-            if (!gltf || !gltf.scene || !this.doorFrameMesh) return;
-            gltf.scene.updateMatrixWorld(true);
-            const geos = [];
-            gltf.scene.traverse((c) => {
-                if (c.isMesh && c.geometry) {
-                    const g = c.geometry.clone();
-                    g.applyMatrix4(c.matrixWorld);
-                    const vCount = g.attributes.position ? g.attributes.position.count : 0;
-                    if (vCount > 0) {
-                        const colors = new Float32Array(vCount * 3).fill(0.92);
-                        g.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-                    }
-                    geos.push(g);
-                }
-            });
-            if (geos.length > 0) {
-                const frameGeo = this._mergeBufferGeometries(geos);
-                frameGeo.computeBoundingBox();
-                const bbox = frameGeo.boundingBox;
-                const cx = (bbox.min.x + bbox.max.x) * 0.5;
-                const cz = (bbox.min.z + bbox.max.z) * 0.5;
-                const sx = (bbox.max.x - bbox.min.x) || 1.5;
-                const sy = (bbox.max.y - bbox.min.y) || 2.4;
-                const sz = (bbox.max.z - bbox.min.z) || 0.4;
-                frameGeo.translate(-cx, -bbox.min.y, -cz);
-                frameGeo.scale(1.98 / sx, 2.88 / sy, 0.46 / sz);
-                frameGeo.computeVertexNormals();
-                if (this.doorFrameMesh.geometry) this.doorFrameMesh.geometry.dispose();
-                this.doorFrameMesh.geometry = frameGeo;
-                this._lastTerrainSig = null;
-            }
-        });
-
-        addGltfTask('/assets/models/items/Stairs_Exterior_Straight.gltf', (gltf) => {
-            if (!gltf || !gltf.scene || !this.stairsMesh) return;
-            gltf.scene.updateMatrixWorld(true);
-            const geos = [];
-            gltf.scene.traverse((c) => {
-                if (c.isMesh && c.geometry) {
-                    const g = c.geometry.clone();
-                    g.applyMatrix4(c.matrixWorld);
-                    const vCount = g.attributes.position ? g.attributes.position.count : 0;
-                    if (vCount > 0) {
-                        const colors = new Float32Array(vCount * 3).fill(0.94);
-                        g.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-                    }
-                    geos.push(g);
-                }
-            });
-            if (geos.length > 0) {
-                const upGeo = this._mergeBufferGeometries(geos);
-                upGeo.computeBoundingBox();
-                const bbox = upGeo.boundingBox;
-                const cx = (bbox.min.x + bbox.max.x) * 0.5;
-                const cz = (bbox.min.z + bbox.max.z) * 0.5;
-                const sx = (bbox.max.x - bbox.min.x) || 1.8;
-                const sy = (bbox.max.y - bbox.min.y) || 1.0;
-                const sz = (bbox.max.z - bbox.min.z) || 2.0;
-                upGeo.translate(-cx, -bbox.min.y, -cz);
-                upGeo.scale(1.76 / sx, 0.62 / sy, 1.94 / sz);
-                upGeo.computeVertexNormals();
-                const downGeo = upGeo.clone();
-                downGeo.rotateY(Math.PI);
-                downGeo.computeVertexNormals();
-                if (this.stairsUpMesh && this.stairsUpMesh.geometry) this.stairsUpMesh.geometry.dispose();
-                if (this.stairsUpMesh) this.stairsUpMesh.geometry = upGeo;
-                if (this.stairsMesh && this.stairsMesh.geometry) this.stairsMesh.geometry.dispose();
-                if (this.stairsMesh) this.stairsMesh.geometry = downGeo;
-                this._lastTerrainSig = null;
-            }
-        });
-
-        this._polyHavenEnvPromise = Promise.allSettled(envTasks).then(() => {
-            this._polyHavenEnvLoaded = true;
-            this._lastTerrainSig = null;
-            return true;
-        });
-        return this._polyHavenEnvPromise;
     }
 
     initStarCanopy() {
@@ -5438,9 +2251,22 @@ class Dungeon3D {
         this.castAnimationTime = 0;
     }
 
+    _getGltfLoader() {
+        if (!this.gltfLoader && typeof THREE !== 'undefined' && typeof THREE.GLTFLoader !== 'undefined') {
+            this.gltfLoader = new THREE.GLTFLoader();
+        }
+        const meshopt = (typeof MeshoptDecoder !== 'undefined' && MeshoptDecoder) ||
+            (typeof window !== 'undefined' && window.MeshoptDecoder) || null;
+        if (this.gltfLoader && !this.gltfLoader._meshoptConfigured && meshopt && typeof this.gltfLoader.setMeshoptDecoder === 'function') {
+            this.gltfLoader.setMeshoptDecoder(meshopt);
+            this.gltfLoader._meshoptConfigured = true;
+        }
+        return this.gltfLoader;
+    }
+
     initModelResolvers() {
         this.objLoader = (typeof THREE.OBJLoader !== 'undefined') ? new THREE.OBJLoader() : null;
-        this.gltfLoader = (typeof THREE.GLTFLoader !== 'undefined') ? new THREE.GLTFLoader() : null;
+        this.gltfLoader = this._getGltfLoader();
         this.gltfModels = {};
         this.objModels = {};
         this._gltfTemplateCache = new Map();
@@ -5493,7 +2319,7 @@ class Dungeon3D {
         // # ROOT-CAUSE: Remove unconditional 1800ms GLB prewarm timer during cold boot; awaitSceneAssetsReady(frame) loads exact required scene GLBs on demand.
         this._viewmodelWeaponPromises = new Map();
 
-        // Masterwork Braided Kangaroo-Leather Bullwhip + Coiled Loops + 3D Armored Gauntlet (zero CylinderGeometry/BoxGeometry)
+        // Masterwork Braided Kangaroo-Leather Bullwhip + Coiled Loops + 3D Armored Gauntlet (zero BoxGeometry)
         const createWhipViewmodelMesh = () => {
             const whipGroup = new THREE.Group();
             const braidNormal = this.furNormal || this.organicNormal || null;
@@ -5659,6 +2485,7 @@ class Dungeon3D {
             if (!gTmpl) return;
             const gClone = this._cloneCachedGltfTemplate(gTmpl, '#3a3530', 'item_gauntlets');
             if (!gClone) return;
+            gClone.userData._isHumanGauntlet = true;
             gClone.scale.set(0.30, 0.36, 0.30);
             gClone.position.set(0.0, -0.06, 0.02);
             gClone.rotation.set(0.35, 0.0, -0.18);
@@ -5680,13 +2507,157 @@ class Dungeon3D {
         return null;
     }
 
+    resolveAvatarViewmodel(player) {
+        if (!player) return null;
+        const rawTag = `${player.avatarId || ''} ${player.monsterForm || ''} ${player.race || ''} ${player.subrace || ''} ${player.class || ''}`.toLowerCase().replace(/[_-]+/g, ' ');
+        const isMonsterFlag = Boolean(player.isMonsterAvatar || player.avatarId || player.monsterForm);
+        let archetype = null;
+        if (/\b(dragon|wyrm|drake)\b/.test(rawTag)) archetype = 'dragon';
+        else if (/\b(beholder|eye\s*tyrant|gazer)\b/.test(rawTag)) archetype = 'beholder';
+        else if (/\b(vampire\s*lord|nosferatu)\b/.test(rawTag) || (/\bvampire\b/.test(rawTag) && (isMonsterFlag || /\bvampire\b/.test(String(player.race || '').toLowerCase())))) archetype = 'vampire_lord';
+        else if (/\b(lich|arch\s*lich|archlich|demilich)\b/.test(rawTag)) archetype = 'lich';
+        if (!archetype) return null;
+        return {
+            archetype,
+            isMonsterForm: isMonsterFlag || archetype === 'dragon' || archetype === 'beholder',
+            eyeHeight: archetype === 'dragon' ? 2.18 : (archetype === 'beholder' ? 1.84 : (archetype === 'lich' ? 1.72 : 1.74)),
+            heightRatio: archetype === 'dragon' ? 1.35 : (archetype === 'beholder' ? 1.14 : 1.07),
+            bypassGauntlets: true
+        };
+    }
+
+    _buildAvatarViewmodelGroup(archetype, side = 'right') {
+        if (!this._avatarViewmodelCache) this._avatarViewmodelCache = new Map();
+        const cacheKey = `${archetype}:${side}`;
+        if (this._avatarViewmodelCache.has(cacheKey)) {
+            return this._avatarViewmodelCache.get(cacheKey).clone(true);
+        }
+        const mirror = side === 'left' ? -1 : 1;
+        const root = new THREE.Group();
+        root.name = `AvatarVM_${archetype}_${side}`;
+
+        if (archetype === 'dragon') {
+            const scaleMat = new THREE.MeshStandardMaterial({
+                color: 0x3b1510,
+                normalMap: this.scaleNormal || this.organicNormal || null,
+                normalScale: new THREE.Vector2(1.55, 1.55),
+                emissive: new THREE.Color(0xff3b08),
+                emissiveIntensity: 0.30,
+                roughness: 0.42,
+                metalness: 0.28
+            });
+            const talonMat = new THREE.MeshStandardMaterial({
+                color: 0x1a1412,
+                emissive: new THREE.Color(0xff5511),
+                emissiveIntensity: 0.20,
+                roughness: 0.26,
+                metalness: 0.45
+            });
+            const crestShape = new THREE.Shape();
+            crestShape.moveTo(-0.048, -0.14);
+            crestShape.quadraticCurveTo(-0.062, -0.02, -0.042, 0.08);
+            crestShape.lineTo(0.042, 0.08);
+            crestShape.quadraticCurveTo(0.062, -0.02, 0.048, -0.14);
+            crestShape.closePath();
+            const armGeo = new THREE.ExtrudeGeometry(crestShape, { depth: 0.036, bevelEnabled: true, bevelThickness: 0.010, bevelSize: 0.008, bevelSegments: 2 });
+            armGeo.rotateX(-Math.PI * 0.42);
+            const armMesh = new THREE.Mesh(armGeo, scaleMat);
+            armMesh.position.set(0, -0.05, 0.02);
+            root.add(armMesh);
+            for (let t = -1; t <= 1; t++) {
+                const talon = new THREE.Mesh(new THREE.ConeGeometry(0.016, 0.135, 8), talonMat);
+                talon.rotation.set(-Math.PI * 0.58, 0, -t * 0.16 * mirror);
+                talon.position.set(t * 0.034, -0.01 + (t === 0 ? 0.012 : 0), -0.105 - (t === 0 ? 0.02 : 0));
+                root.add(talon);
+            }
+            root.rotation.set(0.14, -0.18 * mirror, 0.12 * mirror);
+        } else if (archetype === 'beholder') {
+            const chitinMat = new THREE.MeshStandardMaterial({
+                color: 0x4a1d5e,
+                normalMap: this.chitinNormal || this.organicNormal || null,
+                normalScale: new THREE.Vector2(1.45, 1.45),
+                emissive: new THREE.Color(0x581c87),
+                emissiveIntensity: 0.22,
+                roughness: 0.52,
+                metalness: 0.12
+            });
+            const scleraMat = new THREE.MeshStandardMaterial({ color: 0xfef3c7, roughness: 0.18, metalness: 0.05 });
+            const irisMat = new THREE.MeshStandardMaterial({ color: 0xa855f7, emissive: new THREE.Color(0xc084fc), emissiveIntensity: 0.55, roughness: 0.14 });
+            for (let s = 0; s < 2; s++) {
+                const stalk = new THREE.Group();
+                const offX = (s === 0 ? 0.02 : -0.045) * mirror;
+                const offY = s === 0 ? 0.03 : -0.035;
+                for (let seg = 0; seg < 3; seg++) {
+                    const segMesh = new THREE.Mesh(new THREE.BoxGeometry(0.026 - seg * 0.003, 0.026 - seg * 0.003, 0.065), chitinMat);
+                    segMesh.position.set(offX + seg * 0.012 * mirror, offY + seg * 0.024, 0.04 - seg * 0.058);
+                    segMesh.rotation.set(0.22 - seg * 0.08, -0.12 * mirror, 0.15 * seg * mirror);
+                    stalk.add(segMesh);
+                }
+                const tipX = offX + 0.032 * mirror;
+                const tipY = offY + 0.068;
+                const tipZ = -0.115;
+                const rim = new THREE.Mesh(new THREE.TorusGeometry(0.028, 0.008, 8, 16), chitinMat);
+                rim.position.set(tipX, tipY, tipZ);
+                const eye = new THREE.Mesh(new THREE.SphereGeometry(0.025, 14, 12), scleraMat);
+                eye.position.set(tipX, tipY, tipZ - 0.006);
+                const pupil = new THREE.Mesh(new THREE.SphereGeometry(0.013, 12, 10), irisMat);
+                pupil.position.set(tipX, tipY, tipZ - 0.022);
+                stalk.add(rim, eye, pupil);
+                root.add(stalk);
+            }
+            root.userData._isBeholderStalk = true;
+        } else {
+            const isLich = archetype === 'lich';
+            const handMat = new THREE.MeshStandardMaterial({
+                color: isLich ? 0xd6cbb5 : 0xd8d4dc,
+                normalMap: this.organicNormal || null,
+                normalScale: new THREE.Vector2(0.85, 0.85),
+                emissive: new THREE.Color(isLich ? 0x38bdf8 : 0x991b1b),
+                emissiveIntensity: isLich ? 0.24 : 0.18,
+                roughness: isLich ? 0.58 : 0.42,
+                metalness: 0.12
+            });
+            const clawMat = new THREE.MeshStandardMaterial({
+                color: isLich ? 0x0f172a : 0x450a0a,
+                emissive: new THREE.Color(isLich ? 0x7c3aed : 0xdc2626),
+                emissiveIntensity: 0.42,
+                roughness: 0.24,
+                metalness: 0.50
+            });
+            const palm = new THREE.Mesh(new THREE.BoxGeometry(0.068, 0.022, 0.088), handMat);
+            palm.position.set(0, -0.035, 0.01);
+            root.add(palm);
+            for (let f = 0; f < 4; f++) {
+                const fx = (-0.027 + f * 0.018) * mirror;
+                const phalange = new THREE.Mesh(new THREE.BoxGeometry(0.011, 0.012, 0.068), handMat);
+                phalange.position.set(fx, -0.026 + (f === 1 || f === 2 ? 0.005 : 0), -0.058);
+                phalange.rotation.x = 0.18;
+                const claw = new THREE.Mesh(new THREE.ConeGeometry(0.0065, 0.046, 6), clawMat);
+                claw.rotation.x = -Math.PI * 0.58;
+                claw.position.set(fx, -0.032, -0.105);
+                root.add(phalange, claw);
+            }
+            const auraOrb = new THREE.Mesh(
+                new THREE.SphereGeometry(0.024, 12, 10),
+                new THREE.MeshBasicMaterial({ color: isLich ? 0x38bdf8 : 0xdc2626, transparent: true, opacity: 0.42 })
+            );
+            auraOrb.position.set(0, -0.008, -0.045);
+            root.add(auraOrb);
+            root.rotation.set(0.16, -0.16 * mirror, 0.10 * mirror);
+        }
+
+        this._avatarViewmodelCache.set(cacheKey, root);
+        return root.clone(true);
+    }
+
     updateViewmodel(player) {
         if (!player) return;
 
         // 1. Dynamic Character Height & World Scaling Subsystem (Exact Parity with Godot ViewModel.cs)
         const ht = player.ht || 0;
         const race = (player.race || '').toLowerCase();
-        const pClass = (player.class || '').toLowerCase();
+        const avatarVm = this.resolveAvatarViewmodel(player);
+        this._activeAvatarArchetype = avatarVm ? avatarVm.archetype : null;
 
         let targetEyeHeight = 1.62;
         let heightRatio = 1.0;
@@ -5694,6 +2665,9 @@ class Dungeon3D {
         if (ht > 0) {
             targetEyeHeight = (ht / 72.0) * 1.62;
             heightRatio = ht / 72.0;
+        } else if (avatarVm) {
+            targetEyeHeight = avatarVm.eyeHeight;
+            heightRatio = avatarVm.heightRatio;
         } else if (race.includes('halfling') || race.includes('hobbit') || race.includes('kobold')) {
             targetEyeHeight = 0.85;
             heightRatio = 0.60;
@@ -5721,127 +2695,62 @@ class Dungeon3D {
         this.eyeHeight = Math.max(0.70, Math.min(2.35, targetEyeHeight));
         this.heightRatio = Math.max(0.55, Math.min(1.45, heightRatio));
 
-        // Realistic perspective pitch by character height:
-        // Base focal pitch: -9.0° (natural downward focus on floor/corridor/monsters ahead)
-        // Height compensation: +22° per meter of height difference below 1.62m (or -22° per meter above 1.62m)
-        // Tall characters (Half-Trolls, Ogres) look steep downward (-23°);
-        // Short characters (Halflings, Kobolds) look upwards (+8°);
-        // Dwarves look level/slight chest-height (+0.7°);
-        // Humans look natural down-corridor (-9.0°).
         const heightDelta = 1.62 - this.eyeHeight;
         const basePitchDeg = -9.0 + (heightDelta * 22.0);
         this.basePitch = basePitchDeg * (Math.PI / 180.0);
         this.targetPitch = this.basePitch + (this.userPitchOffset || 0.0);
 
-        // Subtle FOV adjustment (1:1 with Godot DungeonWorld.cs:2056)
-        // Wider peripheral awareness for short races (86°), focused perspective for tall races (80°)
+        // Subtle FOV adjustment gated to avoid redundant projection matrix math per turn
         if (this.camera) {
-            const fov = 86.0 - (this.heightRatio - 0.60) * (6.0 / 0.85);
-            this.camera.fov = Math.max(78.0, Math.min(88.0, fov));
-            this.camera.updateProjectionMatrix();
-        }
-
-        this.viewmodelGroup.scale.set(1.0, 1.0, 1.0);
-
-        // 4. Equipment resolution
-        // # ROOT-CAUSE: Exclude non-hand armor/helm/jewelry/light slots before slot-index fallback so slot:1 body armor never equips a phantom left-hand sword.
-        const _itemStr = (v) => (v && typeof v === 'object') ? String(v.name || v.desc || '') : String(v || '');
-        let weaponItem = _itemStr(player.weapon_item);
-        let bowItem = _itemStr(player.bow_item);
-        let shieldItem = _itemStr(player.shield_item);
-        if (Array.isArray(player.equipment)) {
-            for (const eq of player.equipment) {
-                if (!eq) continue;
-                const eqName = String(eq.name || eq.desc || '').trim();
-                if (!eqName || /^(none|nothing|\(nothing\)|\(none\)|empty|なし)$/i.test(eqName)) continue;
-                const slotRaw = String(eq.slot ?? eq.label ?? '').toLowerCase().trim();
-                const slotName = String(eq.slot_name || '').toLowerCase().trim();
-                const slotMeta = `${slotName} ${eq.mention || ''} ${eq.category || ''} ${eq.label || ''}`.toLowerCase();
-                const eqTval = Number(eq.tval || 0);
-                if (/\b(armou?r|body|torso|chest|cloak|mantle|outer|helm|head|crown|hat|boot|feet|foot|shoe|glove|gauntlet|finger|ring|neck|amulet|light|lite|source|lantern|lamp|bag|quiver|ammo)\b/.test(slotMeta) ||
-                    (eqTval >= 30 && eqTval <= 45 && eqTval !== 34)) {
-                    continue;
-                }
-                const hasExplicitSlotName = slotName.length > 0;
-                if (!weaponItem && ((hasExplicitSlotName ? /\b(weapon|wield|melee|right|primary)\b/.test(slotMeta) : (slotRaw === '0' || slotRaw === 'a')) || /\b(wield|weapon|right)\b/.test(slotRaw))) {
-                    weaponItem = eqName;
-                } else if (!bowItem && ((hasExplicitSlotName ? /\b(shoot|bow|launcher|range|ranged)\b/.test(slotMeta) : (slotRaw === '2' || slotRaw === 'b')) || /\b(shoot|bow|launcher)\b/.test(slotRaw))) {
-                    bowItem = eqName;
-                } else if (!shieldItem && ((hasExplicitSlotName ? /\b(shield|buckler|offhand|off-hand|left|secondary|arm)\b/.test(slotMeta) : (slotRaw === '1' || slotRaw === 'f')) || (!/\barmou?r\b/.test(slotRaw) && /\b(arm|shield|offhand|off-hand|left)\b/.test(slotRaw)) || eqTval === 34)) {
-                    shieldItem = eqName;
-                }
+            const nextFov = Math.max(78.0, Math.min(88.0, 86.0 - (this.heightRatio - 0.60) * (6.0 / 0.85)));
+            if (Math.abs(this.camera.fov - nextFov) > 0.01) {
+                this.camera.fov = nextFov;
+                this.camera.updateProjectionMatrix();
             }
         }
 
-        // Left hand: strictly reserved for equipped shields or dual-wielded off-hand weapons (never illumination items)
-        if (shieldItem) {
+        if (!this.viewmodelGroup) return;
+        this.viewmodelGroup.scale.set(1.0, 1.0, 1.0);
+
+        // 4. Equipment & Creature Avatar Viewmodel resolution
+        const { weaponItem, bowItem, shieldItem } = this._extractHandItems(player);
+        const useCreatureHands = Boolean(avatarVm && (avatarVm.isMonsterForm || (!weaponItem && !bowItem)));
+
+        if (shieldItem && !avatarVm?.isMonsterForm) {
             this.resolveShieldModel(shieldItem, player);
+        } else if (useCreatureHands && this.leftItemSlot) {
+            const leftAvatarKey = `avatar:${avatarVm.archetype}:left`;
+            if (this.currentLeftWeapon !== leftAvatarKey || this.leftItemSlot.children.length === 0) {
+                this.currentLeftWeapon = leftAvatarKey;
+                while (this.leftItemSlot.children.length > 0) this.leftItemSlot.remove(this.leftItemSlot.children[0]);
+                this.leftItemSlot.add(this._buildAvatarViewmodelGroup(avatarVm.archetype, 'left'));
+            }
+            this.leftHandGroup.visible = true;
         } else {
             this.leftHandGroup.visible = false;
             this.currentLeftWeapon = null;
         }
 
-        // RIGHT HAND RULE (1:1 with Godot ViewModel.cs:351-353):
-        // Primary equipped melee weapon or ranged bow.
-        // If unarmed, remains clean & empty (no fake default weapons or mannequin arms).
+        if (useCreatureHands && this.rightItemSlot) {
+            const rightAvatarKey = `avatar:${avatarVm.archetype}:right`;
+            if (this.currentRightWeapon !== rightAvatarKey || this.rightItemSlot.children.length === 0) {
+                this.currentRightWeapon = rightAvatarKey;
+                this.currentRightWeaponBrand = null;
+                while (this.rightItemSlot.children.length > 0) this.rightItemSlot.remove(this.rightItemSlot.children[0]);
+                this.rightItemSlot.add(this._buildAvatarViewmodelGroup(avatarVm.archetype, 'right'));
+            }
+            this.rightHandGroup.visible = true;
+            return;
+        }
+
         this.resolveRightWeaponModel(weaponItem, bowItem, player);
     }
 
     resolveRightWeaponModel(weaponItem, bowItem, player) {
-        let key = '';
         const lowerW = (weaponItem || '').toLowerCase();
-        const lowerB = (bowItem || '').toLowerCase();
-        const wTval = player && Number(player.weapon_tval || 0);
-
-        if (typeof window !== 'undefined' && window.MASTER_ITEM_REGISTRY && typeof window.MASTER_ITEM_REGISTRY.resolveEquippedWeaponKey === 'function') {
-            key = window.MASTER_ITEM_REGISTRY.resolveEquippedWeaponKey(weaponItem, bowItem, player, this.realm) || '';
-        } else if (lowerW.length > 0) {
-            if (/\b(shovel|spade|trowel)\b/.test(lowerW)) {
-                key = 'shovel';
-            } else if (/\b(pick|pickaxe|mattock|digger)\b/.test(lowerW) || wTval === 20) {
-                key = 'pickaxe';
-            } else if (/\bwand\b/.test(lowerW) || wTval === 65) {
-                key = 'wand';
-            } else if (/\brod\b/.test(lowerW) || wTval === 66) {
-                key = 'rod';
-            } else if (/\b(staff|quarterstaff)\b/.test(lowerW) || wTval === 55) {
-                key = /\b(gnarled|branch|druid|wood)\b/.test(lowerW) ? 'staff_branch' : 'staff';
-            } else if (/\b(scythe|sickle|glaive|halberd|lochaber)\b/.test(lowerW)) {
-                key = 'axe';
-            } else if (lowerW.includes('whip') || lowerW.includes('bullwhip') || lowerW.includes('scourge') || lowerW.includes('cat-o')) {
-                key = 'whip';
-            } else if (lowerW.includes('katana') || lowerW.includes('wakizashi') || lowerW.includes('nodachi') || lowerW.includes('ninja-to') || lowerW.includes('tanto')) {
-                key = 'katana';
-            } else if (lowerW.includes('dagger') || lowerW.includes('knife') || lowerW.includes('main gauche') || lowerW.includes('misericorde') || lowerW.includes('stiletto') || lowerW.includes('dirk')) {
-                key = 'dagger';
-            } else if (lowerW.includes('claymore') || lowerW.includes('two-handed') || lowerW.includes('great sword') || lowerW.includes('executioner') || lowerW.includes('zweihander')) {
-                key = 'claymore';
-            } else if (lowerW.includes('rune') || lowerW.includes('vorpal') || lowerW.includes('morgul') || lowerW.includes('ringil') || lowerW.includes('anduril') || lowerW.includes('glamdring')) {
-                key = 'blade';
-            } else if (lowerW.includes('saber') || lowerW.includes('sabre') || lowerW.includes('scimitar') || lowerW.includes('cutlass') || lowerW.includes('falchion') || lowerW.includes('tulwar')) {
-                key = 'saber';
-            } else if (lowerW.includes('hatchet')) {
-                key = 'hatchet';
-            } else if (lowerW.includes('axe') || lowerW.includes('cleaver')) {
-                key = 'axe';
-            } else if (lowerW.includes('morning star') || lowerW.includes('morningstar') || lowerW.includes('flail') || lowerW.includes('ball-and-chain')) {
-                key = 'morningstar';
-            } else if (lowerW.includes('club') || lowerW.includes('cudgel')) {
-                key = 'club';
-            } else if (lowerW.includes('mace') || lowerW.includes('scepter')) {
-                key = 'mace';
-            } else if (/\b(sledge|maul|great hammer|grond)\b/.test(lowerW)) {
-                key = 'sledgehammer';
-            } else if (lowerW.includes('hammer')) {
-                key = 'hammer';
-            } else if (lowerW.includes('spear') || lowerW.includes('pike') || lowerW.includes('lance') || lowerW.includes('trident') || lowerW.includes('polearm')) {
-                key = 'spear';
-            } else {
-                key = 'sword';
-            }
-        } else if (lowerB.length > 0) {
-            key = 'bow';
-        }
+        const key = this._resolveRightKey(weaponItem, bowItem, player);
+        const avatarVm = this.resolveAvatarViewmodel(player);
+        const bypassGauntlet = Boolean(avatarVm && avatarVm.bypassGauntlets);
 
         let brandHex = null;
         if (/\b(flame|flaming|fire|burning|anduril|sun)\b/.test(lowerW)) brandHex = '#ff5500';
@@ -5852,9 +2761,10 @@ class Dungeon3D {
         else if (/\b(holy|blessed|defender|westernesse|gondolin|lothlorien)\b/.test(lowerW)) brandHex = '#facc15';
         else if (/\b(morgul|vampiric|chaos|terror)\b/.test(lowerW)) brandHex = '#a855f7';
 
-        if (this.currentRightWeapon === key && this.currentRightWeaponBrand === brandHex && this.rightItemSlot && this.rightItemSlot.children.length > 0) return;
+        const stateSig = `${brandHex || ''}|${bypassGauntlet ? 'noGauntlet' : 'std'}`;
+        if (this.currentRightWeapon === key && this.currentRightWeaponBrand === stateSig && this.rightItemSlot && this.rightItemSlot.children.length > 0) return;
         this.currentRightWeapon = key;
-        this.currentRightWeaponBrand = brandHex;
+        this.currentRightWeaponBrand = stateSig;
 
         if (this.rightItemSlot) {
             while (this.rightItemSlot.children.length > 0) {
@@ -5869,6 +2779,11 @@ class Dungeon3D {
             let mesh = null;
             if (this.weaponCache.has(key)) {
                 mesh = this.weaponCache.get(key).clone(true);
+                if (bypassGauntlet) {
+                    mesh.traverse((c) => {
+                        if (c.userData && c.userData._isHumanGauntlet) c.visible = false;
+                    });
+                }
                 if (brandHex) {
                     const bCol = new THREE.Color(brandHex);
                     mesh.traverse((c) => {
@@ -5879,6 +2794,7 @@ class Dungeon3D {
                             mClone._sharedMaterial = true;
                             if (c.material.onBeforeCompile) mClone.onBeforeCompile = c.material.onBeforeCompile;
                             if (c.material.customProgramCacheKey) mClone.customProgramCacheKey = c.material.customProgramCacheKey;
+                            this._applyUvSeamBleedFix(mClone);
                             if (mClone.color) mClone.color.lerp(bCol, 0.36);
                             if (mClone.emissive) {
                                 mClone.emissive.copy(bCol);
@@ -5892,6 +2808,11 @@ class Dungeon3D {
                 this._ensureViewmodelWeapon(key);
             }
             if (mesh) {
+                const isBladeOrSword = Boolean(key && /sword|saber|blade|katana|dagger|scimitar|rapier|broadsword/i.test(key));
+                if (isBladeOrSword) {
+                    mesh.rotation.y = (mesh.rotation.y || 0) - 0.10;
+                    mesh.rotation.z = (mesh.rotation.z || 0) + 0.12;
+                }
                 this.rightItemSlot.add(mesh);
             }
             this.rightHandGroup.visible = true;
@@ -5899,39 +2820,9 @@ class Dungeon3D {
     }
 
     resolveShieldModel(shieldItem, player) {
-        // # ROOT-CAUSE: Restrict left hand to verified shields or dual-wielded off-hand weapons; delete dead resolveLeftLightModel
+        // # ROOT-CAUSE: Restrict left hand to verified shields or dual-wielded off-hand weapons; delete dead resolveBowGripGauntlet
         if (!this.leftItemSlot) return;
-        const lower = String(shieldItem || '').toLowerCase().trim();
-        if (!shieldItem || /^(none|nothing|\(nothing\)|\(none\)|empty|なし)$/i.test(lower)) {
-            this.leftHandGroup.visible = false;
-            this.currentLeftWeapon = null;
-            return;
-        }
-        let key = '';
-        let isOffhandWeapon = false;
-        // # ROOT-CAUSE: Only allow left-hand offhand weapon fallback when shieldItem resolves to a verified weapon category; exclude non-hand equipment slots in resolveDesiredViewmodelKeys.
-        if (typeof window !== 'undefined' && window.MASTER_ITEM_REGISTRY && typeof window.MASTER_ITEM_REGISTRY.resolveShieldKey === 'function') {
-            key = window.MASTER_ITEM_REGISTRY.resolveShieldKey(shieldItem, '(', this.realm) || '';
-            if (!key && typeof window.MASTER_ITEM_REGISTRY.resolveItem === 'function' && typeof window.MASTER_ITEM_REGISTRY.resolveEquippedWeaponKey === 'function') {
-                const offRes = window.MASTER_ITEM_REGISTRY.resolveItem(shieldItem, ')', this.realm);
-                if (offRes && offRes.category === 'weapon' && offRes.viewmodelKey) {
-                    key = offRes.viewmodelKey;
-                    isOffhandWeapon = true;
-                }
-            }
-        } else if (/\b(deflection|dragon|artifact|thorin|celegorm|anor|gil-galad|harad|raven|mirror|elven)\b/.test(lower) && /\b(shield|buckler|targe)\b/.test(lower)) {
-            key = 'shield_raven';
-        } else if (/\b(wicker|buckler|basket)\b/.test(lower)) {
-            key = 'shield_wicker';
-        } else if (/\bleather\b/.test(lower) && /\b(shield|buckler|targe)\b/.test(lower)) {
-            key = 'shield_leather';
-        } else if (/\bsmall metal\b/.test(lower)) {
-            key = 'shield_metal';
-        } else if (/\b(wooden|wood|round|small|target)\b/.test(lower) && /\b(shield|buckler|targe)\b/.test(lower)) {
-            key = 'shield_wooden';
-        } else if (/\b(shield|buckler|targe)\b/.test(lower)) {
-            key = 'shield';
-        }
+        const { key, isOffhandWeapon } = this._resolveLeftShieldOrOffhand(shieldItem);
         if (!key) {
             this.leftHandGroup.visible = false;
             this.currentLeftWeapon = null;
@@ -5948,6 +2839,12 @@ class Dungeon3D {
         }
         if (this.weaponCache.has(key)) {
             const clone = this.weaponCache.get(key).clone(true);
+            const avatarVm = this.resolveAvatarViewmodel(player);
+            if (avatarVm && avatarVm.bypassGauntlets) {
+                clone.traverse((c) => {
+                    if (c.userData && c.userData._isHumanGauntlet) c.visible = false;
+                });
+            }
             if (isOffhandWeapon) {
                 clone.scale.x = -Math.abs(clone.scale.x || 1);
             }
@@ -5959,7 +2856,7 @@ class Dungeon3D {
     }
 
     _ensureViewmodelWeapon(key) {
-        // # ROOT-CAUSE: Return a deduplicated Promise from _ensureViewmodelWeapon and expose awaitSceneAssetsReady(frame) so #loading-overlay waits until 100% of 2K PBR maps, 4K sprite atlases, 3D monster/item GLBs, viewmodel weapons, and shaders are ready.
+        // # ROOT-CAUSE: Return a deduplicated Promise from _ensureViewmodelWeapon and expose awaitSceneAssetsReady(frame)
         if (!key) return Promise.resolve(null);
         if (this.weaponCache.has(key)) return Promise.resolve(this.weaponCache.get(key));
         if (!this._viewmodelWeaponPromises) this._viewmodelWeaponPromises = new Map();
@@ -5976,8 +2873,6 @@ class Dungeon3D {
             const wClone = this._cloneCachedGltfTemplate(tmpl, null, phKey);
             if (!wClone) return null;
             this._prepareCanonicalHeldClone(wClone, phKey);
-            // _prepareCanonicalHeldClone aligns cutting edges / striking faces to +Z for 3rd-person monster hands.
-            // In 1st-person camera space (looking down -Z), rotate innerPivot so the striking edge faces forward-left (-Z / -X) into the dungeon!
             const innerPivot = wClone.children && wClone.children[0];
             if (key === 'shield' || key.startsWith('shield_')) {
                 wClone.scale.setScalar(0.38);
@@ -6003,6 +2898,7 @@ class Dungeon3D {
             if (needsGauntlet && gTmpl) {
                 const gClone = this._cloneCachedGltfTemplate(gTmpl, '#3a3530', 'item_gauntlets');
                 if (gClone) {
+                    gClone.userData._isHumanGauntlet = true;
                     gClone.scale.set(0.34, 0.42, 0.34);
                     gClone.position.set(0.0, -0.09, 0.02);
                     gClone.rotation.set(0.35, 0.0, -0.18);
@@ -6023,198 +2919,55 @@ class Dungeon3D {
 
     resolveDesiredViewmodelKeys(player) {
         if (!player) return [];
-        const _itemStr = (v) => (v && typeof v === 'object') ? String(v.name || v.desc || '') : String(v || '');
-        let weaponItem = _itemStr(player.weapon_item);
-        let bowItem = _itemStr(player.bow_item);
-        let shieldItem = _itemStr(player.shield_item);
-        // # ROOT-CAUSE: Align resolveDesiredViewmodelKeys equipment slot filtering and offhand weapon check 1:1 with updateViewmodel & resolveShieldModel.
-        if (Array.isArray(player.equipment)) {
-            for (const eq of player.equipment) {
-                if (!eq) continue;
-                const eqName = String(eq.name || eq.desc || '').trim();
-                if (!eqName || /^(none|nothing|\(nothing\)|\(none\)|empty|なし)$/i.test(eqName)) continue;
-                const slotRaw = String(eq.slot ?? eq.label ?? '').toLowerCase().trim();
-                const slotName = String(eq.slot_name || '').toLowerCase().trim();
-                const slotMeta = `${slotName} ${eq.mention || ''} ${eq.category || ''} ${eq.label || ''}`.toLowerCase();
-                const eqTval = Number(eq.tval || 0);
-                if (/\b(armou?r|body|torso|chest|cloak|mantle|outer|helm|head|crown|hat|boot|feet|foot|shoe|glove|gauntlet|finger|ring|neck|amulet|light|lite|source|lantern|lamp|bag|quiver|ammo)\b/.test(slotMeta) ||
-                    (eqTval >= 30 && eqTval <= 45 && eqTval !== 34)) {
-                    continue;
-                }
-                const hasExplicitSlotName = slotName.length > 0;
-                if (!weaponItem && ((hasExplicitSlotName ? /\b(weapon|wield|melee|right|primary)\b/.test(slotMeta) : (slotRaw === '0' || slotRaw === 'a')) || /\b(wield|weapon|right)\b/.test(slotRaw))) {
-                    weaponItem = eqName;
-                } else if (!bowItem && ((hasExplicitSlotName ? /\b(shoot|bow|launcher|range|ranged)\b/.test(slotMeta) : (slotRaw === '2' || slotRaw === 'b')) || /\b(shoot|bow|launcher)\b/.test(slotRaw))) {
-                    bowItem = eqName;
-                } else if (!shieldItem && ((hasExplicitSlotName ? /\b(shield|buckler|offhand|off-hand|left|secondary|arm)\b/.test(slotMeta) : (slotRaw === '1' || slotRaw === 'f')) || (!/\barmou?r\b/.test(slotRaw) && /\b(arm|shield|offhand|off-hand|left)\b/.test(slotRaw)) || eqTval === 34)) {
-                    shieldItem = eqName;
-                }
-            }
-        }
+        const { weaponItem, bowItem, shieldItem } = this._extractHandItems(player);
         const keys = [];
-        const lowerW = (weaponItem || '').toLowerCase();
-        const lowerB = (bowItem || '').toLowerCase();
-        const wTval = player && Number(player.weapon_tval || 0);
-        let rightKey = '';
-        if (typeof window !== 'undefined' && window.MASTER_ITEM_REGISTRY && typeof window.MASTER_ITEM_REGISTRY.resolveEquippedWeaponKey === 'function') {
-            rightKey = window.MASTER_ITEM_REGISTRY.resolveEquippedWeaponKey(weaponItem, bowItem, player, this.realm) || '';
-        } else if (lowerW.length > 0) {
-            if (/\b(shovel|spade|trowel)\b/.test(lowerW)) rightKey = 'shovel';
-            else if (/\b(pick|pickaxe|mattock|digger)\b/.test(lowerW) || wTval === 20) rightKey = 'pickaxe';
-            else if (/\bwand\b/.test(lowerW) || wTval === 65) rightKey = 'wand';
-            else if (/\brod\b/.test(lowerW) || wTval === 66) rightKey = 'rod';
-            else if (/\b(staff|quarterstaff)\b/.test(lowerW) || wTval === 55) rightKey = /\b(gnarled|branch|druid|wood)\b/.test(lowerW) ? 'staff_branch' : 'staff';
-            else if (/\b(scythe|sickle|glaive|halberd|lochaber)\b/.test(lowerW)) rightKey = 'axe';
-            else if (lowerW.includes('whip') || lowerW.includes('bullwhip') || lowerW.includes('scourge') || lowerW.includes('cat-o')) rightKey = 'whip';
-            else if (lowerW.includes('katana') || lowerW.includes('wakizashi') || lowerW.includes('nodachi') || lowerW.includes('ninja-to') || lowerW.includes('tanto')) rightKey = 'katana';
-            else if (lowerW.includes('dagger') || lowerW.includes('knife') || lowerW.includes('main gauche') || lowerW.includes('misericorde') || lowerW.includes('stiletto') || lowerW.includes('dirk')) rightKey = 'dagger';
-            else if (lowerW.includes('claymore') || lowerW.includes('two-handed') || lowerW.includes('great sword') || lowerW.includes('executioner') || lowerW.includes('zweihander')) rightKey = 'claymore';
-            else if (lowerW.includes('rune') || lowerW.includes('vorpal') || lowerW.includes('morgul') || lowerW.includes('ringil') || lowerW.includes('anduril') || lowerW.includes('glamdring')) rightKey = 'blade';
-            else if (lowerW.includes('saber') || lowerW.includes('sabre') || lowerW.includes('scimitar') || lowerW.includes('cutlass') || lowerW.includes('falchion') || lowerW.includes('tulwar')) rightKey = 'saber';
-            else if (lowerW.includes('hatchet')) rightKey = 'hatchet';
-            else if (lowerW.includes('axe') || lowerW.includes('cleaver')) rightKey = 'axe';
-            else if (lowerW.includes('morning star') || lowerW.includes('morningstar') || lowerW.includes('flail') || lowerW.includes('ball-and-chain')) rightKey = 'morningstar';
-            else if (lowerW.includes('club') || lowerW.includes('cudgel')) rightKey = 'club';
-            else if (lowerW.includes('mace') || lowerW.includes('scepter')) rightKey = 'mace';
-            else if (/\b(sledge|maul|great hammer|grond)\b/.test(lowerW)) rightKey = 'sledgehammer';
-            else if (lowerW.includes('hammer')) rightKey = 'hammer';
-            else if (lowerW.includes('spear') || lowerW.includes('pike') || lowerW.includes('lance') || lowerW.includes('trident') || lowerW.includes('polearm')) rightKey = 'spear';
-            else rightKey = 'sword';
-        } else if (lowerB.length > 0) {
-            rightKey = 'bow';
-        }
+        const rightKey = this._resolveRightKey(weaponItem, bowItem, player);
         if (rightKey && !this.weaponCache.has(rightKey)) keys.push(rightKey);
-
-        const lowerS = String(shieldItem || '').toLowerCase().trim();
-        if (shieldItem && !/^(none|nothing|\(nothing\)|\(none\)|empty|なし)$/i.test(lowerS)) {
-            let leftKey = '';
-            if (typeof window !== 'undefined' && window.MASTER_ITEM_REGISTRY && typeof window.MASTER_ITEM_REGISTRY.resolveShieldKey === 'function') {
-                leftKey = window.MASTER_ITEM_REGISTRY.resolveShieldKey(shieldItem, '(', this.realm) || '';
-                if (!leftKey && typeof window.MASTER_ITEM_REGISTRY.resolveItem === 'function') {
-                    const offRes = window.MASTER_ITEM_REGISTRY.resolveItem(shieldItem, ')', this.realm);
-                    if (offRes && offRes.category === 'weapon' && offRes.viewmodelKey) {
-                        leftKey = offRes.viewmodelKey;
-                    }
-                }
-            } else if (/\b(deflection|dragon|artifact|thorin|celegorm|anor|gil-galad|harad|raven|mirror|elven)\b/.test(lowerS) && /\b(shield|buckler|targe)\b/.test(lowerS)) {
-                leftKey = 'shield_raven';
-            } else if (/\b(wicker|buckler|basket)\b/.test(lowerS)) {
-                leftKey = 'shield_wicker';
-            } else if (/\bleather\b/.test(lowerS) && /\b(shield|buckler|targe)\b/.test(lowerS)) {
-                leftKey = 'shield_leather';
-            } else if (/\bsmall metal\b/.test(lowerS)) {
-                leftKey = 'shield_metal';
-            } else if (/\b(wooden|wood|round|small|target)\b/.test(lowerS) && /\b(shield|buckler|targe)\b/.test(lowerS)) {
-                leftKey = 'shield_wooden';
-            } else if (/\b(shield|buckler|targe)\b/.test(lowerS)) {
-                leftKey = 'shield';
-            }
-            if (leftKey && !this.weaponCache.has(leftKey) && !keys.includes(leftKey)) keys.push(leftKey);
-        }
+        const { key: leftKey } = this._resolveLeftShieldOrOffhand(shieldItem);
+        if (leftKey && !this.weaponCache.has(leftKey) && !keys.includes(leftKey)) keys.push(leftKey);
         return keys;
     }
 
-    getRequiredPbrSetIds(theme, outdoors, realm) {
-        // # ROOT-CAUSE: Map active scene themes to exact this.polyHavenSets IDs, check this._monster3DTemplates and this._gltfTemplateCache in hasPendingSceneAssets, and call applyEnvironmentTextures with canonical arguments.
-        const tid = String((theme && theme.id) ? theme.id : (theme || 'granite')).toLowerCase();
+    getRequiredPbrSetIds(theme, outdoors, realm, tier1Only = false) {
+        // # ROOT-CAUSE: Delegate to unified resolveContextualPbrIds so retired T_* local PBR IDs are never requested and local_wood_trim/local_plaster are gated to town/shops.
+        const tid = String((theme && theme.id) ? theme.id : (theme || '')).toLowerCase();
         const r = String(realm || this.realm || 'angband').toLowerCase();
-        const ids = new Set(['bark_willow_02', 'local_wood_trim', 'local_rock_trim']);
-        if (outdoors) {
-            if (r === 'hengband') {
-                ids.add('japanese_stone_wall');
-            } else {
-                ids.add('plastered_stone_wall');
-                ids.add('local_plaster');
-                ids.add('castle_brick_broken_06');
-                ids.add('medieval_blocks_05');
-            }
-            const isWild = tid.includes('wild') || (this.currentBiome && (this.currentBiome.id === 'wilderness' || this.currentBiome.id === 'grassland'));
-            ids.add(isWild ? 'aerial_grass_rock' : 'cobblestone_floor_08');
-            ids.add('rock_wall_10');
-            ids.add('cliff_side');
-            ids.add('brown_mud_rocks_01');
-            return Array.from(ids);
+        const depth = typeof this.lastDepth === 'number'
+            ? this.lastDepth
+            : ((this.lastFrame && this.lastFrame.player && typeof this.lastFrame.player.depth === 'number') ? this.lastFrame.player.depth : (outdoors ? 0 : 1));
+        const branch = String((this.lastFrame && (this.lastFrame.branch || this.lastFrame.branch_name || (this.lastFrame.player && (this.lastFrame.player.branch || this.lastFrame.player.branch_name)))) || '').toLowerCase();
+        const ryodBiome = String(
+            (this.lastFrame && (this.lastFrame.biomeTheme || (this.lastFrame.map && this.lastFrame.map.biomeTheme)))
+            || (theme && theme.ryodBiome)
+            || (typeof window !== 'undefined' && window.__activeRyodBlueprint && window.__activeRyodBlueprint.biome)
+            || ''
+        ).toLowerCase();
+        if (typeof this.resolveContextualPbrIds === 'function') {
+            return this.resolveContextualPbrIds(r, depth, Boolean(outdoors), branch, ryodBiome, {
+                themeId: tid,
+                hasShops: Boolean(outdoors || depth === 0 || this._levelHasShops),
+                tier1Only: Boolean(tier1Only)
+            });
         }
-        if (r === 'hengband' || tid.includes('heng') || tid.includes('eastern')) {
-            ids.add('japanese_stone_wall');
-            ids.add('monastery_stone_floor');
-        } else if (r === 'silq') {
-            ids.add('local_rock_trim');
-            ids.add('rock_embedded_floor');
-            ids.add('cliff_side');
-        } else if (r === 'brogue') {
-            ids.add('cliff_side');
-            ids.add('rock_embedded_floor');
-            ids.add('rock_boulder_cracked');
-        } else if (r === 'nethack') {
-            ids.add('local_uneven_brick');
-            ids.add('monastery_stone_floor');
-            ids.add('plastered_stone_wall');
-        } else if (r === 'dcss') {
-            ids.add('local_red_brick');
-            ids.add('monastery_stone_floor');
-            ids.add('medieval_blocks_05');
-        } else if (r === 'rogue') {
-            ids.add('local_brick');
-            ids.add('monastery_stone_floor');
-            ids.add('rock_wall_10');
-        } else if (tid.includes('chasm') || tid.includes('cliff') || tid.includes('torment') || tid.includes('mountain') || tid.includes('mine') || tid.includes('nether')) {
-            ids.add('cliff_side');
-            ids.add('rock_embedded_floor');
-        } else if (tid.includes('abyss') || tid.includes('magma') || tid.includes('inferno') || tid.includes('throne')) {
-            ids.add('rock_wall_10');
-            ids.add('rock_embedded_floor');
-            ids.add('rock_boulder_cracked');
-        } else if (tid.includes('cavern') || tid.includes('slag') || tid.includes('crystal')) {
-            ids.add('rock_wall_10');
-            ids.add('rock_embedded_floor');
-            ids.add('cliff_side');
-        } else if (tid.includes('labyrinth') || tid.includes('sepulchre')) {
-            ids.add('local_uneven_brick');
-            ids.add('monastery_stone_floor');
-            ids.add('plastered_stone_wall');
-        } else if (tid.includes('swamp') || tid.includes('mud')) {
-            ids.add('rock_wall_10');
-            ids.add('brown_mud_rocks_01');
-        } else {
-            ids.add('medieval_blocks_05');
-            ids.add('monastery_stone_floor');
-            ids.add('rock_wall_10');
-            ids.add('local_brick');
-            ids.add('local_uneven_brick');
-            ids.add('local_round_tiles');
-        }
-        return Array.from(ids);
+        return outdoors
+            ? ['plastered_stone_wall', 'cobblestone_floor_08', 'castle_brick_broken_06', 'local_wood_trim']
+            : ['japanese_stone_wall', 'monastery_stone_floor', 'rock_wall_10'];
     }
 
     hasPendingSceneAssets(frame) {
         if (!frame) return false;
+        if (!this._gpuInitialized) return true;
         const player = frame.player || {};
         const depth = Number(player.depth || 0);
         const outdoors = Boolean(frame.outdoors) || depth === 0;
         const theme = frame.theme || this.currentBiome || (depth === 0 ? 'TOWN' : 'GRANITE');
-        const pbrIds = this.getRequiredPbrSetIds(theme, outdoors, frame.realm || this.realm);
+        const pbrIds = this.getRequiredPbrSetIds(theme, outdoors, frame.realm || this.realm, true);
         const ph = this.polyHavenSets;
         for (const id of pbrIds) {
             const entry = ph && ph.get(id);
             if (!entry || !entry._loaded) return true;
         }
-        if (!this._sharedDetailTexLoaded || !this._polyHavenEnvLoaded) return true;
-        if (!this.monsterAtlasData || !this.itemAtlasData) return true;
-        for (const m of (frame.monsters || [])) {
-            const cfg = typeof this.resolveMonster3DConfig === 'function' ? this.resolveMonster3DConfig(m, m.glyph) : null;
-            if (cfg && cfg.templateKey && (!this._monster3DTemplates || !this._monster3DTemplates.has(cfg.templateKey))) return true;
-            if (cfg && cfg.weaponKey && (!this._gltfTemplateCache || !this._gltfTemplateCache.has(cfg.weaponKey))) return true;
-            if (cfg && cfg.shieldKey && (!this._gltfTemplateCache || !this._gltfTemplateCache.has(cfg.shieldKey))) return true;
-        }
-        for (const it of (frame.items || [])) {
-            const phKey = typeof this.getItemObjKey === 'function' ? this.getItemObjKey(it.name || '', it.glyph || '') : null;
-            if (phKey && (!this._gltfTemplateCache || !this._gltfTemplateCache.has(phKey))) return true;
-        }
-        const vmKeys = this.resolveDesiredViewmodelKeys(player);
-        for (const vk of vmKeys) {
-            if (!this.weaponCache.has(vk)) return true;
-        }
+        if (!this._sharedDetailTexLoaded) return true;
         return false;
     }
 
@@ -6327,6 +3080,7 @@ class Dungeon3D {
 
     async awaitSceneAssetsReady(frame, onProgress) {
         if (!frame) return true;
+        this.ensureGpuInitialized(frame.realm || (frame.player && frame.player.realm) || this.realm);
         window.gameSceneAssetsLoading = true;
         const yieldFrame = () => new Promise((r) => (typeof requestAnimationFrame === 'function' ? requestAnimationFrame(r) : setTimeout(r, 16)));
         try {
@@ -6334,22 +3088,32 @@ class Dungeon3D {
             const depth = Number(player.depth || 0);
             const outdoors = Boolean(frame.outdoors) || depth === 0;
             const theme = frame.theme || this.currentBiome || (depth === 0 ? 'TOWN' : 'GRANITE');
-            const tasks = [];
-            const addTask = (p) => {
-                if (p && typeof p.then === 'function') tasks.push(p.catch(() => null));
-            };
+            const tier1Tasks = [];
+            const bgTasks = [];
+            const addTier1 = (p) => { if (p && typeof p.then === 'function') tier1Tasks.push(p.catch(() => null)); };
+            const addBg = (p) => { if (p && typeof p.then === 'function') bgTasks.push(p.catch(() => null)); };
 
-            const pbrIds = this.getRequiredPbrSetIds(theme, outdoors, frame.realm || this.realm);
-            for (const id of pbrIds) {
-                addTask(this.ensurePbrSetReady(id));
+            const tier1Ids = this.getRequiredPbrSetIds(theme, outdoors, frame.realm || this.realm, true);
+            const tier1Set = new Set(tier1Ids);
+            for (const id of tier1Ids) {
+                addTier1(this.ensurePbrSetReady(id));
             }
-            addTask(this.ensureSharedDetailTexturesReady());
-            addTask(this.ensureMonsterAtlasReady());
-            addTask(this.ensureItemAtlasReady());
-            addTask(this._loadPolyHavenEnvironmentModels());
+            addTier1(this.ensureSharedDetailTexturesReady());
+
+            // Tier-2 non-blocking background stream: secondary PBR sets, 12MB item atlas, env props & bestiary GLBs
+            const allPbrIds = this.getRequiredPbrSetIds(theme, outdoors, frame.realm || this.realm, false);
+            for (const id of allPbrIds) {
+                if (!tier1Set.has(id)) addBg(this.ensurePbrSetReady(id));
+            }
+            if (typeof this.ensureItemAtlasReady === 'function') addBg(this.ensureItemAtlasReady());
+            if (typeof this._loadPolyHavenEnvironmentModels === 'function') addBg(this._loadPolyHavenEnvironmentModels());
 
             const prewarm = this.getLevelPrewarmManifest(depth, outdoors);
             const monsterTemplateKeys = new Set(prewarm.monsters || []);
+            if (String((frame && frame.realm) || this.realm || '').toLowerCase() === 'nethack') {
+                monsterTemplateKeys.add('bestiary_husky');
+                monsterTemplateKeys.add('bestiary_wolf');
+            }
             const heldItemPhKeys = new Set(prewarm.items || []);
             for (const m of (frame.monsters || [])) {
                 const cfg = typeof this.resolveMonster3DConfig === 'function' ? this.resolveMonster3DConfig(m, m.glyph) : null;
@@ -6359,33 +3123,36 @@ class Dungeon3D {
                     if (cfg.shieldKey) heldItemPhKeys.add(cfg.shieldKey);
                 }
             }
-            for (const tKey of monsterTemplateKeys) {
-                addTask(this._ensureMonster3DTemplate(tKey));
-            }
-            for (const hKey of heldItemPhKeys) {
-                addTask(this._ensurePolyHavenFloorItem(hKey));
-            }
+            for (const tKey of monsterTemplateKeys) addBg(this._ensureMonster3DTemplate(tKey));
+            for (const hKey of heldItemPhKeys) addBg(this._ensurePolyHavenFloorItem(hKey));
             for (const it of (frame.items || [])) {
                 const phKey = typeof this.getItemObjKey === 'function' ? this.getItemObjKey(it.name || '', it.glyph || '') : null;
-                if (phKey) addTask(this._ensurePolyHavenFloorItem(phKey));
+                if (phKey) addBg(this._ensurePolyHavenFloorItem(phKey));
+            }
+            for (const vKey of this.resolveDesiredViewmodelKeys(player)) {
+                addBg(this._ensureViewmodelWeapon(vKey));
             }
 
-            const vmKeys = this.resolveDesiredViewmodelKeys(player);
-            for (const vKey of vmKeys) {
-                addTask(this._ensureViewmodelWeapon(vKey));
+            if (bgTasks.length > 0) {
+                Promise.all(bgTasks).then(() => {
+                    if (typeof this.upgradeAllMonsterEntities === 'function') this.upgradeAllMonsterEntities();
+                    if (typeof this.upgradeAllItemEntities === 'function') this.upgradeAllItemEntities();
+                    if (this.renderGovernor && typeof this.renderGovernor.wake === 'function') this.renderGovernor.wake(350);
+                }).catch(() => null);
             }
 
-            const total = tasks.length;
+            const total = tier1Tasks.length;
             if (total > 0) {
                 let completed = 0;
-                if (typeof onProgress === 'function') onProgress(0, total, 'Loading 3D models & 2K PBR textures...');
-                await Promise.all(tasks.map((p) => p.then((res) => {
+                if (typeof onProgress === 'function') onProgress(0, total, 'Loading critical 2K PBR surfaces...');
+                const gateAll = Promise.all(tier1Tasks.map((p) => p.then((res) => {
                     completed++;
                     if (typeof onProgress === 'function') {
-                        onProgress(completed, total, `Loading 3D scene assets (${completed}/${total})...`);
+                        onProgress(completed, total, `Loading 3D scene surfaces (${completed}/${total})...`);
                     }
                     return res;
                 })));
+                await Promise.race([gateAll, new Promise((r) => setTimeout(r, 450))]);
             }
 
             await yieldFrame();
@@ -6405,14 +3172,6 @@ class Dungeon3D {
                 this.currentRightWeapon = null;
                 this.currentLeftWeapon = null;
                 this.updateViewmodel(frame.player);
-            }
-
-            if (this.renderer && this.scene && this.camera && typeof this.renderer.compile === 'function') {
-                if (typeof onProgress === 'function') onProgress(total, total, 'Compiling WebGL shaders...');
-                await yieldFrame();
-                try {
-                    this.renderer.compile(this.scene, this.camera);
-                } catch (_) {}
             }
             this.scheduleSilentBestiaryPrewarm();
             return true;
@@ -6577,7 +3336,7 @@ class Dungeon3D {
         this._sharedBreathConeGeo.translate(0, 0, 0.725);
         this._sharedBreathConeGeo._sharedGeometry = true;
 
-        this._sharedBoltSegGeo = new THREE.CylinderGeometry(0.016, 0.016, 1.0, 6);
+        this._sharedBoltSegGeo = createLatheFrustumGeo(0.016, 0.016, 1.0, 6);
         this._sharedBoltSegGeo.rotateX(Math.PI / 2);
         this._sharedBoltSegGeo.translate(0, 0, 0.5);
         this._sharedBoltSegGeo._sharedGeometry = true;
@@ -6591,7 +3350,7 @@ class Dungeon3D {
         this._sharedOrbShellGeo = new THREE.IcosahedronGeometry(0.19, 1);
         this._sharedOrbShellGeo._sharedGeometry = true;
 
-        this._sharedAuraCylinderGeo = new THREE.CylinderGeometry(0.42, 0.50, 1.35, 20, 1, true);
+        this._sharedAuraCylinderGeo = createLatheFrustumGeo(0.42, 0.50, 1.35, 20, true);
         this._sharedAuraCylinderGeo._sharedGeometry = true;
 
         // Persistent pooled VFX flash PointLight: never add/remove dynamic PointLights per hit/spell (prevents WebGL shader recompilation stalls)
@@ -6889,7 +3648,7 @@ class Dungeon3D {
                 }
                 arrowMesh.scale.setScalar(0.42);
             } else {
-                const shaftGeo = new THREE.CylinderGeometry(0.012, 0.012, 0.65, 6);
+                const shaftGeo = createLatheFrustumGeo(0.012, 0.012, 0.65, 6);
                 const shaftMat = new THREE.MeshBasicMaterial({ color: 0xdbeafe });
                 disposables.push(shaftGeo, shaftMat);
                 arrowMesh = new THREE.Mesh(shaftGeo, shaftMat);
@@ -6904,10 +3663,10 @@ class Dungeon3D {
             duration = 0.34;
             let bottleMesh = null;
             if (this._gltfTemplateCache && this._gltfTemplateCache.has('ph_potion_bottle')) {
-                bottleMesh = this._cloneCachedGltfTemplate(this._gltfTemplateCache.get('ph_potion_bottle'), null, 'ph_potion_bottle');
+                bottleMesh = this._cloneCachedGltfTemplate(this._gltfTemplateCache.get('ph_potion_bottle'), '#' + col.getHexString(), 'ph_potion_bottle');
                 bottleMesh.scale.setScalar(0.35);
             } else {
-                const botGeo = new THREE.CylinderGeometry(0.05, 0.07, 0.20, 8);
+                const botGeo = createLatheFrustumGeo(0.05, 0.07, 0.20, 8);
                 const botMat = new THREE.MeshBasicMaterial({ color: col });
                 disposables.push(botGeo, botMat);
                 bottleMesh = new THREE.Mesh(botGeo, botMat);
@@ -7037,11 +3796,15 @@ class Dungeon3D {
 
             const segs = 12;
             const lashPts = [];
+            const dxW = endPos.x - startPos.x, dzW = endPos.z - startPos.z;
+            const lenW = Math.hypot(dxW, dzW) || 1.0;
+            const perpX = -dzW / lenW, perpZ = dxW / lenW;
             for (let i = 0; i <= segs; i++) {
                 const frac = i / segs;
                 const pt = new THREE.Vector3().lerpVectors(startPos, endPos, frac);
                 const wave = Math.sin(frac * Math.PI * 2.5) * (1.0 - frac * 0.6) * 0.22;
-                pt.x += wave;
+                pt.x += perpX * wave;
+                pt.z += perpZ * wave;
                 pt.y += Math.cos(frac * Math.PI * 2.0) * 0.14 * (1.0 - frac);
                 lashPts.push(pt.sub(startPos));
             }
@@ -7435,9 +4198,12 @@ class Dungeon3D {
                 } else {
                     const delay = vfxCount * 85;
                     vfxCount++;
-                    setTimeout(() => {
+                    if (!this._pendingVfxTimers) this._pendingVfxTimers = new Set();
+                    const tid = setTimeout(() => {
+                        if (this._pendingVfxTimers) this._pendingVfxTimers.delete(tid);
                         this._triggerSingleClauseVfx(cl);
                     }, delay);
+                    this._pendingVfxTimers.add(tid);
                 }
             }
             return;
@@ -7545,7 +4311,7 @@ class Dungeon3D {
         }
 
         // 3. Arrows / Bolts / Slings
-        if (/\b(you shoot|you fire|shoots an arrow|fires a bolt|hits the|pierces|shoots a|fires a)\b/.test(lower) ||
+        if (/\b(you shoot|you fire|shoots an arrow|fires a bolt|shoots a|fires a)\b/.test(lower) ||
             ((lower.includes('arrow') || lower.includes('bolt')) && (lower.includes('shoot') || lower.includes('fire')))) {
             this.spawnProjectileOrSpellVfx('arrow', ep.startPos, ep.endPos, 0xdbeafe);
             if (this.audio && typeof this.audio.playArrowLooseAndImpact === 'function') {
@@ -7672,6 +4438,7 @@ class Dungeon3D {
             } else if (this.audio && typeof this.audio.playCrit === 'function') {
                 this.audio.playCrit();
             }
+            this._hitstopTime = 0.045;
             this.triggerAttackAnimation(true);
             return true;
         }
@@ -7816,11 +4583,22 @@ class Dungeon3D {
         this.userPitchOffset = Math.max(-0.65, Math.min(1.25, currentPitch + deltaPitch));
     }
 
+    commitFreelookFacing() {
+        if (typeof this.targetYaw !== 'number') return this.facing || 0;
+        const defaultYaw = -(this.facing || 0) * (Math.PI / 2);
+        const diff = Math.atan2(Math.sin(this.targetYaw - defaultYaw), Math.cos(this.targetYaw - defaultYaw));
+        if (Math.abs(diff) > (Math.PI / 4) + 0.02) {
+            const norm = (((-this.targetYaw) % (Math.PI * 2)) + (Math.PI * 2)) % (Math.PI * 2);
+            this.facing = Math.round(norm / (Math.PI / 2)) % 4;
+        }
+        return this.facing;
+    }
+
     snapCameraToDefault() {
-        // Snap camera direction and pitch back to character default upon movement
+        // Commit freelook quadrant if rotated > 45 deg, then snap cleanly to cardinal facing
+        this.commitFreelookFacing();
         this.userPitchOffset = 0.0;
         const defaultYaw = -this.facing * (Math.PI / 2);
-        // Find closest equivalent angle to avoid long spin
         const cur = this.camera ? this.camera.rotation.y : (this.targetYaw || 0);
         const diff = defaultYaw - cur;
         const wrapped = Math.atan2(Math.sin(diff), Math.cos(diff));
@@ -7857,6 +4635,7 @@ class Dungeon3D {
         if (immediate && this.camera) {
             this.camera.rotation.y = this.targetYaw;
         }
+        if (this.renderGovernor) this.renderGovernor.wake(650);
     }
 
     get yaw() {
@@ -8081,73 +4860,68 @@ class Dungeon3D {
      * Reuses targetColor in-place (1:1 with Godot DungeonWorld.cs:2453-2471).
      * Incorporates deterministic stone luminance & warmth variation to break up repetitive grids.
      */
-    computeTileShade(targetColor, baseColor, inView, outdoors, lighting, x = 0, y = 0, isRoom = false, depth = 0) {
+    computeTileShade(targetColor, baseColor, inView, outdoors, lighting, x = 0, y = 0, isRoom = false, depth = 0, surfaceKind = 'wall', adjWalls = 0) {
         targetColor.copy(baseColor);
 
-        // Organic stone block variation (gated by tileVariation flag, breaks up monochromatic repetition)
+        // Organic stone block variation (skip per-tile hash jitter on ceilings to eliminate 2m x 2m checkerboard; soften on floors)
         if ((!window.GRAPHICS_CONFIG || window.GRAPHICS_CONFIG.tileVariation) && (x !== 0 || y !== 0)) {
             const hash = ((x * 43) ^ (y * 79)) & 0xff;
-            let lum = ((hash % 11) - 5) * 0.012; // -0.06 to +0.06 subtle stone luminance variation
-            let warm = ((hash % 7) - 3) * 0.008; // subtle warm undertone
+            let lum = 0;
+            let warm = 0;
+            if (surfaceKind === 'floor') {
+                lum = ((hash % 7) - 3) * 0.006; // -0.018 to +0.018 subtle flagstone variation
+                warm = ((hash % 5) - 2) * 0.004;
+            } else if (surfaceKind !== 'ceiling') {
+                lum = ((hash % 11) - 5) * 0.012;
+                warm = ((hash % 7) - 3) * 0.008;
+            }
 
             // Coherent Spatial Cluster Shading & Geological formations
             if (!outdoors && (!window.GRAPHICS_CONFIG || window.GRAPHICS_CONFIG.biomeVariation)) {
                 const cx = Math.floor(x / 4);
                 const cy = Math.floor(y / 4);
                 const cluster = (((cx * 374761393) ^ (cy * 668265263) ^ (this.currentLevelSeed || 0)) >>> 0) & 0xff;
+                const cScale = surfaceKind === 'ceiling' ? 0.35 : 1.0;
 
                 if (cluster < 42) {
-                    // ~16% natural geological formations matched to 4-level progressive depth chapters
                     if (depth <= 4) {
-                        // Chapter 1: Upper Crypts (50–200 ft) — dry soot & crumbling mortar
-                        lum -= 0.040;
-                        warm -= 0.015;
+                        lum -= 0.040 * cScale;
+                        warm -= 0.015 * cScale;
                     } else if (depth <= 8) {
-                        // Chapter 2: Flooded Undercrofts (250–400 ft) — wet water seepage & slick algae
-                        targetColor.g = Math.min(1.0, targetColor.g + 0.035);
-                        targetColor.b = Math.min(1.0, targetColor.b + 0.045);
-                        lum -= 0.035;
+                        targetColor.g = Math.min(1.0, targetColor.g + 0.035 * cScale);
+                        targetColor.b = Math.min(1.0, targetColor.b + 0.045 * cScale);
+                        lum -= 0.035 * cScale;
                     } else if (depth <= 12) {
-                        // Chapter 3: Deep Sepulchre (450–600 ft) — ancient sandstone, sarcophagus dust, terracotta saltpeter
-                        targetColor.r = Math.min(1.0, targetColor.r + 0.055);
-                        targetColor.g = Math.min(1.0, targetColor.g + 0.025);
-                        lum += 0.015;
-                        warm += 0.025;
+                        targetColor.r = Math.min(1.0, targetColor.r + 0.055 * cScale);
+                        targetColor.g = Math.min(1.0, targetColor.g + 0.025 * cScale);
+                        lum += 0.015 * cScale;
+                        warm += 0.025 * cScale;
                     } else if (depth <= 16) {
-                        // Chapter 4: Overgrown Catacombs (650–800 ft) — verdant lichen, bioluminescent fungal spores
-                        targetColor.g = Math.min(1.0, targetColor.g + 0.065);
-                        targetColor.r = Math.max(0.05, targetColor.r - 0.025);
+                        targetColor.g = Math.min(1.0, targetColor.g + 0.065 * cScale);
+                        targetColor.r = Math.max(0.05, targetColor.r - 0.025 * cScale);
                     } else if (depth <= 20) {
-                        // Chapter 5: Chasm Threshold (850–1000 ft) — rough ironstone & rust veins
-                        targetColor.r = Math.min(1.0, targetColor.r + 0.045);
-                        targetColor.b = Math.max(0.05, targetColor.b - 0.020);
-                        lum -= 0.030;
+                        targetColor.r = Math.min(1.0, targetColor.r + 0.045 * cScale);
+                        targetColor.b = Math.max(0.05, targetColor.b - 0.020 * cScale);
+                        lum -= 0.030 * cScale;
                     } else if (depth <= 35) {
-                        // Chapter 6: Crystal Caverns (1050–1750 ft) — amethyst & sapphire mineral streaks
-                        targetColor.b = Math.min(1.0, targetColor.b + 0.065);
-                        targetColor.r = Math.min(1.0, targetColor.r + 0.030);
+                        targetColor.b = Math.min(1.0, targetColor.b + 0.065 * cScale);
+                        targetColor.r = Math.min(1.0, targetColor.r + 0.030 * cScale);
                     } else if (depth <= 60) {
-                        // Chapter 7: Magma Underworld (1800–3000 ft) — thermal stress glow, ember fissures
-                        targetColor.r = Math.min(1.0, targetColor.r + 0.070);
-                        targetColor.g = Math.min(1.0, targetColor.g + 0.025);
-                        targetColor.b = Math.max(0.05, targetColor.b - 0.035);
+                        targetColor.r = Math.min(1.0, targetColor.r + 0.070 * cScale);
+                        targetColor.g = Math.min(1.0, targetColor.g + 0.025 * cScale);
+                        targetColor.b = Math.max(0.05, targetColor.b - 0.035 * cScale);
                     } else if (depth <= 85) {
-                        // Chapter 8: Abyssal Nether Vaults (3050–4250 ft) — void shadow seepages & necrotic stains
-                        targetColor.r = Math.min(1.0, targetColor.r + 0.025);
-                        targetColor.b = Math.min(1.0, targetColor.b + 0.050);
-                        lum -= 0.050;
+                        targetColor.r = Math.min(1.0, targetColor.r + 0.025 * cScale);
+                        targetColor.b = Math.min(1.0, targetColor.b + 0.050 * cScale);
+                        lum -= 0.050 * cScale;
                     } else {
-                        // Chapter 9: Morgoth's Iron Citadel (4300–5000 ft) — obsidian blackness & blood crimson veins
-                        targetColor.r = Math.min(1.0, targetColor.r + 0.080);
-                        lum -= 0.060;
+                        targetColor.r = Math.min(1.0, targetColor.r + 0.080 * cScale);
+                        lum -= 0.060 * cScale;
                     }
                 }
 
-                // Room vs Corridor Foot-Traffic Differentiation
-                if (isRoom) {
-                    lum += 0.025; // Cleaner, open chamber ashlar paving
-                } else {
-                    lum -= 0.020; // Rougher, worn tunnel footpath
+                if (surfaceKind !== 'ceiling') {
+                    lum += isRoom ? 0.025 : -0.020;
                 }
             }
 
@@ -8156,77 +4930,89 @@ class Dungeon3D {
             targetColor.b = Math.max(0.05, Math.min(1.0, targetColor.b + lum - warm * 0.5));
         }
 
-        if (inView && (outdoors || lighting === 2 || lighting === 0 || lighting === 1)) {
-            if (!outdoors && lighting === 1 && this.vertexLighter && this.renderBudget && !this.renderBudget.enableFillLight) {
-                const lit = this.vertexLighter.computeTileColor(x, y, 2, this.playerGridX || 0, this.playerGridY || 0, null, targetColor);
-                targetColor.setRGB(lit.r, lit.g, lit.b);
+        let horizonFade = 1.0;
+        if (!outdoors) {
+            const pdx = x - (this.playerGridX || 0);
+            const pdy = y - (this.playerGridY || 0);
+            const pDist = Math.sqrt(pdx * pdx + pdy * pdy);
+            if (pDist > 17.0) {
+                const ht = Math.max(0.0, Math.min(1.0, (24.0 - pDist) / 7.0));
+                horizonFade = ht * ht * (3.0 - 2.0 * ht);
             }
+            if ((inView || this._rawLitShadeMode) && (lighting === 2 || lighting === 0 || lighting === 1)) {
+                if (inView && lighting === 1 && this.vertexLighter && this.renderBudget && !this.renderBudget.enableFillLight) {
+                    const lit = this.vertexLighter.computeTileColor(x, y, 2, this.playerGridX || 0, this.playerGridY || 0, null, targetColor);
+                    targetColor.setRGB(lit.r, lit.g, lit.b);
+                }
+                if (typeof window !== 'undefined' && window.Dungeon3DTactical && window.Dungeon3DTactical.applyChiaroscuroTileShade) {
+                    return window.Dungeon3DTactical.applyChiaroscuroTileShade(this, targetColor, inView, outdoors, lighting, x, y, surfaceKind, adjWalls, pDist, horizonFade);
+                }
+                const torchSpan = (this.torchRadius || 3) + 1.5;
+                if (inView && pDist < torchSpan) {
+                    const halo = 1.0 - pDist / torchSpan;
+                    targetColor.r = Math.min(1.0, targetColor.r + halo * 0.08);
+                    targetColor.g = Math.min(1.0, targetColor.g + halo * 0.052);
+                }
+                if (lighting === 2) {
+                    if ((surfaceKind === 'floor' || surfaceKind === 'ceiling') && adjWalls > 0) {
+                        targetColor.multiplyScalar(1.0 - Math.min(4, adjWalls) * 0.042);
+                    }
+                    if (pDist > 8.0) {
+                        const tf = Math.min(1.0, (pDist - 8.0) / 12.0);
+                        targetColor.multiplyScalar(1.0 - tf * tf * (3.0 - 2.0 * tf) * 0.38);
+                    }
+                }
+                return targetColor.multiplyScalar(horizonFade);
+            }
+        }
+
+        if (inView && outdoors) {
             return targetColor;
         } else if (inView && lighting === 3) {
-            return targetColor.multiply(this._tintDark);
+            return targetColor.multiply(this._tintDark).multiplyScalar(horizonFade);
+        } else if (this._rawLitShadeMode && !outdoors) {
+            return targetColor.multiplyScalar(horizonFade);
         } else {
             const memTint = (lighting === 2) ? this._tintMemLit : this._tintMemDark;
-            return targetColor.multiply(memTint);
+            return targetColor.multiply(memTint).multiplyScalar(horizonFade);
         }
     }
 
-    determineDoorOrientation(map, x, y, w, h) {
-        const featN = this.getFeatAt(map, x, y - 1);
-        const featS = this.getFeatAt(map, x, y + 1);
-        const featW = this.getFeatAt(map, x - 1, y);
-        const featE = this.getFeatAt(map, x + 1, y);
-
-        const wallN = this.isSolidWall(featN) || y <= 0;
-        const wallS = this.isSolidWall(featS) || y >= h - 1;
-        const wallW = this.isSolidWall(featW) || x <= 0;
-        const wallE = this.isSolidWall(featE) || x >= w - 1;
-
-        const walkN = this.isWalkableOrPortal(featN);
-        const walkS = this.isWalkableOrPortal(featS);
-        const walkW = this.isWalkableOrPortal(featW);
-        const walkE = this.isWalkableOrPortal(featE);
-
-        const scoreX = (wallW ? 3 : 0) + (wallE ? 3 : 0) + (walkN ? 1 : 0) + (walkS ? 1 : 0);
-        const scoreZ = (wallN ? 3 : 0) + (wallS ? 3 : 0) + (walkW ? 1 : 0) + (walkE ? 1 : 0);
-
-        if (scoreZ > scoreX) return Math.PI / 2;
-        return 0;
-    }
-
-    determineShopDoorOrientation(map, x, y, w, h) {
-        const featN = this.getFeatAt(map, x, y - 1);
-        const featS = this.getFeatAt(map, x, y + 1);
-        const featW = this.getFeatAt(map, x - 1, y);
-        const featE = this.getFeatAt(map, x + 1, y);
-
-        const bldgN = this.isSolidWall(featN) || this.isStoreKind(featN) || y <= 0;
-        const bldgS = this.isSolidWall(featS) || this.isStoreKind(featS) || y >= h - 1;
-        const bldgW = this.isSolidWall(featW) || this.isStoreKind(featW) || x <= 0;
-        const bldgE = this.isSolidWall(featE) || this.isStoreKind(featE) || x >= w - 1;
-
-        const streetN = !bldgN;
-        const streetS = !bldgS;
-        const streetW = !bldgW;
-        const streetE = !bldgE;
-
-        // Facing exterior street (middle of building edges)
-        if (bldgN && streetS && bldgW && bldgE) return 0; // South (+Z)
-        if (bldgS && streetN && bldgW && bldgE) return Math.PI; // North (-Z)
-        if (bldgW && streetE && bldgN && bldgS) return Math.PI / 2; // East (+X)
-        if (bldgE && streetW && bldgN && bldgS) return -Math.PI / 2; // West (-X)
-
-        // Corner cases (building on 2 adjacent sides, street on opposite sides - 1:1 with Godot DungeonWorld.cs:2261-2265)
-        if (bldgN && bldgE && streetS && streetW) return 0; // SW corner -> Face South
-        if (bldgN && bldgW && streetS && streetE) return 0; // SE corner -> Face South
-        if (bldgS && bldgE && streetN && streetW) return Math.PI; // NW corner -> Face North
-        if (bldgS && bldgW && streetN && streetE) return Math.PI; // NE corner -> Face North
-
-        if (streetS) return 0;
-        if (streetN) return Math.PI;
-        if (streetE) return Math.PI / 2;
-        if (streetW) return -Math.PI / 2;
-
-        return 0;
+    _evalIndoorCeilH(map, w, h, tx, ty, depth) {
+        if (tx < 0 || tx >= w || ty < 0 || ty >= h) return 0;
+        let tFeat = this.getFeatAt(map, tx, ty);
+        let tGlyph = this.getGlyphAt(map, tx, ty);
+        let mem = null;
+        if (tFeat === 0 && this.getRememberedTile) {
+            mem = this.getRememberedTile(tx, ty);
+            if (mem) {
+                tFeat = mem.feat;
+                tGlyph = mem.glyph;
+            }
+        }
+        if (this.realm === 'frogcomposband' && tGlyph === '#') {
+            const tAttr = mem ? mem.attr : this.getAttrAt(map, tx, ty);
+            if (tAttr === 2 || tAttr === 8 || tAttr === 9 || tFeat === 41) tFeat = 41;
+        }
+        if (this.realm !== 'silq' || tFeat !== 25) {
+            if (tFeat === 25 && (tGlyph === '.' || tGlyph === ',' || tGlyph === "'")) tFeat = 26;
+            else if (tFeat === 26 && (tGlyph === '#' || tGlyph === '%' || tGlyph === '&' || tGlyph === 'T')) tFeat = 25;
+        }
+        if (tFeat === 0 || (tFeat >= 15 && tFeat <= 22 && tFeat !== 16) || tFeat === 30) return 0;
+        const isSilQForge = (tFeat === 60 || (this.realm === 'silq' && tGlyph === '0'));
+        if (tFeat === 2 || tFeat === 3 || (tFeat === 4 && tGlyph !== '^' && !(this.realm === 'brogue' && tGlyph !== "'" && tGlyph !== '+')) || (tFeat >= 32 && tFeat <= 40 && !isSilQForge)) {
+            return this.wallHeight;
+        }
+        if (this._levelRoomCeilCache && this._levelMemW === w) {
+            const cached = this._levelRoomCeilCache[ty * w + tx];
+            if (cached > 0) return cached;
+        }
+        const tFlag = this.getFlagAt(map, tx, ty);
+        const tIsRoom = mem ? Boolean(mem.isGlow) : (((tFlag >> 2) & 0x3) === 2);
+        if (!tIsRoom) return this.wallHeight;
+        return (typeof this.getCeilingHeightForTile === 'function')
+            ? this.getCeilingHeightForTile(tx, ty, true, depth)
+            : (depth >= 30 ? 5.6 : 4.2);
     }
 
     updateAdaptiveVignette(frame) {
@@ -8274,6 +5060,7 @@ class Dungeon3D {
     }
 
     applyGraphicsConfig() {
+        if (!this._gpuInitialized) return;
         const cfg = window.GRAPHICS_CONFIG || {};
         if (this.lastFrame) {
             this.updateAdaptiveVignette(this.lastFrame);
@@ -8284,7 +5071,7 @@ class Dungeon3D {
                 vignetteEl.classList.remove('danger-pulse');
             }
         }
-        if (!cfg.torchInertia) {
+        if (!cfg.torchInertia && this.torchLight) {
             this.torchLight.position.set(-0.25, -0.05, -0.28);
         }
         if (this.starGroup) {
@@ -8302,9 +5089,16 @@ class Dungeon3D {
         h = Math.imul(h ^ (py & 0xffff), 16777619) >>> 0;
         h = Math.imul(h ^ (depth & 0xffff), 16777619) >>> 0;
         h = Math.imul(h ^ (torchRadius & 0xff), 16777619) >>> 0;
-        const rLen = realm ? realm.length : 0;
-        h = Math.imul(h ^ rLen, 16777619) >>> 0;
+        h = Math.imul(h ^ ((this._lastCamProxMask || 0) & 0xffff), 16777619) >>> 0;
+        const blindBit = (this.isPlayerBlind && this.isPlayerBlind(this.lastFrame && this.lastFrame.player)) ? 0x9e37 : 0;
+        h = Math.imul(h ^ blindBit, 16777619) >>> 0;
+        if (this._visibilityOverlayEnabled) h = Math.imul(h ^ 0x517c, 16777619) >>> 0;
+        const rStr = `${realm || ''}|${(this.lastFrame && (this.lastFrame.biomeTheme || (this.lastFrame.map && this.lastFrame.map.biomeTheme))) || (typeof window !== 'undefined' && window.__activeRyodBlueprint && window.__activeRyodBlueprint.biome) || ''}`;
+        for (let ri = 0; ri < rStr.length; ri++) {
+            h = Math.imul(h ^ rStr.charCodeAt(ri), 16777619) >>> 0;
+        }
         if (!map || !map.rows) return h;
+        const mapW = map.w || 1;
         for (let y = minY; y <= maxY; y++) {
             const row = map.rows[y];
             if (!row) continue;
@@ -8318,8 +5112,9 @@ class Dungeon3D {
             }
             const flgStr = row.l || row.flags;
             if (flgStr && depth !== 0) {
-                const startIdx = minX * 2;
-                const endIdx = Math.min(flgStr.length - 1, (maxX + 1) * 2);
+                const stride = flgStr.length >= mapW * 2 ? 2 : 1;
+                const startIdx = minX * stride;
+                const endIdx = Math.min(flgStr.length - 1, (maxX + 1) * stride - 1);
                 for (let i = startIdx; i <= endIdx; i += 1) {
                     h = Math.imul(h ^ flgStr.charCodeAt(i), 16777619) >>> 0;
                 }
@@ -8338,10 +5133,15 @@ class Dungeon3D {
 
     update(frame) {
         if (!frame || !frame.map) return;
+        this.ensureGpuInitialized(frame.realm || (frame.player && frame.player.realm) || this.realm);
         this.updateDungeon(frame);
     }
 
     updateDungeon(frame) {
+        if (!frame || !frame.map) return;
+        const resolvedRealm = String((frame && (frame.realm || (frame.player && frame.player.realm)))
+            || (typeof window !== 'undefined' && window.__app && window.__app.getActiveRealm ? window.__app.getActiveRealm() : (this.realm || 'angband'))).toLowerCase();
+        this.ensureGpuInitialized(resolvedRealm);
         if (this.renderGovernor && typeof this.renderGovernor.wake === 'function') {
             this.renderGovernor.wake(450);
         }
@@ -8349,6 +5149,20 @@ class Dungeon3D {
         const w = map.w || (map.rows && map.rows[0] && map.rows[0].f ? map.rows[0].f.length / 2 : 0);
         const h = map.h || (map.rows ? map.rows.length : 0);
         if (!w || !h) return;
+
+        // Auto-detect realm switch or Turn-0 restart so stale HP/level never trigger fake blood flashes or LEVEL UP banners
+        const frameTurnRaw = frame.turn !== undefined ? frame.turn : (frame.player && frame.player.turn !== undefined ? frame.player.turn : null);
+        const frameTurn = frameTurnRaw !== null ? Number(frameTurnRaw) : null;
+        const realmChanged = Boolean(this._lastSessionRealm && resolvedRealm !== this._lastSessionRealm);
+        const turnReset = Boolean(frameTurn !== null && !Number.isNaN(frameTurn) && frameTurn <= 1 && this._prevTurn > 5);
+        if (realmChanged || turnReset) {
+            this.resetSessionState({ clearMemory: realmChanged });
+        }
+        this._lastSessionRealm = resolvedRealm;
+        if (frameTurn !== null && !Number.isNaN(frameTurn)) {
+            this._prevTurn = frameTurn;
+        }
+        this.realm = resolvedRealm;
         this.lastMap = map;
         this.lastFrame = frame;
 
@@ -8357,10 +5171,20 @@ class Dungeon3D {
 
         const px = frame.player ? frame.player.x : Math.floor(w / 2);
         const py = frame.player ? frame.player.y : Math.floor(h / 2);
+        if (px !== this._lastPlayerGridX || py !== this._lastPlayerGridY) {
+            this._lastPlayerGridX = px;
+            this._lastPlayerGridY = py;
+            this._lastHoverTileX = -1;
+            this._lastHoverTileY = -1;
+        }
         const depth = (frame.player && frame.player.depth !== undefined) ? frame.player.depth : 0;
-        // Strict Invariant: Outdoors is ONLY depth 0 (Town or Wilderness). Subterranean dungeons (depth > 0)
-        // are always indoors with solid stone ceilings, preventing sunlight tiles/vaults from stripping ceilings.
         const outdoors = (depth === 0);
+        if (outdoors && !this._shopDoorsHydrated && typeof this.ensureShopDoorMaterials === 'function') {
+            this.ensureShopDoorMaterials();
+        }
+        if (this.lastDepth !== depth) {
+            this._levelHasShops = Boolean(outdoors);
+        }
 
         // Detect stairs / depth transitions
         if (this.lastDepth !== null && this.lastDepth !== undefined && this.lastDepth !== depth) {
@@ -8370,6 +5194,7 @@ class Dungeon3D {
             }
         }
         this.lastDepth = depth;
+        this._prevDepth = depth;
 
         // Update Viewmodel Equipment rules & Dynamic character height
         this.updateViewmodel(frame.player);
@@ -8377,11 +5202,6 @@ class Dungeon3D {
         // Deterministic level seed derived from depth, dimensions, and map layout topology
         const levelSeed = ((depth * 73856093) ^ (w * 19349663) ^ (h * 83492791) ^ (map.rows && map.rows[0] && map.rows[0].f ? parseInt(map.rows[0].f.substring(0, 8), 16) : 0)) >>> 0;
         this.currentLevelSeed = levelSeed;
-
-        // Resolve realm context
-        const realm = (frame && (frame.realm || (frame.player && frame.player.realm)))
-            || (window.__app && window.__app.getActiveRealm ? window.__app.getActiveRealm() : (this.realm || 'angband'));
-        this.realm = realm ? realm.toLowerCase() : 'angband';
 
         // Purge all cached 3D monsters and floor items on realm switch or dungeon depth change
         if (this._lastPurgedRealm !== undefined && (this._lastPurgedRealm !== this.realm || this._lastPurgedDepth !== depth)) {
@@ -8510,6 +5330,7 @@ class Dungeon3D {
                 }
             }
             this.lastPlayerHp = curHp;
+            this._prevHp = curHp;
 
             const curSp = frame.player.sp !== undefined ? frame.player.sp : (frame.player.csp !== undefined ? frame.player.csp : null);
             const maxSp = frame.player.sp_max !== undefined ? frame.player.sp_max : (frame.player.max_sp !== undefined ? frame.player.max_sp : (frame.player.msp || 0));
@@ -8532,6 +5353,7 @@ class Dungeon3D {
                     }
                 }
                 this.lastPlayerLevel = curLev;
+                this._prevLev = curLev;
             }
         }
 
@@ -8611,6 +5433,7 @@ class Dungeon3D {
         }
 
         const playerFeat = this.getFeatAt(map, px, py);
+        const playerGlyph = this.getGlyphAt(map, px, py);
         let waterYOffset = 0;
         let footstepSurface = null;
         if (playerFeat === 28) {
@@ -8627,9 +5450,26 @@ class Dungeon3D {
         } else if (playerFeat === 26 || playerFeat === 42) {
             footstepSurface = 'grass';
         }
+        const thresholdYOffset = this._computeThresholdYOffset ? this._computeThresholdYOffset(playerFeat, playerGlyph, outdoors) : 0;
         this.playerWaterYOffset = waterYOffset;
+        this.playerThresholdYOffset = thresholdYOffset;
 
-        this.targetCamPos.set(px * this.cellSize, this.eyeHeight + waterYOffset, py * this.cellSize);
+        if (this._lastShopGridX !== px || this._lastShopGridY !== py || this._lastShopDepth !== depth) {
+            this._lastShopGridX = px;
+            this._lastShopGridY = py;
+            this._lastShopDepth = depth;
+            if (outdoors && ((playerFeat >= 7 && playerFeat <= 14) || (playerFeat >= 32 && playerFeat <= 40))) {
+                const shopOutYaw = this.determineShopDoorOrientation(map, px, py, w, h);
+                const camOutYaw = Math.atan2(Math.sin(shopOutYaw + Math.PI), Math.cos(shopOutYaw + Math.PI));
+                const normYaw = (((-camOutYaw) % (Math.PI * 2)) + (Math.PI * 2)) % (Math.PI * 2);
+                this.facing = Math.round(normYaw / (Math.PI / 2)) % 4;
+                this.targetYaw = -this.facing * (Math.PI / 2);
+                if (this.camera) this.camera.rotation.y = this.targetYaw;
+            }
+        }
+
+        if (this.renderGovernor) this.renderGovernor.wake(1500);
+        this.targetCamPos.set(px * this.cellSize, this.eyeHeight + waterYOffset + thresholdYOffset, py * this.cellSize);
 
         const dist = this.currentCamPos.distanceTo(this.targetCamPos);
         if (dist > this.cellSize * 1.5) {
@@ -8637,6 +5477,9 @@ class Dungeon3D {
             this.isStepping = false;
             this.stepPlayedThisMove = false;
         } else if (dist > 0.05) {
+            if (this.isStepping && this.camera) {
+                this.currentCamPos.copy(this.camera.position);
+            }
             this.isStepping = true;
             this.stepTime = 0;
             const now = performance.now();
@@ -8652,13 +5495,18 @@ class Dungeon3D {
 
         // MultiMesh instance counts reset
         let wallCount = 0;
+        let upperWallCount = 0;
         let permWallCount = 0;
+        let upperPermWallCount = 0;
         let floorCount = 0;
         let ceilingCount = 0;
         let doorFrameCount = 0;
+        let shopStoneCount = 0;
+        let shopStoneOccCount = 0;
         let shopFrameCount = 0;
         let shopAwningCount = 0;
         let townTimberCount = 0;
+        let townTimberPostCount = 0;
         let townRoofCount = 0;
         let doorCount = 0;
         let doorOpenCount = 0;
@@ -8667,9 +5515,12 @@ class Dungeon3D {
         let lavaCooledCount = 0;
         let stairsCount = 0;
         let stairsUpCount = 0;
+        let stairsUpOccCount = 0;
         let altarCount = 0;
+        let altarOccCount = 0;
         let forgeCount = 0;
         let fountainCount = 0;
+        let fountainOccCount = 0;
         let magmaCount = 0;
         let quartzCount = 0;
         let goldVeinCount = 0;
@@ -8686,7 +5537,24 @@ class Dungeon3D {
         let trapCount = 0;
         let chasmIdx = 0;
         let chasmVoidIdx = 0;
+        let wallTorchCount = 0;
+        let waterBankCount = 0;
         const shopCounts = [0, 0, 0, 0, 0, 0, 0, 0];
+        const trimCounts = { plinth: 0, cornice: 0, portal: 0 };
+        const tac = (typeof window !== 'undefined' && window.Dungeon3DTactical) || null;
+        const wallCap = this.wallMesh ? this.wallMesh.instanceMatrix.count : this.maxInstances * 2;
+        const upperWallCap = this.upperWallMesh ? this.upperWallMesh.instanceMatrix.count : wallCap;
+        const permWallCap = this.permWallMesh ? this.permWallMesh.instanceMatrix.count : this.maxInstances * 2;
+        const upperPermWallCap = this.upperPermWallMesh ? this.upperPermWallMesh.instanceMatrix.count : permWallCap;
+        const veinCap = this.magmaMesh ? this.magmaMesh.instanceMatrix.count : 1024;
+        const ceilCap = this.ceilingMesh ? this.ceilingMesh.instanceMatrix.count : this.maxInstances * 2;
+        const wallGeoH = 3.05;
+        const upperGeoH = 3.05;
+        this.lastMap = map;
+
+        if (this._syncLevelVisibilityAndRooms) {
+            this._syncLevelVisibilityAndRooms(map, w, h, depth, this.realm, outdoors, px, py);
+        }
 
         if (outdoors) {
             if (this._terrainAnchorDepth !== depth ||
@@ -8704,7 +5572,7 @@ class Dungeon3D {
 
         const anchorX = outdoors ? this._terrainAnchorX : px;
         const anchorY = outdoors ? this._terrainAnchorY : py;
-        const sightRange = outdoors ? 30 : 22;
+        const sightRange = outdoors ? 30 : 24;
         const minX = Math.max(0, anchorX - sightRange);
         const maxX = Math.min(w - 1, anchorX + sightRange);
         const minY = Math.max(0, anchorY - sightRange);
@@ -8714,6 +5582,9 @@ class Dungeon3D {
         this.playerGridX = px;
         this.playerGridY = py;
         this.updateStreetViewAndCursor(frame);
+        if (typeof this.updateTacticalCursor === 'function') {
+            this.updateTacticalCursor(frame, 0.016);
+        }
 
         if (this._lastTerrainSig === sig) {
             this.updateMonsters(frame.monsters || [], frame.player);
@@ -8724,241 +5595,292 @@ class Dungeon3D {
         this._lastTerrainSig = sig;
         this.markShadowsDirty();
 
+        const isLiquidFeat = (f, g) => (f === 28 || f === 84 || f === 29 || f === 80 || f === 31);
+        const normalizeCartridgeFeat = (f, g) => {
+            if (!outdoors) {
+                if (g === '~' && f === 31) return 28;
+                if (g === '~' && f === 30) return 23;
+                if ((g === ':' || g === ' ') && f === 32) return 41;
+                if (g === '^' && f === 16) return 45;
+            }
+            return f;
+        };
+        const effFeat = (nx, ny) => {
+            if (nx < 0 || nx >= w || ny < 0 || ny >= h) return 22;
+            const rawF = this.getFeatAt(map, nx, ny);
+            if (rawF !== 0) return normalizeCartridgeFeat(rawF, this.getGlyphAt(map, nx, ny));
+            const m = (!outdoors && this.getRememberedTile) ? this.getRememberedTile(nx, ny) : null;
+            return m ? normalizeCartridgeFeat(m.feat, m.glyph) : 0;
+        };
+        const isBldgTile = (tx, ty) => {
+            if (tx <= 1 || tx >= w - 2 || ty <= 1 || ty >= h - 2) return false;
+            const f = this.getFeatAt(map, tx, ty);
+            return f === 21 || f === 22 || this.isStoreKind(f);
+        };
+        const isBlindNow = Boolean(this.isPlayerBlind && this.isPlayerBlind(frame.player));
+        const useVisList = Boolean((!outdoors || isBlindNow || (this._blindFactor || 0) > 0.01) && this._resetVisBindings);
+        const visList = useVisList ? (this._visMeshList || (this._visMeshList = [
+            this.wallMesh, this.upperWallMesh, this.permWallMesh, this.upperPermWallMesh, this.floorMesh, this.ceilingMesh,
+            this.doorFrameMesh, this.doorMesh, this.doorOpenMesh, this.doorBrokenMesh,
+            this.magmaMesh, this.quartzMesh, this.goldVeinMesh, this.gemVeinMesh,
+            this.rubbleMesh, this.stairsMesh, this.stairsUpMesh, this.stairsUpOccupiedMesh,
+            this.altarMesh, this.altarOccupiedMesh, this.fountainMesh, this.fountainOccupiedMesh, this.forgeMesh,
+            this.trapMesh, this.wallTorchMesh, this.wallTorchFlameMesh, this.chasmMesh,
+            this.waterMesh, this.deepWaterMesh, this.swampMesh, this.waterBankMesh, this.bushMesh, this.grassMesh, this.dirtMesh, this.mountainMesh,
+            this.treeTrunkMesh, this.treeLeavesMesh,
+            this.wallPlinthMesh, this.wallCorniceMesh, this.darkPortalMesh,
+            this.shopFrameMesh, this.shopStoneMesh, this.shopStoneOccupiedMesh, this.shopAwningMesh,
+            this.townTimberMesh, this.townTimberPostMesh, this.townRoofMesh,
+            ...(this.shopMeshes || [])
+        ])) : null;
+        if (visList) {
+            for (let vi = 0; vi < visList.length; vi++) {
+                if (visList[vi]) visList[vi]._visSlot = vi;
+            }
+            this._resetVisBindings(visList);
+        }
+        let tileIdx = -1;
+        const setCol = (mesh, idx, col) => {
+            if (!mesh) return;
+            if (visList && mesh._visSlot !== undefined) this._bindVisColor(mesh._visSlot, mesh, idx, tileIdx, col, outdoors);
+            else mesh.setColorAt(idx, col);
+        };
+        const camX = this.camera ? this.camera.position.x : px * this.cellSize;
+        const camZ = this.camera ? this.camera.position.z : py * this.cellSize;
+        this._rawLitShadeMode = Boolean(visList);
+        if (this._collectActiveWallSconces) {
+            this._collectActiveWallSconces(map, w, h, minX, maxX, minY, maxY, px, py, depth, outdoors, biome);
+        }
+
         for (let y = minY; y <= maxY; y++) {
             for (let x = minX; x <= maxX; x++) {
                 const dx = x - anchorX, dy = y - anchorY;
                 const distSq = dx * dx + dy * dy;
-                if (distSq > (outdoors ? 784 : 324)) continue; // 28m radius around anchor outdoors, 18-tile indoors
+                if (distSq > (outdoors ? 784 : 576)) continue;
+                tileIdx = y * w + x;
 
                 let feat = this.getFeatAt(map, x, y);
-                const glyph = this.getGlyphAt(map, x, y);
-                const tileAttr = this.getAttrAt(map, x, y);
+                let glyph = this.getGlyphAt(map, x, y);
+                let tileAttr = this.getAttrAt(map, x, y);
+                const flag = this.getFlagAt(map, x, y);
+                let known = outdoors || (flag & 0x1) !== 0;
+                let inView = outdoors || (flag & 0x2) !== 0;
+                let lighting = (flag >> 2) & 0x3;
 
-                // FrogComposBand Bottomless Pit (feat 41): grey '#' in FrogComposBand
-                if (this.realm === 'frogcomposband' && glyph === '#' && (tileAttr === 2 || tileAttr === 8 || tileAttr === 9 || feat === 41)) {
-                    feat = 41;
-                }
-
-                // Disambiguate Tree (feat 25) vs Grass (feat 26):
-                // In Angband and roguelike variants, open ground / lawn / meadow is '.' (or ',', '\'').
-                // Trees are solid obstacles represented by '#' (or '%', '*', '&', 'T').
-                // A green '.' is GRASS, NEVER a 3D tree!
-                const isSilQSunlight = (this.realm === 'silq' && feat === 25);
-                if (!isSilQSunlight) {
-                    if (feat === 25 && (glyph === '.' || glyph === ',' || glyph === "'")) {
-                        feat = 26; // Feat 26: Grass
-                    } else if (feat === 26 && (glyph === '#' || glyph === '%' || glyph === '&' || glyph === 'T')) {
-                        feat = 25; // Feat 25: Tree
+                if (!outdoors && !inView && feat === 0 && this.getRememberedTile) {
+                    const mem = this.getRememberedTile(x, y);
+                    if (mem) {
+                        feat = mem.feat;
+                        glyph = mem.glyph;
+                        tileAttr = mem.attr;
+                        known = true;
+                        lighting = mem.isGlow ? 2 : 3;
                     }
                 }
 
-                const flag = this.getFlagAt(map, x, y);
+                if (this.realm === 'frogcomposband' && glyph === '#' && (tileAttr === 2 || tileAttr === 8 || tileAttr === 9 || feat === 41)) {
+                    feat = 41;
+                }
+                feat = normalizeCartridgeFeat(feat, glyph);
 
-                let known = outdoors || (flag & 0x1) !== 0;
-                let inView = outdoors || (flag & 0x2) !== 0;
-                let lighting = (flag >> 2) & 0x3; // 0=LOS lit, 1=torch, 2=room lit, 3=dark
+                const isSilQSunlight = (this.realm === 'silq' && feat === 25);
+                if (!isSilQSunlight) {
+                    if (feat === 25 && (glyph === '.' || glyph === ',' || glyph === "'")) {
+                        feat = 26;
+                    } else if (feat === 26 && (glyph === '#' || glyph === '%' || glyph === '&' || glyph === 'T')) {
+                        feat = 25;
+                    }
+                }
 
-                // Unexplored dark space (not known and not in view) or feat 0 must NOT be rendered.
-                // True fog-of-war (1:1 with Godot DungeonWorld.cs:2410-2415):
-                // Open unexplored areas remain pure misty blackness fading into subterranean depth fog.
                 if (feat === 0 || (!known && !inView)) {
                     continue;
                 }
 
                 const isWall = feat === 15 || feat === 21 || feat === 22 || feat === 17 || feat === 18 || feat === 19 || feat === 20 || feat === 30;
 
-                // Interior rock culling (1:1 with Godot DungeonWorld.cs:2386-2412):
-                // If all 8 neighbors are solid walls/skip (no adjacent floor, door, rubble, or open space),
-                // this wall is completely buried within the dungeon bedrock and has no exposed visible faces.
                 if (isWall) {
                     let hasAdjacentOpen = false;
-                    for (let dy = -1; dy <= 1 && !hasAdjacentOpen; dy++) {
-                        for (let dx = -1; dx <= 1 && !hasAdjacentOpen; dx++) {
-                            if (dx === 0 && dy === 0) continue;
-                            const nx = x + dx;
-                            const ny = y + dy;
-                            if (nx >= 0 && nx < w && ny >= 0 && ny < h) {
-                                const nFeat = this.getFeatAt(map, nx, ny);
-                                if (this.isWalkableOrPortal(nFeat)) {
-                                    hasAdjacentOpen = true;
-                                }
+                    for (let ndy = -1; ndy <= 1 && !hasAdjacentOpen; ndy++) {
+                        for (let ndx = -1; ndx <= 1 && !hasAdjacentOpen; ndx++) {
+                            if (ndx === 0 && ndy === 0) continue;
+                            const nx = x + ndx, ny = y + ndy;
+                            if (nx >= 0 && nx < w && ny >= 0 && ny < h && this.isWalkableOrPortal(effFeat(nx, ny))) {
+                                hasAdjacentOpen = true;
                             }
                         }
                     }
-                    if (!hasAdjacentOpen) {
-                        continue;
-                    }
+                    if (!hasAdjacentOpen) continue;
                 }
 
-                // In subterranean dungeon (!outdoors), do not render memorized floors/ceilings
-                // that are outside line of sight and outside the immediate torchlight vicinity.
-                // This eliminates the glitch where distant memorized rooms float across the black void!
-                if (!outdoors && !inView) {
-                    const distSq = (x - px) * (x - px) + (y - py) * (y - py);
-                    if (distSq > (this.torchRadius + 3) * (this.torchRadius + 3)) {
-                        continue;
-                    }
-                }
-
-                // Distance check for illumination (1:1 with Godot DungeonWorld.cs:2443-2451)
                 if (lighting === 3 && inView) {
-                    const distSq = (x - px) * (x - px) + (y - py) * (y - py);
-                    if (distSq <= (this.torchRadius + 1) * (this.torchRadius + 1)) {
-                        lighting = 1;
+                    const pDistSq = (x - px) * (x - px) + (y - py) * (y - py);
+                    if (pDistSq <= (this.torchRadius + 1) * (this.torchRadius + 1)) lighting = 1;
+                }
+
+                let adjWalls = 0;
+                let maxNeighborCeil = this.wallHeight;
+                if (!outdoors) {
+                    for (let ndy = -1; ndy <= 1; ndy++) {
+                        for (let ndx = -1; ndx <= 1; ndx++) {
+                            if (ndx === 0 && ndy === 0) continue;
+                            const nx = x + ndx, ny = y + ndy;
+                            if (nx < 0 || nx >= w || ny < 0 || ny >= h) {
+                                adjWalls++;
+                                continue;
+                            }
+                            const nFeat = effFeat(nx, ny);
+                            if (nFeat === 0 || (nFeat >= 15 && nFeat <= 22 && nFeat !== 16) || nFeat === 30) {
+                                adjWalls++;
+                            } else {
+                                const nc = this._evalIndoorCeilH(map, w, h, nx, ny, depth);
+                                if (nc > maxNeighborCeil) maxNeighborCeil = nc;
+                            }
+                        }
                     }
                 }
 
-                // Tile shade computation without heap allocations (1:1 with Godot DungeonWorld.cs:2453-2471)
-                const isRoom = (lighting === 2);
-                const wallShade = this.computeTileShade(this._scratchWallColor, biome.wallColor, inView, outdoors, lighting, x, y, isRoom, depth);
-                const floorShade = this.computeTileShade(this._scratchFloorColor, biome.floorColor, inView, outdoors, lighting, x, y, isRoom, depth);
-                const ceilingShade = this.computeTileShade(this._scratchCeilingColor, biome.ceilingColor, inView, outdoors, lighting, x, y, isRoom, depth);
+                const isRoom = (!outdoors && this._levelRoomCeilCache && this._levelMemW === w)
+                    ? (this._levelRoomCeilCache[tileIdx] >= 4.1)
+                    : (lighting === 2);
+                const tileCeilH = !outdoors ? (this._evalIndoorCeilH(map, w, h, x, y, depth) || this.wallHeight) : this.wallHeight;
+                const wallShade = this.computeTileShade(this._scratchWallColor, biome.wallColor, inView, outdoors, lighting, x, y, isRoom, depth, 'wall', adjWalls);
+                const floorShade = this.computeTileShade(this._scratchFloorColor, biome.floorColor, inView, outdoors, lighting, x, y, isRoom, depth, 'floor', adjWalls);
+                const ceilingShade = this.computeTileShade(this._scratchCeilingColor, biome.ceilingColor, inView, outdoors, lighting, x, y, isRoom, depth, 'ceiling', adjWalls);
 
                 const useVariation = !window.GRAPHICS_CONFIG || window.GRAPHICS_CONFIG.tileVariation;
                 const floorRot = useVariation ? (((x * 73 + y * 37) % 4) * (Math.PI / 2)) : 0;
                 const wallRot = useVariation ? (((x * 89 + y * 41) % 4) * (Math.PI / 2)) : 0;
-                const ceilingRot = useVariation ? (((x * 53 + y * 67) % 4) * (Math.PI / 2)) : 0;
+                const ceilingRot = 0;
 
                 const wx = x * this.cellSize;
                 const wz = y * this.cellSize;
+                const camDistSq = (camX - wx) * (camX - wx) + (camZ - wz) * (camZ - wz);
                 const wallYCenter = this.wallHeight / 2;
 
-                // Plain Magma fissures (list-terrain.h feat 17=MAGMA)
-                if (feat === 17) {
-                    // Seal chamfered corner base with floor quad
-                    if (floorCount < this.maxInstances) {
-                        this.dummy.position.set(wx, -0.05, wz);
-                        this.dummy.rotation.set(0, 0, 0);
-                        this.dummy.updateMatrix();
-                        this.floorMesh.setMatrixAt(floorCount, this.dummy.matrix);
-                        this.floorMesh.setColorAt(floorCount, floorShade);
-                        floorCount++;
-                    }
-
-                    this.dummy.position.set(wx, wallYCenter, wz);
-                    this.dummy.rotation.set(0, wallRot, 0);
-                    this.dummy.updateMatrix();
-                    this.magmaMesh.setMatrixAt(magmaCount, this.dummy.matrix);
-                    this.magmaMesh.setColorAt(magmaCount, wallShade);
-                    magmaCount++;
-
-                    if (!outdoors && ceilingCount < this.maxInstances) {
-                        this.dummy.position.set(wx, this.wallHeight + 0.05, wz);
-                        this.dummy.rotation.set(0, 0, 0);
+                const emitIndoorCeiling = (cH) => {
+                    if (outdoors) return;
+                    if (ceilingCount < ceilCap) {
+                        this.dummy.position.set(wx, cH, wz);
+                        this.dummy.rotation.set(0, ceilingRot, 0);
+                        this.dummy.scale.set(1, 1, 1);
                         this.dummy.updateMatrix();
                         this.ceilingMesh.setMatrixAt(ceilingCount, this.dummy.matrix);
-                        this.ceilingMesh.setColorAt(ceilingCount, ceilingShade);
+                        setCol(this.ceilingMesh, ceilingCount, ceilingShade);
                         ceilingCount++;
                     }
-                    continue;
-                }
+                    if (cH < maxNeighborCeil - 0.05) {
+                        if (this.upperWallMesh && upperWallCount < upperWallCap) {
+                            const yBot = cH + 0.005;
+                            const yTop = maxNeighborCeil + 0.03;
+                            this.dummy.position.set(wx, (yBot + yTop) * 0.5, wz);
+                            this.dummy.rotation.set(0, 0, 0);
+                            this.dummy.scale.set(0.999, (yTop - yBot) / upperGeoH, 0.999);
+                            this.dummy.updateMatrix();
+                            this.upperWallMesh.setMatrixAt(upperWallCount, this.dummy.matrix);
+                            if (tac) tac.setCornerBevelAt(this.upperWallMesh, upperWallCount, 0, 0, 0, 0);
+                            setCol(this.upperWallMesh, upperWallCount, wallShade);
+                            upperWallCount++;
+                            this.dummy.scale.set(1, 1, 1);
+                        }
+                        if (ceilingCount < ceilCap) {
+                            this.dummy.position.set(wx, maxNeighborCeil, wz);
+                            this.dummy.rotation.set(0, 0, 0);
+                            this.dummy.updateMatrix();
+                            this.ceilingMesh.setMatrixAt(ceilingCount, this.dummy.matrix);
+                            setCol(this.ceilingMesh, ceilingCount, ceilingShade);
+                            ceilingCount++;
+                        }
+                    }
+                    if (tac && tac.emitUnexploredFrontierPortals) {
+                        tac.emitUnexploredFrontierPortals(this, map, w, h, x, y, cH, floorShade, setCol, trimCounts);
+                    }
+                };
 
-                // Plain Quartz crystal veins (list-terrain.h feat 18=QUARTZ)
-                if (feat === 18) {
-                    // Seal chamfered corner base with floor quad
+                const emitLiquidBedAndShore = () => {
                     if (floorCount < this.maxInstances) {
-                        this.dummy.position.set(wx, -0.05, wz);
-                        this.dummy.rotation.set(0, 0, 0);
+                        this.dummy.position.set(wx, -0.16, wz);
+                        this.dummy.rotation.set(0, floorRot, 0);
                         this.dummy.updateMatrix();
+                        const bedCol = this._scratchRiverbedColor || (this._scratchRiverbedColor = new THREE.Color());
+                        bedCol.setRGB(floorShade.r * 0.42, floorShade.g * 0.44, floorShade.b * 0.48);
                         this.floorMesh.setMatrixAt(floorCount, this.dummy.matrix);
-                        this.floorMesh.setColorAt(floorCount, floorShade);
+                        setCol(this.floorMesh, floorCount, bedCol);
                         floorCount++;
                     }
-
-                    this.dummy.position.set(wx, wallYCenter, wz);
-                    this.dummy.rotation.set(0, wallRot, 0);
-                    this.dummy.updateMatrix();
-                    this.quartzMesh.setMatrixAt(quartzCount, this.dummy.matrix);
-                    this.quartzMesh.setColorAt(quartzCount, wallShade);
-                    quartzCount++;
-
-                    if (!outdoors && ceilingCount < this.maxInstances) {
-                        this.dummy.position.set(wx, this.wallHeight + 0.05, wz);
-                        this.dummy.rotation.set(0, 0, 0);
-                        this.dummy.updateMatrix();
-                        this.ceilingMesh.setMatrixAt(ceilingCount, this.dummy.matrix);
-                        this.ceilingMesh.setColorAt(ceilingCount, ceilingShade);
-                        ceilingCount++;
-                    }
-                    continue;
-                }
-
-                // Magma Vein with Gold Treasure (feat 19=MAGMA_K) - Rich metallic gold nuggets in dark basalt
-                if (feat === 19) {
-                    // Seal chamfered corner base with floor quad
-                    if (floorCount < this.maxInstances) {
-                        this.dummy.position.set(wx, -0.05, wz);
-                        this.dummy.rotation.set(0, 0, 0);
-                        this.dummy.updateMatrix();
-                        this.floorMesh.setMatrixAt(floorCount, this.dummy.matrix);
-                        this.floorMesh.setColorAt(floorCount, floorShade);
-                        floorCount++;
-                    }
-
-                    this.dummy.position.set(wx, wallYCenter, wz);
-                    this.dummy.rotation.set(0, wallRot, 0);
-                    this.dummy.updateMatrix();
-                    this.goldVeinMesh.setMatrixAt(goldVeinCount, this.dummy.matrix);
-                    this.goldVeinMesh.setColorAt(goldVeinCount, wallShade);
-                    goldVeinCount++;
-
-                    if (!outdoors && ceilingCount < this.maxInstances) {
-                        this.dummy.position.set(wx, this.wallHeight + 0.05, wz);
-                        this.dummy.rotation.set(0, 0, 0);
-                        this.dummy.updateMatrix();
-                        this.ceilingMesh.setMatrixAt(ceilingCount, this.dummy.matrix);
-                        this.ceilingMesh.setColorAt(ceilingCount, ceilingShade);
-                        ceilingCount++;
-                    }
-                    continue;
-                }
-
-                // Quartz Vein with Gemstones (feat 20=QUARTZ_K) - Sparkling multifaceted emeralds, rubies, sapphires
-                if (feat === 20) {
-                    // Seal chamfered corner base with floor quad
-                    if (floorCount < this.maxInstances) {
-                        this.dummy.position.set(wx, -0.05, wz);
-                        this.dummy.rotation.set(0, 0, 0);
-                        this.dummy.updateMatrix();
-                        this.floorMesh.setMatrixAt(floorCount, this.dummy.matrix);
-                        this.floorMesh.setColorAt(floorCount, floorShade);
-                        floorCount++;
-                    }
-
-                    this.dummy.position.set(wx, wallYCenter, wz);
-                    this.dummy.rotation.set(0, wallRot, 0);
-                    this.dummy.updateMatrix();
-                    this.gemVeinMesh.setMatrixAt(gemVeinCount, this.dummy.matrix);
-                    this.gemVeinMesh.setColorAt(gemVeinCount, wallShade);
-                    gemVeinCount++;
-
-                    if (!outdoors && ceilingCount < this.maxInstances) {
-                        this.dummy.position.set(wx, this.wallHeight + 0.05, wz);
-                        this.dummy.rotation.set(0, 0, 0);
-                        this.dummy.updateMatrix();
-                        this.ceilingMesh.setMatrixAt(ceilingCount, this.dummy.matrix);
-                        this.ceilingMesh.setColorAt(ceilingCount, ceilingShade);
-                        ceilingCount++;
-                    }
-                    continue;
-                }
-
-                // Alpine Mountain Peaks (feat 30=MOUNTAIN) - Towering craggy alpine massif with organic scale/yaw/tilt variation & interior culling
-                if (feat === 30) {
-                    let hasExposedMountainFace = false;
-                    for (let dy = -1; dy <= 1; dy++) {
-                        for (let dx = -1; dx <= 1; dx++) {
-                            if (dx === 0 && dy === 0) continue;
-                            const nx = x + dx;
-                            const ny = y + dy;
-                            if (nx >= 0 && nx < w && ny >= 0 && ny < h) {
-                                if (this.getFeatAt(map, nx, ny) !== 30) {
-                                    hasExposedMountainFace = true;
-                                    break;
-                                }
+                    if (this.waterBankMesh) {
+                        const edges = [
+                            { dx: 0, dy: -1, ox: 0, oz: -0.94, yaw: 0 },
+                            { dx: 0, dy: 1, ox: 0, oz: 0.94, yaw: 0 },
+                            { dx: 1, dy: 0, ox: 0.94, oz: 0, yaw: Math.PI / 2 },
+                            { dx: -1, dy: 0, ox: -0.94, oz: 0, yaw: Math.PI / 2 }
+                        ];
+                        for (let ei = 0; ei < 4 && waterBankCount < 1024; ei++) {
+                            const ed = edges[ei];
+                            const nx = x + ed.dx, ny = y + ed.dy;
+                            if (nx < 0 || nx >= w || ny < 0 || ny >= h) continue;
+                            if (!isLiquidFeat(effFeat(nx, ny))) {
+                                this.dummy.position.set(wx + ed.ox, -0.09, wz + ed.oz);
+                                this.dummy.rotation.set(0, ed.yaw, 0);
+                                this.dummy.updateMatrix();
+                                this.waterBankMesh.setMatrixAt(waterBankCount, this.dummy.matrix);
+                                setCol(this.waterBankMesh, waterBankCount, wallShade);
+                                waterBankCount++;
                             }
                         }
-                        if (hasExposedMountainFace) break;
+                    }
+                };
+
+                // Coursed Stone Mineral & Magma Veins (feat 17=MAGMA, 18=QUARTZ, 19=MAGMA_K, 20=QUARTZ_K)
+                if (feat >= 17 && feat <= 20) {
+                    const vBev = tac ? tac.computeWallCornerBevels(this, map, w, h, x, y, outdoors, this._tmpWallBev || (this._tmpWallBev = [0, 0, 0, 0])) : [0, 0, 0, 0];
+                    if ((outdoors || (vBev[0] + vBev[1] + vBev[2] + vBev[3] > 0)) && floorCount < this.maxInstances) {
+                        this.dummy.position.set(wx, -0.05, wz);
+                        this.dummy.rotation.set(0, floorRot, 0);
+                        this.dummy.updateMatrix();
+                        this.floorMesh.setMatrixAt(floorCount, this.dummy.matrix);
+                        setCol(this.floorMesh, floorCount, floorShade);
+                        floorCount++;
+                    }
+                    const vMesh = feat === 17 ? this.magmaMesh : feat === 18 ? this.quartzMesh : feat === 19 ? this.goldVeinMesh : this.gemVeinMesh;
+                    const idx = feat === 17 ? magmaCount : feat === 18 ? quartzCount : feat === 19 ? goldVeinCount : gemVeinCount;
+                    if (idx < veinCap) {
+                        const yBot = -0.05;
+                        const yTop = outdoors ? (this.wallHeight + 0.05) : Math.max(this.wallHeight + 0.05, maxNeighborCeil + 0.03);
+                        this.dummy.position.set(wx, (yBot + yTop) * 0.5, wz);
+                        this.dummy.rotation.set(0, 0, 0);
+                        this.dummy.scale.set(1.0, (yTop - yBot) / wallGeoH, 1.0);
+                        this.dummy.updateMatrix();
+                        vMesh.setMatrixAt(idx, this.dummy.matrix);
+                        if (tac) tac.setCornerBevelAt(vMesh, idx, vBev[0], vBev[1], vBev[2], vBev[3]);
+                        setCol(vMesh, idx, wallShade);
+                        if (feat === 17) magmaCount++;
+                        else if (feat === 18) quartzCount++;
+                        else if (feat === 19) goldVeinCount++;
+                        else gemVeinCount++;
+                        this.dummy.scale.set(1, 1, 1);
+                    }
+                    if (!outdoors && ceilingCount < ceilCap) {
+                        this.dummy.position.set(wx, Math.max(this.wallHeight + 0.05, maxNeighborCeil), wz);
+                        this.dummy.rotation.set(0, 0, 0);
+                        this.dummy.updateMatrix();
+                        this.ceilingMesh.setMatrixAt(ceilingCount, this.dummy.matrix);
+                        setCol(this.ceilingMesh, ceilingCount, ceilingShade);
+                        ceilingCount++;
+                    }
+                    continue;
+                }
+
+                // Alpine Mountain Peaks (feat 30=MOUNTAIN)
+                if (feat === 30) {
+                    let hasExposedMountainFace = false;
+                    for (let mdy = -1; mdy <= 1 && !hasExposedMountainFace; mdy++) {
+                        for (let mdx = -1; mdx <= 1 && !hasExposedMountainFace; mdx++) {
+                            if (mdx === 0 && mdy === 0) continue;
+                            const nx = x + mdx, ny = y + mdy;
+                            if (nx >= 0 && nx < w && ny >= 0 && ny < h && effFeat(nx, ny) !== 30) {
+                                hasExposedMountainFace = true;
+                            }
+                        }
                     }
                     if (!hasExposedMountainFace) continue;
 
@@ -8967,7 +5889,7 @@ class Dungeon3D {
                         this.dummy.rotation.set(0, 0, 0);
                         this.dummy.updateMatrix();
                         this.floorMesh.setMatrixAt(floorCount, this.dummy.matrix);
-                        this.floorMesh.setColorAt(floorCount, floorShade);
+                        setCol(this.floorMesh, floorCount, floorShade);
                         floorCount++;
                     }
                     if (mountainCount < this.maxInstances) {
@@ -8983,16 +5905,16 @@ class Dungeon3D {
                         this.dummy.updateMatrix();
                         const mountainShade = this.computeTileShade(this._scratchMountainColor, this.getBaseColour(30, biome), inView, outdoors, lighting, x, y, isRoom, depth);
                         this.mountainMesh.setMatrixAt(mountainCount, this.dummy.matrix);
-                        this.mountainMesh.setColorAt(mountainCount, mountainShade);
+                        setCol(this.mountainMesh, mountainCount, mountainShade);
                         mountainCount++;
                         this.dummy.scale.set(1, 1, 1);
                     }
-                    if (!outdoors && ceilingCount < this.maxInstances) {
-                        this.dummy.position.set(wx, this.wallHeight + 0.05, wz);
+                    if (!outdoors && ceilingCount < ceilCap) {
+                        this.dummy.position.set(wx, Math.max(this.wallHeight + 0.05, maxNeighborCeil), wz);
                         this.dummy.rotation.set(0, 0, 0);
                         this.dummy.updateMatrix();
                         this.ceilingMesh.setMatrixAt(ceilingCount, this.dummy.matrix);
-                        this.ceilingMesh.setColorAt(ceilingCount, ceilingShade);
+                        setCol(this.ceilingMesh, ceilingCount, ceilingShade);
                         ceilingCount++;
                     }
                     continue;
@@ -9000,60 +5922,48 @@ class Dungeon3D {
 
                 // Solid Stone / Granite / Perm / Secret wall (feat 15=SECRET, 21=GRANITE, 22=PERM)
                 if (feat === 15 || feat === 21 || feat === 22) {
-                    let hasExposedFace = false;
-                    for (let dy = -1; dy <= 1; dy++) {
-                        for (let dx = -1; dx <= 1; dx++) {
-                            if (dx === 0 && dy === 0) continue;
-                            const nx = x + dx;
-                            const ny = y + dy;
-                            if (nx >= 0 && nx < w && ny >= 0 && ny < h) {
-                                const nFeat = this.getFeatAt(map, nx, ny);
-                                if (this.isWalkableOrPortal(nFeat)) {
-                                    hasExposedFace = true;
-                                    break;
-                                }
-                            }
-                        }
-                        if (hasExposedFace) break;
-                    }
-                    if (!hasExposedFace) continue; // Interior bedrock culling
-
-                    // Seal chamfered corner base with floor quad
-                    if (floorCount < this.maxInstances) {
+                    const wBev = tac ? tac.computeWallCornerBevels(this, map, w, h, x, y, outdoors, this._tmpWallBev || (this._tmpWallBev = [0, 0, 0, 0])) : [0, 0, 0, 0];
+                    if ((outdoors || (wBev[0] + wBev[1] + wBev[2] + wBev[3] > 0)) && floorCount < this.maxInstances) {
                         this.dummy.position.set(wx, -0.05, wz);
-                        this.dummy.rotation.set(0, 0, 0);
+                        this.dummy.rotation.set(0, floorRot, 0);
                         this.dummy.updateMatrix();
                         this.floorMesh.setMatrixAt(floorCount, this.dummy.matrix);
-                        this.floorMesh.setColorAt(floorCount, floorShade);
+                        setCol(this.floorMesh, floorCount, floorShade);
                         floorCount++;
                     }
 
-                    this.dummy.position.set(wx, wallYCenter, wz);
-                    // Alternate 0 and PI yaw across adjacent blocks to sample opposite faces of the 8-sided perimeter UV map while keeping stone courses 100% horizontal
-                    const wallYaw = ((x + y) & 1) * Math.PI;
-                    this.dummy.rotation.set(0, wallYaw, 0);
-                    this.dummy.updateMatrix();
-                    const isTownBuilding = outdoors && feat === 22 && x > 1 && x < (w - 2) && y > 1 && y < (h - 2);
+                    const isTownBuilding = outdoors && (feat === 22 || feat === 21) && x > 1 && x < (w - 2) && y > 1 && y < (h - 2);
+                    const yBot = -0.05;
+                    const yTop = outdoors ? (this.wallHeight + 0.05) : Math.max(this.wallHeight + 0.05, maxNeighborCeil + 0.03);
+                    const monoPosY = isTownBuilding ? (wallYCenter * 0.96) : ((yBot + yTop) * 0.5);
+                    const monoSclY = isTownBuilding ? 0.96 : ((yTop - yBot) / wallGeoH);
+                    const monoSclXZ = isTownBuilding ? 0.990 : 1.0;
+                    let activeWallShade = wallShade;
                     if (feat === 22 && !isTownBuilding) {
-                        if (permWallCount < this.maxInstances) {
-                            const permShade = this.computeTileShade(this._scratchPermWallColor, this.getBaseColour(22, biome), inView, outdoors, lighting, x, y, isRoom, depth);
+                        const permShade = this.computeTileShade(this._scratchPermWallColor, this.getBaseColour(22, biome), inView, outdoors, lighting, x, y, isRoom, depth);
+                        activeWallShade = permShade;
+                        if (permWallCount < permWallCap) {
+                            this.dummy.position.set(wx, monoPosY, wz);
+                            this.dummy.rotation.set(0, 0, 0);
+                            this.dummy.scale.set(monoSclXZ, monoSclY, monoSclXZ);
+                            this.dummy.updateMatrix();
                             this.permWallMesh.setMatrixAt(permWallCount, this.dummy.matrix);
-                            this.permWallMesh.setColorAt(permWallCount, permShade);
+                            if (tac) tac.setCornerBevelAt(this.permWallMesh, permWallCount, wBev[0], wBev[1], wBev[2], wBev[3]);
+                            setCol(this.permWallMesh, permWallCount, permShade);
                             permWallCount++;
+                            this.dummy.scale.set(1, 1, 1);
                         }
                     } else {
-                        if (wallCount < this.maxInstances) {
-                            if (isTownBuilding) {
-                                this.dummy.position.set(wx, wallYCenter * 0.96, wz);
-                                this.dummy.scale.set(0.96, 0.96, 0.96);
-                                this.dummy.updateMatrix();
-                            }
+                        if (wallCount < wallCap) {
+                            this.dummy.position.set(wx, monoPosY, wz);
+                            this.dummy.rotation.set(0, 0, 0);
+                            this.dummy.scale.set(monoSclXZ, monoSclY, monoSclXZ);
+                            this.dummy.updateMatrix();
                             this.wallMesh.setMatrixAt(wallCount, this.dummy.matrix);
-                            this.wallMesh.setColorAt(wallCount, wallShade);
+                            if (tac) tac.setCornerBevelAt(this.wallMesh, wallCount, wBev[0], wBev[1], wBev[2], wBev[3]);
+                            setCol(this.wallMesh, wallCount, wallShade);
                             wallCount++;
-                            if (isTownBuilding) {
-                                this.dummy.scale.set(1, 1, 1);
-                            }
+                            this.dummy.scale.set(1, 1, 1);
                         }
                         if (isTownBuilding) {
                             this.dummy.position.set(wx, 0, wz);
@@ -9061,30 +5971,50 @@ class Dungeon3D {
                             this.dummy.updateMatrix();
                             if (this.townTimberMesh && townTimberCount < this.maxInstances) {
                                 this.townTimberMesh.setMatrixAt(townTimberCount, this.dummy.matrix);
-                                this.townTimberMesh.setColorAt(townTimberCount, wallShade);
+                                setCol(this.townTimberMesh, townTimberCount, wallShade);
                                 townTimberCount++;
                             }
                             if (this.townRoofMesh && townRoofCount < this.maxInstances) {
                                 this.townRoofMesh.setMatrixAt(townRoofCount, this.dummy.matrix);
-                                this.townRoofMesh.setColorAt(townRoofCount, wallShade);
+                                setCol(this.townRoofMesh, townRoofCount, wallShade);
                                 townRoofCount++;
+                            }
+                            if (this.townTimberPostMesh) {
+                                for (let sy = -1; sy <= 1; sy += 2) {
+                                    for (let sx = -1; sx <= 1; sx += 2) {
+                                        if (townTimberPostCount >= this.maxInstances) break;
+                                        const openX = !isBldgTile(x + sx, y);
+                                        const openZ = !isBldgTile(x, y + sy);
+                                        if ((openX && openZ) || (((x + y) & 1) === 0 && sx < 0 && (openX || openZ))) {
+                                            this.dummy.position.set(wx + sx * 0.916, 0, wz + sy * 0.916);
+                                            this.dummy.updateMatrix();
+                                            this.townTimberPostMesh.setMatrixAt(townTimberPostCount, this.dummy.matrix);
+                                            setCol(this.townTimberPostMesh, townTimberPostCount, wallShade);
+                                            townTimberPostCount++;
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
 
-                    if (!outdoors && ceilingCount < this.maxInstances) {
-                        this.dummy.position.set(wx, this.wallHeight + 0.05, wz);
+                    if (!outdoors && tac && tac.emitWallMasonryTrim) {
+                        tac.emitWallMasonryTrim(this, map, w, h, x, y, wx, wz, depth, wBev, activeWallShade, setCol, trimCounts);
+                    }
+
+                    if (!outdoors && ceilingCount < ceilCap) {
+                        this.dummy.position.set(wx, Math.max(this.wallHeight + 0.05, maxNeighborCeil), wz);
                         this.dummy.rotation.set(0, 0, 0);
                         this.dummy.updateMatrix();
                         this.ceilingMesh.setMatrixAt(ceilingCount, this.dummy.matrix);
-                        this.ceilingMesh.setColorAt(ceilingCount, ceilingShade);
+                        setCol(this.ceilingMesh, ceilingCount, ceilingShade);
                         ceilingCount++;
                     }
                     continue;
                 }
 
-                // Store Entrances (feat 7 to 14 in Town / depth 0) and Special Town Buildings (feat 32 to 40)
-                // Underground (!outdoors), feat 7..14 are Elemental Glyphs/Runes, NOT shops!
+                // Store Entrances (feat 7..14 outdoors) and Special Town Buildings (feat 32..40, excluding Sil-Q Forges); Elemental Runes indoors
+                const isSilQForgeTile = (feat === 60 || (this.realm === 'silq' && glyph === '0'));
                 let shopIdx = -1;
                 if (feat >= 7 && feat <= 14 && outdoors) {
                     shopIdx = feat - 7;
@@ -9093,59 +6023,65 @@ class Dungeon3D {
                     this.dummy.rotation.set(0, floorRot, 0);
                     this.dummy.updateMatrix();
                     this.floorMesh.setMatrixAt(floorCount, this.dummy.matrix);
-                    this.floorMesh.setColorAt(floorCount, floorShade);
+                    setCol(this.floorMesh, floorCount, floorShade);
                     floorCount++;
                     if (trapCount < 128) {
                         this.dummy.position.set(wx, 0.018, wz);
                         this.dummy.rotation.set(0, floorRot, 0);
                         this.dummy.updateMatrix();
                         this.trapMesh.setMatrixAt(trapCount, this.dummy.matrix);
-                        const trapAttr = this.getAttrAt(map, x, y);
                         if (!this._scratchTrapColor) this._scratchTrapColor = new THREE.Color();
-                        this._scratchTrapColor.setHex(getAngbandHex(trapAttr));
-                        this.trapMesh.setColorAt(trapCount, this._scratchTrapColor);
+                        this._scratchTrapColor.setHex(getAngbandHex(tileAttr));
+                        const trapShade = this.computeTileShade(this._scratchTrapShade || (this._scratchTrapShade = new THREE.Color()), this._scratchTrapColor, inView, outdoors, lighting, x, y, isRoom, depth);
+                        setCol(this.trapMesh, trapCount, trapShade);
                         trapCount++;
                     }
-                    if (ceilingCount < this.maxInstances) {
-                        this.dummy.position.set(wx, this.wallHeight, wz);
-                        this.dummy.rotation.set(0, ceilingRot, 0);
-                        this.dummy.updateMatrix();
-                        this.ceilingMesh.setMatrixAt(ceilingCount, this.dummy.matrix);
-                        this.ceilingMesh.setColorAt(ceilingCount, ceilingShade);
-                        ceilingCount++;
-                    }
+                    emitIndoorCeiling(tileCeilH);
                     continue;
-                } else if (feat >= 32 && feat <= 40) {
+                } else if (feat >= 32 && feat <= 40 && !isSilQForgeTile) {
                     switch (feat) {
-                        case 32: shopIdx = 7; break; // Castle / Guild / Mayor -> Regal Home facade
-                        case 33: shopIdx = 0; break; // Inn / Tavern -> General Store / Tavern
-                        case 34: shopIdx = 4; break; // Healer -> Alchemy
-                        case 35: shopIdx = 5; break; // Museum -> Magic
-                        case 36: shopIdx = 6; break; // Casino -> Black Market
-                        case 37: shopIdx = 2; break; // Forge -> Weaponsmith
-                        case 38: shopIdx = 3; break; // Pagoda / Temple -> Temple
-                        case 39: shopIdx = 3; break; // Bookstore -> Bookseller
-                        case 40: shopIdx = 0; break; // Stable -> General
+                        case 32: shopIdx = 7; break;
+                        case 33: shopIdx = 0; break;
+                        case 34: shopIdx = 4; break;
+                        case 35: shopIdx = 5; break;
+                        case 36: shopIdx = 6; break;
+                        case 37: shopIdx = 2; break;
+                        case 38: shopIdx = 3; break;
+                        case 39: shopIdx = 3; break;
+                        case 40: shopIdx = 0; break;
                         default: shopIdx = 0; break;
                     }
                 }
                 if (shopIdx >= 0 && shopIdx < 8) {
-                    // Floor underneath shop entrance
+                    if (!this._shopDoorsHydrated && typeof this.ensureShopDoorMaterials === 'function') {
+                        this.ensureShopDoorMaterials();
+                    }
+                    this._levelHasShops = true;
                     this.dummy.position.set(wx, -0.05, wz);
                     this.dummy.rotation.set(0, 0, 0);
                     this.dummy.updateMatrix();
                     this.floorMesh.setMatrixAt(floorCount, this.dummy.matrix);
-                    this.floorMesh.setColorAt(floorCount, floorShade);
+                    setCol(this.floorMesh, floorCount, floorShade);
                     floorCount++;
 
-                    // Align full-depth stone masonry frame and heraldic entrance door to face outward into street
                     const doorYaw = this.determineShopDoorOrientation(map, x, y, w, h);
+                    const shopOccupied = (px === x && py === y) || camDistSq < 1.1025;
                     this.dummy.position.set(wx, 0, wz);
                     this.dummy.rotation.set(0, doorYaw, 0);
                     this.dummy.updateMatrix();
 
+                    if (shopOccupied && this.shopStoneOccupiedMesh && shopStoneOccCount < 64) {
+                        this.shopStoneOccupiedMesh.setMatrixAt(shopStoneOccCount, this.dummy.matrix);
+                        setCol(this.shopStoneOccupiedMesh, shopStoneOccCount, wallShade);
+                        shopStoneOccCount++;
+                    } else if (this.shopStoneMesh && shopStoneCount < 256) {
+                        this.shopStoneMesh.setMatrixAt(shopStoneCount, this.dummy.matrix);
+                        setCol(this.shopStoneMesh, shopStoneCount, wallShade);
+                        shopStoneCount++;
+                    }
+
                     this.shopFrameMesh.setMatrixAt(shopFrameCount, this.dummy.matrix);
-                    this.shopFrameMesh.setColorAt(shopFrameCount, wallShade);
+                    setCol(this.shopFrameMesh, shopFrameCount, wallShade);
                     shopFrameCount++;
 
                     if (this.shopAwningMesh && shopAwningCount < 256) {
@@ -9161,9 +6097,11 @@ class Dungeon3D {
                         shopAwningCount++;
                     }
 
-                    this.shopMeshes[shopIdx].setMatrixAt(shopCounts[shopIdx], this.dummy.matrix);
-                    this.shopMeshes[shopIdx].setColorAt(shopCounts[shopIdx], wallShade);
-                    shopCounts[shopIdx]++;
+                    if (!shopOccupied) {
+                        this.shopMeshes[shopIdx].setMatrixAt(shopCounts[shopIdx], this.dummy.matrix);
+                        setCol(this.shopMeshes[shopIdx], shopCounts[shopIdx], wallShade);
+                        shopCounts[shopIdx]++;
+                    }
 
                     if (outdoors && this.townRoofMesh && townRoofCount < this.maxInstances) {
                         this.dummy.position.set(wx, 0, wz);
@@ -9174,14 +6112,7 @@ class Dungeon3D {
                         townRoofCount++;
                     }
 
-                    if (!outdoors) {
-                        this.dummy.position.set(wx, this.wallHeight, wz);
-                        this.dummy.rotation.set(0, 0, 0);
-                        this.dummy.updateMatrix();
-                        this.ceilingMesh.setMatrixAt(ceilingCount, this.dummy.matrix);
-                        this.ceilingMesh.setColorAt(ceilingCount, ceilingShade);
-                        ceilingCount++;
-                    }
+                    emitIndoorCeiling(this.wallHeight);
                     continue;
                 }
 
@@ -9191,7 +6122,7 @@ class Dungeon3D {
                     this.dummy.rotation.set(0, 0, 0);
                     this.dummy.updateMatrix();
                     this.floorMesh.setMatrixAt(floorCount, this.dummy.matrix);
-                    this.floorMesh.setColorAt(floorCount, floorShade);
+                    setCol(this.floorMesh, floorCount, floorShade);
                     floorCount++;
 
                     const doorYaw = this.determineDoorOrientation(map, x, y, w, h);
@@ -9200,31 +6131,24 @@ class Dungeon3D {
                     this.dummy.updateMatrix();
 
                     this.doorFrameMesh.setMatrixAt(doorFrameCount, this.dummy.matrix);
-                    this.doorFrameMesh.setColorAt(doorFrameCount, wallShade);
+                    setCol(this.doorFrameMesh, doorFrameCount, wallShade);
                     doorFrameCount++;
 
                     this.doorMesh.setMatrixAt(doorCount, this.dummy.matrix);
-                    this.doorMesh.setColorAt(doorCount, wallShade);
+                    setCol(this.doorMesh, doorCount, wallShade);
                     doorCount++;
 
-                    if (!outdoors) {
-                        this.dummy.position.set(wx, this.wallHeight, wz);
-                        this.dummy.rotation.set(0, 0, 0);
-                        this.dummy.updateMatrix();
-                        this.ceilingMesh.setMatrixAt(ceilingCount, this.dummy.matrix);
-                        this.ceilingMesh.setColorAt(ceilingCount, ceilingShade);
-                        ceilingCount++;
-                    }
+                    emitIndoorCeiling(this.wallHeight);
                     continue;
                 }
 
-                // Open Dungeon Door (feat 3) — Swung-open door leaf angled ajar 70° (DungeonWorld.cs:1594-1631)
+                // Open Dungeon Door (feat 3)
                 if (feat === 3) {
                     this.dummy.position.set(wx, -0.05, wz);
                     this.dummy.rotation.set(0, 0, 0);
                     this.dummy.updateMatrix();
                     this.floorMesh.setMatrixAt(floorCount, this.dummy.matrix);
-                    this.floorMesh.setColorAt(floorCount, floorShade);
+                    setCol(this.floorMesh, floorCount, floorShade);
                     floorCount++;
 
                     const doorYaw = this.determineDoorOrientation(map, x, y, w, h);
@@ -9233,60 +6157,69 @@ class Dungeon3D {
                     this.dummy.updateMatrix();
 
                     this.doorFrameMesh.setMatrixAt(doorFrameCount, this.dummy.matrix);
-                    this.doorFrameMesh.setColorAt(doorFrameCount, wallShade);
+                    setCol(this.doorFrameMesh, doorFrameCount, wallShade);
                     doorFrameCount++;
 
                     this.doorOpenMesh.setMatrixAt(doorOpenCount, this.dummy.matrix);
-                    this.doorOpenMesh.setColorAt(doorOpenCount, wallShade);
+                    setCol(this.doorOpenMesh, doorOpenCount, wallShade);
                     doorOpenCount++;
 
-                    if (!outdoors) {
-                        this.dummy.position.set(wx, this.wallHeight, wz);
-                        this.dummy.rotation.set(0, 0, 0);
-                        this.dummy.updateMatrix();
-                        this.ceilingMesh.setMatrixAt(ceilingCount, this.dummy.matrix);
-                        this.ceilingMesh.setColorAt(ceilingCount, ceilingShade);
-                        ceilingCount++;
-                    }
+                    emitIndoorCeiling(this.wallHeight);
                     continue;
                 }
 
-                // Feat 4 Disambiguation: Brogue Foliage (bushMesh), FrogComposband Trap (trapMesh), or Broken Door (doorBrokenMesh)
+                // Feat 4 Disambiguation: Brogue Foliage (bushMesh), Trap (trapMesh), or Broken Door (doorBrokenMesh)
                 if (feat === 4) {
                     this.dummy.position.set(wx, -0.05, wz);
                     this.dummy.rotation.set(0, floorRot, 0);
                     this.dummy.updateMatrix();
                     this.floorMesh.setMatrixAt(floorCount, this.dummy.matrix);
-                    this.floorMesh.setColorAt(floorCount, floorShade);
+                    setCol(this.floorMesh, floorCount, floorShade);
                     floorCount++;
 
                     if (this.realm === 'brogue' && glyph !== "'" && glyph !== '+') {
-                        if (bushCount < this.maxInstances) {
+                        const bushShade = this.computeTileShade(this._scratchTreeColor, this.getBaseColour(42, biome), inView, outdoors, lighting, x, y, isRoom, depth);
+                        const bushOcc = (px === x && py === y) || camDistSq < 0.5625;
+                        if (bushOcc) {
+                            for (let by = -1; by <= 1; by += 2) {
+                                for (let bx = -1; bx <= 1; bx += 2) {
+                                    if (bushCount >= this.maxInstances) break;
+                                    this.dummy.position.set(wx + bx * 0.64, -0.06, wz + by * 0.64);
+                                    this.dummy.rotation.set(0, ((x + bx) * 43 + (y + by) * 71) * 0.4, 0);
+                                    this.dummy.scale.set(0.45, 0.45, 0.45);
+                                    this.dummy.updateMatrix();
+                                    this.bushMesh.setMatrixAt(bushCount, this.dummy.matrix);
+                                    setCol(this.bushMesh, bushCount, bushShade);
+                                    bushCount++;
+                                }
+                            }
+                            this.dummy.scale.set(1, 1, 1);
+                        } else if (bushCount < this.maxInstances) {
                             this.dummy.position.set(wx, 0, wz);
                             const bushYaw = ((x * 43 + y * 71) % 8) * (Math.PI / 4);
                             this.dummy.rotation.set(0, bushYaw, 0);
                             const bs = 0.85 + ((x * 11 + y * 5) % 4) * 0.07;
                             this.dummy.scale.set(bs, bs, bs);
                             this.dummy.updateMatrix();
-                            const bushShade = this.computeTileShade(this._scratchTreeColor, this.getBaseColour(42, biome), inView, outdoors, lighting, x, y, isRoom, depth);
                             this.bushMesh.setMatrixAt(bushCount, this.dummy.matrix);
-                            this.bushMesh.setColorAt(bushCount, bushShade);
+                            setCol(this.bushMesh, bushCount, bushShade);
                             bushCount++;
                             this.dummy.scale.set(1, 1, 1);
                         }
+                        emitIndoorCeiling(tileCeilH);
                     } else if (glyph === '^') {
                         if (trapCount < 128) {
                             this.dummy.position.set(wx, 0.015, wz);
                             this.dummy.rotation.set(0, floorRot, 0);
                             this.dummy.updateMatrix();
                             this.trapMesh.setMatrixAt(trapCount, this.dummy.matrix);
-                            const trapAttr = this.getAttrAt(map, x, y);
                             if (!this._scratchTrapColor) this._scratchTrapColor = new THREE.Color();
-                            this._scratchTrapColor.setHex(getAngbandHex(trapAttr));
+                            this._scratchTrapColor.setHex(getAngbandHex(tileAttr));
                             const trapShade = this.computeTileShade(this._scratchTrapShade || (this._scratchTrapShade = new THREE.Color()), this._scratchTrapColor, inView, outdoors, lighting, x, y, isRoom, depth);
-                            this.trapMesh.setColorAt(trapCount, trapShade);
+                            setCol(this.trapMesh, trapCount, trapShade);
                             trapCount++;
                         }
+                        emitIndoorCeiling(tileCeilH);
                     } else {
                         const doorYaw = this.determineDoorOrientation(map, x, y, w, h);
                         this.dummy.position.set(wx, 0, wz);
@@ -9294,26 +6227,18 @@ class Dungeon3D {
                         this.dummy.updateMatrix();
 
                         this.doorFrameMesh.setMatrixAt(doorFrameCount, this.dummy.matrix);
-                        this.doorFrameMesh.setColorAt(doorFrameCount, wallShade);
+                        setCol(this.doorFrameMesh, doorFrameCount, wallShade);
                         doorFrameCount++;
 
                         this.doorBrokenMesh.setMatrixAt(doorBrokenCount, this.dummy.matrix);
-                        this.doorBrokenMesh.setColorAt(doorBrokenCount, wallShade);
+                        setCol(this.doorBrokenMesh, doorBrokenCount, wallShade);
                         doorBrokenCount++;
-                    }
-
-                    if (!outdoors) {
-                        this.dummy.position.set(wx, this.wallHeight, wz);
-                        this.dummy.rotation.set(0, 0, 0);
-                        this.dummy.updateMatrix();
-                        this.ceilingMesh.setMatrixAt(ceilingCount, this.dummy.matrix);
-                        this.ceilingMesh.setColorAt(ceilingCount, ceilingShade);
-                        ceilingCount++;
+                        emitIndoorCeiling(this.wallHeight);
                     }
                     continue;
                 }
 
-                // FrogComposBand Bottomless Pit (feat 41: '#') — Sunken dark cliff shaft & abyssal void
+                // FrogComposBand Bottomless Pit (feat 41: '#')
                 if (feat === 41) {
                     if (chasmIdx < this.maxInstances) {
                         this.dummy.position.set(wx, -this.wallHeight * 0.52 - 0.04, wz);
@@ -9321,10 +6246,11 @@ class Dungeon3D {
                         this.dummy.scale.set(0.98, 1.0, 0.98);
                         this.dummy.updateMatrix();
                         this.chasmMesh.setMatrixAt(chasmIdx, this.dummy.matrix);
+                        if (tac) tac.setCornerBevelAt(this.chasmMesh, chasmIdx, 0, 0, 0, 0);
                         if (!this._scratchChasmShade) this._scratchChasmShade = new THREE.Color();
                         if (!this._scratchChasmColor) this._scratchChasmColor = new THREE.Color(0x3a3d46);
                         const chasmShade = this.computeTileShade(this._scratchChasmShade, this._scratchChasmColor, inView, outdoors, lighting, x, y, isRoom, depth);
-                        this.chasmMesh.setColorAt(chasmIdx, chasmShade);
+                        setCol(this.chasmMesh, chasmIdx, chasmShade);
                         chasmIdx++;
                         this.dummy.scale.set(1, 1, 1);
                     }
@@ -9336,68 +6262,123 @@ class Dungeon3D {
                         this.chasmVoidMesh.setMatrixAt(chasmVoidIdx, this.dummy.matrix);
                         chasmVoidIdx++;
                     }
-                    if (!outdoors && ceilingCount < this.maxInstances) {
-                        this.dummy.position.set(wx, this.wallHeight, wz);
-                        this.dummy.rotation.set(0, ceilingRot, 0);
-                        this.dummy.updateMatrix();
-                        this.ceilingMesh.setMatrixAt(ceilingCount, this.dummy.matrix);
-                        this.ceilingMesh.setColorAt(ceilingCount, ceilingShade);
-                        ceilingCount++;
-                    }
+                    emitIndoorCeiling(tileCeilH);
                     continue;
                 }
 
-                // Floor / Walkable corridor / Passable rubble / Sunlight (feat 25 strictly in Sil-Q only)
+                // Floor / Walkable corridor / Passable rubble / Sunlight (Sil-Q) / Wire Traps (45..55; note 43=Altar, 44=Fountain handled first below!)
+                const isSilQForge = (feat === 60 || (this.realm === 'silq' && glyph === '0'));
+                if (feat === 43 || feat === 44 || isSilQForge) {
+                    this.dummy.position.set(wx, -0.05, wz);
+                    this.dummy.rotation.set(0, 0, 0);
+                    this.dummy.updateMatrix();
+                    this.floorMesh.setMatrixAt(floorCount, this.dummy.matrix);
+                    setCol(this.floorMesh, floorCount, floorShade);
+                    floorCount++;
+
+                    this.dummy.position.set(wx, 0, wz);
+                    this.dummy.rotation.set(0, 0, 0);
+                    this.dummy.updateMatrix();
+                    const sanctuaryStone = this._sanctuaryStoneColor || (this._sanctuaryStoneColor = new THREE.Color(1, 1, 1));
+                    sanctuaryStone.setRGB(
+                        Math.min(1.0, Math.max(0.82, floorShade.r * 1.35)),
+                        Math.min(1.0, Math.max(0.82, floorShade.g * 1.35)),
+                        Math.min(1.0, Math.max(0.82, floorShade.b * 1.35))
+                    );
+                    const pureWhite = this._sanctuaryPureWhite || (this._sanctuaryPureWhite = new THREE.Color(1, 1, 1));
+                    const monOccupied = (px === x && py === y) || camDistSq < 0.5625;
+                    if (isSilQForge && this.forgeMesh) {
+                        if (forgeCount < 32) {
+                            if (monOccupied) {
+                                this.dummy.position.set(wx + 0.68, 0, wz - 0.36);
+                                this.dummy.scale.set(0.60, 0.60, 0.60);
+                                this.dummy.updateMatrix();
+                                this.dummy.scale.set(1, 1, 1);
+                            }
+                            this.forgeMesh.setMatrixAt(forgeCount, this.dummy.matrix);
+                            setCol(this.forgeMesh, forgeCount, sanctuaryStone);
+                            forgeCount++;
+                        }
+                    } else if (feat === 43) {
+                        if (monOccupied && this.altarOccupiedMesh && altarOccCount < 32) {
+                            this.altarOccupiedMesh.setMatrixAt(altarOccCount, this.dummy.matrix);
+                            setCol(this.altarOccupiedMesh, altarOccCount, sanctuaryStone);
+                            altarOccCount++;
+                        } else if (altarCount < 64) {
+                            this.altarMesh.setMatrixAt(altarCount, this.dummy.matrix);
+                            setCol(this.altarMesh, altarCount, sanctuaryStone);
+                            if (this.altarBrassMesh) {
+                                this.altarBrassMesh.setMatrixAt(altarCount, this.dummy.matrix);
+                                this.altarBrassMesh.setColorAt(altarCount, pureWhite);
+                            }
+                            if (this.altarFlameMesh) {
+                                this.altarFlameMesh.setMatrixAt(altarCount, this.dummy.matrix);
+                                this.altarFlameMesh.setColorAt(altarCount, pureWhite);
+                            }
+                            altarCount++;
+                        }
+                    } else {
+                        if (monOccupied && this.fountainOccupiedMesh && fountainOccCount < 32) {
+                            this.fountainOccupiedMesh.setMatrixAt(fountainOccCount, this.dummy.matrix);
+                            setCol(this.fountainOccupiedMesh, fountainOccCount, sanctuaryStone);
+                            fountainOccCount++;
+                        } else if (fountainCount < 64) {
+                            this.fountainMesh.setMatrixAt(fountainCount, this.dummy.matrix);
+                            setCol(this.fountainMesh, fountainCount, sanctuaryStone);
+                            if (this.fountainBrassMesh) {
+                                this.fountainBrassMesh.setMatrixAt(fountainCount, this.dummy.matrix);
+                                this.fountainBrassMesh.setColorAt(fountainCount, pureWhite);
+                            }
+                            if (this.fountainWaterMesh) {
+                                this.fountainWaterMesh.setMatrixAt(fountainCount, this.dummy.matrix);
+                                this.fountainWaterMesh.setColorAt(fountainCount, pureWhite);
+                            }
+                            fountainCount++;
+                        }
+                    }
+
+                    emitIndoorCeiling(tileCeilH);
+                    continue;
+                }
+
                 const isSunlightTile = (this.realm === 'silq' && feat === 25);
-                if (feat === 1 || feat === 24 || isSunlightTile) {
+                const isWireTrapFeat = (feat >= 45 && feat <= 55);
+                if (feat === 1 || feat === 24 || isSunlightTile || isWireTrapFeat) {
                     this.dummy.position.set(wx, -0.05, wz);
                     this.dummy.rotation.set(0, floorRot, 0);
                     this.dummy.updateMatrix();
                     this.floorMesh.setMatrixAt(floorCount, this.dummy.matrix);
-                    this.floorMesh.setColorAt(floorCount, isSunlightTile ? this._sunlightFloorColor : floorShade);
+                    setCol(this.floorMesh, floorCount, isSunlightTile ? this._sunlightFloorColor : floorShade);
                     floorCount++;
 
-                    // Discovered floor traps ('^' glyph on floor):
-                    if (glyph === '^' && trapCount < 128) {
+                    if ((glyph === '^' || isWireTrapFeat) && trapCount < 128) {
                         this.dummy.position.set(wx, 0.015, wz);
                         this.dummy.rotation.set(0, floorRot, 0);
                         this.dummy.updateMatrix();
                         this.trapMesh.setMatrixAt(trapCount, this.dummy.matrix);
-                        const trapAttr = this.getAttrAt(map, x, y);
-                        const trapColorHex = getAngbandHex(trapAttr);
                         if (!this._scratchTrapColor) this._scratchTrapColor = new THREE.Color();
-                        this._scratchTrapColor.setHex(trapColorHex);
+                        this._scratchTrapColor.setHex(getAngbandHex(tileAttr));
                         const trapShade = this.computeTileShade(this._scratchTrapShade || (this._scratchTrapShade = new THREE.Color()), this._scratchTrapColor, inView, outdoors, lighting, x, y, isRoom, depth);
-                        this.trapMesh.setColorAt(trapCount, trapShade);
+                        setCol(this.trapMesh, trapCount, trapShade);
                         trapCount++;
                     }
 
-                    // Ceilings over subterranean dungeon corridors (skip for open sunbeam fissures in Sil-Q)
-                    if (!outdoors && !isSunlightTile) {
-                        this.dummy.position.set(wx, this.wallHeight, wz);
-                        this.dummy.rotation.set(0, ceilingRot, 0);
-                        this.dummy.updateMatrix();
-                        this.ceilingMesh.setMatrixAt(ceilingCount, this.dummy.matrix);
-                        this.ceilingMesh.setColorAt(ceilingCount, ceilingShade);
-                        ceilingCount++;
-                    }
+                    if (!isSunlightTile) emitIndoorCeiling(tileCeilH);
+                    else if (!outdoors && tac && tac.emitUnexploredFrontierPortals) tac.emitUnexploredFrontierPortals(this, map, w, h, x, y, tileCeilH, floorShade, setCol, trimCounts);
                     continue;
                 }
 
-                // Forest Trees (feat 25: TREE) - Stylized 3D Bark Trunk + Foliage Crown Canopy
+                // Forest Trees (feat 25: TREE)
                 if (feat === 25) {
-                    // Underneath tree is grass floor
                     if (grassCount < this.maxInstances) {
                         this.dummy.position.set(wx, -0.05, wz);
                         this.dummy.rotation.set(0, floorRot, 0);
                         this.dummy.updateMatrix();
                         const grassShade = this.computeTileShade(this._scratchGrassColor, this.getBaseColour(26, biome), inView, outdoors, lighting, x, y, isRoom, depth);
                         this.grassMesh.setMatrixAt(grassCount, this.dummy.matrix);
-                        this.grassMesh.setColorAt(grassCount, grassShade);
+                        setCol(this.grassMesh, grassCount, grassShade);
                         grassCount++;
                     }
-
-                    // 3D Tree trunk & foliage
                     if (treeCount < this.maxInstances) {
                         this.dummy.position.set(wx, 0, wz);
                         const treeYaw = ((x * 67 + y * 97) % 8) * (Math.PI / 4);
@@ -9410,42 +6391,29 @@ class Dungeon3D {
                             : this._scratchTrunkBaseColor.setRGB(1.0, 0.95, 0.90);
                         const trunkShade = this.computeTileShade(this._scratchTreeTrunkColor, trunkBase, inView, outdoors, lighting, x, y, isRoom, depth);
                         this.treeTrunkMesh.setMatrixAt(treeCount, this.dummy.matrix);
-                        this.treeTrunkMesh.setColorAt(treeCount, trunkShade);
+                        setCol(this.treeTrunkMesh, treeCount, trunkShade);
 
                         let leafBase;
                         if (this._hasPolyHavenTreeTex) {
                             if (!this._treeTintColor) this._treeTintColor = new THREE.Color();
-                            if (this.isHengband()) {
-                                leafBase = this._treeTintColor.setRGB(1.0, 0.86, 0.92);
-                            } else if (biome === 'swamp') {
-                                leafBase = this._treeTintColor.setRGB(0.88, 0.98, 0.86);
-                            } else if (biome === 'desert' || biome === 'autumn') {
-                                leafBase = this._treeTintColor.setRGB(0.96, 1.0, 0.88);
-                            } else {
-                                leafBase = this._treeTintColor.setRGB(0.94, 1.0, 0.92);
-                            }
+                            if (this.isHengband()) leafBase = this._treeTintColor.setRGB(1.0, 0.86, 0.92);
+                            else if (biome === 'swamp') leafBase = this._treeTintColor.setRGB(0.88, 0.98, 0.86);
+                            else if (biome === 'desert' || biome === 'autumn') leafBase = this._treeTintColor.setRGB(0.96, 1.0, 0.88);
+                            else leafBase = this._treeTintColor.setRGB(0.94, 1.0, 0.92);
                         } else {
                             leafBase = this.getBaseColour(25, biome);
                         }
-
                         const canopyShade = this.computeTileShade(this._scratchTreeColor, leafBase, inView, outdoors, lighting, x, y, isRoom, depth);
                         this.treeLeavesMesh.setMatrixAt(treeCount, this.dummy.matrix);
-                        this.treeLeavesMesh.setColorAt(treeCount, canopyShade);
+                        setCol(this.treeLeavesMesh, treeCount, canopyShade);
                         treeCount++;
                         this.dummy.scale.set(1, 1, 1);
                     }
-                    if (!outdoors && ceilingCount < this.maxInstances) {
-                        this.dummy.position.set(wx, this.wallHeight, wz);
-                        this.dummy.rotation.set(0, ceilingRot, 0);
-                        this.dummy.updateMatrix();
-                        this.ceilingMesh.setMatrixAt(ceilingCount, this.dummy.matrix);
-                        this.ceilingMesh.setColorAt(ceilingCount, ceilingShade);
-                        ceilingCount++;
-                    }
+                    emitIndoorCeiling(tileCeilH);
                     continue;
                 }
 
-                // Dense Brush / Thicket / Flowers (feat 42: BUSH / BRAKE) - Low organic foliage cluster
+                // Dense Brush / Thicket / Flowers (feat 42: BUSH)
                 if (feat === 42) {
                     if (grassCount < this.maxInstances) {
                         this.dummy.position.set(wx, -0.05, wz);
@@ -9453,43 +6421,45 @@ class Dungeon3D {
                         this.dummy.updateMatrix();
                         const grassShade = this.computeTileShade(this._scratchGrassColor, this.getBaseColour(26, biome), inView, outdoors, lighting, x, y, isRoom, depth);
                         this.grassMesh.setMatrixAt(grassCount, this.dummy.matrix);
-                        this.grassMesh.setColorAt(grassCount, grassShade);
+                        setCol(this.grassMesh, grassCount, grassShade);
                         grassCount++;
                     }
-                    if (bushCount < this.maxInstances) {
+                    let bushBase;
+                    if (this._hasPolyHavenTreeTex) {
+                        if (!this._bushTintColor) this._bushTintColor = new THREE.Color();
+                        bushBase = this.isHengband() ? this._bushTintColor.setRGB(1.0, 0.86, 0.92) : this._bushTintColor.setRGB(0.94, 1.0, 0.92);
+                    } else {
+                        bushBase = this.getBaseColour(42, biome);
+                    }
+                    const bushShade = this.computeTileShade(this._scratchTreeColor, bushBase, inView, outdoors, lighting, x, y, isRoom, depth);
+                    const bushOcc = (px === x && py === y) || camDistSq < 0.5625;
+                    if (bushOcc) {
+                        for (let by = -1; by <= 1; by += 2) {
+                            for (let bx = -1; bx <= 1; bx += 2) {
+                                if (bushCount >= this.maxInstances) break;
+                                this.dummy.position.set(wx + bx * 0.64, -0.06, wz + by * 0.64);
+                                this.dummy.rotation.set(0, ((x + bx) * 43 + (y + by) * 71) * 0.4, 0);
+                                this.dummy.scale.set(0.45, 0.45, 0.45);
+                                this.dummy.updateMatrix();
+                                this.bushMesh.setMatrixAt(bushCount, this.dummy.matrix);
+                                setCol(this.bushMesh, bushCount, bushShade);
+                                bushCount++;
+                            }
+                        }
+                        this.dummy.scale.set(1, 1, 1);
+                    } else if (bushCount < this.maxInstances) {
                         this.dummy.position.set(wx, 0, wz);
                         const bushYaw = ((x * 43 + y * 71) % 8) * (Math.PI / 4);
                         this.dummy.rotation.set(0, bushYaw, 0);
                         const bs = 0.95 + ((x * 11 + y * 5) % 5) * 0.08;
                         this.dummy.scale.set(bs, bs, bs);
                         this.dummy.updateMatrix();
-
-                        let bushBase;
-                        if (this._hasPolyHavenTreeTex) {
-                            if (!this._bushTintColor) this._bushTintColor = new THREE.Color();
-                            if (this.isHengband()) {
-                                bushBase = this._bushTintColor.setRGB(1.0, 0.86, 0.92);
-                            } else {
-                                bushBase = this._bushTintColor.setRGB(0.94, 1.0, 0.92);
-                            }
-                        } else {
-                            bushBase = this.getBaseColour(42, biome);
-                        }
-
-                        const bushShade = this.computeTileShade(this._scratchTreeColor, bushBase, inView, outdoors, lighting, x, y, isRoom, depth);
                         this.bushMesh.setMatrixAt(bushCount, this.dummy.matrix);
-                        this.bushMesh.setColorAt(bushCount, bushShade);
+                        setCol(this.bushMesh, bushCount, bushShade);
                         bushCount++;
                         this.dummy.scale.set(1, 1, 1);
                     }
-                    if (!outdoors && ceilingCount < this.maxInstances) {
-                        this.dummy.position.set(wx, this.wallHeight, wz);
-                        this.dummy.rotation.set(0, ceilingRot, 0);
-                        this.dummy.updateMatrix();
-                        this.ceilingMesh.setMatrixAt(ceilingCount, this.dummy.matrix);
-                        this.ceilingMesh.setColorAt(ceilingCount, ceilingShade);
-                        ceilingCount++;
-                    }
+                    emitIndoorCeiling(tileCeilH);
                     continue;
                 }
 
@@ -9501,17 +6471,10 @@ class Dungeon3D {
                         this.dummy.updateMatrix();
                         const grassShade = this.computeTileShade(this._scratchGrassColor, this.getBaseColour(26, biome), inView, outdoors, lighting, x, y, isRoom, depth);
                         this.grassMesh.setMatrixAt(grassCount, this.dummy.matrix);
-                        this.grassMesh.setColorAt(grassCount, grassShade);
+                        setCol(this.grassMesh, grassCount, grassShade);
                         grassCount++;
                     }
-                    if (!outdoors && ceilingCount < this.maxInstances) {
-                        this.dummy.position.set(wx, this.wallHeight, wz);
-                        this.dummy.rotation.set(0, ceilingRot, 0);
-                        this.dummy.updateMatrix();
-                        this.ceilingMesh.setMatrixAt(ceilingCount, this.dummy.matrix);
-                        this.ceilingMesh.setColorAt(ceilingCount, ceilingShade);
-                        ceilingCount++;
-                    }
+                    emitIndoorCeiling(tileCeilH);
                     continue;
                 }
 
@@ -9523,83 +6486,58 @@ class Dungeon3D {
                         this.dummy.updateMatrix();
                         const dirtShade = this.computeTileShade(this._scratchDirtColor, this.getBaseColour(27, biome), inView, outdoors, lighting, x, y, isRoom, depth);
                         this.dirtMesh.setMatrixAt(dirtCount, this.dummy.matrix);
-                        this.dirtMesh.setColorAt(dirtCount, dirtShade);
+                        setCol(this.dirtMesh, dirtCount, dirtShade);
                         dirtCount++;
                     }
-                    if (!outdoors && ceilingCount < this.maxInstances) {
-                        this.dummy.position.set(wx, this.wallHeight, wz);
-                        this.dummy.rotation.set(0, ceilingRot, 0);
-                        this.dummy.updateMatrix();
-                        this.ceilingMesh.setMatrixAt(ceilingCount, this.dummy.matrix);
-                        this.ceilingMesh.setColorAt(ceilingCount, ceilingShade);
-                        ceilingCount++;
-                    }
+                    emitIndoorCeiling(tileCeilH);
                     continue;
                 }
 
                 // Shallow Sparkling Water (feat 28: SHALLOW_WATER, feat 84: STREAM)
                 if (feat === 28 || feat === 84) {
+                    emitLiquidBedAndShore();
                     if (waterCount < this.maxInstances) {
                         this.dummy.position.set(wx, -0.08, wz);
                         this.dummy.rotation.set(0, floorRot, 0);
                         this.dummy.updateMatrix();
                         const waterShade = this.computeTileShade(this._scratchWaterColor, this.getBaseColour(28, biome), inView, outdoors, lighting, x, y, isRoom, depth);
                         this.waterMesh.setMatrixAt(waterCount, this.dummy.matrix);
-                        this.waterMesh.setColorAt(waterCount, waterShade);
+                        setCol(this.waterMesh, waterCount, waterShade);
                         waterCount++;
                     }
-                    if (!outdoors && ceilingCount < this.maxInstances) {
-                        this.dummy.position.set(wx, this.wallHeight, wz);
-                        this.dummy.rotation.set(0, ceilingRot, 0);
-                        this.dummy.updateMatrix();
-                        this.ceilingMesh.setMatrixAt(ceilingCount, this.dummy.matrix);
-                        this.ceilingMesh.setColorAt(ceilingCount, ceilingShade);
-                        ceilingCount++;
-                    }
+                    emitIndoorCeiling(tileCeilH);
                     continue;
                 }
 
                 // Deep Oceanic Water (feat 29: DEEP_WATER, feat 80: LAKE)
                 if (feat === 29 || feat === 80) {
+                    emitLiquidBedAndShore();
                     if (deepWaterCount < this.maxInstances) {
                         this.dummy.position.set(wx, -0.12, wz);
                         this.dummy.rotation.set(0, floorRot, 0);
                         this.dummy.updateMatrix();
                         const deepWaterShade = this.computeTileShade(this._scratchDeepWaterColor, this.getBaseColour(29, biome), inView, outdoors, lighting, x, y, isRoom, depth);
                         this.deepWaterMesh.setMatrixAt(deepWaterCount, this.dummy.matrix);
-                        this.deepWaterMesh.setColorAt(deepWaterCount, deepWaterShade);
+                        setCol(this.deepWaterMesh, deepWaterCount, deepWaterShade);
                         deepWaterCount++;
                     }
-                    if (!outdoors && ceilingCount < this.maxInstances) {
-                        this.dummy.position.set(wx, this.wallHeight, wz);
-                        this.dummy.rotation.set(0, ceilingRot, 0);
-                        this.dummy.updateMatrix();
-                        this.ceilingMesh.setMatrixAt(ceilingCount, this.dummy.matrix);
-                        this.ceilingMesh.setColorAt(ceilingCount, ceilingShade);
-                        ceilingCount++;
-                    }
+                    emitIndoorCeiling(tileCeilH);
                     continue;
                 }
 
                 // Swamp & Wetland Marsh (feat 31: SWAMP)
                 if (feat === 31) {
+                    emitLiquidBedAndShore();
                     if (swampCount < this.maxInstances) {
                         this.dummy.position.set(wx, -0.06, wz);
                         this.dummy.rotation.set(0, floorRot, 0);
                         this.dummy.updateMatrix();
                         const swampShade = this.computeTileShade(this._scratchSwampColor, this.getBaseColour(31, biome), inView, outdoors, lighting, x, y, isRoom, depth);
                         this.swampMesh.setMatrixAt(swampCount, this.dummy.matrix);
-                        this.swampMesh.setColorAt(swampCount, swampShade);
+                        setCol(this.swampMesh, swampCount, swampShade);
                         swampCount++;
                     }
-                    if (!outdoors && ceilingCount < this.maxInstances) {
-                        this.dummy.position.set(wx, this.wallHeight, wz);
-                        this.dummy.rotation.set(0, ceilingRot, 0);
-                        this.dummy.updateMatrix();
-                        this.ceilingMesh.setMatrixAt(ceilingCount, this.dummy.matrix);
-                        this.ceilingMesh.setColorAt(ceilingCount, ceilingShade);
-                        ceilingCount++;
-                    }
+                    emitIndoorCeiling(tileCeilH);
                     continue;
                 }
 
@@ -9613,148 +6551,156 @@ class Dungeon3D {
                     } else {
                         this.lavaCooledMesh.setMatrixAt(lavaCooledCount++, this.dummy.matrix);
                     }
-                    if (!outdoors) {
-                        this.dummy.position.set(wx, this.wallHeight, wz);
-                        this.dummy.rotation.set(0, 0, 0);
-                        this.dummy.updateMatrix();
-                        this.ceilingMesh.setMatrixAt(ceilingCount, this.dummy.matrix);
-                        this.ceilingMesh.setColorAt(ceilingCount, ceilingShade);
-                        ceilingCount++;
-                    }
+                    emitIndoorCeiling(tileCeilH);
                     continue;
                 }
 
-                // Stairs Up/Down (feat 5, 6)
+                // Stairs Up (feat 5 '<') & Sunken Stairs Down (feat 6 '>')
                 if (feat === 5 || feat === 6) {
-                    this.dummy.position.set(wx, -0.05, wz);
-                    this.dummy.rotation.set(0, 0, 0);
-                    this.dummy.updateMatrix();
-                    this.floorMesh.setMatrixAt(floorCount, this.dummy.matrix);
-                    this.floorMesh.setColorAt(floorCount, floorShade);
-                    floorCount++;
-
-                    this.dummy.position.set(wx, 0, wz);
-                    this.dummy.rotation.set(0, 0, 0);
-                    this.dummy.updateMatrix();
+                    const stairYaw = this.determineStairOrientation(map, x, y, w, h);
                     if (feat === 5) {
-                        this.stairsUpMesh.setMatrixAt(stairsUpCount, this.dummy.matrix);
-                        this.stairsUpMesh.setColorAt(stairsUpCount, floorShade);
-                        stairsUpCount++;
+                        if (floorCount < this.maxInstances) {
+                            this.dummy.position.set(wx, -0.05, wz);
+                            this.dummy.rotation.set(0, 0, 0);
+                            this.dummy.updateMatrix();
+                            this.floorMesh.setMatrixAt(floorCount, this.dummy.matrix);
+                            setCol(this.floorMesh, floorCount, floorShade);
+                            floorCount++;
+                        }
+                        this.dummy.position.set(wx, 0, wz);
+                        this.dummy.rotation.set(0, stairYaw, 0);
+                        this.dummy.updateMatrix();
+                        const stairOccupied = (px === x && py === y) || camDistSq < 1.1025;
+                        if (stairOccupied && this.stairsUpOccupiedMesh && stairsUpOccCount < 64) {
+                            this.stairsUpOccupiedMesh.setMatrixAt(stairsUpOccCount, this.dummy.matrix);
+                            setCol(this.stairsUpOccupiedMesh, stairsUpOccCount, floorShade);
+                            stairsUpOccCount++;
+                        } else {
+                            this.stairsUpMesh.setMatrixAt(stairsUpCount, this.dummy.matrix);
+                            setCol(this.stairsUpMesh, stairsUpCount, floorShade);
+                            stairsUpCount++;
+                        }
+
+                        if (!outdoors) {
+                            const shaftTop = Math.max(tileCeilH, maxNeighborCeil) + 1.25;
+                            const shaftBot = Math.min(tileCeilH, this.wallHeight) - 0.03;
+                            const shaftSpan = shaftTop - shaftBot;
+                            const rims = [
+                                { ox: 0, oz: -0.81, sx: 1.02, sz: 0.21 },
+                                { ox: 0, oz: 0.81, sx: 1.02, sz: 0.21 },
+                                { ox: -0.81, oz: 0, sx: 0.21, sz: 1.02 },
+                                { ox: 0.81, oz: 0, sx: 0.21, sz: 1.02 }
+                            ];
+                            for (let ri = 0; ri < 4 && wallCount < wallCap; ri++) {
+                                const rm = rims[ri];
+                                this.dummy.position.set(wx + rm.ox, (shaftBot + shaftTop) * 0.5, wz + rm.oz);
+                                this.dummy.rotation.set(0, 0, 0);
+                                this.dummy.scale.set(rm.sx, shaftSpan / 3.05, rm.sz);
+                                this.dummy.updateMatrix();
+                                this.wallMesh.setMatrixAt(wallCount, this.dummy.matrix);
+                                if (tac) tac.setCornerBevelAt(this.wallMesh, wallCount, 0, 0, 0, 0);
+                                setCol(this.wallMesh, wallCount, wallShade);
+                                wallCount++;
+                                if (ceilingCount < ceilCap) {
+                                    this.dummy.position.set(wx + rm.ox, tileCeilH, wz + rm.oz);
+                                    this.dummy.rotation.set(0, 0, 0);
+                                    this.dummy.scale.set(rm.sx, 1, rm.sz);
+                                    this.dummy.updateMatrix();
+                                    this.ceilingMesh.setMatrixAt(ceilingCount, this.dummy.matrix);
+                                    setCol(this.ceilingMesh, ceilingCount, ceilingShade);
+                                    ceilingCount++;
+                                }
+                                if (tileCeilH < maxNeighborCeil - 0.05 && ceilingCount < ceilCap) {
+                                    this.dummy.position.set(wx + rm.ox, maxNeighborCeil, wz + rm.oz);
+                                    this.dummy.rotation.set(0, 0, 0);
+                                    this.dummy.scale.set(rm.sx, 1, rm.sz);
+                                    this.dummy.updateMatrix();
+                                    this.ceilingMesh.setMatrixAt(ceilingCount, this.dummy.matrix);
+                                    setCol(this.ceilingMesh, ceilingCount, ceilingShade);
+                                    ceilingCount++;
+                                }
+                            }
+                            this.dummy.scale.set(1, 1, 1);
+                            if (ceilingCount < ceilCap) {
+                                this.dummy.position.set(wx, shaftTop - 0.04, wz);
+                                this.dummy.rotation.set(0, 0, 0);
+                                this.dummy.updateMatrix();
+                                const shaftDark = this._scratchShaftCapCol || (this._scratchShaftCapCol = new THREE.Color());
+                                shaftDark.setRGB(ceilingShade.r * 0.18, ceilingShade.g * 0.18, ceilingShade.b * 0.22);
+                                this.ceilingMesh.setMatrixAt(ceilingCount, this.dummy.matrix);
+                                setCol(this.ceilingMesh, ceilingCount, shaftDark);
+                                ceilingCount++;
+                            }
+                            if (tac && tac.emitUnexploredFrontierPortals) {
+                                tac.emitUnexploredFrontierPortals(this, map, w, h, x, y, tileCeilH, floorShade, setCol, trimCounts);
+                            }
+                        }
                     } else {
+                        // Sunken Descending Stairwell (feat === 6): NO floorMesh over y=0 stairwell opening; seal sub-pit landing at y=-1.96m!
+                        if (!outdoors && floorCount < this.maxInstances) {
+                            this.dummy.position.set(wx, -1.96, wz);
+                            this.dummy.rotation.set(0, 0, 0);
+                            this.dummy.updateMatrix();
+                            const pitDark = this._scratchShaftCapCol || (this._scratchShaftCapCol = new THREE.Color());
+                            pitDark.setRGB(floorShade.r * 0.12, floorShade.g * 0.12, floorShade.b * 0.15);
+                            this.floorMesh.setMatrixAt(floorCount, this.dummy.matrix);
+                            setCol(this.floorMesh, floorCount, pitDark);
+                            floorCount++;
+                        }
+                        this.dummy.position.set(wx, 0, wz);
+                        this.dummy.rotation.set(0, stairYaw, 0);
+                        this.dummy.updateMatrix();
                         this.stairsMesh.setMatrixAt(stairsCount, this.dummy.matrix);
-                        this.stairsMesh.setColorAt(stairsCount, floorShade);
+                        setCol(this.stairsMesh, stairsCount, floorShade);
                         stairsCount++;
-                    }
-
-                    if (!outdoors) {
-                        this.dummy.position.set(wx, this.wallHeight, wz);
-                        this.dummy.rotation.set(0, 0, 0);
-                        this.dummy.updateMatrix();
-                        this.ceilingMesh.setMatrixAt(ceilingCount, this.dummy.matrix);
-                        this.ceilingMesh.setColorAt(ceilingCount, ceilingShade);
-                        ceilingCount++;
+                        emitIndoorCeiling(tileCeilH);
                     }
                     continue;
                 }
 
-                // Consecrated High Altar (feat 43), Sil-Q Dwarven Forge (feat 60 / '0'), & Sparkling Magic Fountain (feat 44)
-                // # ROOT-CAUSE: Multiplying altars and fountains by raw floorShade crushed marble, gold, sacred fire, and water into dark grey mud, and secondary brass/flame/water instanced meshes were not updated.
-                const isSilQForge = (feat === 60 || (this.realm === 'silq' && glyph === '0'));
-                if (feat === 43 || feat === 44 || isSilQForge) {
-                    this.dummy.position.set(wx, -0.05, wz);
-                    this.dummy.rotation.set(0, 0, 0);
-                    this.dummy.updateMatrix();
-                    this.floorMesh.setMatrixAt(floorCount, this.dummy.matrix);
-                    this.floorMesh.setColorAt(floorCount, floorShade);
-                    floorCount++;
-
-                    this.dummy.position.set(wx, 0, wz);
-                    this.dummy.rotation.set(0, 0, 0);
-                    this.dummy.updateMatrix();
-                    const sanctuaryStone = this._sanctuaryStoneColor || (this._sanctuaryStoneColor = new THREE.Color(1, 1, 1));
-                    sanctuaryStone.setRGB(
-                        Math.min(1.0, Math.max(0.82, floorShade.r * 1.35)),
-                        Math.min(1.0, Math.max(0.82, floorShade.g * 1.35)),
-                        Math.min(1.0, Math.max(0.82, floorShade.b * 1.35))
-                    );
-                    const pureWhite = this._sanctuaryPureWhite || (this._sanctuaryPureWhite = new THREE.Color(1, 1, 1));
-                    if (isSilQForge && this.forgeMesh) {
-                        if (forgeCount < 32) {
-                            this.forgeMesh.setMatrixAt(forgeCount, this.dummy.matrix);
-                            this.forgeMesh.setColorAt(forgeCount, sanctuaryStone);
-                            forgeCount++;
-                        }
-                    } else if (feat === 43 || isSilQForge) {
-                        if (altarCount < 64) {
-                            this.altarMesh.setMatrixAt(altarCount, this.dummy.matrix);
-                            this.altarMesh.setColorAt(altarCount, sanctuaryStone);
-                            if (this.altarBrassMesh) {
-                                this.altarBrassMesh.setMatrixAt(altarCount, this.dummy.matrix);
-                                this.altarBrassMesh.setColorAt(altarCount, pureWhite);
-                            }
-                            if (this.altarFlameMesh) {
-                                this.altarFlameMesh.setMatrixAt(altarCount, this.dummy.matrix);
-                                this.altarFlameMesh.setColorAt(altarCount, pureWhite);
-                            }
-                            altarCount++;
-                        }
-                    } else {
-                        if (fountainCount < 64) {
-                            this.fountainMesh.setMatrixAt(fountainCount, this.dummy.matrix);
-                            this.fountainMesh.setColorAt(fountainCount, sanctuaryStone);
-                            if (this.fountainBrassMesh) {
-                                this.fountainBrassMesh.setMatrixAt(fountainCount, this.dummy.matrix);
-                                this.fountainBrassMesh.setColorAt(fountainCount, pureWhite);
-                            }
-                            if (this.fountainWaterMesh) {
-                                this.fountainWaterMesh.setMatrixAt(fountainCount, this.dummy.matrix);
-                                this.fountainWaterMesh.setColorAt(fountainCount, pureWhite);
-                            }
-                            fountainCount++;
-                        }
-                    }
-
-                    if (!outdoors) {
-                        this.dummy.position.set(wx, this.wallHeight, wz);
-                        this.dummy.rotation.set(0, 0, 0);
-                        this.dummy.updateMatrix();
-                        this.ceilingMesh.setMatrixAt(ceilingCount, this.dummy.matrix);
-                        this.ceilingMesh.setColorAt(ceilingCount, ceilingShade);
-                        ceilingCount++;
-                    }
-                    continue;
-                }
-
-                // Impassable Rubble Piles (feat 16) — Tumbled stone masonry & jagged boulders (DungeonWorld.cs:1738-1753, 2522-2528)
+                // Impassable Rubble Piles (feat 16)
                 if (feat === 16) {
                     this.dummy.position.set(wx, -0.05, wz);
                     this.dummy.rotation.set(0, 0, 0);
                     this.dummy.updateMatrix();
                     this.floorMesh.setMatrixAt(floorCount, this.dummy.matrix);
-                    this.floorMesh.setColorAt(floorCount, floorShade);
+                    setCol(this.floorMesh, floorCount, floorShade);
                     floorCount++;
 
                     this.dummy.position.set(wx, 0, wz);
-                    // Procedural subtle rotation variation per tile so piles don't look identical
                     const rubbleYaw = ((x * 37 + y * 59) % 4) * (Math.PI / 2);
                     this.dummy.rotation.set(0, rubbleYaw, 0);
                     this.dummy.updateMatrix();
                     this.rubbleMesh.setMatrixAt(rubbleCount, this.dummy.matrix);
-                    this.rubbleMesh.setColorAt(rubbleCount, wallShade);
+                    setCol(this.rubbleMesh, rubbleCount, wallShade);
                     rubbleCount++;
 
-                    if (!outdoors) {
-                        this.dummy.position.set(wx, this.wallHeight, wz);
-                        this.dummy.rotation.set(0, 0, 0);
-                        this.dummy.updateMatrix();
-                        this.ceilingMesh.setMatrixAt(ceilingCount, this.dummy.matrix);
-                        this.ceilingMesh.setColorAt(ceilingCount, ceilingShade);
-                        ceilingCount++;
-                    }
+                    emitIndoorCeiling(tileCeilH);
                     continue;
                 }
             }
         }
+        if (!outdoors && this.wallTorchMesh && Array.isArray(this._activeWallSconces)) {
+            const pureW = this._sanctuaryPureWhite || (this._sanctuaryPureWhite = new THREE.Color(1, 1, 1));
+            const sconceShade = this._scratchWallColor;
+            for (let si = 0; si < this._activeWallSconces.length && wallTorchCount < 128; si++) {
+                const sc = this._activeWallSconces[si];
+                tileIdx = sc.tileIdx;
+                sconceShade.copy(biome.wallColor);
+                this.dummy.position.set(sc.mountX, 1.82, sc.mountZ);
+                this.dummy.rotation.set(0, sc.yaw, 0);
+                this.dummy.scale.set(1, 1, 1);
+                this.dummy.updateMatrix();
+                this.wallTorchMesh.setMatrixAt(wallTorchCount, this.dummy.matrix);
+                setCol(this.wallTorchMesh, wallTorchCount, sconceShade);
+                if (this.wallTorchFlameMesh) {
+                    this.wallTorchFlameMesh.setMatrixAt(wallTorchCount, this.dummy.matrix);
+                    setCol(this.wallTorchFlameMesh, wallTorchCount, pureW);
+                }
+                wallTorchCount++;
+            }
+        }
+        this._rawLitShadeMode = false;
 
         const updateMesh = (mesh, newCount) => {
             const oldCount = mesh.count;
@@ -9772,17 +6718,30 @@ class Dungeon3D {
                     }
                     mesh.instanceColor.needsUpdate = true;
                 }
+                const bevAttr = mesh.geometry && mesh.geometry.attributes && mesh.geometry.attributes.aCornerBevel;
+                if (bevAttr && bevAttr.isInstancedBufferAttribute) {
+                    if (bevAttr.updateRange) {
+                        bevAttr.updateRange.offset = 0;
+                        bevAttr.updateRange.count = newCount * 4;
+                    }
+                    bevAttr.needsUpdate = true;
+                }
             }
         };
 
         updateMesh(this.wallMesh, wallCount);
+        if (this.upperWallMesh) updateMesh(this.upperWallMesh, upperWallCount);
         updateMesh(this.permWallMesh, permWallCount);
+        if (this.upperPermWallMesh) updateMesh(this.upperPermWallMesh, upperPermWallCount);
         updateMesh(this.floorMesh, floorCount);
         updateMesh(this.ceilingMesh, ceilingCount);
         updateMesh(this.doorFrameMesh, doorFrameCount);
+        if (this.shopStoneMesh) updateMesh(this.shopStoneMesh, shopStoneCount);
+        if (this.shopStoneOccupiedMesh) updateMesh(this.shopStoneOccupiedMesh, shopStoneOccCount);
         updateMesh(this.shopFrameMesh, shopFrameCount);
         if (this.shopAwningMesh) updateMesh(this.shopAwningMesh, shopAwningCount);
         if (this.townTimberMesh) updateMesh(this.townTimberMesh, townTimberCount);
+        if (this.townTimberPostMesh) updateMesh(this.townTimberPostMesh, townTimberPostCount);
         if (this.townRoofMesh) updateMesh(this.townRoofMesh, townRoofCount);
         updateMesh(this.rubbleMesh, rubbleCount);
         updateMesh(this.doorMesh, doorCount);
@@ -9804,15 +6763,24 @@ class Dungeon3D {
         updateMesh(this.swampMesh, swampCount);
         updateMesh(this.stairsMesh, stairsCount);
         updateMesh(this.stairsUpMesh, stairsUpCount);
+        if (this.stairsUpOccupiedMesh) updateMesh(this.stairsUpOccupiedMesh, stairsUpOccCount);
         updateMesh(this.altarMesh, altarCount);
+        if (this.altarOccupiedMesh) updateMesh(this.altarOccupiedMesh, altarOccCount);
         if (this.altarBrassMesh) updateMesh(this.altarBrassMesh, altarCount);
         if (this.altarFlameMesh) updateMesh(this.altarFlameMesh, altarCount);
         if (this.forgeMesh) updateMesh(this.forgeMesh, forgeCount);
         updateMesh(this.fountainMesh, fountainCount);
+        if (this.fountainOccupiedMesh) updateMesh(this.fountainOccupiedMesh, fountainOccCount);
         if (this.fountainBrassMesh) updateMesh(this.fountainBrassMesh, fountainCount);
         if (this.fountainWaterMesh) updateMesh(this.fountainWaterMesh, fountainCount);
         updateMesh(this.trapMesh, trapCount);
+        if (this.wallTorchMesh) updateMesh(this.wallTorchMesh, wallTorchCount);
+        if (this.wallTorchFlameMesh) updateMesh(this.wallTorchFlameMesh, wallTorchCount);
+        if (this.waterBankMesh) updateMesh(this.waterBankMesh, waterBankCount);
         if (this.chasmMesh) updateMesh(this.chasmMesh, chasmIdx);
+        if (this.wallPlinthMesh) updateMesh(this.wallPlinthMesh, trimCounts.plinth);
+        if (this.wallCorniceMesh) updateMesh(this.wallCorniceMesh, trimCounts.cornice);
+        if (this.darkPortalMesh) updateMesh(this.darkPortalMesh, trimCounts.portal);
         if (this.chasmVoidMesh) {
             const oldChasmVoid = this.chasmVoidMesh.count;
             this.chasmVoidMesh.count = chasmVoidIdx;
@@ -9883,6 +6851,7 @@ class Dungeon3D {
                     if (sprite.parent) sprite.parent.remove(sprite);
                     if (sprite._ownedSignTexture) sprite._ownedSignTexture.dispose();
                     if (sprite._ownedSignMaterial) sprite._ownedSignMaterial.dispose();
+                    if (sprite._ownedRoofSpriteMat) sprite._ownedRoofSpriteMat.dispose();
                     if (sprite.material) {
                         if (sprite.material.map) sprite.material.map.dispose();
                         sprite.material.dispose();
@@ -9914,33 +6883,48 @@ class Dungeon3D {
                 const flag = this.getFlagAt(map, x, y);
                 const known = outdoors || (flag & 0x1) !== 0;
                 const inView = outdoors || (flag & 0x2) !== 0;
-                // STRICT FOG OF WAR: Never leak undiscovered space!
-                if (!known && !inView) continue;
-
                 let feat = this.getFeatAt(map, x, y);
-                const glyph = this.getGlyphAt(map, x, y);
-                const tileAttr = this.getAttrAt(map, x, y);
+                let glyph = this.getGlyphAt(map, x, y);
+                let tileAttr = this.getAttrAt(map, x, y);
+                const mem = (!outdoors && !inView && feat === 0 && this.getRememberedTile) ? this.getRememberedTile(x, y) : null;
+                if (mem) {
+                    feat = mem.feat;
+                    glyph = mem.glyph;
+                    tileAttr = mem.attr;
+                }
+                // STRICT FOG OF WAR: Never leak undiscovered space!
+                if ((!known && !inView && !mem) || feat === 0) continue;
+
                 if (this.realm === 'frogcomposband' && glyph === '#' && (tileAttr === 2 || tileAttr === 8 || tileAttr === 9 || feat === 41)) {
+                    feat = 41;
+                } else if (!outdoors && (glyph === ':' || glyph === ' ') && feat === 32) {
                     feat = 41;
                 }
 
-                if (((feat >= 7 && feat <= 14) || (feat >= 32 && feat <= 40)) && outdoors) {
+                const isSilQForge = (feat === 60 || (this.realm === 'silq' && glyph === '0'));
+                if (((feat >= 7 && feat <= 14) || (feat >= 32 && feat <= 40 && !isSilQForge)) && outdoors) {
                     if (!storePositions.has(feat)) {
                         storePositions.set(feat, []);
                     }
                     storePositions.get(feat).push({ x: x * this.cellSize, z: y * this.cellSize });
                 } else if (feat === 5) {
+                    if (px === x && py === y) continue;
+                    const sYaw = this.determineStairOrientation(map, x, y, w, h);
                     const upText = depth === 1 ? '[<] Up to Town' : `[<] Up to ${(depth - 1) * 50}ft`;
-                    stairsList.push({ gridX: x, gridY: y, x: x * this.cellSize, y: 1.1, z: y * this.cellSize, name: upText });
+                    stairsList.push({ gridX: x, gridY: y, x: x * this.cellSize + Math.sin(sYaw) * 0.94, y: 1.18, z: y * this.cellSize + Math.cos(sYaw) * 0.94, name: upText });
                 } else if (feat === 6) {
+                    if (px === x && py === y) continue;
+                    const sYaw = this.determineStairOrientation(map, x, y, w, h);
                     const downText = depth === 0 ? "[>] Down to Dungeon (50')" : `[>] Down to ${(depth + 1) * 50}ft`;
-                    stairsList.push({ gridX: x, gridY: y, x: x * this.cellSize, y: 1.1, z: y * this.cellSize, name: downText });
-                } else if (feat === 60 || (this.realm === 'silq' && glyph === '0')) {
+                    stairsList.push({ gridX: x, gridY: y, x: x * this.cellSize + Math.sin(sYaw) * 0.42, y: 0.92, z: y * this.cellSize + Math.cos(sYaw) * 0.42, name: downText });
+                } else if (isSilQForge) {
+                    if (px === x && py === y) continue;
                     stairsList.push({ gridX: x, gridY: y, x: x * this.cellSize, y: 1.45, z: y * this.cellSize, name: '[0] Dwarven Forge', color: '#ffaa33' });
                 } else if (feat === 43) {
-                    // # ROOT-CAUSE: Floating label y=1.45 intersected the tall chalice flame and fountain geyser; raise to y=1.68 above monument apex.
+                    if (px === x && py === y) continue;
                     stairsList.push({ gridX: x, gridY: y, x: x * this.cellSize, y: 1.68, z: y * this.cellSize, name: '[_] High Altar', color: '#ffd866' });
                 } else if (feat === 44) {
+                    if (px === x && py === y) continue;
                     stairsList.push({ gridX: x, gridY: y, x: x * this.cellSize, y: 1.68, z: y * this.cellSize, name: '[{] Magic Fountain', color: '#66ddff' });
                 } else if (feat === 41) {
                     const playerX = px !== undefined ? px : (this.playerGridX !== undefined ? this.playerGridX : 0);
@@ -9975,12 +6959,8 @@ class Dungeon3D {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
             if (isStore) {
-                // Illuminated Medieval Carved-Oak & Brass Guild Signboard Plaque
-                const w = 492, h = 108, x0 = 10, y0 = 10;
-                // Iron hanging chains at top
-                ctx.fillStyle = '#22201e';
-                ctx.fillRect(108, 0, 10, 14);
-                ctx.fillRect(394, 0, 10, 14);
+                // Illuminated Medieval Carved-Oak & Brass Guild Signboard Plaque (flush fascia, zero top hanging-chain stubs!)
+                const w = 492, h = 112, x0 = 10, y0 = 8;
 
                 // Weathered dark oak plaque background
                 const woodGrad = ctx.createLinearGradient(0, y0, 0, y0 + h);
@@ -10066,6 +7046,7 @@ class Dungeon3D {
 
             const tex = new THREE.CanvasTexture(canvas);
             tex.minFilter = THREE.LinearFilter;
+            if ('colorSpace' in tex && THREE.SRGBColorSpace) tex.colorSpace = THREE.SRGBColorSpace;
             if (isStore) {
                 const signGroup = new THREE.Group();
                 signGroup.position.set(pos.x, 0, pos.z);
@@ -10073,9 +7054,9 @@ class Dungeon3D {
                 signGroup.maxDist = 64.0;
 
                 if (!this._storeSignSharedGeos) {
-                    const fasciaBackGeo = new THREE.BoxGeometry(1.94, 0.50, 0.05);
+                    const fasciaBackGeo = new THREE.BoxGeometry(1.94, 0.50, 0.024);
                     fasciaBackGeo._sharedGeometry = true;
-                    const fasciaTrimGeo = new THREE.BoxGeometry(1.98, 0.54, 0.035);
+                    const fasciaTrimGeo = new THREE.BoxGeometry(1.98, 0.54, 0.030);
                     fasciaTrimGeo._sharedGeometry = true;
                     const fasciaFaceGeo = new THREE.PlaneGeometry(1.90, 0.46);
                     fasciaFaceGeo._sharedGeometry = true;
@@ -10095,15 +7076,15 @@ class Dungeon3D {
                 signGroup._ownedSignMaterial = signFaceMat;
                 signGroup._ownedSignTexture = tex;
 
-                // 1. Flush Unobstructed Front Lintel Guild Plaque above the doorway (y = 2.76m, z = 1.06m — zero perpendicular blade sign obstruction!)
+                // 1. Flush Unobstructed Front Lintel Guild Plaque strictly proud of shopFrameGeo (0.996 < 1.028 < 1.034 < 1.038)
                 const fasciaTrim = new THREE.Mesh(fasciaTrimGeo, brassMat);
-                fasciaTrim.position.set(0, 2.76, 1.022);
+                fasciaTrim.position.set(0, 2.74, 1.013);
                 const fasciaBack = new THREE.Mesh(fasciaBackGeo, woodMat);
-                fasciaBack.position.set(0, 2.76, 1.035);
+                fasciaBack.position.set(0, 2.74, 1.022);
                 const fasciaFace = new THREE.Mesh(fasciaFaceGeo, signFaceMat);
-                fasciaFace.position.set(0, 2.76, 1.062);
+                fasciaFace.position.set(0, 2.74, 1.038);
 
-                // 2. High Hover-Over Wayfinder Beacon above the roofline (y = 4.40m, well above the 3.19m cornice so walls never clip it!)
+                // 2. High Hover-Over Wayfinder Beacon above the roofline (y = 4.30m; smoothly distance-faded out < 7.5m)
                 const roofSpriteMat = new THREE.SpriteMaterial({
                     map: tex,
                     depthTest: true,
@@ -10112,7 +7093,9 @@ class Dungeon3D {
                 });
                 const roofSprite = new THREE.Sprite(roofSpriteMat);
                 roofSprite.scale.set(2.85, 0.72, 1.0);
-                roofSprite.position.set(0, 4.40, 0.0);
+                roofSprite.position.set(0, 4.30, 0.0);
+                signGroup._ownedRoofSpriteMat = roofSpriteMat;
+                signGroup._roofSprite = roofSprite;
 
                 signGroup.add(fasciaTrim, fasciaBack, fasciaFace, roofSprite);
                 return signGroup;
@@ -10134,26 +7117,19 @@ class Dungeon3D {
             this.storefrontPropsGroup.name = 'StorefrontPropsGroup';
             this.scene.add(this.storefrontPropsGroup);
         }
-        const storefrontSig = outdoors ? `${depth}:${this.realm || 'angband'}:${storePositions.size}` : 'indoors';
-        const rebuildStorefrontProps = (this._lastStorefrontPropsSig !== storefrontSig);
-        if (rebuildStorefrontProps && this.storefrontPropsGroup) {
-            this._lastStorefrontPropsSig = storefrontSig;
-            while (this.storefrontPropsGroup.children.length > 0) {
-                this.storefrontPropsGroup.remove(this.storefrontPropsGroup.children[0]);
-            }
-        }
         const storeDisplayWares = [
             ['ph_chest', 'ph_lantern'],
             ['item_plate_armor', 'ph_shield'],
             ['item_anvil', 'item_greatsword'],
             ['ph_book', 'item_shrine_candles'],
-            ['ph_potion_urn', 'item_healing_potion'],
+            ['ph_potion_urn', 'ph_potion_bottle'],
             ['item_shrine_candles', 'item_wand'],
             ['ph_chest', 'item_gold'],
             ['ph_goblet', 'ph_book']
         ];
 
-        // Shop Labels at Centroid (1:1 with Godot DungeonWorld.cs:2648-2670 + Hengband/FrogComposBand Special Guilds)
+        const shopClusterEntries = [];
+        const maxClusterDistSq = (this.cellSize * 2.2) * (this.cellSize * 2.2);
         for (const [feat, points] of storePositions.entries()) {
             const isSpecialBuilding = feat >= 32;
             const storeIdx = isSpecialBuilding ? ((feat - 32) % 8) : (feat - 7);
@@ -10162,33 +7138,58 @@ class Dungeon3D {
             const labelText = isSpecialBuilding ? `[+] ${storeName}` : `[${storeNum}] ${storeName}`;
             const col = getStoreColorHex(storeIdx + 1);
 
-            let avgX = 0, avgZ = 0;
+            const clusters = [];
             for (const pt of points) {
-                avgX += pt.x;
-                avgZ += pt.z;
+                let matched = null;
+                for (const cl of clusters) {
+                    for (const existing of cl) {
+                        const cdx = pt.x - existing.x, cdz = pt.z - existing.z;
+                        if (cdx * cdx + cdz * cdz <= maxClusterDistSq) { matched = cl; break; }
+                    }
+                    if (matched) break;
+                }
+                if (matched) matched.push(pt);
+                else clusters.push([pt]);
             }
-            avgX /= points.length;
-            avgZ /= points.length;
+            for (const cl of clusters) {
+                const anchorPt = cl[Math.floor(cl.length / 2)];
+                const avgX = anchorPt.x;
+                const avgZ = anchorPt.z;
+                const gx = Math.round(avgX / this.cellSize);
+                const gy = Math.round(avgZ / this.cellSize);
+                const doorYaw = this.determineShopDoorOrientation(map, gx, gy, w, h);
+                shopClusterEntries.push({ feat, storeIdx, labelText, col, avgX, avgZ, gx, gy, doorYaw });
+            }
+        }
 
-            const gx = Math.round(avgX / this.cellSize);
-            const gy = Math.round(avgZ / this.cellSize);
-            const doorYaw = this.determineShopDoorOrientation(map, gx, gy, w, h);
-            const key = `${gx},${gy},${labelText}`;
+        const storefrontSig = outdoors
+            ? `${depth}:${this.realm || 'angband'}:${shopClusterEntries.map(c => `${c.feat}@${c.gx},${c.gy},${c.doorYaw.toFixed(2)}`).join('|')}`
+            : 'indoors';
+        const rebuildStorefrontProps = (this._lastStorefrontPropsSig !== storefrontSig);
+        if (rebuildStorefrontProps && this.storefrontPropsGroup) {
+            this._lastStorefrontPropsSig = storefrontSig;
+            while (this.storefrontPropsGroup.children.length > 0) {
+                this.storefrontPropsGroup.remove(this.storefrontPropsGroup.children[0]);
+            }
+        }
+
+        // Shop Labels & Storefront Props at Cluster Centroids
+        for (const c of shopClusterEntries) {
+            const key = `${c.gx},${c.gy},${c.labelText}`;
             activeLabelKeys.add(key);
 
             if (!this._terrainLabelSprites.has(key)) {
-                const signObj = createCaption(labelText, { x: avgX, y: 2.78, z: avgZ, yaw: doorYaw }, col, true, storeIdx);
+                const signObj = createCaption(c.labelText, { x: c.avgX, y: 2.74, z: c.avgZ, yaw: c.doorYaw }, c.col, true, c.storeIdx);
                 this.terrainLabelsGroup.add(signObj);
                 this._terrainLabelSprites.set(key, signObj);
             }
 
             if (outdoors && rebuildStorefrontProps && this.storefrontPropsGroup) {
                 const shopPropAnchor = new THREE.Group();
-                shopPropAnchor.position.set(avgX, 0, avgZ);
-                shopPropAnchor.rotation.set(0, doorYaw, 0);
+                shopPropAnchor.position.set(c.avgX, 0, c.avgZ);
+                shopPropAnchor.rotation.set(0, c.doorYaw, 0);
                 this.storefrontPropsGroup.add(shopPropAnchor);
 
-                // Zero-PointLight warm golden storefront light pool decal (avoids full-scene WebGL shader recompilation)
                 if (this.shadowGeo && this.shadowTex) {
                     if (!this._storeLightPoolMat) {
                         this._storeLightPoolMat = new THREE.MeshBasicMaterial({
@@ -10206,52 +7207,9 @@ class Dungeon3D {
                     lightPool.scale.set(6.2, 1.0, 5.2);
                     shopPropAnchor.add(lightPool);
                 }
-
-                // Attach 2 hanging 3D lanterns on wrought-iron sconces
-                const attachStoreProp = (propKey, lx, ly, lz, targetSize = 0.36, rotY = 0) => {
-                    const mount = (tmpl) => {
-                        if (!tmpl || !shopPropAnchor.parent) return;
-                        const clone = this._cloneCachedGltfTemplate ? this._cloneCachedGltfTemplate(tmpl, null, propKey) : tmpl.clone(true);
-                        if (!clone) return;
-                        if (propKey === 'ph_lantern') {
-                            clone.traverse((c) => {
-                                if (c.isMesh && c.material && !Array.isArray(c.material)) {
-                                    const mClone = c.material.clone();
-                                    mClone._sharedMaterial = true;
-                                    if (mClone.emissive) {
-                                        mClone.emissive.setHex(0xffa834);
-                                        mClone.emissiveIntensity = 0.85;
-                                    }
-                                    c.material = mClone;
-                                }
-                            });
-                        }
-                        const box = new THREE.Box3().setFromObject(clone);
-                        const sz = new THREE.Vector3();
-                        box.getSize(sz);
-                        const maxDim = Math.max(0.001, sz.x, sz.y, sz.z);
-                        const s = targetSize / maxDim;
-                        clone.scale.set(s, s, s);
-                        const box2 = new THREE.Box3().setFromObject(clone);
-                        const center = new THREE.Vector3();
-                        box2.getCenter(center);
-                        clone.position.set(lx - center.x, ly - box2.min.y, lz - center.z);
-                        clone.rotation.y = rotY;
-                        shopPropAnchor.add(clone);
-                    };
-                    if (this._gltfTemplateCache && this._gltfTemplateCache.has(propKey)) {
-                        mount(this._gltfTemplateCache.get(propKey));
-                    } else if (this._ensurePolyHavenFloorItem) {
-                        this._ensurePolyHavenFloorItem(propKey).then(mount).catch(() => {});
-                    }
-                };
-
-                attachStoreProp('ph_lantern', -0.76, 1.68, 0.48, 0.32, 0);
-                attachStoreProp('ph_lantern', 0.76, 1.68, 0.48, 0.32, 0);
-
-                const wares = storeDisplayWares[storeIdx] || storeDisplayWares[0];
-                if (wares[0]) attachStoreProp(wares[0], -0.76, 0.44, 0.54, 0.42, 0.35);
-                if (wares[1]) attachStoreProp(wares[1], 0.76, 0.44, 0.54, 0.42, -0.35);
+                if (this._mountStorefrontClusterProps) {
+                    this._mountStorefrontClusterProps(shopPropAnchor, c.storeIdx, storeDisplayWares);
+                }
             }
         }
 
@@ -10285,6 +7243,7 @@ class Dungeon3D {
                 this.terrainLabelsGroup.remove(sprite);
                 if (sprite._ownedSignTexture) sprite._ownedSignTexture.dispose();
                 if (sprite._ownedSignMaterial) sprite._ownedSignMaterial.dispose();
+                if (sprite._ownedRoofSpriteMat) sprite._ownedRoofSpriteMat.dispose();
                 if (sprite.material) {
                     if (sprite.material.map) sprite.material.map.dispose();
                     sprite.material.dispose();
@@ -10304,6 +7263,26 @@ class Dungeon3D {
     }
 
     purgeAllSceneEntities() {
+        if (this._pendingVfxTimers && this._pendingVfxTimers.size > 0) {
+            for (const tid of this._pendingVfxTimers) clearTimeout(tid);
+            this._pendingVfxTimers.clear();
+        }
+        if (this._purgeSceneVfxAndLabels) {
+            this._purgeSceneVfxAndLabels();
+        }
+        if (this._dyingMonsters && this._dyingMonsters.length > 0) {
+            for (let i = 0; i < this._dyingMonsters.length; i++) {
+                const d = this._dyingMonsters[i];
+                if (d && d.nameplate && d.nameplate.material && d.nameplate.material.map) {
+                    d.nameplate.material.map.dispose();
+                }
+                this.destroyEntity(d);
+            }
+            this._dyingMonsters.length = 0;
+        }
+        if (this.nameplatePool && typeof this.nameplatePool.clear === 'function') {
+            this.nameplatePool.clear();
+        }
         if (this.monsters) {
             for (const entity of this.monsters.values()) {
                 if (entity.nameplate && entity.nameplate.material && entity.nameplate.material.map) {
@@ -10347,7 +7326,7 @@ class Dungeon3D {
         // Dark-obsidian rounded rectangle backdrop with beveled metallic gold border
         const isSensed = (isSensedParam !== undefined) ? isSensedParam : !!(m.invisible || (m.detected && m.unlit));
         const isBossOrUnique = Boolean(m.unique || m.isBoss || /morgoth|sauron|ungoliant|gothmog|carcharoth|yendor|serpent of chaos|cyberdemon|cthulhu|orochi|shuten/i.test(rawRace));
-        const hasBadgeLine = Boolean(m.asleep || m.afraid || isTargeted || isSensed || isBossOrUnique);
+        const hasBadgeLine = Boolean(m.asleep || m.afraid || m.confused || m.stunned || m.fast || m.hasted || m.breath || m.breathes || isTargeted || isSensed || isBossOrUnique);
         const padX = 14;
         const padY = 4;
         const bgW = 384 - padX * 2;
@@ -10376,8 +7355,11 @@ class Dungeon3D {
 
         let curY = 6;
 
-        // Line 1: Status badge (💤 Zzz..., 💨 FLEEING!, ⌖ TARGET ⌖, 👑 UNIQUE, 👁 SENSED)
-        if (m.asleep) {
+        // Composable Status Icon Pills (e.g. 💨 Fleeing + 😵 Confused + ⚡ Fast + 🔥 Breath + 💤 Asleep)
+        if (window.Dungeon3DTactical && typeof window.Dungeon3DTactical.drawComposableStatusPills === 'function') {
+            const pillH = window.Dungeon3DTactical.drawComposableStatusPills(ctx, m, curY, isTargeted, isBossOrUnique, isSensed);
+            if (pillH > 0) curY += pillH;
+        } else if (m.asleep) {
             ctx.font = '700 22px "Fira Code", monospace';
             ctx.textAlign = 'center';
             ctx.strokeStyle = '#000000';
@@ -10439,13 +7421,13 @@ class Dungeon3D {
         ctx.fillText(displayRace, 192, curY + 22);
         curY += 28;
 
-        // Line 3: Compact Health Bar matching Godot: [glyph] [██████] hp/hpMax
-        const barW = 160;
-        const barH = 10;
-        const barX = 192 - barW / 2;
+        // Line 3: Compact Diegetic Condition Bar ([glyph] [██████], numeric HP strictly in __wizardMode)
+        const showNumericHp = Boolean(typeof window !== 'undefined' && window.__wizardMode);
+        const barW = showNumericHp ? 156 : 184;
+        const barH = 9;
+        const barX = (showNumericHp ? 192 : 206) - barW / 2;
         const barY = curY + 4;
 
-        // Background
         ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
         ctx.fillRect(barX - 2, barY - 2, barW + 4, barH + 4);
 
@@ -10456,31 +7438,32 @@ class Dungeon3D {
         ctx.fillStyle = hpCol;
         ctx.fillRect(barX, barY, Math.max(2, barW * pct), barH);
 
-        // Text labels: [glyph] on left, hp/max on right
-        ctx.font = '700 16px "Fira Code", monospace';
+        ctx.font = '700 15px "Fira Code", monospace';
         ctx.fillStyle = '#e0e0e0';
         ctx.strokeStyle = '#000000';
         ctx.lineWidth = 3;
 
         ctx.textAlign = 'right';
-        ctx.strokeText(`[${glyph}]`, barX - 6, barY + 9);
-        ctx.fillText(`[${glyph}]`, barX - 6, barY + 9);
+        ctx.strokeText(`[${glyph}]`, barX - 6, barY + 8);
+        ctx.fillText(`[${glyph}]`, barX - 6, barY + 8);
 
-        ctx.textAlign = 'left';
-        ctx.strokeText(`${hp}/${hpMax}`, barX + barW + 6, barY + 9);
-        ctx.fillText(`${hp}/${hpMax}`, barX + barW + 6, barY + 9);
+        if (showNumericHp) {
+            ctx.textAlign = 'left';
+            ctx.strokeText(`${hp}/${hpMax}`, barX + barW + 6, barY + 8);
+            ctx.fillText(`${hp}/${hpMax}`, barX + barW + 6, barY + 8);
+        }
 
         if (reuse) {
+            existingSprite.scale.set(0.68, 0.19, 1.0);
             existingSprite.material.map.needsUpdate = true;
             existingSprite.monsterData = m;
             return existingSprite;
         }
         const tex = new THREE.CanvasTexture(canvas);
         tex.minFilter = THREE.LinearFilter;
-        // Godot MonsterModelResolver.cs:388 sets NoDepthTest = false (occluded by walls)
         const mat = new THREE.SpriteMaterial({ map: tex, depthTest: true, depthWrite: false, transparent: true });
         const sprite = new THREE.Sprite(mat);
-        sprite.scale.set(0.82, 0.23, 1.0);
+        sprite.scale.set(0.68, 0.19, 1.0);
         sprite._npCanvas = canvas;
         sprite._npCtx = ctx;
         sprite.monsterData = m;
@@ -10552,7 +7535,9 @@ class Dungeon3D {
                 tex.minFilter = THREE.LinearMipmapLinearFilter;
                 tex.magFilter = THREE.LinearFilter;
                 if (this.renderer && this.renderer.capabilities) {
-                    tex.anisotropy = Math.min(16, this.renderer.capabilities.getMaxAnisotropy() || 1);
+                    const tier = (this.renderBudget && this.renderBudget.tier) || 'balanced';
+                    const anisoCap = (tier === 'high' || tier === 'ultra') ? 8 : 4;
+                    tex.anisotropy = Math.min(anisoCap, this.renderer.capabilities.getMaxAnisotropy() || 1);
                 }
                 this.monsterNormalTex = tex;
                 if (this.monsterBillboardMat) {
@@ -11293,6 +8278,7 @@ class Dungeon3D {
                 node.geometry.computeVertexNormals();
             }
             if (node.isSkinnedMesh) {
+                node.frustumCulled = false;
                 const sourceMesh = sourceLookup.get(node);
                 if (sourceMesh && sourceMesh.skeleton) {
                     const sourceBones = sourceMesh.skeleton.bones;
@@ -11797,6 +8783,7 @@ class Dungeon3D {
                     if (child.material) {
                         child.material = Array.isArray(child.material) ? child.material[0].clone() : child.material.clone();
                         child.material.color = new THREE.Color(0x38342c);
+                        this._applyUvSeamBleedFix(child.material);
                     }
                     if (child.geometry && child.geometry.attributes && child.geometry.attributes.position && child.geometry.attributes.normal) {
                         const geo = child.geometry.clone();
@@ -11819,56 +8806,62 @@ class Dungeon3D {
     }
 
     _applyUvSeamBleedFix(mat) {
-        if (!mat || mat._uvSeamFixApplied || !mat.map) return;
+        if (!mat || !mat.map) return;
+        if (!this._uvSeamBleedOnBeforeCompile) {
+            this._uvSeamBleedOnBeforeCompile = (shader) => {
+                shader.fragmentShader = shader.fragmentShader.replace(
+                    '#include <map_fragment>',
+                    `#ifdef USE_MAP
+                        vec4 texelColor = texture2D( map, vUv, -0.75 );
+                        float cLuma = dot(texelColor.rgb, vec3(0.299, 0.587, 0.114));
+                        vec2 uvStep = vec2(0.0032, 0.0032);
+                        vec4 n0 = texture2D( map, vUv + vec2( uvStep.x, 0.0), -1.0 );
+                        vec4 n1 = texture2D( map, vUv + vec2(-uvStep.x, 0.0), -1.0 );
+                        vec4 n2 = texture2D( map, vUv + vec2(0.0,  uvStep.y), -1.0 );
+                        vec4 n3 = texture2D( map, vUv + vec2(0.0, -uvStep.y), -1.0 );
+                        vec4 n4 = texture2D( map, vUv + vec2( uvStep.x,  uvStep.y), -1.0 );
+                        vec4 n5 = texture2D( map, vUv + vec2(-uvStep.x,  uvStep.y), -1.0 );
+                        vec4 n6 = texture2D( map, vUv + vec2( uvStep.x, -uvStep.y), -1.0 );
+                        vec4 n7 = texture2D( map, vUv + vec2(-uvStep.x, -uvStep.y), -1.0 );
+                        float l0 = dot(n0.rgb, vec3(0.299, 0.587, 0.114));
+                        float l1 = dot(n1.rgb, vec3(0.299, 0.587, 0.114));
+                        float l2 = dot(n2.rgb, vec3(0.299, 0.587, 0.114));
+                        float l3 = dot(n3.rgb, vec3(0.299, 0.587, 0.114));
+                        float l4 = dot(n4.rgb, vec3(0.299, 0.587, 0.114));
+                        float l5 = dot(n5.rgb, vec3(0.299, 0.587, 0.114));
+                        float l6 = dot(n6.rgb, vec3(0.299, 0.587, 0.114));
+                        float l7 = dot(n7.rgb, vec3(0.299, 0.587, 0.114));
+                        vec4 maxCol = texelColor; float maxL = cLuma;
+                        if (l0 > maxL) { maxL = l0; maxCol = n0; }
+                        if (l1 > maxL) { maxL = l1; maxCol = n1; }
+                        if (l2 > maxL) { maxL = l2; maxCol = n2; }
+                        if (l3 > maxL) { maxL = l3; maxCol = n3; }
+                        if (l4 > maxL) { maxL = l4; maxCol = n4; }
+                        if (l5 > maxL) { maxL = l5; maxCol = n5; }
+                        if (l6 > maxL) { maxL = l6; maxCol = n6; }
+                        if (l7 > maxL) { maxL = l7; maxCol = n7; }
+                        if (cLuma < 0.085 && maxL > max(0.14, cLuma * 2.4)) {
+                            float gutterMask = clamp((0.092 - cLuma) / 0.032, 0.72, 1.0);
+                            texelColor = mix(texelColor, maxCol, gutterMask);
+                        }
+                        texelColor = mapTexelToLinear( texelColor );
+                        diffuseColor *= texelColor;
+                    #endif`
+                );
+            };
+        }
+        if (mat._uvSeamFixApplied && mat.onBeforeCompile === this._uvSeamBleedOnBeforeCompile) return;
         mat._uvSeamFixApplied = true;
-        mat.customProgramCacheKey = () => 'yasd_uv_seam_dilation_v1';
-        mat.onBeforeCompile = (shader) => {
-            shader.fragmentShader = shader.fragmentShader.replace(
-                '#include <map_fragment>',
-                `#ifdef USE_MAP
-                    vec4 texelColor = texture2D( map, vUv, -0.75 );
-                    float cLuma = dot(texelColor.rgb, vec3(0.299, 0.587, 0.114));
-                    vec2 uvStep = vec2(0.0018, 0.0018);
-                    vec4 n0 = texture2D( map, vUv + vec2( uvStep.x, 0.0), -1.0 );
-                    vec4 n1 = texture2D( map, vUv + vec2(-uvStep.x, 0.0), -1.0 );
-                    vec4 n2 = texture2D( map, vUv + vec2(0.0,  uvStep.y), -1.0 );
-                    vec4 n3 = texture2D( map, vUv + vec2(0.0, -uvStep.y), -1.0 );
-                    vec4 n4 = texture2D( map, vUv + vec2( uvStep.x,  uvStep.y), -1.0 );
-                    vec4 n5 = texture2D( map, vUv + vec2(-uvStep.x,  uvStep.y), -1.0 );
-                    vec4 n6 = texture2D( map, vUv + vec2( uvStep.x, -uvStep.y), -1.0 );
-                    vec4 n7 = texture2D( map, vUv + vec2(-uvStep.x, -uvStep.y), -1.0 );
-                    float l0 = dot(n0.rgb, vec3(0.299, 0.587, 0.114));
-                    float l1 = dot(n1.rgb, vec3(0.299, 0.587, 0.114));
-                    float l2 = dot(n2.rgb, vec3(0.299, 0.587, 0.114));
-                    float l3 = dot(n3.rgb, vec3(0.299, 0.587, 0.114));
-                    float l4 = dot(n4.rgb, vec3(0.299, 0.587, 0.114));
-                    float l5 = dot(n5.rgb, vec3(0.299, 0.587, 0.114));
-                    float l6 = dot(n6.rgb, vec3(0.299, 0.587, 0.114));
-                    float l7 = dot(n7.rgb, vec3(0.299, 0.587, 0.114));
-                    float minL = min(cLuma, min(min(min(l0, l1), min(l2, l3)), min(min(l4, l5), min(l6, l7))));
-                    vec4 maxCol = texelColor; float maxL = cLuma;
-                    if (l0 > maxL) { maxL = l0; maxCol = n0; }
-                    if (l1 > maxL) { maxL = l1; maxCol = n1; }
-                    if (l2 > maxL) { maxL = l2; maxCol = n2; }
-                    if (l3 > maxL) { maxL = l3; maxCol = n3; }
-                    if (l4 > maxL) { maxL = l4; maxCol = n4; }
-                    if (l5 > maxL) { maxL = l5; maxCol = n5; }
-                    if (l6 > maxL) { maxL = l6; maxCol = n6; }
-                    if (l7 > maxL) { maxL = l7; maxCol = n7; }
-                    float gutterMask = smoothstep(0.085, 0.015, minL) * smoothstep(cLuma * 1.10, cLuma * 1.55 + 0.03, maxL);
-                    texelColor = mix(texelColor, maxCol, gutterMask);
-                    texelColor = mapTexelToLinear( texelColor );
-                    diffuseColor *= texelColor;
-                #endif`
-            );
-        };
+        mat.customProgramCacheKey = () => 'yasd_uv_seam_dilation_v2';
+        mat.onBeforeCompile = this._uvSeamBleedOnBeforeCompile;
     }
 
     _loadSingleGltfScene(url) {
-        const loader = this.gltfLoader || (typeof THREE.GLTFLoader !== 'undefined' ? new THREE.GLTFLoader() : null);
+        const loader = this._getGltfLoader();
         if (!loader) return Promise.reject(new Error('GLTFLoader not available'));
+        const resolvedUrl = (typeof window !== 'undefined' && typeof window.__assetUrl === 'function') ? window.__assetUrl(url) : url;
         return new Promise((resolve, reject) => {
-            loader.load(url, gltf => {
+            loader.load(resolvedUrl, gltf => {
                 const scene = gltf.scene || (gltf.scenes && gltf.scenes[0]);
                 if (!scene) {
                     reject(new Error(`No scene in GLTF: ${url}`));
@@ -11911,8 +8904,9 @@ class Dungeon3D {
     _loadSingleObjScene(url) {
         const loader = this.objLoader || (typeof THREE.OBJLoader !== 'undefined' ? new THREE.OBJLoader() : null);
         if (!loader) return Promise.reject(new Error('OBJLoader not available'));
+        const resolvedUrl = (typeof window !== 'undefined' && typeof window.__assetUrl === 'function') ? window.__assetUrl(url) : url;
         return new Promise((resolve, reject) => {
-            loader.load(url, obj => {
+            loader.load(resolvedUrl, obj => {
                 if (!obj) {
                     reject(new Error(`No obj in: ${url}`));
                 } else {
@@ -11926,8 +8920,9 @@ class Dungeon3D {
         if (!this._texLoader) {
             this._texLoader = new THREE.TextureLoader();
         }
+        const resolvedUrl = (typeof window !== 'undefined' && typeof window.__assetUrl === 'function') ? window.__assetUrl(url) : url;
         return new Promise(resolve => {
-            this._texLoader.load(url, tex => {
+            this._texLoader.load(resolvedUrl, tex => {
                 tex.flipY = false;
                 tex._sharedTexture = true;
                 if (isColor && typeof THREE.sRGBEncoding !== 'undefined') {
@@ -12141,7 +9136,7 @@ class Dungeon3D {
         if (!m.roughnessMap) {
             m.roughness = opts.roughness !== undefined ? opts.roughness : 0.54;
         }
-        if (!m.map && !m._hasCountershadeShader) {
+        if (!m._hasCountershadeShader) {
             m._hasCountershadeShader = true;
             if (!this._countershadeOnBeforeCompile) {
                 this._countershadeOnBeforeCompile = (shader) => {
@@ -12174,7 +9169,7 @@ class Dungeon3D {
             return this._monster3DLoading.get(templateKey);
         }
 
-        if (templateKey === 'ph_chest' || templateKey === 'ph_sledgehammer' || templateKey === 'ph_crystal' || templateKey === 'item_gold' || templateKey === 'item_greatsword' || templateKey === 'ph_potion_flask' || templateKey === 'ph_book' || templateKey === 'item_crown' || templateKey === 'item_ring' || templateKey === 'item_plate_armor' || templateKey === 'item_wand' || templateKey === 'item_rod' || templateKey === 'item_staff' || templateKey === 'item_staff_branch') {
+        if (templateKey === 'ph_chest' || templateKey === 'ph_boulder' || templateKey === 'ph_sledgehammer' || templateKey === 'ph_crystal' || templateKey === 'item_gold' || templateKey === 'item_greatsword' || templateKey === 'ph_potion_flask' || templateKey === 'ph_book' || templateKey === 'item_scroll' || templateKey === 'item_scroll_enchant' || templateKey === 'item_crown' || templateKey === 'item_ring' || templateKey === 'item_plate_armor' || templateKey === 'item_wand' || templateKey === 'item_rod' || templateKey === 'item_staff' || templateKey === 'item_staff_branch') {
             const p = this._ensurePolyHavenFloorItem(templateKey).then(tmpl => {
                 this._monster3DTemplates.set(templateKey, tmpl);
                 this._monster3DLoading.delete(templateKey);
@@ -12285,10 +9280,18 @@ class Dungeon3D {
                 return normalizeWrapper(content, 1.88, true);
             });
         } else if (templateKey === 'char_male_guard') {
-            // # ROOT-CAUSE: Strip rotated embedded clips on guard.glb so Card 17A procedural rig posture and yawOffset=0 contract hold.
             loadPromise = loadGltf('/assets/models/characters/guard.glb', () => this._ensureMonster3DTemplate('char_male_ranger')).then(content => {
-                if (content) content._animations = [];
-                return normalizeWrapper(content, 1.82, true, 0);
+                const guardClips = (content && content._animations && content._animations.length > 0) ? content._animations.slice() : null;
+                const guardPivot = new THREE.Group();
+                guardPivot.name = 'GuardOrientationPivot';
+                if (content) guardPivot.add(content);
+                const wrapper = normalizeWrapper(guardPivot, 1.82, true, 0);
+                if (guardClips && guardClips.length > 0) {
+                    wrapper._animations = guardClips;
+                    guardPivot._animations = guardClips;
+                }
+                if (false) { if (content) content._animations = []; return normalizeWrapper(content, 1.82, true, 0); }
+                return wrapper;
             });
         } else if (templateKey === 'char_male_rogue') {
             loadPromise = loadGltf('/assets/models/characters/rogue.glb', () => this._ensureMonster3DTemplate('char_male_ranger')).then(content => {
@@ -12358,8 +9361,8 @@ class Dungeon3D {
                                 m.transparent = false;
                                 m.opacity = 1.0;
                                 m.depthWrite = true;
-                                m.roughness = 0.42;
-                                m.metalness = 0.35;
+                                m.roughness = 0.46;
+                                m.metalness = 0.18;
                                 if (m.color && m.color.r > 0.9 && m.color.g > 0.9 && m.color.b > 0.9) {
                                     m.color.setHex(0x8b261d);
                                 }
@@ -12395,7 +9398,7 @@ class Dungeon3D {
                 return normalizeWrapper(scene, 0.62, true, -Math.PI / 2, 1.15);
             });
         } else if (templateKey === 'bestiary_horse') {
-            loadPromise = loadGltf('/assets/models/monsters/bestiary/horse_mount.glb', '/assets/models/monsters/bestiary/Horse.glb').then(scene => {
+            loadPromise = loadGltf('/assets/models/monsters/bestiary/horse_mount.glb', '/assets/models/monsters/bestiary/wolf.glb').then(scene => {
                 scene.traverse(c => {
                     if (c.isMesh || c.isSkinnedMesh) {
                         const hasVColor = Boolean(c.geometry && c.geometry.attributes && c.geometry.attributes.color);
@@ -12578,7 +9581,7 @@ class Dungeon3D {
                 return normalizeWrapper(scene, 1.95, true, 0, 1.55);
             });
         } else if (templateKey === 'bestiary_guardian') {
-            loadPromise = loadGltf('/assets/models/monsters/bestiary/GodAnubis_Art.glb', () => this._ensureMonster3DTemplate('char_male_ranger')).then(scene => {
+            loadPromise = loadGltf('/assets/models/monsters/bestiary/stone_golem.glb', () => loadGltf('/assets/models/monsters/bestiary/skeleton_knight.glb', () => this._ensureMonster3DTemplate('char_male_guard'))).then(scene => {
                 return normalizeWrapper(scene, 2.05, true, 0, 1.65);
             });
         } else if (templateKey === 'bestiary_yeti') {
@@ -12701,16 +9704,171 @@ class Dungeon3D {
             loadPromise = loadGltf('/assets/models/monsters/bestiary/jelly_ooze.glb', () => loadGltf('/assets/polyhaven/models/moon_rock_02/moon_rock_02.gltf')).then(scene => {
                 return normalizeWrapper(scene, 0.58, true, 0, 1.05);
             });
+        } else if (templateKey === 'bestiary_balrog') {
+            loadPromise = loadGltf('/assets/models/monsters/bestiary/GodAnubis_Art.glb', () => this._ensureMonster3DTemplate('bestiary_golem')).then(scene => {
+                return normalizeWrapper(scene, 2.35, true, 0, 1.85);
+            });
+        } else if (templateKey === 'bestiary_mind_flayer') {
+            loadPromise = loadGltf('/assets/models/characters/priest.glb', () => this._ensureMonster3DTemplate('char_male_peasant')).then(scene => {
+                scene.traverse(c => {
+                    if ((c.isMesh || c.isSkinnedMesh) && c.material) {
+                        const mats = Array.isArray(c.material) ? c.material.map(m => m.clone()) : [c.material.clone()];
+                        for (const m of mats) {
+                            if (m.color) m.color.setHex(0x3b1d5e);
+                            m.roughness = 0.68;
+                            if (m.map) this._applyUvSeamBleedFix(m);
+                            m._sharedMaterial = true;
+                        }
+                        c.material = Array.isArray(c.material) ? mats : mats[0];
+                    }
+                });
+                const clips = (scene._animations && scene._animations.length > 0) ? scene._animations.slice() : null;
+                const wrapper = normalizeWrapper(scene, 1.68, true);
+                if (clips) wrapper._animations = clips;
+                const fleshMat = new THREE.MeshStandardMaterial({
+                    color: 0x6d28d9,
+                    normalMap: this.organicNormal || null,
+                    roughness: 0.34,
+                    metalness: 0.06,
+                    emissive: new THREE.Color(0x1e0b36),
+                    emissiveIntensity: 0.25
+                });
+                const eyeMat = new THREE.MeshStandardMaterial({
+                    name: 'illithid_eye',
+                    color: 0xfef08a,
+                    emissive: new THREE.Color(0xf59e0b),
+                    emissiveIntensity: 1.65,
+                    roughness: 0.18
+                });
+                const craniumGeo = new THREE.SphereGeometry(0.145, 16, 12);
+                craniumGeo.scale(0.94, 1.24, 1.40);
+                const cranium = new THREE.Mesh(craniumGeo, fleshMat);
+                cranium.position.set(0, 1.63, -0.025);
+                cranium.rotation.x = -0.22;
+                wrapper.add(cranium);
+                const eyeGeo = new THREE.SphereGeometry(0.024, 10, 8);
+                for (const sx of [-1, 1]) {
+                    const eye = new THREE.Mesh(eyeGeo, eyeMat);
+                    eye.name = 'illithid_eye';
+                    eye.position.set(sx * 0.056, 1.585, 0.108);
+                    wrapper.add(eye);
+                }
+                const tentacleSpecs = [
+                    { x: -0.065, ox: -0.13, yEnd: 1.31, zEnd: 0.20 },
+                    { x: -0.022, ox: -0.045, yEnd: 1.27, zEnd: 0.25 },
+                    { x: 0.022, ox: 0.045, yEnd: 1.27, zEnd: 0.25 },
+                    { x: 0.065, ox: 0.13, yEnd: 1.31, zEnd: 0.20 }
+                ];
+                for (const ts of tentacleSpecs) {
+                    const curve = new THREE.CatmullRomCurve3([
+                        new THREE.Vector3(ts.x, 1.535, 0.095),
+                        new THREE.Vector3(ts.x * 1.35, 1.46, 0.165),
+                        new THREE.Vector3(ts.ox, 1.38, 0.225),
+                        new THREE.Vector3(ts.ox * 0.85, ts.yEnd, ts.zEnd)
+                    ]);
+                    const tGeo = new THREE.TubeGeometry(curve, 12, 0.021, 7, false);
+                    wrapper.add(new THREE.Mesh(tGeo, fleshMat));
+                }
+                wrapper.actualHeight = 1.76;
+                wrapper.baseHeight = 1.76;
+                return tagTemplate(wrapper);
+            });
+        } else if (templateKey === 'env_gelatinous_cube') {
+            const cubeGroup = new THREE.Group();
+            const outerGeo = new THREE.BoxGeometry(1.42, 1.42, 1.42, 3, 3, 3);
+            const pos = outerGeo.attributes.position;
+            for (let i = 0; i < pos.count; i++) {
+                const vx = pos.getX(i), vy = pos.getY(i), vz = pos.getZ(i);
+                const ax = Math.abs(vx), ay = Math.abs(vy), az = Math.abs(vz);
+                const cornerCnt = (ax > 0.69 ? 1 : 0) + (ay > 0.69 ? 1 : 0) + (az > 0.69 ? 1 : 0);
+                if (cornerCnt >= 2) {
+                    const f = cornerCnt === 3 ? 0.945 : 0.972;
+                    pos.setXYZ(i, vx * f, vy * f, vz * f);
+                }
+            }
+            outerGeo.computeVertexNormals();
+            const outerMat = new THREE.MeshStandardMaterial({
+                color: 0x67e8f9,
+                emissive: new THREE.Color(0x0891b2),
+                emissiveIntensity: 0.18,
+                transparent: true,
+                opacity: 0.46,
+                roughness: 0.08,
+                metalness: 0.04,
+                depthWrite: false,
+                side: THREE.DoubleSide
+            });
+            const outerMesh = new THREE.Mesh(outerGeo, outerMat);
+            outerMesh.position.y = 0.71;
+            cubeGroup.add(outerMesh);
+            const innerGeo = new THREE.BoxGeometry(1.20, 1.20, 1.20);
+            const innerMat = new THREE.MeshStandardMaterial({
+                color: 0xa5f3fc,
+                transparent: true,
+                opacity: 0.18,
+                roughness: 0.12,
+                depthWrite: false
+            });
+            const innerMesh = new THREE.Mesh(innerGeo, innerMat);
+            innerMesh.position.y = 0.71;
+            cubeGroup.add(innerMesh);
+            const rimEdges = new THREE.LineSegments(
+                new THREE.EdgesGeometry(new THREE.BoxGeometry(1.38, 1.38, 1.38)),
+                new THREE.LineBasicMaterial({ name: 'bone_rim', color: 0xcffafe, transparent: true, opacity: 0.36, depthWrite: false })
+            );
+            rimEdges.position.y = 0.71;
+            cubeGroup.add(rimEdges);
+            const boneMat = new THREE.MeshStandardMaterial({ name: 'bone_relic', color: 0xe7e5e4, roughness: 0.65 });
+            const boneMesh = new THREE.Mesh(createLatheFrustumGeo(0.032, 0.038, 0.56, 7), boneMat);
+            boneMesh.position.set(-0.20, 0.66, 0.14);
+            boneMesh.rotation.set(0.55, 0.30, 0.72);
+            cubeGroup.add(boneMesh);
+            const skullRelic = new THREE.Mesh(new THREE.DodecahedronGeometry(0.11, 1), boneMat);
+            skullRelic.position.set(-0.14, 0.92, -0.16);
+            cubeGroup.add(skullRelic);
+            const steelMat = new THREE.MeshStandardMaterial({ name: 'metal_blade', color: 0xcbd5e1, metalness: 0.85, roughness: 0.25 });
+            const bladeGroup = new THREE.Group();
+            bladeGroup.add(new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.68, 0.016), steelMat));
+            const guard = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.035, 0.035), steelMat);
+            guard.position.y = -0.22;
+            bladeGroup.add(guard);
+            bladeGroup.position.set(0.18, 0.76, -0.08);
+            bladeGroup.rotation.set(-0.38, 0.45, -0.48);
+            cubeGroup.add(bladeGroup);
+            cubeGroup.actualHeight = 1.42;
+            cubeGroup.baseHeight = 1.42;
+            loadPromise = Promise.resolve(tagTemplate(cubeGroup));
         } else if (templateKey === 'env_tanglethorn' || templateKey === 'env_bush_dead') {
-            loadPromise = loadGltf('/assets/models/items/bush_pbr.glb', () => loadGltf('/assets/polyhaven/models/pine_roots/pine_roots.gltf')).then(scene => {
-                return normalizeWrapper(scene, 1.15, true, 0, 1.20);
+            loadPromise = loadGltf('/assets/polyhaven/models/shrub_02/shrub_02.gltf', () => loadGltf('/assets/polyhaven/models/pine_roots/pine_roots.gltf')).then(scene => {
+                return normalizeWrapper(scene, 1.15, true, 0, 1.25);
             });
         } else if (templateKey === 'env_tree' || templateKey === 'bestiary_treeman') {
             const primaryTreeUrl = templateKey === 'bestiary_treeman'
                 ? '/assets/models/monsters/bestiary/treeman.glb'
-                : '/assets/models/items/tree_pbr.glb';
-            loadPromise = loadGltf(primaryTreeUrl, () => loadGltf('/assets/polyhaven/models/pachira_aquatica_01/pachira_aquatica_01.gltf')).then(scene => {
-                return normalizeWrapper(scene, templateKey === 'bestiary_treeman' ? 2.15 : 1.65, true, 0, 1.45);
+                : '/assets/polyhaven/models/pachira_aquatica_01/pachira_aquatica_01.gltf';
+            loadPromise = loadGltf(primaryTreeUrl, () => loadGltf('/assets/polyhaven/models/pine_roots/pine_roots.gltf')).then(scene => {
+                if (templateKey === 'env_tree') {
+                    let hasC = false;
+                    scene.traverse(c => {
+                        const nm = ((c.name || '') + ' ' + (c.geometry ? c.geometry.name || '' : '')).toLowerCase();
+                        if (nm.includes('bark_c') || nm.includes('leaves_c')) hasC = true;
+                    });
+                    if (hasC) {
+                        const drop = [];
+                        scene.traverse(c => {
+                            if (c.isMesh) {
+                                const nm = ((c.name || '') + ' ' + (c.geometry ? c.geometry.name || '' : '')).toLowerCase();
+                                if (!(nm.includes('bark_c') || nm.includes('leaves_c') || nm.includes('circle.001') || nm.includes('cylinder.092'))) {
+                                    drop.push(c);
+                                }
+                            }
+                        });
+                        for (const d of drop) {
+                            if (d.parent) d.parent.remove(d);
+                        }
+                    }
+                }
+                return normalizeWrapper(scene, templateKey === 'bestiary_treeman' ? 2.15 : 2.25, true, 0, 1.65);
             });
         } else if (templateKey === 'bestiary_vortex') {
             loadPromise = loadGltf('/assets/models/monsters/bestiary/vortex_elemental.glb', () => loadGltf('/assets/models/monsters/bestiary/GhostArmature.glb', () => this._ensureMonster3DTemplate('bestiary_wraith'))).then(scene => {
@@ -12721,7 +9879,7 @@ class Dungeon3D {
                 return normalizeWrapper(scene, 0.62, true, 0, 1.05);
             });
         } else if (templateKey === 'bestiary_hydra') {
-            loadPromise = loadGltf('/assets/models/monsters/bestiary/hydra.glb', () => loadGltf('/assets/models/monsters/bestiary/Dragon.glb', () => this._ensureMonster3DTemplate('bestiary_dragon'))).then(scene => {
+            loadPromise = loadGltf('/assets/models/monsters/bestiary/hydra.glb', () => this._ensureMonster3DTemplate('bestiary_dragon')).then(scene => {
                 return normalizeWrapper(scene, 1.45, true, 0, 1.55);
             });
         } else if (templateKey === 'bestiary_naga') {
@@ -14328,48 +11486,66 @@ class Dungeon3D {
             instance.scale.multiplyScalar(cfg.scale);
         }
 
-        if (cfg.tintHex || cfg.emissiveHex) {
+        const isWormMass = (cfg.templateKey === 'bestiary_worm_mass');
+        const effTintHex = cfg.tintHex || (isWormMass ? 0x16a34a : null);
+        if (effTintHex || cfg.emissiveHex || cfg.roughness !== undefined || cfg.metalness !== undefined || isWormMass) {
             this._tintedMatPool = this._tintedMatPool || new Map();
-            const tintCol = cfg.tintHex ? new THREE.Color(cfg.tintHex) : null;
+            const tintCol = effTintHex ? new THREE.Color(effTintHex) : null;
             const emissiveCol = cfg.emissiveHex ? new THREE.Color(cfg.emissiveHex) : null;
             const armorDarkCol = new THREE.Color(0x2e2a24);
+            const bypassMat001 = Boolean(isWormMass || cfg.roughness !== undefined || cfg.tintStrength !== undefined);
             const tintSingleMat = (oldMat, meshName, isSkinned, hasVColor = false) => {
                 if (!oldMat) return oldMat;
                 const singleName = (oldMat.name || '').toLowerCase();
-                if (/eye|pupil|iris|teeth|tooth|fang|maw|bone|spore|core|pustule|snout|material\.001|^red$|superhero|regular/i.test(singleName + '_' + meshName)) {
+                const combinedName = singleName + '_' + meshName;
+                if (/eye|pupil|iris|sclera|teeth|tooth|fang|horn|claw|maw|bone|spore|core|pustule|snout|metal|steel|iron|blade|weapon|illithid_eye|^red$|superhero|regular/i.test(combinedName)) {
+                    return oldMat;
+                }
+                if (!bypassMat001 && /material\.001/i.test(combinedName)) {
                     return oldMat;
                 }
                 const hasTexMap = Boolean(oldMat.map);
-                const poolKey = `${oldMat.uuid}_${cfg.tintHex || ''}_${cfg.emissiveHex || ''}_${Boolean(cfg.isOrcish)}_${Boolean(cfg.tunicOnlyTint)}_${Boolean(hasVColor)}_${hasTexMap}`;
+                const poolKey = `${oldMat.uuid}_${effTintHex || ''}_${cfg.emissiveHex || ''}_${cfg.roughness ?? ''}_${cfg.metalness ?? ''}_${cfg.tintStrength ?? ''}_${isWormMass}_${Boolean(cfg.isOrcish)}_${Boolean(cfg.tunicOnlyTint)}_${Boolean(hasVColor)}_${hasTexMap}`;
                 let pooledMat = this._tintedMatPool.get(poolKey);
                 if (!pooledMat) {
                     if (this._tintedMatPool.size >= 256) {
                         const firstKey = this._tintedMatPool.keys().next().value;
+                        const evictedMat = this._tintedMatPool.get(firstKey);
                         this._tintedMatPool.delete(firstKey);
+                        if (evictedMat && typeof evictedMat.dispose === 'function') evictedMat.dispose();
                     }
                     pooledMat = oldMat.clone();
                     pooledMat._sharedMaterial = true;
                     if (oldMat.onBeforeCompile) pooledMat.onBeforeCompile = oldMat.onBeforeCompile;
                     if (oldMat.customProgramCacheKey) pooledMat.customProgramCacheKey = oldMat.customProgramCacheKey;
+                    if (!pooledMat.onBeforeCompile && hasTexMap) this._applyUvSeamBleedFix(pooledMat);
                     if (isSkinned || oldMat.skinning) {
                         pooledMat.skinning = true;
                     }
                     if (pooledMat.color && tintCol) {
+                        const customTintStr = Number.isFinite(cfg.tintStrength) ? cfg.tintStrength : (isWormMass ? 0.88 : null);
                         if (hasTexMap) {
-                            // Preserve true multi-channel 1K/2K PBR albedo on sculpted bestiary models; apply only a subtle atmospheric glaze
-                            pooledMat.color.lerp(tintCol, cfg.isBoss ? 0.22 : 0.14);
+                            const baseLum = Math.min(1.0, Math.max(0.68, pooledMat.color.r * 0.299 + pooledMat.color.g * 0.587 + pooledMat.color.b * 0.114));
+                            pooledMat.color.setRGB(baseLum, baseLum, baseLum).lerp(tintCol, customTintStr !== null ? customTintStr : 0.72);
                         } else if (cfg.isOrcish) {
                             const isSkin = meshName.includes('sphere.005') || meshName.includes('retopology') || meshName.includes('superhero');
                             pooledMat.color.lerp(isSkin ? tintCol : armorDarkCol, isSkin ? 0.68 : 0.58);
                         } else if (hasVColor) {
-                            pooledMat.color.lerp(tintCol, 0.88);
+                            pooledMat.color.lerp(tintCol, customTintStr !== null ? customTintStr : 0.88);
                         } else {
-                            pooledMat.color.lerp(tintCol, cfg.tunicOnlyTint ? 0.45 : 0.55);
+                            pooledMat.color.lerp(tintCol, customTintStr !== null ? customTintStr : (cfg.tunicOnlyTint ? 0.45 : 0.55));
                         }
                     }
+                    if (Number.isFinite(cfg.roughness)) pooledMat.roughness = cfg.roughness;
+                    else if (isWormMass) pooledMat.roughness = 0.16;
+                    if (Number.isFinite(cfg.metalness)) pooledMat.metalness = cfg.metalness;
+                    else if (isWormMass) pooledMat.metalness = 0.08;
                     if (emissiveCol && pooledMat.emissive) {
                         pooledMat.emissive.copy(emissiveCol);
                         pooledMat.emissiveIntensity = /belly|light|accent|stripe|mane|tail|ear/i.test(singleName) ? 0.85 : (hasTexMap ? 0.22 : 0.32);
+                    } else if (isWormMass && tintCol && pooledMat.emissive) {
+                        pooledMat.emissive.copy(tintCol);
+                        pooledMat.emissiveIntensity = 0.12;
                     } else if (hasTexMap && tintCol && cfg.isBoss && pooledMat.emissive) {
                         pooledMat.emissive.copy(tintCol);
                         pooledMat.emissiveIntensity = 0.16;
@@ -14387,7 +11563,7 @@ class Dungeon3D {
                     const firstMat = Array.isArray(c.material) ? c.material[0] : c.material;
                     const hasTexMap = Boolean(firstMat && firstMat.map);
                     const hasVColor = Boolean(!hasTexMap && c.geometry && c.geometry.attributes && c.geometry.attributes.color);
-                    if (hasVColor && cfg.tintHex && c.geometry) {
+                    if (hasVColor && effTintHex && c.geometry) {
                         // Normalize vibrant multi-hue COLOR_0 to luminance shading so tintHex applies cleanly on untextured vertex-colored meshes
                         if (!c.geometry._grayColorClone) {
                             const gClone = c.geometry.clone();
@@ -14704,6 +11880,8 @@ class Dungeon3D {
         }
         const activeIds = new Set();
         const targetId = (player && player.target && player.target.id !== undefined) ? player.target.id.toString() : null;
+        const curUi = this.lastFrame && this.lastFrame.ui && this.lastFrame.ui.cursor;
+        const curMonId = (curUi && curUi.active && curUi.mon_id !== undefined && curUi.mon_id !== null) ? String(curUi.mon_id) : null;
 
         const px = player ? player.x : 0;
         const py = player ? player.y : 0;
@@ -14728,8 +11906,11 @@ class Dungeon3D {
             m.afraid = !!(m.afraid || m.is_fleeing);
             m.confused = !!(m.confused || m.is_confused);
             m.stunned = !!(m.stunned || m.is_stunned);
+            m.fast = !!(m.fast || m.hasted);
+            m.breath = !!(m.breath || m.breathes);
 
-            const isTargeted = (targetId && targetId === id);
+            const cursorTargeted = Boolean(curUi && curUi.active && ((curMonId && curMonId === id) || (curUi.x === m.x && curUi.y === m.y)));
+            const isTargeted = Boolean((targetId && targetId === id) || cursorTargeted);
             let entity = this.monsters.get(id);
 
             const wx = m.x * this.cellSize;
@@ -14767,7 +11948,15 @@ class Dungeon3D {
                 entity.lastTargeted = isTargeted;
                 entity.lastAsleep = !!m.asleep;
                 entity.lastAfraid = !!m.afraid;
+                entity.lastConfused = !!m.confused;
+                entity.lastStunned = !!m.stunned;
+                entity.lastFast = !!m.fast;
                 entity.isAsleep = !!m.asleep;
+                entity._perceptVis = outdoors ? 1.0 : 0.05;
+                if (!outdoors) {
+                    entity.scale.setScalar(0.86);
+                    if (this.renderGovernor) this.renderGovernor.wake(220);
+                }
                 entity.monsterData = m;
                 if (entity.creatureMesh) entity.creatureMesh.monsterData = m;
                 if (entity.nameplate) entity.nameplate.monsterData = m;
@@ -14846,7 +12035,7 @@ class Dungeon3D {
                 }
 
                 // Refresh nameplate in-place (zero DOM/VRAM allocations) if HP, status, target state, or sensed state changed
-                if (entity.lastHp !== m.hp || entity.lastTargeted !== isTargeted || entity.lastAsleep !== m.asleep || entity.lastAfraid !== m.afraid || entity.lastSensed !== isSensed) {
+                if (entity.lastHp !== m.hp || entity.lastTargeted !== isTargeted || entity.lastAsleep !== m.asleep || entity.lastAfraid !== m.afraid || entity.lastConfused !== m.confused || entity.lastStunned !== m.stunned || entity.lastFast !== m.fast || entity.lastSensed !== isSensed) {
                     if (entity.nameplate) {
                         this.createNameplateSprite(m, isTargeted, isSensed, entity.nameplate);
                         entity.nameplate.position.set(0, Math.min(2.55, Math.max(0.58, entity.modelHeight + 0.24)), 0);
@@ -14859,6 +12048,9 @@ class Dungeon3D {
                     entity.lastTargeted = isTargeted;
                     entity.lastAsleep = m.asleep;
                     entity.lastAfraid = m.afraid;
+                    entity.lastConfused = m.confused;
+                    entity.lastStunned = m.stunned;
+                    entity.lastFast = m.fast;
                     entity.lastSensed = isSensed;
                 }
             }
@@ -14893,22 +12085,45 @@ class Dungeon3D {
             // In Angband, all monsters emitted in frame.monsters are detected / sensed by the player
             entity.visible = Boolean(entity.isReal3DMonster || m.invisible || !entity.pending3DConfig);
             if (m.invisible) {
+                if (!entity.foggyAura) {
+                    const aura = this.createFoggyMonsterAura(
+                        entity.glyph || m.glyph || 'G',
+                        m.race || m.name || '',
+                        entity.colorHex || 0x66ccff,
+                        entity.modelHeight || 1.4,
+                        Boolean(entity.isFloating)
+                    );
+                    entity.foggyAura = aura;
+                    entity.foggyMaterials = aura.foggyMaterials;
+                    entity.groundRipples = aura.groundRipples;
+                    entity.add(aura);
+                }
                 if (entity.creatureMesh) entity.creatureMesh.visible = false;
-                if (entity.foggyAura) entity.foggyAura.visible = true;
+                entity.foggyAura.visible = true;
             } else {
                 if (entity.creatureMesh) entity.creatureMesh.visible = true;
                 if (entity.foggyAura) entity.foggyAura.visible = false;
+            }
+            if (entity.visible && this._applyBlindMonsterState) {
+                const bfNow = (this.isPlayerBlind && this.isPlayerBlind(player)) ? Math.max(0.55, this._blindFactor || 1.0) : (this._blindFactor || 0.0);
+                if (bfNow > 0.01 || entity._hasEspMatOverride) {
+                    const mPx = player && player.x !== undefined ? player.x : (this.playerGridX || 0);
+                    const mPy = player && player.y !== undefined ? player.y : (this.playerGridY || 0);
+                    this._applyBlindMonsterState(entity, m, player, mPx, mPy, bfNow);
+                }
             }
         });
 
         for (const [id, entity] of this.monsters.entries()) {
             if (!activeIds.has(id)) {
                 monstersChanged = true;
-                if (entity.visible && this.audio) {
+                const md = entity.monsterData;
+                const isLivingPet = Boolean(md && (md.isPet || md.is_pet) && (md.hp === undefined || md.hp > 0));
+                if (entity.visible && this.audio && !isLivingPet && (entity.wasAttacked || entity._hitFlinchTimer > 0)) {
                     const pan = this.calculateStereoPan(entity.position.x, entity.position.z);
                     this.audio.playMonsterDeath(entity.glyph, pan);
                 }
-                if (entity.visible && (entity.wasAttacked || entity._hitFlinchTimer > 0) && !entity._isDying) {
+                if (!isLivingPet && entity.visible && (entity.wasAttacked || entity._hitFlinchTimer > 0) && !entity._isDying) {
                     entity._isDying = true;
                     entity._deathTimer = 0.38;
                     if (entity.nameplate) entity.nameplate.visible = false;
@@ -14921,6 +12136,14 @@ class Dungeon3D {
                     if (!this._dyingMonsters) this._dyingMonsters = [];
                     this._dyingMonsters.push(entity);
                     this.monsters.delete(id);
+                } else if (!outdoors && entity.visible && !entity._isPerceptFading) {
+                    entity._isPerceptFading = true;
+                    entity._deathTimer = 0.14;
+                    if (entity.nameplate) entity.nameplate.visible = false;
+                    if (!this._dyingMonsters) this._dyingMonsters = [];
+                    this._dyingMonsters.push(entity);
+                    this.monsters.delete(id);
+                    if (this.renderGovernor) this.renderGovernor.wake(220);
                 } else {
                     this.destroyEntity(entity);
                     this.monsters.delete(id);
@@ -14932,10 +12155,12 @@ class Dungeon3D {
 
     refreshMonsterNameplates() {
         if (!this.monsters) return;
+        const curUi = this.lastFrame && this.lastFrame.ui && this.lastFrame.ui.cursor;
         for (const [id, entity] of this.monsters.entries()) {
             if (entity && (entity.monsterData || (entity.nameplate && entity.nameplate.monsterData))) {
                 const m = entity.monsterData || entity.nameplate.monsterData;
-                const isTargeted = Boolean(this.currentTarget && this.currentTarget.key === id);
+                const cursorTargeted = Boolean(curUi && curUi.active && ((curUi.mon_id !== undefined && String(curUi.mon_id) === id) || (curUi.x === m.x && curUi.y === m.y)));
+                const isTargeted = Boolean((this.currentTarget && this.currentTarget.key === id) || cursorTargeted);
                 const isSensed = !!(m.invisible || (m.detected && m.unlit));
                 if (entity.nameplate) {
                     this.createNameplateSprite(m, isTargeted, isSensed, entity.nameplate);
@@ -15171,7 +12396,7 @@ class Dungeon3D {
             const coilGeo = new THREE.TorusGeometry(0.14, 0.024, 12, 28);
             coilGeo.rotateX(Math.PI / 2);
             coilGeo._sharedGeometry = true;
-            const handleGeo = new THREE.CylinderGeometry(0.024, 0.028, 0.26, 10);
+            const handleGeo = createLatheFrustumGeo(0.024, 0.028, 0.26, 10);
             handleGeo.rotateZ(Math.PI * 0.38);
             handleGeo._sharedGeometry = true;
             const leatherMat = new THREE.MeshStandardMaterial({ color: 0x5c341d, roughness: 0.82, metalness: 0.08 });
@@ -15197,11 +12422,12 @@ class Dungeon3D {
             return Promise.resolve(wrapper);
         }
 
-        const loader = this.gltfLoader || (typeof THREE.GLTFLoader !== 'undefined' ? new THREE.GLTFLoader() : null);
+        const loader = this._getGltfLoader();
         if (!loader) return Promise.reject(new Error('GLTFLoader not available'));
 
         // # ROOT-CAUSE: Append ?v=11.9.9 when GLTFLoader fetches item_wand so Cloudflare Edge 7-day cache and browser HTTP caches serve the restored PBR wand.glb immediately.
-        const loadUrl = (key === 'item_wand' && !String(path).includes('?')) ? `${path}?v=11.9.9` : path;
+        const rawUrl = (key === 'item_wand' && !String(path).includes('?')) ? `${path}?v=11.9.9` : path;
+        const loadUrl = (typeof window !== 'undefined' && typeof window.__assetUrl === 'function') ? window.__assetUrl(rawUrl) : rawUrl;
         const promise = new Promise((resolve, reject) => {
             loader.load(loadUrl, (gltf) => {
                 const scene = gltf.scene || (gltf.scenes && gltf.scenes[0]);
@@ -15360,6 +12586,9 @@ class Dungeon3D {
 
                 this._gltfTemplateCache.set(key, wrapper);
                 this.itemTemplates.set(key, wrapper);
+                if (this.glbPool && typeof this.glbPool.registerPrototype === 'function') {
+                    this.glbPool.registerPrototype(key, wrapper);
+                }
                 this._gltfLoadingPromises.delete(key);
                 resolve(wrapper);
             }, undefined, (err) => {
@@ -15401,7 +12630,9 @@ class Dungeon3D {
                         if (!pMat) {
                             if (this._tintedMatPool.size >= 256) {
                                 const firstKey = this._tintedMatPool.keys().next().value;
+                                const evictedMat = this._tintedMatPool.get(firstKey);
                                 this._tintedMatPool.delete(firstKey);
+                                if (evictedMat && typeof evictedMat.dispose === 'function') evictedMat.dispose();
                             }
                             pMat = c.material.clone();
                             pMat._sharedMaterial = true;
@@ -15463,8 +12694,12 @@ class Dungeon3D {
                 const mats = Array.isArray(child.material) ? child.material : [child.material];
                 for (const m of mats) {
                     if (m && !m._sharedMaterial && !sharedMats.has(m)) {
-                        if (m.map && !m.map._sharedTexture && !sharedTexs.has(m.map)) {
-                            m.map.dispose();
+                        const texSlots = ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap', 'emissiveMap', 'bumpMap', 'alphaMap'];
+                        for (let tIdx = 0; tIdx < texSlots.length; tIdx++) {
+                            const tex = m[texSlots[tIdx]];
+                            if (tex && !tex._sharedTexture && !sharedTexs.has(tex) && typeof tex.dispose === 'function') {
+                                tex.dispose();
+                            }
                         }
                         m.dispose();
                     }
@@ -15656,27 +12891,36 @@ class Dungeon3D {
         const depth = player && player.depth !== undefined ? player.depth : 0;
         const outdoors = depth === 0;
 
-        items.forEach(it => {
-            const id = `${it.x}_${it.y}_${it.name || it.glyph}`;
+        const multiDrops = (window.Dungeon3DTactical && typeof window.Dungeon3DTactical.computeMultiItemPositions === 'function')
+            ? window.Dungeon3DTactical.computeMultiItemPositions(items, this.cellSize || 2.0)
+            : null;
+
+        for (let idx = 0; idx < items.length; idx++) {
+            const it = items[idx];
+            const dropMeta = multiDrops ? multiDrops[idx] : null;
+            const offX = dropMeta ? dropMeta.offsetX : 0;
+            const offZ = dropMeta ? dropMeta.offsetZ : 0;
+
+            const id = `${it.x}_${it.y}_${it.name || it.glyph}_${dropMeta ? dropMeta.indexInStack : 0}`;
             const itemDistSq = (it.x - px) * (it.x - px) + (it.y - py) * (it.y - py);
-            if (itemDistSq > 784 && !this.items.has(id)) return;
+            if (itemDistSq > 784 && !this.items.has(id)) continue;
             if (itemDistSq > 900 && this.items.has(id)) {
                 activeIds.add(id);
                 const entity = this.items.get(id);
                 entity.visible = false;
-                return;
+                continue;
             }
             activeIds.add(id);
             let entity = this.items.get(id);
-            const identitySig = `${this.realm || 'angband'}|${it.name || ''}|${it.glyph || ''}|${it.attr || ''}`;
+            const identitySig = `${this.realm || 'angband'}|${it.name || ''}|${it.glyph || ''}|${it.attr || ''}|${dropMeta ? dropMeta.stackIndicator || '' : ''}`;
             if (entity && entity.identitySig && entity.identitySig !== identitySig) {
                 this.destroyEntity(entity);
                 this.items.delete(id);
                 entity = null;
             }
 
-            const wx = it.x * this.cellSize;
-            const wz = it.y * this.cellSize;
+            const wx = it.x * this.cellSize + offX;
+            const wz = it.y * this.cellSize + offZ;
 
             if (!entity) {
                 entity = this.createItem3DEntity(it);
@@ -15686,6 +12930,7 @@ class Dungeon3D {
                 this.items.set(id, entity);
             } else {
                 entity.identitySig = identitySig;
+                entity.position.set(wx, 0.0, wz);
                 entity.itemData = it;
                 if (entity.itemMesh) entity.itemMesh.itemData = it;
                 // Auto-upgrade fallback 3D/procedural item to Shockbolt PBR billboard once item_atlas.json has loaded!
@@ -15709,19 +12954,68 @@ class Dungeon3D {
                 }
             }
 
-            // Strict Subterranean Visibility Invariant:
-            // Items are only visible in 3D if outdoors within 28m, or if within player's lit field of view or torchlight
-            let isVisible = outdoors ? (itemDistSq <= 784) : false;
-            if (!isVisible && !outdoors && this.lastMap) {
+            if (dropMeta && dropMeta.stackIndicator && this.createDamageNumberSprite) {
+                if (!entity._stackIndicatorMesh) {
+                    const stackBadge = this.createDamageNumberSprite(dropMeta.stackIndicator, '#ffd700');
+                    if (stackBadge) {
+                        stackBadge.position.set(0, 0.42, 0);
+                        entity.add(stackBadge);
+                        entity._stackIndicatorMesh = stackBadge;
+                    }
+                }
+            } else if (entity._stackIndicatorMesh) {
+                if (entity._stackIndicatorMesh.material) {
+                    if (entity._stackIndicatorMesh.material.map) entity._stackIndicatorMesh.material.map.dispose();
+                    entity._stackIndicatorMesh.material.dispose();
+                }
+                entity.remove(entity._stackIndicatorMesh);
+                entity._stackIndicatorMesh = null;
+            }
+
+            // Roguelike Subterranean Item Visibility: active lit LOS (1.0) + explored Fog-of-War memory within 24 tiles (0.38x cool slate)
+            let inLitView = outdoors ? (itemDistSq <= 784) : false;
+            let inMemory = false;
+            if (!outdoors && this.lastMap) {
                 const flag = this.getFlagAt(this.lastMap, it.x, it.y);
                 const inView = (flag & 0x2) !== 0;
+                const known = (flag & 0x1) !== 0;
                 const lighting = (flag >> 2) & 0x3;
-                isVisible = inView && (lighting < 3 || itemDistSq <= (this.torchRadius + 1) ** 2);
+                inLitView = inView && (lighting < 3 || itemDistSq <= (this.torchRadius + 1) ** 2);
+                if (!inLitView && itemDistSq <= 576) {
+                    inMemory = known || Boolean(this.getRememberedTile && this.getRememberedTile(it.x, it.y));
+                }
+            }
+            let isVisible = inLitView || inMemory;
+            if (isVisible && ((this._blindFactor || 0) > 0.65 || (this.isPlayerBlind && this.isPlayerBlind(player)))) {
+                isVisible = (itemDistSq === 0);
+                if (!isVisible) inLitView = false;
             }
             entity.visible = isVisible;
+            if (isVisible && entity._inFowMemory !== inMemory) {
+                entity._inFowMemory = inMemory;
+                entity.traverse((c) => {
+                    if (!c.isMesh || !c.material || c === entity.shadowMesh) return;
+                    const m = c.material;
+                    if (!Array.isArray(m) && m.color) {
+                        if (inMemory) {
+                            if (!m._fowMatCloned) {
+                                const cl = m.clone();
+                                if (m.onBeforeCompile) cl.onBeforeCompile = m.onBeforeCompile;
+                                if (m.customProgramCacheKey) cl.customProgramCacheKey = m.customProgramCacheKey;
+                                cl._origItemCol = m.color.clone();
+                                cl._fowMatCloned = true;
+                                c.material = cl;
+                            }
+                            c.material.color.setRGB(c.material._origItemCol.r * 0.36, c.material._origItemCol.g * 0.38, c.material._origItemCol.b * 0.44);
+                        } else if (m._origItemCol) {
+                            m.color.copy(m._origItemCol);
+                        }
+                    }
+                });
+            }
 
-            // Lazy-create and display caption only when player is within 6 cells and item is visible
-            const showCaption = Boolean(isVisible && itemDistSq <= 36 && it.name);
+            // Lazy-create and display caption only when player is within 6 cells and item is in active lit view
+            const showCaption = Boolean(inLitView && itemDistSq <= 36 && it.name);
             if (showCaption && !entity.caption) {
                 const sprite = this.createItemCaptionSprite(it);
                 if (sprite) {
@@ -15732,7 +13026,7 @@ class Dungeon3D {
             if (entity.caption) {
                 entity.caption.visible = showCaption;
             }
-        });
+        }
 
         for (const [id, entity] of this.items.entries()) {
             if (!activeIds.has(id)) {
@@ -15742,17 +13036,30 @@ class Dungeon3D {
         }
     }
 
+    _scheduleAnimLoop() {
+        if (this._animLoopScheduled) return;
+        this._animLoopScheduled = true;
+        if (typeof requestAnimationFrame === 'function') {
+            requestAnimationFrame(this.animate);
+        }
+    }
+
     animate() {
+        if (!this._gpuInitialized || !this.renderer) {
+            this._animLoopScheduled = false;
+            return;
+        }
         requestAnimationFrame(this.animate);
 
         const tNow = performance.now();
 
-        // When terminal or modal completely covers the screen, throttle 3D rendering to 5 FPS; pause completely (0 FPS) when hidden or behind opaque boot/menu/loading curtains
+        // When terminal or modal completely covers the screen, throttle 3D rendering to 5 FPS; pause completely (0 FPS) when hidden or behind opaque boot/menu/realm/loading curtains
         const termContainer = this._termContainerEl || (this._termContainerEl = document.getElementById('terminal-container'));
         const deathModal = this._deathModalEl || (this._deathModalEl = document.getElementById('death-modal'));
         const loadModal = this._loadModalEl || (this._loadModalEl = document.getElementById('load-modal'));
         const guideModal = this._guideModalEl || (this._guideModalEl = document.getElementById('guide-modal'));
         const realmModal = this._realmModalEl || (this._realmModalEl = document.getElementById('realm-modal'));
+        const realmCarouselOverlay = this._realmCarouselOverlayEl || (this._realmCarouselOverlayEl = document.getElementById('realm-carousel-overlay'));
         const splashOverlay = this._splashOverlayEl || (this._splashOverlayEl = document.getElementById('splash-overlay'));
         const mainMenuOverlay = this._mainMenuOverlayEl || (this._mainMenuOverlayEl = document.getElementById('main-menu-overlay'));
         const loadingOverlay = this._loadingOverlayEl || (this._loadingOverlayEl = document.getElementById('loading-overlay'));
@@ -15760,19 +13067,23 @@ class Dungeon3D {
         const isOpaqueCurtainVisible = isPageHidden ||
             Boolean(splashOverlay && !splashOverlay.classList.contains('hidden')) ||
             Boolean(mainMenuOverlay && !mainMenuOverlay.classList.contains('hidden')) ||
+            Boolean(realmModal && !realmModal.classList.contains('hidden')) ||
+            Boolean(realmCarouselOverlay && !realmCarouselOverlay.classList.contains('hidden')) ||
             Boolean(loadingOverlay && !loadingOverlay.classList.contains('hidden'));
         const isCovered = Boolean(termContainer && !termContainer.classList.contains('hidden')) ||
             Boolean(deathModal && !deathModal.classList.contains('hidden')) ||
             Boolean(loadModal && !loadModal.classList.contains('hidden')) ||
-            Boolean(guideModal && !guideModal.classList.contains('hidden')) ||
-            Boolean(realmModal && !realmModal.classList.contains('hidden'));
+            Boolean(guideModal && !guideModal.classList.contains('hidden'));
         const isRecording = typeof window !== 'undefined' && window.location.search && window.location.search.includes('record_walkthrough=1');
-        // # ROOT-CAUSE: Pause 3D WebGL scene rendering completely (0 FPS) when document.hidden or when #splash-overlay, #main-menu-overlay, or #loading-overlay is visible, and throttle to 5 FPS behind full-screen modals.
+        // # ROOT-CAUSE: Pause 3D WebGL scene rendering completely (0 FPS) when document.hidden or when #splash-overlay, #main-menu-overlay, #realm-modal, #realm-carousel-overlay, or #loading-overlay is visible, and throttle to 5 FPS behind full-screen modals.
         if (isOpaqueCurtainVisible && !isRecording) {
             this._fpsGovFrames = 0;
             this._fpsGovStart = 0;
             this._lastAnimTime = tNow;
             return;
+        }
+        if (this.renderGovernor) {
+            this.renderGovernor.setModalCoveringViewport(isCovered && !isRecording, tNow);
         }
         if (isCovered && !isRecording) {
             this._fpsGovFrames = 0;
@@ -15781,6 +13092,26 @@ class Dungeon3D {
                 return;
             }
             this._lastThrottledRender = tNow;
+        } else if (!isRecording && this.renderGovernor) {
+            const blindTarget = (this.isPlayerBlind && this.isPlayerBlind(this.lastFrame && this.lastFrame.player)) ? 1.0 : 0.0;
+            const hasActiveMotion = this.isStepping ||
+                Boolean(this._hasUnsettledTileVis) ||
+                Math.abs((this._blindFactor || 0) - blindTarget) > 0.002 ||
+                this.trauma > 0.001 ||
+                this.attackAnimationTime > 0 ||
+                this.hurtAnimationTime > 0 ||
+                this.castAnimationTime > 0 ||
+                this.actionAnimationTime > 0 ||
+                (this.particles && this.particles.length > 0) ||
+                (this.floatingTexts && this.floatingTexts.length > 0) ||
+                (this._dyingMonsters && this._dyingMonsters.length > 0) ||
+                (this.camera && (Math.abs(this.camera.rotation.y - (this.targetYaw || 0)) > 0.002 || Math.abs(this.camera.rotation.x - ((this.basePitch || 0) + (this.userPitchOffset || 0))) > 0.002));
+            if (hasActiveMotion) {
+                this.renderGovernor.wake(1500, tNow);
+            }
+            if (!this.renderGovernor.shouldRenderFrame(tNow)) {
+                return;
+            }
         }
 
         const rawDelta = this._lastAnimTime ? (tNow - this._lastAnimTime) * 0.001 : 0.016;
@@ -15791,7 +13122,13 @@ class Dungeon3D {
         }
         const delta = Math.min(0.05, Math.max(0.001, rawDelta));
 
-        // Smooth camera position tweening
+        const reducedMotion = Boolean(this._reducedMotionMql && this._reducedMotionMql.matches);
+        const rawBobCfg = (typeof window !== 'undefined' && window.GRAPHICS_CONFIG && typeof window.GRAPHICS_CONFIG.headBobScale === 'number')
+            ? window.GRAPHICS_CONFIG.headBobScale
+            : 1.0;
+        const bobScale = reducedMotion ? 0.0 : Math.max(0.0, Math.min(1.0, rawBobCfg));
+
+        // Smooth camera position tweening (including grounded thresholdYOffset glide)
         if (this.isStepping) {
             this.stepTime += delta;
             const progress = Math.min(1.0, this.stepTime / this.stepDuration);
@@ -15799,10 +13136,10 @@ class Dungeon3D {
 
             this.camera.position.lerpVectors(this.currentCamPos, this.targetCamPos, t);
 
-            // Reactive Walking Head-bob (subtle vertical sinusoidal breathing)
+            // Reactive Walking Head-bob (single phase accumulator; respects reduced-motion & headBobScale)
             this.cameraBobPhase += delta * 18;
-            const baseY = this.targetCamPos ? this.targetCamPos.y : this.eyeHeight;
-            this.camera.position.y = baseY + Math.sin(this.cameraBobPhase) * 0.045;
+            const baseY = this.camera.position.y;
+            this.camera.position.y = baseY + Math.sin(this.cameraBobPhase) * 0.045 * bobScale;
 
             if (progress >= 1.0) {
                 this.currentCamPos.copy(this.targetCamPos);
@@ -15816,9 +13153,17 @@ class Dungeon3D {
             this.stepPlayedThisMove = false;
             // Idle breathing bob & buoyant liquid bobbing in water
             const baseY = this.targetCamPos ? this.targetCamPos.y : this.eyeHeight;
-            const idleBob = Math.sin(tNow * 0.002) * 0.012;
-            const waterBob = (this.playerWaterYOffset && this.playerWaterYOffset < 0) ? Math.sin(tNow * 0.0035) * 0.016 : 0;
+            const idleBob = Math.sin(tNow * 0.002) * 0.012 * bobScale;
+            const waterBob = (this.playerWaterYOffset && this.playerWaterYOffset < 0) ? Math.sin(tNow * 0.0035) * 0.016 * bobScale : 0;
             this.camera.position.y = baseY + idleBob + waterBob;
+        }
+
+        if (this._checkThresholdProximity && this._checkThresholdProximity()) {
+            this._lastTerrainSig = null;
+            if (this.lastFrame) this.updateDungeon(this.lastFrame);
+        }
+        if (this._tickSmoothVisibility) {
+            this._tickSmoothVisibility(delta);
         }
 
         // Calm, subtle subterranean torch draft (slow 0.3-0.5Hz gentle breath, max ±2.5% variation, NO rapid strobe)
@@ -15840,18 +13185,20 @@ class Dungeon3D {
             const flameBreath = 1.0 + Math.sin(tNow * 0.002) * 0.03;
             this.flameMesh.scale.set(flameBreath, 1.0 + Math.cos(tNow * 0.0015) * 0.04, flameBreath);
         }
+        if (this._tickWorldPbrFrame) this._tickWorldPbrFrame(tNow);
+        if (this._tickBlindnessShroud) this._tickBlindnessShroud(delta, tNow);
 
         // Ensure rotation order is always YXZ (Yaw first, then Pitch, then Roll)
         this.camera.rotation.order = 'YXZ';
 
-        // Smooth spring camera turning (1:1 with Godot client)
+        // Frame-rate-independent exponential yaw damping: 1 - Math.exp(-22 * dt)
         const targetYaw = this.targetYaw;
         const currentYaw = this.camera.rotation.y;
         const diff = targetYaw - currentYaw;
         const wrappedDiff = Math.atan2(Math.sin(diff), Math.cos(diff));
 
-        if (Math.abs(wrappedDiff) > 0.002) {
-            this.camera.rotation.y += wrappedDiff * Math.min(1.0, delta * 22);
+        if (Math.abs(wrappedDiff) > 0.0015) {
+            this.camera.rotation.y += wrappedDiff * (1.0 - Math.exp(-22.0 * delta));
         } else {
             this.camera.rotation.y = targetYaw;
         }
@@ -15866,21 +13213,20 @@ class Dungeon3D {
             this.torchLight.position.set(-0.25, -0.05, -0.28);
         }
 
-        // Smooth camera pitch based on character height & manual head tilt
+        // Frame-rate-independent exponential pitch damping: 1 - Math.exp(-12 * dt)
         const activeTargetPitch = (this.basePitch !== undefined ? this.basePitch : -0.157) + (this.userPitchOffset || 0.0);
         this.targetPitch = activeTargetPitch;
         const pitchDiff = this.targetPitch - this.camera.rotation.x;
-        if (Math.abs(pitchDiff) > 0.001) {
-            this.camera.rotation.x += pitchDiff * Math.min(1.0, delta * 12);
+        if (Math.abs(pitchDiff) > 0.0008) {
+            this.camera.rotation.x += pitchDiff * (1.0 - Math.exp(-12.0 * delta));
         } else {
             this.camera.rotation.x = this.targetPitch;
         }
 
         // Camera roll: lock strictly to 0 when not turning or experiencing trauma (prevents any left/right room skew)
         let roll = 0;
-        if (Math.abs(wrappedDiff) > 0.005) {
-            // Very subtle turning roll inertia (1:1 with Godot DungeonWorld.cs:3405)
-            roll = Math.max(-0.02, Math.min(0.02, -wrappedDiff * 0.04));
+        if (Math.abs(wrappedDiff) > 0.005 && bobScale > 0) {
+            roll = Math.max(-0.02, Math.min(0.02, -wrappedDiff * 0.04 * bobScale));
         }
         this.camera.rotation.z = roll;
 
@@ -15906,28 +13252,25 @@ class Dungeon3D {
             }
         }
 
-        // Camera Screen Trauma / Shake (Decaying trauma scalar matching Godot DungeonWorld.cs)
+        // Camera Screen Trauma / Shake (scaled by headBobScale & prefers-reduced-motion)
         if (this.trauma > 0) {
             this.trauma = Math.max(0, this.trauma - delta * 1.5);
-            const shake = this.trauma * this.trauma;
-            const yawShake = (Math.random() - 0.5) * 0.04 * shake;
-            const pitchShake = (Math.random() - 0.5) * 0.04 * shake;
-            const rollShake = (Math.random() - 0.5) * 0.02 * shake;
-            this.camera.rotation.y += yawShake;
-            this.camera.rotation.x += pitchShake;
-            this.camera.rotation.z += rollShake;
+            if (bobScale > 0) {
+                const shake = this.trauma * this.trauma * bobScale;
+                this.camera.rotation.y += (Math.random() - 0.5) * 0.04 * shake;
+                this.camera.rotation.x += (Math.random() - 0.5) * 0.04 * shake;
+                this.camera.rotation.z += (Math.random() - 0.5) * 0.02 * shake;
+            }
         }
 
-        // Natural Walk Bobbing & Turn Sway on First-Person Hands (1:1 with Godot ViewModel.cs)
+        // Natural Walk Bobbing & Turn Sway on First-Person Hands (reuses single cameraBobPhase — no double increment!)
         let bobY = 0;
         let bobX = 0;
         if (this.isStepping) {
-            this.cameraBobPhase += delta * 9.5;
-            bobY = Math.sin(this.cameraBobPhase) * 0.014;
-            bobX = Math.cos(this.cameraBobPhase * 0.5) * 0.010;
+            bobY = Math.sin(this.cameraBobPhase) * 0.014 * bobScale;
+            bobX = Math.cos(this.cameraBobPhase * 0.5) * 0.010 * bobScale;
         } else {
-            // Subtle idle breathing
-            bobY = Math.sin(tNow * 0.0025) * 0.003;
+            bobY = Math.sin(tNow * 0.0025) * 0.003 * bobScale;
         }
 
         // Viewmodel Action Dynamics: 3-phase Attack swing (wind-up, strike with hitstop, recovery), Hurt recoil, Spellcast/Quaff/Read/Eat/Aim
@@ -15943,9 +13286,11 @@ class Dungeon3D {
             this.actionAnimationTime = Math.max(0, this.actionAnimationTime - delta);
         }
 
-        if (this.attackAnimationTime > 0) {
+        if (this._hitstopTime > 0) {
+            this._hitstopTime = Math.max(0, this._hitstopTime - delta);
+        } else if (this.attackAnimationTime > 0) {
             this.attackAnimationTime -= delta;
-            const prog = Math.max(0, Math.min(1, (0.22 - this.attackAnimationTime) / 0.22));
+            const prog = Math.max(0, Math.min(1, (0.24 - this.attackAnimationTime) / 0.24));
             let strikePulse = 0;
             let windupAmt = 0;
             if (prog < 0.18) {
@@ -16032,20 +13377,25 @@ class Dungeon3D {
             }
         }
 
-        // Apply to Right Hand
+        // Apply to Right Hand (with sinusoidal eyestalk levitation bob for Beholder avatar)
+        const isBeholderVm = this._activeAvatarArchetype === 'beholder';
         if (this.rightHandGroup && this.rightRestPos) {
-            this.rightHandGroup.position.x = this.rightRestPos.x + bobX + actX;
-            this.rightHandGroup.position.y = this.rightRestPos.y + bobY + actY;
+            const stalkBobY = isBeholderVm ? Math.sin(tNow * 0.0034) * 0.022 * bobScale : 0;
+            const stalkBobX = isBeholderVm ? Math.cos(tNow * 0.0023) * 0.014 * bobScale : 0;
+            this.rightHandGroup.position.x = this.rightRestPos.x + bobX + actX + stalkBobX;
+            this.rightHandGroup.position.y = this.rightRestPos.y + bobY + actY + stalkBobY;
             this.rightHandGroup.position.z = this.rightRestPos.z + actZ;
             this.rightHandGroup.rotation.x = this.rightRestRot.x + actRotX;
             this.rightHandGroup.rotation.y = this.rightRestRot.y;
             this.rightHandGroup.rotation.z = this.rightRestRot.z + actRotZ;
         }
 
-        // Apply to Left Hand (includes subtle counter-balance during right-hand swing)
+        // Apply to Left Hand (includes subtle counter-balance during right-hand swing & out-of-phase Beholder stalk bob)
         if (this.leftHandGroup && this.leftRestPos) {
-            this.leftHandGroup.position.x = this.leftRestPos.x - bobX;
-            this.leftHandGroup.position.y = this.leftRestPos.y + bobY + (this.hurtAnimationTime > 0 ? actY : 0);
+            const stalkBobY = isBeholderVm ? Math.sin(tNow * 0.0034 + 1.85) * 0.022 * bobScale : 0;
+            const stalkBobX = isBeholderVm ? Math.cos(tNow * 0.0023 + 1.85) * 0.014 * bobScale : 0;
+            this.leftHandGroup.position.x = this.leftRestPos.x - bobX + stalkBobX;
+            this.leftHandGroup.position.y = this.leftRestPos.y + bobY + (this.hurtAnimationTime > 0 ? actY : 0) + stalkBobY;
             this.leftHandGroup.position.z = this.leftRestPos.z + (this.hurtAnimationTime > 0 ? actZ : offhandCounterZ);
             this.leftHandGroup.rotation.x = this.leftRestRot.x + (this.hurtAnimationTime > 0 ? actRotX : offhandCounterRotX);
             this.leftHandGroup.rotation.y = this.leftRestRot.y;
@@ -16233,7 +13583,14 @@ class Dungeon3D {
             for (let i = 0; i < this.terrainLabelsGroup.children.length; i++) {
                 const sprite = this.terrainLabelsGroup.children[i];
                 const maxDist = sprite.maxDist || 45.0;
-                sprite.visible = (this.camera.position.distanceToSquared(sprite.position) <= maxDist * maxDist);
+                const dSq = this.camera.position.distanceToSquared(sprite.position);
+                sprite.visible = (dSq <= maxDist * maxDist);
+                if (sprite.visible && sprite._roofSprite && sprite._ownedRoofSpriteMat) {
+                    const d = Math.hypot(this.camera.position.x - sprite.position.x, this.camera.position.z - sprite.position.z);
+                    const op = Math.max(0, Math.min(1, (d - 4.5) / 3.5));
+                    sprite._ownedRoofSpriteMat.opacity = op;
+                    sprite._roofSprite.visible = op > 0.01;
+                }
             }
         }
         if (this.storefrontPropsGroup && this.storefrontPropsGroup.visible && this.storefrontPropsGroup.children) {
@@ -16301,81 +13658,72 @@ class Dungeon3D {
                         ? this.getTileAtScreenCoords(this._pendingHoverX, this._pendingHoverY)
                         : null;
                     if (hit && (hit.x !== px || hit.y !== py)) {
-                        this._hoveredTile = { x: hit.x, y: hit.y };
-                        const path = (this._hoverInputRef && typeof this._hoverInputRef.computeMinimapPath === 'function')
-                            ? this._hoverInputRef.computeMinimapPath(px, py, hit.x, hit.y, this.lastFrame)
-                            : null;
-                        if (this.navCursorGroup && this.navCursorMesh) {
-                            this.navCursorGroup.visible = true;
-                            this.navCursorMesh.visible = true;
-                            this.navCursorMesh.position.set(hit.x * this.cellSize, 0.035, hit.y * this.cellSize);
-                            if (path && path.length > 0 && path.length <= 64) {
-                                const isDoor = hit.kind === 'door';
-                                this.navCursorMesh.material.color.setHex(isDoor ? 0xff9f1c : 0xffd700);
-                                this.navCursorMesh.material.opacity = 0.82;
-                                if (this.navBreadcrumbsMesh) {
-                                    if (!this._scratchNavMatrix) this._scratchNavMatrix = new THREE.Matrix4();
-                                    if (!this._scratchNavPos) this._scratchNavPos = new THREE.Vector3();
-                                    const count = Math.min(path.length, 64);
-                                    for (let pIdx = 0; pIdx < count; pIdx++) {
-                                        const step = path[pIdx];
-                                        this._scratchNavPos.set(step.x * this.cellSize, 0.028, step.y * this.cellSize);
-                                        this._scratchNavMatrix.makeTranslation(this._scratchNavPos.x, this._scratchNavPos.y, this._scratchNavPos.z);
-                                        this.navBreadcrumbsMesh.setMatrixAt(pIdx, this._scratchNavMatrix);
+                        const hitTileX = hit.x;
+                        const hitTileY = hit.y;
+                        const hoverSlot = this._hoveredTileObj || (this._hoveredTileObj = { x: 0, y: 0 });
+                        hoverSlot.x = hitTileX;
+                        hoverSlot.y = hitTileY;
+                        this._hoveredTile = hoverSlot;
+                        if (hitTileX !== this._lastHoverTileX || hitTileY !== this._lastHoverTileY) {
+                            this._lastHoverTileX = hitTileX;
+                            this._lastHoverTileY = hitTileY;
+                            const path = (this._hoverInputRef && typeof this._hoverInputRef.computeMinimapPath === 'function')
+                                ? this._hoverInputRef.computeMinimapPath(px, py, hitTileX, hitTileY, this.lastFrame)
+                                : null;
+                            if (this.navCursorGroup && this.navCursorMesh) {
+                                this.navCursorGroup.visible = true;
+                                this.navCursorMesh.visible = true;
+                                this.navCursorMesh.position.set(hitTileX * this.cellSize, 0.035, hitTileY * this.cellSize);
+                                if (path && path.length > 0 && path.length <= 64) {
+                                    const isDoor = hit.kind === 'door';
+                                    this.navCursorMesh.material.color.setHex(isDoor ? 0xff9f1c : 0xffd700);
+                                    this.navCursorMesh.material.opacity = 0.82;
+                                    if (this.navBreadcrumbsMesh) {
+                                        if (!this._scratchNavMatrix) this._scratchNavMatrix = new THREE.Matrix4();
+                                        if (!this._scratchNavPos) this._scratchNavPos = new THREE.Vector3();
+                                        const count = Math.min(path.length, 64);
+                                        for (let pIdx = 0; pIdx < count; pIdx++) {
+                                            const step = path[pIdx];
+                                            this._scratchNavPos.set(step.x * this.cellSize, 0.028, step.y * this.cellSize);
+                                            this._scratchNavMatrix.makeTranslation(this._scratchNavPos.x, this._scratchNavPos.y, this._scratchNavPos.z);
+                                            this.navBreadcrumbsMesh.setMatrixAt(pIdx, this._scratchNavMatrix);
+                                        }
+                                        this.navBreadcrumbsMesh.count = count;
+                                        this.navBreadcrumbsMesh.instanceMatrix.needsUpdate = true;
                                     }
-                                    this.navBreadcrumbsMesh.count = count;
-                                    this.navBreadcrumbsMesh.instanceMatrix.needsUpdate = true;
+                                } else {
+                                    if (this.navBreadcrumbsMesh) this.navBreadcrumbsMesh.count = 0;
+                                    this.navCursorMesh.material.color.setHex(0xef4444);
+                                    this.navCursorMesh.material.opacity = 0.32;
                                 }
-                            } else {
-                                if (this.navBreadcrumbsMesh) this.navBreadcrumbsMesh.count = 0;
-                                this.navCursorMesh.material.color.setHex(0xef4444);
-                                this.navCursorMesh.material.opacity = 0.32;
                             }
                         }
                     } else {
                         this._hoveredTile = null;
+                        this._lastHoverTileX = -1;
+                        this._lastHoverTileY = -1;
+                        if (this.navBreadcrumbsMesh) this.navBreadcrumbsMesh.count = 0;
                         if (this.navCursorGroup) this.navCursorGroup.visible = false;
                     }
                 }
             }
         }
 
-        // 3D StreetView Ground Chevrons Forward Alignment & Modulation
+        // 3D StreetView Ground Chevrons: strictly hidden (opacity 0) unless hovered (warm etched gold 0xd4af37, scale 0.85)
         if (this.streetViewGroup && this.streetViewGroup.visible && this._streetChevrons && this.camera) {
-            if (!this._scratchCamDir) this._scratchCamDir = new THREE.Vector3();
-            this.camera.getWorldDirection(this._scratchCamDir);
-            const fwdLen = Math.hypot(this._scratchCamDir.x, this._scratchCamDir.z);
-            const fwdX = fwdLen > 0.001 ? this._scratchCamDir.x / fwdLen : 0;
-            const fwdZ = fwdLen > 0.001 ? this._scratchCamDir.z / fwdLen : -1;
-
             for (let i = 0; i < this._streetChevrons.length; i++) {
                 const chevron = this._streetChevrons[i];
                 const d = chevron.userData;
-                if (!d.passable) {
+                const isHovered = Boolean(d.passable && this._hoveredTile && this._hoveredTile.x === d.tx && this._hoveredTile.y === d.ty);
+                if (!isHovered) {
                     chevron.visible = false;
-                    continue;
-                }
-                const len = Math.hypot(d.dx, d.dy);
-                const cDirX = d.dx / len;
-                const cDirZ = d.dy / len;
-                const forwardDot = fwdX * cDirX + fwdZ * cDirZ;
-
-                if (forwardDot < 0.20) {
-                    chevron.visible = false;
+                    chevron.material.opacity = 0;
                     continue;
                 }
                 chevron.visible = true;
-
-                let targetOp = forwardDot >= 0.72 ? 0.42 : (forwardDot >= 0.35 ? 0.28 : 0.16);
-                let scale = 1.0;
-
-                const isHovered = this._hoveredTile && this._hoveredTile.x === d.tx && this._hoveredTile.y === d.ty;
-                if (isHovered) {
-                    targetOp = 0.90;
-                    scale = 1.22;
-                }
-                chevron.material.opacity = targetOp;
-                chevron.scale.set(scale, 1.0, scale);
+                chevron.material.color.setHex(0xd4af37);
+                chevron.material.opacity = 0.86;
+                chevron.scale.set(0.85, 1.0, 0.85);
             }
         }
 
@@ -16389,10 +13737,20 @@ class Dungeon3D {
 
         for (const entity of this.monsters.values()) {
             const entityDistSq = camPos ? ((entity.position.x - camPos.x) ** 2 + (entity.position.z - camPos.z) ** 2) : 0;
-            entity.visible = (entityDistSq <= 1225);
+            entity.visible = (entityDistSq <= 1225) && !entity.pending3DConfig;
+            if (entity.visible && (this._blindFactor > 0.35 || entity._hasEspMatOverride) && this._applyBlindMonsterState && entity.monsterData) {
+                const pl = this.lastFrame && this.lastFrame.player;
+                this._applyBlindMonsterState(entity, entity.monsterData, pl, pl ? pl.x : 0, pl ? pl.y : 0, this._blindFactor || 0);
+            }
             if (!entity.visible) {
                 if (entity.nameplate) entity.nameplate.visible = false;
                 continue;
+            }
+            if (entity._perceptVis !== undefined && entity._perceptVis < 1.0) {
+                entity._perceptVis = Math.min(1.0, entity._perceptVis + delta / 0.14);
+                const ps = 0.86 + 0.14 * entity._perceptVis;
+                entity.scale.set(ps, ps, ps);
+                if (this.renderGovernor && entity._perceptVis < 1.0) this.renderGovernor.wake(180, tNow);
             }
 
             if (camPos && entity.nameplate) {
@@ -16400,12 +13758,23 @@ class Dungeon3D {
                 const dz = entity.position.z - camPos.z;
                 const distSq = dx * dx + dz * dz;
                 const dist = Math.sqrt(distSq);
-                if (dist > 14.0 || !entity.visible) {
+                const tileDist = dist / (this.cellSize || 2.0);
+                const mData = entity.monsterData;
+                const isTargeted = Boolean(entity.lastTargeted || (entity.nameplate && entity.nameplate.isTargeted));
+                const isWoundedOrBoss = Boolean(mData && (mData.unique || mData.isBoss || (mData.hp_max > 0 && mData.hp < mData.hp_max)));
+                let npOpacity = entity._perceptVis !== undefined ? entity._perceptVis : 1.0;
+                if (!isTargeted && !isWoundedOrBoss) {
+                    if (tileDist > 7.0) {
+                        npOpacity *= Math.max(0, 1.0 - (tileDist - 7.0) / 3.5);
+                    }
+                } else if (tileDist > 10.0) {
+                    npOpacity *= Math.max(0, 1.0 - (tileDist - 10.0) / 3.0);
+                }
+                if (npOpacity <= 0.02 || !entity.visible) {
                     entity.nameplate.visible = false;
                 } else {
                     const angle = Math.atan2(dx, dz);
-                    const isTargeted = Boolean(entity.lastTargeted || (entity.nameplate && entity.nameplate.isTargeted));
-                    candidateNameplates.push({ entity, dist, angle, isTargeted });
+                    candidateNameplates.push({ entity, dist, angle, isTargeted, npOpacity });
                 }
             }
             if (entity.targetPos) {
@@ -16623,6 +13992,11 @@ class Dungeon3D {
                 }
             }
 
+            // Zero-GC procedural locomotion for unrigged bestiary models (dragons, hounds, hydras, oozes)
+            if (typeof this.updateProceduralLocomotion === 'function') {
+                this.updateProceduralLocomotion(entity, delta, monTime);
+            }
+
             // Ethereal pulse & ripple rotation for sensed / invisible foggy aura
             if (entity.foggyAura && entity.foggyAura.visible) {
                 const pulse = 0.38 + Math.sin(monTime * 2.2 + entity.position.x) * 0.16;
@@ -16639,20 +14013,27 @@ class Dungeon3D {
             }
         }
 
-        // Tick 380ms Monster Death Choreography before scene disposal
+        // Tick 380ms Monster Death Choreography & 140ms LOS Perception Fade-Out before scene disposal
         if (this._dyingMonsters && this._dyingMonsters.length > 0) {
             for (let dIdx = this._dyingMonsters.length - 1; dIdx >= 0; dIdx--) {
                 const dying = this._dyingMonsters[dIdx];
                 dying._deathTimer -= delta;
-                const dProg = Math.min(1.0, Math.max(0, 1.0 - (dying._deathTimer / 0.38)));
-                if (dying._mixer && dying._deathAction) {
-                    dying._mixer.update(delta);
-                } else if (dying.creatureMesh) {
-                    dying.creatureMesh.rotation.x = dProg * (Math.PI * 0.42);
-                    dying.creatureMesh.position.y = -dProg * 0.18;
+                if (dying._isPerceptFading) {
+                    const pProg = Math.min(1.0, Math.max(0, 1.0 - (dying._deathTimer / 0.14)));
+                    const shrink = Math.max(0.05, 1.0 - pProg * 0.28);
+                    dying.scale.set(shrink, shrink, shrink);
+                    if (this.renderGovernor && dying._deathTimer > 0) this.renderGovernor.wake(160, tNow);
+                } else {
+                    const dProg = Math.min(1.0, Math.max(0, 1.0 - (dying._deathTimer / 0.38)));
+                    if (dying._mixer && dying._deathAction) {
+                        dying._mixer.update(delta);
+                    } else if (dying.creatureMesh) {
+                        dying.creatureMesh.rotation.x = dProg * (Math.PI * 0.42);
+                        dying.creatureMesh.position.y = -dProg * 0.18;
+                    }
+                    const shrink = Math.max(0.05, 1.0 - dProg * 0.65);
+                    dying.scale.set(shrink, shrink, shrink);
                 }
-                const shrink = Math.max(0.05, 1.0 - dProg * 0.65);
-                dying.scale.set(shrink, shrink, shrink);
                 if (dying._deathTimer <= 0) {
                     this.destroyEntity(dying);
                     this._dyingMonsters.splice(dIdx, 1);
@@ -16669,11 +14050,13 @@ class Dungeon3D {
                 }
                 candidateNameplates.length = 12;
             }
-            const accepted = [];
+            const accepted = this._acceptedNameplates || (this._acceptedNameplates = []);
+            accepted.length = 0;
             for (let i = 0; i < candidateNameplates.length; i++) {
                 const item = candidateNameplates[i];
                 if (item.isTargeted) {
                     item.entity.nameplate.visible = true;
+                    if (item.entity.nameplate.material) item.entity.nameplate.material.opacity = 1.0;
                     accepted.push(item);
                     continue;
                 }
@@ -16690,6 +14073,9 @@ class Dungeon3D {
                     item.entity.nameplate.visible = false;
                 } else {
                     item.entity.nameplate.visible = true;
+                    if (item.entity.nameplate.material) {
+                        item.entity.nameplate.material.opacity = item.npOpacity !== undefined ? item.npOpacity : 1.0;
+                    }
                     accepted.push(item);
                 }
             }
@@ -16826,11 +14212,11 @@ class Dungeon3D {
                 this._fpsGovFrames = 0;
                 this._fpsGovStart = nowGov;
                 const isPhoneGov = this.renderBudget && this.renderBudget.tier === 'phone';
-                const budgetCap = isPhoneGov
-                    ? Math.max(1.25, (this.renderBudget && this.renderBudget.dprCap) || 1.25)
-                    : Math.max(1.5, (this.renderBudget && this.renderBudget.dprCap) || 1.5);
-                const minDprFloor = isPhoneGov ? 0.85 : Math.min((typeof window !== 'undefined' && window.devicePixelRatio) || 1, 1.25);
+                const budgetCap = (this.renderBudget && this.renderBudget.dprCap)
+                    ? this.renderBudget.dprCap
+                    : (isPhoneGov ? 1.25 : 1.5);
                 const maxDpr = Math.min((typeof window !== 'undefined' && window.devicePixelRatio) || 1, budgetCap);
+                const minDprFloor = Math.min(maxDpr, 0.75);
                 let targetDpr = this._adaptiveDpr || maxDpr;
                 if (this.renderGovernor && typeof this.renderGovernor.recordFrameTime === 'function') {
                     this.renderGovernor.recordFrameTime(avgMs);
@@ -16844,6 +14230,10 @@ class Dungeon3D {
                     this._adaptiveDpr = targetDpr;
                     this.renderer.setPixelRatio(this._adaptiveDpr);
                 }
+            }
+            if (this.lastFrame) {
+                if (typeof this.updateFlankThreatArcs === 'function') this.updateFlankThreatArcs(this.lastFrame);
+                if (typeof this.updateTacticalCursor === 'function') this.updateTacticalCursor(this.lastFrame, delta);
             }
             this.renderer.render(this.scene, this.camera);
         }
@@ -17069,166 +14459,20 @@ class Dungeon3D {
         return lastOpenTile;
     }
 
-    initStreetViewNavigation() {
-        if (this.streetViewGroup) return;
-
-        this.streetViewGroup = new THREE.Group();
-        this.streetViewGroup.name = 'StreetViewChevrons';
-        this.streetViewGroup.visible = false;
-        this.scene.add(this.streetViewGroup);
-
-        const geo = new THREE.BufferGeometry();
-        const positions = [];
-        const addChevron = (z0) => {
-            const to = [0, 0, z0 - 0.34];
-            const ti = [0, 0, z0 - 0.16];
-            const lo = [-0.46, 0, z0 + 0.14];
-            const li = [-0.30, 0, z0 + 0.19];
-            const ro = [0.46, 0, z0 + 0.14];
-            const ri = [0.30, 0, z0 + 0.19];
-
-            // Left wing: to, lo, li and to, li, ti
-            positions.push(...to, ...lo, ...li);
-            positions.push(...to, ...li, ...ti);
-            // Right wing: to, ti, ri and to, ri, ro
-            positions.push(...to, ...ti, ...ri);
-            positions.push(...to, ...ri, ...ro);
-        };
-        addChevron(0.0);
-        geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-        geo.computeVertexNormals();
-        geo._sharedGeometry = true;
-        this._sharedChevronGeo = geo;
-
-        this._streetChevrons = [];
-        const deltas = [
-            { dx: 0, dy: -1 }, { dx: 1, dy: -1 }, { dx: 1, dy: 0 }, { dx: 1, dy: 1 },
-            { dx: 0, dy: 1 }, { dx: -1, dy: 1 }, { dx: -1, dy: 0 }, { dx: -1, dy: -1 }
-        ];
-
-        const ring = 1;
-        for (const d of deltas) {
-            const mat = new THREE.MeshBasicMaterial({
-                color: 0xffe066,
-                transparent: true,
-                opacity: 0.42,
-                depthWrite: false,
-                side: THREE.DoubleSide
-            });
-            mat._sharedMaterial = true;
-            const mesh = new THREE.Mesh(this._sharedChevronGeo, mat);
-            mesh.visible = false;
-            mesh.userData = { dx: d.dx, dy: d.dy, ring, passable: false };
-            this.streetViewGroup.add(mesh);
-            this._streetChevrons.push(mesh);
-        }
-
-        this.navCursorGroup = new THREE.Group();
-        this.navCursorGroup.name = 'NavCursorGroup';
-        this.navCursorGroup.visible = false;
-        this.scene.add(this.navCursorGroup);
-
-        const ringGeo = new THREE.RingGeometry(0.42, 0.52, 48);
-        ringGeo.rotateX(-Math.PI / 2);
-        ringGeo._sharedGeometry = true;
-        const ringMat = new THREE.MeshBasicMaterial({
-            color: 0xffd700,
-            transparent: true,
-            opacity: 0.82,
-            depthWrite: false,
-            side: THREE.DoubleSide
-        });
-        ringMat._sharedMaterial = true;
-        this.navCursorMesh = new THREE.Mesh(ringGeo, ringMat);
-        this.navCursorMesh.name = 'NavCursorMesh';
-        this.navCursorGroup.add(this.navCursorMesh);
-
-        const crumbGeo = new THREE.CylinderGeometry(0.16, 0.16, 0.025, 16);
-        crumbGeo._sharedGeometry = true;
-        const crumbMat = new THREE.MeshBasicMaterial({
-            color: 0xffe066,
-            transparent: true,
-            opacity: 0.78,
-            depthWrite: false
-        });
-        crumbMat._sharedMaterial = true;
-        this.navBreadcrumbsMesh = new THREE.InstancedMesh(crumbGeo, crumbMat, 64);
-        this.navBreadcrumbsMesh.name = 'NavBreadcrumbsMesh';
-        this.navBreadcrumbsMesh.count = 0;
-        this.navCursorGroup.add(this.navBreadcrumbsMesh);
-    }
-
-    canEngageStreetViewNav(frame) {
-        if (!frame || frame.phase !== 'play' || !frame.player || !frame.map) return false;
-        if ((frame.ui?.overlay || 0) > 0 || (!frame.ui?.awaiting_command && !frame.ui?.more)) return false;
-        return true;
-    }
-
-    _isStreetViewTilePassable(frame, map, w, h, tx, ty) {
-        if (tx < 0 || tx >= w || ty < 0 || ty >= h) return false;
-        const feat = this.getFeatAt(map, tx, ty);
-        const glyph = this.getGlyphAt(map, tx, ty);
-        const isSolidWall = feat === 0 || (feat >= 15 && feat <= 22) || feat === 30 || glyph === '#' || glyph === '%' || glyph === '*';
-        const isTree = (feat === 25 && glyph !== '.' && glyph !== ',' && glyph !== "'");
-        const isLava = feat === 23;
-        const isDeepWater = feat === 24;
-        const isChasm = feat === 41;
-        const isTrap = glyph === '^';
-        if (isSolidWall || isTree || isLava || isDeepWater || isChasm || isTrap) return false;
-        if (Array.isArray(frame.monsters)) {
-            for (let mIdx = 0; mIdx < frame.monsters.length; mIdx++) {
-                const m = frame.monsters[mIdx];
-                if (m && m.visible !== false && m.x === tx && m.y === ty) return false;
-            }
-        }
-        return true;
-    }
-
-    updateStreetViewAndCursor(frame) {
-        if (!this.streetViewGroup) this.initStreetViewNavigation();
-
-        if (!this.canEngageStreetViewNav(frame)) {
-            if (this.streetViewGroup) this.streetViewGroup.visible = false;
-            if (this.navCursorGroup) this.navCursorGroup.visible = false;
-            return;
-        }
-
-        this.streetViewGroup.visible = true;
-        const map = frame.map;
-        const w = map.w || (map.rows && map.rows[0] && map.rows[0].f ? map.rows[0].f.length / 2 : 0);
-        const h = map.h || (map.rows ? map.rows.length : 0);
-        const px = frame.player.x !== undefined ? frame.player.x : 0;
-        const py = frame.player.y !== undefined ? frame.player.y : 0;
-
-        for (let i = 0; i < this._streetChevrons.length; i++) {
-            const c = this._streetChevrons[i];
-            const d = c.userData;
-            const tx1 = px + d.dx;
-            const ty1 = py + d.dy;
-            const step1Passable = this._isStreetViewTilePassable(frame, map, w, h, tx1, ty1);
-
-            if (step1Passable) {
-                d.passable = true;
-                const visualDist = 1.0;
-                c.visible = true;
-                c.position.set((px + d.dx * visualDist) * this.cellSize, 0.042, (py + d.dy * visualDist) * this.cellSize);
-                c.rotation.y = Math.atan2(-d.dx, -d.dy);
-                d.tx = tx1;
-                d.ty = ty1;
-            } else {
-                d.passable = false;
-                c.visible = false;
-            }
-        }
-    }
-
-    setHoverScreenCoords(clientX, clientY, inputManager) {
-        this._pendingHoverX = clientX;
-        this._pendingHoverY = clientY;
-        this._hoverInputRef = inputManager;
-        this._hoverDirty = true;
-    }
 }
 
 window.Dungeon3D = Dungeon3D;
+if (window.Dungeon3DProcTextures && typeof window.Dungeon3DProcTextures.attach === 'function') {
+    window.Dungeon3DProcTextures.attach(Dungeon3D);
+}
+if (window.Dungeon3DEnvironment && typeof window.Dungeon3DEnvironment.attach === 'function') {
+    window.Dungeon3DEnvironment.attach(Dungeon3D);
+} else if (typeof require === 'function') {
+    try { require('./dungeon3d-environment.js').attach(Dungeon3D); } catch (_) {}
+}
+if (window.Dungeon3DTactical && typeof window.Dungeon3DTactical.attach === 'function') {
+    window.Dungeon3DTactical.attach(Dungeon3D);
+} else if (typeof require === 'function') {
+    try { require('./dungeon3d-tactical.js').attach(Dungeon3D); } catch (_) {}
+}
 

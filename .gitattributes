@@ -12,3 +12,9 @@
 
 *.py text eol=lf
 *.md text
+
+# Hengband runtime data files must use LF so Linux angband_fgets never turns \r into '?'
+variants/hengband/lib/**/*.prf text eol=lf
+variants/hengband/lib/**/*.txt text eol=lf
+variants/hengband/lib/**/*.jsonc text eol=lf
+

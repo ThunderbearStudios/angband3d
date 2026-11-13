@@ -98,24 +98,45 @@ async function run() {
         throw new Error(`Expected 0 buttons on splash billboard, found ${initial.splashButtonsCount}!`);
     }
 
-    // 2. Click anywhere on #splash-overlay -> transitions to Main Menu
-    console.log('2. Clicking #splash-overlay to enter Main Menu...');
-    const startRes = (await send('Runtime.evaluate', {
+    // 2. Click anywhere on #splash-overlay -> transitions to Realm Collector Card Carousel, then [Select] -> Main Menu
+    console.log('2. Clicking #splash-overlay to enter Realm Collector Card Carousel...');
+    const splashToRealmRes = (await send('Runtime.evaluate', {
         expression: `(() => {
             const splash = document.getElementById('splash-overlay');
-            if (!splash) return 'splash-overlay not found';
+            const realmModal = document.getElementById('realm-selector-modal');
+            if (!splash || !realmModal) return 'splash or realm-selector-modal not found';
             splash.click();
             return {
                 appState: window.__app.getAppState(),
-                splashVisible: ! splash.classList.contains('hidden'),
+                splashVisible: !splash.classList.contains('hidden'),
+                realmModalVisible: !realmModal.classList.contains('hidden'),
+                cardTitle: document.getElementById('rc-card-title')?.textContent || ''
+            };
+        })()`,
+        returnByValue: true
+    })).result.value;
+    console.log('   Splash -> Realm Carousel Result:', splashToRealmRes);
+    if (splashToRealmRes.appState !== 'realmModal' || !splashToRealmRes.realmModalVisible || splashToRealmRes.splashVisible) {
+        throw new Error('#splash-overlay click failed to open #realm-selector-modal RPG Card Carousel!');
+    }
+
+    // Cycle [Next ▶] and [◀ Prev], then click [Select] to enter Main Menu
+    const startRes = (await send('Runtime.evaluate', {
+        expression: `(() => {
+            document.getElementById('btn-realm-next')?.click();
+            document.getElementById('btn-realm-prev')?.click();
+            document.getElementById('btn-realm-select-confirm')?.click();
+            return {
+                appState: window.__app.getAppState(),
+                realmModalVisible: !document.getElementById('realm-selector-modal').classList.contains('hidden'),
                 menuVisible: !document.getElementById('main-menu-overlay').classList.contains('hidden')
             };
         })()`,
         returnByValue: true
     })).result.value;
-    console.log('   Result:', startRes);
-    if (startRes.appState !== 'mainMenu' || !startRes.menuVisible || startRes.splashVisible) {
-        throw new Error('#splash-overlay click failed to transition to mainMenu!');
+    console.log('   Select Realm -> Main Menu Result:', startRes);
+    if (startRes.appState !== 'mainMenu' || !startRes.menuVisible || startRes.realmModalVisible) {
+        throw new Error('#btn-realm-select-confirm failed to transition to mainMenu!');
     }
 
     // 3. Test #main-menu-realm-select dropdown on Main Menu
@@ -147,7 +168,7 @@ async function run() {
         }
     }
 
-    // 4. Test #btn-menu-realms -> opens Realm Comparison modal
+    // 4. Test #btn-menu-realms -> opens Realm Collector Card Carousel modal
     console.log('4. Clicking #btn-menu-realms...');
     const realmModalRes = (await send('Runtime.evaluate', {
         expression: `(() => {
@@ -156,14 +177,14 @@ async function run() {
             btn.click();
             return {
                 appState: window.__app.getAppState(),
-                modalVisible: !document.getElementById('realm-modal').classList.contains('hidden')
+                modalVisible: !document.getElementById('realm-selector-modal').classList.contains('hidden')
             };
         })()`,
         returnByValue: true
     })).result.value;
     console.log('   Result:', realmModalRes);
-    if (realmModalRes.appState !== 'realmSelect' || !realmModalRes.modalVisible) {
-        throw new Error('#btn-menu-realms failed to open realm comparison modal!');
+    if (realmModalRes.appState !== 'realmModal' || !realmModalRes.modalVisible) {
+        throw new Error('#btn-menu-realms failed to open #realm-selector-modal!');
     }
 
     // Close realm modal back to Main Menu

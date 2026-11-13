@@ -6515,6 +6515,14 @@ class ChronicleGrounder {
             turn: curTurn
         };
 
+        if (prose && event && event.type !== 'HERO_DEATH') {
+            const weaver = (typeof window !== 'undefined' && window.ChronicleStoryWeaver) || (typeof globalThis !== 'undefined' && globalThis.ChronicleStoryWeaver) || null;
+            if (weaver && typeof weaver.diversifyUtterance === 'function') {
+                const realmKey = (player && player.realm) ? player.realm : '';
+                prose = weaver.diversifyUtterance(prose, realmKey);
+            }
+        }
+
         return {
             title: title,
             prose: prose,
@@ -6532,7 +6540,7 @@ class ChronicleGrounder {
      * consolidates the entire unvoiced event ledger into a single flowing, cohesive Tolkien saga beat.
      * Prevents narration thrashing and catches up the story to the character's exact live state.
      */
-    static generateCatchUpBeat(events, initialPlayer, livePlayer, traditionKey = 'westmarch') {
+    static generateCatchUpBeat(events, initialPlayer, livePlayer, traditionKey = 'westmarch', options = {}) {
         const player = livePlayer || initialPlayer;
         if (!events || events.length === 0) {
             return {
@@ -6614,8 +6622,8 @@ class ChronicleGrounder {
                     if (kName && kName !== 'foe') killSet.add(kName);
                 }
             }
-            if (data.monsterName && (ev.type === 'MONSTER_DIES' || ev.type === 'SLAIN')) {
-                killSet.add(ChronicleGrounder.extractSlainMonsterName(data.monsterName));
+            if ((data.monsterName || data.monster) && (ev.type === 'MONSTER_DIES' || ev.type === 'SLAIN' || ev.type === 'MONSTER_KILLED')) {
+                killSet.add(ChronicleGrounder.extractSlainMonsterName(data.monsterName || data.monster));
             }
             if (ev.type === 'UNIQUE_SLAIN' && data.monsterName) {
                 uniqueSlain = ChronicleGrounder.extractSlainMonsterName(data.monsterName);
@@ -6631,8 +6639,12 @@ class ChronicleGrounder {
                     if (vProf && vProf.isVocal && !vocalCreature) vocalCreature = ia;
                 }
             }
-            if (data.monsterName && ev.type === 'MONSTER_ATTACK') {
-                assailantSet.add(data.monsterName);
+            if ((data.monsterName || data.attacker) && (ev.type === 'MONSTER_ATTACK' || ev.type === 'CREATURE_ASSAULT')) {
+                const mName = data.monsterName || data.attacker;
+                assailantSet.add(mName);
+                if (typeof data.damage === 'number') totalDamageTaken += data.damage;
+                const vProf = this.classifyCreature({ name: mName, glyph: data.glyph });
+                if (vProf && vProf.isVocal && !vocalCreature) vocalCreature = { ...data, monsterName: mName };
             }
 
             // Hero Attacks / Spells
@@ -6670,8 +6682,13 @@ class ChronicleGrounder {
         const assailants = Array.from(assailantSet);
         const currentHp = player ? (player.hp ?? player.chp ?? 1) : 1;
         const maxHp = player ? (player.hp_max ?? player.mhp ?? 1) : 1;
+        const prevHp = initialPlayer ? (initialPlayer.hp ?? initialPlayer.chp ?? null) : null;
+        if (totalDamageTaken === 0 && typeof prevHp === 'number' && typeof currentHp === 'number' && prevHp > currentHp) {
+            totalDamageTaken = prevHp - currentHp;
+        }
         const hpPercent = currentHp / maxHp;
         const inMortalPeril = hpPercent < 0.35;
+        const isDryRun = Boolean(options && options.dryRun);
 
         // Build Title
         let title = 'Tides of Battle';
@@ -6716,43 +6733,71 @@ class ChronicleGrounder {
                 clauses.push(townOpeners[turnSeed % townOpeners.length]);
             }
         } else if (assailants.length > 0) {
-            const foeDesc = assailants.length === 1 ? `the ferocious ${assailants[0]}` : (assailants.length === 2 ? `the ${assailants[0]} and ${assailants[1]}` : `a savage pack of foes`);
-            if (traditionKey === 'khazad') {
-                if (totalDamageTaken > 15 || inMortalPeril) {
-                    clauses.push(`Enduring a battering onslaught from ${foeDesc} amidst the ancient granite roots at ${depthFt}, ${name} absorbs heavy blows through dented mail, teeth gritted in stubborn dwarven defiance`);
-                } else {
-                    clauses.push(`Trading furious blows with ${foeDesc} in the narrow stone passages at ${depthFt}, ${name} stands firm as an iron anvil`);
+            const foeEpithets = ['prowling', 'snarling', 'relentless', 'shadow-stalking', 'ravenous', 'grim'];
+            const epIdx = (typeof this._lastCatchUpIdx === 'number' && this._lastCatchUpIdx >= 0)
+                ? (this._lastCatchUpIdx + 1) % foeEpithets.length
+                : (turnSeed % foeEpithets.length);
+            const foeDesc = assailants.length === 1
+                ? `the ${foeEpithets[epIdx]} ${assailants[0]}`
+                : (assailants.length === 2 ? `the ${assailants[0]} and ${assailants[1]}` : `a converging pack of foes`);
+
+            const heavyAssault = (totalDamageTaken > 15 || inMortalPeril);
+            if (heavyAssault) {
+                const perilTemplates = [
+                    `Hard-pressed by ${foeDesc} in the subterranean gloom at ${depthFt}, ${name} weathers bruising strikes as blood darkens the cold flagstones`,
+                    `Battered by the savage press of ${foeDesc} at ${depthFt}, ${name} absorbs jarring blows behind dented guard and refuses to break`,
+                    `Reeling under heavy punishment from ${foeDesc} within the shadowed halls of ${depthFt}, ${name} plants heels against the slick stone in grim defiance`,
+                    `Cornered amid the echoing vaults at ${depthFt} by ${foeDesc}, ${name} parries through a storm of perilous strikes`,
+                    `Enduring a punishing onslaught from ${foeDesc} deep at ${depthFt}, ${name} steadies ragged breath behind raised steel`,
+                    `Assailed fiercely by ${foeDesc} across the blood-streaked masonry of ${depthFt}, ${name} holds the line at steep cost`
+                ];
+                if (traditionKey === 'khazad') {
+                    perilTemplates[0] = `Enduring a battering onslaught from ${foeDesc} amidst the ancient granite roots at ${depthFt}, ${name} absorbs heavy blows through dented mail in stubborn dwarven defiance`;
+                } else if (traditionKey === 'noldor' || traditionKey === 'beleriand') {
+                    perilTemplates[0] = `Beset by the cruel malice of ${foeDesc} deep at ${depthFt}, ${name} parries desperately through a storm of shadowed strikes`;
+                } else if (traditionKey === 'amber') {
+                    perilTemplates[0] = `Hard-pressed by ${foeDesc} amidst the shifting probabilities of ${depthFt}, ${name} parries through a lethal flurry along the edge of the Pattern`;
+                } else if (traditionKey === 'easternmythos') {
+                    perilTemplates[0] = `Weathering a fierce assault from ${foeDesc} in the subterranean caverns at ${depthFt}, ${name} centers breath and spirit in unyielding resolve`;
                 }
-            } else if (traditionKey === 'noldor') {
-                if (totalDamageTaken > 15 || inMortalPeril) {
-                    clauses.push(`Beset by the cruel malice of ${foeDesc} deep at ${depthFt}, where Morgoth's shadow weighs heavy upon the earth, ${name} parries desperately through a storm of strikes`);
-                } else {
-                    clauses.push(`Engaging ${foeDesc} in a swift dance of steel and starlight at ${depthFt}, ${name} maneuvers gracefully across the damp stones`);
-                }
-            } else if (traditionKey === 'beleriand') {
-                if (totalDamageTaken > 15 || inMortalPeril) {
-                    clauses.push(`Assailed by ${foeDesc} beneath the iron vaults of Thangorodrim at ${depthFt}, ${name} holds the shadowed stair in grim First-Age defiance`);
-                } else {
-                    clauses.push(`Crossing blades with ${foeDesc} in the silent halls of Angband at ${depthFt}, ${name} strikes with measured Noldorin precision`);
-                }
-            } else if (traditionKey === 'amber') {
-                if (totalDamageTaken > 15 || inMortalPeril) {
-                    clauses.push(`Hard-pressed by ${foeDesc} amidst the shifting probabilities of ${depthFt}, ${name} parries through a lethal flurry along the edge of the Pattern`);
-                } else {
-                    clauses.push(`Trading rapier-swift exchanges with ${foeDesc} across the shadow-vaults of ${depthFt}, ${name} holds the tactical line`);
-                }
-            } else if (traditionKey === 'easternmythos') {
-                if (totalDamageTaken > 15 || inMortalPeril) {
-                    clauses.push(`Weathering a fierce assault from ${foeDesc} in the subterranean caverns at ${depthFt}, ${name} centers breath and spirit in unyielding Bushido resolve`);
-                } else {
-                    clauses.push(`Meeting ${foeDesc} in a decisive tachiai clash at ${depthFt}, ${name} cuts through the gloom with disciplined precision`);
-                }
+                const lastPIdx = typeof this._lastCatchUpPerilIdx === 'number' ? this._lastCatchUpPerilIdx : -1;
+                const nextPIdx = lastPIdx >= 0 ? (lastPIdx + 1) % perilTemplates.length : (turnSeed % perilTemplates.length);
+                if (!isDryRun) this._lastCatchUpPerilIdx = nextPIdx;
+                clauses.push(perilTemplates[nextPIdx]);
             } else {
-                if (totalDamageTaken > 15 || inMortalPeril) {
-                    clauses.push(`Hard-pressed by ${foeDesc} in the subterranean gloom at ${depthFt}, ${name} weathers bruising strikes as blood darkens the cold flagstones`);
-                } else {
-                    clauses.push(`Locked in fierce combat against ${foeDesc} at ${depthFt}, ${name} trades swift blows in the flickering torchlight`);
+                // 12-template varied dark-fantasy combat & skirmish rotation pool (_lastCatchUpIdx anti-repeat guard)
+                const skirmishTemplates = [
+                    `Crossing steel with ${foeDesc} in the shadowed corridor at ${depthFt}, ${name} parries and counters with measured fury`,
+                    `Trading iron-hard blows with ${foeDesc} across the damp masonry of ${depthFt}, ${name} holds the narrow chokepoint unyieldingly`,
+                    `Amidst the guttering torch-shadows of ${depthFt}, ${name} wheels into a taut close-quarters clash against ${foeDesc}`,
+                    `Sparks leap from cold stone at ${depthFt} as ${name} turns aside the rush of ${foeDesc} and presses the counter-stroke`,
+                    `Holding firm against the lunging advance of ${foeDesc} at ${depthFt}, ${name} answers fang and iron with disciplined precision`,
+                    `Down in the echoing vaults of ${depthFt}, ${name} pivots past a sudden lunge from ${foeDesc} to seize the tactical opening`,
+                    `Boots grinding against the grit-strewn flagstones at ${depthFt}, ${name} meets ${foeDesc} head-on in a clash of cold resolve`,
+                    `Beneath the oppressive stone arches of ${depthFt}, ${name} weaves inside the reach of ${foeDesc} without yielding a step`,
+                    `Blade and shadow collide at ${depthFt} while ${name} batters back the relentless press of ${foeDesc}`,
+                    `Confronted in the gloom of ${depthFt} by ${foeDesc}, ${name} steadies lantern and guard to shatter the ambush`,
+                    `Along the chiselled granite walls at ${depthFt}, ${name} engages ${foeDesc} in a brisk, unforgiving exchange`,
+                    `Facing down ${foeDesc} within the silent depths of ${depthFt}, ${name} matches every hostile lunge strike for strike`
+                ];
+                if (traditionKey === 'khazad') {
+                    skirmishTemplates[1] = `Trading furious blows with ${foeDesc} in the narrow stone passages at ${depthFt}, ${name} stands firm as a dwarven anvil`;
+                } else if (traditionKey === 'noldor') {
+                    skirmishTemplates[2] = `Engaging ${foeDesc} in a swift dance of steel and starlight at ${depthFt}, ${name} maneuvers gracefully across the damp stones`;
+                } else if (traditionKey === 'beleriand') {
+                    skirmishTemplates[3] = `Crossing blades with ${foeDesc} in the silent halls at ${depthFt}, ${name} strikes with measured First-Age precision`;
+                } else if (traditionKey === 'amber') {
+                    skirmishTemplates[4] = `Trading rapier-swift exchanges with ${foeDesc} across the shadow-vaults of ${depthFt}, ${name} commands the tactical line`;
+                } else if (traditionKey === 'easternmythos') {
+                    skirmishTemplates[5] = `Meeting ${foeDesc} in a decisive tachiai clash at ${depthFt}, ${name} cuts through the gloom with poised precision`;
                 }
+                const lastIdx = typeof this._lastCatchUpIdx === 'number' ? this._lastCatchUpIdx : -1;
+                let nextIdx = lastIdx >= 0 ? (lastIdx + 1) % skirmishTemplates.length : (turnSeed % skirmishTemplates.length);
+                if (nextIdx === lastIdx && skirmishTemplates.length > 1) {
+                    nextIdx = (lastIdx + 1) % skirmishTemplates.length;
+                }
+                if (!isDryRun) this._lastCatchUpIdx = nextIdx;
+                clauses.push(skirmishTemplates[nextIdx]);
             }
         } else if (shrineEncountered) {
             if (shrineEncountered === 'fountain') {
@@ -6767,9 +6812,12 @@ class ChronicleGrounder {
                 `Advancing through the torchlit corridors at ${depthFt}, ${name} meets the perils of the labyrinth head-on`,
                 `Amidst the cold stonework of ${depthFt}, ${name} holds the narrow passage with steady resolve`,
                 `Stepping through the shadowed vaults of ${depthFt}, ${name} confronts the denizens of the deep`,
-                `Pressing deeper into the silent halls at ${depthFt}, ${name} keeps blade and lantern ready`
+                `Moving watchfully along the silent halls at ${depthFt}, ${name} keeps blade and lantern ready`
             ];
-            clauses.push(deepOpeners[turnSeed % deepOpeners.length]);
+            const lastOpenIdx = typeof this._lastCatchUpOpenIdx === 'number' ? this._lastCatchUpOpenIdx : -1;
+            const openIdx = lastOpenIdx >= 0 ? (lastOpenIdx + 1) % deepOpeners.length : (turnSeed % deepOpeners.length);
+            if (!isDryRun) this._lastCatchUpOpenIdx = openIdx;
+            clauses.push(deepOpeners[openIdx]);
         }
 
         // Clause 2: Tactical Adaptation (Potions, Spells, Statuses)
@@ -6789,12 +6837,39 @@ class ChronicleGrounder {
         if (uniqueSlain) {
             clauses.push(`before driving ${weapon} home in a legendary death-blow that silences the dread ${uniqueSlain} forever, sealing their doom in the annals of the Living Chronicle!`);
         } else if (kills.length > 1) {
-            clauses.push(`before unleashing a whirlwind counter-attack that fells ${kills[0]} and ${kills[1]} lifeless across the ${surfaceFloor}${leveledUpTo ? ` and ascending in battle-hardened mastery to level ${leveledUpTo}` : ''}!`);
+            const multiFinishers = [
+                `before unleashing a sweeping counter-stroke with ${weapon} that fells ${kills[0]} and ${kills[1]} across the ${surfaceFloor}${leveledUpTo ? ` and ascending in battle-hardened mastery to level ${leveledUpTo}` : ''}!`,
+                `before carving through the press with ${weapon} to lay ${kills[0]} and ${kills[1]} low upon the ${surfaceFloor}${leveledUpTo ? `, rising in triumph to experience level ${leveledUpTo}` : ''}!`,
+                `before turning the melee in a decisive flurry of ${weapon} that leaves ${kills[0]} and ${kills[1]} motionless on the ${surfaceFloor}${leveledUpTo ? ` as ${name} attains level ${leveledUpTo}` : ''}!`,
+                `before breaking their encirclement with ${weapon}, striking down both ${kills[0]} and ${kills[1]} upon the ${surfaceFloor}${leveledUpTo ? ` and ascending to level ${leveledUpTo}` : ''}!`
+            ];
+            const lastMIdx = typeof this._lastCatchUpMultiIdx === 'number' ? this._lastCatchUpMultiIdx : -1;
+            const mIdx = lastMIdx >= 0 ? (lastMIdx + 1) % multiFinishers.length : (turnSeed % multiFinishers.length);
+            if (!isDryRun) this._lastCatchUpMultiIdx = mIdx;
+            clauses.push(multiFinishers[mIdx]);
         } else if (kills.length === 1) {
             if (companionKill && companionKill.monsterName === kills[0]) {
                 clauses.push(`as the faithful ${companionKill.petName} lunges forward to drag the ${kills[0]} down upon the ${surfaceFloor}${leveledUpTo ? `, while ${name} ascends to experience level ${leveledUpTo}` : ''}!`);
             } else {
-                clauses.push(`before driving ${weapon} clean through the defenses of the ${kills[0]}, felling the assailant upon the ${surfaceFloor}${leveledUpTo ? ` and rising in hard-won mastery to level ${leveledUpTo}` : ''}!`);
+                const lvlTail = leveledUpTo ? ` and rising in hard-won mastery to level ${leveledUpTo}` : '';
+                const singleKillFinishers = [
+                    `before driving ${weapon} past the guard of the ${kills[0]} to fell the creature upon the ${surfaceFloor}${lvlTail}!`,
+                    `before delivering a decisive parting stroke with ${weapon} that drops the ${kills[0]} cold across the ${surfaceFloor}${lvlTail}!`,
+                    `ending the exchange as ${weapon} finds its mark and lays the ${kills[0]} low upon the ${surfaceFloor}${lvlTail}!`,
+                    `until a clean counter-thrust of ${weapon} breaks the ${kills[0]} and silences the threat on the ${surfaceFloor}${lvlTail}!`,
+                    `before cleaving through the final lunge of the ${kills[0]} with ${weapon}, leaving silence along the ${surfaceFloor}${lvlTail}!`,
+                    `closing the distance with ${weapon} to strike down the ${kills[0]} upon the cold ${surfaceFloor}${lvlTail}!`,
+                    `before turning a mistimed rush into the ruin of the ${kills[0]} beneath ${weapon} on the ${surfaceFloor}${lvlTail}!`,
+                    `sealing the skirmish with a swift blow of ${weapon} that sends the ${kills[0]} sprawling across the ${surfaceFloor}${lvlTail}!`,
+                    `until ${weapon} lands true, ending the ${kills[0]}'s assault upon the ${surfaceFloor}${lvlTail}!`,
+                    `before stepping inside the arc of attack and felling the ${kills[0]} with ${weapon} across the ${surfaceFloor}${lvlTail}!`,
+                    `culminating in a sharp riposte of ${weapon} that vanquishes the ${kills[0]} on the ${surfaceFloor}${lvlTail}!`,
+                    `before shattering the stance of the ${kills[0]} with ${weapon} and claiming the ${surfaceFloor}${lvlTail}!`
+                ];
+                const lastFIdx = typeof this._lastCatchUpFinishIdx === 'number' ? this._lastCatchUpFinishIdx : -1;
+                const nextFIdx = lastFIdx >= 0 ? (lastFIdx + 5) % singleKillFinishers.length : ((turnSeed + 3) % singleKillFinishers.length);
+                if (!isDryRun) this._lastCatchUpFinishIdx = nextFIdx;
+                clauses.push(singleKillFinishers[nextFIdx]);
             }
         } else if (leveledUpTo) {
             clauses.push(`emerging from the trial with newfound vigor and ascending to experience level ${leveledUpTo}!`);

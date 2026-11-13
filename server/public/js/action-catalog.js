@@ -117,13 +117,13 @@
         // Deep freeze command definitions with authoritative 8-realm key overrides
     const REALM_KEY_OVERRIDES = {
         dcss: {
-            wield: 'w', takeoff: 'T', drop: 'd', ignore: 'k', quaff: 'q', read: 'r', eat: 'e',
+            wield: 'w', takeoff: 'T', drop: 'd', ignore: null, quaff: 'q', read: 'r', eat: 'e',
             aim: 'V', use_staff: 'V', zap: 'V', activate: 'a', use: 'a', play_horn: 'V',
             fire: 'f', throw: 'f', inscribe: '{', uninscribe: '}', refill: null, examine: 'v',
             cast: 'z', browse: 'I', study: 'M', song: null, abilities: 'm', smithing: null,
-            power: 'a', pet: 't', tunnel: 'T', open: 'O', close: 'c', bash: 'O', spike: null,
+            power: 'a', pet: null, tunnel: 'T', open: 'o', close: 'c', bash: 'O', spike: null,
             disarm: 'D', alter: '+', exchange: "'", steal: null, rest: '5', pickup: 'g',
-            hold: '.', walk: ';', run: '.', search_mode: 's', search: 's', explore: 'o',
+            hold: '.', walk: ';', run: '.', search_mode: 's', search: 's', explore: 'Alt+E',
             travel: 'G', stairs_up: '<', stairs_down: '>', repeat: '`', count: '0',
             inventory: 'i', equipment: 'e', quiver: 'Q', look: 'x', target: 'x', map: 'X',
             locate: '@', char_sheet: '%', knowledge: '\\', messages: 'C-p', save: 'S',
@@ -156,7 +156,7 @@
             options: '=', help: '?', command_menu: 'enter', overland: null, quests: null
         },
         ryod: {
-            wield: 'w', takeoff: 'T', drop: 'd', ignore: 'k', quaff: 'q', read: 'r', eat: 'e',
+            wield: 'w', takeoff: 'T', drop: 'd', ignore: null, quaff: 'q', read: 'r', eat: 'e',
             aim: 'a', use_staff: 'a', zap: 'a', activate: 'a', use: 'a', play_horn: 'a',
             fire: 'f', throw: 't', inscribe: '{', uninscribe: '}', refill: null, examine: 'I',
             cast: 'm', browse: 'M', study: 'M', song: 'm', abilities: 'm', smithing: null,

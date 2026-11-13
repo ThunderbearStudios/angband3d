@@ -34,7 +34,8 @@ Sent once at startup.
 
 | field | type | meaning |
 |---|---|---|
-| `protocol` | int | Protocol version from engine. Currently `1`. |
+| `protocol` | int | Major protocol version from engine. Currently `1`. |
+| `protocol_minor` | int | Minor protocol version (`2` for WS72 Protocol v2: resists, flags, 3D cursor, monster lore, variant parity). |
 | `version` | string | Server API version (emitted by Node). Currently `"1.0.0"`. |
 | `sessionId` | string | Unique connection session identifier. |
 | `realm` | string | The active game realm for this session (e.g. `"angband"`). |
@@ -56,7 +57,8 @@ Sent whenever the game blocks for input.
 | `ui` | object | Input state: what the game is currently asking for. |
 | `player` | object or null | Null before a character exists. |
 | `map` | object or null | Null unless `phase` is `"play"`, or if map output is disabled. |
-| `monsters` | array | Currently visible monsters. |
+| `monsters` | array | Currently visible monsters (`id`, `r_idx`, `y`, `x`, `attr`, `glyph`, `race`, `race_level`, `hp`, `hp_max`, `speed`, `unique`, `attitude`, plus `alertness`/`alertness_score` in Sil-Q). |
+| `lore` | object (optional) | (Protocol v2) Digest-gated map of `r_idx` -> `{ ac, speed, kills, deaths, blows[], spells[], known_resists[] }` emitted only when visible monster recall changes. |
 | `objects` | array | Currently visible floor objects. |
 | `messages` | array | Up to 24 recent messages, oldest first. |
 | `term` | object | The raw character grid. |
@@ -66,7 +68,7 @@ Only read `map`, `monsters` and `objects` when `phase` is `"play"`.
 #### `ui`
 
 ```json
-{"overlay": 0, "awaiting_command": true, "more": false, "context": "play", "prompt": null, "cmd_avail": 1048575}
+{"overlay": 0, "awaiting_command": true, "more": false, "context": "play", "prompt": null, "cursor": null, "cmd_avail": 1048575}
 ```
 
 | field | type | meaning |
@@ -76,7 +78,8 @@ Only read `map`, `monsters` and `objects` when `phase` is `"play"`.
 | `more` | boolean | A `-more-` message pause is waiting to be acknowledged. |
 | `context` | string | (Optional) Active context string (e.g. `"play"`, `"menu"`, `"store"`). |
 | `prompt` | object or null | (Protocol vNext) Structured prompt modal state. Nullable (`null`) when idle at the command prompt. Details below. |
-| `cmd_avail` | int (uint64) | (Protocol vNext, Optional in Vanilla) Integer bitmask evaluating command prerequisites (`prereq`) during `awaiting_command`. |
+| `cursor` | object or null | (Protocol v2) 3D targeting/look/locked cursor: `{ active, mode, x, y, has_los, blast_rad, mon_id }` or `null`. |
+| `cmd_avail` | int (uint64) | (Protocol vNext, Vanilla/FCB/Hengband) Integer bitmask evaluating command prerequisites (`prereq`) during `awaiting_command`. |
 
 ##### `ui.prompt` Modality Structure
 

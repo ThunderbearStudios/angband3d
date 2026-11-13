@@ -138,13 +138,12 @@
                 return;
             }
 
-            // Auto-detect standalone page context
+            // Auto-detect standalone page context ONLY when explicitly mounted on a standalone demo HTML document.
+            // Never set isStandalone=true on index.html, or keydown handlers will hijack Space/Escape/Arrows during live gameplay!
             if (!this.isStandalone) {
-                const path = window.location.pathname || '';
-                this.isStandalone = path.endsWith('/demo') || 
-                                    path.endsWith('/demo.html') || 
-                                    document.body.classList.contains('demo-standalone-page') || 
-                                    !document.getElementById('demo-modal');
+                this.isStandalone = Boolean(
+                    document.body && document.body.classList.contains('demo-standalone-page')
+                );
             }
 
             this.modalEl = document.getElementById('demo-modal');
@@ -186,14 +185,14 @@
             if (this.isStandalone) {
                 this.isOpen = true;
                 if (this.btnCloseEl) {
-                    this.btnCloseEl.title = 'Back to Angband 3D (Esc)';
+                    this.btnCloseEl.title = 'Back to YASD 3D (Esc)';
                 }
             }
 
             this.setupEvents();
             this.bindChapterPills();
             this.renderChapterPips();
-            this.preloadManifest();
+            // Note: Built-in 10-chapter manifest & subtitles are already bundled in constructor (zero boot HTTP 404).
 
             if (this.btnCcEl) {
                 this.btnCcEl.classList.toggle('active', this.captionsEnabled);
@@ -205,8 +204,14 @@
             this.updateActiveChapterUI();
 
             if (this.isStandalone) {
-                // Standalone page: autoplay immediately with graceful unmuted/muted fallback
                 this.play();
+            } else {
+                try {
+                    const params = new URLSearchParams(window.location.search || '');
+                    if (params.get('demo') === '1' || params.get('showcase') === '1') {
+                        setTimeout(() => this.open('splash'), 120);
+                    }
+                } catch (_) {}
             }
         }
 

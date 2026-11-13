@@ -888,10 +888,22 @@ class InputController {
     }
 
     sendRunMove(localDir) {
+        if (this.dungeon && typeof this.dungeon.commitFreelookFacing === 'function') this.dungeon.commitFreelookFacing();
         const worldDir = this.getRelativeWorldDirectionDigit(localDir);
-        if (worldDir) {
-            this.network.sendCommand(`keys .${worldDir}`);
+        if (!worldDir) return;
+        const realm = (window.__app && typeof window.__app.getActiveRealm === 'function') ? window.__app.getActiveRealm() : 'angband';
+        const cat = (typeof ActionCatalog !== 'undefined' && ActionCatalog) || (typeof window !== 'undefined' && window.ActionCatalog) || null;
+        const runPrefix = (cat && typeof cat.keyFor === 'function' && cat.keyFor('run', realm)) || (realm === 'nethack' ? 'g' : '.');
+        this.network.sendCommand(`keys ${runPrefix}${worldDir}`);
+    }
+
+    handleRelativeDirection(numpadDir, isRunning = false) {
+        if (this.isDirectionalTargeting()) {
+            const k = numpadDir === 5 ? (((window.__app && window.__app.getActiveRealm && window.__app.getActiveRealm()) === 'silq') ? 'f' : 't') : this.getRelativeDirectionKey(numpadDir);
+            if (k) this.network.sendKey(k);
+            return;
         }
+        this.sendMoveOrRun(numpadDir, isRunning);
     }
 
     toggleDpadRunMode() {
@@ -1021,29 +1033,27 @@ class InputController {
                 return;
             }
             if (e.altKey && !e.ctrlKey && !e.metaKey && (e.key === 'h' || e.key === 'H')) {
-                e.preventDefault();
-                if (this.hud && typeof this.hud.cycleImmersionMode === 'function') this.hud.cycleImmersionMode();
+                e.preventDefault(); if (this.hud && typeof this.hud.cycleImmersionMode === 'function') this.hud.cycleImmersionMode(); return;
+            }
+            // 2. Client modal surface open -> modal handles keys; Escape closes it
+            const sketchModal = document.getElementById('chronicle-sketch-modal');
+            if (e.key === 'Escape' && sketchModal && !sketchModal.classList.contains('hidden') && sketchModal.style.display !== 'none') {
+                e.preventDefault(); if (typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();
+                if (window.chronicleManager && typeof window.chronicleManager.closeSketchLightbox === 'function') window.chronicleManager.closeSketchLightbox();
+                else sketchModal.classList.add('hidden');
                 return;
             }
-
-            // 2. Client modal surface open -> modal handles keys; Escape closes it
-            const deathModal = document.getElementById('death-modal');
-            const isDeadModal = Boolean(deathModal && !deathModal.classList.contains('hidden'));
+            const deathModal = document.getElementById('death-modal'), isDeadModal = Boolean(deathModal && !deathModal.classList.contains('hidden'));
             const lastFrame = (window.__app && typeof window.__app.getLastFrame === 'function') ? window.__app.getLastFrame() : (window.__app ? window.__app.lastFrame : null);
             const isDeadFrame = Boolean(lastFrame && lastFrame.player && (lastFrame.player.dead || (lastFrame.player.hp !== undefined && lastFrame.player.hp <= 0 && lastFrame.player.hp_max > 0)));
-
             if (isDeadModal || isDeadFrame) { this._handleDeathModalKey(e, lastFrame, isDeadModal); return; }
             if (appState !== 'game' && this._handleAppStateModalKey(e, appState)) return;
-
             if (window.__app && window.__app.isGuideOpen && window.__app.isGuideOpen()) {
-                if (e.key === 'Escape' || e.key === 'Enter') {
-                    e.preventDefault(); if (this.audio) this.audio.playMenuNav(); window.__app.hideGuide(); return;
-                }
+                if (e.key === 'Escape' || e.key === 'Enter') { e.preventDefault(); if (this.audio) this.audio.playMenuNav(); window.__app.hideGuide(); return; }
                 if (e.key >= '1' && e.key <= '7') { e.preventDefault(); window.__app.switchGuideTab(parseInt(e.key, 10) - 1); return; }
                 if (e.key === 'Tab' || e.key === 'ArrowRight') { e.preventDefault(); window.__app.cycleGuideTab(1); return; }
                 if (e.key === 'ArrowLeft') { e.preventDefault(); window.__app.cycleGuideTab(-1); return; }
             }
-
             // 3. Active CommandDispatcher plan or minimap auto-nav -> cancel on manual keydown
             const dispatcher = (this.app && this.app.dispatcher) || (window.__app && window.__app.dispatcher);
             if (dispatcher && typeof dispatcher.cancel === 'function') dispatcher.cancel('user-key');
@@ -1301,44 +1311,31 @@ class InputController {
     _handleEscapeKey(e, lastFrameEarly, inPlayEarly) {
         e.preventDefault();
         if (this.audio && typeof this.audio.playMenuNav === 'function') this.audio.playMenuNav();
-
+        const sketchModal = document.getElementById('chronicle-sketch-modal');
+        if (sketchModal && !sketchModal.classList.contains('hidden')) {
+            sketchModal.classList.add('hidden');
+            if (window.chronicleManager) window.chronicleManager._sketchModalDismissedByUser = true;
+            return;
+        }
         const qvPopover = document.getElementById('quick-volume-popover');
         if (qvPopover && !qvPopover.classList.contains('hidden')) {
             qvPopover.classList.add('hidden');
             const cfgBtn = document.getElementById('btn-sound-config');
-            if (cfgBtn) {
-                cfgBtn.classList.remove('active');
-                cfgBtn.setAttribute('aria-expanded', 'false');
-            }
+            if (cfgBtn) { cfgBtn.classList.remove('active'); cfgBtn.setAttribute('aria-expanded', 'false'); }
             return;
         }
-        if (window.ItemSheet && typeof window.ItemSheet.isOpen === 'function' && window.ItemSheet.isOpen()) {
-            window.ItemSheet.close();
-            return;
-        }
+        if (window.ItemSheet && typeof window.ItemSheet.isOpen === 'function' && window.ItemSheet.isOpen()) { window.ItemSheet.close(); return; }
         const qsPopover = document.getElementById('quick-slot-popover');
-        if (qsPopover && qsPopover.classList.contains('is-open')) {
-            qsPopover.classList.remove('is-open');
-            return;
-        }
+        if (qsPopover && qsPopover.classList.contains('is-open')) { qsPopover.classList.remove('is-open'); return; }
         const morePopover = document.getElementById('action-more-popover');
-        if (morePopover && morePopover.classList.contains('is-open')) {
-            morePopover.classList.remove('is-open');
-            return;
-        }
+        if (morePopover && morePopover.classList.contains('is-open')) { morePopover.classList.remove('is-open'); return; }
         const inspectPopover = document.getElementById('entity-inspect-popover');
         if (inspectPopover && !inspectPopover.classList.contains('hidden')) {
-            if (window.chronicleManager && typeof window.chronicleManager.preemptForGameplay === 'function') {
-                window.chronicleManager.preemptForGameplay('escape');
-            } else {
-                inspectPopover.classList.add('hidden');
-            }
+            if (window.chronicleManager && typeof window.chronicleManager.preemptForGameplay === 'function') window.chronicleManager.preemptForGameplay('escape');
+            else inspectPopover.classList.add('hidden');
             return;
         }
-
-        if (window.__app && window.__app.cancelQuickBirth) {
-            window.__app.cancelQuickBirth();
-        }
+        if (window.__app && window.__app.cancelQuickBirth) window.__app.cancelQuickBirth();
 
         const lastFrame = (this.app && this.app.lastFrame) || (window.__app && window.__app.lastFrame) || null;
         const realm = (this.app && this.app.realm) || (window.__app && window.__app.getActiveRealm ? window.__app.getActiveRealm() : 'angband');
@@ -1546,6 +1543,22 @@ class InputController {
 
     sendMovementKey(key) {
         if (this.dungeon && typeof this.dungeon.snapCameraToDefault === 'function') this.dungeon.snapCameraToDefault();
+        const lf = (this.app && this.app.lastFrame) || (window.__app && window.__app.lastFrame) || null;
+        this._lastMoveSentSeq = (lf && lf.seq !== undefined) ? lf.seq : -1;
+        this._lastMoveSentAt = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+        if (lf && lf.player && lf.map && lf.map.rows && this.dungeon && !(this.network && this.network.isLocal)) {
+            const deltaMap = { up: [0, -1], pageup: [1, -1], right: [1, 0], pagedown: [1, 1], down: [0, 1], end: [-1, 1], left: [-1, 0], home: [-1, -1] };
+            const d = deltaMap[String(key || '').toLowerCase()];
+            if (d) {
+                const nx = lf.player.x + d[0], ny = lf.player.y + d[1], feat = this.getFeatAt(lf.map, nx, ny);
+                const monBlocking = Array.isArray(lf.monsters) && lf.monsters.some((m) => m && m.x === nx && m.y === ny && m.hp > 0);
+                if (!monBlocking && feat > 0 && feat !== 2 && feat !== 21 && feat !== 22 && feat !== 32 && this.dungeon.targetCamPos) {
+                    if (this.dungeon.isStepping && this.dungeon.camera) this.dungeon.currentCamPos.copy(this.dungeon.camera.position);
+                    this.dungeon.targetCamPos.set(nx * this.dungeon.cellSize, this.dungeon.eyeHeight + (this.dungeon.playerWaterYOffset || 0), ny * this.dungeon.cellSize);
+                    this.dungeon.isStepping = true; this.dungeon.stepTime = 0;
+                }
+            }
+        }
         this.network.sendKey(key);
     }
 
@@ -1684,21 +1697,39 @@ class InputController {
             }
         }
 
+        const moveSeqPending = Boolean(e.repeat && lastFrame && lastFrame.seq !== undefined && this._lastMoveSentSeq === lastFrame.seq && ((typeof performance !== 'undefined' ? performance.now() : Date.now()) - (this._lastMoveSentAt || 0)) < 260);
         if (this.wasdMode && !skipWasdRemap && !isTargeting && isTopLevelCommandPrompt && !isPromptActive && !e.ctrlKey && !e.altKey && !e.metaKey) {
             const lowerK = e.key.toLowerCase();
-            if (lowerK === 'w' || lowerK === 's' || lowerK === 'a' || lowerK === 'd') {
+            const diagMap = { q: 7, e: 9, z: 1, c: 3 };
+            if (lowerK === 'w' || lowerK === 's' || lowerK === 'a' || lowerK === 'd' || diagMap[lowerK]) {
                 e.preventDefault();
                 this.clearDirectionHint();
                 const runActive = this.isRunningActive(e);
-                if (lowerK === 'w' || lowerK === 's') {
-                    if (runActive && e.repeat) return;
+                if (diagMap[lowerK]) {
+                    if (moveSeqPending || (runActive && e.repeat)) return;
+                    if (this.dungeon && typeof this.dungeon.commitFreelookFacing === 'function') this.dungeon.commitFreelookFacing();
+                    this.sendMoveOrRun(diagMap[lowerK], runActive);
+                } else if (lowerK === 'w' || lowerK === 's') {
+                    if (moveSeqPending || (runActive && e.repeat)) return;
+                    if (this.dungeon && typeof this.dungeon.commitFreelookFacing === 'function') this.dungeon.commitFreelookFacing();
                     this.sendMoveOrRun(lowerK === 'w' ? 8 : 2, runActive);
                 } else if (e.shiftKey) {
+                    if (moveSeqPending) return;
+                    if (this.dungeon && typeof this.dungeon.commitFreelookFacing === 'function') this.dungeon.commitFreelookFacing();
                     this.sendMoveOrRun(lowerK === 'a' ? 4 : 6, false);
                 } else {
-                    this.dungeon.turn(lowerK === 'a' ? -1 : 1);
-                    this.syncCompass();
+                    this.dungeon.turn(lowerK === 'a' ? -1 : 1); this.syncCompass();
                 }
+                return;
+            }
+        }
+        if (!this.wasdMode && isTopLevelCommandPrompt && !isPromptActive && !e.ctrlKey && !e.altKey && !e.metaKey && ['nethack', 'dcss', 'brogue', 'rogue', 'ryod'].includes(realm)) {
+            const viDiag = { y: 7, u: 9, b: 1, n: 3 }[e.key];
+            if (viDiag) {
+                e.preventDefault();
+                if (moveSeqPending) return;
+                if (this.dungeon && typeof this.dungeon.commitFreelookFacing === 'function') this.dungeon.commitFreelookFacing();
+                const mk = this.getRelativeDirectionKey(viDiag); if (mk) this.sendMovementKey(mk);
                 return;
             }
         }
@@ -1708,9 +1739,10 @@ class InputController {
             e.preventDefault();
             if (dirKey === 5) {
                 const holdKey = (typeof RealmKeys !== 'undefined' && RealmKeys.realmKey) ? (RealmKeys.realmKey('hold', realm) || ',') : ',';
-                this.network.sendKey(holdKey);
-                return;
+                this.network.sendKey(holdKey); return;
             }
+            if (moveSeqPending) return;
+            if (this.dungeon && typeof this.dungeon.commitFreelookFacing === 'function') this.dungeon.commitFreelookFacing();
             if (this.isRunningActive(e)) { if (!e.repeat) this.sendRunMove(dirKey); }
             else { const moveKey = this.getRelativeDirectionKey(dirKey); if (moveKey) this.sendMovementKey(moveKey); }
             return;
@@ -1718,28 +1750,27 @@ class InputController {
 
         if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
             e.preventDefault();
-            if (this.isRunningActive(e) && e.shiftKey) {
-                if (e.repeat) return;
-                this.sendRunMove(e.key === 'ArrowLeft' ? 4 : 6);
-            } else {
-                this.dungeon.turn(e.key === 'ArrowLeft' ? -1 : 1);
-            }
+            if (this.isRunningActive(e) && e.shiftKey) { if (!e.repeat) this.sendRunMove(e.key === 'ArrowLeft' ? 4 : 6); }
+            else this.dungeon.turn(e.key === 'ArrowLeft' ? -1 : 1);
             return;
         }
 
         if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
             e.preventDefault();
+            if (moveSeqPending) return;
+            if (this.dungeon && typeof this.dungeon.commitFreelookFacing === 'function') this.dungeon.commitFreelookFacing();
             const dir = e.key === 'ArrowUp' ? 8 : 2;
             if (this.isRunningActive(e)) { if (!e.repeat) this.sendRunMove(dir); }
             else { const moveKey = this.getRelativeDirectionKey(dir); if (moveKey) this.sendMovementKey(moveKey); }
             return;
         }
 
-        // Standalone Home / PageUp / End / PageDown 8-way diagonals (Law U2)
         if (e.key === 'Home' || e.key === 'PageUp' || e.key === 'End' || e.key === 'PageDown') {
             const diagDir = { 'Home': 7, 'PageUp': 9, 'End': 1, 'PageDown': 3 }[e.key];
             if (diagDir) {
                 e.preventDefault();
+                if (moveSeqPending) return;
+                if (this.dungeon && typeof this.dungeon.commitFreelookFacing === 'function') this.dungeon.commitFreelookFacing();
                 if (this.isRunningActive(e)) { if (!e.repeat) this.sendRunMove(diagDir); }
                 else { const moveKey = this.getRelativeDirectionKey(diagDir); if (moveKey) this.sendMovementKey(moveKey); }
                 return;
@@ -1748,39 +1779,19 @@ class InputController {
 
         if ((e.key === '.' && !e.shiftKey) || e.key === ',') {
             e.preventDefault();
-            const holdKey = (typeof RealmKeys !== 'undefined' && RealmKeys.realmKey) ? (RealmKeys.realmKey('hold', realm) || ',') : ',';
-            this.network.sendKey(holdKey);
+            this.network.sendKey((typeof RealmKeys !== 'undefined' && RealmKeys.realmKey) ? (RealmKeys.realmKey('hold', realm) || ',') : ',');
             return;
         }
-
-        if (e.key === ' ' || e.code === 'Space') {
-            e.preventDefault();
-            if (this.smartAction) {
-                this.executeSmartAction(this.smartAction);
-            } else {
-                this.executeSmartAction('wait');
-            }
-            return;
-        }
-
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            this.network.sendKey('enter');
-            return;
-        }
-
-        if (e.key.length === 1 && e.ctrlKey && !e.altKey && !e.metaKey) {
-            e.preventDefault();
-            this.network.sendKey(`C-${e.key.toLowerCase()}`);
-            return;
-        }
+        if (e.key === ' ' || e.code === 'Space') { e.preventDefault(); this.executeSmartAction(this.smartAction || 'wait'); return; }
+        if (e.key === 'Enter') { e.preventDefault(); this.network.sendKey('enter'); return; }
+        if (e.key.length === 1 && e.ctrlKey && !e.altKey && !e.metaKey) { e.preventDefault(); this.network.sendKey(`C-${e.key.toLowerCase()}`); return; }
 
         if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
             e.preventDefault();
             if (isTopLevelCommandPrompt && realm === 'dcss' && e.key === 'o') {
                 const lf = (this.app && this.app.lastFrame) || (window.__app && window.__app.lastFrame) || null;
                 const px = lf?.player?.x, py = lf?.player?.y;
-                const hasAdjDoor = px !== undefined && py !== undefined && [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]].some(([dx, dy]) => this.getFeatAt(lf.map, px + dx, py + dy) === 2);
+                const hasAdjDoor = px !== undefined && py !== undefined && [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]].some(([dx, dy]) => this.getFeatAt(lf.map, px + dx, py + dy) === 3);
                 if (!hasAdjDoor) { this.toggleAutoExplore(lf); return; }
             }
             let keyToSend = e.key;
@@ -1963,9 +1974,10 @@ class InputController {
                         return;
                     }
 
-                    const effKey = (typeof RealmKeys !== 'undefined' && RealmKeys.realmKey)
+                    let effKey = (typeof RealmKeys !== 'undefined' && RealmKeys.realmKey)
                         ? RealmKeys.realmKey(verb, realm)
                         : null;
+                    if (verb === 'eat' && effKey === 'e') effKey = 'E';
                     if (!effKey) return;
 
                     if (this.isDirectionalTargeting && this.isDirectionalTargeting() && (verb !== 'attack' && verb !== 'fire' && verb !== 'throw')) {
@@ -2856,50 +2868,49 @@ class InputController {
                 }
             } else if (elapsed < 380 && Math.abs(totalDx) < 18 && Math.abs(totalDy) < 18) {
                 if (this.dungeon) {
-                    const monster = (typeof this.dungeon.getMonsterAtScreenCoords === 'function')
-                        ? this.dungeon.getMonsterAtScreenCoords(finalX, finalY)
-                        : null;
+                    const frame = (this.app && this.app.lastFrame) || (window.__app && window.__app.lastFrame) || this.dungeon.lastFrame;
+                    if (this.isDirectionalTargeting() && frame && frame.player) {
+                        const monster = (typeof this.dungeon.getMonsterAtScreenCoords === 'function') ? this.dungeon.getMonsterAtScreenCoords(finalX, finalY) : null;
+                        const hitTile = (!monster && typeof this.dungeon.getTileAtScreenCoords === 'function') ? this.dungeon.getTileAtScreenCoords(finalX, finalY) : null;
+                        const tx = monster ? monster.x : (hitTile ? hitTile.x : null), ty = monster ? monster.y : (hitTile ? hitTile.y : null);
+                        if (tx !== null && ty !== null) {
+                            const dx = Math.sign(tx - frame.player.x), dy = Math.sign(ty - frame.player.y);
+                            const worldKeyMap = { '0,-1': 'up', '1,-1': 'pageup', '1,0': 'right', '1,1': 'pagedown', '0,1': 'down', '-1,1': 'end', '-1,0': 'left', '-1,-1': 'home' };
+                            const realm = (window.__app && window.__app.getActiveRealm) ? window.__app.getActiveRealm() : 'angband';
+                            if (monster && Math.max(Math.abs(tx - frame.player.x), Math.abs(ty - frame.player.y)) > 1 && !(dx === 0 || dy === 0 || Math.abs(tx - frame.player.x) === Math.abs(ty - frame.player.y))) {
+                                this.network.sendKey(realm === 'silq' ? 'f' : 't');
+                            } else {
+                                this.network.sendKey(worldKeyMap[`${dx},${dy}`] || (realm === 'silq' ? 'f' : 't'));
+                            }
+                            return;
+                        }
+                    }
+                    const monster = (typeof this.dungeon.getMonsterAtScreenCoords === 'function') ? this.dungeon.getMonsterAtScreenCoords(finalX, finalY) : null;
                     if (monster) {
-                        if (window.chronicleManager && typeof window.chronicleManager.interactWithCreature === 'function') {
-                            window.chronicleManager.interactWithCreature(monster, { mode: 'popover', clientX: finalX, clientY: finalY });
-                        }
+                        if (window.chronicleManager && typeof window.chronicleManager.interactWithCreature === 'function') window.chronicleManager.interactWithCreature(monster, { mode: 'popover', clientX: finalX, clientY: finalY });
                         return;
                     }
-                    const item = (typeof this.dungeon.getItemAtScreenCoords === 'function')
-                        ? this.dungeon.getItemAtScreenCoords(finalX, finalY)
-                        : null;
+                    const item = (typeof this.dungeon.getItemAtScreenCoords === 'function') ? this.dungeon.getItemAtScreenCoords(finalX, finalY) : null;
                     if (item) {
-                        if (window.chronicleManager && typeof window.chronicleManager.inspectObject === 'function') {
-                            window.chronicleManager.inspectObject(item, { mode: 'popover', clientX: finalX, clientY: finalY });
-                        }
+                        if (window.chronicleManager && typeof window.chronicleManager.inspectObject === 'function') window.chronicleManager.inspectObject(item, { mode: 'popover', clientX: finalX, clientY: finalY });
                         return;
                     }
-                    if (window.chronicleManager && typeof window.chronicleManager.preemptForGameplay === 'function') {
-                        window.chronicleManager.preemptForGameplay('canvas_click');
-                    }
+                    if (window.chronicleManager && typeof window.chronicleManager.preemptForGameplay === 'function') window.chronicleManager.preemptForGameplay('canvas_click');
                     if (typeof this.dungeon.getTileAtScreenCoords === 'function' && !this.inTerminal) {
                         const hitTile = this.dungeon.getTileAtScreenCoords(finalX, finalY);
-                        if (hitTile) {
-                            const frame = (this.app && this.app.lastFrame) || (window.__app && window.__app.lastFrame) || this.dungeon.lastFrame;
-                            if (frame) {
-                                const mons = Array.isArray(frame.monsters) ? frame.monsters : [];
-                                const monOnTile = mons.find((m) => m && m.visible !== false && m.x === hitTile.x && m.y === hitTile.y);
-                                if (monOnTile) {
-                                    if (window.chronicleManager && typeof window.chronicleManager.interactWithCreature === 'function') {
-                                        window.chronicleManager.interactWithCreature(monOnTile, { mode: 'popover', clientX: finalX, clientY: finalY });
-                                    }
-                                    return;
-                                }
-                                const its = Array.isArray(frame.items) ? frame.items : (Array.isArray(frame.objects) ? frame.objects : []);
-                                const itemOnTile = its.find((it) => it && it.x === hitTile.x && it.y === hitTile.y);
-                                if (itemOnTile) {
-                                    if (window.chronicleManager && typeof window.chronicleManager.inspectObject === 'function') {
-                                        window.chronicleManager.inspectObject(itemOnTile, { mode: 'popover', clientX: finalX, clientY: finalY });
-                                    }
-                                    return;
-                                }
-                                this.startMinimapAutoNav(hitTile.x, hitTile.y, frame);
+                        if (hitTile && frame) {
+                            const monOnTile = (Array.isArray(frame.monsters) ? frame.monsters : []).find((m) => m && m.visible !== false && m.x === hitTile.x && m.y === hitTile.y);
+                            if (monOnTile) {
+                                if (window.chronicleManager && typeof window.chronicleManager.interactWithCreature === 'function') window.chronicleManager.interactWithCreature(monOnTile, { mode: 'popover', clientX: finalX, clientY: finalY });
+                                return;
                             }
+                            const its = Array.isArray(frame.items) ? frame.items : (Array.isArray(frame.objects) ? frame.objects : []);
+                            const itemOnTile = its.find((it) => it && it.x === hitTile.x && it.y === hitTile.y);
+                            if (itemOnTile) {
+                                if (window.chronicleManager && typeof window.chronicleManager.inspectObject === 'function') window.chronicleManager.inspectObject(itemOnTile, { mode: 'popover', clientX: finalX, clientY: finalY });
+                                return;
+                            }
+                            this.startMinimapAutoNav(hitTile.x, hitTile.y, frame);
                         }
                     }
                 }

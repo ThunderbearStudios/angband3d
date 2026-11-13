@@ -101,6 +101,7 @@ class GameNetwork {
 
         const isInActiveGameView = () => {
             if (!this.hasActiveGameSession || this.manualDisconnect) return false;
+            if (typeof window !== 'undefined' && window.__app && window.__app.network && window.__app.network !== this) return false;
             if (typeof window !== 'undefined' && window.__app && typeof window.__app.getAppState === 'function') {
                 return window.__app.getAppState() === 'game';
             }
@@ -204,6 +205,9 @@ class GameNetwork {
             } else if (this.currentRealm === 'ryod' && isNew && typeof window !== 'undefined' && window.RyodCompiler && window.__activeRyodBlueprint) {
                 wsUrl += `&bp=${encodeURIComponent(window.RyodCompiler.encodePermalink(window.__activeRyodBlueprint))}`;
             }
+        }
+        if (typeof window !== 'undefined' && window.__yasdPermadeathMode === 'ironman') {
+            wsUrl += '&ironman=1';
         }
 
         let wsProtocols = undefined;
@@ -389,7 +393,7 @@ class GameNetwork {
                         this.reconnectTimer = null;
                     }
                     if (this.onError) this.onError(errText);
-                } else if (msg.t === 'bye') {
+                } else if (msg.t === 'bye' || msg.t === 'hibernated') {
                     this.sessionId = null;
                     if (msg.saveSlot) {
                         this.currentSave = msg.saveSlot;
@@ -403,7 +407,7 @@ class GameNetwork {
                             localStorage.setItem('angband3d_session_char', this.currentChar);
                         }
                     } catch (_) {}
-                    const detailStr = msg.detail || 'Game session saved';
+                    const detailStr = msg.detail || (msg.t === 'hibernated' ? 'Dungeon paused due to inactivity — press any key to resume.' : 'Game session saved');
                     const isFatalRejection = /not installed|invalid owner token|maximum player/i.test(detailStr);
                     if (isFatalRejection) {
                         this.manualDisconnect = true;
@@ -524,9 +528,14 @@ class GameNetwork {
         this.hasActiveGameSession = false;
         this.isInQueue = false;
         this.sessionId = null;
+        this.currentSave = null;
         if (this.reconnectTimer) {
             clearTimeout(this.reconnectTimer);
             this.reconnectTimer = null;
+        }
+        if (this._handshakeFastRetryTimer) {
+            clearTimeout(this._handshakeFastRetryTimer);
+            this._handshakeFastRetryTimer = null;
         }
         this.stopPingHeartbeat();
         try {
@@ -535,7 +544,13 @@ class GameNetwork {
             localStorage.removeItem('angband3d_session_save');
         } catch (_) {}
         if (this.ws) {
-            try { this.ws.close(); } catch (_) {}
+            const oldWs = this.ws;
+            this.ws = null;
+            oldWs.onopen = null;
+            oldWs.onmessage = null;
+            oldWs.onerror = null;
+            oldWs.onclose = null;
+            try { oldWs.close(); } catch (_) {}
         }
     }
 
@@ -568,7 +583,14 @@ class GameNetwork {
 
     startPingHeartbeat() {
         this.stopPingHeartbeat();
+        this._hiddenSinceMs = 0;
         this.pingTimer = setInterval(() => {
+            if (typeof document !== 'undefined' && document.hidden) {
+                if (!this._hiddenSinceMs) this._hiddenSinceMs = Date.now();
+                if (Date.now() - this._hiddenSinceMs > 60000) return;
+            } else {
+                this._hiddenSinceMs = 0;
+            }
             if (this.connected && this.ws && this.ws.readyState === WebSocket.OPEN) {
                 this.lastPingSent = performance.now();
                 this.ws.send(JSON.stringify({ t: 'ping', time: Date.now() }));

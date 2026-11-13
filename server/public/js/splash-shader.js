@@ -304,13 +304,13 @@
             vec3 col;
             if (uKind < 0.5) {
                 // Blood-Ruby Alchemical Essence (HP)
-                vec3 deepRuby = vec3(0.36, 0.04, 0.06);
-                vec3 midCrimson = vec3(0.76, 0.12, 0.15);
-                vec3 hotEmber = vec3(1.00, 0.48, 0.24);
+                vec3 deepRuby = vec3(0.38, 0.03, 0.06);
+                vec3 midCrimson = vec3(0.78, 0.09, 0.14);
+                vec3 hotEmber = vec3(0.98, 0.22, 0.28);
                 col = mix(deepRuby, midCrimson, smoothstep(0.22, 0.78, fluid));
                 col += caustic * hotEmber * 0.42;
-                col += bubbles * vec3(1.0, 0.68, 0.42);
-                col += meniscus * vec3(1.0, 0.52, 0.25) * 0.48;
+                col += bubbles * vec3(1.0, 0.48, 0.52);
+                col += meniscus * vec3(0.98, 0.24, 0.30) * 0.38;
             } else if (uKind < 1.5) {
                 // Crystalline Sapphire-Aether (SP & Music)
                 vec3 deepSapphire = vec3(0.05, 0.16, 0.42);
@@ -691,9 +691,16 @@
         gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     }
 
+    let lastVialDrawNow = 0;
+
     function stepFrame(now) {
         if (!enabled) {
             rafId = 0;
+            return;
+        }
+        if (typeof document !== 'undefined' && document.hidden) {
+            lastStepNow = now;
+            rafId = requestAnimationFrame(stepFrame);
             return;
         }
         const rawDt = lastStepNow > 0 ? (now - lastStepNow) * 0.001 : 0.016;
@@ -709,7 +716,10 @@
             if (activeModal) {
                 drawMenuEmbers(elapsedSec, activeModal);
             }
-            drawHudVials(elapsedSec);
+            if (now - lastVialDrawNow >= 50) {
+                lastVialDrawNow = now;
+                drawHudVials(elapsedSec);
+            }
         }
 
         rafId = requestAnimationFrame(stepFrame);
@@ -751,6 +761,7 @@
             if (menuEmberCanvas) menuEmberCanvas.style.display = 'block';
             if (hpCanvas) hpCanvas.style.display = 'block';
             if (spCanvas) spCanvas.style.display = 'block';
+            if (expCanvas) expCanvas.style.display = 'block';
             if (!rafId) rafId = requestAnimationFrame(stepFrame);
         },
         disable() {
@@ -761,6 +772,7 @@
             if (menuEmberCanvas) menuEmberCanvas.style.display = 'none';
             if (hpCanvas) hpCanvas.style.display = 'none';
             if (spCanvas) spCanvas.style.display = 'none';
+            if (expCanvas) expCanvas.style.display = 'none';
         },
         isEnabled() {
             return enabled;

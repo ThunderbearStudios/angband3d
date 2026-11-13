@@ -72,13 +72,14 @@
         item_book: '/assets/polyhaven/models/decorative_book_set_01/decorative_book_set_01.gltf',
         item_shield_wicker: '/assets/models/items/shield_wooden.glb',
         item_shield_leather: '/assets/models/items/shield_wooden.glb',
-        item_shield_metal: '/assets/models/items/shield_wooden.glb',
+        item_shield_metal: '/assets/polyhaven/models/kite_shield/kite_shield.gltf',
         item_arrow: '/assets/models/items/steel_arrow.glb',
         item_talisman: '/assets/models/items/phoenix_talisman.glb',
         item_chainmail: '/assets/models/items/chain_mail.glb',
         item_crown: '/assets/models/items/helm_of_brilliance.glb',
         item_ring: '/assets/models/items/helm_of_brilliance.glb',
         item_gold: '/assets/models/items/coin_pile_spill.glb',
+        item_mushroom: '/assets/models/monsters/bestiary/mushroom_cluster.glb',
         ph_book: '/assets/polyhaven/models/decorative_book_set_01/decorative_book_set_01.gltf',
         ph_crystal: '/assets/models/items/crystal_cluster_pbr.glb',
         ph_boulder: '/assets/polyhaven/models/moon_rock_02/moon_rock_02.gltf',
@@ -114,6 +115,7 @@
         item_greatsword:   { kind: 'openMmoX', span: 1.25, rotX: 0, rotY: 0, rotZ: 0, gripFrac: 0.20, edgeAxis: '+Z', tipAxis: '+Y' },
         item_rune_blade:   { kind: 'openMmoX', span: 0.95, rotX: 0, rotY: 0, rotZ: 0, gripFrac: 0.16, edgeAxis: '+Z', tipAxis: '+Y' },
         item_morningstar:  { kind: 'openMmoX', span: 0.78, rotX: 0, rotY: 0, rotZ: 0, gripFrac: 0.22, edgeAxis: '+Z', tipAxis: '+Y' },
+        item_whip:         { kind: 'openMmoX', span: 0.78, rotX: 0, rotY: 0, rotZ: 0, gripFrac: 0.22, edgeAxis: '+Z', tipAxis: '+Y' },
         item_greatclub:    { kind: 'openMmoX', span: 0.96, rotX: 0, rotY: 0, rotZ: 0, gripFrac: 0.24, edgeAxis: '+Z', tipAxis: '+Y' },
         item_spear:        { kind: 'openMmoX', span: 1.65, rotX: 0, rotY: 0, rotZ: 0, gripFrac: 0.42, edgeAxis: '+Z', tipAxis: '+Y' },
         item_bow:          { kind: 'openMmoX', span: 1.05, rotX: 0, rotY: 0, rotZ: 0, gripFrac: 0.50, edgeAxis: '+Z', tipAxis: '+Y' },
@@ -165,6 +167,7 @@
         item_greatsword: DEFAULT_SWORD_POSE,
         item_rune_blade: DEFAULT_SWORD_POSE,
         item_morningstar: DEFAULT_SWORD_POSE,
+        item_whip: DEFAULT_SWORD_POSE,
         item_greatclub: DEFAULT_SWORD_POSE,
         item_pickaxe: DEFAULT_SWORD_POSE,
         item_shovel: DEFAULT_SWORD_POSE,
@@ -465,7 +468,7 @@
         if (/\b(shovel|spade|trowel|entrenching tool)\b/i.test(lower)) {
             return { floorKey: 'item_shovel', heldKey: 'item_shovel', category: 'tool', subType: 'shovel' };
         }
-        if (/\b(key|skeleton key|lockpick|lock pick|credit card|stethoscope|tin opener|can-opener|pliers|tweezers|whistle|magic marker|leaguelock|expulsion|camera|mirror|bell|candelabrum|horn|flute|harp|bugle|drum|lenses|blindfold|towel|saddle|leash)\b/i.test(lower)) {
+        if (/\b(key|skeleton key|lockpick|lock pick|credit card|stethoscope|tin opener|can-opener|pliers|tweezers|whistle|magic marker|leaguelock|expulsion|camera|mirror|bell|horn|flute|harp|bugle|drum|lenses|blindfold|towel|saddle|leash)\b/i.test(lower)) {
             return { floorKey: 'item_key', heldKey: 'item_key', category: 'tool', subType: 'key' };
         }
 
@@ -553,7 +556,7 @@
         if (/\b(torch)\b/i.test(lower)) {
             return { floorKey: 'item_torch', heldKey: 'item_torch', category: 'light', subType: 'torch' };
         }
-        if (/\b(candle|candlestick|tallow candle|wax candle)\b/i.test(lower)) {
+        if (/\b(candle|candlestick|candelabrum|menorah|tallow candle|wax candle)\b/i.test(lower)) {
             return { floorKey: 'ph_candle', heldKey: 'ph_candle', category: 'light', subType: 'candle' };
         }
         if (/\b(lantern|lamp|oil lamp|magic lamp|brass lantern|phial|feanor|galadriel|star of|aril|diya|palantir|arrier)\b/i.test(lower)) {
@@ -595,7 +598,10 @@
         if (/\b(waybread|lembas|wafer|cram)\b/i.test(lower)) {
             return { floorKey: 'item_lembas', heldKey: 'item_lembas', category: 'food', subType: 'lembas' };
         }
-        if (/\b(ration|bread|food|slime-mold|slime mold|meat|corpse|chunk|fruit|apple|pear|banana|orange|melon|carrot|clove of garlic|sprig of wolfsbane|kelp|eucalyptus|pancake|fortune cookie|candy bar|cream pie|tin|tripe|egg|royal jelly|mushroom|toadstool|fungus)\b/i.test(lower)) {
+        if (/\b(mushroom|toadstool|fungus|slime-mold|slime mold)\b/i.test(lower)) {
+            return { floorKey: 'item_mushroom', heldKey: 'item_mushroom', category: 'food', subType: 'mushroom' };
+        }
+        if (/\b(ration|bread|food|meat|corpse|chunk|fruit|apple|pear|banana|orange|melon|carrot|clove of garlic|sprig of wolfsbane|kelp|eucalyptus|pancake|fortune cookie|candy bar|cream pie|tin|tripe|egg|royal jelly)\b/i.test(lower)) {
             return { floorKey: 'item_bread', heldKey: 'item_bread', category: 'food', subType: 'bread' };
         }
         if (/\b(goblet|chalice|cup|grail|plate|bowl|jug|urn|pot)\b/i.test(lower)) {

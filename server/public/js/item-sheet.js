@@ -1,153 +1,132 @@
-/**
- * item-sheet.js — Noun-to-Verb Item Sheet Drawer
- *
- * WS42 Command & Menu Unification (Cards WS42.5A/B, §6.8 #3, §8, §16.4, §16.5).
- * Unified noun->verb item drawer for Pack, Gear (Equipment), and Quiver.
- * Built directly from frame player data (not scraped terminal rows), decoded via
- * ActionCatalog.validVerbsForItem with bridge vm/im bitmasks.
- *
- * UMD: browser -> window.ItemSheet; Node -> module.exports.
- */
+/** item-sheet.js — Noun-to-Verb Item Sheet Drawer (WS42 / WS80) */
 (function (root, factory) {
     'use strict';
-    if (typeof module === 'object' && module.exports) {
-        module.exports = factory();
-    } else {
-        root.ItemSheet = factory();
-    }
+    if (typeof module === 'object' && module.exports) module.exports = factory();
+    else root.ItemSheet = factory();
 })(typeof self !== 'undefined' ? self : this, function () {
     'use strict';
 
     let ActionCatalogModule = null;
-    if (typeof require === 'function') {
-        try { ActionCatalogModule = require('./action-catalog'); } catch (_) {}
-    }
-
+    if (typeof require === 'function') { try { ActionCatalogModule = require('./action-catalog'); } catch (_) {} }
     function getActionCatalog() {
         if (typeof window !== 'undefined' && window.ActionCatalog) return window.ActionCatalog;
-        if (ActionCatalogModule) return ActionCatalogModule;
+        return ActionCatalogModule || null;
+    }
+
+    // # ROOT-CAUSE: Track _selectedIndex and expose isOpen(), close(), and handleKeyDown() so keyboard navigation works seamlessly inside #item-sheet.
+    let _lastSig = null, _activeTab = 'pack', _invokerEl = null, _selectedIndex = 0;
+    let _lastItems = [], _lastFrame = null, _lastRealm = 'angband', _lastDispatcher = null;
+    const _quickSlots = [null, null, null, null];
+
+    function resolveEquipSlotCategory(raw, name) {
+        const tv = Number(raw && (raw.tval !== undefined ? raw.tval : raw.type)) || 0;
+        if (tv === 19) return 'bow';
+        if (tv >= 16 && tv <= 24) return 'melee';
+        if (tv >= 30 && tv <= 45) return ({ 30: 'boots', 31: 'gloves', 32: 'head', 33: 'head', 34: 'shield', 35: 'cloak', 36: 'body', 37: 'body', 38: 'body', 39: 'light', 40: 'amulet', 45: 'ring' })[tv] || null;
+        const sh = String((raw && (raw.slot_name || raw.slotName || raw.equip_slot)) || '').toLowerCase();
+        for (const [k, re] of [['bow', /^(ranged|launcher|bow|shooter)$/], ['melee', /^(weapon|melee|main_hand|wield)$/], ['boots', /^(feet|boots)$/], ['gloves', /^(hands|gloves|gauntlets)$/], ['head', /^(head|helm|helmet|crown)$/], ['shield', /^(shield|off_hand|arm)$/], ['cloak', /^(cloak|mantle|back)$/], ['body', /^(body|torso|armor|armour)$/], ['light', /^(light|lite|source)$/], ['amulet', /^(neck|amulet)$/], ['ring', /^(finger|ring|left_ring|right_ring)$/]]) { if (re.test(sh)) return k; }
+        const s = String(name || (raw && (raw.name || raw.dname || raw.label)) || '').toLowerCase();
+        for (const [k, re] of [['bow', /\b(short bow|long bow|crossbow|sling|bow)\b/], ['boots', /\b(boots|sandals|shoes|greaves)\b/], ['gloves', /\b(gloves|gauntlets|cesti|mittens)\b/], ['head', /\b(helm|helmet|cap|crown|hat|hood)\b/], ['shield', /\b(shield|buckler|targe)\b/], ['cloak', /\b(cloak|cape|mantle)\b/], ['amulet', /\b(amulet|necklace|pendant|talisman)\b/], ['ring', /\bring\b/], ['light', /\b(torch|lantern|phial|star of|arkenstone)\b/], ['body', /\b(mail|armour|armor|robe|leather|plate|hauberk|brigandine|doublet|jerkin|coat|dragon scale)\b/], ['melee', /\b(dagger|sword|blade|rapier|sabre|cutlass|tulwar|scimitar|katana|bastard|zweihander|spear|lance|pike|halberd|glaive|axe|hatchet|mace|club|flail|morning star|war hammer|quarterstaff|whip|pick|mattock|trident)\b/]]) { if (re.test(s)) return k; }
         return null;
     }
 
-    // # ROOT-CAUSE: Track _selectedIndex and expose isOpen(), close(), and handleKeyDown() so keyboard navigation (1-3/Tab tabs, ArrowUp/ArrowDown, Enter, a-z item hotkeys, Escape) works seamlessly inside #item-sheet.
-    let _lastSig = null;
-    let _activeTab = 'pack';
-    let _invokerEl = null;
-    let _selectedIndex = 0;
-    let _lastItems = [];
-    let _lastFrame = null;
-    let _lastRealm = 'angband';
-    let _lastDispatcher = null;
-    const _quickSlots = [null, null, null, null];
+    function parseGearStats(name, raw, slotCat) {
+        const s = String(name || (raw && (raw.name || raw.dname || raw.label)) || '');
+        const diceM = s.match(/\((\d+)d(\d+)\)/), multM = s.match(/\(x(\d+)\)/i);
+        const hitDamM = s.match(/\(([+-]\d+),\s*([+-]\d+)\)/);
+        const acM = s.match(/\[(\d+)(?:,\s*([+-]\d+))?\]/) || s.match(/\[([+-]\d+)\]/);
+        const avgDice = diceM ? (Number(diceM[1]) * (Number(diceM[2]) + 1) * 0.5) : ((raw && raw.dd && raw.ds) ? (Number(raw.dd) * (Number(raw.ds) + 1) * 0.5) : 0);
+        const toDam = hitDamM ? Number(hitDamM[2]) : (Number(raw && (raw.to_d !== undefined ? raw.to_d : raw.bonus)) || 0);
+        const dam = slotCat === 'bow' ? ((multM ? Number(multM[1]) : 1) * (2 + toDam)) : (toDam + avgDice);
+        const ac = acM ? (acM[2] !== undefined ? Number(acM[1]) + Number(acM[2]) : Number(acM[1])) : ((Number(raw && raw.ac) || 0) + (Number(raw && (raw.to_a !== undefined ? raw.to_a : raw.bonus)) || 0));
+        const wt = Number(raw && raw.weight) || 0;
+        const isWep = slotCat === 'melee' || slotCat === 'bow' || Boolean(diceM || (raw && raw.kind === 'weapon'));
+        const isArm = (slotCat && /^(boots|gloves|head|shield|cloak|body)$/.test(slotCat)) || Boolean((acM && !diceM && !multM) || (raw && raw.kind === 'armor'));
+        return { dam, ac, wt, isWep, isArm };
+    }
 
-    /**
-     * Pure function building item view models. Testable in Node without DOM.
-     * @param {Object} frame
-     * @param {string} [realm='angband']
-     * @param {string} [tab='pack']
-     * @param {string} [lang='en']
-     * @returns {Array<Object>}
-     */
+    function compareWithEquipped(raw, nameOrEqList, maybeEqList) {
+        const eqList = Array.isArray(nameOrEqList) ? nameOrEqList : maybeEqList;
+        const name = Array.isArray(nameOrEqList) ? ((raw && (raw.name || raw.dname || raw.label)) || '') : nameOrEqList;
+        if (!Array.isArray(eqList) || !eqList.length) return null;
+        const slotCat = resolveEquipSlotCategory(raw, name);
+        if (!slotCat) return null;
+        const cur = parseGearStats(name, raw, slotCat);
+        if (!cur.isWep && !cur.isArm) return null;
+        const eqMatch = eqList.find((e) => e && resolveEquipSlotCategory(e, e.name) === slotCat);
+        if (!eqMatch) return null;
+        const base = parseGearStats(eqMatch.name, eqMatch, slotCat);
+        const dVal = Math.round((cur.isWep ? (cur.dam - base.dam) : (cur.ac - base.ac)) * 10) / 10;
+        const dWt = cur.wt && base.wt ? Math.round((cur.wt - base.wt) / 10 * 10) / 10 : 0;
+        return { metric: cur.isWep ? 'Dmg' : 'AC', delta: dVal, wtLb: cur.wt ? (cur.wt / 10).toFixed(1) : null, wtDelta: dWt };
+    }
+
     function buildItemViewModel(frame, realm, tab, lang) {
         const r = (realm || (frame && frame.realm) || 'angband').toLowerCase();
         const tabNorm = String(tab || 'pack').toLowerCase();
         const player = frame && frame.player;
+        const eqList = (player && Array.isArray(player.equipment)) ? player.equipment : [];
+        let rawItems = [], isEquipped = false;
+        if (tabNorm === 'gear' || tabNorm === 'equipment') { rawItems = eqList; isEquipped = true; }
+        else if (tabNorm === 'quiver') { rawItems = (player && Array.isArray(player.quiver)) ? player.quiver : []; }
+        else { rawItems = (player && Array.isArray(player.inventory)) ? player.inventory : []; }
 
-        let rawItems = [];
-        let isEquipped = false;
-
-        if (tabNorm === 'gear' || tabNorm === 'equipment') {
-            rawItems = (player && Array.isArray(player.equipment)) ? player.equipment : [];
-            isEquipped = true;
-        } else if (tabNorm === 'quiver') {
-            rawItems = (player && Array.isArray(player.quiver)) ? player.quiver : [];
-        } else {
-            rawItems = (player && Array.isArray(player.inventory)) ? player.inventory : [];
-        }
-
-        const catalog = getActionCatalog();
-        const result = [];
-
+        const catalog = getActionCatalog(), result = [];
         for (let i = 0; i < rawItems.length; i++) {
-            const raw = rawItems[i];
-            const slot = raw.slot !== undefined ? raw.slot : i;
+            const raw = rawItems[i], slot = raw.slot !== undefined ? raw.slot : i;
+            let name = raw.name || raw.dname || raw.label || 'Unknown Item';
+            if (r === 'hengband' && (lang === 'jp' || lang === 'bilingual')) {
+                const getLoc = (typeof window !== 'undefined' && window.getLocalizedItemName) || (typeof require === 'function' && typeof getLocalizedItemName === 'function' ? getLocalizedItemName : null);
+                if (getLoc) name = getLoc(name, r, lang) || name;
+            }
             const letter = raw.letter || raw.key || raw.label || '';
-            const name = raw.name || raw.dname || raw.label || 'Unknown Item';
-            const tval = raw.tval !== undefined ? raw.tval : (raw.type || 0);
-            const count = raw.count || raw.amt || raw.number || 1;
-            const inscription = raw.inscription || raw.note || '';
-
+            const tval = raw.tval !== undefined ? raw.tval : (raw.type || 0), count = raw.count || raw.amt || raw.number || 1, inscription = raw.inscription || raw.note || '';
             let catalogVerbs = [];
             if (catalog && typeof catalog.validVerbsForItem === 'function') {
-                const itemForCatalog = isEquipped ? raw : Object.assign({}, raw, { slot: undefined });
-                catalogVerbs = catalog.validVerbsForItem(itemForCatalog, r, isEquipped);
+                catalogVerbs = catalog.validVerbsForItem(isEquipped ? raw : Object.assign({}, raw, { slot: undefined }), r, isEquipped);
             } else {
-                const defaultIds = isEquipped ? ['takeoff', 'examine'] : ['wield', 'drop', 'examine'];
-                catalogVerbs = defaultIds.map((id) => ({
-                    id,
-                    keys: { [r]: id[0] },
-                    labels: { en: id, jp: id }
-                }));
+                catalogVerbs = (isEquipped ? ['takeoff', 'examine'] : ['wield', 'drop', 'examine']).map((id) => ({ id, keys: { [r]: id[0] }, labels: { en: id, jp: id } }));
             }
-
             if (tabNorm === 'quiver' && !catalogVerbs.some((c) => c.id === 'fire')) {
                 const fireCmd = catalog && typeof catalog.get === 'function' ? catalog.get('fire') : null;
-                if (fireCmd && fireCmd.keys && fireCmd.keys[r] !== null) {
-                    catalogVerbs.unshift(fireCmd);
-                }
+                if (fireCmd && fireCmd.keys && fireCmd.keys[r] !== null) catalogVerbs.unshift(fireCmd);
             }
-
             let hasPrimary = false;
             const validVerbs = [];
-
             for (let v = 0; v < catalogVerbs.length; v++) {
                 const cmd = catalogVerbs[v];
                 const verbKey = (cmd.keys && cmd.keys[r] !== undefined && cmd.keys[r] !== null) ? cmd.keys[r] : (cmd.key || '');
-                const label = (lang === 'jp' && cmd.labels && cmd.labels.jp)
-                    ? cmd.labels.jp
-                    : ((cmd.labels && cmd.labels.en) || cmd.name || cmd.id);
-
+                const label = (lang === 'bilingual' && cmd.labels && cmd.labels.jp && cmd.labels.en) ? `${cmd.labels.en} (${cmd.labels.jp})` : ((lang === 'jp' && cmd.labels && cmd.labels.jp) ? cmd.labels.jp : ((cmd.labels && cmd.labels.en) || cmd.name || cmd.id));
                 let primary = false;
-                if (isEquipped) {
-                    if (cmd.id === 'takeoff') primary = true;
-                } else if (tabNorm === 'quiver') {
-                    if (cmd.id === 'fire') primary = true;
-                } else {
-                    if (!hasPrimary && (cmd.id === 'quaff' || cmd.id === 'read' || cmd.id === 'eat' ||
-                        cmd.id === 'zap' || cmd.id === 'aim' || cmd.id === 'use_staff' ||
-                        cmd.id === 'wield' || cmd.id === 'browse')) {
-                        primary = true;
-                        hasPrimary = true;
-                    }
-                }
-
-                let disabled = false;
-                let reason = '';
+                if (isEquipped) primary = (cmd.id === 'takeoff');
+                else if (tabNorm === 'quiver') primary = (cmd.id === 'fire');
+                else if (!hasPrimary && /^(quaff|read|eat|zap|aim|use_staff|wield|browse)$/.test(cmd.id)) { primary = true; hasPrimary = true; }
+                let disabled = false, reason = '';
                 if (catalog) {
-                    if (typeof catalog.isAvailable === 'function' && !catalog.isAvailable(cmd.id)) {
-                        disabled = true;
-                        reason = 'Action currently unavailable';
-                    }
+                    if (typeof catalog.isAvailable === 'function' && !catalog.isAvailable(cmd.id)) { disabled = true; reason = 'Action currently unavailable'; }
                     if (!disabled && typeof raw.im === 'number' && catalog.VERB_BITS) {
                         const bitIdx = catalog.VERB_BITS.indexOf(cmd.id);
-                        if (bitIdx >= 0 && ((raw.im & (1 << bitIdx)) !== 0)) {
-                            disabled = true;
-                            reason = raw.imReason || 'Cannot perform this action now';
-                        }
+                        if (bitIdx >= 0 && ((raw.im & (1 << bitIdx)) !== 0)) { disabled = true; reason = raw.imReason || 'Cannot perform this action now'; }
                     }
                 }
-
                 validVerbs.push({ id: cmd.id, key: verbKey, label, primary, disabled, reason });
             }
-
-            result.push({ slot, letter, name, tval, count, inscription, validVerbs, raw });
+            const compare = !isEquipped ? compareWithEquipped(raw, name, eqList) : null;
+            result.push({ slot, letter, name, tval, count, inscription, compare, validVerbs, raw });
         }
-
         return result;
     }
 
     function bindQuickSlot(slotIndex, item, verb) {
-        if (slotIndex >= 1 && slotIndex <= 4) { _quickSlots[slotIndex - 1] = { item, verb }; return true; }
+        if (slotIndex >= 1 && slotIndex <= 4) {
+            _quickSlots[slotIndex - 1] = { item, verb };
+            if (typeof window !== 'undefined' && window.QuickActions && typeof window.QuickActions.setSlot === 'function' && item) {
+                const r = _lastRealm || (window.__app && window.__app.getActiveRealm && window.__app.getActiveRealm()) || 'angband';
+                const vKey = (verb && verb.key) || (typeof verb === 'string' ? verb : 'q');
+                window.QuickActions.setSlot(r, slotIndex - 1, { type: 'item', verb: vKey, name: item.name, normalizedName: String(item.name || '').toLowerCase(), tval: Number(item.tval) || 0, fallbackKey: item.letter || 'a', icon: '⚡' });
+            }
+            return true;
+        }
         return false;
     }
 
@@ -161,8 +140,9 @@
             d.run({ verb: verb.id, item: item.raw || item });
         } else {
             const key = verb.key || (verb.keys && verb.keys[realm]);
-            if (key && typeof window !== 'undefined' && window.network && typeof window.network.sendKey === 'function') {
-                window.network.sendKey(key);
+            const net = (typeof window !== 'undefined') && ((window.__app && window.__app.network) || window.network);
+            if (key && net && typeof net.sendKey === 'function') {
+                net.sendKey(key);
             }
         }
     }
@@ -213,7 +193,11 @@
         header.className = 'item-sheet-header';
         const tabsWrap = document.createElement('div');
         tabsWrap.className = 'item-sheet-tabs';
-        const tabDefs = [{ id: 'pack', label: 'Pack' }, { id: 'gear', label: 'Gear' }, { id: 'quiver', label: 'Quiver' }];
+        const tabDefs = [
+            { id: 'pack', label: lang === 'jp' ? '持ち物' : (lang === 'bilingual' ? 'Pack (持ち物)' : 'Pack') },
+            { id: 'gear', label: lang === 'jp' ? '装備' : (lang === 'bilingual' ? 'Gear (装備)' : 'Gear') },
+            { id: 'quiver', label: lang === 'jp' ? '矢筒' : (lang === 'bilingual' ? 'Quiver (矢筒)' : 'Quiver') }
+        ];
 
         for (let t = 0; t < tabDefs.length; t++) {
             const td = tabDefs[t];
@@ -244,7 +228,7 @@
         if (items.length === 0) {
             const emptyEl = document.createElement('div');
             emptyEl.className = 'item-sheet-empty';
-            emptyEl.textContent = `No items in ${tab}.`;
+            emptyEl.textContent = lang === 'jp' ? `アイテムがありません (${tab})` : (lang === 'bilingual' ? `No items in ${tab} (空)` : `No items in ${tab}.`);
             listEl.appendChild(emptyEl);
         } else {
             for (let i = 0; i < items.length; i++) {
@@ -275,6 +259,14 @@
                     inscEl.className = 'item-sheet-inscription';
                     inscEl.textContent = ` {${item.inscription}}`;
                     nameWrap.appendChild(inscEl);
+                }
+                if (item.compare) {
+                    const cmpEl = document.createElement('span');
+                    const d = item.compare.delta;
+                    cmpEl.className = `item-sheet-delta ${d > 0 ? 'delta-up' : (d < 0 ? 'delta-down' : 'delta-even')}`;
+                    cmpEl.style.cssText = `margin-left:8px;font-size:11px;font-weight:700;color:${d > 0 ? '#4ade80' : (d < 0 ? '#f87171' : '#94a3b8')};`;
+                    cmpEl.textContent = `${d > 0 ? '+' : ''}${d} ${item.compare.metric}${item.compare.wtLb ? ` • ${item.compare.wtLb}lb` : ''}`;
+                    nameWrap.appendChild(cmpEl);
                 }
                 infoRow.appendChild(nameWrap);
                 card.appendChild(infoRow);
@@ -385,5 +377,5 @@
 
     function toggle(frame, realm, invokerEl) { if (isOpen()) hide(); else show(frame, realm, invokerEl); }
 
-    return Object.freeze({ buildItemViewModel, bindQuickSlot, getQuickSlots, executeVerb, render, show, hide, close: hide, toggle, isOpen, handleKeyDown });
+    return Object.freeze({ compareWithEquipped, buildItemViewModel, bindQuickSlot, getQuickSlots, executeVerb, render, show, hide, close: hide, toggle, isOpen, handleKeyDown });
 });

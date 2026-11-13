@@ -325,12 +325,13 @@
             if (/\b(poison|poisoned|cut|bleeding|blind|confused)\b/.test(status)) {
                 const curePot = findItem(/\b(neutralize poison|cure poison|healing|cure critical|unicorn horn)\b/i);
                 if (curePot) {
+                    const isUnicornHorn = /unicorn\s*horn/i.test(String(curePot.desc || curePot.label || curePot.name || ''));
                     advisories.push({
                         id: 'cure_ailment',
                         severity: 'warning',
                         label: `🧪 Status Hazard — Use Remedy ${curePot.key || 'a'})`,
                         key: curePot.key || 'a',
-                        verb: 'q'
+                        verb: isUnicornHorn ? 'a' : 'q'
                     });
                 }
             }
@@ -343,7 +344,7 @@
                         severity: 'warning',
                         label: `🍞 Hunger Warning — Eat ${foodItem.key || 'a'})`,
                         key: foodItem.key || 'a',
-                        verb: r === 'nethack' ? 'e' : (r === 'silq' ? 'u' : 'E')
+                        verb: (r === 'nethack' || r === 'dcss' || r === 'rogue') ? 'e' : 'E'
                     });
                 }
             }

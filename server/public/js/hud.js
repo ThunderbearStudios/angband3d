@@ -40,11 +40,6 @@ class WebHUD {
 
         this.depthVal = document.getElementById('val-depth'); this.goldVal = document.getElementById('val-gold'); this.acVal = document.getElementById('val-ac'); this.pingBadge = document.getElementById('ping-badge');
 
-        // Compass (1:1 with Godot Overlay.cs:1750-1791)
-        this.compassCanvas = document.getElementById('compass-canvas');
-        this.compassCtx = this.compassCanvas ? this.compassCanvas.getContext('2d') : null;
-        this.compassLabel = document.getElementById('compass-label');
-
         // Top Landscape Message Feed Window (Full message history with scrollback)
         this.messageFeedWindow = document.getElementById('message-feed-window'); this.messageFeedList = document.getElementById('message-feed-list'); this.messageFeedScroll = document.getElementById('message-feed-scroll');
         this.messageHistory = []; this.userScrolledUp = false; this.prevMessages = null; this.lastTermRow0 = ''; this.currentTurn = 0; this.isDeadInPlay = false;
@@ -453,6 +448,21 @@ class WebHUD {
             }
         }
 
+        const msgFeedWin = this.messageFeedWindow || document.getElementById('message-feed-window');
+        const msgFeedVisible = Boolean(
+            msgFeedWin &&
+            !msgFeedWin.classList.contains('hidden') &&
+            !msgFeedWin.classList.contains('hud-panel-hidden') &&
+            !msgFeedWin.classList.contains('window-minimized') &&
+            msgFeedWin.style.display !== 'none' &&
+            (typeof window === 'undefined' || !window.__messageLogClosed)
+        );
+        const p = frame.player || {};
+        const isCriticalLowHp = Boolean(p.hp !== undefined && p.hp_max > 0 && (p.hp / p.hp_max) <= 0.25);
+        const hasMoreText = /[-–—]more[-–—]|\[more\]/i.test(displayMsg);
+        const suppressEcho = msgFeedVisible && !isPrompt && !hasMoreText && !isCriticalLowHp;
+        banner.classList.toggle('banner-suppressed', suppressEcho);
+
         if (displayMsg) {
             const realm = (frame && frame.realm) || (this.lastFrame && this.lastFrame.realm) || (window.activeRealm) || (window.__app && window.__app.getActiveRealm ? window.__app.getActiveRealm() : 'angband');
             const lang = (typeof window !== 'undefined' && window.__langMode) ? window.__langMode : 'en';
@@ -843,7 +853,6 @@ class WebHUD {
                 this.sendQuickHudCommand(key);
             });
         };
-        bindPill(this.footerCharIdentity, 'C', 'Click to open Character Sheet [C]');
         bindPill(this.footerLevel, 'C', 'Click to open Character Sheet [C]');
         bindPill(this.footerGear, 'e', 'Click to inspect Equipped Gear [e]');
         bindPill(this.footerPlace, 'M', 'Click to open Full Level Map [M]');
@@ -858,18 +867,13 @@ class WebHUD {
         const widgets = [
             { id: 'touch-controls', handleId: 'dpad-drag-handle' },
             { id: 'char-panel', handleId: 'char-drag-handle' },
-            { id: 'hud-center-column', handleId: 'action-bar-drag-handle' },
-            { id: 'compass-container', handleId: 'compass-container' }
+            { id: 'hud-center-column', handleId: 'action-bar-drag-handle' }
         ];
 
         widgets.forEach(({ id, handleId }) => {
             const widgetEl = document.getElementById(id);
             const handleEl = document.getElementById(handleId);
             if (!widgetEl || !handleEl) return;
-
-            if (id === 'compass-container') {
-                widgetEl.style.cursor = 'grab';
-            }
 
             let isDragging = false;
             let isPending = false;
@@ -991,10 +995,12 @@ class WebHUD {
 
         // Responsive window resize & mobile orientation-switch clamping
         if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+            this._wasMobileViewport = window.innerWidth <= 900 || window.innerHeight <= 500;
             const onViewportChange = () => {
                 const isMobileViewport = window.innerWidth <= 900 || window.innerHeight <= 500;
-                const ids = ['touch-controls', 'char-panel', 'hud-center-column', 'compass-container', 'minimap-container'];
+                const ids = ['touch-controls', 'char-panel', 'hud-center-column', 'minimap-container'];
                 if (isMobileViewport) {
+                    this._wasMobileViewport = true;
                     for (const id of ids) {
                         const el = document.getElementById(id);
                         if (!el) continue;
@@ -1009,6 +1015,10 @@ class WebHUD {
                         }
                     }
                     return;
+                }
+                if (this._wasMobileViewport) {
+                    this._wasMobileViewport = false;
+                    this.applySavedHudLayout();
                 }
                 for (const id of ids) {
                     const el = document.getElementById(id);
@@ -1088,17 +1098,16 @@ class WebHUD {
                 btnCharDetails.setAttribute('aria-expanded', String(!isHidden));
             });
         }
-        const charHeaderEl = document.getElementById('char-panel-header');
+        const charHeaderEl = document.getElementById('char-drag-handle') || document.getElementById('char-panel-header');
         if (charHeaderEl && charPanelEl) {
+            let dragStartX = 0, dragStartY = 0;
+            charHeaderEl.addEventListener('pointerdown', (e) => { dragStartX = e.clientX || 0; dragStartY = e.clientY || 0; }, { passive: true });
             charHeaderEl.addEventListener('click', (e) => {
-                if (this._hudWasDragged || e.target.closest('button')) return;
+                if (this._hudWasDragged || e.target.closest('button') || Math.hypot((e.clientX || 0) - dragStartX, (e.clientY || 0) - dragStartY) > 5) return;
                 if (typeof window !== 'undefined' && window.innerWidth <= 600) {
                     const open = charPanelEl.classList.toggle('char-details-open');
                     if (charDrawer) charDrawer.classList.toggle('hidden', !open);
-                    if (btnCharDetails) {
-                        btnCharDetails.textContent = open ? '▴' : '▾';
-                        btnCharDetails.setAttribute('aria-expanded', String(open));
-                    }
+                    if (btnCharDetails) { btnCharDetails.textContent = open ? '▴' : '▾'; btnCharDetails.setAttribute('aria-expanded', String(open)); }
                 }
             });
         }
@@ -1229,23 +1238,21 @@ class WebHUD {
             'char-panel',
             'hud-center-column',
             'action-bar',
-            'compass-container',
             'minimap-container',
             'message-feed-window',
             'chronicle-window'
         ];
 
+        if (typeof window !== 'undefined') {
+            window.__minimapClosed = false;
+            window.__messageLogClosed = false;
+        }
         for (const id of allWidgets) {
             const el = document.getElementById(id);
             if (!el) continue;
-            el.style.position = '';
-            el.style.left = '';
-            el.style.top = '';
-            el.style.right = '';
-            el.style.bottom = '';
-            el.style.width = '';
-            el.style.height = '';
-            el.style.margin = '';
+            el.style.position = ''; el.style.left = ''; el.style.top = ''; el.style.right = ''; el.style.bottom = '';
+            el.style.width = ''; el.style.height = ''; el.style.margin = '';
+            if (id === 'minimap-container' || id === 'message-feed-window' || id === 'char-panel' || id === 'action-bar') el.style.display = '';
             el.style.removeProperty('--char-panel-w');
             el.classList.remove('hud-widget-dragging', 'window-minimized', 'hud-panel-hidden');
         }
@@ -1254,46 +1261,31 @@ class WebHUD {
             const b = document.getElementById(bId);
             if (b) b.textContent = '−';
         }
-        for (const tId of ['btn-toggle-hero', 'btn-toggle-actions']) {
+        for (const tId of ['btn-toggle-hero', 'btn-toggle-actions', 'btn-toggle-minimap', 'btn-toggle-msg-feed']) {
             const t = document.getElementById(tId);
-            if (t) { t.classList.remove('panel-off'); t.setAttribute('aria-pressed', 'true'); }
+            if (t) { t.classList.remove('panel-off'); t.classList.add('active', 'is-panel-open'); t.setAttribute('aria-pressed', 'true'); }
         }
 
+        const hasTouch = Boolean((typeof window !== 'undefined' && window.DeviceProfile && typeof window.DeviceProfile.getTier === 'function' && window.DeviceProfile.getTier() !== 'desktop') || (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(pointer: coarse)').matches));
         const touchControls = document.getElementById('touch-controls');
         if (touchControls) {
-            window.__dpadVisible = true;
-            touchControls.style.display = 'flex';
+            window.__dpadVisible = hasTouch;
+            touchControls.style.display = hasTouch ? 'flex' : 'none';
             touchControls.style.removeProperty('--dpad-scale');
             touchControls.classList.remove('dpad-collapsed');
         }
         const btnToggleDpad = document.getElementById('btn-toggle-dpad');
         if (btnToggleDpad) {
-            btnToggleDpad.classList.add('active');
-            btnToggleDpad.classList.remove('panel-off');
-            btnToggleDpad.setAttribute('aria-pressed', 'true');
+            btnToggleDpad.classList.toggle('active', hasTouch);
+            btnToggleDpad.classList.toggle('panel-off', !hasTouch);
+            btnToggleDpad.setAttribute('aria-pressed', hasTouch ? 'true' : 'false');
         }
         const btnDpadCollapse = document.getElementById('btn-dpad-collapse');
-        if (btnDpadCollapse) {
-            btnDpadCollapse.textContent = '−';
-            btnDpadCollapse.title = 'Minimize / Expand D-Pad';
+        if (btnDpadCollapse) { btnDpadCollapse.textContent = '−'; btnDpadCollapse.title = 'Minimize / Expand D-Pad'; }
+        if (typeof window !== 'undefined' && window.__app && typeof window.__app.updateViewMode === 'function') {
+            window.__app.updateViewMode();
         }
-
-        if (window.__app && typeof window.__app.showToast === 'function') {
-            window.__app.showToast('HUD Layout Reset to Default');
-        } else {
-            let toast = document.getElementById('realm-toast-banner');
-            if (!toast) {
-                toast = document.createElement('div');
-                toast.id = 'realm-toast-banner';
-                toast.className = 'realm-toast';
-                document.body.appendChild(toast);
-            }
-            toast.innerHTML = `<span style="font-size: 20px;">↺</span><span>HUD Layout Reset to Default</span>`;
-            toast.classList.add('show');
-            setTimeout(() => {
-                if (toast) toast.classList.remove('show');
-            }, 3000);
-        }
+        this.showToast('HUD Layout Reset to Default');
     }
 
     /* -------------------------------------------------------------
@@ -1370,12 +1362,11 @@ class WebHUD {
     }
 
     /* -------------------------------------------------------------
-     * Continuous 60 FPS Camera Yaw Integration (Compass & Minimap)
+     * Continuous 60 FPS Camera Yaw Integration (Footer & Minimap)
      * ------------------------------------------------------------- */
     onCameraTurn(yaw) {
         this.currentCameraYaw = yaw;
         this.updateFooterFacing(yaw);
-        this.renderCompass(yaw);
         if (this.lastFrame && this.lastFrame.map && this.lastFrame.player) {
             this.renderMinimap(this.lastFrame.map, this.lastFrame.player, this.lastFrame.monsters || [], yaw);
             this.updateReticleTargetCard(this.lastFrame);
@@ -1501,14 +1492,18 @@ class WebHUD {
                 rawReticleCard.classList.remove('hidden');
                 rawReticleCard.style.display = 'block';
                 const isUniq = Boolean(t.unique || t.boss || /^the\s+/i.test(t.name || ''));
-                const isSleep = Boolean(t.asleep || t.sleep || /asleep|sleeping/i.test(t.status || ''));
+                const isSleep = Boolean(t.asleep || t.sleep || t.alertness_label === 'asleep' || /asleep|sleeping/i.test(t.status || ''));
+                const isUnwary = Boolean(!isSleep && (t.unwary || t.alertness_label === 'unwary'));
                 const isFlee = Boolean(t.fleeing || t.afraid || t.fear || /flee|afraid|fear/i.test(t.status || ''));
                 const dist = (pl && pl.x !== undefined && t.x !== undefined) ? Math.max(Math.abs(t.x - pl.x), Math.abs(t.y - pl.y)) : 1;
+                const ht = (typeof window !== 'undefined' && window.HudTelemetry) ? window.HudTelemetry : null;
+                const tac = (ht && typeof ht.formatMonsterTacticalSummary === 'function') ? ht.formatMonsterTacticalSummary(t, realm) : null;
                 const nameEl = document.getElementById('target-card-name');
                 if (nameEl) nameEl.textContent = `${tName}${t.glyph ? ` ('${t.glyph}')` : ''}`;
                 const tierEl = document.getElementById('target-card-tier');
                 if (tierEl) {
-                    tierEl.textContent = isUniq ? '👑 UNIQUE' : (isSleep ? '💤 ASLEEP' : (isFlee ? '💨 FLEEING' : '⚔ HOSTILE'));
+                    const roleTxt = t.attitude === 'pet' ? '🐾 PET' : (isUniq ? '👑 UNIQUE' : (isSleep ? '💤 ASLEEP' : (isUnwary ? '👁 UNWARY' : (isFlee ? '💨 FLEEING' : '⚔ HOSTILE'))));
+                    tierEl.textContent = (tac && tac.speedChip) ? `${roleTxt} • ${tac.speedChip}` : roleTxt;
                     tierEl.className = 'target-card-tier' + (isUniq ? ' badge-unique' : '');
                 }
                 const hpFillEl = document.getElementById('target-card-hp-fill');
@@ -1518,12 +1513,20 @@ class WebHUD {
                     if (!affEl._distChip) {
                         affEl.textContent = '';
                         const chip = document.createElement('span'); chip.className = 'target-dist-chip';
+                        const loreChip = document.createElement('span'); loreChip.className = 'target-lore-chip';
                         const mkBtn = (act, txt) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'target-act-pill'; b.dataset.targetAct = act; b.textContent = txt; return b; };
                         const pBtn = mkBtn('attack', '⚔ Attack [Space]');
-                        affEl.append(chip, pBtn, mkBtn('cast', '✨ Cast'), mkBtn('inspect', '🔍 Inspect'));
-                        affEl._distChip = chip; affEl._pBtn = pBtn;
+                        affEl.append(chip, loreChip, pBtn, mkBtn('cast', '✨ Cast'), mkBtn('inspect', '🔍 Inspect'));
+                        affEl._distChip = chip; affEl._loreChip = loreChip; affEl._pBtn = pBtn;
                     }
-                    affEl._distChip.textContent = `📏 ${dist}sq • ${pct}% HP`;
+                    const acPart = (tac && tac.acVal !== undefined && tac.acVal !== null) ? ` • AC ${tac.acVal}` : '';
+                    affEl._distChip.textContent = `📏 ${dist}sq • ${pct}% HP${acPart}`;
+                    const loreBits = [];
+                    if (tac && tac.blows) loreBits.push(`⚔ ${tac.blows}`);
+                    if (tac && tac.spellChip) loreBits.push(tac.spellChip);
+                    if (tac && tac.resists) loreBits.push(`🛡 ${tac.resists}`);
+                    affEl._loreChip.textContent = loreBits.join(' • ');
+                    affEl._loreChip.style.display = loreBits.length > 0 ? 'inline-flex' : 'none';
                     affEl._pBtn.dataset.targetAct = dist <= 1 ? 'attack' : 'shoot';
                     affEl._pBtn.textContent = dist <= 1 ? '⚔ Attack [Space]' : '🏹 Shoot [f]';
                 }
@@ -1531,37 +1534,6 @@ class WebHUD {
         } else {
             if (this.footerTarget) { this.footerTarget.style.display = 'none'; this._lastFooterTargetSig = ''; }
             if (rawReticleCard) { rawReticleCard.style.display = 'none'; rawReticleCard.classList.add('hidden'); }
-        }
-    }
-
-    renderCompass(yaw) {
-        if (!this.compassCtx || !this.compassCanvas) return;
-        const ctx = this.compassCtx, w = this.compassCanvas.width, h = this.compassCanvas.height;
-        const cx = w / 2, cy = h / 2, radius = Math.min(cx, cy) - 2.5;
-        ctx.clearRect(0, 0, w, h);
-        ctx.fillStyle = 'rgba(12, 14, 20, 0.90)';
-        ctx.beginPath(); ctx.arc(cx, cy, radius, 0, Math.PI * 2); ctx.fill();
-        ctx.strokeStyle = 'rgba(180, 150, 60, 0.75)'; ctx.lineWidth = 1.5;
-        ctx.beginPath(); ctx.arc(cx, cy, radius, 0, Math.PI * 2); ctx.stroke();
-
-        const dirVec = { x: Math.sin(yaw), y: -Math.cos(yaw) };
-        const sideVec = { x: -dirVec.y * 3.5, y: dirVec.x * 3.5 };
-        const tip = { x: cx + dirVec.x * (radius - 2.5), y: cy + dirVec.y * (radius - 2.5) };
-        const baseCenter = { x: cx - dirVec.x * (radius - 4.5), y: cy - dirVec.y * (radius - 4.5) };
-        const leftCorner = { x: cx + sideVec.x, y: cy + sideVec.y };
-        const rightCorner = { x: cx - sideVec.x, y: cy - sideVec.y };
-
-        ctx.fillStyle = '#f03838'; ctx.beginPath(); ctx.moveTo(tip.x, tip.y); ctx.lineTo(leftCorner.x, leftCorner.y); ctx.lineTo(cx, cy); ctx.closePath(); ctx.fill();
-        ctx.fillStyle = '#b81c1c'; ctx.beginPath(); ctx.moveTo(tip.x, tip.y); ctx.lineTo(cx, cy); ctx.lineTo(rightCorner.x, rightCorner.y); ctx.closePath(); ctx.fill();
-        ctx.fillStyle = '#9aa6c0'; ctx.beginPath(); ctx.moveTo(baseCenter.x, baseCenter.y); ctx.lineTo(leftCorner.x, leftCorner.y); ctx.lineTo(cx, cy); ctx.closePath(); ctx.fill();
-        ctx.fillStyle = '#738099'; ctx.beginPath(); ctx.moveTo(baseCenter.x, baseCenter.y); ctx.lineTo(cx, cy); ctx.lineTo(rightCorner.x, rightCorner.y); ctx.closePath(); ctx.fill();
-        ctx.fillStyle = '#ffd700'; ctx.beginPath(); ctx.moveTo(cx, cy - radius + 1); ctx.lineTo(cx - 3, cy - radius + 6); ctx.lineTo(cx + 3, cy - radius + 6); ctx.closePath(); ctx.fill();
-        ctx.beginPath(); ctx.arc(cx, cy, 2.2, 0, Math.PI * 2); ctx.fill();
-
-        if (this.compassLabel) {
-            const normYaw = (yaw % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI);
-            const sector = Math.round(normYaw / (Math.PI / 4)) % 8;
-            this.compassLabel.textContent = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'][sector] || 'N';
         }
     }
 
@@ -1593,8 +1565,9 @@ class WebHUD {
         const cx = (drawPx - ox) * cellSize + cellSize / 2, cy = (drawPy - oy) * cellSize + cellSize / 2;
         const dir = { x: Math.sin(yaw), y: -Math.cos(yaw) }, side = { x: -dir.y, y: dir.x };
 
+        const isBlind = !!(player.blind || (player.statuses && player.statuses.some(s => /blind|盲目/i.test(s.name || s))));
         const frameSeq = (this.lastFrame && this.lastFrame.seq !== undefined) ? this.lastFrame.seq : 0;
-        const cacheKey = `${frameSeq}_${ox}_${oy}_${this.minimapZoom}_${w}_${h}`;
+        const cacheKey = `${this.lastFrame?.realm || 'angband'}_${this.lastFrame?.player?.depth ?? 0}_${frameSeq}_${ox}_${oy}_${this.minimapZoom}_${w}_${h}_${isBlind ? 1 : 0}`;
         if (cacheKey !== this.minimapTileCacheKey || this.minimapTileCanvas.width !== w || this.minimapTileCanvas.height !== h) {
             this.minimapTileCanvas.width = w; this.minimapTileCanvas.height = h; this.minimapTileCacheKey = cacheKey;
             const tCtx = this.minimapTileCtx;
@@ -1616,10 +1589,19 @@ class WebHUD {
                     const mx = ox + colIdx;
                     if (mx >= row.g.length) continue;
                     const ch = row.g[mx];
-                    if (ch === ' ') continue;
                     const flag = (row.l && mx < row.l.length) ? (parseInt(row.l[mx], 16) || 0) : 0;
-                    if ((flag & 0x3) === 0) continue;
-                    const inView = (flag & 0x2) !== 0, sx = colIdx * cellSize, sy = rowIdx * cellSize;
+                    if (ch === ' ' || (flag & 0x3) === 0) {
+                        const mem = window.__app?.dungeon3d?.getRememberedTile?.(mx, my);
+                        if (mem && mem.feat > 0) {
+                            const mCh = (mem.glyph && mem.glyph !== ' ') ? mem.glyph : (mem.feat === 1 ? '.' : '#');
+                            const sx = colIdx * cellSize, sy = rowIdx * cellSize;
+                            tCtx.fillStyle = 'rgba(71, 85, 105, 0.22)';
+                            if (cellSize <= 6) { tCtx.fillRect(sx, sy, cellSize, cellSize); }
+                            else { tCtx.fillStyle = 'rgba(8, 10, 15, 0.65)'; tCtx.fillRect(sx, sy, cellSize, cellSize); tCtx.fillStyle = '#475569'; tCtx.fillText(mCh, sx + cellSize / 2, sy + cellSize / 2); }
+                        }
+                        continue;
+                    }
+                    const inView = (!isBlind && ((flag & 0x2) !== 0)) || (mx === px && my === py), sx = colIdx * cellSize, sy = rowIdx * cellSize;
                     const isFloor = ch === '.' || ch === ',' || ch === '\'';
                     tCtx.fillStyle = inView ? (isFloor ? 'rgba(36, 41, 56, 0.45)' : 'rgba(26, 30, 42, 0.35)') : 'rgba(8, 10, 15, 0.65)';
                     tCtx.fillRect(sx, sy, cellSize, cellSize);
@@ -1649,16 +1631,21 @@ class WebHUD {
         ctx.clearRect(0, 0, w, h);
         ctx.drawImage(this.minimapTileCanvas, 0, 0);
 
-        const coneDist = Math.max(16, Math.min(85, cellSize * 4.4)), coneSpread = coneDist * 0.65;
-        const leftTip = { x: cx + dir.x * coneDist + side.x * coneSpread, y: cy + dir.y * coneDist + side.y * coneSpread };
-        const rightTip = { x: cx + dir.x * coneDist - side.x * coneSpread, y: cy + dir.y * coneDist - side.y * coneSpread };
-        ctx.fillStyle = 'rgba(255, 215, 0, 0.18)';
-        ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(leftTip.x, leftTip.y); ctx.lineTo(rightTip.x, rightTip.y); ctx.closePath(); ctx.fill();
-        ctx.strokeStyle = 'rgba(255, 220, 100, 0.50)'; ctx.lineWidth = 1.0;
-        ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(leftTip.x, leftTip.y); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(rightTip.x, rightTip.y); ctx.stroke();
-        const baseAngle = Math.atan2(dir.y, dir.x);
-        ctx.beginPath(); ctx.arc(cx, cy, coneDist, baseAngle - 0.58, baseAngle + 0.58); ctx.stroke();
+        if (!isBlind) {
+            const coneDist = Math.max(16, Math.min(85, cellSize * 4.4)), coneSpread = coneDist * 0.65;
+            const leftTip = { x: cx + dir.x * coneDist + side.x * coneSpread, y: cy + dir.y * coneDist + side.y * coneSpread };
+            const rightTip = { x: cx + dir.x * coneDist - side.x * coneSpread, y: cy + dir.y * coneDist - side.y * coneSpread };
+            ctx.fillStyle = 'rgba(255, 215, 0, 0.18)';
+            ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(leftTip.x, leftTip.y); ctx.lineTo(rightTip.x, rightTip.y); ctx.closePath(); ctx.fill();
+            ctx.strokeStyle = 'rgba(255, 220, 100, 0.50)'; ctx.lineWidth = 1.0;
+            ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(leftTip.x, leftTip.y); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(rightTip.x, rightTip.y); ctx.stroke();
+            const baseAngle = Math.atan2(dir.y, dir.x);
+            ctx.beginPath(); ctx.arc(cx, cy, coneDist, baseAngle - 0.58, baseAngle + 0.58); ctx.stroke();
+        } else {
+            ctx.strokeStyle = 'rgba(56, 189, 248, 0.55)'; ctx.lineWidth = 1.2;
+            ctx.beginPath(); ctx.arc(cx, cy, Math.max(5, cellSize * 0.9), 0, Math.PI * 2); ctx.stroke();
+        }
 
         const activeNav = (window.__app && window.__app.input && window.__app.input._autoNav && window.__app.input._autoNav.active) ? window.__app.input._autoNav : null;
         if (activeNav && Array.isArray(activeNav.path) && activeNav.path.length > 0) {
@@ -1692,10 +1679,10 @@ class WebHUD {
             const colIdx = m.x - ox, rowIdx = m.y - oy;
             if (colIdx >= 0 && colIdx < cols && rowIdx >= 0 && rowIdx < lines) {
                 const sx = colIdx * cellSize, sy = rowIdx * cellSize;
-                const isUniq = Boolean(m.unique || m.boss || /^the\s+/i.test(m.name || ''));
-                ctx.fillStyle = isUniq ? 'rgba(255, 215, 0, 0.65)' : 'rgba(230, 40, 40, 0.45)';
+                const isUniq = Boolean(m.unique || m.boss || /^the\s+/i.test(m.name || '')), isEspPip = Boolean(isBlind && (m.esp || ((player.flags?.esp || player.flags?.telepathy) && (Math.abs(m.x - px) > 1 || Math.abs(m.y - py) > 1))));
+                ctx.fillStyle = isEspPip ? 'rgba(56, 189, 248, 0.55)' : (isUniq ? 'rgba(255, 215, 0, 0.65)' : 'rgba(230, 40, 40, 0.45)');
                 ctx.fillRect(sx - (isUniq ? 1 : 0), sy - (isUniq ? 1 : 0), cellSize + (isUniq ? 2 : 0), cellSize + (isUniq ? 2 : 0));
-                const mCol = (window.getAngbandColorString && m.attr !== undefined) ? window.getAngbandColorString(m.attr) : '#ff4444';
+                const mCol = isEspPip ? (isUniq ? '#e879f9' : '#38bdf8') : ((window.getAngbandColorString && m.attr !== undefined) ? window.getAngbandColorString(m.attr) : '#ff4444');
                 ctx.fillStyle = mCol;
                 if (cellSize <= 6) {
                     ctx.fillRect(sx + 1, sy + 1, Math.max(2, cellSize - 2), Math.max(2, cellSize - 2));
@@ -1837,11 +1824,11 @@ class WebHUD {
 
         // 6. Death Screen Tabs and Action Buttons
         const deathTabLabels = [
-            { en: '1. Tombstone & Menus', bi: '1. Tombstone (墓碑)', jp: '1. 墓碑と記録' },
+            { en: '1. YASD Autopsy & Tomb', bi: '1. YASD Autopsy & Tomb (墓碑)', jp: '1. 墓碑と記録' },
             { en: '2. Equipment', bi: '2. Equipment (装備)', jp: '2. 装備品' },
             { en: '3. Inventory', bi: '3. Inventory (持物)', jp: '3. 所持品' },
             { en: '4. Quiver', bi: '4. Quiver (矢筒)', jp: '4. 矢筒' },
-            { en: '5. Stats & Attributes', bi: '5. Stats (能力値)', jp: '5. 能力値' }
+            { en: '5. Stats & Crypt', bi: '5. Stats & Crypt (能力値)', jp: '5. 能力値' }
         ];
         if (this.deathTabs && this.deathTabs.length) {
             this.deathTabs.forEach(t => {
@@ -1938,6 +1925,13 @@ class WebHUD {
 
         // Realm and Game System Differentiation
         const realm = (frame && frame.realm) || (window.__activeRealm) || (window.__app && window.__app.getActiveRealm ? window.__app.getActiveRealm() : 'angband');
+        const ht = (typeof window !== 'undefined' && window.HudTelemetry) ? window.HudTelemetry : null;
+        if (ht) {
+            ht.ingestFrameLore(frame, realm);
+            ht.renderResistStrip(this._resistStripEl || (typeof document !== 'undefined' && (this._resistStripEl = document.getElementById('char-resist-strip'))), player, realm);
+            ht.renderDungeonFeelingPill(this._feelingPillEl || (typeof document !== 'undefined' && (this._feelingPillEl = document.getElementById('hud-feeling-pill'))), player, realm, frame);
+        }
+        if (typeof window !== 'undefined' && window.YasdAutopsy) window.YasdAutopsy.recordFrame(frame, realm);
         const isSilQ = realm === 'silq' || (player.stats && player.stats.gra !== undefined);
         if (this._lastBodyRealm !== realm) {
             this._lastBodyRealm = realm;
@@ -1946,7 +1940,7 @@ class WebHUD {
             }
             const crestEl = document.getElementById('char-realm-crest');
             if (crestEl) {
-                const crestIcons = { angband: '⚔', silq: '👑', frogcomposband: '◈', hengband: '⛩', nethack: '🏺', dcss: '🐙', brogue: '🔥', rogue: '🗝' };
+                const crestIcons = { angband: '⚔', silq: '👑', frogcomposband: '◈', hengband: '⛩', nethack: '🏺', dcss: '🐙', brogue: '🔥', rogue: '🗝', ryod: '🩸' };
                 const crestTitles = {
                     angband: 'Iron Crown of Morgoth (Angband 4.2.6)',
                     silq: 'Silmaril & Lay of Leithian (Sil-Q)',
@@ -1955,7 +1949,8 @@ class WebHUD {
                     nethack: 'Amulet of Yendor (NetHack 3.6.7)',
                     dcss: 'Orb of Zot & Pantheon (DCSS)',
                     brogue: 'Lumenstones & Amulet (Brogue CE)',
-                    rogue: 'Dungeons of Doom 1980 (Classic Rogue)'
+                    rogue: 'Dungeons of Doom 1980 (Classic Rogue)',
+                    ryod: 'Shattered Reliquary (Roll Your Own Death)'
                 };
                 crestEl.textContent = crestIcons[realm] || '⚔';
                 crestEl.title = crestTitles[realm] || crestTitles.angband;
@@ -2002,22 +1997,21 @@ class WebHUD {
         if (this._lastHpSig !== hpSig) {
             this._lastHpSig = hpSig;
             const hpPct = Math.max(0, Math.min(100, (curHp / Math.max(1, maxHp)) * 100));
+            const isHpHeal = this._lastHpPct !== undefined && hpPct >= this._lastHpPct;
+            this._lastHpPct = hpPct;
             if (this.hpFill) {
                 this.hpFill.style.width = `${hpPct}%`;
-                this.hpFill.style.height = `${hpPct}%`;
-                if (typeof this.hpFill.style.setProperty === 'function') {
-                    this.hpFill.style.setProperty('--vial-pct', `${hpPct}%`);
-                }
+                if (typeof this.hpFill.style.setProperty === 'function') this.hpFill.style.setProperty('--vial-pct', `${hpPct}%`);
                 if (this.hpFill.classList) {
                     this.hpFill.classList.toggle('hp-caution', hpPct <= 50 && hpPct > 25);
                     this.hpFill.classList.toggle('hp-critical', hpPct <= 25);
                 }
             }
             if (this.hpGhostFill) {
+                if (this.hpGhostFill.classList) this.hpGhostFill.classList.toggle('is-healing', isHpHeal);
+                this.hpGhostFill.style.transitionDelay = isHpHeal ? '0s' : '';
                 this.hpGhostFill.style.width = `${hpPct}%`;
-                if (typeof this.hpGhostFill.style.setProperty === 'function') {
-                    this.hpGhostFill.style.setProperty('--vial-pct', `${hpPct}%`);
-                }
+                if (typeof this.hpGhostFill.style.setProperty === 'function') this.hpGhostFill.style.setProperty('--vial-pct', `${hpPct}%`);
             }
             // # ROOT-CAUSE: Toggle .low-hp-warning on #char-panel when HP <= 30% and populate #char-status-effects with color-coded status/hunger pills.
             const charPanelEl = this._charPanelEl || (typeof document !== 'undefined' && (this._charPanelEl = document.getElementById('char-panel')));
@@ -2040,8 +2034,8 @@ class WebHUD {
                     if (!nm) continue;
                     let cls = 'pill-info';
                     if (/poison|cut|bleed|blind|paraly|confus|stun|starv|faint|halluc|wound|knock/i.test(nm)) cls = 'pill-danger';
-                    else if (/hungr|weak|afraid|fear|slow|tired|burden|strained/i.test(nm)) cls = 'pill-warn';
-                    else if (/fast|haste|bless|hero|berserk|shield|protec|invuln|regen|sated|full/i.test(nm)) cls = 'pill-buff';
+                    else if (/\bgorged\b|hungr|weak|afraid|fear|slow|tired|burden|strained/i.test(nm)) cls = 'pill-warn';
+                    else if (/\b(fed|sated|full)\b|fast|haste|bless|hero|berserk|shield|protec|invuln|regen/i.test(nm)) cls = 'pill-buff';
                     pills.push({ text: nm, cls });
                 }
                 if (player.study > 0 && !pills.some(p => /^study/i.test(p.text))) {
@@ -2082,18 +2076,17 @@ class WebHUD {
                 }
             }
             const spPct = maxSp > 0 ? Math.max(0, Math.min(100, (curSp / maxSp) * 100)) : 0;
+            const isSpHeal = this._lastSpPct !== undefined && spPct >= this._lastSpPct;
+            this._lastSpPct = spPct;
             if (this.spFill) {
                 this.spFill.style.width = `${spPct}%`;
-                this.spFill.style.height = `${spPct}%`;
-                if (typeof this.spFill.style.setProperty === 'function') {
-                    this.spFill.style.setProperty('--vial-pct', `${spPct}%`);
-                }
+                if (typeof this.spFill.style.setProperty === 'function') this.spFill.style.setProperty('--vial-pct', `${spPct}%`);
             }
             if (this.spGhostFill) {
+                if (this.spGhostFill.classList) this.spGhostFill.classList.toggle('is-healing', isSpHeal);
+                this.spGhostFill.style.transitionDelay = isSpHeal ? '0s' : '';
                 this.spGhostFill.style.width = `${spPct}%`;
-                if (typeof this.spGhostFill.style.setProperty === 'function') {
-                    this.spGhostFill.style.setProperty('--vial-pct', `${spPct}%`);
-                }
+                if (typeof this.spGhostFill.style.setProperty === 'function') this.spGhostFill.style.setProperty('--vial-pct', `${spPct}%`);
             }
             this.spText.textContent = isNutritionVial ? `${Math.round(spPct)}%` : `${curSp} / ${maxSp}`;
         }
@@ -2275,16 +2268,18 @@ class WebHUD {
         this.updateContextPulses(frame);
 
         // Detailed 3-Row Telemetry Footer / Streamlined Status Bar
-        if (this.footerCharIdentity) {
-            if (isSilQ) {
-                const house = player.house || '';
-                this.footerCharIdentity.textContent = `${player.name || 'Hero'} of the ${house || player.race || 'Noldor'}`;
-            } else {
-                this.footerCharIdentity.textContent = `${player.name || 'Hero'} the ${player.race || 'Human'} ${player.class || 'Warrior'}`;
-            }
-        }
+        const footerCharPanelEl = this._charPanelEl || (typeof document !== 'undefined' && (this._charPanelEl = document.getElementById('char-panel')));
+        const charPanelVisible = Boolean(
+            footerCharPanelEl &&
+            (!footerCharPanelEl.classList || (
+                !footerCharPanelEl.classList.contains('hidden') &&
+                !footerCharPanelEl.classList.contains('hud-panel-hidden') &&
+                !footerCharPanelEl.classList.contains('window-minimized')
+            )) &&
+            (!footerCharPanelEl.style || footerCharPanelEl.style.display !== 'none')
+        );
         if (this.footerLevel) {
-            if (isSilQ) {
+            if (isSilQ || charPanelVisible) {
                 this.footerLevel.style.display = 'none';
             } else if (realm === 'brogue') {
                 this.footerLevel.style.display = 'inline';
@@ -2338,30 +2333,35 @@ class WebHUD {
             }
         }
         if (this.footerExp) {
-            if (realm === 'brogue') {
-                const ench = player.enchantments || 0;
-                const lum = player.lumenstones || 0;
-                this.footerExp.textContent = lum > 0 ? `✨ Ench +${ench} • 💎 ${lum}` : `✨ Ench +${ench}`;
-            } else if (isSilQ) {
-                const unspent = Number(player.new_exp !== undefined ? player.new_exp : (player.exp || 0));
-                const total = Number(player.exp_max !== undefined ? player.exp_max : unspent);
-                this.footerExp.textContent = total > unspent
-                    ? `✨ EXP ${unspent.toLocaleString()} (${total.toLocaleString()} total)`
-                    : `✨ EXP ${unspent.toLocaleString()}`;
+            if (charPanelVisible) {
+                this.footerExp.style.display = 'none';
             } else {
-                const expNext = player.exp_next;
-                const expVal = (player.exp !== undefined) ? player.exp.toLocaleString() : '0';
-                const plLev = Number(player.level !== undefined ? player.level : (player.lev !== undefined ? player.lev : 1));
-                const nextStr = (expNext !== undefined && expNext > 0)
-                    ? `/${expNext.toLocaleString()}`
-                    : ((expNext === 0 && plLev >= 20) ? ' (MAX)' : '');
-                const lang = window.__langMode || 'en';
-                if (realm === 'hengband' && lang === 'jp') {
-                    this.footerExp.textContent = `✨ 経験値 ${expVal}${nextStr}`;
-                } else if (realm === 'hengband' && lang === 'bilingual') {
-                    this.footerExp.textContent = `✨ EXP (経験値) ${expVal}${nextStr}`;
+                this.footerExp.style.display = '';
+                if (realm === 'brogue') {
+                    const ench = player.enchantments || 0;
+                    const lum = player.lumenstones || 0;
+                    this.footerExp.textContent = lum > 0 ? `✨ Ench +${ench} • 💎 ${lum}` : `✨ Ench +${ench}`;
+                } else if (isSilQ) {
+                    const unspent = Number(player.new_exp !== undefined ? player.new_exp : (player.exp || 0));
+                    const total = Number(player.exp_max !== undefined ? player.exp_max : unspent);
+                    this.footerExp.textContent = total > unspent
+                        ? `✨ EXP ${unspent.toLocaleString()} (${total.toLocaleString()} total)`
+                        : `✨ EXP ${unspent.toLocaleString()}`;
                 } else {
-                    this.footerExp.textContent = `✨ EXP ${expVal}${nextStr}`;
+                    const expNext = player.exp_next;
+                    const expVal = (player.exp !== undefined) ? player.exp.toLocaleString() : '0';
+                    const plLev = Number(player.level !== undefined ? player.level : (player.lev !== undefined ? player.lev : 1));
+                    const nextStr = (expNext !== undefined && expNext > 0)
+                        ? `/${expNext.toLocaleString()}`
+                        : ((expNext === 0 && plLev >= 20) ? ' (MAX)' : '');
+                    const lang = window.__langMode || 'en';
+                    if (realm === 'hengband' && lang === 'jp') {
+                        this.footerExp.textContent = `✨ 経験値 ${expVal}${nextStr}`;
+                    } else if (realm === 'hengband' && lang === 'bilingual') {
+                        this.footerExp.textContent = `✨ EXP (経験値) ${expVal}${nextStr}`;
+                    } else {
+                        this.footerExp.textContent = `✨ EXP ${expVal}${nextStr}`;
+                    }
                 }
             }
         }
@@ -2481,17 +2481,17 @@ class WebHUD {
             this.updateTargetInspector(player, realm);
         }
 
-        // Status badges
+        // Status badges (suppress duplicated statuses when #char-panel is visible)
         if (this.footerBadges) {
             const lang = window.__langMode || 'en';
             const statusesKey = (player.statuses && Array.isArray(player.statuses))
                 ? player.statuses.map(st => `${st.name || ''}:${st.attr !== undefined ? st.attr : ''}`).join(',')
                 : '';
-            const badgesKey = `${realm}:${lang}:${statusesKey}:${player.study || 0}:${player.resting || 0}:${player.word_recall || 0}:${player.song || ''}:${player.stealth_mode ? 1 : 0}`;
+            const badgesKey = `${realm}:${lang}:${charPanelVisible ? 1 : 0}:${statusesKey}:${player.study || 0}:${player.resting || 0}:${player.word_recall || 0}:${player.song || ''}:${player.stealth_mode ? 1 : 0}`;
             if (this._lastBadgesKey !== badgesKey) {
                 this._lastBadgesKey = badgesKey;
                 const desiredBadges = [];
-                if (player.statuses && Array.isArray(player.statuses) && player.statuses.length > 0) {
+                if (!charPanelVisible && player.statuses && Array.isArray(player.statuses) && player.statuses.length > 0) {
                     const statusDict = {
                         'Fast': '加速', 'Slow': '減速', 'Blind': '盲目', 'Confused': '混乱',
                         'Poisoned': '毒', 'Afraid': '恐怖', 'Paralyzed': '麻痺', 'Hungry': '空腹',
@@ -2519,7 +2519,7 @@ class WebHUD {
                 }
 
                 const hasStatusMatching = (re) => Array.isArray(player.statuses) && player.statuses.some(st => st && st.name && re.test(st.name));
-                if (player.study && player.study > 0 && !hasStatusMatching(/^study/i)) {
+                if (!charPanelVisible && player.study && player.study > 0 && !hasStatusMatching(/^study/i)) {
                     desiredBadges.push({ cls: 'footer-badge badge-study', text: `[STUDY: ${player.study}]`, color: '' });
                 }
 
@@ -2527,15 +2527,15 @@ class WebHUD {
                     desiredBadges.push({ cls: 'footer-badge badge-resting', text: `[RESTING${player.resting > 0 ? `: ${player.resting}` : ''}]`, color: '' });
                 }
 
-                if (player.word_recall && player.word_recall > 0 && !hasStatusMatching(/^recall/i)) {
+                if (!charPanelVisible && player.word_recall && player.word_recall > 0 && !hasStatusMatching(/^recall/i)) {
                     desiredBadges.push({ cls: 'footer-badge badge-recall', text: `[RECALL: ${player.word_recall}t]`, color: '' });
                 }
 
-                if (player.song) {
+                if (!charPanelVisible && player.song) {
                     desiredBadges.push({ cls: 'footer-badge badge-song', text: `[SONG: ${player.song}]`, color: '#70c0ff' });
                 }
 
-                if (player.stealth_mode) {
+                if (!charPanelVisible && player.stealth_mode) {
                     desiredBadges.push({ cls: 'footer-badge badge-stealth', text: '[STEALTH]', color: '#a0a0a0' });
                 }
 
@@ -2883,17 +2883,17 @@ class WebHUD {
         // Process message queue turn/time expiration tick
         this.tickMessageQueue();
 
-        // Minimap Radar & Compass
+        // Minimap Radar
         if (frame.map && frame.player) {
             this.renderMinimap(frame.map, frame.player, frame.monsters || [], this.currentCameraYaw);
         }
-        this.renderCompass(this.currentCameraYaw);
 
-        // Check if player died: C engines allow 0 HP (dead only when hp < 0 or player.dead); cartridges die at hp <= 0
+        // Check if player died or ascended: C engines allow 0 HP (dead only when hp < 0 or player.dead); cartridges die at hp <= 0
         const rHud = String(frame.realm || this.activeRealm || '').toLowerCase();
         const isCEngineHud = rHud === 'angband' || rHud === 'silq' || rHud === 'frogcomposband' || rHud === 'hengband';
         const isDead = Boolean(player.dead || (player.hp !== undefined && (isCEngineHud ? player.hp < 0 : player.hp <= 0) && player.hp_max > 0));
-        if (isDead) {
+        const isVictory = Boolean(frame.victory || player.winner || player.total_winner);
+        if (isDead || isVictory) {
             this.isDeadInPlay = true;
             this.showDeathModal(frame);
         } else {
@@ -2914,7 +2914,7 @@ class WebHUD {
     }
 
     isStoreKind(feat) {
-        return feat >= 7 && feat <= 14;
+        return (feat >= 7 && feat <= 14) || (feat >= 0x20 && feat <= 0x28) || (Boolean(this.lastFrame && this.lastFrame.realm === 'hengband') && feat === 4);
     }
 
     isWalkableOrPortal(feat) {
@@ -3051,33 +3051,30 @@ class WebHUD {
         const wasHidden = this.deathModal.classList.contains('hidden');
         this.deathModal.classList.remove('hidden');
         this.lastDeathFrame = frame;
-        if (wasHidden && typeof window !== 'undefined' && window.__app && window.__app.audio && typeof window.__app.audio.playDeathTheme === 'function') {
-            window.__app.audio.playDeathTheme();
+        const p = (frame && frame.player) || {};
+        const isVictory = Boolean((frame && frame.victory) || p.winner || p.total_winner);
+        if (wasHidden && typeof window !== 'undefined' && window.__app && window.__app.audio) {
+            if (isVictory && typeof window.__app.audio.playMusicTrack === 'function') window.__app.audio.playMusicTrack('victory_royal', true);
+            else if (typeof window.__app.audio.playDeathTheme === 'function') window.__app.audio.playDeathTheme();
         }
-
         const realm = (frame && frame.realm) || window.__activeRealm || 'angband';
         const rc = window.RealmCartridge;
         const summary = (rc && typeof rc.formatDeathModalSummary === 'function')
             ? rc.formatDeathModalSummary(frame, realm)
-            : { titleText: '☠ YOU HAVE PERISHED ☠', epitaph: 'Hero', cause: 'Killed in the dungeon.', score: '', eq: [], inv: [], quiv: [] };
-
+            : { titleText: isVictory ? '👑 GLORIOUS ASCENSION 👑' : '☠ YOU HAVE PERISHED ☠', epitaph: 'Hero', cause: isVictory ? 'Triumphant Ascension!' : 'Killed in the dungeon.', score: '', eq: [], inv: [], quiv: [] };
+        if (isVictory && /PERISHED|DIED|SLAIN/i.test(summary.titleText || '')) summary.titleText = '👑 GLORIOUS ASCENSION 👑';
         this._deathSummary = summary;
-        const titleEl = this.deathModal.querySelector('.death-title');
+        const titleEl = document.getElementById('death-title-text') || this.deathModal.querySelector('.death-title');
         if (titleEl && summary.titleText) titleEl.textContent = summary.titleText;
         if (this.deathEpitaph) this.deathEpitaph.textContent = summary.epitaph;
         if (this.deathCause) this.deathCause.textContent = summary.cause;
         if (this.deathScore) this.deathScore.textContent = summary.score;
-
         if (this.deathTabs[1]) this.deathTabs[1].textContent = `2. Equipment (${summary.eq.length})`;
         if (this.deathTabs[2]) this.deathTabs[2].textContent = `3. Inventory (${summary.inv.length})`;
         if (this.deathTabs[3]) this.deathTabs[3].textContent = `4. Quiver (${summary.quiv.length})`;
-
-        if (wasHidden) {
-            this.switchDeathTab(0);
-        } else {
-            this.renderDeathTabContent(this.activeDeathTab, frame);
-        }
-
+        if (window.YasdAutopsy && typeof window.YasdAutopsy.renderDeathAutopsy === 'function') window.YasdAutopsy.renderDeathAutopsy(frame, summary, realm);
+        if (wasHidden) this.switchDeathTab(0);
+        else this.renderDeathTabContent(this.activeDeathTab, frame);
         if (typeof requestAnimationFrame === 'function') {
             requestAnimationFrame(() => {
                 if (this.deathTerminal && typeof this.deathTerminal.resize === 'function') {
@@ -3087,21 +3084,19 @@ class WebHUD {
                 }
             });
         }
-
-        const p = (frame && frame.player) || {};
-        const sketchSig = `${realm}:${p.name || 'Hero'}:${p.level || 1}:${p.depth || 0}:${summary.cause || ''}`;
+        const sketchSig = `${realm}:${p.name || 'Hero'}:${p.level || 1}:${p.depth || 0}:${summary.cause || ''}:${isVictory ? 'win' : 'rip'}`;
         if (this._lastDeathSketchSig !== sketchSig && window.chronicleManager && typeof window.chronicleManager.renderDeathSketchIntoModal === 'function') {
             this._lastDeathSketchSig = sketchSig;
-            window.chronicleManager.renderDeathSketchIntoModal(frame);
+            window.chronicleManager.renderDeathSketchIntoModal(frame, true);
         }
         const shareBtn = document.getElementById('btn-death-share-yasd');
         if (shareBtn && !shareBtn._boundYasd) {
             shareBtn._boundYasd = true;
             shareBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
-                if (window.chronicleManager && typeof window.chronicleManager.downloadYasdShareCard === 'function') {
-                    window.chronicleManager.downloadYasdShareCard(this.lastDeathFrame || this.lastFrame);
-                }
+                const df = this.lastDeathFrame || this.lastFrame;
+                if (window.YasdAutopsy && typeof window.YasdAutopsy.shareOrDownloadYasdCard === 'function') window.YasdAutopsy.shareOrDownloadYasdCard(df);
+                else if (window.chronicleManager && typeof window.chronicleManager.downloadYasdShareCard === 'function') window.chronicleManager.downloadYasdShareCard(df);
             });
         }
         const termToolbar = document.getElementById('death-term-toolbar');

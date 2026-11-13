@@ -58,86 +58,70 @@
 
     class GamepadController {
         constructor(options = {}) {
-            this.options = options;
-            this.deadzone = options.deadzone || 0.28;
-            this.diagonalLock = false;
-            this._running = false;
-            this._rafId = null;
-            this._lastButtons = [];
-            this._stickRepeatTimer = 0;
-            this._lastStickDir = null;
-            this._boundPoll = this._poll.bind(this);
-            this._boundConnected = this._onConnected.bind(this);
-            this._boundDisconnected = this._onDisconnected.bind(this);
-
+            this.options = options; this.deadzone = options.deadzone || 0.28; this.diagonalLock = false;
+            this._running = false; this._rafId = null; this._lastButtons = []; this._stickRepeatTimer = 0; this._lastStickDir = null;
+            this._boundPoll = this._poll.bind(this); this._boundConnected = this._onConnected.bind(this); this._boundDisconnected = this._onDisconnected.bind(this);
             this._setupDeviceListeners();
         }
-
         _setupDeviceListeners() {
             if (typeof window === 'undefined') return;
             window.addEventListener('gamepadconnected', this._boundConnected);
             window.addEventListener('gamepaddisconnected', this._boundDisconnected);
             window.addEventListener('keydown', () => this.setInputDevice('keyboard'), { passive: true });
-            window.addEventListener('pointerdown', (e) => {
-                this.setInputDevice(e.pointerType === 'touch' ? 'touch' : 'pointer');
-            }, { passive: true });
+            window.addEventListener('pointerdown', (e) => this.setInputDevice(e.pointerType === 'touch' ? 'touch' : 'pointer'), { passive: true });
         }
-
         setInputDevice(device) {
-            if (typeof document !== 'undefined' && document.body && document.body.dataset) {
-                if (document.body.dataset.inputDevice !== device) {
-                    document.body.dataset.inputDevice = device;
-                }
+            if (typeof document !== 'undefined' && document.body && document.body.dataset && document.body.dataset.inputDevice !== device) {
+                document.body.dataset.inputDevice = device;
             }
         }
-
         _onConnected() {
             this.setInputDevice('gamepad');
-            if (!this._running) {
-                this._running = true;
-                this._rafId = requestAnimationFrame(this._boundPoll);
-            }
+            if (!this._running) { this._running = true; this._rafId = requestAnimationFrame(this._boundPoll); }
         }
-
         _onDisconnected() {
             if (typeof navigator === 'undefined' || typeof navigator.getGamepads !== 'function') return;
-            const pads = navigator.getGamepads();
-            let any = false;
-            for (let i = 0; i < pads.length; i++) {
-                if (pads[i]) { any = true; break; }
-            }
-            if (!any && this._running) {
-                this._running = false;
-                if (this._rafId) cancelAnimationFrame(this._rafId);
-                this._rafId = null;
-            }
+            const any = Array.from(navigator.getGamepads() || []).some(Boolean);
+            if (!any && this._running) { this._running = false; if (this._rafId) cancelAnimationFrame(this._rafId); this._rafId = null; }
         }
-
         _poll() {
             if (!this._running) return;
             if (typeof navigator !== 'undefined' && typeof navigator.getGamepads === 'function') {
-                const pads = navigator.getGamepads();
-                for (let i = 0; i < pads.length; i++) {
-                    const pad = pads[i];
-                    if (pad && pad.connected) {
-                        this._processPad(pad);
-                        break;
-                    }
-                }
+                const pad = Array.from(navigator.getGamepads() || []).find((p) => p && p.connected);
+                if (pad) this._processPad(pad);
             }
             this._rafId = requestAnimationFrame(this._boundPoll);
+        }
+
+        _liveContext() {
+            if (typeof window === 'undefined') return {};
+            const app = window.__app || {};
+            const f = app.lastFrame || null;
+            const ui = (f && f.ui) || {};
+            const cmdEl = typeof document !== 'undefined' ? document.getElementById('command-palette-modal') : null;
+            const inMenu = Boolean(
+                (window.ItemSheet && typeof window.ItemSheet.isOpen === 'function' && window.ItemSheet.isOpen()) ||
+                (window.radialMenu && window.radialMenu.isOpen) ||
+                (cmdEl && !cmdEl.classList.contains('hidden')) ||
+                (typeof document !== 'undefined' && document.body && document.body.classList.contains('terminal-mode-active')) ||
+                (ui.overlay || 0) > 0 || (f && f.phase && f.phase !== 'play')
+            );
+            return Object.assign({}, app.screenContext || {}, { more: Boolean(ui.more), inMenu });
         }
 
         _processPad(pad) {
             this.setInputDevice('gamepad');
             this.diagonalLock = Boolean(pad.buttons[6] && pad.buttons[6].pressed);
+            const context = this.options.getContext ? this.options.getContext() : this._liveContext();
+            const rad = typeof window !== 'undefined' ? window.radialMenu : null;
 
-            const context = this.options.getContext ? this.options.getContext() : (typeof window !== 'undefined' && window.__app && window.__app.screenContext ? window.__app.screenContext : {});
             for (let b = 0; b < pad.buttons.length; b++) {
                 const isDown = pad.buttons[b] ? pad.buttons[b].pressed : false;
                 const wasDown = Boolean(this._lastButtons[b]);
                 this._lastButtons[b] = isDown;
-                if (isDown && !wasDown && b !== 6) {
+                if (!isDown && wasDown && b === 3 && rad && rad.isOpen && rad.mode === 'hold') {
+                    if (rad.selectedIndex !== null) rad.selectWedge(rad.selectedIndex); else rad.close();
+                } else if (isDown && !wasDown && b !== 6) {
                     const intent = mapButtonToIntent(b, context);
                     if (intent) {
                         if (typeof this.options.onIntent === 'function') this.options.onIntent(intent);
@@ -146,13 +130,23 @@
                 }
             }
 
-            const sx = pad.axes ? (pad.axes[0] || 0) : 0;
-            const sy = pad.axes ? (pad.axes[1] || 0) : 0;
+            const rx = pad.axes ? (pad.axes[2] || 0) : 0, ry = pad.axes ? (pad.axes[3] || 0) : 0;
+            if (Math.hypot(rx, ry) > 0.18 && typeof window !== 'undefined' && window.__app && window.__app.dungeon && (!rad || !rad.isOpen)) {
+                window.__app.dungeon.rotateFreelook(-rx * 0.048, -ry * 0.032);
+                if (window.__app.input && typeof window.__app.input.syncCompass === 'function') window.__app.input.syncCompass();
+            }
+
+            const sx = pad.axes ? (pad.axes[0] || 0) : 0, sy = pad.axes ? (pad.axes[1] || 0) : 0;
+            if (rad && rad.isOpen && typeof rad.highlightFromStick === 'function') {
+                rad.setRing(this.diagonalLock ? 1 : 0);
+                rad.highlightFromStick(sx, sy);
+                return;
+            }
             const sector = stickToSector(sx, sy, this.deadzone, this.diagonalLock);
             const now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
             if (sector) {
                 if (sector !== this._lastStickDir || now > this._stickRepeatTimer) {
-                    this._stickRepeatTimer = now + (sector !== this._lastStickDir ? 250 : 120);
+                    this._stickRepeatTimer = now + (sector !== this._lastStickDir ? 230 : 115);
                     this._lastStickDir = sector;
                     if (typeof this.options.onDirection === 'function') this.options.onDirection(sector);
                     else this.handleDirection(sector);
@@ -165,14 +159,19 @@
 
         handleIntent(intent) {
             if (!intent || typeof window === 'undefined') return;
-            if (intent.id === 'radial_menu' && window.radialMenu) {
-                window.radialMenu.toggle();
-                return;
+            if (window.radialMenu && window.radialMenu.isOpen) {
+                if (intent.id === 'confirm' && window.radialMenu.selectedIndex !== null) { window.radialMenu.selectWedge(window.radialMenu.selectedIndex); return; }
+                if (intent.id === 'back') { window.radialMenu.close(); return; }
             }
+            if (intent.id === 'radial_menu' && window.radialMenu) { window.radialMenu.toggle(); return; }
             if (intent.id === 'item_sheet') {
                 if (window.__app && typeof window.__app.toggleItemSheet === 'function') window.__app.toggleItemSheet();
-                else if (window.ItemSheet && typeof window.ItemSheet.toggle === 'function') window.ItemSheet.toggle();
+                else if (window.ItemSheet && typeof window.ItemSheet.toggle === 'function') window.ItemSheet.toggle(window.__app && window.__app.lastFrame, window.__app && window.__app.getActiveRealm && window.__app.getActiveRealm());
                 return;
+            }
+            if (window.ItemSheet && typeof window.ItemSheet.isOpen === 'function' && window.ItemSheet.isOpen() && intent.key) {
+                const k = intent.key === 'escape' ? 'Escape' : (intent.key === 'enter' ? 'Enter' : (intent.key === 'tab' ? 'Tab' : intent.key));
+                if (window.ItemSheet.handleKeyDown({ key: k, preventDefault() {} })) return;
             }
             if (intent.id === 'command_palette' && window.CommandPalette) {
                 const modal = typeof document !== 'undefined' ? document.getElementById('command-palette-modal') : null;
@@ -190,12 +189,11 @@
                 return;
             }
             if (intent.id === 'back') {
-                if (window.ItemSheet && typeof window.ItemSheet.isOpen === 'function' && window.ItemSheet.isOpen()) { window.ItemSheet.close(); return; }
                 const cmdModal = typeof document !== 'undefined' ? document.getElementById('command-palette-modal') : null;
                 if (cmdModal && !cmdModal.classList.contains('hidden') && window.CommandPalette) { window.CommandPalette.hide(); return; }
             }
             if (intent.key && window.__app && window.__app.network && typeof window.__app.network.sendKey === 'function') {
-                const keyToSend = intent.key === 'space' ? ' ' : (intent.key === 'enter' ? '\r' : (intent.key === 'escape' ? '\x1b' : intent.key));
+                const keyToSend = intent.key === 'space' ? ' ' : (intent.key === 'enter' ? 'enter' : (intent.key === 'escape' ? 'escape' : intent.key));
                 window.__app.network.sendKey(keyToSend);
             }
         }

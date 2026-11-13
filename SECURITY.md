@@ -2,29 +2,28 @@
 
 ## Supported Versions
 
-Thunderbear Studios actively maintains security updates and patches for the following versions of **Angband 3D**:
+Thunderbear Studios actively maintains security updates and patches for the following versions of **YASD 3D / Angband 3D**:
 
 | Version | Supported | Notes |
 |---|---|---|
-| **2.16.x / Web 8.8.x** | :white_check_mark: | Current Active Release (Production) |
-| **2.15.x / Web 8.7.x** | :white_check_mark: | Security Patches Only |
-| **< 2.15.0** | :x: | Deprecated / End of Life |
+| **Web v12.0.x / Desktop 12.0.x** | :white_check_mark: | Current Active Release (`yasd3d.com` & `angband3d.com`) |
+| **Web v11.9.x** | :white_check_mark: | Security Patches Only |
+| **< 11.9.0** | :x: | Deprecated / End of Life |
 
 ---
 
 ## Security Model & Threat Boundary
 
-Angband 3D is designed with defence-in-depth across multiple runtime environments:
+YASD 3D (`yasd3d.com` / `angband3d.com`) is designed with defence-in-depth across multiple runtime environments:
 
-1. **Web Client & WebAssembly Sandbox**:
-   - The Angband C engine runs compiled to WebAssembly inside an isolated `Web Worker`.
-   - The WebAssembly environment operates inside browser process isolation and does not possess access to host filesystem APIs, local sockets, or arbitrary system calls.
-   - Persistence is confined to origin-isolated IndexedDB (`IDBFS`).
-2. **Cloud Run / Web Services**:
-   - Web application containers run on serverless Google Cloud Run instances with non-root user execution, read-only root filesystems where applicable, and ephemeral in-memory lifecycles.
-   - External LLM / TTS proxy endpoints require rate-limiting validation and strictly proxy authenticated API keys in server memory—never leaking tokens or sensitive environment variables to browser clients.
-3. **Standalone Desktop & Android Binaries**:
-   - Standalone builds (Windows Godot C# / WebView2 and Android APK) follow strict least-privilege principles, requesting zero non-essential permissions.
+1. **Web Client & Isolated Browser Engine Worker (`engine-worker.js`)**:
+   - Both the Emscripten WebAssembly Angband 4.2.6 C engine and the 5 Yendor 3D JS Cartridges (`ryod`, `nethack`, `dcss`, `brogue`, `rogue`) execute inside an isolated `Web Worker` (`0ms` main-thread block).
+   - Persistence is confined to origin-isolated IndexedDB (`IDBFS` and `yasd3d_crypt_v1`).
+2. **Cloud Run & Edge Security (`Zero-Trust`)**:
+   - Serverless Google Cloud Run containers run as non-root with `TRUST_CLOUDFLARE=1` HMAC edge verification (`X-Edge-Auth`), `hmac.compare_digest` timing-safe owner auth (`fail-closed`), strict path-traversal jails (`CWE-22`), and `0` third-party trackers.
+   - Gemini API keys (`gemini-3.8-flash`, `gemini-3.5-flash-lite`, `gemini-3.8-flash-tts`, `nano-banana-2.1`) remain strictly server-side with per-IP rate limiting and idle session hibernation (`15m`).
+3. **Standalone Desktop (Windows WebView2) & Android APK**:
+   - Windows WebView2 runs without local file-access bypass flags (`--allow-file-access-from-files` prohibited); Android APK targets SDK 34+ with `fullUser` orientation and scoped voice permission (`RECORD_AUDIO` only when user activates Chronicle mic).
 
 ---
 

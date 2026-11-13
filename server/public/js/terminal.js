@@ -10,8 +10,8 @@ class WebTerminal {
         this.cols = 80;
         this.rows = 24;
 
-        // Accurate Angband 16-color palette
-        this.palette = ['#1a1d24','#ffffff','#9ea3ad','#ff9900','#e63946','#2a9d8f','#457b9d','#a3704c','#555a64','#c8d1dc','#b5179e','#ffd166','#ff6b6b','#06d6a0','#4cc9f0','#e0a96d'];
+        // Accurate Angband 16-color palette (WEB-SCOTOPIC-02 warm phosphor clamp: #e6e1d6 on #161920)
+        this.palette = ['#161920','#e6e1d6','#9ea3ad','#ff9900','#e63946','#2a9d8f','#457b9d','#a3704c','#555a64','#c8d1dc','#b5179e','#ffd166','#ff6b6b','#06d6a0','#4cc9f0','#e0a96d'];
 
         this.lastRows = [];
         this.tdSjis = (typeof TextDecoder !== 'undefined') ? new TextDecoder('shift-jis') : null;

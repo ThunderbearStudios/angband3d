@@ -2,6 +2,10 @@
  * Angband3D Web Application Coordinator
  * Boots all subsystems, orchestrates view routing, and binds network stream to 3D scene.
  */
+window.__assetUrl = window.__assetUrl || function (u) {
+    if (!u || typeof u !== 'string' || u.startsWith('data:') || u.startsWith('blob:') || u.includes('?v=') || u.includes('&v=')) return u;
+    return u + (u.includes('?') ? '&v=' : '?v=') + (window.APP_VERSION || '12.0.4');
+};
 
 window.addEventListener('DOMContentLoaded', () => {
     // Pure screen classifier (js/screen-context.js, WS2). Loaded before app.js in index.html.
@@ -107,17 +111,33 @@ window.addEventListener('DOMContentLoaded', () => {
             document.addEventListener('DOMContentLoaded', () => document.body?.classList.add('is-standalone'));
         }
     }
-    // Web browser users MUST ALWAYS default to Cloud Realm.
-    // Standalone desktop/APK users default to local offline engine.
-    let engineMode = isApk ? 'local' : 'cloud';
+    // Hybrid Local-First Engine Routing (WS82 Pillar 7):
+    // Browser-supported realms (angband WASM + 5 arcade worker cartridges) run at 0ms in-browser by default
+    // with Dual-Vault Cloud Sync & 3.5s automatic Cloud fallback; native C/C++ variants (silq, fcb, hengband) use Cloud.
+    const isOfflineBoot = (typeof navigator !== 'undefined' && navigator.onLine === false);
+    const _bootParams = new URLSearchParams(window.location.search);
+    const _bootEngine = (_bootParams.get('engine') || '').toLowerCase();
+    if (_bootEngine === 'cloud') window.__forceCloudEngine = true;
+    else if (_bootEngine === 'local') window.__forceCloudEngine = false;
+    const _bootSeed = (_bootParams.get('seed') || '').trim();
+    if (_bootSeed) window.__bootSeed = _bootSeed;
+    try { localStorage.removeItem('angband_engine_mode'); } catch (_) {}
 
-    // Strictly purge any legacy 'angband_engine_mode' from browser localStorage
-    // to guarantee web users never get stuck on a broken local mode.
-    if (!isApk) {
+    function resolvePreferredEngineMode(realmKey) {
+        const rk = String(realmKey || 'angband').toLowerCase();
+        const canRunLocal = Boolean(window.LocalGameBridge && typeof window.LocalGameBridge.supportsRealm === 'function' && window.LocalGameBridge.supportsRealm(rk));
+        if (isApk) return canRunLocal ? 'local' : 'cloud';
+        const offlineNow = (typeof navigator !== 'undefined' && navigator.onLine === false);
+        if (offlineNow) return canRunLocal ? 'local' : 'cloud';
+        if (window.__forceCloudEngine === true) return 'cloud';
         try {
-            localStorage.removeItem('angband_engine_mode');
+            const pref = localStorage.getItem('yasd3d_engine_mode_v2');
+            if (pref === 'cloud') return 'cloud';
+            if (pref === 'local' && canRunLocal) return 'local';
         } catch (_) {}
+        return canRunLocal ? 'local' : 'cloud';
     }
+    let engineMode = isApk ? 'local' : (isOfflineBoot ? 'local' : 'cloud');
 
     // =========================================================================
     // Multi-Realm Architecture & State (v8.9.3+)
@@ -198,12 +218,12 @@ window.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    const _bootParams = new URLSearchParams(window.location.search);
     const _bootRealm = _bootParams.get('realm');
     let activeRealm = (_bootRealm && (REALM_DATA[_bootRealm] ? _bootRealm : (_bootRealm === 'vanilla' ? 'angband' : null)))
         || localStorage.getItem('angband3d_active_realm')
         || 'angband';
     if (!REALM_DATA[activeRealm]) activeRealm = 'angband';
+    engineMode = resolvePreferredEngineMode(activeRealm);
 
     // Multilingual Language State for Hengband ('en' = English, 'bilingual' = Japanese + English, 'jp' = Pure Kanji/Japanese)
     const _bootLang = _bootParams.get('lang');
@@ -213,6 +233,9 @@ window.addEventListener('DOMContentLoaded', () => {
     window.__langMode = (activeRealm === 'hengband') ? langMode : 'en';
     window.activeRealm = activeRealm;
     window.__activeRealm = activeRealm;
+    if (window.LocaleSpine && typeof window.LocaleSpine.setMode === 'function') {
+        window.LocaleSpine.setMode(window.__langMode, { realm: activeRealm, silent: true });
+    }
 
     window.updateRyodRealmMetadata = (bp) => {
         if (!bp || !REALM_DATA.ryod) return;
@@ -263,7 +286,12 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 
     let network = (engineMode === 'cloud' && window.GameNetwork) ? new GameNetwork() : new LocalGameBridge();
-    const dungeon = new Dungeon3D('viewport-canvas');
+    const dungeon = new Dungeon3D('viewport-canvas', { deferGpuInit: true });
+    if (typeof requestIdleCallback === 'function') {
+        requestIdleCallback(() => { if (dungeon && typeof dungeon.ensureGpuInitialized === 'function') dungeon.ensureGpuInitialized(); }, { timeout: 1200 });
+    } else {
+        setTimeout(() => { if (dungeon && typeof dungeon.ensureGpuInitialized === 'function') dungeon.ensureGpuInitialized(); }, 450);
+    }
     dungeon.realm = activeRealm;
     window.dungeon = dungeon;
     window.__dungeon = dungeon;
@@ -341,12 +369,18 @@ window.addEventListener('DOMContentLoaded', () => {
     terminal.resize();
     window.__sendTerminalKey = dispatchTerminalKey;
 
-    const setEngineMode = (mode) => {
+    if (window.RealmGrimoireDeck && typeof window.RealmGrimoireDeck.setMode === 'function') {
+        window.RealmGrimoireDeck.setMode('classic');
+        try { localStorage.removeItem('yasd3d_grimoire_mode'); } catch (_) {}
+    }
+
+    const setEngineMode = (mode, persistPref = true) => {
         if (engineMode === mode && network) return;
         engineMode = mode;
-        if (isApk) {
+        if (persistPref) {
             try {
-                localStorage.setItem('angband_engine_mode', mode);
+                localStorage.setItem('yasd3d_engine_mode_v2', mode);
+                if (isApk) localStorage.setItem('angband_engine_mode', mode);
             } catch (_) {}
         }
         try {
@@ -367,14 +401,14 @@ window.addEventListener('DOMContentLoaded', () => {
         const menuPwaDesc = document.getElementById('menu-pwa-desc');
         if (isApk) {
             if (menuPwaLabel) menuPwaLabel.textContent = 'Play in Web Client Online (Cloud Realm)';
-            if (menuPwaDesc) menuPwaDesc.textContent = 'Connect to the live multiplayer Cloud Realm or visit angband3d.com online.';
+            if (menuPwaDesc) menuPwaDesc.textContent = 'Connect to the live multiplayer Cloud Realm or visit yasd3d.com online.';
         } else {
             if (menuPwaLabel) menuPwaLabel.textContent = 'Standalone Apps & Downloads (Android / PC)';
             if (menuPwaDesc) menuPwaDesc.textContent = 'Download standalone offline Android APK or Windows PC client, or install as an app.';
         }
         if (hud && hud.pingBadge) {
             if (engineMode === 'local') {
-                hud.pingBadge.textContent = '⚡ Android Standalone [Offline]';
+                hud.pingBadge.textContent = '⚡ Local 0ms [Worker]';
                 hud.pingBadge.style.color = '#38bdf8';
             } else {
                 hud.pingBadge.textContent = 'Cloud [Connecting...]';
@@ -964,9 +998,9 @@ window.addEventListener('DOMContentLoaded', () => {
                     terminal.setSelectedKey(key);
                 }
                 if (btn.dataset.storeAutoBuy) {
-                    const buyCmd = btn.dataset.storeAutoBuy;
+                    const buyCmd = btn.dataset.storeAutoBuy === 'g' ? 'g' : 'p';
                     if (dispatcher && typeof dispatcher.run === 'function') {
-                        dispatcher.run({ verb: 'store_buy', item: key, qty: 1 });
+                        dispatcher.run({ verb: 'store_buy', buyCmd, item: key, qty: 1 });
                     } else {
                         network.sendKey(buyCmd);
                         network.sendKey(key);
@@ -1473,7 +1507,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 const saved = localStorage.getItem('angband_char_size');
                 if (saved) {
                     const sz = JSON.parse(saved);
-                    if (sz.w) charWin.style.setProperty('--char-panel-w', `${Math.max(200, Math.min(380, sz.w))}px`);
+                    if (sz.w) charWin.style.setProperty('--char-panel-w', `${Math.max(232, Math.min(380, sz.w))}px`);
                 }
             } catch (_) {}
             let startX = 0, startW = 0, active = false;
@@ -1487,7 +1521,7 @@ window.addEventListener('DOMContentLoaded', () => {
             });
             charResize.addEventListener('pointermove', (e) => {
                 if (!active) return;
-                const nw = Math.round(Math.max(200, Math.min(380, startW + (e.clientX - startX))));
+                const nw = Math.round(Math.max(232, Math.min(380, startW + (e.clientX - startX))));
                 charWin.style.setProperty('--char-panel-w', `${nw}px`);
                 try { localStorage.setItem('angband_char_size', JSON.stringify({ w: nw })); } catch (_) {}
             });
@@ -1979,20 +2013,49 @@ window.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    function collectClientOwnerTokensHeader() {
+        try {
+            const tokens = [];
+            for (let i = 0; i < localStorage.length && tokens.length < 32; i++) {
+                const k = localStorage.key(i);
+                if (k && k.startsWith('angband3d_owner_')) {
+                    const v = (localStorage.getItem(k) || '').trim();
+                    if (v && /^[a-zA-Z0-9_.-]+$/.test(v) && !tokens.includes(v)) {
+                        tokens.push(v);
+                    }
+                }
+            }
+            return tokens.join(',');
+        } catch (_) {
+            return '';
+        }
+    }
+
+    async function fetchRealmSavesList(realmParam) {
+        const tokHdr = collectClientOwnerTokensHeader();
+        const extra = tokHdr ? { 'X-Owner-Token': tokHdr } : {};
+        const headers = (window.SaveVaultClient && typeof window.SaveVaultClient.buildAuthHeaders === 'function')
+            ? window.SaveVaultClient.buildAuthHeaders(realmParam, null, extra)
+            : extra;
+        return fetch(`/api/saves?realm=${encodeURIComponent(realmParam)}`, { headers });
+    }
+
     async function fetchAndRenderSaves() {
         if (!loadSaveList) return;
         loadSaveList.innerHTML = `
             <div class="save-loading-state">
                 <div class="spinner"></div>
-                <span>Scanning ${engineMode === 'local' ? 'device IndexedDB storage' : 'realm archives'}...</span>
+                <span>Scanning ${engineMode === 'local' ? 'Dual-Vault (Device + Cloud)' : 'realm archives'}...</span>
             </div>
         `;
         try {
-            if (engineMode === 'local' && window.LocalSaveManager) {
+            const realmParam = (window.__app && typeof window.__app.getActiveRealm === 'function') ? window.__app.getActiveRealm() : (activeRealm || 'angband');
+            if (window.SaveVaultClient && typeof window.SaveVaultClient.listUnifiedSaves === 'function') {
+                loadedSaves = await window.SaveVaultClient.listUnifiedSaves(realmParam, window.LocalSaveManager);
+            } else if (engineMode === 'local' && window.LocalSaveManager) {
                 loadedSaves = await LocalSaveManager.listSaves();
             } else {
-                const realmParam = (window.__app && typeof window.__app.getActiveRealm === 'function') ? window.__app.getActiveRealm() : (activeRealm || 'angband');
-                const res = await fetch(`/api/saves?realm=${encodeURIComponent(realmParam)}`);
+                const res = await fetchRealmSavesList(realmParam);
                 if (res.ok) {
                     const data = await res.json();
                     loadedSaves = data.saves || [];
@@ -2173,7 +2236,10 @@ window.addEventListener('DOMContentLoaded', () => {
 
     async function triggerFileDownload(url, defaultFilename) {
         try {
-            const resp = await fetch(url);
+            const tokHdr = collectClientOwnerTokensHeader();
+            const resp = await fetch(url, {
+                headers: tokHdr ? { 'X-Owner-Token': tokHdr } : {}
+            });
             if (!resp.ok) {
                 throw new Error(`Server returned HTTP ${resp.status}`);
             }
@@ -2346,7 +2412,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 ? lastFrame.player.name.trim()
                 : (network.currentChar || 'Adventurer');
             const realmParam = (window.__app && typeof window.__app.getActiveRealm === 'function') ? window.__app.getActiveRealm() : (activeRealm || 'angband');
-            const res = await fetch(`/api/saves?realm=${encodeURIComponent(realmParam)}`);
+            const res = await fetchRealmSavesList(realmParam);
             let matchedSave = null;
             if (res.ok) {
                 const data = await res.json();
@@ -2843,7 +2909,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 { name: 'Angband Sanctuary (DL 90–100)', desc: 'Home of the Unicorn of Order, Amberites, Oberon (DL 99), and the Serpent of Chaos (DL 100).' }
             ],
             mechanics: [
-                { icon: '🈳', title: 'Bilingual English / Japanese Engine Toggle', desc: 'Switch between <strong>English</strong> and <strong>Original Japanese (日本語)</strong> at any time from the Main Menu or Realm Selector—all HUD labels, messages, and Lorekeeper voice lines adapt dynamically!' },
+                { icon: '🌐 JP/EN', title: 'Bilingual English / Japanese Engine Toggle', desc: 'Switch between <strong>English</strong> and <strong>Original Japanese (日本語)</strong> at any time from the Main Menu or Realm Selector—all HUD labels, messages, and Lorekeeper voice lines adapt dynamically!' },
                 { icon: '🏟️', title: 'Monster Arena & Daily Bounty Hunting', desc: 'Visit the Arena in town to fight 1-on-1 gladiator bouts for rare Potions of Constitution/Speed and artifacts, and check the Bounty Broker for daily monster corpse bounties.' },
                 { icon: '🥋', title: 'Specialized Classes (Blue-Mage, Mirror-Master, Ninja, Samurai, Sniper)', desc: 'Each class has bespoke mechanics: Samurais use <em>Hissatsu</em> sword stances, Mirror-Masters place tactical mirrors on tiles to bounce lasers and teleport, and Blue-Mages learn monster breaths/spells cast at them!' },
                 { icon: '🗺️', title: 'Wilderness Fast-Travel (<) & Recall Anchors', desc: 'Press <kbd>&lt;</kbd> on the surface to open the global wilderness map. Once you step inside any new dungeon, it is added to your Word of Recall destination list.' }
@@ -3305,11 +3371,13 @@ window.addEventListener('DOMContentLoaded', () => {
     async function checkSaves() {
         try {
             let saves = [];
-            if (engineMode === 'local' && window.LocalSaveManager) {
+            const realmParam = (window.__app && typeof window.__app.getActiveRealm === 'function') ? window.__app.getActiveRealm() : (activeRealm || 'angband');
+            if (window.SaveVaultClient && typeof window.SaveVaultClient.listUnifiedSaves === 'function') {
+                saves = await window.SaveVaultClient.listUnifiedSaves(realmParam, window.LocalSaveManager);
+            } else if (engineMode === 'local' && window.LocalSaveManager) {
                 saves = await LocalSaveManager.listSaves();
             } else {
-                const realmParam = (window.__app && typeof window.__app.getActiveRealm === 'function') ? window.__app.getActiveRealm() : (activeRealm || 'angband');
-                const res = await fetch(`/api/saves?realm=${encodeURIComponent(realmParam)}`);
+                const res = await fetchRealmSavesList(realmParam);
                 if (res.ok) {
                     const data = await res.json();
                     saves = data.saves || [];
@@ -3318,7 +3386,10 @@ window.addEventListener('DOMContentLoaded', () => {
             if (saves && saves.length > 0) {
                 latestSave = saves[0];
                 loadedSaves = saves;
-                const activeR = (window.__app && typeof window.__app.getActiveRealm === 'function') ? window.__app.getActiveRealm() : (activeRealm || 'angband');
+                if (window.RealmCarousel && typeof window.RealmCarousel.setResumeCandidate === 'function') {
+                    window.RealmCarousel.setResumeCandidate(Object.assign({}, latestSave, { realm: latestSave.realm || realmParam }));
+                }
+                const activeR = realmParam;
                 const realmBadge = latestSave.realmTag || (latestSave.realm || activeR).toUpperCase().slice(0, 4);
                 const stampStr = latestSave.timestamp || (latestSave.lastModified ? new Date(latestSave.lastModified).toLocaleString([], { month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : '');
                 const label = document.getElementById('menu-continue-label');
@@ -3333,6 +3404,9 @@ window.addEventListener('DOMContentLoaded', () => {
         } catch (_) {}
         latestSave = null;
         loadedSaves = [];
+        if (window.RealmCarousel && typeof window.RealmCarousel.setResumeCandidate === 'function') {
+            window.RealmCarousel.setResumeCandidate(null);
+        }
         const label = document.getElementById('menu-continue-label');
         if (label) label.textContent = 'Continue Adventure';
         const desc = document.getElementById('menu-continue-desc');
@@ -3683,14 +3757,29 @@ window.addEventListener('DOMContentLoaded', () => {
         hasEnteredPlay = false;
         lastClientSnapshotMs = 0;
         lastSnapshotDepth = null;
+        if (options && options.seed) window.__bootSeed = String(options.seed);
+        if (dungeon) {
+            if (typeof dungeon.ensureGpuInitialized === 'function') dungeon.ensureGpuInitialized();
+            if (typeof dungeon.resetSessionState === 'function') dungeon.resetSessionState();
+        }
         // Keep the 0:00 -> 1:05 menu theme looping seamlessly through character creation / setup!
         // It will fade out automatically in network.onFrame once active 3D gameplay (phase === 'play') begins.
         if (audio && typeof audio.startMenuMusic === 'function') {
             audio.startMenuMusic();
         }
         hideModals();
-        setLoadingCurtain(true, 'Connecting to Cloud Realm & Spawning Engine...', 14);
+        const chosenRealm = options.realm || activeRealm || 'angband';
+        const offlineNow = (typeof navigator !== 'undefined' && navigator.onLine === false);
+        const preferredMode = resolvePreferredEngineMode(chosenRealm);
+        if (engineMode !== preferredMode) {
+            setEngineMode(preferredMode, false);
+        }
+        setLoadingCurtain(true, engineMode === 'local' ? 'Initializing Instant Browser Realm...' : 'Connecting to Cloud Realm & Spawning Engine...', 14);
         if (window.__startWatchdog) clearTimeout(window.__startWatchdog);
+        if (window.__localBootFallbackTimer) {
+            clearTimeout(window.__localBootFallbackTimer);
+            window.__localBootFallbackTimer = null;
+        }
         quickBirthActive = !!options.autoBirth;
         quickBirthStep = 0;
         forceTerminal = false;
@@ -3704,13 +3793,34 @@ window.addEventListener('DOMContentLoaded', () => {
         if (options.isNew && window.chronicleManager && typeof window.chronicleManager.resetForNewCharacter === 'function') {
             window.chronicleManager.resetForNewCharacter({ name: options.charName });
         }
-        const chosenRealm = options.realm || activeRealm || 'angband';
+        if (engineMode === 'local' && options.saveFile && !options.isNew && window.SaveVaultClient && typeof window.SaveVaultClient.ensureLocalHydrated === 'function') {
+            try {
+                await window.SaveVaultClient.ensureLocalHydrated(chosenRealm, options.saveFile, window.LocalSaveManager);
+            } catch (_) {}
+        }
+        if (window.SaveVaultClient && typeof window.SaveVaultClient.setHudVaultState === 'function') {
+            const isIronman = window.__yasdPermadeathMode === 'ironman' || (typeof HudTelemetry !== 'undefined' && HudTelemetry.getPermadeathMode && HudTelemetry.getPermadeathMode() === 'ironman');
+            window.SaveVaultClient.setHudVaultState(isIronman ? 'ironman' : (engineMode === 'cloud' ? 'synced' : 'local'));
+        }
         if (chosenRealm === 'hengband') {
             try {
                 await loadHengLang();
             } catch (err) {
                 console.warn('[Angband3D] Failed to load Hengband language data prior to connect:', err);
             }
+        }
+        const manualBirthFlag = Boolean(options.isNew && !options.autoBirth);
+        // 3.5s Automatic Cloud Fallback if browser WASM/Worker fails to boot cleanly
+        if (engineMode === 'local' && !offlineNow && !isApk && window.GameNetwork) {
+            window.__localBootFallbackTimer = setTimeout(() => {
+                window.__localBootFallbackTimer = null;
+                if (appState === 'game' && engineMode === 'local' && !lastFrame) {
+                    console.warn(`[Angband3D] Local engine boot exceeded 3.5s for "${chosenRealm}"; falling back to Cloud engine.`);
+                    setLoadingCurtain(true, 'Switching to Cloud Realm Fallback...', 22);
+                    setEngineMode('cloud', false);
+                    network.connect(options.charName || 'Adventurer', !!options.isNew, options.saveFile || null, chosenRealm, manualBirthFlag);
+                }
+            }, 3500);
         }
         // Watchdog: If engine fails to respond or socket hangs after dictionary load, dismiss loading overlay and return to menu
         if (window.__startWatchdog) clearTimeout(window.__startWatchdog);
@@ -3722,10 +3832,14 @@ window.addEventListener('DOMContentLoaded', () => {
                 returnToMainMenu();
             }
         }, 20000);
-        network.connect(options.charName || 'Adventurer', !!options.isNew, options.saveFile || null, chosenRealm, Boolean(options.isNew && !options.autoBirth));
+        network.connect(options.charName || 'Adventurer', !!options.isNew, options.saveFile || null, chosenRealm, manualBirthFlag);
     }
 
     async function reloadLastSave() {
+        if (window.__yasdPermadeathMode === 'ironman' || (typeof HudTelemetry !== 'undefined' && HudTelemetry.getPermadeathMode && HudTelemetry.getPermadeathMode() === 'ironman')) {
+            showRealmToast('☠ Ironman Permadeath Active — Checkpoints are sealed for fallen heroes.');
+            return;
+        }
         console.log('[Angband3D] Reloading last living save game after death...');
         if (hud) {
             hud.isDeadInPlay = false;
@@ -3748,20 +3862,32 @@ window.addEventListener('DOMContentLoaded', () => {
         const realmParam = (network && network.currentRealm) || (window.__app && typeof window.__app.getActiveRealm === 'function' ? window.__app.getActiveRealm() : activeRealm) || 'angband';
         let targetSave = null;
         try {
+            if (window.SaveVaultClient && typeof window.SaveVaultClient.listCheckpoints === 'function' && window.LocalSaveManager && typeof window.LocalSaveManager.putSaveData === 'function') {
+                const cps = await window.SaveVaultClient.listCheckpoints(realmParam, currentChar);
+                const bestCp = Array.isArray(cps) ? (cps.find(c => c.slot === 'living') || cps.find(c => c.slot === 'floor') || cps[0]) : null;
+                if (bestCp && bestCp.bytes && bestCp.bytes.length > 0) {
+                    await window.LocalSaveManager.putSaveData(currentChar, bestCp.bytes, realmParam);
+                }
+            }
+            // Lazarus Checkpoint Restore: restore pre-death .living.sav on Cloud Vault if online
+            try {
+                const cleanSlot = String(currentChar || 'Adventurer').replace(/[^a-zA-Z0-9_.-]/g, '');
+                const ownerTok = localStorage.getItem(`angband3d_owner_${cleanSlot}`) || localStorage.getItem(`angband3d_owner_${currentChar}`) || '';
+                const restoreHeaders = (window.SaveVaultClient && typeof window.SaveVaultClient.buildAuthHeaders === 'function')
+                    ? window.SaveVaultClient.buildAuthHeaders(realmParam, currentChar, ownerTok ? { 'X-Owner-Token': ownerTok } : {})
+                    : (ownerTok ? { 'X-Owner-Token': ownerTok } : {});
+                await fetch(`/api/saves/restore-checkpoint?realm=${encodeURIComponent(realmParam)}&char=${encodeURIComponent(currentChar)}`, {
+                    method: 'POST',
+                    headers: restoreHeaders
+                });
+            } catch (_) {}
             let saves = [];
-            if (engineMode === 'local' && window.LocalSaveManager) {
+            if (window.SaveVaultClient && typeof window.SaveVaultClient.listUnifiedSaves === 'function') {
+                saves = await window.SaveVaultClient.listUnifiedSaves(realmParam, window.LocalSaveManager);
+            } else if (engineMode === 'local' && window.LocalSaveManager) {
                 saves = await LocalSaveManager.listSaves();
             } else {
-                // Lazarus Checkpoint Restore: restore pre-death .living.sav before listing saves
-                try {
-                    const cleanSlot = String(currentChar || 'Adventurer').replace(/[^a-zA-Z0-9_.-]/g, '');
-                    const ownerTok = localStorage.getItem(`angband3d_owner_${cleanSlot}`) || localStorage.getItem(`angband3d_owner_${currentChar}`) || '';
-                    await fetch(`/api/saves/restore-checkpoint?realm=${encodeURIComponent(realmParam)}&char=${encodeURIComponent(currentChar)}`, {
-                        method: 'POST',
-                        headers: ownerTok ? { 'X-Owner-Token': ownerTok } : {}
-                    });
-                } catch (_) {}
-                const res = await fetch(`/api/saves?realm=${encodeURIComponent(realmParam)}`);
+                const res = await fetchRealmSavesList(realmParam);
                 if (res.ok) {
                     const data = await res.json();
                     saves = data.saves || [];
@@ -3797,10 +3923,19 @@ window.addEventListener('DOMContentLoaded', () => {
     async function returnToMainMenu() {
         if (audio) audio.playMenuOpen();
         cancelQuickBirth();
+        if (window.__localBootFallbackTimer) {
+            clearTimeout(window.__localBootFallbackTimer);
+            window.__localBootFallbackTimer = null;
+        }
+        if (dungeon && typeof dungeon.resetSessionState === 'function') {
+            dungeon.resetSessionState();
+        }
         const wasPlay = currentPhase === 'play';
+        const lastRealm = String((lastFrame && lastFrame.realm) || activeRealm || 'angband').toLowerCase();
+        const isLastCEngine = lastRealm === 'angband' || lastRealm === 'silq' || lastRealm === 'frogcomposband' || lastRealm === 'hengband';
         const isDead = Boolean(hud && hud.isDeadInPlay) ||
                        Boolean(network && network.isDead) ||
-                       Boolean(lastFrame && lastFrame.player && (lastFrame.player.dead || (lastFrame.player.hp !== undefined && lastFrame.player.hp <= 0 && lastFrame.player.hp_max > 0)));
+                       Boolean(lastFrame && lastFrame.player && (lastFrame.player.dead || (lastFrame.player.hp !== undefined && (isLastCEngine ? (lastFrame.player.hp < 0) : (lastFrame.player.hp <= 0)) && lastFrame.player.hp_max > 0)));
         if (hud && typeof hud.hideDeathModal === 'function') {
             hud.hideDeathModal();
         }
@@ -3862,6 +3997,9 @@ window.addEventListener('DOMContentLoaded', () => {
         let lastTouchEndTime = 0;
         let startX = 0, startY = 0, moved = false;
         const trigger = (e) => {
+            if (el === splashOverlay && e && e.target && e.target.closest('a, button, input, select, #global-audio-bar, .sr-only-test-compat')) {
+                return;
+            }
             const now = Date.now();
             if (e && e.type !== 'click' && now - lastActionTime < 250) return;
             lastActionTime = now;
@@ -3900,17 +4038,26 @@ window.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // WS82 Pillar 8 Onboarding Hierarchy:
+    // Splash Screen -> Realm Collector Card Carousel -> Realm-Attuned Main Menu -> Character Creation -> Play
+    function enterFromSplash() {
+        if (appState !== 'splash') return;
+        if (_bootRealm || _bootParams.get('bp') || _bootSeed) {
+            showMainMenu();
+            return;
+        }
+        showRealmSelector('splash');
+    }
+
     // Attach DOM event listeners for splash billboard & compatibility buttons
     if (splashOverlay) {
         bindFastTap(splashOverlay, (e) => {
-            if (e && e.target && e.target.closest('.sr-only-test-compat')) return;
-            if (appState === 'splash') {
-                showMainMenu();
-            }
+            if (e && e.target && e.target.closest('a, button, input, select, #global-audio-bar, .sr-only-test-compat')) return;
+            enterFromSplash();
         });
     }
     const btnSplashStart = document.getElementById('btn-splash-start');
-    if (btnSplashStart) bindFastTap(btnSplashStart, () => showMainMenu());
+    if (btnSplashStart) bindFastTap(btnSplashStart, () => enterFromSplash());
 
     const btnSplashQuickStart = document.getElementById('btn-splash-quick-start');
     if (btnSplashQuickStart) {
@@ -3934,9 +4081,12 @@ window.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Keyboard shortcuts for splash screen: [Q] Quick Start, [L] Saved Chronicles, or any key to enter Main Menu
+    // Keyboard shortcuts for splash screen: [Q] Quick Start, [L] Saved Chronicles, or any key to enter Realm Selector
     window.addEventListener('keydown', (e) => {
         if (appState === 'splash') {
+            if (document.activeElement && document.activeElement.closest && document.activeElement.closest('#global-audio-bar, a, button, input')) {
+                return;
+            }
             if (e.key === 'q' || e.key === 'Q') {
                 e.preventDefault();
                 const btnQuick = document.getElementById('btn-splash-quick-start');
@@ -3949,7 +4099,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 else showMainMenu();
             } else if (!e.ctrlKey && !e.altKey && !e.metaKey && !['Shift', 'Control', 'Alt', 'Meta', 'F5', 'F12'].includes(e.key)) {
                 e.preventDefault();
-                showMainMenu();
+                enterFromSplash();
             }
         }
     });
@@ -4748,7 +4898,7 @@ window.addEventListener('DOMContentLoaded', () => {
         splashOverlay.addEventListener('click', (e) => {
             // Clicking buttons, shortcut actions, links, or badges advances via their own dedicated handler
             if (e.target.closest('button') || e.target.closest('.splash-shortcut-btn') || e.target.closest('.splash-realm-badge-btn') || e.target.closest('a')) return;
-            showMainMenu();
+            enterFromSplash();
         });
     }
 
@@ -5037,10 +5187,10 @@ window.addEventListener('DOMContentLoaded', () => {
                 if (typeof window.chronicleManager.updateTraditionBadge === 'function') {
                     window.chronicleManager.updateTraditionBadge();
                 }
-                if (typeof window.chronicleManager.prewarmRealmOpening === 'function') {
-                    window.chronicleManager.prewarmRealmOpening(realmKey);
-                }
             } catch (_) {}
+        }
+        if (window.LocaleSpine && typeof window.LocaleSpine.setMode === 'function') {
+            window.LocaleSpine.setMode(window.__langMode, { realm: realmKey, silent: true });
         }
         if (audio) {
             if (typeof audio.playMenuSelect === 'function') {
@@ -5060,6 +5210,10 @@ window.addEventListener('DOMContentLoaded', () => {
         }
         if (!REALM_DATA[realmKey]) return;
         setActiveRealm(realmKey);
+        const prefMode = resolvePreferredEngineMode(realmKey);
+        if (engineMode !== prefMode) {
+            setEngineMode(prefMode, false);
+        }
         if (realmKey === 'hengband') {
             loadHengLang();
         }
@@ -5105,11 +5259,17 @@ window.addEventListener('DOMContentLoaded', () => {
         if (activeRealm !== 'hengband') {
             langMode = 'en';
             window.__langMode = 'en';
+            if (window.LocaleSpine && typeof window.LocaleSpine.setMode === 'function') {
+                window.LocaleSpine.setMode('en', { realm: activeRealm, silent: true });
+            }
             return;
         }
         if (mode !== 'en' && mode !== 'bilingual' && mode !== 'jp') mode = 'en';
         langMode = mode;
         window.__langMode = mode;
+        if (window.LocaleSpine && typeof window.LocaleSpine.setMode === 'function') {
+            window.LocaleSpine.setMode(mode, { realm: activeRealm, silent: true });
+        }
         try {
             localStorage.setItem('angband3d_lang_mode', mode);
         } catch (_) {}
@@ -5354,16 +5514,19 @@ window.addEventListener('DOMContentLoaded', () => {
         appState = 'realmModal';
         updateRealmUI();
         hideModals(realmModal);
-        if (realmModal) realmModal.classList.remove('hidden');
+        if (window.RealmCarousel && typeof window.RealmCarousel.open === 'function') {
+            window.RealmCarousel.open(fromState === 'splash' ? 'splash' : 'menu', activeRealm);
+        } else if (realmModal) {
+            realmModal.classList.remove('hidden');
+        }
         if (audio) audio.playMenuOpen();
+        renderMenuBackdropDiorama();
     }
 
     function hideRealmSelector() {
         if (realmModal) realmModal.classList.add('hidden');
         if (audio) audio.playMenuNav();
-        if (realmPreviousState === 'splash') {
-            showSplash();
-        } else if (realmPreviousState === 'loadMenu') {
+        if (realmPreviousState === 'loadMenu') {
             showLoadMenu(false);
         } else {
             showMainMenu();
@@ -5371,6 +5534,34 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 
     function setupRealmModalEvents() {
+        if (window.LocaleSpine && typeof window.LocaleSpine.onChange === 'function') {
+            window.LocaleSpine.onChange((modeOrObj) => {
+                const mode = typeof modeOrObj === 'string' ? modeOrObj : (modeOrObj && modeOrObj.mode);
+                if (activeRealm === 'hengband' && mode && mode !== langMode) {
+                    setLanguageMode(mode);
+                }
+            });
+        }
+        if (window.RealmCarousel && typeof window.RealmCarousel.mount === 'function') {
+            window.RealmCarousel.mount({
+                onSelectRealm: (realmKey) => {
+                    selectRealm(realmKey, false);
+                    showMainMenu();
+                },
+                onResumeHero: (cand) => {
+                    const rk = (cand && cand.realm) || activeRealm || 'angband';
+                    if (rk !== activeRealm) selectRealm(rk, false);
+                    startGame({
+                        charName: (cand && (cand.characterName || cand.name)) || 'Adventurer',
+                        saveFile: (cand && (cand.filename || cand.name)) || null,
+                        realm: rk,
+                        isNew: false,
+                        autoBirth: false
+                    });
+                }
+            });
+            return;
+        }
         const btnClose = document.getElementById('btn-realm-modal-close');
         const btnReturn = document.getElementById('btn-realm-modal-return');
         if (btnClose) bindFastTap(btnClose, () => hideRealmSelector());
@@ -5379,40 +5570,6 @@ window.addEventListener('DOMContentLoaded', () => {
             realmModal.addEventListener('click', (e) => {
                 if (e.target === realmModal) hideRealmSelector();
             });
-        }
-        const cards = document.querySelectorAll('.realm-card');
-        cards.forEach((card) => {
-            const realmKey = card.dataset.realm;
-            const activateCard = (e) => {
-                if (e && e.stopPropagation) e.stopPropagation();
-                if (realmKey === 'ryod') {
-                    selectRealm('ryod', false);
-                    hideRealmSelector();
-                    if (window.RyodForge && typeof window.RyodForge.open === 'function') {
-                        window.RyodForge.open();
-                    }
-                    return;
-                }
-                selectRealm(realmKey, true);
-            };
-            const btn = card.querySelector('.btn-realm-select');
-            if (btn) bindFastTap(btn, activateCard);
-            bindFastTap(card, (e) => {
-                if (e && e.target && e.target.closest && e.target.closest('select, option, .btn-realm-select')) return;
-                activateCard(e);
-            });
-        });
-        const langSelect = document.getElementById('hengband-lang-select');
-        if (langSelect) {
-            langSelect.addEventListener('change', (e) => {
-                const val = e.target.value;
-                window.__langMode = val;
-                try {
-                    localStorage.setItem('angband3d_lang_mode', val);
-                } catch (_) {}
-            });
-            langSelect.addEventListener('click', (e) => e.stopPropagation());
-            langSelect.addEventListener('mousedown', (e) => e.stopPropagation());
         }
     }
 
@@ -5631,11 +5788,11 @@ window.addEventListener('DOMContentLoaded', () => {
             const bf = legacy.birthFlags || (SC.birthFlags ? SC.birthFlags(screenText, isHeng) : {});
             if (bf.isChoiceMenu || bf.isNamePrompt) birthReviewActive = false;
             const mmBtn = { key: 'mainmenu', badge: '🏠', label: hengLabel('Main Menu', 'Main Menu (主献立)', 'メインメニュー') };
-            const escBackBtn = { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Back', '⎋ Back / 戻る', '⎋ 戻る') };
-            const escStepBtn = { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Step Back', '⎋ Step Back / 戻る', '⎋ 戻る') };
+            const escBackBtn = { key: 'escape', badge: '[Esc]', label: hengLabel('Back', 'Back / 戻る', '戻る') };
+            const escStepBtn = { key: 'escape', badge: '[Esc]', label: hengLabel('Step Back', 'Step Back / 戻る', '戻る') };
             if (bf.isHengInitialOpt) {
                 terminalTitle.textContent = hengTitle('🎴 HENGBAND — Options Setup [Esc to Accept]', '🎴 HENGBAND — 初期オプション / Options [Esc to Accept]', '🎴 HENGBAND — 初期オプション設定 [Escで終了]');
-                setCtxActions(renderCtxButtons([{ key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Accept Options', '⎋ 終了 (Accept Options)', '⎋ 終了'), gold: true }, mmBtn]));
+                setCtxActions(renderCtxButtons([{ key: 'escape', badge: '[Esc]', label: hengLabel('Accept Options', '終了 (Accept Options)', '終了'), gold: true }, mmBtn]));
             } else if (bf.isHengStatDecide) {
                 terminalTitle.textContent = hengTitle('🎴 HENGBAND — Review Stats [Enter]', '🎴 HENGBAND — 能力値決定 / Review Stats [Enter]', '🎴 HENGBAND — 能力値決定 [Enter]');
                 setCtxActions(renderCtxButtons([
@@ -5695,7 +5852,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 setCtxActions(renderCtxButtons([
                     { key: 'enter', badge: '⏎', label: hengLabel('⚔ Enter Realm', '⚔ ゲーム開始 (Enter Realm)', '⚔ ゲーム開始'), gold: true },
                     { key: 'S', badge: '[S]', label: hengLabel('🔄 Start Over', '🔄 初めから (Start Over)', '🔄 初めから') },
-                    { key: 'Q', badge: '[Q]', label: hengLabel('⎋ Quit', '⎋ 終了 (Quit)', '⎋ 終了') }
+                    { key: 'Q', badge: '[Q]', label: hengLabel('Quit', '終了 (Quit)', '終了') }
                 ]));
             } else if (bf.isReviewScreen) {
                 const hasPrevRoll = screenText.includes("previous roll") || screenText.includes("前の数値") || screenText.includes("for previous");
@@ -5766,6 +5923,8 @@ window.addEventListener('DOMContentLoaded', () => {
         const isQuantityPrompt = Boolean(legacy.isQuantityPrompt || promptKind === 'quantity' || promptKind === 'count' || mirror === 'quantity' || mirror === 'count');
         const isTargeting = Boolean(legacy.isTargeting || promptKind === 'direction' || promptKind === 'target' || mirror === 'direction');
         const isStore = Boolean(legacy.isStore);
+        const isBuilding = Boolean(legacy.isBuilding);
+        const isHome = Boolean(legacy.isHome);
         const isItemActions = Boolean(legacy.isItemActions || promptKind === 'menu' || mirror === 'item-menu');
         const isItemPrompt = Boolean(legacy.isItemPrompt || promptKind === 'item' || mirror === 'item');
         const subForMirrors = (SC && typeof SC.detectRealmSubmenu === 'function') ? SC.detectRealmSubmenu(effFrame, curRealm, decodeHengbandText) : {};
@@ -5774,7 +5933,7 @@ window.addEventListener('DOMContentLoaded', () => {
             terminalTitle.textContent = isHeng ? hengTitle('📜 MESSAGE / PROMPT', '📜 MESSAGE / メッセージ', '📜 メッセージ') : '📜 MESSAGE / PROMPT';
             setCtxActions(renderCtxButtons([
                 { key: 'space', badge: '[␣]', label: hengLabel('Continue', 'Continue / 続ける', '続ける'), gold: true },
-                { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Close', '⎋ Close / 閉じる', '⎋ 閉じる') }
+                { key: 'escape', badge: '[Esc]', label: hengLabel('Close', 'Close / 閉じる', '閉じる') }
             ]));
         } else if (isSilqInPlaySkillAlloc) {
             terminalTitle.textContent = '📈 SIL-Q — ALLOCATE SKILL EXPERIENCE';
@@ -5785,7 +5944,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 { key: 'left', badge: '[◀]', label: '◀ -1' }, { key: 'right', badge: '[▶]', label: '▶ +1' },
                 { key: 'r', badge: '[r]', label: '🔄 Reset' },
                 { key: 'tab', badge: '[Tab]', label: '🌟 View Abilities', gold: true },
-                { key: 'escape', badge: '[Esc]', label: '⎋ Cancel' }
+                { key: 'escape', badge: '[Esc]', label: 'Cancel' }
             ]));
         } else if (subForMirrors && subForMirrors.isSilqAbilityTree) {
             terminalTitle.textContent = subForMirrors.isSilqAbilityConfirm
@@ -5796,7 +5955,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 setCtxActions(renderCtxButtons([
                     { key: 'y', badge: '[y]', label: '✓ Gain Ability', gold: true },
                     { key: 'n', badge: '[n]', label: '✕ Cancel', outline: true },
-                    { key: 'escape', badge: '[Esc]', label: '⎋ Back' }
+                    { key: 'escape', badge: '[Esc]', label: 'Back' }
                 ]));
                 populateLetterRibbon(null, ['y', 'n']);
             } else if (subForMirrors.isSilqAbilityMenu2) {
@@ -5805,7 +5964,7 @@ window.addEventListener('DOMContentLoaded', () => {
                     { key: 'left', badge: '[◀]', label: '◀ Skill Pillars', gold: true },
                     { key: 'up', badge: '[▲]', label: '▲ Up' }, { key: 'down', badge: '[▼]', label: '▼ Down' },
                     { key: 'tab', badge: '[Tab]', label: '📈 Spend Skill XP' },
-                    { key: 'escape', badge: '[Esc]', label: '⎋ Close', gold: true }
+                    { key: 'escape', badge: '[Esc]', label: 'Close', gold: true }
                 ]));
                 const abilKeys = Array.isArray(subForMirrors.multiColumnItems) ? subForMirrors.multiColumnItems.map(it => it.key).filter(Boolean) : [];
                 populateLetterRibbon(null, abilKeys);
@@ -5814,7 +5973,7 @@ window.addEventListener('DOMContentLoaded', () => {
                     { key: 'right', badge: '[▶]', label: '▶ View Abilities', gold: true },
                     { key: 'up', badge: '[▲]', label: '▲ Up' }, { key: 'down', badge: '[▼]', label: '▼ Down' },
                     { key: 'tab', badge: '[Tab]', label: '📈 Spend Skill XP', gold: true },
-                    { key: 'escape', badge: '[Esc]', label: '⎋ Close', gold: true }
+                    { key: 'escape', badge: '[Esc]', label: 'Close', gold: true }
                 ]));
                 populateLetterRibbon(null, ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']);
             }
@@ -5823,7 +5982,7 @@ window.addEventListener('DOMContentLoaded', () => {
             setCtxActions(renderCtxButtons([
                 { key: 'y', badge: '[y]', label: hengLabel('✓ Yes', '✓ Yes / はい', '✓ はい'), gold: true },
                 { key: 'n', badge: '[n]', label: hengLabel('✕ No', '✕ No / いいえ', '✕ いいえ'), outline: true },
-                { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Cancel', '⎋ Cancel / 取消', '⎋ 取消') }
+                { key: 'escape', badge: '[Esc]', label: hengLabel('Cancel', 'Cancel / 取消', '取消') }
             ]));
             populateLetterRibbon(effFrame.term ? effFrame.term.rows : null, ['y', 'n']);
         } else if (isQuantityPrompt) {
@@ -5832,7 +5991,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 { key: 'enter', badge: '⏎', label: 'All (Default)', gold: true },
                 { key: '1', badge: '[1]', label: 'Just 1' },
                 { key: '5', badge: '[5]', label: '5' },
-                { key: 'escape', badge: '[Esc]', label: '⎋ Cancel' }
+                { key: 'escape', badge: '[Esc]', label: 'Cancel' }
             ]));
             populateLetterRibbon(null, ['1', '2', '3', '5', '10', 'enter']);
         } else if (legacy.isPopupCommandMenu) {
@@ -5843,9 +6002,34 @@ window.addEventListener('DOMContentLoaded', () => {
                 { key: 'enter', badge: '[⏎]', label: '✓ Select (Enter)', gold: true },
                 { key: 'escape', badge: '[Esc]', label: '✕ Close (Esc)', gold: true }
             ]));
+        } else if (isBuilding) {
+            if (termAdvanceBtn) termAdvanceBtn.style.display = 'none';
+            let bldgName = 'GUILD / TOWN SERVICE';
+            if (effFrame.term && effFrame.term.rows) {
+                for (let r = 0; r < Math.min(4, effFrame.term.rows.length); r++) {
+                    const line = decodeHengbandText(effFrame.term.rows[r].g || '').trim();
+                    if (line && !/^[a-z0-9]\)/i.test(line) && !/gold remaining|esc\)|command/i.test(line)) {
+                        bldgName = line.replace(/\s{2,}.*$/, '').slice(0, 42).trim() || bldgName;
+                        break;
+                    }
+                }
+            }
+            terminalTitle.textContent = isHeng ? hengTitle(`🏛 ${bldgName.toUpperCase()} — TOWN SERVICE`, `🏛 ${bldgName} — TOWN SERVICE`, `🏛 ${bldgName} — 施設サービス`) : `🏛 ${bldgName.toUpperCase()} — TOWN SERVICE`;
+            const sfBldg = legacy.storeFlags || (SC.storeFlags ? SC.storeFlags(effFrame, screenText, isHeng) : {});
+            const bldgBtns = [];
+            if (sfBldg.hasMore) bldgBtns.push({ key: 'space', badge: '[␣]', label: hengLabel('⏩ Continue (-more-)', '⏩ Continue / 続ける', '⏩ 続ける (-more-)'), gold: true });
+            bldgBtns.push(
+                { key: 'enter', badge: '[⏎]', label: hengLabel('Select', 'Select / 決定', '決定'), gold: true },
+                { key: 'up', badge: '[▲]', label: '▲' },
+                { key: 'down', badge: '[▼]', label: '▼' },
+                { key: 'space', badge: '[␣]', label: hengLabel('Next Page', 'Next Page / 次頁', '次ページ') },
+                { key: 'escape', badge: '[Esc]', label: hengLabel('🚪 Exit Building', '🚪 Exit / 施設を出る', '🚪 施設を出る'), gold: true }
+            );
+            setCtxActions(renderCtxButtons(bldgBtns));
+            populateLetterRibbon(effFrame.term ? effFrame.term.rows : []);
         } else if (isStore) {
             if (termAdvanceBtn) termAdvanceBtn.style.display = 'none';
-            let storeName = 'STORE';
+            let storeName = isHome ? 'Your Home' : 'STORE';
             if (effFrame.term && effFrame.term.rows) {
                 for (let r = 0; r < Math.min(5, effFrame.term.rows.length); r++) {
                     const sm = (effFrame.term.rows[r].g || '').trim().match(/(General Store|Armoury|Armory|Weaponsmith|Weapon Smith|Temple|Alchemy Shop|Alchemist|Magic Shop|Magic User's|Black Market|Your Home|雑貨屋|万屋|防具屋|武器屋|寺院|錬金術の店|魔術師の店|ブラック・マーケット|我が家|博物館)/i);
@@ -5856,16 +6040,19 @@ window.addEventListener('DOMContentLoaded', () => {
                     }
                 }
             }
+            const effectiveHome = Boolean(isHome || storeName.toUpperCase() === 'YOUR HOME' || /\byour home\b|home inventory|我が家/i.test(screenText));
             const sf = legacy.storeFlags || (SC.storeFlags ? SC.storeFlags(effFrame, screenText, isHeng) : {});
             if (sf.isStoreContextMenu) {
                 terminalTitle.textContent = isHeng ? hengTitle('⚔ CHOOSE ACTION FOR ITEM', '⚔ CHOOSE ACTION / 選択', '⚔ アイテムの行動を選択') : '⚔ CHOOSE ACTION FOR ITEM';
                 const exKey = isHeng ? 'x' : 'l';
                 setCtxActions(renderCtxButtons([
                     { key: 'enter', badge: '⏎', label: hengLabel('Select', 'Select / 決定', '決定'), gold: true },
-                    { key: 'p', badge: '[p]', label: hengLabel('💰 Buy All', '💰 Buy All / 全て購入', '💰 全て購入'), gold: true },
-                    { key: 'o', badge: '[o]', label: hengLabel('🛒 Buy One', '🛒 Buy One / 1つ購入', '🛒 1つ購入') },
+                    effectiveHome
+                        ? { key: 'g', badge: '[g]', label: hengLabel('📥 Get All', '📥 Get All / 全て取り出す', '📥 全て取り出す'), gold: true }
+                        : { key: 'p', badge: '[p]', label: hengLabel('💰 Buy All', '💰 Buy All / 全て購入', '💰 全て購入'), gold: true },
+                    { key: 'o', badge: '[o]', label: hengLabel('🛒 Take One', '🛒 Take One / 1つ', '🛒 1つ') },
                     { key: exKey, badge: `[${exKey}]`, label: hengLabel('🔍 Examine', '🔍 Examine / 調べる', '🔍 調べる') },
-                    { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Back', '⎋ Back / 戻る', '⎋ 戻る') }
+                    { key: 'escape', badge: '[Esc]', label: hengLabel('Back', 'Back / 戻る', '戻る') }
                 ]));
             } else if (sf.isStoreBuy || sf.isStoreSell || sf.isStoreExamine) {
                 const subPrompt = sf.isStoreBuy ? { t: '💰 BUY WHICH ITEM?', l: 'Cancel Buy', j: '何を買いますか？' } :
@@ -5877,7 +6064,7 @@ window.addEventListener('DOMContentLoaded', () => {
                     { key: 'up', badge: '[▲]', label: '▲' },
                     { key: 'down', badge: '[▼]', label: '▼' },
                     { key: 'space', badge: '[␣]', label: hengLabel('Next Page', 'Next Page / 次頁', '次ページ') },
-                    { key: 'escape', badge: '[Esc]', label: hengLabel(`⎋ ${subPrompt.l}`, `⎋ ${subPrompt.l} / 取消`, '⎋ 取消') }
+                    { key: 'escape', badge: '[Esc]', label: hengLabel(`${subPrompt.l}`, `${subPrompt.l} / 取消`, '取消') }
                 ]));
                 populateLetterRibbon(effFrame.term ? effFrame.term.rows : []);
             } else {
@@ -5887,9 +6074,18 @@ window.addEventListener('DOMContentLoaded', () => {
                 const exKey = isHeng ? 'x' : 'l';
                 const storeBtns = [];
                 if (sf.hasMore) storeBtns.push({ key: 'space', badge: '[␣]', label: hengLabel('⏩ Continue (-more-)', '⏩ Continue / 続ける', '⏩ 続ける (-more-)'), gold: true });
+                if (effectiveHome) {
+                    storeBtns.push(
+                        { key: 'g', badge: '[g]', label: hengLabel('📥 Get', '📥 Get / 取り出す', '📥 取り出す'), gold: true },
+                        { key: 'd', badge: '[d]', label: hengLabel('📦 Drop', '📦 Drop / 置く', '📦 置く') }
+                    );
+                } else {
+                    storeBtns.push(
+                        { key: 'p', badge: '[p]', label: hengLabel('💰 Buy', '💰 Buy / 購入', '💰 購入'), gold: true },
+                        { key: 's', badge: '[s]', label: hengLabel('🏷 Sell', '🏷 Sell / 売却', '🏷 売却') }
+                    );
+                }
                 storeBtns.push(
-                    { key: 'p', badge: '[p]', label: hengLabel('💰 Buy', '💰 Buy / 購入', '💰 購入'), gold: true },
-                    { key: 's', badge: '[s]', label: hengLabel('🏷 Sell', '🏷 Sell / 売却', '🏷 売却') },
                     { key: exKey, badge: `[${exKey}]`, label: hengLabel('🔍 Examine', '🔍 Examine / 調べる', '🔍 調べる') },
                     { key: 'up', badge: '[▲]', label: '▲' },
                     { key: 'down', badge: '[▼]', label: '▼' },
@@ -5900,8 +6096,8 @@ window.addEventListener('DOMContentLoaded', () => {
                 setCtxActions(renderCtxButtons(storeBtns));
                 populateLetterRibbon(effFrame.term ? effFrame.term.rows : []);
                 const promptLine = (effFrame.term && effFrame.term.rows && effFrame.term.rows[0]) ? (effFrame.term.rows[0].g || '') : screenText;
-                if (!/which item|examine which|buy which|purchase which|sell which|how many|accept/i.test(promptLine) && termLetterRibbon) {
-                    const buyCmd = (screenText.includes('g) Get') || screenText.includes('g) Purchase') || screenText.includes('g) get') || screenText.includes('g) purchase')) ? 'g' : 'p';
+                if (!/which item|examine which|inspect which|buy which|purchase which|sell which|drop which|how many|accept/i.test(promptLine) && termLetterRibbon) {
+                    const buyCmd = (effectiveHome || screenText.includes('g) get') || screenText.includes('g) purchase')) ? 'g' : 'p';
                     termLetterRibbon.querySelectorAll('.term-letter-btn').forEach(b => {
                         if (b.dataset.key && /^[a-l]$/i.test(b.dataset.key)) b.dataset.storeAutoBuy = buyCmd;
                     });
@@ -5916,7 +6112,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 { key: 'up', badge: '[▲]', label: '▲' },
                 { key: 'down', badge: '[▼]', label: '▼' },
                 ...extractedVerbs.map(v => ({ key: v.key, badge: `[${v.key}]`, label: v.label })),
-                { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Back', '⎋ Back / 戻る', '戻る') }
+                { key: 'escape', badge: '[Esc]', label: hengLabel('Back', 'Back / 戻る', '戻る') }
             ]));
             populateLetterRibbon(actionRows);
         } else if (isTargeting) {
@@ -5926,7 +6122,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 { key: '5', badge: '[5/⏎]', label: hengLabel('🎯 Fire / Select', '🎯 Fire / 発射・選択', '🎯 発射・選択'), gold: true },
                 { key: '*', badge: '[*]', label: hengLabel('🔍 Next Target', '🔍 Next Target / 次の対象', '🔍 次の対象') },
                 { key: 't', badge: '[t]', label: hengLabel('📍 Nearest', '📍 Nearest / 最寄りの対象', '📍 最寄りの対象') },
-                { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Cancel Aiming', '⎋ Cancel / 取消', '⎋ 取消') }
+                { key: 'escape', badge: '[Esc]', label: hengLabel('Cancel Aiming', 'Cancel / 取消', '取消') }
             ]));
         } else if (isItemPrompt) {
             const iflags = legacy.itemFlags || (SC.itemFlags ? SC.itemFlags(screenText, activeRealm) : {});
@@ -5935,11 +6131,13 @@ window.addEventListener('DOMContentLoaded', () => {
             const tCases = [
                 [iflags.isSilqInvenCmd, '🎒 INVENTORY PACK (Choose action)'],
                 [iflags.isSilqEquipCmd, '🛡 EQUIPPED GEAR (Choose action)'],
+                [screenText.includes('sell which') || screenText.includes('which item to sell') || screenText.includes('どれを売') || screenText.includes('どのアイテムを売'), isHeng ? hengTitle('🏷 SELL WHICH ITEM?', '🏷 SELL / どれを売りますか？', '🏷 どれを売りますか？') : '🏷 SELL WHICH ITEM?'],
+                [screenText.includes('purchase which') || screenText.includes('buy which') || screenText.includes('which item to buy') || screenText.includes('どのアイテムを買') || screenText.includes('何を買いますか'), isHeng ? hengTitle('💰 BUY WHICH ITEM?', '💰 BUY / 何を買いますか？', '💰 何を買いますか？') : '💰 BUY WHICH ITEM?'],
                 [iflags.isSilqWear || screenText.includes('wear') || screenText.includes('wield') || screenText.includes('どれを装備'), isHeng ? hengTitle('⚔ WEAR / WIELD ITEM', '⚔ WEAR/WIELD / 装備', '⚔ アイテムを装備') : '⚔ WEAR / WIELD ITEM'],
                 [iflags.isSilqRemove || screenText.includes('take off') || screenText.includes('どれを外しますか'), isHeng ? hengTitle('🔄 TAKE OFF GEAR', '🔄 TAKE OFF / 装備を外す', '🔄 装備を外す') : (iflags.isSilq ? '🔄 REMOVE GEAR' : '🔄 TAKE OFF GEAR')],
                 [iflags.isSilqThrow || screenText.includes('throw which item?') || screenText.includes('どれを投げますか'), isHeng ? hengTitle('🎯 THROW ITEM', '🎯 THROW ITEM / 投擲', '🎯 アイテムを投げる') : '🎯 THROW ITEM'],
                 [iflags.isSilqFire || screenText.includes('fire which item?') || screenText.includes('fire') || screenText.includes('shoot') || screenText.includes('どのアイテムを発射'), isHeng ? hengTitle('🏹 FIRE / SHOOT', '🏹 FIRE / 射撃', '🏹 射撃') : '🏹 FIRE / SHOOT'],
-                [iflags.isSilqExamine || screenText.includes('examine which item') || screenText.includes('どれを調べますか'), isHeng ? hengTitle('🔍 EXAMINE ITEM', '🔍 EXAMINE / 調査', '🔍 アイテムを調べる') : '🔍 EXAMINE ITEM'],
+                [iflags.isSilqExamine || screenText.includes('examine which item') || screenText.includes('inspect which item') || screenText.includes('どれを調') || screenText.includes('どのアイテムを調'), isHeng ? hengTitle('🔍 EXAMINE ITEM', '🔍 EXAMINE / 調査', '🔍 アイテムを調べる') : '🔍 EXAMINE ITEM'],
                 [iflags.isSilqDrop || screenText.includes('drop which') || screenText.includes('どれを落としますか'), isHeng ? hengTitle('📦 DROP ITEM', '📦 DROP / アイテムを落とす', '📦 アイテムを落とす') : '📦 DROP ITEM'],
                 [screenText.includes('quaff which potion?') || screenText.includes('quaff') || screenText.includes('どの薬を飲みますか'), isHeng ? hengTitle('🧪 QUAFF POTION', '🧪 QUAFF POTION / 飲む', '🧪 薬を飲む') : '🧪 QUAFF POTION'],
                 [screenText.includes('read which scroll?') || screenText.includes('read') || screenText.includes('どの巻物を読みますか'), isHeng ? hengTitle('📜 READ SCROLL', '📜 READ SCROLL / 読む', '📜 巻物を読む') : '📜 READ SCROLL'],
@@ -5956,26 +6154,26 @@ window.addEventListener('DOMContentLoaded', () => {
             }
             if (iflags.isSilqInvenCmd) {
                 setCtxActions(renderCtxButtons([
-                    { key: 'escape', badge: '[Esc]', label: '⎋ Close', gold: true },
+                    { key: 'escape', badge: '[Esc]', label: 'Close', gold: true },
                     { key: 'w', badge: '[w]', label: '⚔ Wear/Wield', gold: true },
                     { key: 'e', badge: '[e]', label: '🛡 View Gear' }, { key: 'x', badge: '[x]', label: '🔍 Examine' },
                     { key: 'd', badge: '[d]', label: '📦 Drop' }, { key: 'k', badge: '[k]', label: '🗑 Destroy' }, { key: 'space', badge: '[␣]', label: 'Next Page' }
                 ]));
             } else if (iflags.isSilqEquipCmd) {
                 setCtxActions(renderCtxButtons([
-                    { key: 'escape', badge: '[Esc]', label: '⎋ Close', gold: true },
+                    { key: 'escape', badge: '[Esc]', label: 'Close', gold: true },
                     { key: 'r', badge: '[r]', label: '🔄 Take Off', gold: true },
                     { key: 'i', badge: '[i]', label: '🎒 View Pack' }, { key: 'x', badge: '[x]', label: '🔍 Examine' },
                     { key: 'd', badge: '[d]', label: '📦 Drop' }, { key: 'space', badge: '[␣]', label: 'Next Page' }
                 ]));
             } else if (iflags.isSilqWear) {
-                setCtxActions(renderCtxButtons([{ key: 'escape', badge: '[Esc]', label: '⎋ Cancel', gold: true }, { key: '/', badge: '[/]', label: '🛡 Switch to Gear' }, { key: '-', badge: '[-]', label: '📍 Floor' }]));
+                setCtxActions(renderCtxButtons([{ key: 'escape', badge: '[Esc]', label: 'Cancel', gold: true }, { key: '/', badge: '[/]', label: '🛡 Switch to Gear' }, { key: '-', badge: '[-]', label: '📍 Floor' }]));
             } else if (iflags.isSilqRemove) {
-                setCtxActions(renderCtxButtons([{ key: 'escape', badge: '[Esc]', label: '⎋ Cancel', gold: true }, { key: '/', badge: '[/]', label: '🎒 Switch to Pack' }]));
+                setCtxActions(renderCtxButtons([{ key: 'escape', badge: '[Esc]', label: 'Cancel', gold: true }, { key: '/', badge: '[/]', label: '🎒 Switch to Pack' }]));
             } else if (iflags.isSilq) {
-                setCtxActions(renderCtxButtons([{ key: 'escape', badge: '[Esc]', label: '⎋ Cancel', gold: true }, { key: '/', badge: '[/]', label: 'Switch Inven/Gear' }, { key: 'space', badge: '[␣]', label: 'Next Page' }]));
+                setCtxActions(renderCtxButtons([{ key: 'escape', badge: '[Esc]', label: 'Cancel', gold: true }, { key: '/', badge: '[/]', label: 'Switch Inven/Gear' }, { key: 'space', badge: '[␣]', label: 'Next Page' }]));
             } else if (isSpellPrompt || /spell|prayer|book|magic|power|mindcraft|invocation|song/i.test(promptLine)) {
-                setCtxActions(renderCtxButtons([{ key: 'enter', badge: '[⏎]', label: '✓ Select', gold: true }, { key: 'up', badge: '[▲]', label: 'Prev' }, { key: 'down', badge: '[▼]', label: 'Next' }, { key: 'escape', badge: '[Esc]', label: '⎋ Cancel', gold: true }, { key: 'space', badge: '[␣]', label: '📖 Show Choices' }, { key: '?', badge: '[?]', label: '❓ Spell Help' }]));
+                setCtxActions(renderCtxButtons([{ key: 'enter', badge: '[⏎]', label: '✓ Select', gold: true }, { key: 'up', badge: '[▲]', label: 'Prev' }, { key: 'down', badge: '[▼]', label: 'Next' }, { key: 'escape', badge: '[Esc]', label: 'Cancel', gold: true }, { key: 'space', badge: '[␣]', label: '📖 Show Choices' }, { key: '?', badge: '[?]', label: '❓ Spell Help' }]));
             } else if (isHeng) {
                 const pLabel = iflags.isEquipView ? hengLabel('🎒 View Pack', '🎒 View Pack / 所持品', '🎒 所持品') : hengLabel('🛡 View Gear', '🛡 View Gear / 装備品', '🛡 装備品');
                 const qLabel = iflags.isQuiverView ? hengLabel('🎒 Pack', '🎒 Pack / 所持品', '🎒 所持品') : hengLabel('🏹 Quiver', '🏹 Quiver / 矢筒', '🏹 矢筒');
@@ -5983,7 +6181,7 @@ window.addEventListener('DOMContentLoaded', () => {
                     { key: 'enter', badge: '[⏎]', label: hengLabel('✓ Select', '✓ Select / 決定', '✓ 決定'), gold: true },
                     { key: 'up', badge: '[▲]', label: '▲' },
                     { key: 'down', badge: '[▼]', label: '▼' },
-                    { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Close', '⎋ Close / 閉じる', '⎋ 閉じる'), gold: true },
+                    { key: 'escape', badge: '[Esc]', label: hengLabel('Close', 'Close / 閉じる', '閉じる'), gold: true },
                     { key: '/', badge: '[/]', label: pLabel }, { key: '|', badge: '[|]', label: qLabel },
                     { key: 'space', badge: '[␣]', label: hengLabel('Next Page', 'Next Page / 次頁', '次ページ') }
                 ]));
@@ -5994,7 +6192,7 @@ window.addEventListener('DOMContentLoaded', () => {
                     { key: 'down', badge: '[▼]', label: 'Next' },
                     { key: '/', badge: '[/]', label: iflags.isEquipView ? '🎒 View Pack' : '🛡 View Gear' },
                     { key: '|', badge: '[|]', label: iflags.isQuiverView ? '🎒 Pack' : '🏹 Quiver' },
-                    { key: 'escape', badge: '[Esc]', label: '⎋ Close', gold: true }
+                    { key: 'escape', badge: '[Esc]', label: 'Close', gold: true }
                 ];
                 if (/\[y\/n\]|\(y\/n\)|\[ynq?\]|\(ynq?\)|drink from the fountain/i.test(promptLine || screenText || '')) {
                     itemBtns.unshift(
@@ -6002,21 +6200,21 @@ window.addEventListener('DOMContentLoaded', () => {
                         { key: 'n', badge: '[n]', label: '✕ No (Potions)', outline: true }
                     );
                 }
-                if (!legacy.verbPrompt && (curRealm === 'angband' || curRealm === 'nethack' || curRealm === 'dcss' || curRealm === 'brogue' || curRealm === 'rogue')) {
+                if (!legacy.verbPrompt && (curRealm === 'angband' || curRealm === 'ryod' || curRealm === 'nethack' || curRealm === 'dcss' || curRealm === 'brogue' || curRealm === 'rogue')) {
                     const rk = (v, fb) => (typeof RealmKeys !== 'undefined' && RealmKeys.realmKey) ? (RealmKeys.realmKey(v, curRealm) || fb) : fb;
                     itemBtns.splice(5, 0,
                         { key: rk('wield', 'w'), badge: `[${rk('wield', 'w')}]`, label: '⚔ Wield' },
                         { key: rk('quaff', 'q'), badge: `[${rk('quaff', 'q')}]`, label: '🧪 Quaff' },
                         { key: rk('read', 'r'), badge: `[${rk('read', 'r')}]`, label: '📜 Read' },
-                        { key: rk('eat', 'E'), badge: `[${rk('eat', 'E')}]`, label: '🍖 Eat' },
-                        { key: rk('inspect', 'I'), badge: `[${rk('inspect', 'I')}]`, label: '🔍 Inspect' },
+                        { key: 'E', badge: '[E]', label: '🍖 Eat' },
+                        { key: rk('examine', 'I'), badge: `[${rk('examine', 'I')}]`, label: '🔍 Inspect' },
                         { key: rk('drop', 'd'), badge: `[${rk('drop', 'd')}]`, label: '📦 Drop' }
                     );
-                    if (curRealm === 'angband' || curRealm === 'dcss' || curRealm === 'nethack') {
+                    if (curRealm === 'angband' || curRealm === 'ryod' || curRealm === 'dcss' || curRealm === 'nethack') {
                         const cKey = rk('cast', 'm');
                         if (cKey) itemBtns.splice(7, 0, { key: cKey, badge: `[${cKey}]`, label: '✨ Cast' });
                     }
-                    if (curRealm === 'angband' || curRealm === 'dcss') {
+                    if (curRealm === 'angband' || curRealm === 'ryod' || curRealm === 'dcss') {
                         const bKey = rk('browse', 'b');
                         if (bKey) itemBtns.splice(7, 0, { key: bKey, badge: `[${bKey}]`, label: '📖 Browse' });
                     }
@@ -6033,10 +6231,10 @@ window.addEventListener('DOMContentLoaded', () => {
                     { key: 'c', badge: '[c]', label: '✎ Change Name' },
                     { key: 'n', badge: '[n]', label: '📝 Notes' },
                     { key: 's', badge: '[s]', label: '💾 Save Dump' },
-                    { key: 'escape', badge: '[Esc]', label: '⎋ Return to 3D', gold: true }
+                    { key: 'escape', badge: '[Esc]', label: 'Return to 3D', gold: true }
                 ]
                 : [
-                    { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Return to 3D', '⎋ Return / 戻る', '⎋ 戻る'), gold: true },
+                    { key: 'escape', badge: '[Esc]', label: hengLabel('Return to 3D', 'Return / 戻る', '戻る'), gold: true },
                     { key: 'h', badge: '[h]', label: hengLabel('📖 History / Mode', '📖 History / 履歴切替', '📖 履歴 / 画面切替'), gold: true },
                     { key: 'f', badge: '[f]', label: hengLabel('💾 Dump Char File', '💾 Dump / ファイル出力', '💾 ファイル出力') },
                     { key: 'c', badge: '[c]', label: hengLabel('✎ Change Name', '✎ Name / 名前変更', '✎ 名前変更') }
@@ -6046,7 +6244,7 @@ window.addEventListener('DOMContentLoaded', () => {
             terminalTitle.textContent = isHeng ? hengTitle('✨ GRIMOIRE & ABILITIES — Choose Spell or Power', '✨ GRIMOIRE / 呪文・技能の選択', '✨ 呪文・技能の選択') : (activeRealm === 'silq' ? '✨ SONGS, ABILITIES & SMITHING' : '✨ GRIMOIRE & POWERS — Select Spell or Ability');
             setTermDpadVisible(activeRealm === 'silq');
             setCtxActions(renderCtxButtons([
-                { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Cancel', '⎋ Cancel / 戻る', '⎋ 戻る'), gold: true },
+                { key: 'escape', badge: '[Esc]', label: hengLabel('Cancel', 'Cancel / 戻る', '戻る'), gold: true },
                 { key: 'up', badge: '[↑]', label: '▲ Up' }, { key: 'down', badge: '[↓]', label: '▼ Down' },
                 { key: 'left', badge: '[←]', label: '◀ Prev' }, { key: 'right', badge: '[→]', label: '▶ Next' },
                 { key: 'enter', badge: '[↵]', label: hengLabel('✓ Confirm / Select', '✓ Select / 決定', '✓ 決定'), gold: true },
@@ -6056,7 +6254,7 @@ window.addEventListener('DOMContentLoaded', () => {
         } else if (legacy.isKnowledgeOrOptions || (SC && SC.isKnowledgeOrOptions(screenText))) {
             terminalTitle.textContent = isHeng ? hengTitle('📚 KNOWLEDGE, OPTIONS & ARCHIVES', '📚 ARCHIVES / 知識・オプション', '📚 知識・オプション設定') : '📚 KNOWLEDGE, OPTIONS & ARCHIVES';
             setCtxActions(renderCtxButtons([
-                { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Back / Exit', '⎋ Back / 戻る', '⎋ 戻る'), gold: true },
+                { key: 'escape', badge: '[Esc]', label: hengLabel('Back / Exit', 'Back / 戻る', '戻る'), gold: true },
                 { key: 'up', badge: '[↑]', label: '▲ Up' }, { key: 'down', badge: '[↓]', label: '▼ Down' },
                 { key: 'enter', badge: '[↵]', label: hengLabel('✓ Select / Toggle', '✓ Select / 選択', '✓ 選択'), gold: true },
                 { key: 'space', badge: '[␣]', label: hengLabel('Next Page', 'Next Page / 次頁', '次頁') },
@@ -6064,7 +6262,7 @@ window.addEventListener('DOMContentLoaded', () => {
             ]));
             populateLetterRibbon(effFrame.term ? effFrame.term.rows : []);
         } else {
-            const realmTitles = { 'silq': '💍 SIL-Q CLASSIC TERMINAL', 'frogcomposband': '🐸 FROGCOMPOSBAND CLASSIC TERMINAL', 'hengband': '🎴 HENGBAND CLASSIC TERMINAL', 'nethack': '🏺 NETHACK CLASSIC TERMINAL', 'dcss': '🗿 DCSS CLASSIC TERMINAL', 'brogue': '🔥 BROGUE CLASSIC TERMINAL', 'rogue': '🗡️ ROGUE 1980 CLASSIC TERMINAL', 'angband': '⚔ ANGBAND CLASSIC TERMINAL' };
+            const realmTitles = { 'silq': '💍 SIL-Q CLASSIC TERMINAL', 'frogcomposband': '🐸 FROGCOMPOSBAND CLASSIC TERMINAL', 'hengband': '🎴 HENGBAND CLASSIC TERMINAL', 'nethack': '🏺 NETHACK CLASSIC TERMINAL', 'dcss': '🗿 DCSS CLASSIC TERMINAL', 'brogue': '🔥 BROGUE CLASSIC TERMINAL', 'rogue': '🗡️ ROGUE 1980 CLASSIC TERMINAL', 'ryod': '🎲 ROLL YOUR OWN DEATH CLASSIC TERMINAL', 'angband': '⚔ ANGBAND CLASSIC TERMINAL' };
             terminalTitle.textContent = isHeng ? hengTitle('🎴 HENGBAND CLASSIC TERMINAL', '🎴 HENGBAND — Classic View / クラシック端末', '🎴 変愚蛮怒 — クラシック端末') : (realmTitles[activeRealm] || '⚔ ANGBAND CLASSIC TERMINAL');
             if (termEscapeBtn) {
                 termEscapeBtn.style.display = 'inline-flex';
@@ -6075,7 +6273,7 @@ window.addEventListener('DOMContentLoaded', () => {
             if (hasMore) {
                 setCtxActions(renderCtxButtons([
                     { key: 'space', badge: '[␣]', label: hengLabel('⏩ Continue (-more-)', '⏩ Continue / 続ける', '⏩ 続ける (-more-)'), gold: true },
-                    { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Dismiss', '⎋ Dismiss / 閉じる', '⎋ 閉じる') }
+                    { key: 'escape', badge: '[Esc]', label: hengLabel('Dismiss', 'Dismiss / 閉じる', '閉じる') }
                 ]));
             } else {
                 const effRealm = activeRealm || 'angband';
@@ -6087,7 +6285,7 @@ window.addEventListener('DOMContentLoaded', () => {
                     { key: keyFor('inven') || 'i', label: hengLabel('🎒 Pack', '🎒 Pack / 所持品', '🎒 所持品'), extraCls: 'term-action-key' },
                     { key: keyFor('equip') || 'e', label: hengLabel('🛡 Gear', '🛡 Gear / 装備', '🛡 装備'), extraCls: 'term-action-key' },
                     { key: '>', badge: '[>]', label: hengLabel('⬇ Stairs', '⬇ Stairs / 階段', '⬇ 階段'), extraCls: 'term-action-key' },
-                    { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Menu', '⎋ Menu / メニュー', '⎋ メニュー'), extraCls: 'term-action-key' }
+                    { key: 'escape', badge: '[Esc]', label: hengLabel('Menu', 'Menu / メニュー', 'メニュー'), extraCls: 'term-action-key' }
                 ];
                 if (effRealm === 'silq') {
                     btns.push({ key: 'w', label: '⚔ Wield', extraCls: 'term-action-key' }, { key: 'r', label: '🔄 Take Off', extraCls: 'term-action-key' });
@@ -6392,6 +6590,8 @@ window.addEventListener('DOMContentLoaded', () => {
                     statusText: Array.isArray(effFrame.player.statuses) ? effFrame.player.statuses.map(s => (s && s.name) || s || '').join(' ') : ''
                 } : {};
                 window.RealmGrimoireDeck.render(grimoireContainer, {
+                    frame: effFrame,
+                    enableBirthWizard: false,
                     promptText: (effFrame.term && effFrame.term.rows && effFrame.term.rows[0] && effFrame.term.rows[0].g) ? decodeHengbandText(effFrame.term.rows[0].g).trim() : '',
                     realm: curRealm,
                     lang: isHeng ? langMode : 'en',
@@ -6558,6 +6758,7 @@ window.addEventListener('DOMContentLoaded', () => {
             cancelQuickBirth,
             returnToMainMenu,
             reloadLastSave,
+            exportCurrentSaveBackup: downloadCurrentSave,
             isBirthReviewActive: () => birthReviewActive,
             getAppState: () => appState,
             setAppState: (s) => { appState = s; },
@@ -6581,7 +6782,7 @@ window.addEventListener('DOMContentLoaded', () => {
     if (_wMcp && typeof _wMcp.registerTool === 'function') {
         try {
             _wMcp.registerTool({ name: 'angband3d_get_hud_state', description: 'Read current realm, appState, and HUD vitals', inputSchema: { type: 'object', properties: {} }, execute: async () => ({ realm: getActiveRealm(), appState, hp: lastFrame?.player?.hp, depth: lastFrame?.player?.depth }) });
-            _wMcp.registerTool({ name: 'angband3d_list_realms', description: 'List playable roguelike realms on Angband 3D', inputSchema: { type: 'object', properties: {} }, execute: async () => ({ realms: ['angband', 'silq', 'frogcomposband', 'hengband', 'nethack', 'dcss', 'brogue', 'rogue'] }) });
+            _wMcp.registerTool({ name: 'angband3d_list_realms', description: 'List playable roguelike realms on Angband 3D', inputSchema: { type: 'object', properties: {} }, execute: async () => ({ realms: ['angband', 'silq', 'frogcomposband', 'hengband', 'nethack', 'dcss', 'brogue', 'rogue', 'ryod'] }) });
         } catch (_) {}
     }
     // View routing (AGENTS.md §3.3). Logic lives in screen-context.js needsTerminal (verbatim move, WS2);
@@ -6590,14 +6791,16 @@ window.addEventListener('DOMContentLoaded', () => {
         if (!frame) return true;
         if (!frame.player) return true;
         if (frame.phase && frame.phase !== 'play') return true;
-        const isDead = Boolean(frame.player.dead || (frame.player.hp !== undefined && frame.player.hp <= 0 && frame.player.hp_max > 0));
+        const fRealm = String(frame.realm || activeRealm || 'angband').toLowerCase();
+        const isCEngine = fRealm === 'angband' || fRealm === 'silq' || fRealm === 'frogcomposband' || fRealm === 'hengband';
+        const isDead = Boolean(frame.player.dead || (frame.player.hp !== undefined && (isCEngine ? (frame.player.hp < 0) : (frame.player.hp <= 0)) && frame.player.hp_max > 0));
         if (isDead) return false;
-        const isVictory = Boolean(frame.player.winner || frame.player.total_winner);
+        const isVictory = Boolean(frame.victory || frame.player.winner || frame.player.total_winner);
         if (isVictory) return false;
         if (window.MenuRouter && typeof window.MenuRouter.getPending === 'function' && window.MenuRouter.getPending()) {
             return true;
         }
-        return SC.needsTerminal(frame, { forceTerminal, decode: decodeHengbandText });
+        return SC.needsTerminal(frame, { forceTerminal, decode: decodeHengbandText, mirror3d: false, hasBridgeSpells: Boolean(lastSpells && lastSpells.length > 0) });
     }
     function updateViewMode(frame) {
         // # ROOT-CAUSE: Hide in-game HUD overlays and 1st-person viewmodel weapons whenever appState !== 'game' so splash/menu 3D sanctuary stays clean.
@@ -6605,6 +6808,11 @@ window.addEventListener('DOMContentLoaded', () => {
             terminalContainer.classList.add('hidden');
             terminalContainer.classList.remove('in-game-modal');
             document.body.classList.remove('terminal-mode-active', 'terminal-active', 'grimoire-primary-open');
+            const eipMenu = document.getElementById('entity-inspect-popover');
+            if (eipMenu) {
+                if (typeof eipMenu.hidePopover === 'function') { try { eipMenu.hidePopover(); } catch (_) {} }
+                eipMenu.classList.add('hidden');
+            }
             const hudOverlay = document.getElementById('hud-overlay');
             const topRightBar = document.getElementById('top-right-bar');
             const minimapContainer = document.getElementById('minimap-container');
@@ -6636,7 +6844,11 @@ window.addEventListener('DOMContentLoaded', () => {
             const rtc = document.getElementById('reticle-target-card');
             if (rtc) { rtc.style.display = 'none'; rtc.classList.add('hidden'); }
             const eip = document.getElementById('entity-inspect-popover');
-            if (eip) { eip.classList.add('hidden'); eip.style.display = ''; }
+            if (eip) {
+                if (typeof eip.hidePopover === 'function') { try { eip.hidePopover(); } catch (_) {} }
+                eip.classList.add('hidden');
+                eip.style.display = '';
+            }
             const amp = document.getElementById('action-more-popover');
             if (amp) amp.classList.remove('is-open');
             const qsp = document.getElementById('quick-slot-popover');
@@ -6704,7 +6916,8 @@ window.addEventListener('DOMContentLoaded', () => {
                     playerFeat = parseInt(currentFrame.map.rows[py].f.substring(px * 2, px * 2 + 2), 16) || 0;
                 }
             }
-            const isStoreFeat = playerFeat >= 7 && playerFeat <= 14;
+            const isHengFrame = Boolean((currentFrame && currentFrame.realm === 'hengband') || (window.__app && typeof window.__app.getActiveRealm === 'function' && window.__app.getActiveRealm() === 'hengband'));
+            const isStoreFeat = (playerFeat >= 7 && playerFeat <= 14) || (playerFeat >= 0x20 && playerFeat <= 0x28) || (isHengFrame && playerFeat === 4);
             const inStore = isStoreFeat && Boolean(currentFrame && currentFrame.ui && currentFrame.ui.overlay > 0);
             if (wasInStore && !inStore && currentFrame && currentFrame.phase === 'play') {
                 if (dungeon && typeof dungeon.turn === 'function') {
@@ -6716,10 +6929,6 @@ window.addEventListener('DOMContentLoaded', () => {
                 }
             }
             wasInStore = inStore;
-            // D-Pad: Enabled by default across both desktop and mobile/touchscreens, togglable at will
-            const isDesktopTier = (typeof DeviceProfile !== 'undefined' && typeof DeviceProfile.getTier === 'function')
-                ? DeviceProfile.getTier() === 'desktop'
-                : (typeof window !== 'undefined' && window.innerWidth >= 1024 && !window.matchMedia?.('(pointer: coarse)')?.matches);
             const showTouch = window.__dpadVisible !== undefined ? window.__dpadVisible : true;
             if (touchControls) touchControls.style.display = showTouch ? 'flex' : 'none';
             // Update top bar toggle indicators
@@ -6921,6 +7130,10 @@ window.addEventListener('DOMContentLoaded', () => {
                 clearTimeout(window.__startWatchdog);
                 window.__startWatchdog = null;
             }
+            if (window.__localBootFallbackTimer) {
+                clearTimeout(window.__localBootFallbackTimer);
+                window.__localBootFallbackTimer = null;
+            }
             console.log('[Angband3D] Engine session established:', msg.sessionId || 'local', 'Realm:', msg.realm || 'angband', 'Fallback:', !!msg.isFallback);
             stopQueueTipRotation();
             if (queueModal) {
@@ -6995,6 +7208,10 @@ window.addEventListener('DOMContentLoaded', () => {
             if (window.__startWatchdog) {
                 clearTimeout(window.__startWatchdog);
                 window.__startWatchdog = null;
+            }
+            if (window.__localBootFallbackTimer) {
+                clearTimeout(window.__localBootFallbackTimer);
+                window.__localBootFallbackTimer = null;
             }
             // Strict Invariant: Reject any frame that belongs to a different realm than active
             if (frame.realm && activeRealm && frame.realm !== activeRealm) {
@@ -7165,7 +7382,7 @@ window.addEventListener('DOMContentLoaded', () => {
             // MenuRouter & CommandDispatcher advance pending plans before view mode is evaluated
             const realmForRouter = (typeof getActiveRealm === 'function' ? getActiveRealm() : activeRealm) || (frame && frame.realm) || 'angband';
             lastScreenModel = (SC && SC.ScreenModel && typeof SC.ScreenModel.of === 'function')
-                ? SC.ScreenModel.of(frame, realmForRouter, { lang: window.__langMode || 'en', decode: decodeHengbandText, forceTerminal })
+                ? SC.ScreenModel.of(frame, realmForRouter, { lang: window.__langMode || 'en', decode: decodeHengbandText, forceTerminal, mirror3d: false, hasBridgeSpells: Boolean(lastSpells && lastSpells.length > 0) })
                 : null;
             if (frame && typeof frame === 'object') {
                 frame._screenModel = lastScreenModel;
@@ -7239,6 +7456,9 @@ window.addEventListener('DOMContentLoaded', () => {
                             console.error('[Dungeon3D Error]', err);
                         }
                         setLoadingCurtain(false);
+                        if (isFirstPlayTransition && window.HudTelemetry && typeof window.HudTelemetry.triggerFirstRunCoachmark === 'function') {
+                            window.HudTelemetry.triggerFirstRunCoachmark();
+                        }
                     }).catch((err) => {
                         console.error('[Dungeon3D Asset Gate Error]', err);
                         if (gateToken === sceneAssetGateSeq) {
@@ -7353,9 +7573,40 @@ window.addEventListener('DOMContentLoaded', () => {
                 hud.setStatus('⚡ Saved to Device');
                 setTimeout(() => hud.setPing(0), 2000);
             }
+            if (window.SaveVaultClient && window.LocalSaveManager && typeof window.LocalSaveManager.getSaveData === 'function') {
+                const slot = charName || (network && (network.currentSave || network.currentChar));
+                const rk = activeRealm || 'angband';
+                const isIronman = window.__yasdPermadeathMode === 'ironman' || (typeof HudTelemetry !== 'undefined' && HudTelemetry.getPermadeathMode && HudTelemetry.getPermadeathMode() === 'ironman');
+                if (slot && (!lastFrame || !lastFrame.player || !lastFrame.player.dead)) {
+                    window.LocalSaveManager.getSaveData(slot, rk).then((bytes) => {
+                        if (bytes && bytes.length > 0) {
+                            const meta = (lastFrame && lastFrame.player) ? { depth: lastFrame.player.depth || 0, turn: lastFrame.player.turn || 0, hp: lastFrame.player.hp || 0 } : {};
+                            window.SaveVaultClient.syncLivingSnapshot(rk, slot, bytes, { ironman: isIronman, slot: 'living', meta });
+                        }
+                    }).catch(() => {});
+                }
+            }
         };
     }
     bindNetworkEventHandlers();
+    if (window.SaveVaultClient && typeof window.SaveVaultClient.startHeartbeat === 'function') {
+        window.SaveVaultClient.startHeartbeat(() => {
+            if (appState !== 'game' || currentPhase !== 'play' || !lastFrame || !lastFrame.player || lastFrame.player.dead) return;
+            const slot = network && (network.currentSave || network.currentChar || lastFrame.player.name);
+            const rk = activeRealm || 'angband';
+            const isIronman = window.__yasdPermadeathMode === 'ironman' || (typeof HudTelemetry !== 'undefined' && HudTelemetry.getPermadeathMode && HudTelemetry.getPermadeathMode() === 'ironman');
+            if (engineMode === 'local' && slot && window.LocalSaveManager && typeof window.LocalSaveManager.getSaveData === 'function') {
+                window.LocalSaveManager.getSaveData(slot, rk).then((bytes) => {
+                    if (bytes && bytes.length > 0) {
+                        const meta = { depth: lastFrame.player.depth || 0, turn: lastFrame.player.turn || 0, hp: lastFrame.player.hp || 0 };
+                        window.SaveVaultClient.syncLivingSnapshot(rk, slot, bytes, { ironman: isIronman, slot: 'living', meta });
+                    }
+                }).catch(() => {});
+            } else if (engineMode === 'cloud' && slot) {
+                snapshotClientSaveToIndexedDB(slot, rk);
+            }
+        });
+    }
     updateEngineModeUI();
     updateRealmUI();
     setupRealmModalEvents();
@@ -7386,7 +7637,6 @@ window.addEventListener('DOMContentLoaded', () => {
         showDemoModal('splash');
         checkSaves();
     } else {
-        // Show Splash Screen and fetch saves in background
         showSplash();
         checkSaves();
     }

@@ -394,20 +394,39 @@ class ChronicleAudioRouter {
 
     /**
      * Dips game sound effects (footsteps, swords, spells) by -7dB (gain 0.42)
-     * on the independent SFX sub-bus during active voice narration.
+     * on the independent SFX sub-bus during active voice narration,
+     * and ducks _activeThemeDeck.volume with a 0.35x multiplier, restoring cleanly on unduck.
      */
     duckGameAudio(duck = true) {
         if (!this.soundEngine || !this.soundEngine.ctx) return;
         const ctx = this.soundEngine.ctx;
         const sfxBus = this.soundEngine.sfxGain || this.soundEngine.masterCompressor;
-        if (!sfxBus) return;
+        if (sfxBus) {
+            const baseVol = (typeof this.soundEngine.getSfxVolume === 'function') ? this.soundEngine.getSfxVolume() : 1.0;
+            const target = duck ? (baseVol * 0.42) : baseVol;
+            this.duckingActive = duck;
+            try {
+                sfxBus.gain.setTargetAtTime(target, ctx.currentTime, 0.15); // Smooth 150ms ramp
+            } catch (_) {}
+        }
 
-        const baseVol = (typeof this.soundEngine.getSfxVolume === 'function') ? this.soundEngine.getSfxVolume() : 1.0;
-        const target = duck ? (baseVol * 0.42) : baseVol;
-        this.duckingActive = duck;
-        try {
-            sfxBus.gain.setTargetAtTime(target, ctx.currentTime, 0.15); // Smooth 150ms ramp
-        } catch (_) {}
+        // BGM Theme Deck ducking (0.35x multiplier) & clean restore
+        if (this.soundEngine._activeThemeDeck) {
+            const deck = this.soundEngine._activeThemeDeck;
+            try {
+                if (duck) {
+                    if (this._preDuckThemeVol === undefined || this._preDuckThemeVol === null) {
+                        this._preDuckThemeVol = (typeof this.soundEngine._getThemeTargetVolume === 'function')
+                            ? this.soundEngine._getThemeTargetVolume()
+                            : (deck.volume || 1.0);
+                    }
+                    deck.volume = Math.max(0, this._preDuckThemeVol * 0.35);
+                } else if (this._preDuckThemeVol !== undefined && this._preDuckThemeVol !== null) {
+                    deck.volume = this._preDuckThemeVol;
+                    this._preDuckThemeVol = null;
+                }
+            } catch (_) {}
+        }
     }
 
     _emitVocalState(state, telemetry = {}) {
@@ -463,6 +482,12 @@ class ChronicleAudioRouter {
             } catch (_) {}
             this.currentSourceGain = null;
         }
+        if (this._currentSpatialSpeech) {
+            try {
+                this._currentSpatialSpeech.disconnect();
+            } catch (_) {}
+            this._currentSpatialSpeech = null;
+        }
 
         // 2. HTML5 Audio Element
         if (this.currentAudio) {
@@ -489,6 +514,14 @@ class ChronicleAudioRouter {
             this.activePlaybackResolve = null;
             try { res({ finished: true, interrupted: true, superseded: true }); } catch (_) {}
         }
+    }
+
+    /**
+     * Narrator & Lorekeeper speech is non-positional (routed directly to voiceMasterGain)
+     * so voice playback never suffers 3D HRTF distance attenuation or lowpass muffling.
+     */
+    _createSpatialSpeechNodes() {
+        return null;
     }
 
     /**
@@ -859,6 +892,10 @@ class ChronicleAudioRouter {
             source.buffer = audioBuffer;
             source.playbackRate.value = 1.0;
 
+            const spatial = this._createSpatialSpeechNodes(options);
+            this._currentSpatialSpeech = spatial;
+            const destNode = spatial ? spatial.input : this.voiceMasterGain;
+
             let localGain = null;
             if (typeof this.ctx.createGain === 'function') {
                 try {
@@ -867,13 +904,13 @@ class ChronicleAudioRouter {
                         localGain.gain.setValueAtTime(1.0, this.ctx.currentTime || 0);
                     }
                     source.connect(localGain);
-                    localGain.connect(this.voiceMasterGain);
+                    localGain.connect(destNode);
                 } catch (_) {
-                    source.connect(this.voiceMasterGain);
+                    source.connect(destNode);
                     localGain = null;
                 }
             } else {
-                source.connect(this.voiceMasterGain);
+                source.connect(destNode);
             }
 
             this.currentSource = source;
@@ -887,8 +924,14 @@ class ChronicleAudioRouter {
 
             source.onended = () => {
                 try { source.disconnect(); } catch (_) {}
-                try { localGain.disconnect(); } catch (_) {}
-                if (this.currentSourceGain === localGain) this.currentSourceGain = null;
+                if (localGain) {
+                    try { localGain.disconnect(); } catch (_) {}
+                    if (this.currentSourceGain === localGain) this.currentSourceGain = null;
+                }
+                if (this._currentSpatialSpeech === spatial) {
+                    try { spatial.disconnect(); } catch (_) {}
+                    this._currentSpatialSpeech = null;
+                }
                 if (this.currentSource === source) {
                     this.currentSource = null;
                     this._activeAudioBuffer = null;
@@ -1043,6 +1086,7 @@ class ChronicleAudioRouter {
                 // STRICT USER REQUIREMENT: Narrator must NEVER fall back to local speech synthesis or wrong backup voice!
                 // "I'd rather wait for buffering than hear the wrong voice."
                 console.info('[ChronicleAudio] Narrator voice buffer unavailable; suppressing backup voice playback.');
+                return { aborted: true, bufferUnavailable: true };
             }
 
             if (r1 && (r1.aborted || r1.interrupted || r1.superseded)) return { aborted: true };
@@ -1071,7 +1115,7 @@ class ChronicleAudioRouter {
         } finally {
             if (this._sequenceSessionId === currentSeqId && this._activeVoiceToken === currentVoiceToken) {
                 this._isExecutingSequence = false;
-                if (!this.isStaging && this.speechQueue.length === 0) {
+                if (!this.isProcessingSpeechQueue && !this.isStaging && this.speechQueue.length === 0) {
                     this.isSpeaking = false;
                     this.duckGameAudio(false);
                     if (typeof this.onPlaybackEnded === 'function') {
@@ -1079,7 +1123,7 @@ class ChronicleAudioRouter {
                     }
                 }
             }
-            if (!this.isSpeaking && !this.isStaging) this._emitVocalState('idle');
+            if (!this.isProcessingSpeechQueue && !this.isSpeaking && !this.isStaging) this._emitVocalState('idle');
         }
     }
 
@@ -1176,7 +1220,7 @@ class ChronicleAudioRouter {
             }
         } finally {
             this.isProcessingSpeechQueue = false;
-            if (!this._isExecutingSequence && !this.isStaging && !this.currentSource && !this.currentAudio && !(typeof window !== 'undefined' && window.speechSynthesis && window.speechSynthesis.speaking)) {
+            if (this.speechQueue.length === 0 && !this._isExecutingSequence && !this.isStaging && !this.currentSource && !this.currentAudio && !(typeof window !== 'undefined' && window.speechSynthesis && window.speechSynthesis.speaking)) {
                 this.isSpeaking = false;
                 this.duckGameAudio(false);
                 if (typeof this.onPlaybackEnded === 'function') {
@@ -1260,7 +1304,7 @@ class ChronicleAudioRouter {
         } finally {
             if (this._sequenceSessionId === currentSeqId && this._activeVoiceToken === currentVoiceToken) {
                 this._isExecutingSequence = false;
-                if (!this.isStaging && this.speechQueue.length === 0) {
+                if (!this.isProcessingSpeechQueue && !this.isStaging && this.speechQueue.length === 0) {
                     this.isSpeaking = false;
                     this.duckGameAudio(false);
                     if (typeof this.onPlaybackEnded === 'function') {
@@ -1268,7 +1312,7 @@ class ChronicleAudioRouter {
                     }
                 }
             }
-            if (!this.isSpeaking && !this.isStaging) this._emitVocalState('idle');
+            if (!this.isProcessingSpeechQueue && !this.isSpeaking && !this.isStaging) this._emitVocalState('idle');
         }
     }
 
@@ -1460,6 +1504,11 @@ class ChronicleAudioRouter {
 
                         const source = this.ctx.createBufferSource();
                         source.buffer = cachedBuffer;
+
+                        const spatial = this._createSpatialSpeechNodes(options);
+                        this._currentSpatialSpeech = spatial;
+                        const destNode = spatial ? spatial.input : this.voiceMasterGain;
+
                         let localGain = null;
                         if (typeof this.ctx.createGain === 'function') {
                             try {
@@ -1468,13 +1517,13 @@ class ChronicleAudioRouter {
                                     localGain.gain.setValueAtTime(1.0, this.ctx.currentTime || 0);
                                 }
                                 source.connect(localGain);
-                                localGain.connect(this.voiceMasterGain);
+                                localGain.connect(destNode);
                             } catch (_) {
-                                source.connect(this.voiceMasterGain);
+                                source.connect(destNode);
                                 localGain = null;
                             }
                         } else {
-                            source.connect(this.voiceMasterGain);
+                            source.connect(destNode);
                         }
                         this.currentSource = source;
                         this.currentSourceGain = localGain;
@@ -1491,6 +1540,10 @@ class ChronicleAudioRouter {
                             if (localGain) {
                                 try { localGain.disconnect(); } catch (_) {}
                                 if (this.currentSourceGain === localGain) this.currentSourceGain = null;
+                            }
+                            if (this._currentSpatialSpeech === spatial) {
+                                try { spatial.disconnect(); } catch (_) {}
+                                this._currentSpatialSpeech = null;
                             }
                             if (this.currentSource === source) {
                                 this.currentSource = null;
@@ -1535,6 +1588,7 @@ class ChronicleAudioRouter {
 
                 // --- TIER 1: WEB AUDIO DECODING WITH SUBTERRANEAN REVERB & RIBBON FILTER ---
                 if (this.ctx && this.voiceMasterGain) {
+                    let httpStatusError = false;
                     try {
                         let audioBuffer = null;
                         if (this._prewarmPromises.has(cacheKey)) {
@@ -1556,6 +1610,7 @@ class ChronicleAudioRouter {
                                 return resolve({ aborted: true, superseded: true });
                             }
                             if (!res.ok) {
+                                httpStatusError = true;
                                 this._setLoading(false);
                                 throw new Error(`HTTP ${res.status}`);
                             }
@@ -1593,6 +1648,11 @@ class ChronicleAudioRouter {
                         const source = this.ctx.createBufferSource();
                         source.buffer = audioBuffer;
                         // KEEP PLAYBACK RATE AT 1.0 TO PRESERVE NATURAL PITCH!
+
+                        const spatial = this._createSpatialSpeechNodes(options);
+                        this._currentSpatialSpeech = spatial;
+                        const destNode = spatial ? spatial.input : this.voiceMasterGain;
+
                         let localGain = null;
                         if (typeof this.ctx.createGain === 'function') {
                             try {
@@ -1601,13 +1661,13 @@ class ChronicleAudioRouter {
                                     localGain.gain.setValueAtTime(1.0, this.ctx.currentTime || 0);
                                 }
                                 source.connect(localGain);
-                                localGain.connect(this.voiceMasterGain);
+                                localGain.connect(destNode);
                             } catch (_) {
-                                source.connect(this.voiceMasterGain);
+                                source.connect(destNode);
                                 localGain = null;
                             }
                         } else {
-                            source.connect(this.voiceMasterGain);
+                            source.connect(destNode);
                         }
 
                         this.currentSource = source;
@@ -1625,6 +1685,10 @@ class ChronicleAudioRouter {
                             if (localGain) {
                                 try { localGain.disconnect(); } catch (_) {}
                                 if (this.currentSourceGain === localGain) this.currentSourceGain = null;
+                            }
+                            if (this._currentSpatialSpeech === spatial) {
+                                try { spatial.disconnect(); } catch (_) {}
+                                this._currentSpatialSpeech = null;
                             }
                             if (this.currentSource === source) {
                                 this.currentSource = null;
@@ -1649,6 +1713,13 @@ class ChronicleAudioRouter {
                         if (abortCtrl.signal.aborted || this._playSessionId !== sessionId || this._activePlayToken !== playToken) {
                             this.isSpeaking = false;
                             return resolve({ aborted: true, superseded: true });
+                        }
+                        if (httpStatusError) {
+                            this.isSpeaking = false;
+                            this.duckGameAudio(false);
+                            this._emitVocalState('idle');
+                            if (this.activePlaybackResolve === resolve) this.activePlaybackResolve = null;
+                            return resolve({ error: decodeErr.message, bufferUnavailable: true });
                         }
                         console.info('[ChronicleAudio] Web Audio decode bypassed, falling back to HTML5 audio element:', decodeErr.message);
                     }

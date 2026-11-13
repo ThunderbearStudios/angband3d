@@ -154,6 +154,16 @@
 
         container.classList.remove('hidden');
 
+        const lang = (typeof window !== 'undefined' && window.__langMode) || 'en';
+        const ACT_JP = {
+            'Look': '視認', 'Target': '標的', 'Fire at': '射撃', 'Throw at': '投擲',
+            'Song at': '歌', 'Cast at': '詠唱', 'Power at': '特殊能力', 'Examine': '調査',
+            'Recall': '想起', 'Walk to': '移動', 'Pick up': '拾う', 'Open': '開く',
+            'Close': '閉じる', 'Bash': '強打', 'Disarm': '解除', 'Tunnel': '掘削',
+            'Alter': '変更', 'Stairs Up': '上り階段', 'Stairs Down': '下り階段',
+            'Pray': '祈る', 'Offer Sacrifice': '捧げる', 'Drink Fountain': '飲む', 'Dip Item': '浸す'
+        };
+
         for (let i = 0; i < actions.length; i++) {
             const act = actions[i];
             const btn = document.createElement('button');
@@ -170,7 +180,8 @@
             }
 
             const labelSpan = document.createElement('span');
-            labelSpan.textContent = act.label;
+            const jpLbl = ACT_JP[act.label] || act.label;
+            labelSpan.textContent = (lang === 'jp') ? jpLbl : (lang === 'bilingual' && ACT_JP[act.label] ? `${act.label} (${jpLbl})` : act.label);
             btn.appendChild(labelSpan);
 
             btn.addEventListener('click', function (e) {
