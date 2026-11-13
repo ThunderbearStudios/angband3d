@@ -152,11 +152,14 @@
             }
 
             const combined = `${vendorName} ${rendererName}`;
+            const isSmallTouchScreen = (typeof window !== 'undefined' && Math.min(window.innerWidth || 1280, window.innerHeight || 720) < 600);
             let selectedTier = 'integrated';
             if (ULTRA_GPU_REGEX.test(combined)) {
                 selectedTier = 'ultra';
             } else if (MOBILE_SAVER_GPU_REGEX.test(combined)) {
                 selectedTier = 'mobile-saver';
+            } else if (/Apple\s*GPU/i.test(combined) && !/Apple\s*M[1-9]/i.test(combined) && isSmallTouchScreen) {
+                selectedTier = 'integrated';
             } else if (INTEGRATED_GPU_REGEX.test(combined)) {
                 selectedTier = 'integrated';
             } else if (PERFORMANCE_GPU_REGEX.test(combined)) {

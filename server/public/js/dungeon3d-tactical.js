@@ -924,6 +924,7 @@
             if (compass && typeof compass.getContext === 'function') {
                 const ctx = compass.getContext('2d');
                 if (ctx) {
+                    ctx.clearRect(0, 0, compass.width, compass.height);
                     const cx = compass.width / 2;
                     const cy = compass.height / 2;
                     const radius = (compass.width / 2) - 4;
@@ -2530,11 +2531,13 @@
             }
 
             // 2 pooled dynamic PointLights for nearest visible sconces on performance/ultra discrete GPUs
+            // Keep sl.visible = true permanently and gate purely via sl.intensity = 0 to prevent GLSL shader recompiles!
             if (!d3d._sconceLights && d3d.scene) {
                 d3d._sconceLights = [];
                 for (let i = 0; i < 2; i++) {
                     const sl = new THREE.PointLight(0xffaa44, 0.0, 11.5, 1.35);
-                    sl.visible = false;
+                    sl.visible = true;
+                    if (sl.layers && typeof sl.layers.enable === 'function') sl.layers.enable(1);
                     d3d.scene.add(sl);
                     d3d._sconceLights.push(sl);
                 }
@@ -2587,7 +2590,7 @@
             const hideLights = () => {
                 if (d3d._sconceLights) {
                     for (let i = 0; i < d3d._sconceLights.length; i++) {
-                        d3d._sconceLights[i].visible = false;
+                        d3d._sconceLights[i].baseIntensity = 0;
                         d3d._sconceLights[i].intensity = 0;
                     }
                 }
@@ -2696,11 +2699,9 @@
                             sl.position.set(p.lightX, 1.96, p.lightZ);
                             sl.baseIntensity = 1.18;
                             sl.intensity = 1.18 * (1.0 - (d3d._blindFactor || 0));
-                            sl.visible = sl.intensity > 0.02;
                         } else {
                             sl.baseIntensity = 0;
                             sl.intensity = 0;
-                            sl.visible = false;
                         }
                     }
                 } else {

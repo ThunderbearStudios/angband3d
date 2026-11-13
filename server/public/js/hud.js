@@ -1029,10 +1029,23 @@ class WebHUD {
         const dir = { x: Math.sin(yaw), y: -Math.cos(yaw) }, side = { x: -dir.y, y: dir.x };
 
         const isBlind = !!(player.blind || (player.statuses && player.statuses.some(s => /blind|盲目/i.test(s.name || s))));
-        const frameSeq = (this.lastFrame && this.lastFrame.seq !== undefined) ? this.lastFrame.seq : 0;
-        const cacheKey = `${this.lastFrame?.realm || 'angband'}_${this.lastFrame?.player?.depth ?? 0}_${frameSeq}_${ox}_${oy}_${this.minimapZoom}_${w}_${h}_${isBlind ? 1 : 0}`;
-        if (cacheKey !== this.minimapTileCacheKey || this.minimapTileCanvas.width !== w || this.minimapTileCanvas.height !== h) {
-            this.minimapTileCanvas.width = w; this.minimapTileCanvas.height = h; this.minimapTileCacheKey = cacheKey;
+        const d3dRef = window.__app?.dungeon || window.__app?.dungeon3d;
+        let visDigest = 2166136261 >>> 0;
+        for (let rIdx = 0; rIdx < lines && (oy + rIdx) < map.h; rIdx++) {
+            const rObj = map.rows[oy + rIdx];
+            if (!rObj) continue;
+            const gSlice = rObj.g ? rObj.g.slice(ox, ox + cols) : '';
+            const lSlice = rObj.l ? rObj.l.slice(ox, ox + cols) : '';
+            const aSlice = rObj.a ? rObj.a.slice(ox * 2, (ox + cols) * 2) : '';
+            for (let k = 0; k < gSlice.length; k++) visDigest = Math.imul(visDigest ^ gSlice.charCodeAt(k), 16777619) >>> 0;
+            for (let k = 0; k < lSlice.length; k++) visDigest = Math.imul(visDigest ^ lSlice.charCodeAt(k), 16777619) >>> 0;
+            for (let k = 0; k < aSlice.length; k++) visDigest = Math.imul(visDigest ^ aSlice.charCodeAt(k), 16777619) >>> 0;
+        }
+        const cacheKey = `${this.lastFrame?.realm || 'angband'}_${this.lastFrame?.player?.depth ?? 0}_${px}_${py}_${visDigest}_${ox}_${oy}_${this.minimapZoom}_${w}_${h}_${isBlind ? 1 : 0}`;
+        const dimsChanged = this.minimapTileCanvas.width !== w || this.minimapTileCanvas.height !== h;
+        if (cacheKey !== this.minimapTileCacheKey || dimsChanged) {
+            if (dimsChanged) { this.minimapTileCanvas.width = w; this.minimapTileCanvas.height = h; }
+            this.minimapTileCacheKey = cacheKey;
             const tCtx = this.minimapTileCtx;
             tCtx.fillStyle = '#060910'; tCtx.fillRect(0, 0, w, h);
             const darkenColor = (hex, factor = 0.45) => {
@@ -1054,7 +1067,7 @@ class WebHUD {
                     const ch = row.g[mx];
                     const flag = (row.l && mx < row.l.length) ? (parseInt(row.l[mx], 16) || 0) : 0;
                     if (ch === ' ' || (flag & 0x3) === 0) {
-                        const mem = window.__app?.dungeon3d?.getRememberedTile?.(mx, my);
+                        const mem = d3dRef?.getRememberedTile?.(mx, my);
                         if (mem && mem.feat > 0) {
                             const mCh = (mem.glyph && mem.glyph !== ' ') ? mem.glyph : (mem.feat === 1 ? '.' : '#');
                             const sx = colIdx * cellSize, sy = rowIdx * cellSize;

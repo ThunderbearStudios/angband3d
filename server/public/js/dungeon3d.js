@@ -551,6 +551,17 @@ class Dungeon3D {
             this._levelMemW = 0;
             this._levelMemH = 0;
             this._levelMemTotal = 0;
+            this._lastFlankSig = '';
+            if (this._gpuInitialized && typeof this.purgeAllSceneEntities === 'function') {
+                this.purgeAllSceneEntities();
+            }
+            if (typeof document !== 'undefined') {
+                const flankEl = document.getElementById('flank-threat-overlay');
+                if (flankEl) flankEl.innerHTML = '';
+                const compassEl = document.getElementById('compass-canvas');
+                const cCtx = compassEl && typeof compassEl.getContext === 'function' ? compassEl.getContext('2d') : null;
+                if (cCtx) cCtx.clearRect(0, 0, compassEl.width, compassEl.height);
+            }
         }
         if (Array.isArray(this.floatingTexts) && this.floatingTexts.length > 0) {
             for (const ft of this.floatingTexts) {
@@ -679,11 +690,13 @@ class Dungeon3D {
         this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, dprCap));
         this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
         this.renderer.toneMappingExposure = 1.05;
+        this._enableDynamicShadows = !isPhoneTier && (budget.gpuTier === 'discrete' || budget.gpuTier === 'performance' || budget.gpuTier === 'ultra');
         this.renderer.outputEncoding = THREE.sRGBEncoding;
-        this.renderer.shadowMap.enabled = false;
+        this.renderer.shadowMap.enabled = Boolean(this._enableDynamicShadows);
         this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         this.renderer.shadowMap.autoUpdate = false;
         this.renderer.shadowMap.needsUpdate = true;
+        this._cachedCanvasRect = null;
 
         this._contextLost = false;
         if (this.canvas && typeof this.canvas.addEventListener === 'function') {
@@ -700,25 +713,44 @@ class Dungeon3D {
 
         // Ambient light (dynamically adjusted per depth / town)
         this.ambientLight = new THREE.AmbientLight(0x808aa8, 0.75);
+        if (this.ambientLight.layers) this.ambientLight.layers.enable(1);
         this.scene.add(this.ambientLight);
 
         // Directional Sunlight for outdoors (Town) matching Godot _sunLight
         this.sunLight = new THREE.DirectionalLight(0xb3ccfa, 0.95);
         this.sunLight.position.set(-20, 35, 15);
+        if (this.sunLight.layers) this.sunLight.layers.enable(1);
         this.scene.add(this.sunLight);
 
         // Player Torch PointLight - ATTACHED TO CAMERA (Matches Godot OmniAttenuation = 0.70f)
-        this.torchLight = new THREE.PointLight(0xffdc99, 1.8, 16.0, 0.7);
+        this.torchLight = new THREE.PointLight(0xffdc99, this._enableDynamicShadows ? 1.48 : 1.8, 16.0, 0.7);
         this.torchLight.position.set(-0.25, -0.05, -0.28);
+        if (this.torchLight.layers) this.torchLight.layers.enable(1);
         this.camera.add(this.torchLight);
+
+        // Dirty-gated 512x512 forward SpotLight shadow caster on discrete/high tiers (0ms cost on idle frames)
+        if (this._enableDynamicShadows && typeof THREE.SpotLight === 'function') {
+            this.torchSpotLight = new THREE.SpotLight(0xffdc99, 0.42, 14.5, Math.PI * 0.42, 0.65, 0.85);
+            this.torchSpotLight.position.set(0.0, 0.08, -0.18);
+            this.torchSpotLight.target.position.set(0.0, -0.45, -8.5);
+            this.torchSpotLight.castShadow = true;
+            this.torchSpotLight.shadow.mapSize.set(512, 512);
+            this.torchSpotLight.shadow.bias = -0.0006;
+            this.torchSpotLight.shadow.camera.near = 0.35;
+            this.torchSpotLight.shadow.camera.far = 14.0;
+            if (this.torchSpotLight.layers) this.torchSpotLight.layers.enable(1);
+            this.camera.add(this.torchSpotLight);
+            this.camera.add(this.torchSpotLight.target);
+        }
 
         // Living Torch Colors (smooth thermodynamic color shifting between gold and warm ember)
         this.torchBaseColor = new THREE.Color(0xffdc99);
         this.torchLowColor = new THREE.Color(0xffaa55);
 
-        // Secondary warm bounce fill light near player feet - ATTACHED TO CAMERA (disabled on Intel UHD 620 / integrated / phone to halve per-pixel point-light cost)
+        // Secondary warm bounce fill light near player feet - ATTACHED TO CAMERA (keep visible=true; gate by intensity to avoid shader recompiles)
         this.torchFillLight = new THREE.PointLight(0xff7722, budget.enableFillLight ? 0.35 : 0.0, 8.0, 0.7);
-        this.torchFillLight.visible = Boolean(budget.enableFillLight);
+        this.torchFillLight.visible = true;
+        if (this.torchFillLight.layers) this.torchFillLight.layers.enable(1);
         this.torchFillLight.position.set(0.20, -0.20, -0.20);
         this.camera.add(this.torchFillLight);
 
@@ -734,6 +766,7 @@ class Dungeon3D {
         this.scene.add(this.camera);
 
         window.addEventListener('resize', () => {
+            this._cachedCanvasRect = null;
             const nextBudget = (window.DeviceProfile && typeof window.DeviceProfile.getRenderBudget === 'function')
                 ? window.DeviceProfile.getRenderBudget()
                 : budget;
@@ -1898,16 +1931,20 @@ class Dungeon3D {
         // Ground loot rarity plinth ring geometry (itemPlinthGeo)
         this.itemPlinthGeo = new THREE.RingGeometry(0.22, 0.28, 16);
         this.itemPlinthGeo.rotateX(-Math.PI / 2);
+        this.itemPlinthGeo._sharedGeometry = true;
 
         // Soft contact shadow quad for 3D item pickups & treasures (zero download cost)
         this.shadowGeo = new THREE.PlaneGeometry(0.36, 0.36);
         this.shadowGeo.rotateX(-Math.PI / 2);
+        this.shadowGeo._sharedGeometry = true;
+        if (this.shadowTex) this.shadowTex._sharedTexture = true;
         this.shadowMat = new THREE.MeshBasicMaterial({
             map: this.shadowTex,
             transparent: true,
             opacity: 0.65,
             depthWrite: false
         });
+        this.shadowMat._sharedMaterial = true;
 
         // Bounded cache for item caption billboard textures & materials (zero GC memory leak)
         this.captionMaterialCache = new Map();
@@ -2249,6 +2286,40 @@ class Dungeon3D {
         this.attackAnimationTime = 0;
         this.hurtAnimationTime = 0;
         this.castAnimationTime = 0;
+        this._tagViewmodelLayer(this.viewmodelGroup);
+    }
+
+    _tagViewmodelLayer(obj) {
+        if (!obj || typeof obj.traverse !== 'function') return;
+        obj.traverse((c) => {
+            if (c.layers && typeof c.layers.set === 'function') c.layers.set(1);
+            if (c.isMesh) {
+                c.castShadow = false;
+                c.receiveShadow = false;
+            }
+        });
+    }
+
+    _clearViewmodelSlot(slotGroup) {
+        if (!slotGroup) return;
+        while (slotGroup.children.length > 0) {
+            const oldChild = slotGroup.children[0];
+            slotGroup.remove(oldChild);
+            if (oldChild && typeof oldChild.traverse === 'function') {
+                oldChild.traverse((c) => {
+                    if (c.geometry && !c.isSprite && !c.geometry._sharedGeometry) {
+                        c.geometry.dispose();
+                    }
+                    if (c.material) {
+                        const mats = Array.isArray(c.material) ? c.material : [c.material];
+                        for (let i = 0; i < mats.length; i++) {
+                            const m = mats[i];
+                            if (m && !m._sharedMaterial && typeof m.dispose === 'function') m.dispose();
+                        }
+                    }
+                });
+            }
+        }
     }
 
     _getGltfLoader() {
@@ -2722,8 +2793,10 @@ class Dungeon3D {
             const leftAvatarKey = `avatar:${avatarVm.archetype}:left`;
             if (this.currentLeftWeapon !== leftAvatarKey || this.leftItemSlot.children.length === 0) {
                 this.currentLeftWeapon = leftAvatarKey;
-                while (this.leftItemSlot.children.length > 0) this.leftItemSlot.remove(this.leftItemSlot.children[0]);
-                this.leftItemSlot.add(this._buildAvatarViewmodelGroup(avatarVm.archetype, 'left'));
+                this._clearViewmodelSlot(this.leftItemSlot);
+                const leftAvatarMesh = this._buildAvatarViewmodelGroup(avatarVm.archetype, 'left');
+                this._tagViewmodelLayer(leftAvatarMesh);
+                this.leftItemSlot.add(leftAvatarMesh);
             }
             this.leftHandGroup.visible = true;
         } else {
@@ -2736,8 +2809,10 @@ class Dungeon3D {
             if (this.currentRightWeapon !== rightAvatarKey || this.rightItemSlot.children.length === 0) {
                 this.currentRightWeapon = rightAvatarKey;
                 this.currentRightWeaponBrand = null;
-                while (this.rightItemSlot.children.length > 0) this.rightItemSlot.remove(this.rightItemSlot.children[0]);
-                this.rightItemSlot.add(this._buildAvatarViewmodelGroup(avatarVm.archetype, 'right'));
+                this._clearViewmodelSlot(this.rightItemSlot);
+                const rightAvatarMesh = this._buildAvatarViewmodelGroup(avatarVm.archetype, 'right');
+                this._tagViewmodelLayer(rightAvatarMesh);
+                this.rightItemSlot.add(rightAvatarMesh);
             }
             this.rightHandGroup.visible = true;
             return;
@@ -2767,9 +2842,7 @@ class Dungeon3D {
         this.currentRightWeaponBrand = stateSig;
 
         if (this.rightItemSlot) {
-            while (this.rightItemSlot.children.length > 0) {
-                this.rightItemSlot.remove(this.rightItemSlot.children[0]);
-            }
+            this._clearViewmodelSlot(this.rightItemSlot);
 
             if (!key) {
                 this.rightHandGroup.visible = false;
@@ -2791,7 +2864,7 @@ class Dungeon3D {
                             const mName = ((c.material.name || '') + ' ' + (c.name || '')).toLowerCase();
                             if (/gauntlet|hand|wood|handle|grip|leather/i.test(mName)) return;
                             const mClone = c.material.clone();
-                            mClone._sharedMaterial = true;
+                            mClone._sharedMaterial = false;
                             if (c.material.onBeforeCompile) mClone.onBeforeCompile = c.material.onBeforeCompile;
                             if (c.material.customProgramCacheKey) mClone.customProgramCacheKey = c.material.customProgramCacheKey;
                             this._applyUvSeamBleedFix(mClone);
@@ -2813,6 +2886,7 @@ class Dungeon3D {
                     mesh.rotation.y = (mesh.rotation.y || 0) - 0.10;
                     mesh.rotation.z = (mesh.rotation.z || 0) + 0.12;
                 }
+                this._tagViewmodelLayer(mesh);
                 this.rightItemSlot.add(mesh);
             }
             this.rightHandGroup.visible = true;
@@ -2834,9 +2908,7 @@ class Dungeon3D {
             return;
         }
         this.currentLeftWeapon = cacheTag;
-        while (this.leftItemSlot.children.length > 0) {
-            this.leftItemSlot.remove(this.leftItemSlot.children[0]);
-        }
+        this._clearViewmodelSlot(this.leftItemSlot);
         if (this.weaponCache.has(key)) {
             const clone = this.weaponCache.get(key).clone(true);
             const avatarVm = this.resolveAvatarViewmodel(player);
@@ -2848,6 +2920,7 @@ class Dungeon3D {
             if (isOffhandWeapon) {
                 clone.scale.x = -Math.abs(clone.scale.x || 1);
             }
+            this._tagViewmodelLayer(clone);
             this.leftItemSlot.add(clone);
         } else {
             this._ensureViewmodelWeapon(key);
@@ -2905,6 +2978,15 @@ class Dungeon3D {
                     wClone.add(gClone);
                 }
             }
+            wClone.traverse((c) => {
+                if (c.geometry) c.geometry._sharedGeometry = true;
+                if (c.material) {
+                    const mats = Array.isArray(c.material) ? c.material : [c.material];
+                    for (let i = 0; i < mats.length; i++) {
+                        if (mats[i]) mats[i]._sharedMaterial = true;
+                    }
+                }
+            });
             this.weaponCache.set(key, wClone);
             if (this.lastFrame && this.lastFrame.player) {
                 this.currentRightWeapon = null;
@@ -6111,7 +6193,8 @@ class Dungeon3D {
 
             const tex = new THREE.CanvasTexture(canvas);
             tex.minFilter = THREE.LinearFilter;
-            if ('colorSpace' in tex && THREE.SRGBColorSpace) tex.colorSpace = THREE.SRGBColorSpace;
+            if (typeof THREE.SRGBColorSpace !== 'undefined') tex.colorSpace = THREE.SRGBColorSpace;
+            else if (typeof THREE.sRGBEncoding !== 'undefined') tex.encoding = THREE.sRGBEncoding;
             if (isStore) {
                 const signGroup = new THREE.Group();
                 signGroup.position.set(pos.x, 0, pos.z);
@@ -7934,7 +8017,7 @@ class Dungeon3D {
                     scene._animations = gltf.animations || [];
                     scene.traverse((c) => {
                         if (c.isMesh) {
-                            c.castShadow = false;
+                            c.castShadow = Boolean(this._enableDynamicShadows);
                             c.receiveShadow = false;
                             if (c.geometry) {
                                 c.geometry._sharedGeometry = true;
@@ -11743,16 +11826,28 @@ class Dungeon3D {
         const sharedMats = new Set([
             this.monsterBillboardMat,
             this.itemBillboardMat,
-            this.monsterDepthMat
+            this.monsterDepthMat,
+            this.itemDepthMat,
+            this.shadowMat,
+            this._storeLightPoolMat
         ]);
         const sharedTexs = new Set([
             this.monsterAtlasTex,
             this.monsterNormalTex,
             this.itemAtlasTex,
-            this.itemNormalTex
+            this.itemNormalTex,
+            this.shadowTex
         ]);
+        if (this.captionMaterialCache && typeof this.captionMaterialCache.values === 'function') {
+            for (const cMat of this.captionMaterialCache.values()) {
+                if (cMat) {
+                    sharedMats.add(cMat);
+                    if (cMat.map) sharedTexs.add(cMat.map);
+                }
+            }
+        }
         entityObj.traverse((child) => {
-            if (child.geometry && !child.geometry._sharedGeometry) {
+            if (child.geometry && !child.isSprite && !child.geometry._sharedGeometry && child.geometry !== this.shadowGeo && child.geometry !== this.itemPlinthGeo) {
                 child.geometry.dispose();
             }
             if (child.material) {
@@ -11815,13 +11910,20 @@ class Dungeon3D {
                     if (group.parent && group.pendingPhKey === phKey) {
                         const upgraded3D = this._cloneCachedGltfTemplate(tmpl, colorHex, phKey);
                         if (upgraded3D) {
-                            if (group.itemMesh) group.remove(group.itemMesh);
+                            if (group.itemMesh) {
+                                const oldMesh = group.itemMesh;
+                                group.remove(oldMesh);
+                                if (oldMesh.geometry && !oldMesh.isSprite && !oldMesh.geometry._sharedGeometry) {
+                                    oldMesh.geometry.dispose();
+                                }
+                            }
                             group.itemMesh = upgraded3D;
                             group.add(upgraded3D);
                             group.isReal3DItem = true;
                             group.isItemBillboard = false;
                             delete group.pendingPhKey;
                             group.phKey = phKey;
+                            this.markShadowsDirty();
                         }
                     }
                 }).catch(() => {});
@@ -12238,12 +12340,19 @@ class Dungeon3D {
             : 1.0;
 
         const currentTargetEnergy = this.targetTorchEnergy !== undefined ? this.targetTorchEnergy : 2.8;
-        this.torchLight.intensity = currentTargetEnergy * livingFlicker;
-        this.torchFillLight.intensity = (currentTargetEnergy * 0.22) * livingFlicker;
+        if (this.torchSpotLight) {
+            this.torchLight.intensity = currentTargetEnergy * 0.82 * livingFlicker;
+            this.torchSpotLight.intensity = currentTargetEnergy * 0.22 * livingFlicker;
+        } else {
+            this.torchLight.intensity = currentTargetEnergy * livingFlicker;
+        }
+        const allowFill = !(this.renderBudget && this.renderBudget.enableFillLight === false);
+        this.torchFillLight.intensity = allowFill ? (currentTargetEnergy * 0.22) * livingFlicker : 0.0;
 
         // Stable, warm lantern gold (no distracting color shifts)
         if (this.torchBaseColor) {
             this.torchLight.color.copy(this.torchBaseColor);
+            if (this.torchSpotLight) this.torchSpotLight.color.copy(this.torchBaseColor);
         }
 
         if (this.flameMesh) {
@@ -12442,14 +12551,18 @@ class Dungeon3D {
             }
         }
 
-        // Apply to Right Hand (with sinusoidal eyestalk levitation bob for Beholder avatar)
+        // Apply to Right Hand (with sinusoidal eyestalk levitation bob for Beholder avatar + portrait frustum clamping)
         const isBeholderVm = this._activeAvatarArchetype === 'beholder';
+        const vmAspectScale = (this.camera && this.camera.aspect && this.camera.aspect < 0.85)
+            ? Math.max(0.56, this.camera.aspect / 0.85)
+            : 1.0;
+        const vmPullZ = -0.05 * (1.0 - vmAspectScale);
         if (this.rightHandGroup && this.rightRestPos) {
             const stalkBobY = isBeholderVm ? Math.sin(tNow * 0.0034) * 0.022 * bobScale : 0;
             const stalkBobX = isBeholderVm ? Math.cos(tNow * 0.0023) * 0.014 * bobScale : 0;
-            this.rightHandGroup.position.x = this.rightRestPos.x + bobX + actX + stalkBobX;
+            this.rightHandGroup.position.x = (this.rightRestPos.x * vmAspectScale) + bobX + actX + stalkBobX;
             this.rightHandGroup.position.y = this.rightRestPos.y + bobY + actY + stalkBobY;
-            this.rightHandGroup.position.z = this.rightRestPos.z + actZ;
+            this.rightHandGroup.position.z = this.rightRestPos.z + vmPullZ + actZ;
             this.rightHandGroup.rotation.x = this.rightRestRot.x + actRotX;
             this.rightHandGroup.rotation.y = this.rightRestRot.y;
             this.rightHandGroup.rotation.z = this.rightRestRot.z + actRotZ;
@@ -12459,9 +12572,9 @@ class Dungeon3D {
         if (this.leftHandGroup && this.leftRestPos) {
             const stalkBobY = isBeholderVm ? Math.sin(tNow * 0.0034 + 1.85) * 0.022 * bobScale : 0;
             const stalkBobX = isBeholderVm ? Math.cos(tNow * 0.0023 + 1.85) * 0.014 * bobScale : 0;
-            this.leftHandGroup.position.x = this.leftRestPos.x - bobX + stalkBobX;
+            this.leftHandGroup.position.x = (this.leftRestPos.x * vmAspectScale) - bobX + stalkBobX;
             this.leftHandGroup.position.y = this.leftRestPos.y + bobY + (this.hurtAnimationTime > 0 ? actY : 0) + stalkBobY;
-            this.leftHandGroup.position.z = this.leftRestPos.z + (this.hurtAnimationTime > 0 ? actZ : offhandCounterZ);
+            this.leftHandGroup.position.z = this.leftRestPos.z + vmPullZ + (this.hurtAnimationTime > 0 ? actZ : offhandCounterZ);
             this.leftHandGroup.rotation.x = this.leftRestRot.x + (this.hurtAnimationTime > 0 ? actRotX : offhandCounterRotX);
             this.leftHandGroup.rotation.y = this.leftRestRot.y;
             this.leftHandGroup.rotation.z = this.leftRestRot.z;
@@ -13300,8 +13413,28 @@ class Dungeon3D {
                 if (typeof this.updateFlankThreatArcs === 'function') this.updateFlankThreatArcs(this.lastFrame);
                 if (typeof this.updateTacticalCursor === 'function') this.updateTacticalCursor(this.lastFrame, delta);
             }
+            if (this.camera && this.camera.layers) this.camera.layers.set(0);
+            this.renderer.autoClear = true;
             this.renderer.render(this.scene, this.camera);
+            const vmVisible = Boolean(this.viewmodelGroup && ((this.rightHandGroup && this.rightHandGroup.visible) || (this.leftHandGroup && this.leftHandGroup.visible)));
+            if (vmVisible && this.camera && this.camera.layers && typeof this.renderer.clearDepth === 'function') {
+                this.renderer.autoClear = false;
+                this.renderer.clearDepth();
+                this.camera.layers.set(1);
+                this.renderer.render(this.scene, this.camera);
+                this.camera.layers.set(0);
+                this.renderer.autoClear = true;
+            }
         }
+    }
+
+    _getCanvasRect() {
+        const el = (this.renderer && this.renderer.domElement) || this.canvas;
+        if (!el || typeof el.getBoundingClientRect !== 'function') return null;
+        if (!this._cachedCanvasRect || this._cachedCanvasRect.width === 0 || this._cachedCanvasRect.height === 0) {
+            this._cachedCanvasRect = el.getBoundingClientRect();
+        }
+        return this._cachedCanvasRect;
     }
 
     /**
@@ -13310,8 +13443,8 @@ class Dungeon3D {
      */
     getMonsterAtScreenCoords(clientX, clientY) {
         if (!this.camera || !this.renderer || !this.monsters || this.monsters.size === 0) return null;
-        const rect = this.renderer.domElement.getBoundingClientRect();
-        if (clientX < rect.left || clientX > rect.right || clientY < rect.top || clientY > rect.bottom) return null;
+        const rect = this._getCanvasRect();
+        if (!rect || clientX < rect.left || clientX > rect.right || clientY < rect.top || clientY > rect.bottom) return null;
 
         if (!this._mouseVec) this._mouseVec = new THREE.Vector2();
         if (!this._raycaster) this._raycaster = new THREE.Raycaster();
@@ -13374,8 +13507,8 @@ class Dungeon3D {
      */
     getItemAtScreenCoords(clientX, clientY) {
         if (!this.camera || !this.renderer || !this.items || this.items.size === 0) return null;
-        const rect = this.renderer.domElement.getBoundingClientRect();
-        if (clientX < rect.left || clientX > rect.right || clientY < rect.top || clientY > rect.bottom) return null;
+        const rect = this._getCanvasRect();
+        if (!rect || clientX < rect.left || clientX > rect.right || clientY < rect.top || clientY > rect.bottom) return null;
 
         if (!this._mouseVec) this._mouseVec = new THREE.Vector2();
         if (!this._raycaster) this._raycaster = new THREE.Raycaster();
@@ -13422,8 +13555,8 @@ class Dungeon3D {
         const mapH = map.h || rows.length;
         const mapW = map.w || (rows[0] && rows[0].g ? rows[0].g.length : 0);
 
-        const rect = this.canvas.getBoundingClientRect();
-        if (rect.width === 0 || rect.height === 0) return null;
+        const rect = this._getCanvasRect();
+        if (!rect || rect.width === 0 || rect.height === 0) return null;
         if (clientX < rect.left || clientX > rect.right || clientY < rect.top || clientY > rect.bottom) return null;
 
         if (!this._mouseVec2) this._mouseVec2 = new THREE.Vector2();

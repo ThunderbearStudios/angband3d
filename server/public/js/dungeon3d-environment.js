@@ -705,7 +705,6 @@ Dungeon3DProto._mountStorefrontClusterProps = function _mountStorefrontClusterPr
                 clone.traverse((c) => {
                     if (c.isMesh && c.material && !Array.isArray(c.material)) {
                         const mClone = c.material.clone();
-                        mClone._sharedMaterial = true;
                         this._applyUvSeamBleedFix(mClone);
                         if (mClone.emissive) {
                             mClone.emissiveMap = mClone.map || null;
