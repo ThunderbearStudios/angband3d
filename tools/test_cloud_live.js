@@ -16,7 +16,9 @@ const WSS_URL = `wss://${CLOUD_HOST}/ws?user=CloudTestHero`;
 
 function fetchJson(path) {
     return new Promise((resolve, reject) => {
-        https.get(`${HTTPS_URL}${path}`, res => {
+        https.get(`${HTTPS_URL}${path}`, {
+            headers: { Origin: HTTPS_URL, 'User-Agent': 'Mozilla/5.0 Angband3D-CloudTest/1.0' }
+        }, res => {
             let data = '';
             res.on('data', chunk => data += chunk);
             res.on('end', () => {
@@ -49,7 +51,9 @@ async function run() {
 
     console.log(`[CloudTest] 3. Connecting to WebSocket: ${WSS_URL}...`);
     return new Promise((resolve, reject) => {
-        const ws = new WebSocket(WSS_URL);
+        const ws = new WebSocket(WSS_URL, {
+            headers: { Origin: HTTPS_URL, 'User-Agent': 'Mozilla/5.0 Angband3D-CloudTest/1.0' }
+        });
         const timer = setTimeout(() => {
             ws.terminate();
             reject(new Error('WebSocket connection test timed out after 15s'));
