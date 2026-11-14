@@ -6,7 +6,7 @@ Thunderbear Studios actively maintains security updates and patches for the foll
 
 | Version | Supported | Notes |
 |---|---|---|
-| **Web v12.0.x / Desktop 12.0.x** | :white_check_mark: | Current Active Release (`yasd3d.com` & `angband3d.com`) |
+| **Web v12.0.x / Desktop 12.0.x** | :white_check_mark: | Current Active Release (`yasd3d.com`) |
 | **Web v11.9.x** | :white_check_mark: | Security Patches Only |
 | **< 11.9.0** | :x: | Deprecated / End of Life |
 
@@ -14,7 +14,7 @@ Thunderbear Studios actively maintains security updates and patches for the foll
 
 ## Security Model & Threat Boundary
 
-YASD 3D (`yasd3d.com` / `angband3d.com`) is designed with defence-in-depth across multiple runtime environments:
+YASD 3D (`yasd3d.com`) is designed with defence-in-depth across multiple runtime environments:
 
 1. **Web Client & Isolated Browser Engine Worker (`engine-worker.js`)**:
    - Both the Emscripten WebAssembly Angband 4.2.6 C engine and the 5 Yendor 3D JS Cartridges (`ryod`, `nethack`, `dcss`, `brogue`, `rogue`) execute inside an isolated `Web Worker` (`0ms` main-thread block).

@@ -4,7 +4,7 @@
 
 The objective of **Route A** is to deliver a 100% standalone, offline-capable version of **Angband3D** that runs natively on Android devices (as an installable `.apk` / Google Play Store `.aab`) and in any modern web browser (as an offline Progressive Web App) **without requiring any cloud connectivity, background server, or active internet connection**.
 
-All platforms—Windows standalone `.exe`, Linux standalone, Cloud Realm (`angband3d.com`), and Android `.apk`—will share **100% binary `.sav` save file compatibility**, allowing heroes to move seamlessly between mobile and desktop.
+All platforms—Windows standalone `.exe`, Linux standalone, Cloud Realm (`yasd3d.com`), and Android `.apk`—will share **100% binary `.sav` save file compatibility**, allowing heroes to move seamlessly between mobile and desktop.
 
 ```mermaid
 graph TB
@@ -119,7 +119,7 @@ interface IGameBridge {
 }
 ```
 
-1. **`CloudBridge` (existing `GameNetwork`)**: Pipes commands through WebSocket to `wss://angband3d.com/ws`.
+1. **`CloudBridge` (existing `GameNetwork`)**: Pipes commands through WebSocket to `wss://yasd3d.com/ws`.
 2. **`LocalWasmBridge` (new offline driver)**: Spawns `new Worker('js/engine-worker.js')` and routes identical JSON frames and keys via worker messaging.
 
 Switching between Cloud Realm and Local Offline is a 1-line instantiation:
@@ -211,7 +211,7 @@ On Android devices, pressing the physical or gesture Back button should not clos
 
 ## 8. Universal Multi-Platform Hub ("Get Angband3D")
 
-On `angband3d.com`, add a dedicated **`[⚔ Get Angband3D]`** modal that automatically detects the player's device and provides the appropriate offline options:
+On `yasd3d.com`, add a dedicated **`[⚔ Get Angband3D]`** modal that automatically detects the player's device and provides the appropriate offline options:
 
 ```
 ┌────────────────────────────────────────────────────────┐

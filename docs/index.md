@@ -8,7 +8,7 @@ description: "Four authoritative C/C++ roguelike engines (Vanilla, Sil-Q, FrogCo
 
 > **Four Legendary Roguelike Engines. One Living 3D World. Over Three Decades of Tactical History Preserved Through High-Performance Engine Decoupling.**
 
-[![Play Online in Browser](https://img.shields.io/badge/⚔_Play_Online-angband3d.com-gold?style=for-the-badge&logo=googlechrome)](https://angband3d.com)
+[![Play Online in Browser](https://img.shields.io/badge/⚔_Play_Online-yasd3d.com-gold?style=for-the-badge&logo=googlechrome)](https://yasd3d.com)
 [![License: GPL v2](https://img.shields.io/badge/License-GPL_v2-blue.svg)](https://github.com/ThunderbearStudios/angband3d/blob/main/LICENSE)
 [![GitHub Repository](https://img.shields.io/badge/GitHub-ThunderbearStudios%2Fangband3d-blue?style=for-the-badge&logo=github)](https://github.com/ThunderbearStudios/angband3d)
 
@@ -16,7 +16,7 @@ description: "Four authoritative C/C++ roguelike engines (Vanilla, Sil-Q, FrogCo
 
 ## 🌟 Instant Play & Standalone Downloads
 
-* ⚔ **Play Instantly in Your Browser**: **[https://angband3d.com](https://angband3d.com)**  
+* ⚔ **Play Instantly in Your Browser**: **[https://yasd3d.com](https://yasd3d.com)**  
   *Zero installation. Runs at smooth 60 FPS in Chrome, Safari, Edge, or Firefox across PC, Mac, iPhone, iPad, and Android.*
 * 💻 **Standalone Windows PC Desktop Release**: **[Download Angband3D-Windows-x64.zip](https://github.com/ThunderbearStudios/angband3d/releases/latest/download/Angband3D-Windows-x64.zip)**  
   *Unlocked 144+ FPS native execution powered by Godot 4.3+ .NET 8 (Vulkan / D3D12) for pure offline play.*
@@ -116,7 +116,7 @@ Your character lives wherever you want to play:
 ---
 
 ## 📜 The Living Chronicle: Web-Exclusive Living Saga & AI Voice Matrix
-*(Exclusive to the Web Client at `angband3d.com`)*
+*(Exclusive to the Web Client at `yasd3d.com`)*
 
 The classic dungeon crawl is transformed into an epic voiced chronicle. Angband 3D on the web integrates a state-of-the-art neural storytelling suite powered by Google Gemini and a procedural Web Audio acoustic chain:
 

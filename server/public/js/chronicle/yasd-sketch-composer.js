@@ -439,7 +439,7 @@
         ctx.fillStyle = '#f5d77f';
         ctx.font = 'bold 16px "Cinzel", Georgia, serif';
         ctx.textAlign = 'left';
-        ctx.fillText(isActionScene ? 'YASD 3D • LIVING CHRONICLE SCENE (angband3d.com)' : 'YASD 3D • YET ANOTHER STUPID DEATH (yasd3d.com)', 76, 52);
+        ctx.fillText(isActionScene ? 'YASD 3D • LIVING CHRONICLE SCENE (yasd3d.com)' : 'YASD 3D • YET ANOTHER STUPID DEATH (yasd3d.com)', 76, 52);
         ctx.textAlign = 'right';
         ctx.fillStyle = '#c9a050';
         ctx.font = 'bold 13px "Cinzel", Georgia, serif';
@@ -524,7 +524,7 @@
 
         ctx.fillStyle = '#94a3b8';
         ctx.font = '12px sans-serif';
-        ctx.fillText('Play 9 classic roguelikes in first-person 3D at https://yasd3d.com • https://angband3d.com', rx, 555);
+        ctx.fillText('Play 9 classic roguelikes in first-person 3D at https://yasd3d.com', rx, 555);
 
         if (typeof navigator !== 'undefined' && typeof navigator.share === 'function' && typeof navigator.canShare === 'function' && typeof canvas.toBlob === 'function' && typeof File === 'function') {
             try {

@@ -9,11 +9,11 @@
 
     <!-- Open Graph / Social Meta -->
     <meta property="og:type" content="video.other">
-    <meta property="og:url" content="https://angband3d.com/demo">
+    <meta property="og:url" content="https://yasd3d.com/demo">
     <meta property="og:title" content="Angband 3D — Official Gameplay Showcase &amp; Veteran Guide">
     <meta property="og:description" content="100% authentic in-engine gameplay: 0-turn camera yaw, bit-for-bit Angband 4.2.6 C engine, CRT terminal mode, tactical vault combat against a Young Red Dragon, and living voiced chronicle.">
-    <meta property="og:image" content="https://angband3d.com/assets/video/frames/kf_15_dragon_target_fire_clash_205s.png">
-    <meta property="og:video" content="https://angband3d.com/assets/video/angband3d_demo.mp4">
+    <meta property="og:image" content="https://yasd3d.com/assets/video/frames/kf_15_dragon_target_fire_clash_205s.png">
+    <meta property="og:video" content="https://yasd3d.com/assets/video/angband3d_demo.mp4">
     <meta property="og:video:type" content="video/mp4">
     <meta property="og:video:width" content="1920">
     <meta property="og:video:height" content="1080">
@@ -22,7 +22,7 @@
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="Angband 3D — Official Gameplay Showcase">
     <meta name="twitter:description" content="Experience the 30-year roguelike reborn in first-person 3D. Bit-for-bit Angband 4.2.6 C engine, 0-turn yaw, dual reality CRT mode, and universal .SAV portability.">
-    <meta name="twitter:image" content="https://angband3d.com/assets/video/frames/kf_15_dragon_target_fire_clash_205s.png">
+    <meta name="twitter:image" content="https://yasd3d.com/assets/video/frames/kf_15_dragon_target_fire_clash_205s.png">
 
     <!-- Favicon & Icons -->
     <link rel="icon" type="image/png" href="/assets/thunderbear_logo.png">
@@ -32,9 +32,9 @@
     <link rel="preload" href="/assets/fonts/cinzel-latin.woff2" as="font" type="font/woff2" crossorigin>
 
     <!-- Single Source of Truth Stylesheet -->
-    <link rel="stylesheet" href="/css/dungeon.css?v=12.3.6">
+    <link rel="stylesheet" href="/css/dungeon.css?v=12.3.7">
 
-    <!-- Standalone Client Redirection: The video showcase is hosted strictly on https://angband3d.com/demo -->
+    <!-- Standalone Client Redirection: The video showcase is hosted strictly on https://yasd3d.com/demo -->
     <script>
         (function() {
             var isStandalone = (window.chrome && window.chrome.webview !== undefined) ||
@@ -44,9 +44,9 @@
                                window.Capacitor !== undefined;
             if (isStandalone) {
                 if (window.chrome && window.chrome.webview && window.chrome.webview.postMessage) {
-                    window.chrome.webview.postMessage({ type: 'openExternal', url: 'https://angband3d.com/demo' });
+                    window.chrome.webview.postMessage({ type: 'openExternal', url: 'https://yasd3d.com/demo' });
                 } else {
-                    window.open('https://angband3d.com/demo', '_blank');
+                    window.open('https://yasd3d.com/demo', '_blank');
                 }
                 window.location.href = '/index.html';
             }
@@ -173,7 +173,7 @@
     </main>
 
     <!-- Single Source of Truth Video Controller Script -->
-    <script src="/js/safe-html.js?v=12.3.6"></script>
-    <script src="/js/demo-player.js?v=12.3.6"></script>
+    <script src="/js/safe-html.js?v=12.3.7"></script>
+    <script src="/js/demo-player.js?v=12.3.7"></script>
 </body>
 </html>

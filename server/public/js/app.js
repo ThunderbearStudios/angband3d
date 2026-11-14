@@ -73,7 +73,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
     // Platform Auto-Detection:
     // - Standalone Native Desktop (Windows/Linux) & Android APK: runs offline with bundled engine (or connects to cloud on request).
-    // - Web Browser (angband3d.com): ALWAYS connects directly to the Cloud Realm WebSocket daemon!
+    // - Web Browser (yasd3d.com): ALWAYS connects directly to the Cloud Realm WebSocket daemon!
     const isStandaloneApp = () => {
         return window.Capacitor !== undefined ||
                location.protocol === 'capacitor:' ||
@@ -3056,7 +3056,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 ]
             },
             refs: [
-                { name: 'Angband 3D Universal Cartridge Architecture', url: 'https://angband3d.com', desc: 'Powered by the Universal 8-Realm Content Pool and deterministic FNV-1a Blueprint Compiler.' }
+                { name: 'YASD 3D Universal Cartridge Architecture', url: 'https://yasd3d.com', desc: 'Powered by the Universal 8-Realm Content Pool and deterministic FNV-1a Blueprint Compiler.' }
             ]
         }
     };
@@ -3232,7 +3232,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 </div>
                 <div class="guide-callout" style="margin-top: 10px;">
                     <strong>⚔️ YASD 3D / Angband 3D 9-Realm Engine &amp; RYOD Tabletop Forge (v11.8.3)</strong><br>
-                    Created by <strong>Thunderbear Studios (<a href="https://thunderbearstudios.dev" target="_blank" rel="noopener noreferrer" style="color:var(--yasd-gold-accent);">thunderbearstudios.dev</a> • <a href="https://yasd3d.com" target="_blank" rel="noopener noreferrer" style="color:var(--yasd-gold-accent);">yasd3d.com</a> • <a href="https://angband3d.com" target="_blank" rel="noopener noreferrer" style="color:var(--yasd-gold-accent);">angband3d.com</a>)</strong>.<br>
+                    Created by <strong>Thunderbear Studios (<a href="https://thunderbearstudios.dev" target="_blank" rel="noopener noreferrer" style="color:var(--yasd-gold-accent);">thunderbearstudios.dev</a> • <a href="https://yasd3d.com" target="_blank" rel="noopener noreferrer" style="color:var(--yasd-gold-accent);">yasd3d.com</a>)</strong>.<br>
                     Powered by 8 authentic upstream open-source roguelike engines (NetHack 3.6.7, Dungeon Crawl Stone Soup 0.31, Vanilla Angband 4.2.6, Brogue CE 1.13, Classic Rogue 5.4.4, Sil-Q 1.5.0, FrogComposband 7.1, Hengband 3.0.1.26) plus the 9th <strong>Roll Your Own Dungeon (RYOD) 6-Card Hybrid Tabletop World Forge</strong> and 9-Realm Voiced Living Chronicle (<em>Enceladus</em> Master Narrator &amp; Lorekeeper).
                 </div>
             `;
@@ -4233,7 +4233,7 @@ window.addEventListener('DOMContentLoaded', () => {
     if (btnSplashDemo) {
         if (isStandaloneApp()) {
             btnSplashDemo.innerHTML = '<kbd>[D]</kbd> 🎬 Gameplay Demo <span style="font-size:11px; opacity:0.85; margin-left:2px;">(Web ↗)</span>';
-            btnSplashDemo.title = 'Watch official narrated 1080p gameplay showcase on angband3d.com (opens in default web browser)';
+            btnSplashDemo.title = 'Watch official narrated 1080p gameplay showcase on yasd3d.com (opens in default web browser)';
         }
         bindFastTap(btnSplashDemo, () => showDemoModal('splash'));
     }
@@ -4260,7 +4260,7 @@ window.addEventListener('DOMContentLoaded', () => {
             const label = btnMenuDemo.querySelector('.menu-label');
             const desc = btnMenuDemo.querySelector('.menu-desc');
             if (label) label.textContent = '🎬 Gameplay Demo & Feature Showcase (Web ↗)';
-            if (desc) desc.textContent = 'Opens the official 1080p narrated showcase on angband3d.com in your web browser.';
+            if (desc) desc.textContent = 'Opens the official 1080p narrated showcase on yasd3d.com in your web browser.';
         }
         bindFastTap(btnMenuDemo, () => showDemoModal('mainMenu'));
     }

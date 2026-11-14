@@ -2,7 +2,7 @@
 
 > **Standard Compliance**: [Game Accessibility Guidelines (GAG)](https://gameaccessibilityguidelines.com/) (Basic, Intermediate, and Advanced), AbleGamers APX (Accessible Player Experiences), and Section 508 / CVAA principles.  
 > **Target Audience**: Accessibility Evaluators, AbleGamers, GAconf, IGF Accessibility Jurors, and Players of all ability profiles.  
-> **Official Web Client**: [https://angband3d.com](https://angband3d.com)  
+> **Official Web Client**: [https://yasd3d.com](https://yasd3d.com)  
 
 ---
 
@@ -118,14 +118,14 @@ Rather than treating accessibility as an afterthought, Angband 3D’s core techn
 
 To immediately verify these accessibility systems in action:
 1. **Test 3D Motion Sickness Relief**:
-   - Open [https://angband3d.com](https://angband3d.com) and enter the dungeon.
+   - Open [https://yasd3d.com](https://yasd3d.com) and enter the dungeon.
    - Press `[Tab]` to verify the instant, 0ms crossfade into the stable 2D CRT terminal.
 2. **Test Temporal Agency**:
    - Encounter an enemy. Stop all keyboard/mouse inputs. Observe that the game waits indefinitely without passing time or taking damage.
 3. **Test Visual-Auditory Redundancy**:
    - Mute your speakers. Fire an arrow or cast a spell. Observe that the top action banner and bottom message drawer immediately report all hit, miss, and damage telemetry.
 4. **Test Living Chronicle & Screen Reader Support**:
-   - Open [https://angband3d.com](https://angband3d.com).
+   - Open [https://yasd3d.com](https://yasd3d.com).
    - Expand the Living Chronicle Tome (`[📖 Tome]`) to observe live transcript delivery and auditory feedback.
 
 

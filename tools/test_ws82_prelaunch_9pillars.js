@@ -289,7 +289,7 @@ async function checkAsync(label, fn) {
         assert.strictEqual(RealmCarousel.REALM_CARDS.length, 9);
         const creditsSrc = read('CREDITS.md');
         assert.ok(creditsSrc.includes('Realm Collector Card Nostalgia Plates'), 'CREDITS.md must document all 9 realm plates');
-        assert.ok(creditsSrc.includes('thunderbearstudios.dev') && creditsSrc.includes('angband3d.com'), 'CREDITS.md must use canonical domains');
+        assert.ok(creditsSrc.includes('thunderbearstudios.dev') && creditsSrc.includes('yasd3d.com'), 'CREDITS.md must use canonical domains');
 
         for (const card of RealmCarousel.REALM_CARDS) {
             assert.strictEqual(card.pillars.length, 3, `Expected 3 pillars for ${card.id}`);
@@ -310,7 +310,7 @@ async function checkAsync(label, fn) {
     // =========================================================================
     // PILLAR 9: Deep 9-Realm Bug & State-Bleed Sweep
     // =========================================================================
-    check('Pillar 9.1: DCSS closed-door check (feat === 2), Cartridge Victory routing, and canonical angband3d.com URLs', () => {
+    check('Pillar 9.1: DCSS closed-door check (feat === 2), Cartridge Victory routing, and exclusive canonical yasd3d.com URLs', () => {
         const inputSrc = read('server/public/js/input.js');
         assert.ok(inputSrc.includes('this.getFeatAt(lf.map, px + dx, py + dy) === 2'), 'DCSS "o" door check must use FEAT.CLOSED_DOOR (2)');
 
@@ -318,7 +318,37 @@ async function checkAsync(label, fn) {
         assert.ok(appSrc.includes('Boolean(frame.victory || frame.player.winner || frame.player.total_winner)'), 'needsTerminal must check frame.victory');
 
         const autopsySrc = read('server/public/js/yasd-autopsy.js');
-        assert.ok(autopsySrc.includes('https://angband3d.com/?realm='), 'yasd-autopsy.js Dare Seed must use canonical angband3d.com');
+        assert.ok(autopsySrc.includes('https://yasd3d.com/?realm='), 'yasd-autopsy.js Dare Seed must use canonical yasd3d.com');
+
+        // Permanent Anti-Regression Guard: zero legacy host occurrences in UI, SEO, share cards, docs, or security.txt
+        const retiredHost = ['angband3d', 'com'].join('.');
+        const collectJsFiles = (dirRel) => {
+            const out = [];
+            for (const ent of fs.readdirSync(path.join(ROOT, dirRel), { withFileTypes: true })) {
+                const rel = path.posix.join(dirRel, ent.name);
+                if (ent.isDirectory()) out.push(...collectJsFiles(rel));
+                else if (ent.name.endsWith('.js')) out.push(rel);
+            }
+            return out;
+        };
+        const cleanTargets = [
+            'server/public/index.html',
+            'server/public/demo.html',
+            ...collectJsFiles('server/public/js'),
+            'CREDITS.md',
+            'README.md',
+            'LEGAL.md',
+            'PRESSKIT.md',
+            'SECURITY.md'
+        ];
+        for (const rel of cleanTargets) {
+            const lower = read(rel).toLowerCase();
+            assert.ok(!lower.includes(retiredHost), `${rel} must not contain retired host ${retiredHost}; use yasd3d.com`);
+        }
+        assert.ok(
+            read('server/src/server.js').includes('Canonical: https://yasd3d.com/.well-known/security.txt'),
+            'server/src/server.js security.txt must advertise https://yasd3d.com/.well-known/security.txt'
+        );
     });
 
     check('Pillar 9.2: Subagent End-to-End Contracts (Save Vault Sync, Sketch Models, 3D PBR/Avatars, Edge GAESA, NetHack [R], DCSS 3-Rune, Takeoff Safety)', () => {

@@ -13,7 +13,7 @@ const path = require('path');
 const vm = require('vm');
 
 const ROOT = path.join(__dirname, '..');
-const readText = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf8');
+const readText = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf8').replace(/\r\n/g, '\n');
 
 console.log('--- v12.2.2 Regression Gate ---');
 

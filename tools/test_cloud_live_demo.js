@@ -14,10 +14,10 @@ function fetchAll(url, headers = {}) {
 }
 
 async function run() {
-    console.log('Testing live production at https://angband3d.com...');
+    console.log('Testing live production at https://yasd3d.com...');
     
-    // 1. Root page v8.5.0 check
-    const root = await fetchAll('https://angband3d.com/?nocache=' + Date.now());
+    // 1. Root page check
+    const root = await fetchAll('https://yasd3d.com/?nocache=' + Date.now());
     const html = root.body.toString('utf8');
     console.log(`Root HTML HTTP ${root.statusCode}, size: ${html.length} bytes`);
     console.log('  ✓ Has demo-player script v8.6.0:', html.includes('demo-player.js?v=8.6.0'));
@@ -26,8 +26,8 @@ async function run() {
     console.log('  ✓ Has demo-modal:', html.includes('id="demo-modal"'));
 
     // 2. Dedicated /demo page check
-    console.log('\nTesting dedicated demo page at https://angband3d.com/demo...');
-    const demo = await fetchAll('https://angband3d.com/demo?nocache=' + Date.now());
+    console.log('\nTesting dedicated demo page at https://yasd3d.com/demo...');
+    const demo = await fetchAll('https://yasd3d.com/demo?nocache=' + Date.now());
     const demoHtml = demo.body.toString('utf8');
     console.log(`Demo HTML HTTP ${demo.statusCode}, size: ${demoHtml.length} bytes`);
     console.log('  ✓ HTTP 200 OK:', demo.statusCode === 200);
@@ -61,7 +61,7 @@ async function run() {
 
     // 4. Video MP4 HTTP 206 Partial Content Range Request
     console.log('\nTesting live video streaming range requests...');
-    const videoRange = await fetchAll('https://angband3d.com/assets/video/angband3d_demo.mp4', { 'Range': 'bytes=0-102400' });
+    const videoRange = await fetchAll('https://yasd3d.com/assets/video/angband3d_demo.mp4', { 'Range': 'bytes=0-102400' });
     console.log(`  ✓ angband3d_demo.mp4 Range Request HTTP ${videoRange.statusCode}`);
     console.log(`  ✓ Content-Type: ${videoRange.headers['content-type']}`);
     console.log(`  ✓ Content-Range: ${videoRange.headers['content-range'] || 'N/A'}`);
@@ -75,7 +75,7 @@ async function run() {
 
     console.log('\n=========================================');
     console.log('PRODUCTION DEMO SHOWCASE IS FULLY LIVE! 🚀');
-    console.log('URL: https://angband3d.com/demo');
+    console.log('URL: https://yasd3d.com/demo');
     console.log('=========================================\n');
 }
 

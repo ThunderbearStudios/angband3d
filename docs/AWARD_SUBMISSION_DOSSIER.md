@@ -2,7 +2,7 @@
 
 > **Target Competitions**: Independent Games Festival (IGF), The Webby Awards, IndieCade, Roguelike Celebration, AbleGamers / GAconf Awards, and GitHub Innovation / FOSS Awards.  
 > **Core Premise**: *Preservation Over Reimplementation* — Modernizing a 35-year-old foundational classic without losing a single line of mathematical depth, game balance, or universal savefile compatibility.  
-> **Official Web Experience**: [https://angband3d.com](https://angband3d.com)  
+> **Official Web Experience**: [https://yasd3d.com](https://yasd3d.com)  
 > **Open Source Repository**: [https://github.com/ThunderbearStudios/angband3d](https://github.com/ThunderbearStudios/angband3d)  
 
 ---
@@ -38,7 +38,7 @@ Rather than reimplementing Angband, Angband 3D retains the **unmodified, authori
 | **Independent Games Festival (IGF)** | **Excellence in Audio** | Procedural Web Audio DSP synthesis with -6 dB master limiting; The Living Chronicle AI dual-voice orchestration. | High-fidelity narrated walkthrough, dynamic audio engine. |
 | **Independent Games Festival (IGF)** | **Nuovo Award** | Philosophical challenge to video game "remake" culture: treating retro engines as living, immortal simulation backends. | The Preservation Manifesto, dual-reality CRT terminal. |
 | **Independent Games Festival (IGF)** | **Seumas McNally Grand Prize** | Holistic masterwork: technical ambition, design purity, audiovisual innovation, cultural preservation. | Complete playable game across Web, Windows, and Android. |
-| **The Webby Awards** | **Games & Technical Achievement** | Console-quality 60 FPS WebGL PBR gaming in any browser with zero installation, instant PWA caching, and split-thumb mobile UX. | `https://angband3d.com`, PWA manifest, Chrome Lighthouse 95+ score. |
+| **The Webby Awards** | **Games & Technical Achievement** | Console-quality 60 FPS WebGL PBR gaming in any browser with zero installation, instant PWA caching, and split-thumb mobile UX. | `https://yasd3d.com`, PWA manifest, Chrome Lighthouse 95+ score. |
 | **IndieCade** | **Innovation in Interaction & Trailblazer** | Recontextualizing historical gameplay through dual-reality perspectives and ergonomic 0-turn camera controls. | Dual-Reality CRT/3D toggle, universal movable HUD, 0-turn camera yaw. |
 | **Roguelike Celebration** | **Talk & Playable Showcase** | "Preservation Over Reimplementation: Driving 35-Year-Old C Roguelikes with Modern 3D Engines & WebAssembly". | `docs/ARCHITECTURE.md`, `tools/smoke_test.py`, live presentation demo. |
 | **AbleGamers / GAconf Awards** | **Excellence in Accessibility** | Turn-based temporal agency (zero twitch reflexes), 2D CRT mode for vestibular/motion sensitivity, full closed captions, -6 dB audio safety. | `docs/ACCESSIBILITY.md`, closed captions (`[CC]`), visual combat logs. |
@@ -160,7 +160,7 @@ Angband 3D brings console-quality 60 FPS first-person 3D gaming directly to mode
 
 #### Submission Narrative (300 Words)
 **Instantaneous, Zero-Install High-Fidelity Gaming**:  
-Angband 3D redefines what is possible in web gaming. Without downloading an installer, creating an account, or waiting for gigabyte-sized asset downloads, any user on Chrome, Safari, Edge, or Firefox can navigate to [https://angband3d.com](https://angband3d.com) and immediately plunge into a fully realized first-person 3D dungeon crawler running locked at 60 frames per second.
+Angband 3D redefines what is possible in web gaming. Without downloading an installer, creating an account, or waiting for gigabyte-sized asset downloads, any user on Chrome, Safari, Edge, or Firefox can navigate to [https://yasd3d.com](https://yasd3d.com) and immediately plunge into a fully realized first-person 3D dungeon crawler running locked at 60 frames per second.
 
 **Technical Architecture**:  
 - **WebAssembly & Asyncify**: The authoritative 35-year-old Angband 4.2.6 C engine is compiled to WebAssembly via Emscripten and isolated in a dedicated Web Worker. This eliminates main-thread CPU hitching, allowing complex procedural level generation and turn calculations to occur without dropping a single frame of WebGL rendering.
@@ -339,15 +339,15 @@ All media assets are hosted directly on the production infrastructure and can be
 
 | Scene | Timestamp | High-Res 1080p Asset URL | Narrative Context |
 |---|---|---|---|
-| **Town of Angband** | 0:24 | [kf_01_town_street_shops_24s.png](https://angband3d.com/assets/video/frames/kf_01_town_street_shops_24s.png) | 3D town square with armorers, general stores, and ambient dawn lighting. |
-| **0-Turn Camera Yaw** | 0:48 | [kf_04_zero_turn_camera_yaw_48s.png](https://angband3d.com/assets/video/frames/kf_04_zero_turn_camera_yaw_48s.png) | 360-degree free look demonstrating zero game turns advancing while scouting. |
-| **Dual Reality CRT** | 1:18 | [kf_06_dual_reality_terminal_crt_78s.png](https://angband3d.com/assets/video/frames/kf_06_dual_reality_terminal_crt_78s.png) | Instant [Tab] crossfade revealing the classic 80×24 amber/green CRT terminal. |
-| **Cavernous Depths** | 1:40 | [kf_08_dual_reality_3d_corridor_100s.png](https://angband3d.com/assets/video/frames/kf_08_dual_reality_3d_corridor_100s.png) | Deep dungeon exploration with torchlight attenuation and radar blips. |
-| **Tactical Archery** | 1:54 | [kf_09_caverns_ranged_archery_114s.png](https://angband3d.com/assets/video/frames/kf_09_caverns_ranged_archery_114s.png) | Ranged targeting reticle, projectile trails, and combat message feed. |
-| **Grimoire Spellcasting**| 2:10 | [kf_11_mage_grimoire_spell_cast_130s.png](https://angband3d.com/assets/video/frames/kf_11_mage_grimoire_spell_cast_130s.png) | Arcane spellbook selection, mana calculation, and lighting flash. |
-| **The Living Chronicle** | 2:44 | [kf_13_chronicle_lorekeeper_aoede_164s.png](https://angband3d.com/assets/video/frames/kf_13_chronicle_lorekeeper_aoede_164s.png) | Real-time illuminated adventure tome with spoken narration. |
-| **Red Dragon Clash** | 3:25 | [kf_15_dragon_target_fire_clash_205s.png](https://angband3d.com/assets/video/frames/kf_15_dragon_target_fire_clash_205s.png) | High-stakes tactical spell duel against a Young Red Dragon inside an obsidian vault. |
-| **Universal Saves UI** | 3:50 | [kf_17_pause_menu_save_download_230s.png](https://angband3d.com/assets/video/frames/kf_17_pause_menu_save_download_230s.png) | Single-click binary `.sav` export dialog for cross-platform portability. |
+| **Town of Angband** | 0:24 | [kf_01_town_street_shops_24s.png](https://yasd3d.com/assets/video/frames/kf_01_town_street_shops_24s.png) | 3D town square with armorers, general stores, and ambient dawn lighting. |
+| **0-Turn Camera Yaw** | 0:48 | [kf_04_zero_turn_camera_yaw_48s.png](https://yasd3d.com/assets/video/frames/kf_04_zero_turn_camera_yaw_48s.png) | 360-degree free look demonstrating zero game turns advancing while scouting. |
+| **Dual Reality CRT** | 1:18 | [kf_06_dual_reality_terminal_crt_78s.png](https://yasd3d.com/assets/video/frames/kf_06_dual_reality_terminal_crt_78s.png) | Instant [Tab] crossfade revealing the classic 80×24 amber/green CRT terminal. |
+| **Cavernous Depths** | 1:40 | [kf_08_dual_reality_3d_corridor_100s.png](https://yasd3d.com/assets/video/frames/kf_08_dual_reality_3d_corridor_100s.png) | Deep dungeon exploration with torchlight attenuation and radar blips. |
+| **Tactical Archery** | 1:54 | [kf_09_caverns_ranged_archery_114s.png](https://yasd3d.com/assets/video/frames/kf_09_caverns_ranged_archery_114s.png) | Ranged targeting reticle, projectile trails, and combat message feed. |
+| **Grimoire Spellcasting**| 2:10 | [kf_11_mage_grimoire_spell_cast_130s.png](https://yasd3d.com/assets/video/frames/kf_11_mage_grimoire_spell_cast_130s.png) | Arcane spellbook selection, mana calculation, and lighting flash. |
+| **The Living Chronicle** | 2:44 | [kf_13_chronicle_lorekeeper_aoede_164s.png](https://yasd3d.com/assets/video/frames/kf_13_chronicle_lorekeeper_aoede_164s.png) | Real-time illuminated adventure tome with spoken narration. |
+| **Red Dragon Clash** | 3:25 | [kf_15_dragon_target_fire_clash_205s.png](https://yasd3d.com/assets/video/frames/kf_15_dragon_target_fire_clash_205s.png) | High-stakes tactical spell duel against a Young Red Dragon inside an obsidian vault. |
+| **Universal Saves UI** | 3:50 | [kf_17_pause_menu_save_download_230s.png](https://yasd3d.com/assets/video/frames/kf_17_pause_menu_save_download_230s.png) | Single-click binary `.sav` export dialog for cross-platform portability. |
 
 ---
 
@@ -358,7 +358,7 @@ All media assets are hosted directly on the production infrastructure and can be
 To evaluate Angband 3D with zero setup friction:
 
 1. **Instant Web Play**:
-   Navigate directly to [https://angband3d.com](https://angband3d.com). Click **Play Now**.
+   Navigate directly to [https://yasd3d.com](https://yasd3d.com). Click **Play Now**.
    - No login, credentials, or installation required.
    - Works immediately on Chrome, Safari, Edge, and Firefox (Desktop & Mobile).
 

@@ -144,7 +144,7 @@
         init() {
             // Standalone Native Client Guard:
             // Standalone desktop/Android apps never bundle video or play demo locally;
-            // demo showcase is strictly hosted on https://angband3d.com/demo.
+            // demo showcase is strictly hosted on https://yasd3d.com/demo.
             if (this.isClientStandalone()) {
                 return;
             }
@@ -651,12 +651,12 @@
 
         open(fromState = 'mainMenu') {
             // Standalone Client Invariant: Demo showcase is strictly web-only.
-            // Shell out to https://angband3d.com/demo and exit without opening modal.
+            // Shell out to https://yasd3d.com/demo and exit without opening modal.
             if (this.isClientStandalone()) {
                 if (typeof window.openExternalUrl === 'function') {
-                    window.openExternalUrl('https://angband3d.com/demo');
+                    window.openExternalUrl('https://yasd3d.com/demo');
                 } else {
-                    window.open('https://angband3d.com/demo', '_blank');
+                    window.open('https://yasd3d.com/demo', '_blank');
                 }
                 return;
             }

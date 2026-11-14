@@ -141,7 +141,7 @@ class ChronicleManager {
     init(dungeon, soundEngine) {
         if (this.initialized) return;
 
-        // Standalone Client Guard: The Tome is strictly available only on the Web Client (angband3d.com)
+        // Standalone Client Guard: The Tome is strictly available only on the Web Client (yasd3d.com)
         if (typeof window !== 'undefined' && (
             window.Capacitor !== undefined ||
             window.location?.protocol === 'capacitor:' ||

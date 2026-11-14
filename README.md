@@ -3,7 +3,6 @@
 > **Nine Legendary Roguelike Realms & Roll Your Own Dungeon (`RYOD`). One Living 3D World. Over Four Decades of Tactical History Preserved Through High-Performance Engine Decoupling.**
 
 [![Play Online at yasd3d.com](https://img.shields.io/badge/⚔_Play_Online-yasd3d.com-gold?style=for-the-badge&logo=googlechrome)](https://yasd3d.com)
-[![Play Online at angband3d.com](https://img.shields.io/badge/⚔_Mirror-angband3d.com-amber?style=for-the-badge&logo=googlechrome)](https://angband3d.com)
 [![License: GPL v2](https://img.shields.io/badge/License-GPL_v2-blue.svg)](LICENSE)
 [![Engines: 9 Authoritative Realms](https://img.shields.io/badge/Engines-Angband_•_Sil--Q_•_FCB_•_Hengband_•_NetHack_•_DCSS_•_Brogue_•_Rogue_•_RYOD-darkgreen.svg)](#-nine-legendary-realms-one-unified-experience)
 [![Web Client: Three.js PBR](https://img.shields.io/badge/Web_Client-Three.js_WebGL_PBR_&_PWA-orange.svg)](server/public)
@@ -13,7 +12,7 @@
 ---
 
 > ### 🌟 Official Live Links & Instant Play (`v11.8.6`)
-> - ⚔ **Play Now in Browser**: **[https://yasd3d.com](https://yasd3d.com)** & **[https://angband3d.com](https://angband3d.com)** *(Instant 60 FPS 3D roguelike across Desktop, iOS & Android — zero install or 1-click PWA install)*
+> - ⚔ **Play Now in Browser**: **[https://yasd3d.com](https://yasd3d.com)** *(Instant 60 FPS 3D roguelike across Desktop, iOS & Android — zero install or 1-click PWA install)*
 > - 📖 **System Architecture & Wire Protocol**: **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** *(C99 & Universal Cartridge bridge specification, 60 FPS dirty-state gating & automated test matrix)*
 > - 🏛 **Official Studio & Architecture Overview**: **[https://thunderbearstudios.dev](https://thunderbearstudios.dev)** *(Thunderbear Studios frameworks & Cloud Run proving ground)*
 
@@ -115,7 +114,7 @@ Your character lives wherever you want to play:
 ---
 
 ## 📜 The Living Chronicle: Web-Exclusive Living Saga & AI Voice Matrix
-*(Exclusive to the Web Client at `angband3d.com`)*
+*(Exclusive to the Web Client at `yasd3d.com`)*
 
 The classic dungeon crawl is transformed into an epic voiced chronicle. Angband 3D on the web integrates a state-of-the-art neural storytelling suite powered by Google Gemini and a procedural Web Audio acoustic chain:
 
@@ -186,9 +185,9 @@ Capture your legend in living ink:
 
 ## 📱 Play Instantly: Universal Web & PWA Experience
 
-| Feature / Capability | Desktop Web (`angband3d.com`) | Mobile & Tablet Web / PWA | Local Self-Hosted (`docker` / `npm start`) |
+| Feature / Capability | Desktop Web (`yasd3d.com`) | Mobile & Tablet Web / PWA | Local Self-Hosted (`docker` / `npm start`) |
 |---|---|---|---|
-| **Direct Access** | **[Play in Browser](https://angband3d.com)** | **[Open on iOS / Android](https://angband3d.com)** | **`http://localhost:8080`** |
+| **Direct Access** | **[Play in Browser](https://yasd3d.com)** | **[Open on iOS / Android](https://yasd3d.com)** | **`http://localhost:8080`** |
 | **Target Platform** | Chrome, Edge, Firefox, Safari (PC, Mac, Linux) | iOS Safari & Android Chrome (Full-Screen PWA) | Windows, macOS, Linux, Docker / Cloud Run |
 | **Graphics Pipeline** | Three.js WebGL / 8-Realm PBR Biomes | Three.js WebGL / Adaptive DPR | Three.js WebGL / 8-Realm PBR Biomes |
 | **Target Framerate** | 60 FPS VSync (`_lastSig` Dirty-Gated) | 60 FPS Battery-Optimized | 60 FPS VSync |

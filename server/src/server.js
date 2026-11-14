@@ -1262,7 +1262,7 @@ const server = http.createServer((req, res) => {
     }
 
     if ((pathname === '/.well-known/security.txt' || pathname === '/security.txt' || req.url === '/.well-known/security.txt' || req.url === '/security.txt') && (req.method === 'GET' || req.method === 'HEAD')) {
-        const body = 'Contact: https://github.com/ThunderbearStudios/angband3d/security/advisories\nExpires: 2027-12-31T23:59:59.000Z\nPreferred-Languages: en\nCanonical: https://angband3d.com/.well-known/security.txt\n';
+        const body = 'Contact: https://github.com/ThunderbearStudios/angband3d/security/advisories\nExpires: 2027-12-31T23:59:59.000Z\nPreferred-Languages: en\nCanonical: https://yasd3d.com/.well-known/security.txt\n';
         res.writeHead(200, {
             'Content-Type': 'text/plain; charset=utf-8',
             'Content-Length': Buffer.byteLength(body),

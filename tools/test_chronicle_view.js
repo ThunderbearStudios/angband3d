@@ -97,7 +97,7 @@ async function getWs() {
                             </p>
                         </div>
                         <div class="chronicle-entry-footer">
-                            <span class="chronicle-voice-tag">🎙 Voiced live by Gemini Native Audio (24kHz Studio Master) • Hosted on angband3d.com</span>
+                            <span class="chronicle-voice-tag">🎙 Voiced live by Gemini Native Audio (24kHz Studio Master) • Hosted on yasd3d.com</span>
                         </div>
                     </div>
                 \`;

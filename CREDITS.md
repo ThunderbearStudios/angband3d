@@ -1,6 +1,6 @@
-# YASD 3D (`angband3d.com`) & The Yendor Engine™ — Open-Source Credits & Attribution
+# YASD 3D (`yasd3d.com`) & The Yendor Engine™ — Open-Source Credits & Attribution
 
-**YASD 3D** (*"Yet Another Stupid Death"*) is an open-source first-person 3D WebGL, CRT terminal, and AI-voiced frontend harness powered by the **Yendor Engine™**, created by **Thunderbear Studios™** (`https://thunderbearstudios.dev` / `https://angband3d.com`).
+**YASD 3D** (*"Yet Another Stupid Death"*) is an open-source first-person 3D WebGL, CRT terminal, and AI-voiced frontend harness powered by the **Yendor Engine™**, created by **Thunderbear Studios™** (`https://thunderbearstudios.dev` / `https://yasd3d.com`).
 
 ## 1. Process Isolation & License Architecture ("Mere Aggregation")
 
@@ -53,7 +53,7 @@ We gratefully credit the original authors, maintainers, and contributors of the 
    - **Upstream**: `https://github.com/RoguelikeRestorationProject/rogue5.4`
 
 9. **Roll Your Own Dungeon — The Chimera Forge (`ryod` — RYOD 2.0)**
-   - **Authors**: **Thunderbear Studios™** (`https://thunderbearstudios.dev` / `https://angband3d.com`).
+   - **Authors**: **Thunderbear Studios™** (`https://thunderbearstudios.dev` / `https://yasd3d.com`).
    - **Architecture**: Deterministic `RYOD-XXXXXXXX` blueprint compiler (`ryod-compiler.js`), 8-Realm Cross-Pollinated Chimera Disciplines (`ryod-systems.js`), 6-Card Hybrid Roll-or-Pick Tabletop Forge (`ryod-forge.js`), Playable 3D Creature Avatars, Floor 5/10/15 Subterranean Quartermaster Outposts, and Self-Hydrating `SaveRYOD` `.sav` Portability (`cartridge-core.js`).
 
 ---
@@ -118,4 +118,4 @@ The 8 classic Realm Collector Cards deliberately use authentic open-source engin
 - **`frogcomposband.webp`**: Gustave Doré, *The Destruction of Leviathan* (1865 — `Public Domain` via Wikimedia Commons).
 - **`hengband.webp`**: Utagawa Kuniyoshi, *Takiyasha the Witch and the Skeleton Spectre* (c. 1844 — `Public Domain` Edo ukiyo-e woodblock print via Wikimedia Commons).
 - **`rogue.webp`**: Classic 1984 PC/BSD *Rogue: Exploring the Dungeons of Doom* dungeon screen (`File:Rogue_Screen_Shot_CAR.PNG` — `Public Domain` via Wikimedia Commons).
-- **`ryod.webp`**: *The Chimera Forge* original dark-fantasy illustration — © 2026 **Thunderbear Studios™** (`https://angband3d.com`).
+- **`ryod.webp`**: *The Chimera Forge* original dark-fantasy illustration — © 2026 **Thunderbear Studios™** (`https://yasd3d.com`).

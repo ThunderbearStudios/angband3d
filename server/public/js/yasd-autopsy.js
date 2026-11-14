@@ -443,7 +443,7 @@
         const bpParam = (d.realm === 'ryod' && root.__activeRyodBlueprint && root.__activeRyodBlueprint.code)
             ? `&bp=${encodeURIComponent(root.__activeRyodBlueprint.code)}`
             : '';
-        const url = `https://angband3d.com/?realm=${encodeURIComponent(d.realm)}&seed=${encodeURIComponent(seed)}${bpParam}`;
+        const url = `https://yasd3d.com/?realm=${encodeURIComponent(d.realm)}&seed=${encodeURIComponent(seed)}${bpParam}`;
         const shareText = `☠ Avenge ${d.heroName} (Lv.${d.level}, Depth ${d.depth}) in ${d.realm.toUpperCase()} — ${d.cause} Dare Seed: ${url}`;
         try {
             if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {

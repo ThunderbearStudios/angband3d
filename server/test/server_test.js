@@ -431,10 +431,10 @@ async function runTests() {
     process.env.TRUST_PROXY = '1';
     let botStatus = 0;
     const mockRes = { writeHead: (st) => { botStatus = st; }, end: () => {} };
-    const blockedBot = guardMutation({ url: '/api/llm/generate', method: 'POST', headers: { host: 'angband3d.com' } }, mockRes, () => true, 'angband3d.com');
+    const blockedBot = guardMutation({ url: '/api/llm/generate', method: 'POST', headers: { host: 'yasd3d.com' } }, mockRes, () => true, 'yasd3d.com');
     assert.strictEqual(blockedBot, true, 'guardMutation must block headerless bot POST in TRUST_PROXY mode');
     assert.strictEqual(botStatus, 403, 'guardMutation must return HTTP 403 for headerless bot POST');
-    const allowedBrowser = guardMutation({ url: '/api/llm/generate', method: 'POST', headers: { host: 'angband3d.com', 'sec-fetch-site': 'same-origin' } }, mockRes, () => true, 'angband3d.com');
+    const allowedBrowser = guardMutation({ url: '/api/llm/generate', method: 'POST', headers: { host: 'yasd3d.com', 'sec-fetch-site': 'same-origin' } }, mockRes, () => true, 'yasd3d.com');
     assert.strictEqual(allowedBrowser, false, 'guardMutation must allow same-origin browser request');
     if (prevTrust === undefined) delete process.env.TRUST_PROXY; else process.env.TRUST_PROXY = prevTrust;
     assert.strictEqual(cssRes.headers['access-control-allow-origin'], undefined, 'Static assets must not set wildcard Access-Control-Allow-Origin: * (E17)');

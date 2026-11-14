@@ -8,7 +8,7 @@
 ## 📊 Factsheet
 
 * **Developer**: Thunderbear Studios ([https://thunderbearstudios.dev](https://thunderbearstudios.dev))
-* **Websites**: [https://yasd3d.com](https://yasd3d.com) • [https://angband3d.com](https://angband3d.com)
+* **Website**: [https://yasd3d.com](https://yasd3d.com)
 * **Current Release**: **`v12.0`** (Continuous Web, Desktop & Android Release)
 * **Platforms**:
   * **Web & PWA**: Instant Play in any modern browser (Desktop, Tablet & Mobile; 6 realms run 100% offline in a `0ms` Web Worker)
@@ -54,15 +54,15 @@ Players explore dark, atmospheric stone dungeons with first-person spatial prese
 
 | Scene | Resolution | Asset Link | Description |
 |---|---|---|---|
-| **Dragon Clash** | 1920×1080 | [kf_15_dragon_target_fire_clash_205s.png](https://angband3d.com/assets/video/frames/kf_15_dragon_target_fire_clash_205s.png) | First-person spell duel against a Young Red Dragon in an obsidian vault. |
-| **Town Square at Dawn** | 1920×1080 | [kf_01_town_street_shops_24s.png](https://angband3d.com/assets/video/frames/kf_01_town_street_shops_24s.png) | The Town of Angband with 3D armorers, alchemists, and ambient illumination. |
-| **Dual Reality CRT Terminal** | 1920×1080 | [kf_06_dual_reality_terminal_crt_78s.png](https://angband3d.com/assets/video/frames/kf_06_dual_reality_terminal_crt_78s.png) | Instant [Tab] toggle revealing the classic 80×24 green CRT ASCII grid. |
-| **3D Dungeon Corridor** | 1920×1080 | [kf_08_dual_reality_3d_corridor_100s.png](https://angband3d.com/assets/video/frames/kf_08_dual_reality_3d_corridor_100s.png) | First-person dungeon exploration with dynamic torchlight and radar. |
-| **Tactical Archery** | 1920×1080 | [kf_09_caverns_ranged_archery_114s.png](https://angband3d.com/assets/video/frames/kf_09_caverns_ranged_archery_114s.png) | Ranged targeting, combat log drawer, and monster health HUD. |
-| **Mage Grimoire** | 1920×1080 | [kf_11_mage_grimoire_spell_cast_130s.png](https://angband3d.com/assets/video/frames/kf_11_mage_grimoire_spell_cast_130s.png) | Spellbook incantations, mana calculation, and magical projectiles. |
-| **The Living Chronicle** | 1920×1080 | [kf_13_chronicle_lorekeeper_aoede_164s.png](https://angband3d.com/assets/video/frames/kf_13_chronicle_lorekeeper_aoede_164s.png) | The illustrated Adventure Tome penned and voiced in real time. |
-| **Universal Saves UI** | 1920×1080 | [kf_17_pause_menu_save_download_230s.png](https://angband3d.com/assets/video/frames/kf_17_pause_menu_save_download_230s.png) | Instant single-click save export for seamless cross-platform play. |
-| **Studio Insignia** | High-Res PNG | [thunderbear_logo.png](https://angband3d.com/assets/thunderbear_logo.png) | Official Thunderbear Studios golden bear emblem on transparent background. |
+| **Dragon Clash** | 1920×1080 | [kf_15_dragon_target_fire_clash_205s.png](https://yasd3d.com/assets/video/frames/kf_15_dragon_target_fire_clash_205s.png) | First-person spell duel against a Young Red Dragon in an obsidian vault. |
+| **Town Square at Dawn** | 1920×1080 | [kf_01_town_street_shops_24s.png](https://yasd3d.com/assets/video/frames/kf_01_town_street_shops_24s.png) | The Town of Angband with 3D armorers, alchemists, and ambient illumination. |
+| **Dual Reality CRT Terminal** | 1920×1080 | [kf_06_dual_reality_terminal_crt_78s.png](https://yasd3d.com/assets/video/frames/kf_06_dual_reality_terminal_crt_78s.png) | Instant [Tab] toggle revealing the classic 80×24 green CRT ASCII grid. |
+| **3D Dungeon Corridor** | 1920×1080 | [kf_08_dual_reality_3d_corridor_100s.png](https://yasd3d.com/assets/video/frames/kf_08_dual_reality_3d_corridor_100s.png) | First-person dungeon exploration with dynamic torchlight and radar. |
+| **Tactical Archery** | 1920×1080 | [kf_09_caverns_ranged_archery_114s.png](https://yasd3d.com/assets/video/frames/kf_09_caverns_ranged_archery_114s.png) | Ranged targeting, combat log drawer, and monster health HUD. |
+| **Mage Grimoire** | 1920×1080 | [kf_11_mage_grimoire_spell_cast_130s.png](https://yasd3d.com/assets/video/frames/kf_11_mage_grimoire_spell_cast_130s.png) | Spellbook incantations, mana calculation, and magical projectiles. |
+| **The Living Chronicle** | 1920×1080 | [kf_13_chronicle_lorekeeper_aoede_164s.png](https://yasd3d.com/assets/video/frames/kf_13_chronicle_lorekeeper_aoede_164s.png) | The illustrated Adventure Tome penned and voiced in real time. |
+| **Universal Saves UI** | 1920×1080 | [kf_17_pause_menu_save_download_230s.png](https://yasd3d.com/assets/video/frames/kf_17_pause_menu_save_download_230s.png) | Instant single-click save export for seamless cross-platform play. |
+| **Studio Insignia** | High-Res PNG | [thunderbear_logo.png](https://yasd3d.com/assets/thunderbear_logo.png) | Official Thunderbear Studios golden bear emblem on transparent background. |
 
 ---
 
@@ -95,6 +95,6 @@ Players explore dark, atmospheric stone dungeons with first-person spatial prese
 
 * **Mission**: Reinvigorate foundational gaming milestones by creating open-architecture frontends that respect original design philosophy while delivering modern sensory excellence.
 * **Studio Website**: [https://thunderbearstudios.dev](https://thunderbearstudios.dev)
-* **Game Website**: [https://angband3d.com](https://angband3d.com)
+* **Game Website**: [https://yasd3d.com](https://yasd3d.com)
 * **GitHub**: [https://github.com/ThunderbearStudios](https://github.com/ThunderbearStudios)
 * **Press Inquiries**: `press@thunderbearstudios.dev`

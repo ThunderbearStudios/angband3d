@@ -462,7 +462,7 @@ class SoundEngine {
             license,
             url
         });
-        const yasdUrl = 'https://angband3d.com';
+        const yasdUrl = 'https://yasd3d.com';
         const oga = (id, title, cat, file, artist, license, slug) => m(id, title, cat, file, artist, license, `https://opengameart.org/content/${slug}`);
         this._musicCatalog = [
             m('yasd_theme', 'YASD 3D Official Theme', 'theme', '/assets/audio/yasd_theme.mp3', 'Thunderbear Studios', 'Proprietary (© 2026 Thunderbear Studios)', yasdUrl),

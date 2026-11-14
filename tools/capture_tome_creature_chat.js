@@ -140,7 +140,7 @@ async function getWs() {
                             "The creature deceives. Beyond the archway rests a Young Red Dragon on ancient gold. It breathes fire in wide cones inflicting up to thirty damage. Gird yourself with Resist Fire or drink a Potion of Resistance before engaging."
                         </p>
                         <div style="font-size: 10px; color: #ca8a04; text-transform: uppercase; letter-spacing: 0.5px;">
-                            ★ Grounded in authentic Angband 4.2.6 monster & spell data • Hosted live on angband3d.com
+                            ★ Grounded in authentic Angband 4.2.6 monster & spell data • Hosted live on yasd3d.com
                         </div>
                     </div>
                 \`;

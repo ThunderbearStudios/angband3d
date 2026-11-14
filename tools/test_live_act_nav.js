@@ -184,7 +184,7 @@ async function testPage(url, isModal = false) {
 }
 
 (async () => {
-    const BASE_URL = (process.argv[2] || 'https://angband3d.com').replace(/\/+$/, '');
+    const BASE_URL = (process.argv[2] || 'https://yasd3d.com').replace(/\/+$/, '');
     console.log(`=== TESTING DEDICATED DEMO PAGE (${BASE_URL}/demo) ===`);
     const demoRes = await testPage(BASE_URL + '/demo');
 

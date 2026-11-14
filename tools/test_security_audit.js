@@ -134,8 +134,8 @@ async function auditSite(targetUrl) {
 
 (async () => {
     await auditSite('http://localhost:8080');
-    await auditSite('https://angband3d.com');
+    await auditSite('https://yasd3d.com');
     await auditSite('https://angband3d-cloud-iuawf47jqa-uc.a.run.app');
-    await auditSite('http://angband3d.com');
+    await auditSite('http://yasd3d.com');
     process.exit(0);
 })();

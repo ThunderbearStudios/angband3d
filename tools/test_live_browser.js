@@ -1,7 +1,7 @@
 const { runCdpSession } = require('./lib/cdp');
 
 async function main() {
-    await runCdpSession('https://angband3d.com', async ({ ws, send, evaluate, takeScreenshot }) => {
+    await runCdpSession('https://yasd3d.com', async ({ ws, send, evaluate, takeScreenshot }) => {
         // Enable Console and Network
         await send('Console.enable');
         await send('Runtime.enable');
