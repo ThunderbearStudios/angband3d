@@ -1095,6 +1095,9 @@ class ChronicleManager {
         this.isStoryPlaying = false;
         this.lorekeeperQueryCount = 0;
         this._lastChronicleFrameSig = null;
+        this._spawnTimeMs = Date.now();
+        this._lastProximityPrewarmTime = 0;
+        this._prewarmedPrologue = null;
 
         // 2. Wipe filter telemetry, combat trackers & action accumulators
         if (this.filter) this.filter.reset();
@@ -1166,7 +1169,7 @@ class ChronicleManager {
             this.updateTraditionBadge();
         }
 
-        // 8. Speculative Pre-Warming: Warm the active realm's opening chapter + 4s stair-descent lookahead!
+        // 8. Speculative Pre-Warming: Warm Sentence 1 of opening chapter and cache exact entry so frame 1 hits 0ms!
         if (hero && hero.race && this.grounder && this.audio && !this._isAudioMuted() && typeof this.audio.prewarmUtterance === 'function') {
             try {
                 const activeR = this.getActiveRealm();
@@ -1180,29 +1183,16 @@ class ChronicleManager {
                     data: { player: heroWithRealm }
                 }, heroWithRealm, this.tradition);
                 if (prologueEntry && prologueEntry.prose) {
+                    this._prewarmedPrologue = { evType: openEvType, realm: activeR, entry: prologueEntry };
                     const narrProfile = this.grounder.resolveVoiceProfile(null, heroWithRealm, openEvType, this.tradition, false, activeR, this.getLanguageMode());
                     const prewarmOpts = {
                         ...(narrProfile || {}),
                         narrator: narrProfile,
                         engine: this.audio.ttsEngine
                     };
-                    this.audio.prewarmUtterance(prologueEntry.prose, 'narrator', '', null, prewarmOpts).catch(() => {});
-                }
-                if (!isDungeonStart) {
-                    setTimeout(() => {
-                        if (this._isAudioMuted() || !this.grounder || !this.audio) return;
-                        const dHero = { ...(this.currentHero || heroWithRealm), realm: this.getActiveRealm(), depth: 1 };
-                        const dEntry = this.grounder.generateProceduralChapter({
-                            type: 'ONBOARDING_FIRST_DESCENT',
-                            priority: 'normal',
-                            isChapter: true,
-                            data: { player: dHero }
-                        }, dHero, this.tradition);
-                        if (dEntry && dEntry.prose) {
-                            const nProf = this.grounder.resolveVoiceProfile(null, dHero, 'ONBOARDING_FIRST_DESCENT', this.tradition, false, dHero.realm, this.getLanguageMode());
-                            this.audio.prewarmUtterance(dEntry.prose, 'narrator', '', null, { ...(nProf || {}), narrator: nProf, engine: this.audio.ttsEngine }).catch(() => {});
-                        }
-                    }, 4000);
+                    const sents = String(prologueEntry.prose).match(/[^.!?]+[.!?]+(?:\s+|$)|[^.!?]+$/g)?.map(s => s.trim()).filter(Boolean) || [prologueEntry.prose];
+                    const firstUtterance = (sents.length >= 2 && prologueEntry.prose.length >= 115 && sents[0].length >= 18) ? sents[0] : prologueEntry.prose;
+                    this.audio.prewarmUtterance(firstUtterance, 'narrator', '', null, prewarmOpts).catch(() => {});
                 }
             } catch (_) {}
         }
@@ -1459,7 +1449,11 @@ class ChronicleManager {
      * Throttled to once per 30s when audio is completely idle to prevent TTS request storms.
      */
     _speculativePrewarmProximity(frame) {
-        if (!frame || !frame.player || !this.audio || this._isAudioMuted() || this.audio.isSpeaking || this.audio.isStaging || typeof this.audio.prewarmUtterance !== 'function' || !this.grounder) {
+        if (!frame || !frame.player || !this.audio || this._isAudioMuted() || this.audio.isSpeaking || this.audio.isStaging || this.audio.isProcessingSpeechQueue || typeof this.audio.prewarmUtterance !== 'function' || !this.grounder) {
+            return;
+        }
+        const now = Date.now();
+        if (this._spawnTimeMs && (now - this._spawnTimeMs < 10000)) {
             return;
         }
         const hero = frame.player;
@@ -1467,7 +1461,6 @@ class ChronicleManager {
 
         // Check if player or monsters moved since last check
         const posSig = `${hero.x}_${hero.y}`;
-        const now = Date.now();
         if (this._lastPrewarmPos === posSig || (now - (this._lastProximityPrewarmTime || 0) < 30000)) {
             return;
         }
@@ -1901,8 +1894,15 @@ class ChronicleManager {
         }
 
         // Instant Ground-Truth Procedural Synthesis (0ms latency):
-        // Generates rich, lore-accurate, race-attuned Tolkien prose matching vocals 1:1.
-        const entry = this.grounder.generateProceduralChapter(event, frame.player, this.tradition);
+        // Reuse pre-warmed opening entry if event/realm match so sentence 1 hits cached audio immediately.
+        const activeRealmForPrologue = this.getActiveRealm();
+        let entry = null;
+        if (this._prewarmedPrologue && event && this._prewarmedPrologue.evType === event.type && this._prewarmedPrologue.realm === activeRealmForPrologue) {
+            entry = this._prewarmedPrologue.entry;
+            this._prewarmedPrologue = null;
+        } else {
+            entry = this.grounder.generateProceduralChapter(event, frame.player, this.tradition);
+        }
         if (!entry) return null;
         if (event && event.type !== 'HERO_DEATH' && entry.prose) {
             const weaver = (typeof window !== 'undefined' && window.ChronicleStoryWeaver) || (typeof globalThis !== 'undefined' && globalThis.ChronicleStoryWeaver) || null;
@@ -4105,7 +4105,7 @@ class ChronicleManager {
                     forceRefresh
                 })
             });
-            let apiErr = `HTTP ${res.status}`;
+            let apiErr = res.ok ? 'AI sketch unavailable' : `HTTP ${res.status}`;
             if (res.ok) {
                 const json = await res.json();
                 if (json && json.ok && json.imageUrl) {
@@ -4114,7 +4114,8 @@ class ChronicleManager {
                     bindDeathImage(json.imageUrl, json.model || 'Gemini', false, false);
                     return json.imageUrl;
                 }
-                if (json && json.error) apiErr = String(json.error).slice(0, 64);
+                const detail = json && ((json.error && json.error.message) || (typeof json.error === 'string' && json.error) || json.reason);
+                if (detail) apiErr = String(detail).slice(0, 64);
             }
 
             if (loaderEl) loaderEl.style.display = 'none';
@@ -4372,6 +4373,7 @@ class ChronicleManager {
                     })
                 });
                 if (reqId !== this._sketchReqSeq) return;
+                let busyDetail = res.ok ? 'AI sketch unavailable' : `HTTP ${res.status}`;
                 if (res.ok) {
                     const json = await res.json();
                     if (reqId !== this._sketchReqSeq) return;
@@ -4393,11 +4395,13 @@ class ChronicleManager {
                         }
                         return;
                     }
+                    const detail = json && ((json.error && json.error.message) || (typeof json.error === 'string' && json.error) || json.reason);
+                    if (detail) busyDetail = String(detail).slice(0, 64);
                 }
 
                 if (reqId !== this._sketchReqSeq) return;
                 revealCardImage(placeholderUrl);
-                const fallbackStatus = `📜 Local Woodcut Engraving (AI busy HTTP ${res.status} — Click 🔄 Regenerate AI to retry)`;
+                const fallbackStatus = `📜 Local Woodcut Engraving (AI busy: ${busyDetail} — Click 🔄 Regenerate AI to retry)`;
                 if (cardStatusEl) cardStatusEl.textContent = fallbackStatus;
                 if (!this._sketchModalDismissedByUser) {
                     openLightboxForCard(fallbackStatus, false);

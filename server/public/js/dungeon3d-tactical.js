@@ -2186,7 +2186,7 @@
             if (depth <= 0) {
                 if (r === 'hengband') {
                     const n = ['Eastern Overworld (Mount Fuji Foothills)', 'Eastern Overworld (Bamboo Forest Glade)', 'Eastern Overworld (Jingu Shrine Valley)', 'Eastern Overworld (Ancient Pine Sanctuary)'];
-                    return mk(n[sub], 0x141e33, 0x948aa3, 0.85, 0x141e33, 0.0035, 1.08, 0xffe099, 2.2, [0.85, 0.85, 0.88], [0.80, 0.78, 0.76], [0.70, 0.70, 0.75], 0.82, 0.80, { sunLight: true, sunEnergy: 1.05, fixtureArchetype: 'sengoku_lantern' });
+                    return mk(n[sub], 0x19182c, 0x948aa3, 0.85, 0x19182c, 0.0035, 1.08, 0xffe099, 2.2, [0.85, 0.85, 0.88], [0.80, 0.78, 0.76], [0.70, 0.70, 0.75], 0.82, 0.80, { sunLight: true, sunEnergy: 1.05, fixtureArchetype: 'sengoku_lantern' });
                 }
                 if (r === 'frogcomposband') {
                     const n = ['Wilderness Overworld (Verdant Meadow)', 'Wilderness Overworld (Whispering Woods)', 'Wilderness Overworld (Highland Moors)', 'Wilderness Overworld (Sunlit Dale)'];

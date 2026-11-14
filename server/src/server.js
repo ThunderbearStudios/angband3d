@@ -367,10 +367,12 @@ function redactSecret(val, secret = '') {
 }
 
 let _gcpAuthCache = { token: '', projectId: process.env.GOOGLE_CLOUD_PROJECT || process.env.GCLOUD_PROJECT || process.env.GCP_PROJECT || '', expiresAt: 0, inflight: null, failedUntil: 0 };
+let _gcpAuthProbedOnce = false;
 let _aiStudioDepletedUntil = 0;
 
 function hasVertexCandidate() {
     return Boolean(
+        !_gcpAuthProbedOnce ||
         process.env.GOOGLE_CLOUD_PROJECT ||
         process.env.GCLOUD_PROJECT ||
         process.env.GCP_PROJECT ||
@@ -399,10 +401,16 @@ function fetchMetadataText(metaPath) {
 
 function runGcloudCmd(args) {
     return new Promise(resolve => {
-        const cmd = process.platform === 'win32' ? 'gcloud.cmd' : 'gcloud';
+        if (!Array.isArray(args) || args.some(a => !/^[A-Za-z0-9_.\-/:=]+$/.test(String(a || '')))) {
+            return resolve('');
+        }
+        const safeArgs = args.map(a => String(a));
+        const isWin = process.platform === 'win32';
+        const cmd = isWin ? 'cmd.exe' : 'gcloud';
+        const spawnArgs = isWin ? ['/d', '/s', '/c', 'gcloud.cmd', ...safeArgs] : safeArgs;
         let proc;
         try {
-            proc = spawn(cmd, args, { stdio: ['ignore', 'pipe', 'ignore'], windowsHide: true });
+            proc = spawn(cmd, spawnArgs, { stdio: ['ignore', 'pipe', 'ignore'], windowsHide: true });
         } catch (_) {
             return resolve('');
         }
@@ -417,15 +425,26 @@ function runGcloudCmd(args) {
     });
 }
 
-function getGcpAuthContext() {
+function invalidateGcpAuthCache() {
+    _gcpAuthCache.token = '';
+    _gcpAuthCache.expiresAt = 0;
+    _gcpAuthCache.failedUntil = 0;
+    _gcpAuthCache.inflight = null;
+}
+
+function getGcpAuthContext(opts = {}) {
+    const forceRefresh = Boolean(opts && opts.forceRefresh);
+    if (forceRefresh) {
+        invalidateGcpAuthCache();
+    }
     const now = Date.now();
-    if (_gcpAuthCache.token && _gcpAuthCache.projectId && now < _gcpAuthCache.expiresAt) {
+    if (!forceRefresh && _gcpAuthCache.token && _gcpAuthCache.projectId && now < _gcpAuthCache.expiresAt) {
         return Promise.resolve({ token: _gcpAuthCache.token, projectId: _gcpAuthCache.projectId });
     }
-    if (_gcpAuthCache.failedUntil && now < _gcpAuthCache.failedUntil) {
+    if (!forceRefresh && _gcpAuthCache.failedUntil && now < _gcpAuthCache.failedUntil) {
         return Promise.resolve({ token: '', projectId: '' });
     }
-    if (_gcpAuthCache.inflight) return _gcpAuthCache.inflight;
+    if (!forceRefresh && _gcpAuthCache.inflight) return _gcpAuthCache.inflight;
     const onGcpMetadataEnv = Boolean(process.env.K_SERVICE || process.env.GOOGLE_CLOUD_PROJECT || process.env.CLOUD_RUN_JOB);
     const metaPromise = onGcpMetadataEnv
         ? Promise.all([
@@ -439,10 +458,11 @@ function getGcpAuthContext() {
             try {
                 const data = JSON.parse(rawTokenJson);
                 if (data && data.access_token && _gcpAuthCache.projectId) {
-                    const ttlSec = Math.max(60, (data.expires_in || 1800) - 120);
+                    const ttlSec = Math.max(60, Math.min(420, (data.expires_in || 1800) - 120));
                     _gcpAuthCache.token = data.access_token;
                     _gcpAuthCache.expiresAt = Date.now() + ttlSec * 1000;
                     _gcpAuthCache.failedUntil = 0;
+                    _gcpAuthProbedOnce = true;
                     _gcpAuthCache.inflight = null;
                     return { token: _gcpAuthCache.token, projectId: _gcpAuthCache.projectId };
                 }
@@ -455,11 +475,12 @@ function getGcpAuthContext() {
         if (localProj) _gcpAuthCache.projectId = localProj;
         if (localTok && _gcpAuthCache.projectId) {
             _gcpAuthCache.token = localTok;
-            _gcpAuthCache.expiresAt = Date.now() + 1500 * 1000;
+            _gcpAuthCache.expiresAt = Date.now() + 420 * 1000;
             _gcpAuthCache.failedUntil = 0;
         } else {
-            _gcpAuthCache.failedUntil = Date.now() + 5 * 60 * 1000;
+            _gcpAuthCache.failedUntil = Date.now() + 60 * 1000;
         }
+        _gcpAuthProbedOnce = true;
         _gcpAuthCache.inflight = null;
         return { token: _gcpAuthCache.token, projectId: _gcpAuthCache.projectId };
     });
@@ -474,7 +495,7 @@ function synthesizeGeminiTTS({ text, voice, emotion, geminiTag, directorNote, ro
         }
         const baseReqOpts = { method: 'POST', agent: geminiHttpsAgent, timeout: 20000 };
         const cleanTranscript = String(text || '').replace(/^\s*(?:\[[^\]]+\]|\*[^*]+\*)\s*/g, '').trim() || String(text || '');
-        const isShortLiveBeat = cleanTranscript.length > 0 && cleanTranscript.length < 220 && String(role || '').toLowerCase() !== 'mentor';
+        const isShortLiveBeat = cleanTranscript.length > 0 && cleanTranscript.length <= 380 && String(role || '').toLowerCase() !== 'mentor';
         const ttsModels = ['gemini-3.8-flash-tts', 'gemini-3.1-flash-tts-preview'];
         if (isShortLiveBeat) ttsModels.unshift('gemini-3.8-flash-lite-tts');
         const retryIdx = typeof isRetry === 'number' ? isRetry : (isRetry ? 1 : 0);
@@ -567,8 +588,8 @@ function synthesizeGeminiTTS({ text, voice, emotion, geminiTag, directorNote, ro
             ]
         });
 
-        function sendViaVertex(fallbackErrMsg) {
-            getGcpAuthContext().then(({ token, projectId }) => {
+        function sendViaVertex(fallbackErrMsg, retriedAuth = false) {
+            getGcpAuthContext({ forceRefresh: retriedAuth }).then(({ token, projectId }) => {
                 if (!token || !projectId) {
                     return reject(new Error(fallbackErrMsg || 'Vertex AI fallback token unavailable'));
                 }
@@ -586,6 +607,9 @@ function synthesizeGeminiTTS({ text, voice, emotion, geminiTag, directorNote, ro
                     let vBody = '';
                     vRes.on('data', c => vBody += c);
                     vRes.on('end', () => {
+                        if (vRes.statusCode === 401 && !retriedAuth) {
+                            return sendViaVertex(fallbackErrMsg, true);
+                        }
                         if ((vRes.statusCode === 401 || vRes.statusCode === 403) && fallbackErrMsg) {
                             return reject(new Error(fallbackErrMsg));
                         }
@@ -1545,7 +1569,8 @@ const server = http.createServer((req, res) => {
             const vertexLlmModel = model;
 
             function handleLlmResponse(upstreamRes, respBody, usedVertex) {
-                if (upstreamRes.statusCode !== 200 && !usedVertex && (upstreamRes.statusCode === 402 || upstreamRes.statusCode === 403 || upstreamRes.statusCode === 404 || upstreamRes.statusCode === 429 || upstreamRes.statusCode === 500 || upstreamRes.statusCode === 503)) {
+                const isFallbackStatus = upstreamRes.statusCode === 401 || upstreamRes.statusCode === 402 || upstreamRes.statusCode === 403 || upstreamRes.statusCode === 404 || upstreamRes.statusCode === 429 || upstreamRes.statusCode === 500 || upstreamRes.statusCode === 503 || (upstreamRes.statusCode === 400 && respBody.includes('API_KEY_INVALID'));
+                if (upstreamRes.statusCode !== 200 && !usedVertex && isFallbackStatus) {
                     if (upstreamRes.statusCode === 402 && !customApiKey && apiKey === process.env.GEMINI_API_KEY) {
                         _aiStudioDepletedUntil = Date.now() + 15 * 60 * 1000;
                     }
@@ -1576,8 +1601,8 @@ const server = http.createServer((req, res) => {
                 }
             }
 
-            function sendLlmViaVertex(fallbackStatus = 502, fallbackBody = '', vertexOverrideModel = '', retriedStable = false) {
-                getGcpAuthContext().then(({ token, projectId }) => {
+            function sendLlmViaVertex(fallbackStatus = 502, fallbackBody = '', vertexOverrideModel = '', retriedStable = false, retriedAuth = false) {
+                getGcpAuthContext({ forceRefresh: retriedAuth }).then(({ token, projectId }) => {
                     if (!token || !projectId) {
                         if (!res.headersSent) {
                             const outStatus = (fallbackStatus === 400 && fallbackBody.includes('API_KEY_INVALID')) ? 401 : fallbackStatus;
@@ -1601,8 +1626,11 @@ const server = http.createServer((req, res) => {
                         let vBody = '';
                         vRes.on('data', c => vBody += c);
                         vRes.on('end', () => {
+                            if (vRes.statusCode === 401 && !retriedAuth) {
+                                return sendLlmViaVertex(fallbackStatus, fallbackBody, chosenModel, retriedStable, true);
+                            }
                             if (vRes.statusCode === 404 && !retriedStable && chosenModel !== 'gemini-2.5-flash') {
-                                return sendLlmViaVertex(404, vBody, 'gemini-2.5-flash', true);
+                                return sendLlmViaVertex(404, vBody, 'gemini-2.5-flash', true, retriedAuth);
                             }
                             handleLlmResponse(vRes, vBody, true);
                         });
@@ -1717,9 +1745,11 @@ const server = http.createServer((req, res) => {
 
             const cacheKey = crypto.createHash('sha256').update(realm + ':' + prompt.trim()).digest('hex');
             if (sketchCache.has(cacheKey)) {
-                const cachedImg = sketchCache.get(cacheKey);
+                const cachedEntry = sketchCache.get(cacheKey);
                 sketchCache.delete(cacheKey);
-                sketchCache.set(cacheKey, cachedImg);
+                sketchCache.set(cacheKey, cachedEntry);
+                const cachedImg = (cachedEntry && typeof cachedEntry === 'object') ? cachedEntry.imageUrl : cachedEntry;
+                const cachedModel = (cachedEntry && typeof cachedEntry === 'object' && cachedEntry.model) ? cachedEntry.model : 'gemini-3.1-flash-image';
                 res.writeHead(200, {
                     'Content-Type': 'application/json',
                     'Cache-Control': 'no-cache, no-store, must-revalidate'
@@ -1727,7 +1757,7 @@ const server = http.createServer((req, res) => {
                 res.end(JSON.stringify({
                     ok: true,
                     imageUrl: cachedImg,
-                    model: 'gemini-nano-banana-2.1',
+                    model: cachedModel,
                     cached: true
                 }));
                 return;
@@ -1783,12 +1813,12 @@ const server = http.createServer((req, res) => {
                         const oldestKey = sketchCache.keys().next().value;
                         if (oldestKey !== undefined) sketchCache.delete(oldestKey);
                     }
-                    sketchCache.set(cacheKey, result.imageUrl);
+                    sketchCache.set(cacheKey, { imageUrl: result.imageUrl, model: result.model || 'gemini-3.1-flash-image' });
                 }
-                finishSketchRequest(result || { ok: false, fallback: true, reason: 'upstream_error_502' });
+                finishSketchRequest(result || { ok: false, fallback: true, reason: 'upstream_error_502', error: 'AI sketch unavailable (upstream_error_502)' });
             }).catch((err) => {
                 console.warn(`[Sketch] Unhandled error: ${err && err.message ? err.message : err}`);
-                finishSketchRequest({ ok: false, fallback: true, reason: 'network_error' });
+                finishSketchRequest({ ok: false, fallback: true, reason: 'network_error', error: 'AI sketch unavailable (network_error)' });
             });
         });
         return;
@@ -1872,6 +1902,64 @@ const server = http.createServer((req, res) => {
             res.writeHead(400, { 'Content-Type': 'application/json' }); res.end('{"error":"Invalid director_note"}'); return;
         }
 
+        const validGeminiVoices = [
+            'Sulafat', 'Aoede', 'Algenib', 'Kore', 'Orus', 'Despina', 'Fenrir', 'Puck',
+            'Gacrux', 'Sadaltager', 'Achernar', 'Zephyrus', 'Zephyr', 'Chort', 'Leda',
+            'Izar', 'Enif', 'Vindemiatrix', 'Vega', 'Charon', 'Callirrhoe', 'Autonoe',
+            'Enceladus', 'Iapetus', 'Umbriel', 'Algieba', 'Erinome', 'Rasalgethi',
+            'Laomedeia', 'Alnilam', 'Schedar', 'Pulcherrima', 'Achird', 'Zubenelgenubi', 'Sadachbia'
+        ];
+
+        function resolveGeminiVoiceChoice() {
+            let gVoice = isNarrator ? (GEMINI_REALM_NARRATOR_MAP[reqRealm] || GEMINI_REALM_NARRATOR_MAP.default) : GEMINI_VOICE_MAP.default;
+            const isDefaultMaleFallback = isNarrator && reqVoice && reqVoice.toLowerCase() === 'enceladus'
+                && reqGender === 'female';
+            if (reqVoice && validGeminiVoices.some(v => v.toLowerCase() === reqVoice.toLowerCase()) && !isDefaultMaleFallback) {
+                gVoice = validGeminiVoices.find(v => v.toLowerCase() === reqVoice.toLowerCase());
+            } else if (isNarrator) {
+                gVoice = (reqGender === 'female')
+                    ? (reqRealm === 'silq' ? 'Despina' : (reqRealm === 'hengband' ? 'Sulafat' : (reqRealm === 'frogcomposband' ? 'Kore' : 'Zephyr')))
+                    : (GEMINI_REALM_NARRATOR_MAP[reqRealm] || GEMINI_REALM_NARRATOR_MAP.default);
+            } else if (reqGender === 'female' && GEMINI_VOICE_MAP[`female_${role}`]) {
+                gVoice = GEMINI_VOICE_MAP[`female_${role}`];
+            } else if (reqGender === 'male' && GEMINI_VOICE_MAP[`male_${role}`]) {
+                gVoice = GEMINI_VOICE_MAP[`male_${role}`];
+            } else if (GEMINI_VOICE_MAP[role]) {
+                gVoice = GEMINI_VOICE_MAP[role];
+            }
+            return gVoice;
+        }
+
+        function cacheGeminiWav(cacheKey, wavBuffer) {
+            if (ttsAudioCache.has(cacheKey)) {
+                const old = ttsAudioCache.get(cacheKey);
+                if (old) ttsAudioCacheBytes -= old.length;
+                ttsAudioCache.delete(cacheKey);
+            }
+            while (ttsAudioCache.size >= MAX_TTS_CACHE_ITEMS || (ttsAudioCacheBytes + wavBuffer.length > MAX_TTS_CACHE_BYTES && ttsAudioCache.size > 0)) {
+                const oldestKey = ttsAudioCache.keys().next().value;
+                const oldBuf = ttsAudioCache.get(oldestKey);
+                if (oldBuf) ttsAudioCacheBytes -= oldBuf.length;
+                ttsAudioCache.delete(oldestKey);
+            }
+            ttsAudioCache.set(cacheKey, wavBuffer);
+            ttsAudioCacheBytes += wavBuffer.length;
+        }
+
+        function sendWavResponse(buffer, isHit = false, fallbackHdr = null) {
+            if (res.headersSent) return;
+            const headers = {
+                'Content-Type': 'audio/wav',
+                'Content-Length': buffer.length,
+                'Cache-Control': 'public, max-age=86400, stale-while-revalidate=3600',
+                'X-TTS-Engine': 'gemini',
+                'X-TTS-Cache': isHit ? 'HIT' : 'MISS'
+            };
+            if (fallbackHdr) headers['X-TTS-Fallback-Reason'] = String(fallbackHdr).slice(0, 100);
+            res.writeHead(200, headers);
+            res.end(buffer);
+        }
+
         // --- ENGINE B: GEMINI NATIVE CONTROLLABLE AUDIO ---
         if (requestedEngine === 'gemini') {
             const hasCloudAuth = hasVertexCandidate();
@@ -1880,55 +1968,19 @@ const server = http.createServer((req, res) => {
                 return;
             }
 
-            // Resolve Gemini voice from official 30-voice matrix or realm-contextual narrator defaults
-            let geminiVoice = isNarrator ? (GEMINI_REALM_NARRATOR_MAP[reqRealm] || GEMINI_REALM_NARRATOR_MAP.default) : GEMINI_VOICE_MAP.default;
-            const validGeminiVoices = [
-                'Sulafat', 'Aoede', 'Algenib', 'Kore', 'Orus', 'Despina', 'Fenrir', 'Puck',
-                'Gacrux', 'Sadaltager', 'Achernar', 'Zephyrus', 'Zephyr', 'Chort', 'Leda',
-                'Izar', 'Enif', 'Vindemiatrix', 'Vega', 'Charon', 'Callirrhoe', 'Autonoe',
-                'Enceladus', 'Iapetus', 'Umbriel', 'Algieba', 'Erinome', 'Rasalgethi',
-                'Laomedeia', 'Alnilam', 'Schedar', 'Pulcherrima', 'Achird', 'Zubenelgenubi', 'Sadachbia'
-            ];
-            const isDefaultMaleFallback = isNarrator && reqVoice && reqVoice.toLowerCase() === 'enceladus'
-                && reqGender === 'female';
-            if (reqVoice && validGeminiVoices.map(v => v.toLowerCase()).includes(reqVoice.toLowerCase()) && !isDefaultMaleFallback) {
-                geminiVoice = validGeminiVoices.find(v => v.toLowerCase() === reqVoice.toLowerCase());
-            } else if (isNarrator) {
-                geminiVoice = (reqGender === 'female')
-                    ? (reqRealm === 'silq' ? 'Despina' : (reqRealm === 'hengband' ? 'Sulafat' : (reqRealm === 'frogcomposband' ? 'Kore' : 'Zephyr')))
-                    : (GEMINI_REALM_NARRATOR_MAP[reqRealm] || GEMINI_REALM_NARRATOR_MAP.default);
-            } else if (reqGender === 'female' && GEMINI_VOICE_MAP[`female_${role}`]) {
-                geminiVoice = GEMINI_VOICE_MAP[`female_${role}`];
-            } else if (reqGender === 'male' && GEMINI_VOICE_MAP[`male_${role}`]) {
-                geminiVoice = GEMINI_VOICE_MAP[`male_${role}`];
-            } else if (GEMINI_VOICE_MAP[role]) {
-                geminiVoice = GEMINI_VOICE_MAP[role];
-            }
-
-            function sendWav(buffer, isHit = false) {
-                if (res.headersSent) return;
-                res.writeHead(200, {
-                    'Content-Type': 'audio/wav',
-                    'Content-Length': buffer.length,
-                    'Cache-Control': 'public, max-age=86400, stale-while-revalidate=3600',
-                    'X-TTS-Engine': 'gemini',
-                    'X-TTS-Cache': isHit ? 'HIT' : 'MISS'
-                });
-                res.end(buffer);
-            }
-
+            const geminiVoice = resolveGeminiVoiceChoice();
             const geminiCacheKey = `gemini:${geminiVoice}:${role}:${isJpText ? 'jp' : reqLang}:${emotion}:${geminiTag}:${directorNote}:${text}`;
             if (ttsAudioCache.has(geminiCacheKey)) {
                 const hitBuf = ttsAudioCache.get(geminiCacheKey);
                 ttsAudioCache.delete(geminiCacheKey);
                 ttsAudioCache.set(geminiCacheKey, hitBuf);
-                sendWav(hitBuf, true);
+                sendWavResponse(hitBuf, true);
                 return;
             }
 
             if (inFlightTTS.has(geminiCacheKey)) {
                 inFlightTTS.get(geminiCacheKey)
-                    .then(wavBuffer => sendWav(wavBuffer, false))
+                    .then(wavBuffer => sendWavResponse(wavBuffer, false))
                     .catch(geminiErr => {
                         console.warn(`[TTS] Gemini Native Audio error: ${redactSecret(geminiErr.message, geminiApiKey)}`);
                         handleEdgeTTS(geminiErr.message);
@@ -1949,19 +2001,7 @@ const server = http.createServer((req, res) => {
                 lang: isJpText ? 'jp' : reqLang
             }).then(wavBuffer => {
                 inFlightTTS.delete(geminiCacheKey);
-                if (ttsAudioCache.has(geminiCacheKey)) {
-                    const old = ttsAudioCache.get(geminiCacheKey);
-                    if (old) ttsAudioCacheBytes -= old.length;
-                    ttsAudioCache.delete(geminiCacheKey);
-                }
-                while (ttsAudioCache.size >= MAX_TTS_CACHE_ITEMS || (ttsAudioCacheBytes + wavBuffer.length > MAX_TTS_CACHE_BYTES && ttsAudioCache.size > 0)) {
-                    const oldestKey = ttsAudioCache.keys().next().value;
-                    const oldBuf = ttsAudioCache.get(oldestKey);
-                    if (oldBuf) ttsAudioCacheBytes -= oldBuf.length;
-                    ttsAudioCache.delete(oldestKey);
-                }
-                ttsAudioCache.set(geminiCacheKey, wavBuffer);
-                ttsAudioCacheBytes += wavBuffer.length;
+                cacheGeminiWav(geminiCacheKey, wavBuffer);
                 return wavBuffer;
             }).catch(geminiErr => {
                 inFlightTTS.delete(geminiCacheKey);
@@ -1971,7 +2011,7 @@ const server = http.createServer((req, res) => {
             inFlightTTS.set(geminiCacheKey, synthPromise);
 
             synthPromise.then(wavBuffer => {
-                sendWav(wavBuffer, false);
+                sendWavResponse(wavBuffer, false);
             }).catch(geminiErr => {
                 console.warn(`[TTS] Gemini Native Audio error: ${redactSecret(geminiErr.message, geminiApiKey)}`);
                 handleEdgeTTS(geminiErr.message);
@@ -1979,10 +2019,51 @@ const server = http.createServer((req, res) => {
             return;
         }
 
-        // --- ENGINE A: EXPRESSIVE EDGE NEURAL (ACCESSIBLE ONLY ON EXPLICIT REQUEST) ---
+        // --- ENGINE A: EXPRESSIVE EDGE NEURAL (WITH GEMINI VERTEX FAILOVER WHEN EDGE IS 403/UNAVAILABLE) ---
         handleEdgeTTS();
 
         function handleEdgeTTS(fallbackReason = null) {
+            function fallbackFromEdgeToGemini(edgeErrOrReason, onGeminiFail) {
+                if (fallbackReason || res.headersSent || (!geminiApiKey && !hasVertexCandidate())) {
+                    return false;
+                }
+                const gVoice = resolveGeminiVoiceChoice();
+                const gCacheKey = `gemini:${gVoice}:${role}:${isJpText ? 'jp' : reqLang}:${emotion}:${geminiTag}:${directorNote}:${text}`;
+                const reasonLabel = String((edgeErrOrReason && (edgeErrOrReason.message || edgeErrOrReason)) || 'edge_unavailable').split('\n')[0].slice(0, 80);
+                if (ttsAudioCache.has(gCacheKey)) {
+                    const hitBuf = ttsAudioCache.get(gCacheKey);
+                    ttsAudioCache.delete(gCacheKey);
+                    ttsAudioCache.set(gCacheKey, hitBuf);
+                    sendWavResponse(hitBuf, true, reasonLabel);
+                    return true;
+                }
+                let p = inFlightTTS.get(gCacheKey);
+                if (!p) {
+                    p = synthesizeGeminiTTS({
+                        text,
+                        voice: gVoice,
+                        emotion,
+                        geminiTag,
+                        directorNote,
+                        role,
+                        apiKey: geminiApiKey,
+                        realm: reqRealm,
+                        lang: isJpText ? 'jp' : reqLang
+                    }).then(wavBuffer => {
+                        inFlightTTS.delete(gCacheKey);
+                        cacheGeminiWav(gCacheKey, wavBuffer);
+                        return wavBuffer;
+                    }).catch(gErr => {
+                        inFlightTTS.delete(gCacheKey);
+                        throw gErr;
+                    });
+                    inFlightTTS.set(gCacheKey, p);
+                }
+                p.then(wavBuffer => sendWavResponse(wavBuffer, false, reasonLabel))
+                 .catch(gErr => onGeminiFail(gErr));
+                return true;
+            }
+
             let voice = isJpText
                 ? (reqGender === 'female' ? 'ja-JP-NanamiNeural' : 'ja-JP-KeitaNeural')
                 : TTS_VOICE_MAP.default;
@@ -2054,6 +2135,16 @@ const server = http.createServer((req, res) => {
                 return;
             }
 
+            function emit503Unavailable() {
+                if (!res.headersSent) {
+                    res.writeHead(503, {
+                        'Content-Type': 'application/json',
+                        'X-TTS-Unavailable': '1'
+                    });
+                    res.end(JSON.stringify({ error: 'TTS temporarily unavailable', fallback: 'browser' }));
+                }
+            }
+
             function sendTtsUnavailable(err) {
                 const msg = String(err && (err.message || err) || '');
                 const isBlocked = /403|401|unexpected server response|ECONNREFUSED|ENOTFOUND|ETIMEDOUT|closed before the connection/i.test(msg);
@@ -2062,18 +2153,15 @@ const server = http.createServer((req, res) => {
                     edgeTtsCooldownUntil = Math.max(edgeTtsCooldownUntil, nowMs + 10 * 60 * 1000);
                     if (nowMs >= edgeTtsWarnedUntil) {
                         edgeTtsWarnedUntil = edgeTtsCooldownUntil;
-                        console.warn(`[TTS] Edge Neural TTS unavailable (${msg.split('\n')[0].slice(0, 100)}); pausing server Edge fallback for 10m.`);
+                        console.warn(`[TTS] Edge Neural TTS unavailable (${msg.split('\n')[0].slice(0, 100)}); failing over to Gemini Native Audio.`);
                     }
                 } else {
                     console.warn(`[TTS] Edge TTS error: ${msg.split('\n')[0].slice(0, 120)}`);
                 }
-                if (!res.headersSent) {
-                    res.writeHead(503, {
-                        'Content-Type': 'application/json',
-                        'X-TTS-Unavailable': '1'
-                    });
-                    res.end(JSON.stringify({ error: 'TTS temporarily unavailable', fallback: 'browser' }));
+                if (fallbackFromEdgeToGemini(msg || 'edge_unavailable', emit503Unavailable)) {
+                    return;
                 }
+                emit503Unavailable();
             }
 
             if (inFlightTTS.has(edgeCacheKey)) {
@@ -2084,22 +2172,28 @@ const server = http.createServer((req, res) => {
             }
 
             if (!MsEdgeTTS || Date.now() < edgeTtsCooldownUntil) {
-                res.writeHead(503, {
-                    'Content-Type': 'application/json',
-                    'X-TTS-Unavailable': '1'
-                });
-                res.end(JSON.stringify({ error: 'Neural TTS engine temporarily unavailable', fallback: 'browser' }));
+                if (fallbackFromEdgeToGemini('edge_cooldown', emit503Unavailable)) {
+                    return;
+                }
+                emit503Unavailable();
                 return;
             }
 
             const edgePromise = new Promise((resolve, reject) => {
+                let settled = false;
+                const settleErr = (err) => { if (!settled) { settled = true; clearTimeout(edgeTimer); reject(err); } };
+                const edgeTimer = setTimeout(() => settleErr(new Error('ETIMEDOUT Edge TTS handshake')), 900);
                 getWarmEdgeTTS(voice)
                     .then(tts => {
+                        if (settled || !tts) { try { if (tts) tts.close(); } catch (_) {} return settleErr(new Error('Edge TTS unavailable')); }
                         const { audioStream } = tts.toStream(text, prosodyOptions);
                         const chunks = [];
 
                         audioStream.on('data', chunk => chunks.push(chunk));
                         audioStream.on('end', () => {
+                            if (settled) return;
+                            settled = true;
+                            clearTimeout(edgeTimer);
                             const buffer = Buffer.concat(chunks);
                             if (ttsAudioCache.has(edgeCacheKey)) {
                                 const old = ttsAudioCache.get(edgeCacheKey);
@@ -2133,39 +2227,7 @@ const server = http.createServer((req, res) => {
 
             edgePromise
                 .then(buffer => sendEdgeMp3(buffer, false))
-                .catch(err => {
-                    if (!fallbackReason && geminiApiKey && !res.headersSent) {
-                        const fallbackVoice = GEMINI_VOICE_MAP[role] || GEMINI_VOICE_MAP.default;
-                        return synthesizeGeminiTTS({
-                            text,
-                            voice: fallbackVoice,
-                            emotion,
-                            geminiTag,
-                            directorNote,
-                            role,
-                            apiKey: geminiApiKey,
-                            realm: reqRealm,
-                            lang: isJpText ? 'jp' : reqLang
-                        }).then(wavBuffer => {
-                            if (!res.headersSent) {
-                                res.writeHead(200, {
-                                    'Content-Type': 'audio/wav',
-                                    'Content-Length': wavBuffer.length,
-                                    'Cache-Control': 'public, max-age=86400, stale-while-revalidate=3600',
-                                    'X-TTS-Engine': 'gemini',
-                                    'X-TTS-Cache': 'MISS'
-                                });
-                                res.end(wavBuffer);
-                            }
-                        }).catch(() => {
-                            if (!res.headersSent) {
-                                res.writeHead(500, { 'Content-Type': 'application/json' });
-                                res.end(JSON.stringify({ error: 'Internal error' }));
-                            }
-                        });
-                    }
-                    sendTtsUnavailable(err);
-                });
+                .catch(err => sendTtsUnavailable(err));
         }
         return;
     }

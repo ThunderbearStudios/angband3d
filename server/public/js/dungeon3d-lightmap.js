@@ -153,7 +153,7 @@
 
             const combined = `${vendorName} ${rendererName}`;
             const isSmallTouchScreen = (typeof window !== 'undefined' && Math.min(window.innerWidth || 1280, window.innerHeight || 720) < 600);
-            let selectedTier = 'integrated';
+            let selectedTier = isSmallTouchScreen ? 'integrated' : 'performance';
             if (ULTRA_GPU_REGEX.test(combined)) {
                 selectedTier = 'ultra';
             } else if (MOBILE_SAVER_GPU_REGEX.test(combined)) {

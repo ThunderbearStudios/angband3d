@@ -72,7 +72,8 @@ const REALM_TEST_CASES = [
     { realm: 'frogcomposband', name: 'The Serpent of Chaos', glyph: 'J', expectKey: 'bestiary_dragon' },
     { realm: 'frogcomposband', name: 'Cyberdemon', glyph: 'U', expectKey: 'bestiary_imp', expectWeapon: 'ph_sledgehammer' },
     // Hengband (including Japanese names!)
-    { realm: 'hengband', name: '野良犬', glyph: 'C', expectKey: 'bestiary_shiba', expectNoWeapon: true },
+    { realm: 'hengband', name: '野良犬', glyph: 'C', expectKey: 'bestiary_husky', expectNoWeapon: true },
+    { realm: 'hengband', name: '子犬', glyph: 'C', expectKey: 'bestiary_shiba', expectNoWeapon: true },
     { realm: 'hengband', name: '混沌のサーペント', glyph: 'J', expectKey: 'bestiary_dragon' },
     { realm: 'hengband', name: 'サイバーデーモン', glyph: 'U', expectKey: 'bestiary_imp', expectWeapon: 'ph_sledgehammer' },
     // Classic Rogue ('A'-'Z')
@@ -175,7 +176,7 @@ const bogusYawMatch = dungeon3dSrc.match(/normalizeWrapper\(scene,\s*[0-9.]+,\s*
 check(!bogusYawMatch, `Found remaining bogus radian yaw offset in normalizeWrapper: ${bogusYawMatch && bogusYawMatch[0]}`);
 check(dungeon3dSrc.includes('return normalizeWrapper(scene, 0.66, true, -Math.PI / 2, 1.18);'), 'shiba.glb must use -Math.PI / 2 canonical yaw');
 check(dungeon3dSrc.includes('return normalizeWrapper(scene, 0.82, true, -Math.PI / 2, 1.38);'), 'husky.glb must use -Math.PI / 2 canonical yaw');
-check(dungeon3dSrc.includes('return normalizeWrapper(scene, 1.95, true, Math.PI, 2.20);'), 'Dragon.glb must use Math.PI canonical yaw');
+check(dungeon3dSrc.includes('return normalizeWrapper(scene, 1.95, true, -Math.PI / 2, 2.20);'), 'Dragon.glb must use -Math.PI / 2 canonical yaw');
 
 // 8. Verify Bug 1 & P1-P5 Architectural Invariants in dungeon3d.js and chronicle-manager.js
 check(dungeon3dSrc.includes('entity.identitySig !== identitySig'), 'Bug 1 Fix: identitySig invalidation missing in dungeon3d.js');

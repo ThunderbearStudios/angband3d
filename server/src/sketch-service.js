@@ -51,13 +51,27 @@ function buildSketchPayload(promptText, modelName = '', imageOnlyModalities = fa
     });
 }
 
+function normalizeSketchModelAlias(modelName) {
+    const m = String(modelName || '').trim();
+    if (m === 'gemini-nano-banana-2.1' || m === 'gemini-3.1-flash-image-preview') {
+        return 'gemini-3.1-flash-image';
+    }
+    return m;
+}
+
 function buildModelOrder(models, requestedModel) {
-    const list = Array.isArray(models) && models.length > 0
+    const rawList = Array.isArray(models) && models.length > 0
         ? models.slice()
         : ['gemini-nano-banana-2.1', 'gemini-3.1-flash-image', 'gemini-2.5-flash-image'];
-    const normalizedReq = requestedModel === 'gemini-3.1-flash-image-preview'
-        ? 'gemini-3.1-flash-image'
-        : String(requestedModel || '').trim();
+    const list = [];
+    for (const item of rawList) {
+        const norm = normalizeSketchModelAlias(item);
+        if (norm && !list.includes(norm)) list.push(norm);
+    }
+    if (list.length === 0) {
+        list.push('gemini-3.1-flash-image', 'gemini-2.5-flash-image');
+    }
+    const normalizedReq = normalizeSketchModelAlias(requestedModel);
     const startIdx = list.includes(normalizedReq) ? list.indexOf(normalizedReq) : 0;
     const ordered = [];
     for (let i = 0; i < list.length; i++) {
@@ -148,10 +162,12 @@ async function trySketchTier({
     let sawNoImage = false;
     let sawTimeout = false;
     let sawNetworkError = false;
+    let refreshedVertexAuth = false;
 
     for (const modelName of candidates) {
         let retriedSafe = false;
         let imageOnlyModalities = false;
+        let retriedModelAuth = false;
 
         for (let attempt = 0; attempt < 3; attempt++) {
             const promptText = retriedSafe
@@ -182,6 +198,19 @@ async function trySketchTier({
 
             const status = result.status;
             lastStatus = status;
+
+            if (tier === 'vertex' && status === 401 && !retriedModelAuth && !refreshedVertexAuth) {
+                retriedModelAuth = true;
+                refreshedVertexAuth = true;
+                try {
+                    const freshCtx = await getGcpAuthContext({ forceRefresh: true });
+                    if (freshCtx && freshCtx.token && freshCtx.projectId) {
+                        vertexCtx = freshCtx;
+                        attempt--;
+                        continue;
+                    }
+                } catch (_) {}
+            }
 
             if (status === 200) {
                 try {
@@ -262,12 +291,11 @@ async function generateChronicleSketch({
     const sanitizedPrompt = sanitizeSketchPrompt(prompt);
     const orderedModels = buildModelOrder(models, requestedModel);
     const aiStudioBypassed = !customKey && typeof isAiStudioDepleted === 'function' && Boolean(isAiStudioDepleted());
-    const preferAiStudio = Boolean(apiKey && !apiKey.startsWith('AQ.') && !aiStudioBypassed);
-    const tiers = aiStudioBypassed
+    const isAqKey = Boolean(apiKey && apiKey.startsWith('AQ.'));
+    const preferAiStudio = Boolean(apiKey && !isAqKey && !aiStudioBypassed);
+    const tiers = (isAqKey || aiStudioBypassed || !apiKey)
         ? ['vertex']
-        : (preferAiStudio
-            ? (customKey ? ['aistudio'] : ['aistudio', 'vertex'])
-            : (apiKey ? ['vertex', 'aistudio'] : ['vertex']));
+        : (preferAiStudio ? ['aistudio', 'vertex'] : ['vertex']);
 
     let lastResult = { ok: false, lastStatus: 0, reason: apiKey ? 'upstream_error_502' : 'no_api_key' };
     for (const tier of tiers) {
@@ -290,10 +318,12 @@ async function generateChronicleSketch({
         }
     }
 
+    const failReason = lastResult.reason || (apiKey ? 'upstream_error_502' : 'no_api_key');
     return {
         ok: false,
         fallback: true,
-        reason: lastResult.reason || (apiKey ? 'upstream_error_502' : 'no_api_key')
+        reason: failReason,
+        error: `AI sketch unavailable (${failReason})`
     };
 }
 
@@ -302,6 +332,8 @@ module.exports = {
     _sketchModelCooldownMap,
     isSketchModelCoolingDown,
     markSketchModelCooldown,
+    normalizeSketchModelAlias,
+    buildModelOrder,
     sanitizeSketchPrompt,
     buildSketchPayload,
     generateChronicleSketch

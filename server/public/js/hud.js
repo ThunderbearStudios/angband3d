@@ -335,22 +335,25 @@ class WebHUD {
         }
 
         const now = Date.now();
-        const baseText = rawText || trimmed;
-        const isCombat = this.isCombatMessage(trimmed);
+        const parsedIn = this._parseRepeatText(trimmed);
+        const baseNorm = this._normFeedText(rawText || parsedIn.base);
+        const isCombat = this.isCombatMessage(parsedIn.base || trimmed);
 
         const realm = (this.lastFrame && this.lastFrame.realm) || (window.activeRealm) || (window.__app && window.__app.getActiveRealm ? window.__app.getActiveRealm() : 'angband');
         const lang = (typeof window !== 'undefined' && window.__langMode) ? window.__langMode : 'en';
-        let displayText = trimmed;
+        let baseDisplayText = parsedIn.base || trimmed;
         if (realm === 'hengband' && typeof window !== 'undefined' && typeof window.localizeGameMessage === 'function') {
-            displayText = window.localizeGameMessage(baseText, 'hengband', lang);
+            baseDisplayText = window.localizeGameMessage(baseNorm || parsedIn.base, 'hengband', lang);
         }
+        const initRepeat = Math.max(1, parsedIn.count || 1);
+        const displayText = (!isCombat && initRepeat > 1) ? `${baseDisplayText} (x${initRepeat})` : baseDisplayText;
 
         // Only collapse non-combat, repetitive status notices (e.g. repeatedly bumping into a wall)
         const lastMsg = this.messageHistory.length > 0 ? this.messageHistory[this.messageHistory.length - 1] : null;
-        if (!isCombat && lastMsg && (lastMsg.rawText === baseText || lastMsg.text === displayText || lastMsg.text === trimmed)) {
-            lastMsg.repeat = (lastMsg.repeat || 1) + 1;
+        if (!isCombat && lastMsg && baseNorm && this._normFeedText(lastMsg.rawText || lastMsg.text) === baseNorm) {
+            lastMsg.repeat = initRepeat > 1 ? Math.max(lastMsg.repeat || 1, initRepeat) : ((lastMsg.repeat || 1) + 1);
             if (lastMsg.el) {
-                lastMsg.el.textContent = `${lastMsg.text || displayText} (x${lastMsg.repeat})`;
+                lastMsg.el.textContent = `${lastMsg.baseDisplay || this._normFeedText(lastMsg.text)} (x${lastMsg.repeat})`;
             }
             if (this.messageFeedScroll && !this.userScrolledUp) {
                 this.messageFeedScroll.scrollTop = this.messageFeedScroll.scrollHeight;
@@ -376,8 +379,9 @@ class WebHUD {
         const msgObj = {
             id: now + '_' + Math.random(),
             text: displayText,
-            rawText: baseText,
-            repeat: 1,
+            baseDisplay: baseDisplayText,
+            rawText: baseNorm,
+            repeat: initRepeat,
             color,
             turn: this.currentTurn,
             timestamp: now,
@@ -403,10 +407,11 @@ class WebHUD {
     updateLastMessageCount(rawText, count) {
         if (!this.messageHistory || this.messageHistory.length === 0) return;
         const lastMsg = this.messageHistory[this.messageHistory.length - 1];
-        if (lastMsg && (lastMsg.rawText === rawText || lastMsg.text === rawText || lastMsg.text.startsWith(rawText))) {
+        const normTarget = this._normFeedText(rawText);
+        if (lastMsg && ((normTarget && this._normFeedText(lastMsg.rawText || lastMsg.text) === normTarget) || lastMsg.rawText === rawText || lastMsg.text === rawText || lastMsg.text.startsWith(rawText))) {
             lastMsg.repeat = count;
             if (lastMsg.el) {
-                lastMsg.el.textContent = `${lastMsg.text || lastMsg.rawText || rawText} (x${count})`;
+                lastMsg.el.textContent = `${lastMsg.baseDisplay || this._normFeedText(lastMsg.text) || normTarget} (x${count})`;
             }
             if (this.messageFeedScroll && !this.userScrolledUp) {
                 this.messageFeedScroll.scrollTop = this.messageFeedScroll.scrollHeight;
@@ -2257,7 +2262,11 @@ class WebHUD {
                 ? frame.messages.filter(m => m && m.text && m.text.trim().length > 0 &&
                     !m.text.trim().startsWith('===') && !m.text.trim().startsWith('---')).map(m => ({ text: m.text, count: m.count, attr: m.attr }))
                 : [];
-            this.lastTermRow0 = '';
+            const resetRow0Raw = (frame.term && frame.term.rows && frame.term.rows[0] && frame.term.rows[0].g)
+                ? frame.term.rows[0].g : '';
+            const resetRow0Norm = this._normFeedText(resetRow0Raw);
+            this.lastTermRow0 = (resetRow0Norm && this._isRedundantTermRow0(resetRow0Norm, this.lastSeenMessages, []))
+                ? resetRow0Norm : '';
         }
 
         // Track staircase floor transitions (Town <-> Dungeon depths)
@@ -2298,7 +2307,7 @@ class WebHUD {
                         for (let k = maxK; k > 0; k--) {
                             let match = true;
                             for (let j = 0; j < k; j++) {
-                                if (prevList[prevList.length - k + j].text !== curList[j].text) {
+                                if (this._normFeedText(prevList[prevList.length - k + j].text) !== this._normFeedText(curList[j].text)) {
                                     match = false;
                                     break;
                                 }
@@ -2326,17 +2335,35 @@ class WebHUD {
                                 } else {
                                     this.updateLastMessageCount(curLast.text.trim(), curLast.count);
                                 }
+                            } else if (prevLast && curLast && this._normFeedText(prevLast.text) && this._normFeedText(prevLast.text) === this._normFeedText(curLast.text)) {
+                                const prevParsed = this._parseRepeatText(prevLast.text);
+                                const curParsed = this._parseRepeatText(curLast.text);
+                                const prevCount = Math.max(prevLast.count || 1, prevParsed.count || 1);
+                                const curCount = Math.max(curLast.count || 1, curParsed.count || 1);
+                                if (curCount > prevCount) {
+                                    const diff = curCount - prevCount;
+                                    const col = this.getMessageColor(curParsed.base, curLast.attr);
+                                    if (this.isCombatMessage(curParsed.base)) {
+                                        for (let c = 0; c < diff; c++) {
+                                            this.addMessage(curParsed.base, col, curParsed.base);
+                                        }
+                                    } else {
+                                        this.updateLastMessageCount(curParsed.base, curCount);
+                                    }
+                                }
                             }
                         }
                     }
 
                     for (const item of newItems) {
-                        let text = item.text.trim();
-                        if (item.count && item.count > 1 && !this.isCombatMessage(text)) {
-                            text += ` (x${item.count})`;
+                        const parsedItem = this._parseRepeatText(item.text);
+                        const effCount = Math.max(item.count || 1, parsedItem.count || 1);
+                        let text = parsedItem.base || item.text.trim();
+                        if (effCount > 1 && (!this.isCombatMessage(text) || parsedItem.count > 1)) {
+                            text += ` (x${effCount})`;
                         }
-                        const col = this.getMessageColor(item.text.trim(), item.attr);
-                        this.addMessage(text, col, item.text.trim());
+                        const col = this.getMessageColor(parsedItem.base || item.text.trim(), item.attr);
+                        this.addMessage(text, col, parsedItem.base || item.text.trim());
                     }
 
                     this.lastSeenMessages = curList.map(m => ({ text: m.text, count: m.count, attr: m.attr }));
@@ -2345,11 +2372,7 @@ class WebHUD {
 
             // 2. Also capture distinct dynamic action lines on term row 0 during play (prompts, status changes)
             if (frame.term && frame.term.rows && frame.term.rows[0] && frame.term.rows[0].g) {
-                let line0 = frame.term.rows[0].g.trim();
-                line0 = line0.replace(/\s*[-–—]more[-–—]\s*$/i, '');
-                line0 = line0.replace(/\s*\[more\]\s*$/i, '');
-                line0 = line0.replace(/\s*\[?\s*press\s+space\s*\]?\s*$/i, '');
-                line0 = line0.trim();
+                const line0 = this._normFeedText(frame.term.rows[0].g);
                 const isMenuPrompt = line0.includes('Select Item:') ||
                                      line0.includes('(Inven:') ||
                                      line0.includes('(Equip:') ||
@@ -2365,9 +2388,9 @@ class WebHUD {
                                      line0.startsWith('===');
 
                 if (line0 && line0.length > 0 && !isMenuPrompt) {
-                    const alreadyInNewItems = newItems.some(it => it.text && it.text.trim() === line0);
+                    const isRedundant = this._isRedundantTermRow0(line0, frame.messages || [], newItems);
                     const isNewAction = line0 !== this.lastTermRow0;
-                    if (!alreadyInNewItems && isNewAction) {
+                    if (!isRedundant && isNewAction) {
                         const col = this.getMessageColor(line0);
                         this.addMessage(line0, col, line0);
                     }
@@ -2668,6 +2691,139 @@ class WebHUD {
                 container.innerHTML = window.RealmCartridge.buildDeathStatsHtml(player, realm, escapeHtml);
             }
         }
+    }
+
+    _parseRepeatText(s) {
+        let clean = String(s || '')
+            .replace(/\s*[-–—]more[-–—]\s*$/i, '')
+            .replace(/\s*\[more\]\s*$/i, '')
+            .replace(/\s*\[?\s*press\s+space\s*\]?\s*$/i, '')
+            .replace(/\s+/g, ' ')
+            .trim();
+        let count = 1;
+        const repRe = /\s*(?:\((?:x(\d+)|(\d+)x)\)|<(?:x(\d+)|(\d+)x)>|\[(?:x(\d+)|(\d+)x)\]|\sx(\d+))\s*$/i;
+        let m;
+        while ((m = clean.match(repRe))) {
+            const n = parseInt(m[1] || m[2] || m[3] || m[4] || m[5] || m[6] || m[7], 10);
+            if (Number.isFinite(n) && n > count) count = n;
+            clean = clean.slice(0, m.index).trim();
+        }
+        return { base: clean, count };
+    }
+
+    _normFeedText(s) {
+        return this._parseRepeatText(s).base;
+    }
+
+    _isRedundantTermRow0(line0, curList = [], newItems = []) {
+        const n0 = this._normFeedText(line0);
+        if (!n0) return true;
+        const n0Variants = [n0];
+        if (typeof window !== 'undefined' && typeof window.localizeGameMessage === 'function') {
+            try {
+                const loc0 = this._normFeedText(window.localizeGameMessage(n0));
+                if (loc0 && loc0 !== n0) n0Variants.push(loc0);
+            } catch (_) {}
+        }
+
+        const combined = [
+            ...(Array.isArray(this.messageHistory) ? this.messageHistory.slice(-8).map(h => ({ text: h && (h.baseDisplay || h.rawText || h.text) })) : []),
+            ...(Array.isArray(curList) ? curList : []),
+            ...(Array.isArray(newItems) ? newItems : [])
+        ];
+        const msgs = [];
+        for (const item of combined) {
+            if (!item || !item.text) continue;
+            const raw = this._normFeedText(item.text);
+            if (!raw || raw.startsWith('===') || raw.startsWith('---')) continue;
+            const forms = [raw];
+            if (typeof window !== 'undefined' && typeof window.localizeGameMessage === 'function') {
+                try {
+                    const loc = this._normFeedText(window.localizeGameMessage(raw));
+                    if (loc && loc !== raw) forms.push(loc);
+                } catch (_) {}
+            }
+            msgs.push(forms);
+        }
+        if (msgs.length === 0) return false;
+
+        const matchesCandidate = (candidate) => {
+            if (!candidate) return false;
+            for (const q of n0Variants) {
+                if (candidate === q) return true;
+                if (q.length >= 16 && candidate.startsWith(q)) return true;
+                if (q.length >= 10 && candidate.endsWith(q)) return true;
+                if (q.length >= 14 && candidate.includes(q)) return true;
+            }
+            return false;
+        };
+
+        // 1. Single message exact, 80-col prefix truncation, or repeated-message concatenation
+        for (const forms of msgs) {
+            for (const f of forms) {
+                if (matchesCandidate(f)) return true;
+                if (f.length >= 4 && n0.length > f.length) {
+                    let rep = f;
+                    const maxLen = Math.max(n0.length, f.length) + 16;
+                    for (let r = 2; r <= 8 && rep.length <= maxLen; r++) {
+                        rep += ' ' + f;
+                        if (matchesCandidate(rep)) return true;
+                    }
+                }
+            }
+        }
+
+        // 2. Contiguous window concatenation across recent messages (joined by ' ')
+        const recent = msgs.slice(-16);
+        for (let i = 0; i < recent.length; i++) {
+            for (let formIdx = 0; formIdx < 2; formIdx++) {
+                let joined = recent[i][formIdx] || recent[i][0];
+                for (let j = i + 1; j < recent.length && joined.length <= n0.length + 120; j++) {
+                    joined += ' ' + (recent[j][formIdx] || recent[j][0]);
+                    if (matchesCandidate(joined)) return true;
+                }
+            }
+        }
+
+        // 3. Mixed concatenation / repeated runs ending in exact or 80-col truncated tail
+        for (const q of n0Variants) {
+            let rem = q;
+            let consumed = 0;
+            let guard = 0;
+            while (rem.length > 0 && guard++ < 12) {
+                let matchedStep = false;
+                for (const forms of recent) {
+                    for (const f of forms) {
+                        if (rem === f) {
+                            rem = '';
+                            consumed++;
+                            matchedStep = true;
+                            break;
+                        }
+                        if (rem.startsWith(f + ' ')) {
+                            rem = rem.slice(f.length).trim();
+                            consumed++;
+                            matchedStep = true;
+                            break;
+                        }
+                    }
+                    if (matchedStep) break;
+                }
+                if (!matchedStep) {
+                    if (consumed > 0 && rem.length >= 10) {
+                        for (const forms of recent) {
+                            for (const f of forms) {
+                                if (f.startsWith(rem)) return true;
+                            }
+                        }
+                    }
+                    break;
+                }
+            }
+            if (rem.length === 0 && consumed > 0) return true;
+        }
+
+        return false;
     }
 }
 

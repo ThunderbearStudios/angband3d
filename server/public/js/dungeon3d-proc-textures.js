@@ -54,15 +54,16 @@ function procCreateTexture(size, pixelFunc, isColor = false) {
     canvas.height = size;
     const ctx = canvas.getContext('2d');
     const imgData = ctx.createImageData(size, size);
-    const data = imgData.data;
+    const u32 = new Uint32Array(imgData.data.buffer, imgData.data.byteOffset, size * size);
     let idx = 0;
     for (let y = 0; y < size; y++) {
         for (let x = 0; x < size; x++) {
             const col = pixelFunc(x, y);
-            data[idx++] = Math.min(255, Math.max(0, (col[0] * 255 + 0.5) | 0));
-            data[idx++] = Math.min(255, Math.max(0, (col[1] * 255 + 0.5) | 0));
-            data[idx++] = Math.min(255, Math.max(0, (col[2] * 255 + 0.5) | 0));
-            data[idx++] = Math.min(255, Math.max(0, (col[3] !== undefined ? col[3] * 255 + 0.5 : 255) | 0));
+            const r = Math.min(255, Math.max(0, (col[0] * 255 + 0.5) | 0));
+            const g = Math.min(255, Math.max(0, (col[1] * 255 + 0.5) | 0));
+            const b = Math.min(255, Math.max(0, (col[2] * 255 + 0.5) | 0));
+            const a = Math.min(255, Math.max(0, (col[3] !== undefined ? col[3] * 255 + 0.5 : 255) | 0));
+            u32[idx++] = (a << 24) | (b << 16) | (g << 8) | r;
         }
     }
     ctx.putImageData(imgData, 0, 0);
@@ -73,59 +74,10 @@ function procCreateTexture(size, pixelFunc, isColor = false) {
     return tex;
 }
 
-const _seedGridBuf = new Int32Array(9 * 9 * 4);
-
 function procCreateSeedTexture(size, refSize, pixelFunc, isColor = false, fullGrid = false) {
-    const s = size || 64;
-    _inMicroSeed = true;
-    try {
-        if (fullGrid || s !== 64) {
-            const inv = refSize / s;
-            return procCreateTexture(s, (x, y) => pixelFunc(x * inv, y * inv), isColor);
-        }
-        const step = refSize * 0.125;
-        for (let gy = 0; gy <= 8; gy++) {
-            const py = (gy === 8 ? 0 : gy) * step;
-            for (let gx = 0; gx <= 8; gx++) {
-                const col = pixelFunc((gx === 8 ? 0 : gx) * step, py);
-                const o = (gy * 9 + gx) * 4;
-                _seedGridBuf[o] = Math.min(255, Math.max(0, (col[0] * 255 + 0.5) | 0));
-                _seedGridBuf[o + 1] = Math.min(255, Math.max(0, (col[1] * 255 + 0.5) | 0));
-                _seedGridBuf[o + 2] = Math.min(255, Math.max(0, (col[2] * 255 + 0.5) | 0));
-                _seedGridBuf[o + 3] = col[3] !== undefined ? Math.min(255, Math.max(0, (col[3] * 255 + 0.5) | 0)) : 255;
-            }
-        }
-        const canvas = document.createElement('canvas');
-        canvas.width = 64;
-        canvas.height = 64;
-        const ctx = canvas.getContext('2d');
-        const imgData = ctx.createImageData(64, 64);
-        const u32 = new Uint32Array(imgData.data.buffer, imgData.data.byteOffset, 4096);
-        let p = 0;
-        for (let y = 0; y < 64; y++) {
-            const y0 = y >> 3, ty = y & 7, ity = 8 - ty;
-            const row0 = y0 * 9, row1 = row0 + 9;
-            for (let x = 0; x < 64; x++) {
-                const x0 = x >> 3, tx = x & 7, itx = 8 - tx;
-                const o00 = (row0 + x0) << 2, o10 = o00 + 4;
-                const o01 = (row1 + x0) << 2, o11 = o01 + 4;
-                const w00 = itx * ity, w10 = tx * ity, w01 = itx * ty, w11 = tx * ty;
-                const r = (_seedGridBuf[o00] * w00 + _seedGridBuf[o10] * w10 + _seedGridBuf[o01] * w01 + _seedGridBuf[o11] * w11 + 32) >> 6;
-                const g = (_seedGridBuf[o00 + 1] * w00 + _seedGridBuf[o10 + 1] * w10 + _seedGridBuf[o01 + 1] * w01 + _seedGridBuf[o11 + 1] * w11 + 32) >> 6;
-                const b = (_seedGridBuf[o00 + 2] * w00 + _seedGridBuf[o10 + 2] * w10 + _seedGridBuf[o01 + 2] * w01 + _seedGridBuf[o11 + 2] * w11 + 32) >> 6;
-                const a = (_seedGridBuf[o00 + 3] * w00 + _seedGridBuf[o10 + 3] * w10 + _seedGridBuf[o01 + 3] * w01 + _seedGridBuf[o11 + 3] * w11 + 32) >> 6;
-                u32[p++] = (a << 24) | (b << 16) | (g << 8) | r;
-            }
-        }
-        ctx.putImageData(imgData, 0, 0);
-        const tex = new THREE.CanvasTexture(canvas);
-        tex.wrapS = THREE.RepeatWrapping;
-        tex.wrapT = THREE.RepeatWrapping;
-        if (isColor) tex.encoding = THREE.sRGBEncoding;
-        return tex;
-    } finally {
-        _inMicroSeed = false;
-    }
+    const s = (size && size !== 64) ? size : (fullGrid ? 64 : 128);
+    const inv = refSize / s;
+    return procCreateTexture(s, (x, y) => pixelFunc(x * inv, y * inv), isColor);
 }
 
 const DIGIT_PATTERNS = [
@@ -1344,59 +1296,66 @@ function procCreateMagmaEmission(seedSize = 64) {
     });
 }
 
-function procCreateLavaTexture(w = 64, h = 64) {
-    const size = w || 64;
-    return procCreateTexture(size, (x, y) => {
-        const nx = x / size;
-        const ny = y / size;
-        const qx = procFractalNoise(nx * 3.5, ny * 3.5, 4, 31) - 0.5;
-        const qy = procFractalNoise(nx * 3.5 + 5.2, ny * 3.5 + 1.3, 4, 47) - 0.5;
-        const rx = procFractalNoise((nx + qx * 0.8) * 4.0, (ny + qy * 0.8) * 4.0, 4, 83) - 0.5;
-        const ry = procFractalNoise((nx + qx * 0.8 + 1.7) * 4.0, (ny + qy * 0.8 + 9.2) * 4.0, 4, 19) - 0.5;
-        const warp = procFractalNoise((nx + rx * 0.9) * 4.2, (ny + ry * 0.9) * 4.2, 4, 59);
-
-        if (warp < 0.42) {
-            const crustGrain = (procSmoothNoise(nx * 32, ny * 32, 101) - 0.5) * 0.03;
-            const crustT = warp / 0.42;
-            const r = 0.09 + crustT * 0.04 + crustGrain;
-            const g = 0.07 + crustT * 0.02 + crustGrain;
-            const b = 0.06 + crustGrain;
-            return [Math.max(0, r), Math.max(0, g), Math.max(0, b)];
-        } else if (warp < 0.60) {
-            const t = (warp - 0.42) / 0.18;
-            return [0.78 + t * 0.22, 0.11 + t * 0.37, 0.0];
-        } else if (warp < 0.80) {
-            const t = (warp - 0.60) / 0.20;
-            return [1.0, 0.48 + t * 0.48, t * 0.69];
-        } else {
-            const t = Math.min(1.0, (warp - 0.80) / 0.20);
-            return [1.0, 0.96 + t * 0.04, 0.69 + t * 0.31];
+function _evalLavaField(nx, ny) {
+    const TAU = Math.PI * 2;
+    const wx = ((nx + 0.055 * Math.sin(TAU * ny * 2.0 + 0.7) + 0.022 * Math.cos(TAU * (nx * 3.0 - ny))) % 1 + 1) % 1;
+    const wy = ((ny + 0.055 * Math.cos(TAU * nx * 2.0 + 1.4) + 0.022 * Math.sin(TAU * (ny * 3.0 + nx))) % 1 + 1) % 1;
+    const gN = 4;
+    const gx = wx * gN, gy = wy * gN;
+    const ix = Math.floor(gx), iy = Math.floor(gy);
+    let d1 = 99, d2 = 99, cellId = 0;
+    for (let dy = -1; dy <= 1; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+            const cx = ((ix + dx) % gN + gN) % gN;
+            const cy = ((iy + dy) % gN + gN) % gN;
+            const jx = ix + dx + 0.22 + 0.56 * procHash(cx, cy, 17);
+            const jy = iy + dy + 0.22 + 0.56 * procHash(cx, cy, 41);
+            const dd = Math.hypot(gx - jx, gy - jy);
+            if (dd < d1) { d2 = d1; d1 = dd; cellId = cx * 7 + cy * 13; }
+            else if (dd < d2) { d2 = dd; }
         }
-    });
+    }
+    const fineWarp = 0.055 * Math.sin(TAU * (wx * 5.0 + wy * 3.0)) * Math.cos(TAU * (wy * 4.0 - wx * 2.0));
+    const widthMod = 0.21 + 0.07 * Math.sin(TAU * (wx * 2.0 - wy * 3.0));
+    const ridge = Math.max(0, 1.0 - Math.max(0, (d2 - d1) + fineWarp) / widthMod);
+    const vein = Math.max(0, Math.sin(TAU * (wx * 6.0 + wy * 4.0) + fineWarp * 6.0) * 0.5 + 0.5 - 0.84) * 2.1;
+    return { heat: Math.min(1.0, Math.max(ridge, vein)), cellTone: (cellId % 5) * 0.012 };
 }
 
-function procCreateLavaEmission(w = 64, h = 64) {
-    const size = w || 64;
+function procCreateLavaTexture(w = 256, h = 256) {
+    const size = w || 256;
     return procCreateTexture(size, (x, y) => {
-        const nx = x / size;
-        const ny = y / size;
-        const qx = procFractalNoise(nx * 3.5, ny * 3.5, 4, 31) - 0.5;
-        const qy = procFractalNoise(nx * 3.5 + 5.2, ny * 3.5 + 1.3, 4, 47) - 0.5;
-        const rx = procFractalNoise((nx + qx * 0.8) * 4.0, (ny + qy * 0.8) * 4.0, 4, 83) - 0.5;
-        const ry = procFractalNoise((nx + qx * 0.8 + 1.7) * 4.0, (ny + qy * 0.8 + 9.2) * 4.0, 4, 19) - 0.5;
-        const warp = procFractalNoise((nx + rx * 0.9) * 4.2, (ny + ry * 0.9) * 4.2, 4, 59);
-
-        if (warp < 0.42) {
-            const fissure = procFractalNoise(nx * 18, ny * 18, 2, 73);
-            return fissure > 0.82 ? [0.45, 0.08, 0.0] : [0.0, 0.0, 0.0];
-        } else if (warp < 0.60) {
-            const t = (warp - 0.42) / 0.18;
-            return [0.85 + t * 0.15, 0.15 + t * 0.40, 0.0];
-        } else {
-            const t = Math.min(1.0, (warp - 0.60) / 0.40);
-            return [1.0, 0.55 + t * 0.45, t * 0.75];
+        const nx = x / size, ny = y / size;
+        const { heat, cellTone } = _evalLavaField(nx, ny);
+        const grain = (procHash(x & 255, y & 255, 101) - 0.5) * 0.045;
+        if (heat < 0.28) {
+            const cT = heat / 0.28;
+            return [
+                Math.max(0.04, 0.09 + cT * 0.07 + cellTone + grain),
+                Math.max(0.03, 0.07 + cT * 0.04 + cellTone * 0.8 + grain),
+                Math.max(0.03, 0.07 + cellTone * 0.7 + grain)
+            ];
+        } else if (heat < 0.64) {
+            const t = (heat - 0.28) / 0.36;
+            return [0.46 + t * 0.40, 0.06 + t * 0.14, 0.01 + t * 0.01];
         }
-    });
+        const t = (heat - 0.64) / 0.36;
+        return [0.88 + t * 0.10, 0.24 + t * 0.34, 0.02 + t * 0.08];
+    }, true);
+}
+
+function procCreateLavaEmission(w = 256, h = 256) {
+    const size = w || 256;
+    return procCreateTexture(size, (x, y) => {
+        const { heat } = _evalLavaField(x / size, y / size);
+        if (heat < 0.24) return [0.0, 0.0, 0.0];
+        if (heat < 0.60) {
+            const t = (heat - 0.24) / 0.36;
+            return [0.35 + t * 0.52, 0.04 + t * 0.16, 0.0];
+        }
+        const t = (heat - 0.60) / 0.40;
+        return [0.88 + t * 0.12, 0.22 + t * 0.34, 0.01 + t * 0.06];
+    }, true);
 }
 
 function procCreateQuartzTexture(seedSize = 64) {
@@ -1500,25 +1459,25 @@ function procCreateGrassTexture(seedSize = 64) {
         const soilPatch = procSmoothNoise(x * 0.015, y * 0.015, 64);
         const cloverNoise = procSmoothNoise(x * 0.12, y * 0.12, 65);
 
-        // Color palette: Lush spring meadow green with golden blade tips and dark thatch roots
-        let r = 0.14 + fineBlade * 0.26 + clumpNoise * 0.08;
-        let g = 0.34 + fineBlade * 0.40 + clumpNoise * 0.12;
-        let b = 0.08 + fineBlade * 0.12 + clumpNoise * 0.04;
+        // Color palette: Natural temperate highland meadow with deep moss thatch and olive blade tips
+        let r = 0.09 + fineBlade * 0.13 + clumpNoise * 0.06;
+        let g = 0.21 + fineBlade * 0.20 + clumpNoise * 0.08;
+        let b = 0.07 + fineBlade * 0.07 + clumpNoise * 0.03;
 
-        // Soil loam peeking through in thin turf patches
-        if (soilPatch < 0.24) {
-            const t = (0.24 - soilPatch) / 0.24;
-            r = r * (1 - t) + 0.36 * t;
-            g = g * (1 - t) + 0.26 * t;
-            b = b * (1 - t) + 0.16 * t;
+        // Loam & dry heather patches peeking naturally through turf
+        if (soilPatch < 0.26) {
+            const t = (0.26 - soilPatch) / 0.26;
+            r = r * (1 - t) + 0.28 * t;
+            g = g * (1 - t) + 0.21 * t;
+            b = b * (1 - t) + 0.14 * t;
         }
 
-        // Occasional clover / micro-flora flecks
+        // Subtle moss / sage wild-herb flecks
         if (cloverNoise > 0.82) {
             const c = (cloverNoise - 0.82) / 0.18;
-            r = r * (1 - c) + 0.42 * c;
-            g = g * (1 - c) + 0.72 * c;
-            b = b * (1 - c) + 0.26 * c;
+            r = r * (1 - c) + 0.22 * c;
+            g = g * (1 - c) + 0.36 * c;
+            b = b * (1 - c) + 0.16 * c;
         }
 
         return [Math.max(0, Math.min(1, r)), Math.max(0, Math.min(1, g)), Math.max(0, Math.min(1, b))];
@@ -1633,19 +1592,18 @@ function procCreateTreeLeavesTexture(seedSize = 64) {
         // Density of foliage cluster: high inside clump, drops off into deep canopy shadow crevices
         const puff = Math.max(0, Math.min(1, clumpNoise * 0.6 + clumpDist * 0.3 + 0.2 + leafSerration));
 
-        // Deep ancient arbor canopy palette:
+        // Rich woodland forest-canopy palette (deep interior bough shadow to sunlit olive-oak)
         let r, g, b;
-        if (puff < 0.35) {
-            // Deep canopy shadow void between leaf bunches
-            const t = puff / 0.35;
-            r = 0.03 * (1 - t) + 0.10 * t;
-            g = 0.09 * (1 - t) + 0.30 * t;
-            b = 0.04 * (1 - t) + 0.13 * t;
+        if (puff < 0.38) {
+            const t = puff / 0.38;
+            r = 0.04 * (1 - t) + 0.11 * t;
+            g = 0.08 * (1 - t) + 0.19 * t;
+            b = 0.04 * (1 - t) + 0.08 * t;
         } else {
-            const t = (puff - 0.35) / 0.65;
-            r = 0.10 * (1 - t) + 0.28 * t + microLeaves * 0.3;
-            g = 0.30 * (1 - t) + 0.62 * t + microLeaves;
-            b = 0.13 * (1 - t) + 0.25 * t + microLeaves * 0.3;
+            const t = (puff - 0.38) / 0.62;
+            r = 0.11 * (1 - t) + 0.26 * t + microLeaves * 0.22;
+            g = 0.19 * (1 - t) + 0.39 * t + microLeaves * 0.55;
+            b = 0.08 * (1 - t) + 0.14 * t + microLeaves * 0.18;
         }
 
         return [Math.max(0, Math.min(1, r)), Math.max(0, Math.min(1, g)), Math.max(0, Math.min(1, b))];
@@ -1811,8 +1769,8 @@ Dungeon3DProto.initTextures = function initTextures() {
     this.waterTex = procCreateWaterTexture();
     this.deepWaterTex = procCreateDeepWaterTexture();
     this.waterNormal = procCreateWaterNormal();
-    this.treeLeavesTex = procCreateTreeLeavesTexture();
-    this.treeLeavesNormal = procCreateTreeLeavesNormal();
+    this.treeLeavesTex = procCreateTreeLeavesTexture(256);
+    this.treeLeavesNormal = procCreateTreeLeavesNormal(256);
     this.treeBarkTex = procCreateTreeBarkTexture();
     this.treeBarkNormal = procCreateTreeBarkNormal();
     this.permWallTex = procCreatePermWallTexture();
@@ -2059,38 +2017,33 @@ Dungeon3DProto.initTextures = function initTextures() {
     this.swampMaterial = new THREE.MeshStandardMaterial({ map: this.dirtTex, roughness: 0.40, metalness: 0.08, side: THREE.DoubleSide, vertexColors: true });
     this.treeTrunkMat = new THREE.MeshStandardMaterial({
         color: 0xffffff, map: this.treeBarkTex, normalMap: this.treeBarkNormal, normalScale: new THREE.Vector2(1.40, 1.40),
-        roughness: 0.90, metalness: 0.02, side: THREE.DoubleSide, vertexColors: true
+        roughness: 0.90, metalness: 0.02, side: THREE.FrontSide, vertexColors: true
     });
     this.treeTrunkMaterial = this.treeTrunkMat;
     this.treeLeavesMat = new THREE.MeshStandardMaterial({
-        color: 0xffffff, map: this.treeLeavesTex, normalMap: this.treeLeavesNormal, normalScale: new THREE.Vector2(1.35, 1.35),
-        roughness: 0.68, metalness: 0.02, alphaTest: 0.35, side: THREE.DoubleSide, vertexColors: true
+        color: 0xffffff, map: this.treeLeavesTex, normalMap: this.treeLeavesNormal, normalScale: new THREE.Vector2(1.25, 1.25),
+        roughness: 0.72, metalness: 0.02, alphaTest: 0, transparent: false, side: THREE.FrontSide, vertexColors: true
     });
     this.treeMaterial = this.treeLeavesMat;
 
-    // Incandescent Domain-Warped Molten Lava (feat 23) & Cooled Basalt (fast micro-seeds)
-    _inMicroSeed = true;
-    try {
-        this.lavaTex = procCreateLavaTexture(16, 16);
-        this.lavaEmission = procCreateLavaEmission(16, 16);
-    } finally {
-        _inMicroSeed = false;
-    }
+    // Seamless 256x256 Cooled Obsidian-Basalt & Molten Magma Fissures (feat 23, 82, 83)
+    this.lavaTex = procCreateLavaTexture(256, 256);
+    this.lavaEmission = procCreateLavaEmission(256, 256);
     this.procCreateLavaTexture = procCreateLavaTexture;
     this.procCreateLavaEmission = procCreateLavaEmission;
     for (const lt of [this.lavaTex, this.lavaEmission]) {
-        if (lt) { lt.wrapS = THREE.RepeatWrapping; lt.wrapT = THREE.RepeatWrapping; lt.repeat.set(2, 2); }
+        if (lt) { lt.wrapS = THREE.RepeatWrapping; lt.wrapT = THREE.RepeatWrapping; lt.repeat.set(1, 1); }
     }
 
     this.lavaMaterial = new THREE.MeshStandardMaterial({
         color: 0xffffff,
         map: this.lavaTex,
-        emissive: 0xff5500,
+        emissive: 0xff4800,
         emissiveMap: this.lavaEmission,
-        emissiveIntensity: 2.35,
+        emissiveIntensity: 1.05,
         normalMap: this.townPermWallNormal || this.wallNormal,
-        normalScale: new THREE.Vector2(1.50, 1.50),
-        roughness: 0.32,
+        normalScale: new THREE.Vector2(1.40, 1.40),
+        roughness: 0.62,
         metalness: 0.08,
         side: THREE.DoubleSide
     });
@@ -2278,8 +2231,11 @@ Dungeon3DProto.initTextures = function initTextures() {
         if (e.diff) mat.map = e.diff;
         if (e.nor) mat.normalMap = e.nor;
         if (withRough && e.arm) mat.roughnessMap = e.arm;
-        if (Boolean(mat.map) !== hadMap || Boolean(mat.normalMap) !== hadNor || Boolean(mat.roughnessMap) !== hadRough) {
+        if (Boolean(mat.map) !== hadMap || Boolean(mat.normalMap) !== hadNor || Boolean(mat.roughnessMap) !== hadRough || e.diff || e.nor || (withRough && e.arm)) {
             mat.needsUpdate = true;
+            if (this.renderGovernor && typeof this.renderGovernor.wake === 'function') {
+                this.renderGovernor.wake(500);
+            }
         }
     };
 
@@ -2288,7 +2244,6 @@ Dungeon3DProto.initTextures = function initTextures() {
         this.townWallTex = e.diff || this.townWallTex;
         this.townWallNormal = e.nor || this.townWallNormal;
         this.townWallRoughness = e.arm || this.townWallRoughness;
-        applyMatMaps(this.townRoofMaterial, e, true);
     });
     this.loadPolyHavenSet('cobblestone_floor_08', 1, 1, (e) => {
         this.townFloorTex = e.diff || this.townFloorTex;
@@ -2303,6 +2258,16 @@ Dungeon3DProto.initTextures = function initTextures() {
     this.loadPolyHavenSet('bark_willow_02', 1, 1, (e) => {
         applyMatMaps(this.doorMaterial, e, true);
         if (this.treeTrunkMaterial && !this._hasPolyHavenTreeTex) applyMatMaps(this.treeTrunkMaterial, e, false);
+        if (this.townTimberMaterial) {
+            applyMatMaps(this.townTimberMaterial, e, true);
+            if (this.townTimberMaterial.color) this.townTimberMaterial.color.setHex(0x4a3525);
+            this.townTimberMaterial.roughness = 0.86;
+        }
+        if (this.shopFrameMaterial) {
+            applyMatMaps(this.shopFrameMaterial, e, true);
+            if (this.shopFrameMaterial.color) this.shopFrameMaterial.color.setHex(0x5a402c);
+            this.shopFrameMaterial.roughness = 0.82;
+        }
     });
     this.loadPolyHavenSet('plastered_stone_wall', 1, 1, (e) => applyMatMaps(this.storeMaterial, e, true));
     this.loadPolyHavenSet('rock_boulder_cracked', 1, 1, (e) => {
@@ -2338,7 +2303,11 @@ Dungeon3DProto.initTextures = function initTextures() {
         this.townMountainNormal = e.nor || this.townMountainNormal;
         this.townMountainRoughness = e.arm || this.townMountainRoughness;
         if (this.mountainMaterial && !this._hasPolyHavenMountainTex) applyMatMaps(this.mountainMaterial, e, false);
-        if (this.chasmSideMaterial) applyMatMaps(this.chasmSideMaterial, { diff: this.townMountainDiff, nor: this.townMountainNormal, arm: this.townMountainRoughness }, true);
+        if (e.diff) this._hasPolyHavenChasmTex = true;
+        if (this.chasmSideMaterial) {
+            applyMatMaps(this.chasmSideMaterial, { diff: this.townMountainDiff, nor: this.townMountainNormal, arm: this.townMountainRoughness }, true);
+            if (this.chasmSideMaterial.normalScale) this.chasmSideMaterial.normalScale.set(1.80, 1.80);
+        }
         if (e.diff && e.arm) {
             const veinSpecs = [
                 [this.quartzMaterial, this.quartzEmission, 0x38bdf8, 0.38],
@@ -2363,10 +2332,6 @@ Dungeon3DProto.initTextures = function initTextures() {
 
     // Architectural Shikkui Plaster & Timber Trim Sets (cartoon/non-tiling T_Brick/T_UnevenBrick/T_RockTrim/T_RoundTiles/T_RedBrick retired)
     this.loadLocalPbrSet('local_plaster', 'T_Plaster', 2, 2);
-    this.loadLocalPbrSet('local_wood_trim', 'T_WoodTrim', 2, 2, (e) => {
-        applyMatMaps(this.shopFrameMaterial, e, true);
-        applyMatMaps(this.townTimberMaterial, e, true);
-    });
 
     this.ensureSharedDetailTexturesReady = () => {
         if (this._sharedDetailTexPromise) return this._sharedDetailTexPromise;
@@ -2506,7 +2471,7 @@ function resolveContextualPbrIds(realm, depth, outdoors, branch = '', ryodBiome 
     const fullSet = new Set(tier1Set);
     fullSet.add('bark_willow_02');
     const extraIds = isOut
-        ? ['japanese_stone_wall', 'castle_brick_broken_06', 'medieval_blocks_05', 'cliff_side', 'brown_mud_rocks_01', 'local_wood_trim']
+        ? ['japanese_stone_wall', 'plastered_stone_wall', 'aerial_grass_rock', 'brown_mud_rocks_01', 'local_wood_trim']
         : (hasShops ? ['cliff_side', 'rock_boulder_cracked', 'brown_mud_rocks_01', 'local_wood_trim'] : ['cliff_side', 'rock_boulder_cracked', 'brown_mud_rocks_01']);
     for (const eid of extraIds) fullSet.add(eid);
 
@@ -2568,7 +2533,7 @@ Dungeon3DProto.getContextualTextureSet = function getContextualTextureSet(theme,
     const cacheKey = safeTheme.id || 'angband_town';
     let baseSet = this.contextualTextureCache.get(cacheKey);
     if (!baseSet) {
-        const texSz = 64;
+        const texSz = 128;
         const wallTex = procCreateContextualWallTexture(safeTheme, texSz), wallNormal = procCreateContextualWallNormal(safeTheme, texSz), wallRoughness = procCreateContextualWallRoughness(safeTheme, texSz);
         const floorTex = procCreateContextualFloorTexture(safeTheme, texSz), floorNormal = procCreateContextualFloorNormal(safeTheme, texSz), floorRoughness = procCreateContextualFloorRoughness(safeTheme, texSz);
         const permWallTex = procCreateContextualPermWallTexture(safeTheme, texSz), permWallNormal = procCreateContextualPermWallNormal(safeTheme, texSz);

@@ -1,11 +1,10 @@
 /**
- * Dungeon3DTown — Procedural Medieval Town Cluster Architecture (WS-4 / v12.3.0)
+ * Dungeon3DTown — Procedural Town Cluster Architecture (WS-4 / v12.3.1)
  *
- * Flood-fills contiguous Town building blocks once per depth=0 terrain build into
- * spanning pitched gabled roofs (with 0.28m eaves, ridge beams & chimneys),
- * plaster-and-timber gable end-walls, warm amber-lit mullioned windows
- * (T_WindowGradient.png), and outer-perimeter crenellated stone battlements +
- * corner watchtowers using pooled InstancedMeshes & shared materials.
+ * Decomposes interior Town building footprints into 100%-solid maximal
+ * rectangles (never roofing streets, courtyards, or open plazas), builds
+ * UV-mapped gabled roofs & plaster gables with tiled slate/kawara normal maps,
+ * amber-lit mullioned windows, and crenellated stone battlements.
  *
  * Zero CylinderGeometry (L35.1 invariant safe). Dual UMD + IIFE for browser & tests.
  */
@@ -28,100 +27,183 @@
         return d3d.getFeatAt(map, x, y);
     }
 
+    function isStoreFeat(feat) {
+        return (feat >= 7 && feat <= 14) || (feat >= 32 && feat <= 40);
+    }
+
     function isTownRoofClusterTile(feat, glyph, isBuildingCheck) {
-        if (feat === 60 || glyph === '0' && feat === 60) return false; // Never roof Sil-Q Forge
+        if (feat === 60 || (glyph === '0' && feat === 60)) return false; // Never roof Sil-Q Forge
         if (feat === 21 || feat === 22) return true;
-        if ((feat >= 7 && feat <= 14) || (feat >= 32 && feat <= 40)) return true;
+        if (isStoreFeat(feat)) return true;
         return typeof isBuildingCheck === 'function' ? Boolean(isBuildingCheck(feat)) : false;
     }
 
     /**
-     * Flood-fills interior Town building footprints (excluding outer perimeter walls)
-     * into connected BuildingClusters with deterministic story heights & roof tints.
+     * Find the highest-scoring 100%-solid unclaimed rectangle in [x0..x1] x [y0..y1]
+     * using largest-rectangle-in-histogram per row. Prefers thick buildings (minDim >= 3)
+     * over thin strips so adjoining wall wings never slice a rectangular building.
+     */
+    function findBestSolidRect(unclaimed, w, yMin, yMax, xMin, xMax) {
+        const subW = xMax - xMin + 1;
+        const heights = new Int32Array(subW);
+        const stack = new Int32Array(subW + 1);
+        let best = null;
+        let bestScore = -1;
+
+        for (let y = yMin; y <= yMax; y++) {
+            const rowOff = y * w;
+            for (let i = 0; i < subW; i++) {
+                heights[i] = unclaimed[rowOff + xMin + i] ? (heights[i] + 1) : 0;
+            }
+            let top = 0;
+            for (let i = 0; i <= subW; i++) {
+                const curH = i < subW ? heights[i] : 0;
+                while (top > 0 && heights[stack[top - 1]] > curH) {
+                    const hRect = heights[stack[--top]];
+                    const leftIdx = top > 0 ? stack[top - 1] + 1 : 0;
+                    const wRect = i - leftIdx;
+                    if (wRect > 0 && hRect > 0) {
+                        const area = wRect * hRect;
+                        const minD = wRect < hRect ? wRect : hRect;
+                        const maxD = wRect > hRect ? wRect : hRect;
+                        const thickWeight = minD >= 3 ? 4.0 : (minD === 2 ? 2.0 : 1.0);
+                        const score = area * thickWeight - maxD * 0.25;
+                        if (score > bestScore) {
+                            bestScore = score;
+                            best = {
+                                minX: xMin + leftIdx,
+                                maxX: xMin + i - 1,
+                                minY: y - hRect + 1,
+                                maxY: y
+                            };
+                        }
+                    }
+                }
+                stack[top++] = i;
+            }
+        }
+        return best;
+    }
+
+    /**
+     * Decomposes interior Town building footprints into disjoint 100%-solid
+     * rectangles classified as either pitched-roof `'building'` blocks or
+     * unroofed crenellated `'fortress_wall'` curtain walls. Never spans across
+     * streets, plazas, moats, or courtyards.
      */
     function computeTownClusters(map, w, h, d3d) {
         const clusters = [];
         if (!map || !map.rows || w <= 4 || h <= 4) return clusters;
 
-        const visited = new Uint8Array(w * h);
-        const mask = new Uint8Array(w * h);
+        const unclaimed = new Uint8Array(w * h);
+        const clusterable = new Uint8Array(w * h);
+        const featGrid = new Uint16Array(w * h);
+        const xMin = 2, xMax = w - 3, yMin = 2, yMax = h - 3;
 
-        for (let y = 2; y <= h - 3; y++) {
-            for (let x = 2; x <= w - 3; x++) {
+        for (let y = yMin; y <= yMax; y++) {
+            for (let x = xMin; x <= xMax; x++) {
                 const feat = readRawFeat(d3d, map, x, y);
                 const glyph = (d3d && typeof d3d.getGlyphAt === 'function')
                     ? d3d.getGlyphAt(map, x, y)
                     : ((map.rows[y] && map.rows[y].g) ? map.rows[y].g[x] : ' ');
                 if (isTownRoofClusterTile(feat, glyph)) {
-                    mask[y * w + x] = 1;
+                    const idx = y * w + x;
+                    unclaimed[idx] = 1;
+                    clusterable[idx] = 1;
+                    featGrid[idx] = feat;
                 }
             }
         }
 
-        const queue = [];
-        for (let y = 2; y <= h - 3; y++) {
-            for (let x = 2; x <= w - 3; x++) {
-                const startIdx = y * w + x;
-                if (!mask[startIdx] || visited[startIdx]) continue;
+        const pushRectCluster = (bx0, bx1, by0, by1) => {
+            const spanX = bx1 - bx0 + 1;
+            const spanY = by1 - by0 + 1;
+            const minDim = spanX < spanY ? spanX : spanY;
+            const maxDim = spanX > spanY ? spanX : spanY;
 
-                visited[startIdx] = 1;
-                queue.length = 0;
-                queue.push(startIdx);
-                let head = 0;
-                let minX = x, maxX = x, minY = y, maxY = y;
-                const tiles = [];
-
-                while (head < queue.length) {
-                    const idx = queue[head++];
-                    const cx = idx % w;
-                    const cy = (idx / w) | 0;
-                    const feat = readRawFeat(d3d, map, cx, cy);
-                    tiles.push({ x: cx, y: cy, feat });
-                    if (cx < minX) minX = cx;
-                    if (cx > maxX) maxX = cx;
-                    if (cy < minY) minY = cy;
-                    if (cy > maxY) maxY = cy;
-
-                    const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
-                    for (let d = 0; d < 4; d++) {
-                        const nx = cx + dirs[d][0];
-                        const ny = cy + dirs[d][1];
-                        if (isPerimeterWallCoord(nx, ny, w, h)) continue;
-                        const nIdx = ny * w + nx;
-                        if (mask[nIdx] && !visited[nIdx]) {
-                            visited[nIdx] = 1;
-                            queue.push(nIdx);
-                        }
+            // Split overly long thick buildings (maxDim > 20, minDim >= 3) along the long axis into clean roof wings
+            if (minDim >= 3 && maxDim > 20) {
+                const parts = Math.ceil(maxDim / 16);
+                if (spanX >= spanY) {
+                    for (let p = 0; p < parts; p++) {
+                        const sx0 = bx0 + Math.floor((p * spanX) / parts);
+                        const sx1 = bx0 + Math.floor(((p + 1) * spanX) / parts) - 1;
+                        if (sx1 >= sx0) pushRectCluster(sx0, sx1, by0, by1);
+                    }
+                } else {
+                    for (let p = 0; p < parts; p++) {
+                        const sy0 = by0 + Math.floor((p * spanY) / parts);
+                        const sy1 = by0 + Math.floor(((p + 1) * spanY) / parts) - 1;
+                        if (sy1 >= sy0) pushRectCluster(bx0, bx1, sy0, sy1);
                     }
                 }
-
-                // Skip degenerate 1-tile solitary pillars unless they are actual stores/buildings
-                const hasStore = tiles.some(t => (t.feat >= 7 && t.feat <= 14) || (t.feat >= 32 && t.feat <= 40));
-                if (tiles.length < 2 && !hasStore) continue;
-
-                const hash = (((minX * 73856093) ^ (minY * 19349663) ^ (tiles.length * 83492791)) >>> 0);
-                const storyExtra = (hash % 3) * 0.14; // Deterministic 0..0.28m subtle variation
-                const spanX = maxX - minX + 1;
-                const spanY = maxY - minY + 1;
-                const ridgeAlongX = spanX >= spanY;
-                const roofPaletteIdx = hash % 3;
-
-                clusters.push({
-                    minX, maxX, minY, maxY,
-                    spanX, spanY,
-                    hasStore,
-                    tiles,
-                    hash,
-                    storyExtra,
-                    ridgeAlongX,
-                    roofPaletteIdx
-                });
+                return;
             }
+
+            const tiles = [];
+            let hasStore = false;
+            let allPerm = true;
+            for (let ty = by0; ty <= by1; ty++) {
+                for (let tx = bx0; tx <= bx1; tx++) {
+                    const feat = featGrid[ty * w + tx];
+                    if (isStoreFeat(feat)) hasStore = true;
+                    if (feat !== 22) allPerm = false;
+                    tiles.push({ x: tx, y: ty, feat });
+                }
+            }
+
+            let adjToCluster = false;
+            if (tiles.length === 1 && !hasStore) {
+                const tx = bx0, ty = by0;
+                adjToCluster = Boolean(
+                    clusterable[ty * w + tx - 1] || clusterable[ty * w + tx + 1] ||
+                    clusterable[(ty - 1) * w + tx] || clusterable[(ty + 1) * w + tx]
+                );
+            }
+
+            const touchesOuterBorder = (bx0 <= 3 || bx1 >= w - 4 || by0 <= 3 || by1 >= h - 4);
+            let kind = null;
+            if (allPerm && !hasStore && maxDim >= 24 && touchesOuterBorder) {
+                kind = 'fortress_wall';
+            } else if (tiles.length >= 1) {
+                kind = 'building';
+            } else {
+                return;
+            }
+
+            const hash = (((bx0 * 73856093) ^ (by0 * 19349663) ^ (tiles.length * 83492791)) >>> 0);
+            const storyExtra = 0;
+            const ridgeAlongX = spanX >= spanY;
+            const roofPaletteIdx = hash % 3;
+
+            clusters.push({
+                kind,
+                minX: bx0, maxX: bx1, minY: by0, maxY: by1,
+                spanX, spanY,
+                hasStore,
+                tiles,
+                hash,
+                storyExtra,
+                ridgeAlongX,
+                roofPaletteIdx
+            });
+        };
+
+        for (let iter = 0; iter < 2048; iter++) {
+            const best = findBestSolidRect(unclaimed, w, yMin, yMax, xMin, xMax);
+            if (!best) break;
+            for (let y = best.minY; y <= best.maxY; y++) {
+                const rowOff = y * w;
+                for (let x = best.minX; x <= best.maxX; x++) {
+                    unclaimed[rowOff + x] = 0;
+                }
+            }
+            pushRectCluster(best.minX, best.maxX, best.minY, best.maxY);
         }
         return clusters;
     }
 
-    function createGableRoofGeometry(THREE, spanW, spanD, ridgeH, overhang, ridgeAlongX, roofRGB, gableRGB) {
+    function createGableRoofGeometry(THREE, spanW, spanD, ridgeH, overhang, ridgeAlongX, roofRGB, gableRGB, isEastern) {
         const hw = spanW * 0.5 + overhang;
         const hd = spanD * 0.5 + overhang;
         const gxW = spanW * 0.5 - 0.01;
@@ -130,11 +212,13 @@
         const roofPos = [];
         const roofNorm = [];
         const roofCol = [];
+        const roofUv = [];
         const gablePos = [];
         const gableNorm = [];
         const gableCol = [];
+        const gableUv = [];
 
-        const pushTri = (posArr, normArr, colArr, a, b, c, rgb) => {
+        const pushTri = (posArr, normArr, colArr, uvArr, a, b, c, rgb, uva, uvb, uvc) => {
             const ux = b[0] - a[0], uy = b[1] - a[1], uz = b[2] - a[2];
             const vx = c[0] - a[0], vy = c[1] - a[1], vz = c[2] - a[2];
             let nx = uy * vz - uz * vy;
@@ -142,66 +226,285 @@
             let nz = ux * vy - uy * vx;
             const len = Math.hypot(nx, ny, nz) || 1;
             nx /= len; ny /= len; nz /= len;
-            for (const p of [a, b, c]) {
+            const pts = [a, b, c];
+            const uvs = [uva, uvb, uvc];
+            for (let i = 0; i < 3; i++) {
+                const p = pts[i];
+                const uv = uvs[i];
                 posArr.push(p[0], p[1], p[2]);
                 normArr.push(nx, ny, nz);
                 colArr.push(rgb[0], rgb[1], rgb[2]);
+                uvArr.push(uv[0], uv[1]);
             }
         };
 
-        const pushQuad = (posArr, normArr, colArr, p0, p1, p2, p3, rgb) => {
-            pushTri(posArr, normArr, colArr, p0, p1, p2, rgb);
-            pushTri(posArr, normArr, colArr, p0, p2, p3, rgb);
+        const pushQuad = (posArr, normArr, colArr, uvArr, p0, p1, p2, p3, rgb, uv0, uv1, uv2, uv3) => {
+            pushTri(posArr, normArr, colArr, uvArr, p0, p1, p2, rgb, uv0, uv1, uv2);
+            pushTri(posArr, normArr, colArr, uvArr, p0, p2, p3, rgb, uv0, uv2, uv3);
+        };
+
+        const uScale = 0.45;
+        const vScale = 0.55;
+        const gScale = 0.50;
+        const fasciaBot = -0.13;
+        const gableBot = -0.12;
+        const darkSoffit = [roofRGB[0] * 0.36, roofRGB[1] * 0.33, roofRGB[2] * 0.30];
+        const fasciaCol = [roofRGB[0] * 0.44, roofRGB[1] * 0.40, roofRGB[2] * 0.36];
+        const ridgeCapCol = [Math.min(1, roofRGB[0] * 0.58), Math.min(1, roofRGB[1] * 0.58), Math.min(1, roofRGB[2] * 0.62)];
+
+        const pushWatertightFasciaAndSoffit = (uMaxVal, vExtVal) => {
+            // Vertical 0.13m fascia skirt around all 4 eaves (closes roof overhang volume cleanly)
+            pushQuad(roofPos, roofNorm, roofCol, roofUv, [-hw, fasciaBot, hd], [hw, fasciaBot, hd], [hw, 0, hd], [-hw, 0, hd], fasciaCol, [0, 0], [uMaxVal, 0], [uMaxVal, 0.15], [0, 0.15]);
+            pushQuad(roofPos, roofNorm, roofCol, roofUv, [hw, fasciaBot, -hd], [-hw, fasciaBot, -hd], [-hw, 0, -hd], [hw, 0, -hd], fasciaCol, [0, 0], [uMaxVal, 0], [uMaxVal, 0.15], [0, 0.15]);
+            pushQuad(roofPos, roofNorm, roofCol, roofUv, [-hw, fasciaBot, -hd], [-hw, fasciaBot, hd], [-hw, 0, hd], [-hw, 0, -hd], fasciaCol, [0, 0], [vExtVal, 0], [vExtVal, 0.15], [0, 0.15]);
+            pushQuad(roofPos, roofNorm, roofCol, roofUv, [hw, fasciaBot, hd], [hw, fasciaBot, -hd], [hw, 0, -hd], [hw, 0, hd], fasciaCol, [0, 0], [vExtVal, 0], [vExtVal, 0.15], [0, 0.15]);
+            // Closed bottom soffit plate with explicit (0, -1, 0) downward normals
+            pushQuad(roofPos, roofNorm, roofCol, roofUv, [-hw, fasciaBot, hd], [-hw, fasciaBot, -hd], [hw, fasciaBot, -hd], [hw, fasciaBot, hd], darkSoffit, [0, 0], [0, vExtVal], [uMaxVal, vExtVal], [uMaxVal, 0]);
         };
 
         if (ridgeAlongX) {
-            // Ridge runs along X: [-hw, ridgeH, 0] -> [+hw, ridgeH, 0]
             const rL = [-hw, ridgeH, 0];
             const rR = [hw, ridgeH, 0];
             const eFL = [-hw, 0, hd];
             const eFR = [hw, 0, hd];
             const eBL = [-hw, 0, -hd];
             const eBR = [hw, 0, -hd];
-            // Front (+Z) slope & Back (-Z) slope
-            pushQuad(roofPos, roofNorm, roofCol, eFL, eFR, rR, rL, roofRGB);
-            pushQuad(roofPos, roofNorm, roofCol, eBR, eBL, rL, rR, roofRGB);
-            // Underside eaves soffits (visible looking upward from street)
-            const darkSoffit = [roofRGB[0] * 0.45, roofRGB[1] * 0.40, roofRGB[2] * 0.35];
-            pushQuad(roofPos, roofNorm, roofCol, eFR, eFL, [-hw, 0, 0], [hw, 0, 0], darkSoffit);
-            pushQuad(roofPos, roofNorm, roofCol, eBL, eBR, [hw, 0, 0], [-hw, 0, 0], darkSoffit);
-            // Plaster gable end-walls at -X and +X
-            pushTri(gablePos, gableNorm, gableCol, [-gxW, 0, gxD], [-gxW, 0, -gxD], [-gxW, ridgeH, 0], gableRGB);
-            pushTri(gablePos, gableNorm, gableCol, [gxW, 0, -gxD], [gxW, 0, gxD], [gxW, ridgeH, 0], gableRGB);
+            const uMax = (hw * 2) * uScale;
+            const vMax = Math.hypot(hd, ridgeH) * vScale;
+            const t = -fasciaBot;
+            // Front (+Z) & Back (-Z) roof slopes + sloped underside soffits + rake bargeboards + fascia/soffit prism
+            pushQuad(roofPos, roofNorm, roofCol, roofUv, eFL, eFR, rR, rL, roofRGB, [0, 0], [uMax, 0], [uMax, vMax], [0, vMax]);
+            pushQuad(roofPos, roofNorm, roofCol, roofUv, eBR, eBL, rL, rR, roofRGB, [0, 0], [uMax, 0], [uMax, vMax], [0, vMax]);
+            pushQuad(roofPos, roofNorm, roofCol, roofUv, [-hw, -t, hd], [-hw, ridgeH - t, 0], [hw, ridgeH - t, 0], [hw, -t, hd], darkSoffit, [0, 0], [0, vMax], [uMax, vMax], [uMax, 0]);
+            pushQuad(roofPos, roofNorm, roofCol, roofUv, [hw, -t, -hd], [hw, ridgeH - t, 0], [-hw, ridgeH - t, 0], [-hw, -t, -hd], darkSoffit, [0, 0], [0, vMax], [uMax, vMax], [uMax, 0]);
+            pushQuad(roofPos, roofNorm, roofCol, roofUv, [hw, 0, hd], [hw, -t, hd], [hw, ridgeH - t, 0], [hw, ridgeH, 0], fasciaCol, [0, 0], [0, 0.15], [vMax, 0.15], [vMax, 0]);
+            pushQuad(roofPos, roofNorm, roofCol, roofUv, [hw, -t, -hd], [hw, 0, -hd], [hw, ridgeH, 0], [hw, ridgeH - t, 0], fasciaCol, [0, 0], [0, 0.15], [vMax, 0.15], [vMax, 0]);
+            pushQuad(roofPos, roofNorm, roofCol, roofUv, [-hw, -t, hd], [-hw, 0, hd], [-hw, ridgeH, 0], [-hw, ridgeH - t, 0], fasciaCol, [0, 0], [0, 0.15], [vMax, 0.15], [vMax, 0]);
+            pushQuad(roofPos, roofNorm, roofCol, roofUv, [-hw, 0, -hd], [-hw, -t, -hd], [-hw, ridgeH - t, 0], [-hw, ridgeH, 0], fasciaCol, [0, 0], [0, 0.15], [vMax, 0.15], [vMax, 0]);
+            pushWatertightFasciaAndSoffit(uMax, (hd * 2) * uScale);
+            if (isEastern) {
+                const capW = 0.09;
+                const capBot = ridgeH - 0.04;
+                const capH = ridgeH + 0.07;
+                const cExt = hw;
+                pushQuad(roofPos, roofNorm, roofCol, roofUv, [-cExt, capBot, capW], [cExt, capBot, capW], [cExt, capH, capW * 0.65], [-cExt, capH, capW * 0.65], ridgeCapCol, [0, 0], [uMax, 0], [uMax, 0.25], [0, 0.25]);
+                pushQuad(roofPos, roofNorm, roofCol, roofUv, [cExt, capBot, -capW], [-cExt, capBot, -capW], [-cExt, capH, -capW * 0.65], [cExt, capH, -capW * 0.65], ridgeCapCol, [0, 0], [uMax, 0], [uMax, 0.25], [0, 0.25]);
+                pushQuad(roofPos, roofNorm, roofCol, roofUv, [-cExt, capH, capW * 0.65], [cExt, capH, capW * 0.65], [cExt, capH, -capW * 0.65], [-cExt, capH, -capW * 0.65], ridgeCapCol, [0, 0], [uMax, 0], [uMax, 0.2], [0, 0.2]);
+                pushQuad(roofPos, roofNorm, roofCol, roofUv, [-cExt, capBot, -capW], [-cExt, capBot, capW], [-cExt, capH, capW * 0.65], [-cExt, capH, -capW * 0.65], ridgeCapCol, [0, 0], [0.2, 0], [0.2, 0.2], [0, 0.2]);
+                pushQuad(roofPos, roofNorm, roofCol, roofUv, [cExt, capBot, capW], [cExt, capBot, -capW], [cExt, capH, -capW * 0.65], [cExt, capH, capW * 0.65], ridgeCapCol, [0, 0], [0.2, 0], [0.2, 0.2], [0, 0.2]);
+            }
+            // Outward-facing Gable end-walls at -X (-1,0,0) and +X (+1,0,0) seated below wall top
+            const gw = (gxD * 2) * gScale;
+            const gh = ridgeH * gScale;
+            pushTri(gablePos, gableNorm, gableCol, gableUv, [-gxW, gableBot, -gxD], [-gxW, gableBot, gxD], [-gxW, ridgeH, 0], gableRGB, [0, 0], [gw, 0], [gw * 0.5, gh]);
+            pushTri(gablePos, gableNorm, gableCol, gableUv, [gxW, gableBot, gxD], [gxW, gableBot, -gxD], [gxW, ridgeH, 0], gableRGB, [0, 0], [gw, 0], [gw * 0.5, gh]);
         } else {
-            // Ridge runs along Z: [0, ridgeH, -hd] -> [0, ridgeH, +hd]
             const rB = [0, ridgeH, -hd];
             const rF = [0, ridgeH, hd];
             const eLF = [-hw, 0, hd];
             const eLB = [-hw, 0, -hd];
             const eRF = [hw, 0, hd];
             const eRB = [hw, 0, -hd];
-            pushQuad(roofPos, roofNorm, roofCol, eLF, rF, rB, eLB, roofRGB);
-            pushQuad(roofPos, roofNorm, roofCol, eRB, rB, rF, eRF, roofRGB);
-            const darkSoffit = [roofRGB[0] * 0.45, roofRGB[1] * 0.40, roofRGB[2] * 0.35];
-            pushQuad(roofPos, roofNorm, roofCol, eLB, eLF, [0, 0, hd], [0, 0, -hd], darkSoffit);
-            pushQuad(roofPos, roofNorm, roofCol, eRF, eRB, [0, 0, -hd], [0, 0, hd], darkSoffit);
-            // Plaster gable end-walls at +Z and -Z
-            pushTri(gablePos, gableNorm, gableCol, [-gxW, 0, gxD], [gxW, 0, gxD], [0, ridgeH, gxD], gableRGB);
-            pushTri(gablePos, gableNorm, gableCol, [gxW, 0, -gxD], [-gxW, 0, -gxD], [0, ridgeH, -gxD], gableRGB);
+            const uMax = (hd * 2) * uScale;
+            const vMax = Math.hypot(hw, ridgeH) * vScale;
+            const t = -fasciaBot;
+            pushQuad(roofPos, roofNorm, roofCol, roofUv, eLF, rF, rB, eLB, roofRGB, [0, 0], [0, vMax], [uMax, vMax], [uMax, 0]);
+            pushQuad(roofPos, roofNorm, roofCol, roofUv, eRB, rB, rF, eRF, roofRGB, [0, 0], [0, vMax], [uMax, vMax], [uMax, 0]);
+            pushQuad(roofPos, roofNorm, roofCol, roofUv, [-hw, -t, -hd], [0, ridgeH - t, -hd], [0, ridgeH - t, hd], [-hw, -t, hd], darkSoffit, [0, 0], [0, vMax], [uMax, vMax], [uMax, 0]);
+            pushQuad(roofPos, roofNorm, roofCol, roofUv, [hw, -t, hd], [0, ridgeH - t, hd], [0, ridgeH - t, -hd], [hw, -t, -hd], darkSoffit, [0, 0], [0, vMax], [uMax, vMax], [uMax, 0]);
+            pushQuad(roofPos, roofNorm, roofCol, roofUv, [-hw, -t, hd], [0, ridgeH - t, hd], [0, ridgeH, hd], [-hw, 0, hd], fasciaCol, [0, 0], [vMax, 0], [vMax, 0.15], [0, 0.15]);
+            pushQuad(roofPos, roofNorm, roofCol, roofUv, [0, ridgeH - t, hd], [hw, -t, hd], [hw, 0, hd], [0, ridgeH, hd], fasciaCol, [0, 0], [vMax, 0], [vMax, 0.15], [0, 0.15]);
+            pushQuad(roofPos, roofNorm, roofCol, roofUv, [-hw, 0, -hd], [0, ridgeH, -hd], [0, ridgeH - t, -hd], [-hw, -t, -hd], fasciaCol, [0, 0], [vMax, 0], [vMax, 0.15], [0, 0.15]);
+            pushQuad(roofPos, roofNorm, roofCol, roofUv, [0, ridgeH, -hd], [hw, 0, -hd], [hw, -t, -hd], [0, ridgeH - t, -hd], fasciaCol, [0, 0], [vMax, 0], [vMax, 0.15], [0, 0.15]);
+            pushWatertightFasciaAndSoffit((hw * 2) * uScale, uMax);
+            if (isEastern) {
+                const capW = 0.09;
+                const capBot = ridgeH - 0.04;
+                const capH = ridgeH + 0.07;
+                const cExt = hd;
+                pushQuad(roofPos, roofNorm, roofCol, roofUv, [-capW, capBot, -cExt], [-capW, capBot, cExt], [-capW * 0.65, capH, cExt], [-capW * 0.65, capH, -cExt], ridgeCapCol, [0, 0], [uMax, 0], [uMax, 0.25], [0, 0.25]);
+                pushQuad(roofPos, roofNorm, roofCol, roofUv, [capW, capBot, cExt], [capW, capBot, -cExt], [capW * 0.65, capH, -cExt], [capW * 0.65, capH, cExt], ridgeCapCol, [0, 0], [uMax, 0], [uMax, 0.25], [0, 0.25]);
+                pushQuad(roofPos, roofNorm, roofCol, roofUv, [-capW * 0.65, capH, cExt], [capW * 0.65, capH, cExt], [capW * 0.65, capH, -cExt], [-capW * 0.65, capH, -cExt], ridgeCapCol, [0, 0], [0.2, 0], [0.2, uMax], [0, uMax]);
+                pushQuad(roofPos, roofNorm, roofCol, roofUv, [-capW, capBot, cExt], [capW, capBot, cExt], [capW * 0.65, capH, cExt], [-capW * 0.65, capH, cExt], ridgeCapCol, [0, 0], [0.2, 0], [0.2, 0.2], [0, 0.2]);
+                pushQuad(roofPos, roofNorm, roofCol, roofUv, [capW, capBot, -cExt], [-capW, capBot, -cExt], [-capW * 0.65, capH, -cExt], [capW * 0.65, capH, -cExt], ridgeCapCol, [0, 0], [0.2, 0], [0.2, 0.2], [0, 0.2]);
+            }
+            const gw = (gxW * 2) * gScale;
+            const gh = ridgeH * gScale;
+            pushTri(gablePos, gableNorm, gableCol, gableUv, [-gxW, gableBot, gxD], [gxW, gableBot, gxD], [0, ridgeH, gxD], gableRGB, [0, 0], [gw, 0], [gw * 0.5, gh]);
+            pushTri(gablePos, gableNorm, gableCol, gableUv, [gxW, gableBot, -gxD], [-gxW, gableBot, -gxD], [0, ridgeH, -gxD], gableRGB, [0, 0], [gw, 0], [gw * 0.5, gh]);
         }
 
-        const buildBuf = (p, n, c) => {
+        const buildBuf = (p, n, c, u) => {
             const g = new THREE.BufferGeometry();
             g.setAttribute('position', new THREE.Float32BufferAttribute(p, 3));
             g.setAttribute('normal', new THREE.Float32BufferAttribute(n, 3));
             g.setAttribute('color', new THREE.Float32BufferAttribute(c, 3));
+            g.setAttribute('uv', new THREE.Float32BufferAttribute(u, 2));
             return g;
         };
 
         return {
-            roofGeo: buildBuf(roofPos, roofNorm, roofCol),
-            gableGeo: buildBuf(gablePos, gableNorm, gableCol)
+            roofGeo: buildBuf(roofPos, roofNorm, roofCol, roofUv),
+            gableGeo: buildBuf(gablePos, gableNorm, gableCol, gableUv)
         };
+    }
+
+    function createTownRoofTileTextures(THREE, isEastern) {
+        const size = 512;
+        const heights = new Float32Array(size * size);
+        const diffData = new Uint8Array(size * size * 4);
+        const normData = new Uint8Array(size * size * 4);
+
+        const cols = 10;
+        const rows = 10;
+
+        for (let y = 0; y < size; y++) {
+            const fy = y / size;
+            const rIdx = Math.floor(fy * rows);
+            const rowV = (fy * rows) - rIdx;
+            const stagger = (!isEastern && (rIdx & 1)) ? 0.5 : 0.0;
+
+            for (let x = 0; x < size; x++) {
+                const fx = x / size;
+                const ux = (fx * cols + stagger) % cols;
+                const cIdx = Math.floor(ux);
+                const colU = ux - cIdx;
+                const tileHash = (((cIdx * 73 + rIdx * 137) ^ (rIdx * 31) ^ (cIdx * 19)) & 31) / 31;
+                const coarseGrain = (Math.sin(x * 0.21 + cIdx * 3.1) * Math.cos(y * 0.27 + rIdx * 2.3)) * 0.045;
+                const fineGrain = ((((x * 1664525 + y * 1013904223) >>> 24) & 255) / 255 - 0.5) * 0.07;
+
+                let hVal;
+                let seamShade = 1.0;
+                if (isEastern) {
+                    // Weathered Ibushi-Kawara interlocking ceramic roof tiles (matte, deep valley AO, non-glare ribs)
+                    const ribDist = Math.abs(colU - 0.5) * 2.0;
+                    const panCurve = Math.pow(Math.max(0, 1.0 - ribDist * ribDist), 0.72) * 0.42;
+                    const lipShadow = rowV < 0.14 ? (0.42 + (rowV / 0.14) * 0.58) : 1.0;
+                    const valleyDark = ribDist > 0.84 ? (1.0 - (ribDist - 0.84) * 2.2) : 1.0;
+                    const overlap = 0.34 + 0.66 * rowV;
+                    hVal = (panCurve + overlap * 0.58) * lipShadow;
+                    seamShade = lipShadow * Math.max(0.55, valleyDark) * (0.68 + tileHash * 0.20 + coarseGrain);
+                } else {
+                    // Hand-split weathered slate & terracotta shingles (dark crevices, beveled edges, mottled stone tone)
+                    const bevelX = (colU < 0.06 || colU > 0.94) ? 0.48 : 1.0;
+                    const lipShadow = rowV < 0.12 ? (0.38 + (rowV / 0.12) * 0.62) : 1.0;
+                    const subtleArc = Math.sin(colU * Math.PI) * 0.08;
+                    hVal = (0.34 + 0.58 * rowV + subtleArc) * bevelX * lipShadow;
+                    seamShade = Math.min(bevelX, lipShadow) * (0.64 + tileHash * 0.24 + coarseGrain);
+                }
+
+                heights[y * size + x] = hVal;
+                const val = Math.min(0.84, Math.max(0.18, seamShade * 0.72 + fineGrain));
+                const rVal = Math.round(val * 255);
+                const gVal = Math.round(val * (isEastern ? 0.99 : 0.98) * 255);
+                const bVal = Math.round(val * (isEastern ? 1.02 : 0.96) * 255);
+                const i4 = (y * size + x) * 4;
+                diffData[i4] = Math.min(255, Math.max(32, rVal));
+                diffData[i4 + 1] = Math.min(255, Math.max(32, gVal));
+                diffData[i4 + 2] = Math.min(255, Math.max(32, bVal));
+                diffData[i4 + 3] = 255;
+            }
+        }
+
+        const strength = isEastern ? 3.2 : 3.0;
+        for (let y = 0; y < size; y++) {
+            const ym = (y - 1 + size) % size;
+            const yp = (y + 1) % size;
+            for (let x = 0; x < size; x++) {
+                const xm = (x - 1 + size) % size;
+                const xp = (x + 1) % size;
+                const dx = (heights[y * size + xp] - heights[y * size + xm]) * strength;
+                const dy = (heights[yp * size + x] - heights[ym * size + x]) * strength;
+                const len = Math.hypot(dx, dy, 1.0) || 1.0;
+                const i4 = (y * size + x) * 4;
+                normData[i4] = Math.min(255, Math.max(0, Math.round(((-dx / len) * 0.5 + 0.5) * 255)));
+                normData[i4 + 1] = Math.min(255, Math.max(0, Math.round(((-dy / len) * 0.5 + 0.5) * 255)));
+                normData[i4 + 2] = Math.min(255, Math.max(0, Math.round(((1.0 / len) * 0.5 + 0.5) * 255)));
+                normData[i4 + 3] = 255;
+            }
+        }
+
+        const mkTex = (data, isColor) => {
+            if (typeof THREE.DataTexture !== 'function') return null;
+            const tex = new THREE.DataTexture(data, size, size, THREE.RGBAFormat);
+            if (THREE.RepeatWrapping !== undefined) {
+                tex.wrapS = THREE.RepeatWrapping;
+                tex.wrapT = THREE.RepeatWrapping;
+            }
+            if (THREE.LinearMipmapLinearFilter !== undefined) {
+                tex.generateMipmaps = true;
+                tex.minFilter = THREE.LinearMipmapLinearFilter;
+                tex.magFilter = THREE.LinearFilter;
+            }
+            tex.anisotropy = 8;
+            if (isColor) {
+                if (typeof THREE.SRGBColorSpace !== 'undefined') tex.colorSpace = THREE.SRGBColorSpace;
+                else if (typeof THREE.sRGBEncoding !== 'undefined') tex.encoding = THREE.sRGBEncoding;
+            } else {
+                if (typeof THREE.NoColorSpace !== 'undefined') tex.colorSpace = THREE.NoColorSpace;
+                else if (typeof THREE.LinearEncoding !== 'undefined') tex.encoding = THREE.LinearEncoding;
+            }
+            tex._sharedTexture = true;
+            tex.needsUpdate = true;
+            return tex;
+        };
+
+        return {
+            diff: mkTex(diffData, true),
+            nor: mkTex(normData, false)
+        };
+    }
+
+    function syncTownSharedMaterials(d3d, THREE, realm) {
+        if (!d3d || !THREE) return null;
+        const mats = ensureSharedMaterials(d3d, THREE);
+        const rLow = String(realm || d3d.realm || 'angband').toLowerCase();
+        const isEastern = (rLow === 'hengband' || rLow === 'frogcomposband');
+        const styleKey = isEastern ? 'eastern' : 'western';
+
+        if (!d3d._townRoofTexCache) d3d._townRoofTexCache = {};
+        if (!d3d._townRoofTexCache[styleKey]) {
+            d3d._townRoofTexCache[styleKey] = createTownRoofTileTextures(THREE, isEastern);
+        }
+        const roofSet = d3d._townRoofTexCache[styleKey];
+        if (roofSet) {
+            if (mats.roofMat && mats.roofMat._roofStyle !== styleKey) {
+                mats.roofMat.map = roofSet.diff;
+                mats.roofMat.normalMap = roofSet.nor;
+                if (typeof THREE.Vector2 === 'function') {
+                    mats.roofMat.normalScale = new THREE.Vector2(1.15, 1.15);
+                }
+                mats.roofMat.roughness = isEastern ? 0.78 : 0.86;
+                mats.roofMat._roofStyle = styleKey;
+                mats.roofMat.needsUpdate = true;
+            }
+            if (d3d.townRoofMaterial && d3d.townRoofMaterial._roofStyle !== styleKey) {
+                d3d.townRoofMaterial.map = roofSet.diff;
+                d3d.townRoofMaterial.normalMap = roofSet.nor;
+                d3d.townRoofMaterial._roofStyle = styleKey;
+                d3d.townRoofMaterial.needsUpdate = true;
+            }
+        }
+
+        const wallMap = (d3d.wallMaterial && d3d.wallMaterial.map) || d3d.wallTex || null;
+        const wallNor = (d3d.wallMaterial && d3d.wallMaterial.normalMap) || d3d.wallNormal || null;
+        if (mats.gableMat && (mats.gableMat.map !== wallMap || mats.gableMat.normalMap !== wallNor)) {
+            mats.gableMat.map = wallMap;
+            mats.gableMat.normalMap = wallNor;
+            mats.gableMat.needsUpdate = true;
+        }
+
+        const permMap = (d3d.permWallMaterial && d3d.permWallMaterial.map) || d3d.permWallTex || wallMap;
+        const permNor = (d3d.permWallMaterial && d3d.permWallMaterial.normalMap) || d3d.permWallNormal || wallNor;
+        if (mats.battlementMat && (mats.battlementMat.map !== permMap || mats.battlementMat.normalMap !== permNor)) {
+            mats.battlementMat.map = permMap;
+            mats.battlementMat.normalMap = permNor;
+            mats.battlementMat.needsUpdate = true;
+        }
+        if (d3d.townTimberMaterial) {
+            mats.windowFrameMat = d3d.townTimberMaterial;
+        }
+        return mats;
     }
 
     function ensureSharedMaterials(d3d, THREE) {
@@ -221,15 +524,16 @@
 
         const roofMat = new THREE.MeshStandardMaterial({
             color: 0xffffff,
-            roughness: 0.78,
-            metalness: 0.08,
+            roughness: 0.76,
+            metalness: 0.06,
             vertexColors: true
         });
         roofMat._sharedMaterial = true;
 
         const gableMat = new THREE.MeshStandardMaterial({
             color: 0xffffff,
-            map: (d3d && d3d.wallTex) || null,
+            map: (d3d && d3d.wallMaterial && d3d.wallMaterial.map) || (d3d && d3d.wallTex) || null,
+            normalMap: (d3d && d3d.wallMaterial && d3d.wallMaterial.normalMap) || (d3d && d3d.wallNormal) || null,
             roughness: 0.88,
             metalness: 0.04,
             vertexColors: true
@@ -249,8 +553,8 @@
 
         const battlementMat = new THREE.MeshStandardMaterial({
             color: 0x9aa0aa,
-            map: (d3d && d3d.wallTex) || null,
-            normalMap: (d3d && d3d.wallNormal) || null,
+            map: (d3d && d3d.permWallMaterial && d3d.permWallMaterial.map) || (d3d && d3d.wallTex) || null,
+            normalMap: (d3d && d3d.permWallMaterial && d3d.permWallMaterial.normalMap) || (d3d && d3d.wallNormal) || null,
             roughness: 0.88,
             metalness: 0.05
         });
@@ -294,15 +598,19 @@
         d3d._townArchSig = null;
     }
 
-    function buildTownArchitecture(d3d, map, w, h, depth, realm) {
+    function buildTownArchitecture(d3d, map, w, h, depth, realm, px, py, maxTileDist) {
         if (!d3d || !d3d.scene || typeof THREE === 'undefined') return false;
         if (depth !== 0 || !map || !map.rows || w <= 4 || h <= 4) {
             disposeTownArchitecture(d3d);
             return false;
         }
 
-        const sig = `${d3d._lastTerrainSig || ''}:${depth}:${realm || d3d.realm || 'angband'}:${w}x${h}`;
+        const hasCull = Number.isFinite(px) && Number.isFinite(py) && Number.isFinite(maxTileDist) && maxTileDist > 0;
+        const maxDistSq = hasCull ? (maxTileDist * maxTileDist) : Infinity;
+        const cullSig = hasCull ? `:${Math.round(px)},${Math.round(py)}@${Math.round(maxTileDist)}` : '';
+        const sig = `${d3d._lastTerrainSig || ''}:${depth}:${realm || d3d.realm || 'angband'}:${w}x${h}${cullSig}`;
         if (d3d._townArchSig === sig && d3d._townArchGroup) {
+            syncTownSharedMaterials(d3d, THREE, realm);
             return true;
         }
         disposeTownArchitecture(d3d);
@@ -314,7 +622,7 @@
         grp.name = 'TownMedievalArchitecture';
         grp._ownedDisposables = [];
 
-        const mats = ensureSharedMaterials(d3d, THREE);
+        const mats = syncTownSharedMaterials(d3d, THREE, realm);
         const cs = d3d.cellSize || DEFAULT_CELL_SIZE;
         const wallH = d3d.wallHeight || DEFAULT_WALL_HEIGHT;
         const dummy = new THREE.Object3D();
@@ -322,25 +630,49 @@
 
         const isEastern = (rLow === 'hengband' || rLow === 'frogcomposband');
         const palettes = isEastern
-            ? [[0.24, 0.34, 0.40], [0.46, 0.25, 0.22], [0.28, 0.30, 0.36]]
-            : [[0.32, 0.35, 0.42], [0.54, 0.26, 0.20], [0.29, 0.36, 0.32]];
+            ? [[0.36, 0.42, 0.50], [0.58, 0.30, 0.24], [0.35, 0.38, 0.45]]
+            : [[0.40, 0.44, 0.52], [0.64, 0.32, 0.22], [0.36, 0.44, 0.40]];
 
         const gableCol = [0.80, 0.74, 0.62];
+        const merlonPositions = [];
+        const withinCullTile = (tx, ty) => {
+            if (!hasCull) return true;
+            const dx = tx - px, dy = ty - py;
+            return (dx * dx + dy * dy) <= maxDistSq;
+        };
+        const withinCullRect = (x0, x1, y0, y1) => {
+            if (!hasCull) return true;
+            const cx = px < x0 ? x0 : (px > x1 ? x1 : px);
+            const cy = py < y0 ? y0 : (py > y1 ? y1 : py);
+            const dx = cx - px, dy = cy - py;
+            return (dx * dx + dy * dy) <= maxDistSq;
+        };
 
-        // Layer 1 & 2: Pitched Gabled Roofs + Plaster/Timber Gable Walls + Stone Chimneys
+        // Layer 1 & 2: Pitched Gabled Roofs + Plaster Gable Walls + Chimneys (solid buildings only)
         const chimneyTransforms = [];
         for (let ci = 0; ci < clusters.length; ci++) {
             const cl = clusters[ci];
+            if (!withinCullRect(cl.minX, cl.maxX, cl.minY, cl.maxY)) continue;
+            if (cl.kind === 'fortress_wall') {
+                for (let ti = 0; ti < cl.tiles.length; ti++) {
+                    const t = cl.tiles[ti];
+                    if (withinCullTile(t.x, t.y) && ((t.x + t.y) & 1) === 0) {
+                        merlonPositions.push({ x: t.x * cs, y: wallH + 0.42, z: t.y * cs });
+                    }
+                }
+                continue;
+            }
+
             const spanW = cl.spanX * cs;
             const spanD = cl.spanY * cs;
-            const eaveY = wallH + 0.02 + cl.storyExtra;
-            const ridgeH = Math.min(1.85, Math.max(0.85, (cl.ridgeAlongX ? spanD : spanW) * 0.36));
+            const eaveY = wallH - 0.04;
+            const ridgeH = Math.min(1.65, Math.max(0.82, (cl.ridgeAlongX ? spanD : spanW) * 0.30));
             const cxWorld = ((cl.minX + cl.maxX) * 0.5) * cs;
             const czWorld = ((cl.minY + cl.maxY) * 0.5) * cs;
             const roofRGB = palettes[cl.roofPaletteIdx % palettes.length];
 
             const { roofGeo, gableGeo } = createGableRoofGeometry(
-                THREE, spanW, spanD, ridgeH, 0.28, cl.ridgeAlongX, roofRGB, gableCol
+                THREE, spanW, spanD, ridgeH, 0.28, cl.ridgeAlongX, roofRGB, gableCol, isEastern
             );
             grp._ownedDisposables.push(roofGeo, gableGeo);
 
@@ -355,10 +687,12 @@
             grp.add(gableMesh);
 
             if (cl.tiles.length >= 6) {
+                const offX = cl.ridgeAlongX ? spanW * 0.18 : -spanW * 0.10;
+                const offZ = cl.ridgeAlongX ? -spanD * 0.10 : spanD * 0.18;
                 chimneyTransforms.push({
-                    x: cxWorld + (cl.ridgeAlongX ? spanW * 0.22 : -spanW * 0.18),
-                    y: eaveY + ridgeH * 0.72,
-                    z: czWorld + (cl.ridgeAlongX ? -spanD * 0.14 : spanD * 0.22)
+                    x: cxWorld + offX,
+                    y: eaveY + ridgeH * 0.78 + 0.12,
+                    z: czWorld + offZ
                 });
             }
         }
@@ -377,7 +711,7 @@
             grp.add(chimneyInst);
         }
 
-        // Layer 3: Warm Amber-Lit Mullioned Windows on outward wall faces
+        // Layer 3: Warm Amber-Lit Mullioned Windows on outward wall faces of buildings
         const winPlacements = [];
         const isOpenStreet = (tx, ty) => {
             if (tx <= 0 || tx >= w - 1 || ty <= 0 || ty >= h - 1) return false;
@@ -386,10 +720,13 @@
         };
         for (let ci = 0; ci < clusters.length; ci++) {
             const cl = clusters[ci];
+            if (cl.kind === 'fortress_wall') continue;
+            if (!withinCullRect(cl.minX, cl.maxX, cl.minY, cl.maxY)) continue;
             for (let ti = 0; ti < cl.tiles.length; ti++) {
                 const t = cl.tiles[ti];
                 if (t.feat !== 21 && t.feat !== 22) continue;
-                if (((t.x + t.y) & 1) !== 0) continue; // Alternating rhythm keeps windows legible & uncrowded
+                if (((t.x + t.y) & 1) !== 0) continue;
+                if (!withinCullTile(t.x, t.y)) continue;
                 const wx = t.x * cs, wz = t.y * cs;
                 const faces = [
                     [0, 1, 0, 1.01, 0],
@@ -400,9 +737,8 @@
                 for (let fi = 0; fi < faces.length; fi++) {
                     const [dx, dy, ox, oz, yaw] = faces[fi];
                     if (!isOpenStreet(t.x + dx, t.y + dy)) continue;
-                    // Avoid placing window directly beside a storefront doorway to keep plaques clean
-                    const adjDoor = (readRawFeat(d3d, map, t.x - dy, t.y + dx) >= 7 && readRawFeat(d3d, map, t.x - dy, t.y + dx) <= 14) ||
-                        (readRawFeat(d3d, map, t.x + dy, t.y - dx) >= 7 && readRawFeat(d3d, map, t.x + dy, t.y - dx) <= 14);
+                    const adjDoor = isStoreFeat(readRawFeat(d3d, map, t.x - dy, t.y + dx)) ||
+                        isStoreFeat(readRawFeat(d3d, map, t.x + dy, t.y - dx));
                     if (adjDoor) continue;
                     winPlacements.push({ x: wx + ox, y: 1.72, z: wz + oz, yaw });
                 }
@@ -426,11 +762,11 @@
             grp.add(frameInst, paneInst);
         }
 
-        // Layer 4: Perimeter Crenellated Stone Battlements + Corner Watchtower Turrets
-        const merlonPositions = [];
+        // Layer 4: Outer Perimeter & Fortress-Wall Crenellated Stone Battlements + Corner Watchtowers
         for (let y = 0; y < h; y++) {
             for (let x = 0; x < w; x++) {
                 if (x !== 0 && x !== w - 1 && y !== 0 && y !== h - 1) continue;
+                if (!withinCullTile(x, y)) continue;
                 const f = readRawFeat(d3d, map, x, y);
                 if (f !== 22 && f !== 21) continue;
                 if (((x + y) & 1) === 0) {
@@ -452,7 +788,6 @@
             grp.add(merlonInst);
         }
 
-        // 4 Corner Watchtower Caps along Town Outer Perimeter
         const watchGeo = new THREE.BoxGeometry(cs * 1.45, 1.55, cs * 1.45);
         grp._ownedDisposables.push(watchGeo);
         const corners = [[0, 0], [w - 1, 0], [0, h - 1], [w - 1, h - 1]];
@@ -460,6 +795,7 @@
         let tCount = 0;
         for (let ci = 0; ci < corners.length; ci++) {
             const [cx, cy] = corners[ci];
+            if (!withinCullTile(cx, cy)) continue;
             const f = readRawFeat(d3d, map, cx, cy);
             if (f !== 22 && f !== 21) continue;
             dummy.position.set(cx * cs, wallH + 0.78, cy * cs);
@@ -483,19 +819,20 @@
     const Dungeon3DTown = {
         computeTownClusters,
         buildTownArchitecture,
-        disposeTownArchitecture
+        disposeTownArchitecture,
+        syncTownSharedMaterials
     };
 
     if (typeof root.DungeonRenderer === 'function') {
-        root.DungeonRenderer.prototype.buildTownArchitecture = function (map, w, h, depth, realm) {
-            return buildTownArchitecture(this, map, w, h, depth, realm);
+        root.DungeonRenderer.prototype.buildTownArchitecture = function (map, w, h, depth, realm, px, py, maxTileDist) {
+            return buildTownArchitecture(this, map, w, h, depth, realm, px, py, maxTileDist);
         };
         root.DungeonRenderer.prototype.disposeTownArchitecture = function () {
             return disposeTownArchitecture(this);
         };
     } else if (typeof root.Dungeon3D === 'function') {
-        root.Dungeon3D.prototype.buildTownArchitecture = function (map, w, h, depth, realm) {
-            return buildTownArchitecture(this, map, w, h, depth, realm);
+        root.Dungeon3D.prototype.buildTownArchitecture = function (map, w, h, depth, realm, px, py, maxTileDist) {
+            return buildTownArchitecture(this, map, w, h, depth, realm, px, py, maxTileDist);
         };
         root.Dungeon3D.prototype.disposeTownArchitecture = function () {
             return disposeTownArchitecture(this);

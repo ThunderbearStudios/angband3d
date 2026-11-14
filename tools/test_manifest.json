@@ -39,7 +39,9 @@
     "test_ws82_prelaunch_9pillars.js",
     "test_v12_2_overhaul_contracts.js",
     "test_v12_2_2_regressions.js",
-    "test_v12_3_0_overhaul.js"
+    "test_v12_3_0_overhaul.js",
+    "test_v12_3_1_hengband_town_perf.js",
+    "test_v12_3_3_playtest_fixes.js"
   ],
   "e2e": [
     "verify_cross_realm_menus.js",

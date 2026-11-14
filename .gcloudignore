@@ -16,7 +16,8 @@
 /desktop/
 /docs/
 /edge/
-/tools/
+/tools/*
+!/tools/precompress_assets.js
 /test/
 /tests/
 /lib/

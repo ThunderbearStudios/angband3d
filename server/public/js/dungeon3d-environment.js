@@ -72,140 +72,207 @@ Dungeon3DProto._mergeBufferGeometries = function _mergeBufferGeometries(geometri
     return merged;
 };
 
+function _createSpineLimbGeometry(spine, radialSegs, vScale = 1.6) {
+    const ringCount = spine.length;
+    const stride = radialSegs + 1;
+    const vertCount = ringCount * stride;
+    const pos = new Float32Array(vertCount * 3);
+    const norm = new Float32Array(vertCount * 3);
+    const uv = new Float32Array(vertCount * 2);
+    const col = new Float32Array(vertCount * 3);
+    let cumV = 0;
+
+    for (let k = 0; k < ringCount; k++) {
+        const pt = spine[k];
+        const prev = spine[Math.max(0, k - 1)];
+        const next = spine[Math.min(ringCount - 1, k + 1)];
+        if (k > 0) cumV += Math.hypot(pt.x - prev.x, pt.y - prev.y, pt.z - prev.z) * vScale;
+
+        let tx = next.x - prev.x, ty = next.y - prev.y, tz = next.z - prev.z;
+        const tLen = Math.hypot(tx, ty, tz) || 1;
+        tx /= tLen; ty /= tLen; tz /= tLen;
+
+        const rxRef = Math.abs(tz) > 0.9 ? 1 : 0, ryRef = 0, rzRef = Math.abs(tz) > 0.9 ? 0 : 1;
+        let ux = ryRef * tz - rzRef * ty;
+        let uy = rzRef * tx - rxRef * tz;
+        let uz = rxRef * ty - ryRef * tx;
+        const uLen = Math.hypot(ux, uy, uz) || 1;
+        ux /= uLen; uy /= uLen; uz /= uLen;
+
+        const vx = ty * uz - tz * uy;
+        const vy = tz * ux - tx * uz;
+        const vz = tx * uy - ty * ux;
+        const ao = pt.ao !== undefined ? pt.ao : 0.85;
+
+        for (let i = 0; i <= radialSegs; i++) {
+            const ang = (i / radialSegs) * Math.PI * 2;
+            const ca = Math.cos(ang), sa = Math.sin(ang);
+            const nx = ca * ux + sa * vx;
+            const ny = ca * uy + sa * vy;
+            const nz = ca * uz + sa * vz;
+            const vi = k * stride + i;
+            pos[vi * 3] = pt.x + nx * pt.r;
+            pos[vi * 3 + 1] = pt.y + ny * pt.r;
+            pos[vi * 3 + 2] = pt.z + nz * pt.r;
+            norm[vi * 3] = nx;
+            norm[vi * 3 + 1] = ny;
+            norm[vi * 3 + 2] = nz;
+            uv[vi * 2] = i / radialSegs;
+            uv[vi * 2 + 1] = cumV;
+            col[vi * 3] = ao;
+            col[vi * 3 + 1] = ao * 0.96;
+            col[vi * 3 + 2] = ao * 0.92;
+        }
+    }
+
+    const indices = [];
+    for (let k = 0; k < ringCount - 1; k++) {
+        for (let i = 0; i < radialSegs; i++) {
+            const a = k * stride + i, b = a + 1, c = a + stride, d = c + 1;
+            indices.push(a, b, d, a, d, c);
+        }
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    geo.setAttribute('normal', new THREE.BufferAttribute(norm, 3));
+    geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+    geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+    geo.setIndex(indices);
+    return geo;
+}
+
+function _createFoliageLobeGeometry(rx, ry, rz, cx, cy, cz, lonSegs, latSegs, seed) {
+    const stride = lonSegs + 1;
+    const vertCount = (latSegs + 1) * stride;
+    const pos = new Float32Array(vertCount * 3);
+    const norm = new Float32Array(vertCount * 3);
+    const uv = new Float32Array(vertCount * 2);
+    const col = new Float32Array(vertCount * 3);
+
+    for (let j = 0; j <= latSegs; j++) {
+        const vFrac = j / latSegs;
+        const phi = vFrac * Math.PI;
+        const sinPhi = Math.sin(phi), cosPhi = Math.cos(phi);
+        const ao = 0.36 + 0.64 * Math.pow(0.5 + 0.5 * cosPhi, 0.85);
+        for (let i = 0; i <= lonSegs; i++) {
+            const uFrac = i / lonSegs;
+            const theta = uFrac * Math.PI * 2;
+            const ux = -Math.cos(theta) * sinPhi;
+            const uy = cosPhi;
+            const uz = Math.sin(theta) * sinPhi;
+            const lobe = 0.86 + 0.18 * Math.sin(theta * 3 + seed) * Math.sin(phi * 2 + seed * 0.5);
+            const vi = j * stride + i;
+            const px = cx + ux * rx * lobe;
+            const py = cy + uy * ry * lobe;
+            const pz = cz + uz * rz * lobe;
+            pos[vi * 3] = px;
+            pos[vi * 3 + 1] = py;
+            pos[vi * 3 + 2] = pz;
+            let nx = ux * 0.65, ny = uy * 0.50 + 0.48, nz = uz * 0.65;
+            const nLen = Math.hypot(nx, ny, nz) || 1;
+            norm[vi * 3] = nx / nLen;
+            norm[vi * 3 + 1] = ny / nLen;
+            norm[vi * 3 + 2] = nz / nLen;
+            uv[vi * 2] = (px + pz) * 0.85;
+            uv[vi * 2 + 1] = py * 0.95 + (px - pz) * 0.35;
+            col[vi * 3] = ao * 0.92;
+            col[vi * 3 + 1] = ao;
+            col[vi * 3 + 2] = ao * 0.82;
+        }
+    }
+
+    const indices = [];
+    for (let j = 0; j < latSegs; j++) {
+        for (let i = 0; i < lonSegs; i++) {
+            const a = j * stride + i, b = a + 1, c = a + stride, d = c + 1;
+            if (j !== 0) indices.push(a, d, b);
+            if (j !== latSegs - 1) indices.push(a, c, d);
+        }
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    geo.setAttribute('normal', new THREE.BufferAttribute(norm, 3));
+    geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+    geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+    geo.setIndex(indices);
+    return geo;
+}
+
+Dungeon3DProto.createBotanicalTreeTrunkGeometry = function createBotanicalTreeTrunkGeometry() {
+    const parts = [
+        _createSpineLimbGeometry([
+            { x: 0.0, y: 0.0, z: 0.0, r: 0.24, ao: 0.62 },
+            { x: 0.02, y: 0.36, z: 0.01, r: 0.15, ao: 0.78 },
+            { x: -0.02, y: 1.05, z: 0.02, r: 0.11, ao: 0.88 },
+            { x: 0.01, y: 1.68, z: -0.01, r: 0.075, ao: 0.94 }
+        ], 8)
+    ];
+    for (let b = 0; b < 3; b++) {
+        const ang = b * 2.0944 + 0.35;
+        const dx = Math.cos(ang), dz = Math.sin(ang);
+        parts.push(_createSpineLimbGeometry([
+            { x: 0.0, y: 1.24 + b * 0.06, z: 0.0, r: 0.068, ao: 0.72 },
+            { x: dx * 0.28, y: 1.58 + b * 0.04, z: dz * 0.28, r: 0.044, ao: 0.84 },
+            { x: dx * 0.54, y: 1.90 + b * 0.05, z: dz * 0.54, r: 0.024, ao: 0.94 }
+        ], 5));
+    }
+    return this._mergeBufferGeometries(parts);
+};
+
+Dungeon3DProto.createBotanicalTreeCanopyGeometry = function createBotanicalTreeCanopyGeometry() {
+    const parts = [
+        _createFoliageLobeGeometry(0.84, 0.66, 0.82, 0.0, 2.28, 0.0, 10, 5, 1.1),
+        _createFoliageLobeGeometry(0.56, 0.44, 0.56, 0.24, 2.52, -0.18, 6, 3, 7.3),
+        _createFoliageLobeGeometry(0.54, 0.42, 0.54, -0.22, 2.46, 0.20, 6, 3, 8.9)
+    ];
+    for (let b = 0; b < 3; b++) {
+        const ang = b * 2.0944 + 0.35;
+        parts.push(_createFoliageLobeGeometry(0.62, 0.46, 0.58, Math.cos(ang) * 0.46, 1.80 + (b % 2) * 0.12, Math.sin(ang) * 0.46, 8, 3, 2.3 + b));
+    }
+    return this._mergeBufferGeometries(parts);
+};
+
+Dungeon3DProto.createBotanicalBushGeometry = function createBotanicalBushGeometry() {
+    return this._mergeBufferGeometries([
+        _createFoliageLobeGeometry(0.46, 0.40, 0.46, 0.0, 0.30, 0.0, 8, 4, 4.2),
+        _createFoliageLobeGeometry(0.34, 0.30, 0.34, 0.26, 0.22, -0.12, 6, 3, 5.1),
+        _createFoliageLobeGeometry(0.34, 0.30, 0.34, -0.24, 0.22, 0.14, 6, 3, 6.4)
+    ]);
+};
+
 Dungeon3DProto._loadPolyHavenTreeModel = function _loadPolyHavenTreeModel() {
     if (this._polyHavenTreeLoaded) return Promise.resolve(true);
     if (this._polyHavenTreePromise) return this._polyHavenTreePromise;
-    if (typeof THREE.GLTFLoader === 'undefined') return Promise.resolve(false);
 
     this._hasPolyHavenTreeTex = true;
-    const resolveAssetUrl = (u) => (typeof window !== 'undefined' && typeof window.__assetUrl === 'function') ? window.__assetUrl(u) : u;
-    const treeMgr = new THREE.LoadingManager();
-    treeMgr.setURLModifier(resolveAssetUrl);
-    const treeLoader = new THREE.GLTFLoader(treeMgr);
+    if (!this._tanglethornTrunkGeo) this._tanglethornTrunkGeo = this.createBotanicalTreeTrunkGeometry();
+    if (!this._tanglethornLeavesGeo) this._tanglethornLeavesGeo = this.createBotanicalTreeCanopyGeometry();
 
-    this._polyHavenTreePromise = new Promise((resolve) => {
-        treeLoader.load('/assets/polyhaven/models/pachira_aquatica_01/pachira_aquatica_01.gltf', (gltf) => {
-            const scene = gltf && (gltf.scene || (gltf.scenes && gltf.scenes[0]));
-            if (!scene) { resolve(false); return; }
+    if (this.treeLeavesMat) {
+        this.treeLeavesMat.side = THREE.FrontSide;
+        this.treeLeavesMat.alphaTest = 0;
+        this.treeLeavesMat.transparent = false;
+        this.treeLeavesMat.roughness = 0.72;
+        if (this.treeLeavesMat.normalScale) this.treeLeavesMat.normalScale.set(1.25, 1.25);
+        this.treeLeavesMat.needsUpdate = true;
+    }
 
-            const trunkParts = [];
-            const leafParts = [];
-            const bushParts = [];
-            let barkDiff = null, barkNor = null, leafDiff = null, leafNor = null;
+    const applyBark = () => {
+        const ph = this.polyHavenSets || this.polyhavenSets;
+        const bark = ph && ph.get('bark_willow_02');
+        if (bark && this.treeTrunkMat) {
+            if (bark.diff) this.treeTrunkMat.map = bark.diff;
+            if (bark.nor) { this.treeTrunkMat.normalMap = bark.nor; this.treeBarkNormal = bark.nor; }
+            if (bark.arm) this.treeTrunkMat.roughnessMap = bark.arm;
+            this.treeTrunkMat.side = THREE.FrontSide;
+            this.treeTrunkMat.needsUpdate = true;
+        }
+    };
+    applyBark();
 
-            scene.traverse((child) => {
-                if (child.isMesh && child.geometry) {
-                    const fullName = ((child.name || '') + ' ' + (child.parent ? child.parent.name || '' : '')).toLowerCase();
-                    const isBark = fullName.includes('bark_c') || fullName.includes('circle.001');
-                    const isLeavesB = fullName.includes('leaves_b') || fullName.includes('cylinder.118');
-                    const isLeavesC = fullName.includes('leaves_c') || fullName.includes('cylinder.092');
-                    if (child.material) {
-                        if (isBark) {
-                            if (!barkDiff && child.material.map) barkDiff = child.material.map;
-                            if (!barkNor && child.material.normalMap) barkNor = child.material.normalMap;
-                        } else if (isLeavesB || isLeavesC) {
-                            if (!leafDiff && child.material.map) leafDiff = child.material.map;
-                            if (!leafNor && child.material.normalMap) leafNor = child.material.normalMap;
-                        }
-                    }
-                    if (!isBark && !isLeavesB && !isLeavesC) return;
-
-                    const g = child.geometry.clone();
-                    if (g.attributes.color) g.deleteAttribute('color');
-                    const colArr = new Float32Array(g.attributes.position.count * 3);
-                    colArr.fill(1.0);
-                    g.setAttribute('color', new THREE.BufferAttribute(colArr, 3));
-
-                    if (isBark) {
-                        trunkParts.push(g);
-                    } else if (isLeavesB) {
-                        bushParts.push(g);
-                    } else if (isLeavesC) {
-                        if (g.index && g.index.count > 1800) {
-                            const srcIdx = g.index.array;
-                            const decimated = [];
-                            for (let ti = 0; ti + 2 < srcIdx.length; ti += 15) {
-                                decimated.push(srcIdx[ti], srcIdx[ti + 1], srcIdx[ti + 2]);
-                            }
-                            g.setIndex(decimated);
-                        }
-                        leafParts.push(g);
-                    }
-                }
-            });
-
-            if (barkDiff) {
-                barkDiff.encoding = THREE.sRGBEncoding;
-                barkDiff._sharedTexture = true;
-                if (this.treeTrunkMat) { this.treeTrunkMat.map = barkDiff; this.treeTrunkMat.needsUpdate = true; }
-            }
-            if (barkNor) {
-                barkNor._sharedTexture = true;
-                this.treeBarkNormal = barkNor;
-                if (this.treeTrunkMat) { this.treeTrunkMat.normalMap = barkNor; this.treeTrunkMat.needsUpdate = true; }
-            }
-            if (leafDiff) {
-                leafDiff.encoding = THREE.sRGBEncoding;
-                leafDiff._sharedTexture = true;
-                if (this.treeLeavesMat) { this.treeLeavesMat.map = leafDiff; this.treeLeavesMat.needsUpdate = true; }
-            }
-            if (leafNor) {
-                leafNor._sharedTexture = true;
-                if (this.treeLeavesMat) { this.treeLeavesMat.normalMap = leafNor; this.treeLeavesMat.needsUpdate = true; }
-            }
-
-            if (trunkParts.length > 0 && leafParts.length > 0) {
-                const trunkGeo = this._mergeBufferGeometries(trunkParts);
-                const leavesGeo = this._mergeBufferGeometries(leafParts);
-                const unionBox = new THREE.Box3();
-                if (trunkGeo.boundingBox) unionBox.union(trunkGeo.boundingBox);
-                if (leavesGeo.boundingBox) unionBox.union(leavesGeo.boundingBox);
-
-                const centerX = (unionBox.min.x + unionBox.max.x) * 0.5;
-                const centerZ = (unionBox.min.z + unionBox.max.z) * 0.5;
-                const spanXZ = Math.max(unionBox.max.x - unionBox.min.x, unionBox.max.z - unionBox.min.z) || 1.0;
-                const spanY = (unionBox.max.y - unionBox.min.y) || 1.0;
-
-                trunkGeo.translate(-centerX, -unionBox.min.y, -centerZ);
-                leavesGeo.translate(-centerX, -unionBox.min.y, -centerZ);
-
-                const scaleX = 2.35 / spanXZ;
-                const scaleY = 2.85 / spanY;
-                const scaleZ = 2.35 / spanXZ;
-                trunkGeo.scale(scaleX, scaleY, scaleZ);
-                leavesGeo.scale(scaleX, scaleY, scaleZ);
-
-                this._tanglethornTrunkGeo = trunkGeo.clone();
-                this._tanglethornLeavesGeo = leavesGeo.clone();
-
-                if (this.treeTrunkMesh && this.treeTrunkMesh.geometry) this.treeTrunkMesh.geometry.dispose();
-                if (this.treeLeavesMesh && this.treeLeavesMesh.geometry) this.treeLeavesMesh.geometry.dispose();
-                if (this.treeTrunkMesh) this.treeTrunkMesh.geometry = trunkGeo;
-                if (this.treeLeavesMesh) this.treeLeavesMesh.geometry = leavesGeo;
-            }
-
-            if (bushParts.length > 0) {
-                const bushGeo = this._mergeBufferGeometries(bushParts);
-                bushGeo.computeBoundingBox();
-                const bBox = bushGeo.boundingBox;
-                const bCenterX = (bBox.min.x + bBox.max.x) * 0.5;
-                const bCenterZ = (bBox.min.z + bBox.max.z) * 0.5;
-                const bSpanXZ = Math.max(bBox.max.x - bBox.min.x, bBox.max.z - bBox.min.z) || 1.0;
-                const bSpanY = (bBox.max.y - bBox.min.y) || 1.0;
-
-                bushGeo.translate(-bCenterX, -bBox.min.y, -bCenterZ);
-                bushGeo.scale(1.28 / bSpanXZ, 0.82 / bSpanY, 1.28 / bSpanXZ);
-                bushGeo.computeVertexNormals();
-
-                if (this.bushMesh && this.bushMesh.geometry) this.bushMesh.geometry.dispose();
-                if (this.bushMesh) this.bushMesh.geometry = bushGeo;
-            }
-
-            this._polyHavenTreeLoaded = true;
-            this._lastTerrainSig = null;
-            resolve(true);
-        }, undefined, () => resolve(false));
-    });
+    this._polyHavenTreePromise = (typeof this.ensurePbrSetReady === 'function')
+        ? Promise.resolve(this.ensurePbrSetReady('bark_willow_02')).then(() => { applyBark(); this._polyHavenTreeLoaded = true; return true; })
+        : Promise.resolve(true).then(() => { this._polyHavenTreeLoaded = true; return true; });
     return this._polyHavenTreePromise;
 };
 
@@ -241,6 +308,16 @@ Dungeon3DProto._loadPolyHavenEnvironmentModels = function _loadPolyHavenEnvironm
         }));
     };
 
+    const applyRockAo = (geo, maxH) => {
+        const pos = geo.attributes.position;
+        const col = geo.attributes.color.array;
+        for (let i = 0; i < pos.count; i++) {
+            const ao = 0.34 + 0.48 * Math.pow(Math.min(1, Math.max(0, pos.getY(i) / maxH)), 0.65);
+            col[i * 3] = ao * 0.94; col[i * 3 + 1] = ao * 0.95; col[i * 3 + 2] = ao;
+        }
+        geo.attributes.color.needsUpdate = true;
+    };
+
     // 1. Moon Rock 02 (Photogrammetry Rubble Boulders — reuse GLTF-parsed textures directly, zero duplicate downloads)
     addGltfTask('/assets/polyhaven/models/moon_rock_02/moon_rock_02.gltf', (gltf) => {
         const scene = gltf.scene || (gltf.scenes && gltf.scenes[0]);
@@ -273,6 +350,7 @@ Dungeon3DProto._loadPolyHavenEnvironmentModels = function _loadPolyHavenEnvironm
             const spanY = (bbox.max.y - bbox.min.y) || 1.0;
             geo.translate(-cx, -bbox.min.y, -cz);
             geo.scale(1.42 / spanXZ, 1.08 / spanY, 1.42 / spanXZ);
+            applyRockAo(geo, 1.08);
             geo.computeVertexNormals();
 
             if (this.rubbleMesh && this.rubbleMesh.geometry) this.rubbleMesh.geometry.dispose();
@@ -319,6 +397,7 @@ Dungeon3DProto._loadPolyHavenEnvironmentModels = function _loadPolyHavenEnvironm
             const spanY = (bbox.max.y - bbox.min.y) || 1.0;
             geo.translate(-cx, -bbox.min.y, -cz);
             geo.scale(2.15 / spanXZ, 3.80 / spanY, 2.15 / spanXZ);
+            applyRockAo(geo, 3.80);
             geo.computeVertexNormals();
 
             if (this.mountainMesh && this.mountainMesh.geometry) this.mountainMesh.geometry.dispose();

@@ -38,8 +38,12 @@ steps:
             TRUST_CLOUDFLARE=1
         WORKDIR /app
         COPY --from=prev /app /app
+        RUN rm -rf /app/public /app/server/src && mkdir -p /app/public /app/server/src
+        COPY server/package*.json /app/server/
         COPY server/src/ /app/server/src/
         COPY server/public/ /app/public/
+        COPY tools/precompress_assets.js /app/tools/precompress_assets.js
+        RUN node /app/tools/precompress_assets.js /app/public
         COPY variants/hengband/lib /app/variants/hengband/lib
         COPY variants/nethack/ /app/variants/nethack/
         COPY variants/rogue/ /app/variants/rogue/

@@ -288,7 +288,7 @@ window.addEventListener('DOMContentLoaded', () => {
     if (typeof window !== 'undefined') {
         window.loadHengLang = loadHengLang;
     }
-    if (activeRealm === 'hengband' && hengbandLangMode !== 'jp') {
+    if (activeRealm === 'hengband' && langMode !== 'jp') {
         loadHengLang();
     }
 

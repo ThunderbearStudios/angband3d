@@ -235,6 +235,32 @@ async function runTests() {
     console.log('Test 13: WebHUD Real-Time Message Processing & Repeat Integrity');
     assert(hudJs.includes('updateLastMessageCount(rawText, count)'), 'hud.js must implement updateLastMessageCount');
     assert(hudJs.includes('this.updateLastMessageCount(curLast.text.trim(), curLast.count);'), 'hud.js must update message count in-place');
+    {
+        const vm = require('vm');
+        const sandbox = { window: {}, document: {}, localStorage: { getItem: () => null, setItem: () => {} }, setTimeout, clearTimeout, console };
+        vm.runInNewContext(hudJs, sandbox);
+        const proto = sandbox.window.WebHUD.prototype;
+        const mockHud = {
+            _parseRepeatText: proto._parseRepeatText,
+            _normFeedText: proto._normFeedText,
+            _isRedundantTermRow0: proto._isRedundantTermRow0,
+            messageHistory: [
+                { text: 'You have 7 Rations of Food (a). You have a Potion of Speed (b). You have 16 Iron Spikes (2/2) (c).' }
+            ]
+        };
+        assert.strictEqual(mockHud._normFeedText('The Wolf notices you. <3x>'), 'The Wolf notices you.');
+        assert.strictEqual(mockHud._normFeedText('There is a pile of rubble blocking your way. (x2)'), 'There is a pile of rubble blocking your way.');
+        assert.strictEqual(
+            mockHud._isRedundantTermRow0('The Wolf notices you. The Wolf notices you. The Wolf notices you.', [{ text: 'The Wolf notices you. <3x>' }], []),
+            true,
+            'term.rows[0] repeated wolf notices must dedupe against <3x> feed message'
+        );
+        assert.strictEqual(
+            mockHud._isRedundantTermRow0('You have a Potion of Speed (b). You have 16 Iron Spikes (2/2) (c).', [], []),
+            true,
+            'term.rows[0] wrapped suffix must dedupe against recent messageHistory'
+        );
+    }
     console.log('  -> WebHUD message feed implements in-place repeat count updates');
     console.log('  -> Real-time combat and term row 0 message stream parsing verified');
 
@@ -413,6 +439,98 @@ async function runTests() {
     if (prevTrust === undefined) delete process.env.TRUST_PROXY; else process.env.TRUST_PROXY = prevTrust;
     assert.strictEqual(cssRes.headers['access-control-allow-origin'], undefined, 'Static assets must not set wildcard Access-Control-Allow-Origin: * (E17)');
     console.log('  -> Headerless bot requests blocked with 403 in TRUST_PROXY mode and wildcard static CORS removed (E17)');
+
+    // Test 23: Vertex Auth Refresh, Edge TTS Timeout & AQ. Key Routing Guard
+    console.log('Test 23: Vertex Auth Refresh, Edge TTS Timeout & AQ. Key Routing Guard');
+    const https = require('https');
+    const { EventEmitter } = require('events');
+    const { generateChronicleSketch } = require('../src/sketch-service.js');
+    const sketchSrc = fs.readFileSync(path.join(__dirname, '../src/sketch-service.js'), 'utf8');
+    const serverSrc = fs.readFileSync(path.join(__dirname, '../src/server.js'), 'utf8');
+    assert(sketchSrc.includes("startsWith('AQ.')"), 'sketch-service.js must guard AQ. keys away from AI Studio');
+    assert(sketchSrc.includes('forceRefresh: true'), 'sketch-service.js must retry Vertex 401 with forceRefresh: true');
+    assert(serverSrc.includes('invalidateGcpAuthCache'), 'server.js must implement invalidateGcpAuthCache');
+    assert(serverSrc.includes('forceRefresh'), 'server.js getGcpAuthContext must support forceRefresh');
+
+    const origHttpsRequest = https.request;
+    let vertexCalls = 0;
+    let aistudioCalls = 0;
+    let refreshCalls = 0;
+    try {
+        https.request = (urlOrOpts, optsOrCb, maybeCb) => {
+            const cb = typeof maybeCb === 'function' ? maybeCb : (typeof optsOrCb === 'function' ? optsOrCb : null);
+            const targetStr = typeof urlOrOpts === 'string'
+                ? urlOrOpts
+                : ((urlOrOpts && (urlOrOpts.hostname || urlOrOpts.host || '')) || '');
+            if (targetStr.includes('generativelanguage.googleapis.com')) aistudioCalls++;
+            const req = new EventEmitter();
+            req.write = () => {};
+            req.destroy = () => {};
+            req.setTimeout = () => {};
+            req.end = () => {
+                vertexCalls++;
+                const res = new EventEmitter();
+                res.setEncoding = () => {};
+                res.resume = () => {};
+                if (vertexCalls === 1) {
+                    res.statusCode = 401;
+                    cb(res);
+                    res.emit('data', JSON.stringify({ error: { code: 401, message: 'UNAUTHENTICATED' } }));
+                    res.emit('end');
+                } else {
+                    res.statusCode = 200;
+                    cb(res);
+                    res.emit('data', JSON.stringify({
+                        candidates: [{
+                            content: { parts: [{ inlineData: { mimeType: 'image/png', data: 'iVBORw0KGgo=' } }] }
+                        }]
+                    }));
+                    res.emit('end');
+                }
+            };
+            return req;
+        };
+
+        // Case A: AQ. key with no Vertex OAuth must NOT call AI Studio (402)
+        const noAuthRes = await generateChronicleSketch({
+            prompt: 'test aq block',
+            models: ['gemini-2.5-flash-image'],
+            apiKey: 'AQ.FakeVertexExpressKey',
+            customKey: '',
+            getGcpAuthContext: async () => null,
+            redactSecret: s => s,
+            isAiStudioDepleted: () => false,
+            onAiStudioDepleted: () => {}
+        });
+        assert.strictEqual(aistudioCalls, 0, 'AQ. key must never invoke AI Studio tier');
+        assert.strictEqual(noAuthRes.ok, false, 'Without Vertex auth or non-AQ key, sketch fails cleanly without 402 AI Studio call');
+
+        // Case B: Vertex 401 triggers forceRefresh: true and succeeds on retry without falling back to AI Studio
+        const retryRes = await generateChronicleSketch({
+            prompt: 'test vertex 401 retry',
+            models: ['gemini-2.5-flash-image'],
+            apiKey: 'AQ.FakeVertexExpressKey',
+            customKey: '',
+            getGcpAuthContext: async (opts) => {
+                if (opts && opts.forceRefresh) {
+                    refreshCalls++;
+                    return { token: 'fresh-token', projectId: 'test-proj' };
+                }
+                return { token: 'stale-token', projectId: 'test-proj' };
+            },
+            redactSecret: s => s,
+            isAiStudioDepleted: () => false,
+            onAiStudioDepleted: () => {}
+        });
+        assert.strictEqual(aistudioCalls, 0, 'Vertex retry must still never touch AI Studio for AQ. keys');
+        assert.strictEqual(refreshCalls, 1, 'Vertex 401 must invoke getGcpAuthContext({ forceRefresh: true }) once');
+        assert.strictEqual(vertexCalls, 2, 'Vertex 401 must retry once via Vertex');
+        assert.strictEqual(retryRes.ok, true, 'Vertex retry after token refresh must succeed');
+        assert(Object.values(retryRes).some(v => typeof v === 'string' && v.includes('iVBORw0KGgo=')), 'Successful retry must return generated PNG payload');
+    } finally {
+        https.request = origHttpsRequest;
+    }
+    console.log('  -> AQ. key routing guard and Vertex 401 token-refresh retry verified');
 
     console.log('\nAll server unit tests passed successfully!');
     try { fs.rmSync(SAVE_DIR, { recursive: true, force: true }); } catch (_) {}

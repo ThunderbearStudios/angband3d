@@ -959,6 +959,9 @@ class ChronicleAudioRouter {
                 resolve({ finished: true, engine, cached: true });
             };
 
+            if (this.ctx && this.ctx.state === 'suspended' && typeof this.ctx.resume === 'function') {
+                try { this.ctx.resume().catch(() => {}); } catch (_) {}
+            }
             source.start(0);
         });
     }
@@ -1027,10 +1030,10 @@ class ChronicleAudioRouter {
             this.prewarmUtterance(dialogue.text, 'creature', dialogue.speaker, prewarmVoice, prewarmOptions).catch(() => {});
         }
 
-        // Synthesize normal 1-2 sentence Tome passages (<= 240 chars) as a single continuous neural utterance
-        // to eliminate prosodic voice seams between sentence 1 and sentence 2 while cutting TTS RPM quota in half.
+        // Stream sentence 1 fast for >=2 sentence passages (>=115 chars) so opening narration starts ~1.2s
+        // while prewarming the remainder in parallel for zero-gap playback.
         const sentences = cleanText.match(/[^.!?]+[.!?]+(?:\s+|$)|[^.!?]+$/g)?.map(s => s.trim()).filter(Boolean) || [cleanText];
-        const isMultiSentence = (sentences.length > 2 && cleanText.length > 240 && sentences[0].length >= 15);
+        const isMultiSentence = (sentences.length >= 2 && cleanText.length >= 115 && sentences[0].length >= 18);
         const s1 = isMultiSentence ? sentences[0] : cleanText;
         const remainder = isMultiSentence ? sentences.slice(1).join(' ') : null;
 
@@ -1587,7 +1590,10 @@ class ChronicleAudioRouter {
                             }
                             resolve({ finished: true, engine, cached: true });
                         };
-                        source.start(0);
+                        if (this.ctx && this.ctx.state === 'suspended' && typeof this.ctx.resume === 'function') {
+                try { this.ctx.resume().catch(() => {}); } catch (_) {}
+            }
+            source.start(0);
                         return;
                     } catch (cacheErr) {
                         console.warn('[ChronicleAudio] Cached buffer playback error, fetching fresh:', cacheErr.message);
@@ -1740,7 +1746,10 @@ class ChronicleAudioRouter {
                             }
                             resolve({ finished: true, engine: usedEngine || engine, fallbackReason });
                         };
-                        source.start(0);
+                        if (this.ctx && this.ctx.state === 'suspended' && typeof this.ctx.resume === 'function') {
+                try { this.ctx.resume().catch(() => {}); } catch (_) {}
+            }
+            source.start(0);
                         return;
                     } catch (decodeErr) {
                         if (abortCtrl.signal.aborted || this._playSessionId !== sessionId || this._activePlayToken !== playToken) {

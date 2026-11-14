@@ -1,6 +1,6 @@
 // Angband3D Service Worker — Split-Epoch PWA Shell + Persistent 3D/WASM Asset Cache
-const CACHE_NAME = 'angband3d-v12.3.0';
-const ASSET_CACHE = 'angband3d-assets-v1';
+const CACHE_NAME = 'angband3d-v12.3.6';
+const ASSET_CACHE = 'angband3d-assets-v3';
 const SHELL_ASSETS = [
   '/',
   '/manifest.json',

@@ -1364,9 +1364,11 @@ async function runTest() {
         if (edgeRes.status !== 200) {
             throw new Error(`Edge TTS returned status ${edgeRes.status}`);
         }
+        const edgeEngine = edgeRes.headers.get('x-tts-engine') || '';
         const edgeContentType = edgeRes.headers.get('content-type') || '';
-        if (!edgeContentType.includes('audio/mpeg')) {
-            throw new Error(`Expected audio/mpeg from Edge TTS, got: ${edgeContentType}`);
+        const validEdgeMime = edgeContentType.includes('audio/mpeg') || (edgeEngine === 'gemini' && edgeContentType.includes('audio/wav'));
+        if (!validEdgeMime) {
+            throw new Error(`Expected audio/mpeg from Edge TTS (or audio/wav Gemini failover), got: ${edgeContentType} (engine=${edgeEngine})`);
         }
         const edgeBuffer = await edgeRes.arrayBuffer();
         if (edgeBuffer.byteLength < 100) {

@@ -58,6 +58,8 @@ variants/**/lib/xtra/music/**
 !server/src/**
 !server/public
 !server/public/**
+!tools
+!tools/precompress_assets.js
 
 server/node_modules/
 server/node_modules/**

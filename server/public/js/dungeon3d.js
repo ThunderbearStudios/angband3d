@@ -658,7 +658,7 @@ class Dungeon3D {
         this.renderBudget = budget;
         const isPhoneTier = budget.tier === 'phone';
         const dprCap = budget.dprCap || (isPhoneTier ? 1.25 : 1.5);
-        const farDistance = budget.farDistance || (isPhoneTier ? 95 : 115);
+        const farDistance = Math.max(115, budget.farDistance || 115);
         const initialFogDensity = budget.fogDensity || 0.014;
 
         if (window.Dungeon3DLightmap) {
@@ -877,8 +877,15 @@ class Dungeon3D {
         if (this.rubbleMaterial && !this._hasPolyHavenRubbleTex) {
             syncMatSlots(this.rubbleMaterial, texSet.wallTex, texSet.wallNormal, undefined);
         }
+        if (this.chasmSideMaterial && !this._hasPolyHavenChasmTex) {
+            syncMatSlots(this.chasmSideMaterial, texSet.permWallTex, texSet.permWallNormal, texSet.permWallRoughness);
+            if (this.chasmSideMaterial.normalScale) this.chasmSideMaterial.normalScale.set(1.75, 1.75);
+        }
         if (this._syncWorldPbrUniforms) {
             this._syncWorldPbrUniforms(texSet);
+        }
+        if (outdoors && typeof window !== 'undefined' && window.Dungeon3DTown && typeof window.Dungeon3DTown.syncTownSharedMaterials === 'function') {
+            window.Dungeon3DTown.syncTownSharedMaterials(this, THREE, realm);
         }
         if (biome && biome.fixtureArchetype && window.Dungeon3DTactical && window.Dungeon3DTactical.setWallFixtureArchetype) {
             window.Dungeon3DTactical.setWallFixtureArchetype(this, biome.fixtureArchetype);
@@ -1169,7 +1176,7 @@ class Dungeon3D {
         this.upperPermWallMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
         this.scene.add(this.upperPermWallMesh);
 
-        this.floorMesh = new THREE.InstancedMesh(floorGeo, this.floorMaterial, this.maxInstances);
+        this.floorMesh = new THREE.InstancedMesh(floorGeo, this.floorMaterial, this.maxInstances * 2);
         this.floorMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
         this.floorMesh.castShadow = false;
         this.floorMesh.receiveShadow = true;
@@ -1188,8 +1195,6 @@ class Dungeon3D {
 
         // Disjoint Town Storefront Timber & Stone Masonry Meshes
         const woodPbr = this.polyHavenSets && this.polyHavenSets.get('local_wood_trim');
-        const roofPbr = this.polyHavenSets && this.polyHavenSets.get('local_round_tiles');
-        const rockTrimPbr = this.polyHavenSets && this.polyHavenSets.get('local_rock_trim');
         this.shopFrameMaterial = new THREE.MeshStandardMaterial({
             map: (woodPbr && woodPbr.diff) || this.doorTex || this.wallTex,
             normalMap: (woodPbr && woodPbr.nor) || this.treeBarkNormal || this.wallNormal,
@@ -1204,9 +1209,9 @@ class Dungeon3D {
         this.scene.add(this.shopFrameMesh);
 
         this.shopStoneMaterial = new THREE.MeshStandardMaterial({
-            map: (rockTrimPbr && rockTrimPbr.diff) || this.wallTex,
-            normalMap: (rockTrimPbr && rockTrimPbr.nor) || this.wallNormal,
-            roughnessMap: (rockTrimPbr && rockTrimPbr.arm) || null,
+            map: this.wallTex,
+            normalMap: this.wallNormal,
+            roughnessMap: null,
             normalScale: new THREE.Vector2(1.30, 1.30),
             roughness: 0.80,
             metalness: 0.05,
@@ -1222,8 +1227,8 @@ class Dungeon3D {
 
         // Sloped Merchant Storefront Canopy / Awning
         this.shopAwningMaterial = new THREE.MeshStandardMaterial({
-            map: (roofPbr && roofPbr.diff) || this.storeTex || this.wallTex,
-            normalMap: (roofPbr && roofPbr.nor) || this.wallNormal,
+            map: this.storeTex || this.wallTex,
+            normalMap: this.wallNormal,
             normalScale: new THREE.Vector2(1.25, 1.25),
             roughness: 0.80,
             metalness: 0.05,
@@ -1235,12 +1240,13 @@ class Dungeon3D {
 
         // Town Building Dressed Stone & Dark Timber Framing + Exterior Corner Posts
         this.townTimberMaterial = new THREE.MeshStandardMaterial({
-            map: (rockTrimPbr && rockTrimPbr.diff) || this.wallTex,
-            normalMap: (rockTrimPbr && rockTrimPbr.nor) || this.wallNormal,
-            roughnessMap: (rockTrimPbr && rockTrimPbr.arm) || null,
-            normalScale: new THREE.Vector2(1.35, 1.35),
-            roughness: 0.84,
-            metalness: 0.06,
+            color: 0x4a3525,
+            map: this.doorTex || this.wallTex,
+            normalMap: this.treeBarkNormal || this.wallNormal,
+            roughnessMap: null,
+            normalScale: new THREE.Vector2(1.25, 1.25),
+            roughness: 0.86,
+            metalness: 0.04,
             vertexColors: true
         });
         this.townTimberMesh = new THREE.InstancedMesh(townTimberGeo, this.townTimberMaterial, this.maxInstances);
@@ -1252,9 +1258,9 @@ class Dungeon3D {
         this.scene.add(this.townTimberPostMesh);
 
         this.townRoofMaterial = new THREE.MeshStandardMaterial({
-            map: (rockTrimPbr && rockTrimPbr.diff) || this.wallTex,
-            normalMap: (rockTrimPbr && rockTrimPbr.nor) || this.wallNormal,
-            roughnessMap: (rockTrimPbr && rockTrimPbr.arm) || null,
+            map: this.wallTex,
+            normalMap: this.wallNormal,
+            roughnessMap: null,
             normalScale: new THREE.Vector2(1.40, 1.40),
             roughness: 0.82,
             metalness: 0.08,
@@ -1263,6 +1269,9 @@ class Dungeon3D {
         this.townRoofMesh = new THREE.InstancedMesh(townRoofGeo, this.townRoofMaterial, this.maxInstances);
         this.townRoofMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
         this.scene.add(this.townRoofMesh);
+        if (typeof window !== 'undefined' && window.Dungeon3DTown && typeof window.Dungeon3DTown.syncTownSharedMaterials === 'function') {
+            window.Dungeon3DTown.syncTownSharedMaterials(this, THREE, this.realm || 'angband');
+        }
 
         // Impassable Rubble Piles (feat 16)
         this.rubbleMesh = new THREE.InstancedMesh(safeWallAttrs(rubbleGeo), this.rubbleMaterial || this.wallMaterial, 256);
@@ -1334,16 +1343,20 @@ class Dungeon3D {
             if (count > 0) geo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(count * 3).fill(1.0), 3));
             return geo;
         };
-        const treeTrunkGeo = addWhiteVertexColors(new THREE.ConeGeometry(0.18, 2.2, 6));
-        treeTrunkGeo.translate(0, 1.1, 0);
+        const treeTrunkGeo = (typeof this.createBotanicalTreeTrunkGeometry === 'function')
+            ? this.createBotanicalTreeTrunkGeometry()
+            : addWhiteVertexColors(new THREE.ConeGeometry(0.18, 2.2, 6));
+        if (typeof this.createBotanicalTreeTrunkGeometry !== 'function') treeTrunkGeo.translate(0, 1.1, 0);
         this.treeTrunkMesh = new THREE.InstancedMesh(treeTrunkGeo, this.treeTrunkMat, this.maxInstances);
         this.treeTrunkMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
         this.treeTrunkMesh.castShadow = false;
         this.treeTrunkMesh.receiveShadow = true;
         this.scene.add(this.treeTrunkMesh);
 
-        const treeLeavesGeo = addWhiteVertexColors(new THREE.DodecahedronGeometry(0.95, 1));
-        treeLeavesGeo.translate(0, 1.8, 0);
+        const treeLeavesGeo = (typeof this.createBotanicalTreeCanopyGeometry === 'function')
+            ? this.createBotanicalTreeCanopyGeometry()
+            : addWhiteVertexColors(new THREE.DodecahedronGeometry(0.95, 1));
+        if (typeof this.createBotanicalTreeCanopyGeometry !== 'function') treeLeavesGeo.translate(0, 1.8, 0);
         this.treeLeavesMesh = new THREE.InstancedMesh(treeLeavesGeo, this.treeLeavesMat, this.maxInstances);
         this.treeLeavesMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
         this.treeLeavesMesh.castShadow = false;
@@ -1351,8 +1364,10 @@ class Dungeon3D {
         this.scene.add(this.treeLeavesMesh);
 
         // Dense Brush / Thicket / Flowers (feat 42: BUSH / BRAKE)
-        const bushGeo = addWhiteVertexColors(new THREE.DodecahedronGeometry(0.48, 1));
-        bushGeo.translate(0, 0.35, 0);
+        const bushGeo = (typeof this.createBotanicalBushGeometry === 'function')
+            ? this.createBotanicalBushGeometry()
+            : addWhiteVertexColors(new THREE.DodecahedronGeometry(0.48, 1));
+        if (typeof this.createBotanicalBushGeometry !== 'function') bushGeo.translate(0, 0.35, 0);
         this.bushMesh = new THREE.InstancedMesh(bushGeo, this.treeLeavesMat, this.maxInstances);
         this.bushMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
         this.bushMesh.castShadow = false;
@@ -1837,30 +1852,75 @@ class Dungeon3D {
         this.scene.add(this.fountainWaterMesh);
 
         // FrogComposBand Bottomless Pit (feat 41: '#') - Chasm cliff-shaft & abyssal void
-        if (!this.dungeonGroup) {
-            this.dungeonGroup = new THREE.Group();
-            this.scene.add(this.dungeonGroup);
-        }
-        this.chasmVoidMat = new THREE.MeshBasicMaterial({ color: 0x020205, fog: true });
+        this.chasmVoidMat = new THREE.MeshBasicMaterial({ color: 0x010103, fog: false });
         this.chasmVoidMesh = new THREE.InstancedMesh(floorGeo, this.chasmVoidMat, this.maxInstances);
         this.chasmVoidMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
         this.chasmVoidMesh.castShadow = false;
         this.chasmVoidMesh.receiveShadow = false;
-        this.dungeonGroup.add(this.chasmVoidMesh);
+        this.scene.add(this.chasmVoidMesh);
         this.chasmVoidMesh.count = 0;
 
+        const hs = (this.cellSize || 2.0) * 0.5;
+        const cliffSegX = 8;
+        const cliffRows = [
+            { y: 0.02, z: -0.08, ao: 0.66, amp: 0.0 },
+            { y: -0.05, z: 0.08, ao: 0.48, amp: 0.14 },
+            { y: -0.58, z: 0.05, ao: 0.22, amp: 0.18 },
+            { y: -1.75, z: 0.02, ao: 0.06, amp: 0.12 },
+            { y: -4.18, z: 0.0, ao: 0.01, amp: 0.0 }
+        ];
+        const cliffVerts = cliffRows.length * (cliffSegX + 1);
+        const cliffPos = new Float32Array(cliffVerts * 3);
+        const cliffUv = new Float32Array(cliffVerts * 2);
+        const cliffCol = new Float32Array(cliffVerts * 3);
+        for (let r = 0; r < cliffRows.length; r++) {
+            const row = cliffRows[r];
+            for (let c = 0; c <= cliffSegX; c++) {
+                const u = c / cliffSegX;
+                const x = -hs + u * hs * 2;
+                const env = (c === 0 || c === cliffSegX) ? 0 : Math.sin(u * Math.PI);
+                const crag = row.amp > 0
+                    ? env * (Math.sin(u * Math.PI * 3.0 + r * 1.3) * 0.65 + Math.sin(u * Math.PI * 5.0 - r * 0.9) * 0.35) * row.amp
+                    : 0;
+                const vi = r * (cliffSegX + 1) + c;
+                cliffPos[vi * 3] = x;
+                cliffPos[vi * 3 + 1] = row.y;
+                cliffPos[vi * 3 + 2] = row.z + crag;
+                cliffUv[vi * 2] = u;
+                cliffUv[vi * 2 + 1] = (0.02 - row.y) / 4.20;
+                cliffCol[vi * 3] = row.ao;
+                cliffCol[vi * 3 + 1] = row.ao * 1.01;
+                cliffCol[vi * 3 + 2] = row.ao * 1.05;
+            }
+        }
+        const cliffIdx = [];
+        for (let r = 0; r < cliffRows.length - 1; r++) {
+            for (let c = 0; c < cliffSegX; c++) {
+                const a = r * (cliffSegX + 1) + c, b = a + 1, d = a + (cliffSegX + 1), e = d + 1;
+                cliffIdx.push(a, d, b, b, d, e);
+            }
+        }
+        const chasmCliffGeo = new THREE.BufferGeometry();
+        chasmCliffGeo.setAttribute('position', new THREE.BufferAttribute(cliffPos, 3));
+        chasmCliffGeo.setAttribute('uv', new THREE.BufferAttribute(cliffUv, 2));
+        chasmCliffGeo.setAttribute('color', new THREE.BufferAttribute(cliffCol, 3));
+        chasmCliffGeo.setIndex(cliffIdx);
+        chasmCliffGeo.computeVertexNormals();
+
         this.chasmSideMaterial = new THREE.MeshStandardMaterial({
-            color: 0x2a2d36,
-            roughness: 0.92,
-            metalness: 0.05,
+            color: 0x323640,
+            roughness: 0.94,
+            metalness: 0.04,
+            normalScale: new THREE.Vector2(1.75, 1.75),
+            vertexColors: true,
             side: THREE.DoubleSide
         });
-        if (this.townMountainDiff) {
-            this.chasmSideMaterial.map = this.townMountainDiff;
-            this.chasmSideMaterial.normalMap = this.townMountainNormal;
-            this.chasmSideMaterial.roughnessMap = this.townMountainRoughness;
+        if (this.townMountainDiff || this.permWallTex) {
+            this.chasmSideMaterial.map = this.townMountainDiff || this.permWallTex;
+            this.chasmSideMaterial.normalMap = this.townMountainNormal || this.permWallNormal || null;
+            this.chasmSideMaterial.roughnessMap = this.townMountainRoughness || null;
         }
-        this.chasmMesh = new THREE.InstancedMesh(cloneBevelGeo(wallGeo, this.maxInstances), this.chasmSideMaterial, this.maxInstances);
+        this.chasmMesh = new THREE.InstancedMesh(chasmCliffGeo, this.chasmSideMaterial, this.maxInstances);
         this.chasmMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
         this.chasmMesh.castShadow = false;
         this.chasmMesh.receiveShadow = true;
@@ -2162,15 +2222,13 @@ class Dungeon3D {
                 varying vec3 vWorldDir;
 
                 float hash(vec3 p) {
-                    p = fract(p * 0.3183099 + 0.1);
-                    p *= 17.0;
-                    return fract(p.x * p.y * p.z * (p.x + p.y + p.z));
+                    return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453123);
                 }
 
                 float noise(vec3 x) {
                     vec3 i = floor(x);
                     vec3 f = fract(x);
-                    f = f * f * (3.0 - 2.0 * f);
+                    f = f * f * f * (f * (f * 6.0 - 15.0) + 10.0);
                     return mix(
                         mix(mix(hash(i + vec3(0,0,0)), hash(i + vec3(1,0,0)), f.x),
                             mix(hash(i + vec3(0,1,0)), hash(i + vec3(1,1,0)), f.x), f.y),
@@ -2179,9 +2237,18 @@ class Dungeon3D {
                 }
 
                 float fbm4(vec3 p) {
-                    float v = 0.65 * noise(p);
-                    p *= 2.03;
-                    v += 0.35 * noise(p);
+                    const mat3 rot = mat3(
+                         0.80,  0.60,  0.00,
+                        -0.60,  0.80,  0.00,
+                         0.00,  0.00,  1.00
+                    );
+                    float v = 0.50 * noise(p);
+                    p = (rot * p) * 2.04 + vec3(17.1, 31.7, 11.3);
+                    v += 0.25 * noise(p);
+                    p = (rot * p) * 2.02 + vec3(23.4, 13.9, 41.2);
+                    v += 0.15 * noise(p);
+                    p = (rot * p) * 2.05 + vec3(7.7, 19.3, 29.1);
+                    v += 0.10 * noise(p);
                     return v;
                 }
 
@@ -2192,22 +2259,22 @@ class Dungeon3D {
                     // 1. Deep Cosmic Zenith-to-Horizon Gradient
                     vec3 sky = mix(uHorizonColor, uZenithColor, pow(elev, 0.42));
 
-                    // 2. Tilted Milky Way Galactic River & Dark Dust Lanes
+                    // 2. Smooth Rotated Multi-Octave Milky Way Veil (no coarse cubic lattice)
                     vec3 g = vec3(d.x * 0.82 - d.y * 0.57, d.x * 0.57 + d.y * 0.82, d.z);
-                    float fbm = fbm4(g * 4.8);
-                    float dustFbm = noise(g * 9.2 + vec3(1.2, 3.4, 5.6));
-                    float mwBand = exp(-pow(g.x * 3.1 + (fbm - 0.5) * 0.45, 2.0));
-                    float dustRift = smoothstep(0.40, 0.68, dustFbm) * exp(-pow(g.x * 3.8, 2.0)) * 0.70;
-                    float mwIntensity = clamp((mwBand * 0.90 - dustRift) * smoothstep(0.02, 0.18, elev), 0.0, 1.0);
-                    vec3 mwColor = mix(uNebulaColorB, uNebulaColorA, smoothstep(0.35, 0.75, fbm));
-                    sky += mwColor * mwIntensity * 0.85;
+                    float fbm = fbm4(g * 7.5);
+                    float dustFbm = fbm4(g * 11.0 + vec3(1.2, 3.4, 5.6));
+                    float mwBand = exp(-pow(g.x * 2.8 + (fbm - 0.5) * 0.35, 2.0));
+                    float dustRift = smoothstep(0.44, 0.72, dustFbm) * exp(-pow(g.x * 3.4, 2.0)) * 0.55;
+                    float mwIntensity = clamp((mwBand * 0.78 - dustRift) * smoothstep(0.04, 0.24, elev), 0.0, 1.0);
+                    vec3 mwColor = mix(uNebulaColorB, uNebulaColorA, smoothstep(0.32, 0.78, fbm));
+                    sky += mwColor * mwIntensity * 0.18;
 
-                    // 3. Shimmering Boreal Aurora Curtains
-                    float auroraElev = smoothstep(0.08, 0.28, elev) * smoothstep(0.68, 0.35, elev);
-                    float ribbon = sin(d.x * 14.0 + uTime * 0.35 + fbm * 4.0);
-                    ribbon = smoothstep(0.25, 0.95, ribbon * 0.5 + 0.5);
-                    float aurora = ribbon * auroraElev * (0.45 + 0.55 * sin(uTime * 0.6 + d.z * 5.0));
-                    sky += uAuroraColor * (aurora * 0.55);
+                    // 3. Subtle Atmospheric Aurora Curtains
+                    float auroraElev = smoothstep(0.08, 0.28, elev) * smoothstep(0.66, 0.35, elev);
+                    float ribbon = sin(d.x * 11.0 + uTime * 0.32 + fbm * 3.2);
+                    ribbon = smoothstep(0.28, 0.94, ribbon * 0.5 + 0.5);
+                    float aurora = ribbon * auroraElev * (0.45 + 0.55 * sin(uTime * 0.55 + d.z * 4.5));
+                    sky += uAuroraColor * (aurora * 0.28);
 
                     // 4. Crisp Celestial Crescent Moon & Silver Corona
                     vec3 mDir = normalize(uMoonDir);
@@ -4723,7 +4790,8 @@ class Dungeon3D {
         let quartzCount = 0;
         let goldVeinCount = 0;
         let gemVeinCount = 0;
-        let treeCount = 0;
+        let treeTrunkCount = 0;
+        let treeLeavesCount = 0;
         let bushCount = 0;
         let grassCount = 0;
         let dirtCount = 0;
@@ -4746,6 +4814,7 @@ class Dungeon3D {
         const upperPermWallCap = this.upperPermWallMesh ? this.upperPermWallMesh.instanceMatrix.count : permWallCap;
         const veinCap = this.magmaMesh ? this.magmaMesh.instanceMatrix.count : 1024;
         const ceilCap = this.ceilingMesh ? this.ceilingMesh.instanceMatrix.count : this.maxInstances * 2;
+        const floorCap = this.floorMesh ? this.floorMesh.instanceMatrix.count : this.maxInstances;
         const wallGeoH = 3.05;
         const upperGeoH = 3.05;
         this.lastMap = map;
@@ -4770,7 +4839,9 @@ class Dungeon3D {
 
         const anchorX = this._terrainAnchorX;
         const anchorY = this._terrainAnchorY;
-        const sightRange = outdoors ? 30 : 28;
+        const isSurfaceTown = outdoors && depth === 0;
+        const sightRange = isSurfaceTown ? 55 : (outdoors ? 36 : 28);
+        const maxTileDistSq = isSurfaceTown ? 3025 : (outdoors ? 1296 : 784);
         const minX = Math.max(0, anchorX - sightRange);
         const maxX = Math.min(w - 1, anchorX + sightRange);
         const minY = Math.max(0, anchorY - sightRange);
@@ -4854,7 +4925,7 @@ class Dungeon3D {
             for (let x = minX; x <= maxX; x++) {
                 const dx = x - anchorX, dy = y - anchorY;
                 const distSq = dx * dx + dy * dy;
-                if (distSq > 784) continue;
+                if (distSq > maxTileDistSq) continue;
                 tileIdx = y * w + x;
 
                 let feat = this.getFeatAt(map, x, y);
@@ -4994,13 +5065,14 @@ class Dungeon3D {
                     }
                 };
 
-                const emitLiquidBedAndShore = () => {
-                    if (floorCount < this.maxInstances) {
+                const emitLiquidBedAndShore = (isLava = false) => {
+                    if (floorCount < floorCap) {
                         this.dummy.position.set(wx, -0.16, wz);
                         this.dummy.rotation.set(0, floorRot, 0);
                         this.dummy.updateMatrix();
-                        const bedCol = this._scratchRiverbedColor || (this._scratchRiverbedColor = new THREE.Color());
-                        bedCol.setRGB(floorShade.r * 0.42, floorShade.g * 0.44, floorShade.b * 0.48);
+                        const bedCol = isLava
+                            ? (this._scratchLavaBedCol || (this._scratchLavaBedCol = new THREE.Color())).setRGB(0.12, 0.07, 0.06)
+                            : (this._scratchRiverbedColor || (this._scratchRiverbedColor = new THREE.Color())).setRGB(floorShade.r * 0.42, floorShade.g * 0.44, floorShade.b * 0.48);
                         this.floorMesh.setMatrixAt(floorCount, this.dummy.matrix);
                         setCol(this.floorMesh, floorCount, bedCol);
                         floorCount++;
@@ -5012,16 +5084,21 @@ class Dungeon3D {
                             { dx: 1, dy: 0, ox: 0.94, oz: 0, yaw: Math.PI / 2 },
                             { dx: -1, dy: 0, ox: -0.94, oz: 0, yaw: Math.PI / 2 }
                         ];
+                        const bankCol = isLava
+                            ? (this._scratchLavaBankCol || (this._scratchLavaBankCol = new THREE.Color())).setRGB(wallShade.r * 0.28, wallShade.g * 0.24, wallShade.b * 0.23)
+                            : wallShade;
                         for (let ei = 0; ei < 4 && waterBankCount < 1024; ei++) {
                             const ed = edges[ei];
                             const nx = x + ed.dx, ny = y + ed.dy;
                             if (nx < 0 || nx >= w || ny < 0 || ny >= h) continue;
-                            if (!isLiquidFeat(effFeat(nx, ny))) {
+                            const nf = effFeat(nx, ny);
+                            const sameLiquid = isLava ? (nf === 23 || nf === 82 || nf === 83) : isLiquidFeat(nf);
+                            if (!sameLiquid) {
                                 this.dummy.position.set(wx + ed.ox, -0.09, wz + ed.oz);
                                 this.dummy.rotation.set(0, ed.yaw, 0);
                                 this.dummy.updateMatrix();
                                 this.waterBankMesh.setMatrixAt(waterBankCount, this.dummy.matrix);
-                                setCol(this.waterBankMesh, waterBankCount, wallShade);
+                                setCol(this.waterBankMesh, waterBankCount, bankCol);
                                 waterBankCount++;
                             }
                         }
@@ -5031,7 +5108,7 @@ class Dungeon3D {
                 // Coursed Stone Mineral & Magma Veins (feat 17=MAGMA, 18=QUARTZ, 19=MAGMA_K, 20=QUARTZ_K)
                 if (feat >= 17 && feat <= 20) {
                     const vBev = tac ? tac.computeWallCornerBevels(this, map, w, h, x, y, outdoors, this._tmpWallBev || (this._tmpWallBev = [0, 0, 0, 0])) : [0, 0, 0, 0];
-                    if ((outdoors || (vBev[0] + vBev[1] + vBev[2] + vBev[3] > 0)) && floorCount < this.maxInstances) {
+                    if ((outdoors || (vBev[0] + vBev[1] + vBev[2] + vBev[3] > 0)) && floorCount < floorCap) {
                         this.dummy.position.set(wx, -0.05, wz);
                         this.dummy.rotation.set(0, floorRot, 0);
                         this.dummy.updateMatrix();
@@ -5102,6 +5179,7 @@ class Dungeon3D {
                         this.dummy.scale.set(mScaleX, mScaleY, mScaleZ);
                         this.dummy.updateMatrix();
                         const mountainShade = this.computeTileShade(this._scratchMountainColor, this.getBaseColour(30, biome), inView, outdoors, lighting, x, y, isRoom, depth);
+                        if (this._hasPolyHavenMountainTex && outdoors) mountainShade.multiplyScalar(0.68);
                         this.mountainMesh.setMatrixAt(mountainCount, this.dummy.matrix);
                         setCol(this.mountainMesh, mountainCount, mountainShade);
                         mountainCount++;
@@ -5121,7 +5199,7 @@ class Dungeon3D {
                 // Solid Stone / Granite / Perm / Secret wall (feat 15=SECRET, 21=GRANITE, 22=PERM)
                 if (feat === 15 || feat === 21 || feat === 22) {
                     const wBev = tac ? tac.computeWallCornerBevels(this, map, w, h, x, y, outdoors, this._tmpWallBev || (this._tmpWallBev = [0, 0, 0, 0])) : [0, 0, 0, 0];
-                    if ((outdoors || (wBev[0] + wBev[1] + wBev[2] + wBev[3] > 0)) && floorCount < this.maxInstances) {
+                    if ((outdoors || (wBev[0] + wBev[1] + wBev[2] + wBev[3] > 0)) && floorCount < floorCap) {
                         this.dummy.position.set(wx, -0.05, wz);
                         this.dummy.rotation.set(0, floorRot, 0);
                         this.dummy.updateMatrix();
@@ -5133,11 +5211,11 @@ class Dungeon3D {
                     const isTownBuilding = outdoors && (feat === 22 || feat === 21) && x > 1 && x < (w - 2) && y > 1 && y < (h - 2);
                     const yBot = -0.05;
                     const yTop = outdoors ? (this.wallHeight + 0.05) : Math.max(this.wallHeight + 0.05, maxNeighborCeil + 0.03);
-                    const monoPosY = isTownBuilding ? (wallYCenter * 0.96) : ((yBot + yTop) * 0.5);
-                    const monoSclY = isTownBuilding ? 0.96 : ((yTop - yBot) / wallGeoH);
-                    const monoSclXZ = isTownBuilding ? 0.990 : 1.0;
+                    const monoPosY = isTownBuilding ? wallYCenter : ((yBot + yTop) * 0.5);
+                    const monoSclY = isTownBuilding ? 1.0 : ((yTop - yBot) / wallGeoH);
+                    const monoSclXZ = 1.0;
                     let activeWallShade = wallShade;
-                    if (feat === 22 && !isTownBuilding) {
+                    if ((feat === 22 || (outdoors && feat === 21)) && !isTownBuilding) {
                         const permShade = this.computeTileShade(this._scratchPermWallColor, this.getBaseColour(22, biome), inView, outdoors, lighting, x, y, isRoom, depth);
                         activeWallShade = permShade;
                         if (permWallCount < permWallCap) {
@@ -5436,29 +5514,38 @@ class Dungeon3D {
                     continue;
                 }
 
-                // FrogComposBand Bottomless Pit (feat 41: '#')
+                // Bottomless Pit (feat 41: open vertical cliff drop-off to -4.10m abyss)
                 if (feat === 41) {
-                    if (chasmIdx < this.maxInstances) {
-                        this.dummy.position.set(wx, -this.wallHeight * 0.52 - 0.04, wz);
-                        this.dummy.rotation.set(0, 0, 0);
-                        this.dummy.scale.set(0.98, 1.0, 0.98);
-                        this.dummy.updateMatrix();
-                        this.chasmMesh.setMatrixAt(chasmIdx, this.dummy.matrix);
-                        if (tac) tac.setCornerBevelAt(this.chasmMesh, chasmIdx, 0, 0, 0, 0);
-                        if (!this._scratchChasmShade) this._scratchChasmShade = new THREE.Color();
-                        if (!this._scratchChasmColor) this._scratchChasmColor = new THREE.Color(0x3a3d46);
-                        const chasmShade = this.computeTileShade(this._scratchChasmShade, this._scratchChasmColor, inView, outdoors, lighting, x, y, isRoom, depth);
-                        setCol(this.chasmMesh, chasmIdx, chasmShade);
-                        chasmIdx++;
-                        this.dummy.scale.set(1, 1, 1);
+                    if (!this._scratchChasmShade) this._scratchChasmShade = new THREE.Color();
+                    if (!this._scratchChasmColor) this._scratchChasmColor = new THREE.Color(0x525763);
+                    const chasmShade = this.computeTileShade(this._scratchChasmShade, this._scratchChasmColor, inView, outdoors, lighting, x, y, isRoom, depth);
+                    if (outdoors) chasmShade.multiplyScalar(0.62);
+                    const pitEdges = [
+                        { dx: 0, dy: -1, ox: 0, oz: -1.0, yaw: 0 },
+                        { dx: 0, dy: 1, ox: 0, oz: 1.0, yaw: Math.PI },
+                        { dx: 1, dy: 0, ox: 1.0, oz: 0, yaw: -Math.PI * 0.5 },
+                        { dx: -1, dy: 0, ox: -1.0, oz: 0, yaw: Math.PI * 0.5 }
+                    ];
+                    for (let ei = 0; ei < 4 && chasmIdx < this.maxInstances; ei++) {
+                        const pe = pitEdges[ei];
+                        if (effFeat(x + pe.dx, y + pe.dy) !== 41) {
+                            this.dummy.position.set(wx + pe.ox, 0, wz + pe.oz);
+                            this.dummy.rotation.set(0, pe.yaw, 0);
+                            this.dummy.scale.set(1, 1, 1);
+                            this.dummy.updateMatrix();
+                            this.chasmMesh.setMatrixAt(chasmIdx, this.dummy.matrix);
+                            setCol(this.chasmMesh, chasmIdx, chasmShade);
+                            chasmIdx++;
+                        }
                     }
                     if (chasmVoidIdx < this.maxInstances) {
-                        this.dummy.position.set(wx, -1.75, wz);
-                        this.dummy.rotation.set(-Math.PI / 2, 0, 0);
-                        this.dummy.scale.set(1, 1, 1);
+                        this.dummy.position.set(wx, -4.10, wz);
+                        this.dummy.rotation.set(0, 0, 0);
+                        this.dummy.scale.set(1.06, 1, 1.06);
                         this.dummy.updateMatrix();
                         this.chasmVoidMesh.setMatrixAt(chasmVoidIdx, this.dummy.matrix);
                         chasmVoidIdx++;
+                        this.dummy.scale.set(1, 1, 1);
                     }
                     emitIndoorCeiling(tileCeilH);
                     continue;
@@ -5573,38 +5660,50 @@ class Dungeon3D {
                         this.dummy.rotation.set(0, floorRot, 0);
                         this.dummy.updateMatrix();
                         const grassShade = this.computeTileShade(this._scratchGrassColor, this.getBaseColour(26, biome), inView, outdoors, lighting, x, y, isRoom, depth);
+                        grassShade.multiplyScalar(0.66);
                         this.grassMesh.setMatrixAt(grassCount, this.dummy.matrix);
                         setCol(this.grassMesh, grassCount, grassShade);
                         grassCount++;
                     }
-                    if (treeCount < this.maxInstances) {
-                        this.dummy.position.set(wx, 0, wz);
+                    const isInteriorForest = (effFeat(x - 1, y) === 25 && effFeat(x + 1, y) === 25 && effFeat(x, y - 1) === 25 && effFeat(x, y + 1) === 25);
+                    if (!(isInteriorForest && distSq > 225 && ((x + y) & 1))) {
+                        const tOffX = (((x * 37 + y * 53) % 7) - 3) * 0.095;
+                        const tOffZ = (((x * 61 + y * 29) % 7) - 3) * 0.095;
+                        this.dummy.position.set(wx + tOffX, 0, wz + tOffZ);
                         const treeYaw = ((x * 67 + y * 97) % 8) * (Math.PI / 4);
                         this.dummy.rotation.set(0, treeYaw, 0);
-                        const s = 0.98 + ((x * 7 + y * 13) % 5) * 0.08;
-                        this.dummy.scale.set(s, s, s);
-                        this.dummy.updateMatrix();
-                        const trunkBase = (this.realm === 'silq')
-                            ? this._scratchTrunkBaseColor.setRGB(0.65, 0.62, 0.58)
-                            : this._scratchTrunkBaseColor.setRGB(1.0, 0.95, 0.90);
-                        const trunkShade = this.computeTileShade(this._scratchTreeTrunkColor, trunkBase, inView, outdoors, lighting, x, y, isRoom, depth);
-                        this.treeTrunkMesh.setMatrixAt(treeCount, this.dummy.matrix);
-                        setCol(this.treeTrunkMesh, treeCount, trunkShade);
-
-                        let leafBase;
-                        if (this._hasPolyHavenTreeTex) {
-                            if (!this._treeTintColor) this._treeTintColor = new THREE.Color();
-                            if (this.isHengband()) leafBase = this._treeTintColor.setRGB(1.0, 0.86, 0.92);
-                            else if (biome === 'swamp') leafBase = this._treeTintColor.setRGB(0.88, 0.98, 0.86);
-                            else if (biome === 'desert' || biome === 'autumn') leafBase = this._treeTintColor.setRGB(0.96, 1.0, 0.88);
-                            else leafBase = this._treeTintColor.setRGB(0.94, 1.0, 0.92);
-                        } else {
-                            leafBase = this.getBaseColour(25, biome);
+                        const s = 0.96 + ((x * 7 + y * 13) % 5) * 0.09;
+                        if (!(isInteriorForest && distSq > 100) && treeTrunkCount < this.maxInstances) {
+                            this.dummy.scale.set(s, s, s);
+                            this.dummy.updateMatrix();
+                            const trunkBase = (this.realm === 'silq')
+                                ? this._scratchTrunkBaseColor.setRGB(0.56, 0.52, 0.48)
+                                : this._scratchTrunkBaseColor.setRGB(0.64, 0.56, 0.48);
+                            const trunkShade = this.computeTileShade(this._scratchTreeTrunkColor, trunkBase, inView, outdoors, lighting, x, y, isRoom, depth);
+                            this.treeTrunkMesh.setMatrixAt(treeTrunkCount, this.dummy.matrix);
+                            setCol(this.treeTrunkMesh, treeTrunkCount, trunkShade);
+                            treeTrunkCount++;
                         }
-                        const canopyShade = this.computeTileShade(this._scratchTreeColor, leafBase, inView, outdoors, lighting, x, y, isRoom, depth);
-                        this.treeLeavesMesh.setMatrixAt(treeCount, this.dummy.matrix);
-                        setCol(this.treeLeavesMesh, treeCount, canopyShade);
-                        treeCount++;
+                        if (treeLeavesCount < this.maxInstances) {
+                            const canopyScale = (isInteriorForest && distSq > 225) ? s * 1.24 : s;
+                            this.dummy.scale.set(canopyScale, canopyScale, canopyScale);
+                            this.dummy.updateMatrix();
+                            const tv = (((x * 19 + y * 41) % 7) - 3) * 0.025;
+                            let leafBase;
+                            if (this._hasPolyHavenTreeTex) {
+                                if (!this._treeTintColor) this._treeTintColor = new THREE.Color();
+                                if (this.isHengband()) leafBase = this._treeTintColor.setRGB(0.86 + tv * 0.4, 0.84, 0.86);
+                                else if (biome === 'swamp') leafBase = this._treeTintColor.setRGB(0.76 + tv * 0.3, 0.86, 0.72);
+                                else if (biome === 'desert' || biome === 'autumn') leafBase = this._treeTintColor.setRGB(0.92 + tv * 0.4, 0.88, 0.72);
+                                else leafBase = this._treeTintColor.setRGB(0.84 + tv, 0.90 + tv * 0.4, 0.76 - tv * 0.4);
+                            } else {
+                                leafBase = this.getBaseColour(25, biome);
+                            }
+                            const canopyShade = this.computeTileShade(this._scratchTreeColor, leafBase, inView, outdoors, lighting, x, y, isRoom, depth);
+                            this.treeLeavesMesh.setMatrixAt(treeLeavesCount, this.dummy.matrix);
+                            setCol(this.treeLeavesMesh, treeLeavesCount, canopyShade);
+                            treeLeavesCount++;
+                        }
                         this.dummy.scale.set(1, 1, 1);
                     }
                     emitIndoorCeiling(tileCeilH);
@@ -5618,6 +5717,7 @@ class Dungeon3D {
                         this.dummy.rotation.set(0, floorRot, 0);
                         this.dummy.updateMatrix();
                         const grassShade = this.computeTileShade(this._scratchGrassColor, this.getBaseColour(26, biome), inView, outdoors, lighting, x, y, isRoom, depth);
+                        grassShade.multiplyScalar(0.78);
                         this.grassMesh.setMatrixAt(grassCount, this.dummy.matrix);
                         setCol(this.grassMesh, grassCount, grassShade);
                         grassCount++;
@@ -5625,7 +5725,10 @@ class Dungeon3D {
                     let bushBase;
                     if (this._hasPolyHavenTreeTex) {
                         if (!this._bushTintColor) this._bushTintColor = new THREE.Color();
-                        bushBase = this.isHengband() ? this._bushTintColor.setRGB(1.0, 0.86, 0.92) : this._bushTintColor.setRGB(0.94, 1.0, 0.92);
+                        const bv = (((x * 23 + y * 59) % 5) - 2) * 0.03;
+                        bushBase = this.isHengband()
+                            ? this._bushTintColor.setRGB(0.92, 0.78 + bv, 0.84)
+                            : this._bushTintColor.setRGB(0.84 + bv, 0.90, 0.76 - bv);
                     } else {
                         bushBase = this.getBaseColour(42, biome);
                     }
@@ -5646,10 +5749,12 @@ class Dungeon3D {
                         }
                         this.dummy.scale.set(1, 1, 1);
                     } else if (bushCount < this.maxInstances) {
-                        this.dummy.position.set(wx, 0, wz);
+                        const bOffX = (((x * 41 + y * 19) % 7) - 3) * 0.085;
+                        const bOffZ = (((x * 23 + y * 67) % 7) - 3) * 0.085;
+                        this.dummy.position.set(wx + bOffX, 0, wz + bOffZ);
                         const bushYaw = ((x * 43 + y * 71) % 8) * (Math.PI / 4);
                         this.dummy.rotation.set(0, bushYaw, 0);
-                        const bs = 0.95 + ((x * 11 + y * 5) % 5) * 0.08;
+                        const bs = 0.92 + ((x * 11 + y * 5) % 5) * 0.08;
                         this.dummy.scale.set(bs, bs, bs);
                         this.dummy.updateMatrix();
                         this.bushMesh.setMatrixAt(bushCount, this.dummy.matrix);
@@ -5668,6 +5773,13 @@ class Dungeon3D {
                         this.dummy.rotation.set(0, floorRot, 0);
                         this.dummy.updateMatrix();
                         const grassShade = this.computeTileShade(this._scratchGrassColor, this.getBaseColour(26, biome), inView, outdoors, lighting, x, y, isRoom, depth);
+                        const meadowDapple = 0.92 + 0.08 * Math.sin(x * 0.42 + y * 0.27);
+                        grassShade.multiplyScalar(meadowDapple);
+                        const nN = effFeat(x, y - 1), nS = effFeat(x, y + 1), nE = effFeat(x + 1, y), nW = effFeat(x - 1, y);
+                        const hasVerge = (nN === 1 || nS === 1 || nE === 1 || nW === 1 || nN === 27 || nS === 27 || nE === 27 || nW === 27);
+                        if (hasVerge) {
+                            grassShade.setRGB(grassShade.r * 1.07, grassShade.g * 0.91, grassShade.b * 0.82);
+                        }
                         this.grassMesh.setMatrixAt(grassCount, this.dummy.matrix);
                         setCol(this.grassMesh, grassCount, grassShade);
                         grassCount++;
@@ -5741,8 +5853,9 @@ class Dungeon3D {
 
                 // Molten Lava (feat 23, 82, 83)
                 if (feat === 23 || feat === 82 || feat === 83) {
-                    this.dummy.position.set(wx, -0.05, wz);
-                    this.dummy.rotation.set(0, 0, 0);
+                    emitLiquidBedAndShore(true);
+                    this.dummy.position.set(wx, -0.13, wz);
+                    this.dummy.rotation.set(0, floorRot, 0);
                     this.dummy.updateMatrix();
                     if (inView && feat !== 83) {
                         this.lavaMesh.setMatrixAt(lavaCount++, this.dummy.matrix);
@@ -5757,7 +5870,7 @@ class Dungeon3D {
                 if (feat === 5 || feat === 6) {
                     const stairYaw = this.determineStairOrientation(map, x, y, w, h);
                     if (feat === 5) {
-                        if (floorCount < this.maxInstances) {
+                        if (floorCount < floorCap) {
                             this.dummy.position.set(wx, -0.05, wz);
                             this.dummy.rotation.set(0, 0, 0);
                             this.dummy.updateMatrix();
@@ -5835,7 +5948,7 @@ class Dungeon3D {
                         }
                     } else {
                         // Sunken Descending Stairwell (feat === 6): NO floorMesh over y=0 stairwell opening; seal sub-pit landing at y=-1.96m!
-                        if (!outdoors && floorCount < this.maxInstances) {
+                        if (!outdoors && floorCount < floorCap) {
                             this.dummy.position.set(wx, -1.96, wz);
                             this.dummy.rotation.set(0, 0, 0);
                             this.dummy.updateMatrix();
@@ -5950,8 +6063,8 @@ class Dungeon3D {
         updateMesh(this.quartzMesh, quartzCount);
         updateMesh(this.goldVeinMesh, goldVeinCount);
         updateMesh(this.gemVeinMesh, gemVeinCount);
-        updateMesh(this.treeTrunkMesh, treeCount);
-        updateMesh(this.treeLeavesMesh, treeCount);
+        updateMesh(this.treeTrunkMesh, treeTrunkCount);
+        updateMesh(this.treeLeavesMesh, treeLeavesCount);
         updateMesh(this.bushMesh, bushCount);
         updateMesh(this.grassMesh, grassCount);
         updateMesh(this.dirtMesh, dirtCount);
@@ -6014,7 +6127,12 @@ class Dungeon3D {
         this.updateMonsters(frame.monsters || [], frame.player);
         this.updateItems(frame.objects || frame.items || [], frame.player);
         if (typeof window !== 'undefined' && window.Dungeon3DTown && typeof window.Dungeon3DTown.buildTownArchitecture === 'function') {
-            window.Dungeon3DTown.buildTownArchitecture(this, map, w, h, depth, this.realm);
+            window.Dungeon3DTown.buildTownArchitecture(
+                this, map, w, h, depth, this.realm,
+                isSurfaceTown ? anchorX : undefined,
+                isSurfaceTown ? anchorY : undefined,
+                isSurfaceTown ? 55 : undefined
+            );
         }
         this.updateTerrainLabels(map, w, h, depth, px, py);
     }
@@ -6066,6 +6184,7 @@ class Dungeon3D {
                     if (sprite.parent) sprite.parent.remove(sprite);
                     if (sprite._ownedSignTexture) sprite._ownedSignTexture.dispose();
                     if (sprite._ownedSignMaterial) sprite._ownedSignMaterial.dispose();
+                    if (sprite._wayfinderMat) sprite._wayfinderMat.dispose();
                     if (sprite.material) {
                         if (sprite.material.map) sprite.material.map.dispose();
                         sprite.material.dispose();
@@ -6085,7 +6204,6 @@ class Dungeon3D {
 
         const storePositions = new Map();
         const stairsList = [];
-        const pitList = [];
 
         const labelRange = (outdoors && w <= 90) ? 45 : 32;
         const labelCx = outdoors ? px : (this._terrainAnchorX ?? px);
@@ -6143,14 +6261,6 @@ class Dungeon3D {
                 } else if (feat === 44) {
                     if (px === x && py === y) continue;
                     stairsList.push({ gridX: x, gridY: y, x: x * this.cellSize, y: 1.68, z: y * this.cellSize, name: '[{] Magic Fountain', color: '#66ddff' });
-                } else if (feat === 41) {
-                    const playerX = px !== undefined ? px : (this.playerGridX !== undefined ? this.playerGridX : 0);
-                    const playerY = py !== undefined ? py : (this.playerGridY !== undefined ? this.playerGridY : 0);
-                    const pdx = x - playerX;
-                    const pdy = y - playerY;
-                    if (pdx * pdx + pdy * pdy <= 36) { // Within 6 tiles of player
-                        pitList.push({ gridX: x, gridY: y, x: x * this.cellSize, y: 0.45, z: y * this.cellSize, name: 'Bottomless Pit' });
-                    }
                 }
             }
         }
@@ -6219,36 +6329,39 @@ class Dungeon3D {
                 }
 
                 // Guild crest medallion on left
-                const cx = x0 + 52, cy = y0 + h / 2;
+                const cx = x0 + 46, cy = y0 + h / 2;
                 ctx.fillStyle = '#150d08';
                 ctx.beginPath();
-                ctx.arc(cx, cy, 32, 0, Math.PI * 2);
+                ctx.arc(cx, cy, 30, 0, Math.PI * 2);
                 ctx.fill();
                 ctx.strokeStyle = colorHex || '#e5b85c';
                 ctx.lineWidth = 2.5;
                 ctx.stroke();
 
-                ctx.font = '32px "Segoe UI Symbol", "Noto Sans Symbols", serif';
+                ctx.font = '30px "Segoe UI Symbol", "Noto Sans Symbols", serif';
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
                 ctx.fillStyle = colorHex || '#ffd866';
                 ctx.fillText(iconOverride || storeIcons[storeIdx] || '⚜', cx, cy + 2);
 
-                // Main Shop Title
-                ctx.font = '700 28px "Cinzel", "Georgia", serif';
+                // Main Shop Title (bold high-contrast ivory for street-distance legibility)
+                ctx.font = '700 38px "Cinzel", "Georgia", serif';
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
-                ctx.strokeStyle = 'rgba(0, 0, 0, 0.95)';
-                ctx.lineWidth = 5;
-                ctx.strokeText(text, 286, y0 + 40, 350);
-                ctx.fillStyle = '#fff5dc';
-                ctx.fillText(text, 286, y0 + 40, 350);
+                ctx.strokeStyle = 'rgba(0, 0, 0, 0.96)';
+                ctx.lineWidth = 6;
+                ctx.strokeText(text, 290, y0 + 42, 392);
+                ctx.fillStyle = '#fff9e6';
+                ctx.fillText(text, 290, y0 + 42, 392);
 
                 // Guild Subtitle
                 const sub = subOverride || storeSubtitles[storeIdx] || 'MERCHANT GUILD';
-                ctx.font = '600 15px "Cinzel", "Georgia", serif';
-                ctx.fillStyle = colorHex || '#e5b85c';
-                ctx.fillText(sub, 286, y0 + 78, 350);
+                ctx.font = '600 16px "Cinzel", "Georgia", serif';
+                ctx.strokeStyle = 'rgba(0, 0, 0, 0.85)';
+                ctx.lineWidth = 3;
+                ctx.strokeText(sub, 290, y0 + 82, 392);
+                ctx.fillStyle = colorHex || '#ffd873';
+                ctx.fillText(sub, 290, y0 + 82, 392);
                 ctx.restore();
             } else {
                 // High-legibility Dungeon Landmark Pill (512x128 @ 40px bold, 3px outline)
@@ -6280,17 +6393,17 @@ class Dungeon3D {
                 signGroup.maxDist = 64.0;
 
                 if (!this._storeSignSharedGeos) {
-                    const fasciaBackGeo = new THREE.BoxGeometry(1.94, 0.50, 0.024);
+                    const fasciaBackGeo = new THREE.BoxGeometry(2.36, 0.62, 0.030);
                     fasciaBackGeo._sharedGeometry = true;
-                    const fasciaTrimGeo = new THREE.BoxGeometry(1.98, 0.54, 0.030);
+                    const fasciaTrimGeo = new THREE.BoxGeometry(2.42, 0.68, 0.036);
                     fasciaTrimGeo._sharedGeometry = true;
-                    const fasciaFaceGeo = new THREE.PlaneGeometry(1.90, 0.46);
+                    const fasciaFaceGeo = new THREE.PlaneGeometry(2.30, 0.58);
                     fasciaFaceGeo._sharedGeometry = true;
-                    const bracketArmGeo = new THREE.BoxGeometry(0.05, 0.05, 0.56);
+                    const bracketArmGeo = new THREE.BoxGeometry(0.05, 0.05, 1.18);
                     bracketArmGeo._sharedGeometry = true;
-                    const bracketBoardGeo = new THREE.BoxGeometry(0.04, 0.24, 0.52);
+                    const bracketBoardGeo = new THREE.BoxGeometry(0.04, 0.44, 1.08);
                     bracketBoardGeo._sharedGeometry = true;
-                    const bracketFaceGeo = new THREE.PlaneGeometry(0.50, 0.22);
+                    const bracketFaceGeo = new THREE.PlaneGeometry(1.04, 0.40);
                     bracketFaceGeo._sharedGeometry = true;
                     const woodMat = new THREE.MeshStandardMaterial({ color: 0x26170c, roughness: 0.82, metalness: 0.12 });
                     woodMat._sharedMaterial = true;
@@ -6309,8 +6422,13 @@ class Dungeon3D {
                     bracketArmGeo, bracketBoardGeo, bracketFaceGeo,
                     woodMat, brassMat, ironMat
                 } = this._storeSignSharedGeos;
-                const signFaceMat = new THREE.MeshBasicMaterial({
+                const signFaceMat = new THREE.MeshStandardMaterial({
                     map: tex,
+                    color: 0xfff8eb,
+                    emissive: 0xffdf9e,
+                    emissiveMap: tex,
+                    emissiveIntensity: 0.88,
+                    roughness: 0.52,
                     transparent: true,
                     depthTest: true,
                     depthWrite: true
@@ -6318,27 +6436,46 @@ class Dungeon3D {
                 signGroup._ownedSignMaterial = signFaceMat;
                 signGroup._ownedSignTexture = tex;
 
-                // 1. Flush Unobstructed Front Lintel Guild Plaque
+                // 1. Illuminated Front Lintel Guild Plaque (mounted above awning, tilted for street legibility)
+                const fasciaMount = new THREE.Group();
+                fasciaMount.position.set(0, 2.98, 1.08);
+                fasciaMount.rotation.x = 0.06;
                 const fasciaTrim = new THREE.Mesh(fasciaTrimGeo, brassMat);
-                fasciaTrim.position.set(0, 2.74, 1.013);
                 const fasciaBack = new THREE.Mesh(fasciaBackGeo, woodMat);
-                fasciaBack.position.set(0, 2.74, 1.022);
+                fasciaBack.position.set(0, 0, 0.008);
                 const fasciaFace = new THREE.Mesh(fasciaFaceGeo, signFaceMat);
-                fasciaFace.position.set(0, 2.74, 1.038);
+                fasciaFace.position.set(0, 0, 0.026);
+                fasciaMount.add(fasciaTrim, fasciaBack, fasciaFace);
 
-                // 2. Wrought-Iron Projecting Tavern Bracket Sign (street-readable from side approaches)
+                // 2. Wrought-Iron Projecting Tavern Bracket Sign (readable approaching down streets)
                 const bracketArm = new THREE.Mesh(bracketArmGeo, ironMat);
-                bracketArm.position.set(-1.02, 2.66, 1.24);
+                bracketArm.position.set(-1.00, 2.86, 1.48);
                 const bracketBoard = new THREE.Mesh(bracketBoardGeo, woodMat);
-                bracketBoard.position.set(-1.02, 2.48, 1.28);
+                bracketBoard.position.set(-1.00, 2.58, 1.50);
                 const bracketFaceL = new THREE.Mesh(bracketFaceGeo, signFaceMat);
                 bracketFaceL.rotation.y = -Math.PI * 0.5;
-                bracketFaceL.position.set(-1.045, 2.48, 1.28);
+                bracketFaceL.position.set(-1.025, 2.58, 1.50);
                 const bracketFaceR = new THREE.Mesh(bracketFaceGeo, signFaceMat);
                 bracketFaceR.rotation.y = Math.PI * 0.5;
-                bracketFaceR.position.set(-0.995, 2.48, 1.28);
+                bracketFaceR.position.set(-0.975, 2.58, 1.50);
 
-                signGroup.add(fasciaTrim, fasciaBack, fasciaFace, bracketArm, bracketBoard, bracketFaceL, bracketFaceR);
+                // 3. Overhead Distance-Fading Street Wayfinder Badge (fades in smoothly >= 6m)
+                const wfMat = new THREE.SpriteMaterial({
+                    map: tex,
+                    color: 0xfff6e5,
+                    transparent: true,
+                    depthTest: true,
+                    depthWrite: false,
+                    opacity: 0.0
+                });
+                const wfSprite = new THREE.Sprite(wfMat);
+                wfSprite.position.set(0, 4.15, 0.65);
+                wfSprite.scale.set(3.1, 0.78, 1.0);
+                wfSprite.visible = false;
+                signGroup._wayfinderSprite = wfSprite;
+                signGroup._wayfinderMat = wfMat;
+
+                signGroup.add(fasciaMount, bracketArm, bracketBoard, bracketFaceL, bracketFaceR, wfSprite);
                 return signGroup;
             }
             // depthTest = true so buildings, walls, and pillars properly occlude labels
@@ -6493,24 +6630,13 @@ class Dungeon3D {
             }
         }
 
-        // Bottomless Pit Labels (within 6 tiles of player)
-        for (const p of pitList) {
-            const key = `${p.gridX},${p.gridY},${p.name}`;
-            activeLabelKeys.add(key);
-
-            if (!this._terrainLabelSprites.has(key)) {
-                const sprite = createCaption(p.name, { x: p.x, y: p.y, z: p.z }, '#8899aa', false);
-                this.terrainLabelsGroup.add(sprite);
-                this._terrainLabelSprites.set(key, sprite);
-            }
-        }
-
         // Dispose and remove sprites that are no longer active in window
         for (const [key, sprite] of this._terrainLabelSprites.entries()) {
             if (!activeLabelKeys.has(key)) {
                 this.terrainLabelsGroup.remove(sprite);
                 if (sprite._ownedSignTexture) sprite._ownedSignTexture.dispose();
                 if (sprite._ownedSignMaterial) sprite._ownedSignMaterial.dispose();
+                if (sprite._wayfinderMat) sprite._wayfinderMat.dispose();
                 if (sprite.material) {
                     if (sprite.material.map) sprite.material.map.dispose();
                     sprite.material.dispose();
@@ -8608,41 +8734,8 @@ class Dungeon3D {
             });
         } else if (templateKey === 'bestiary_dragon') {
             loadPromise = this._loadSingleGltfScene('/assets/models/monsters/bestiary/Dragon.glb').then(scene => {
-                const toRemove = [];
-                scene.traverse(c => {
-                    if (c.name && (c.name.includes('Backdrop') || c.name.includes('Cloth'))) {
-                        toRemove.push(c);
-                    }
-                });
-                for (const c of toRemove) {
-                    if (c.parent) c.parent.remove(c);
-                }
-                scene.traverse(c => {
-                    if (c.isMesh || c.isSkinnedMesh) {
-                        const hasVColor = Boolean(c.geometry && c.geometry.attributes && c.geometry.attributes.color);
-                        if (c.material) {
-                            const mats = Array.isArray(c.material) ? c.material : [c.material];
-                            for (const m of mats) {
-                                if (hasVColor) m.vertexColors = true;
-                                m.transmission = 0;
-                                m.transparent = false;
-                                m.opacity = 1.0;
-                                m.depthWrite = true;
-                                m.roughness = 0.46;
-                                m.metalness = 0.18;
-                                if (m.color && m.color.r > 0.9 && m.color.g > 0.9 && m.color.b > 0.9) {
-                                    m.color.setHex(0x8b261d);
-                                }
-                                m.skinning = Boolean(c.isSkinnedMesh);
-                                m._sharedMaterial = true;
-                            }
-                        }
-                        if (c.geometry) c.geometry._sharedGeometry = true;
-                        c.castShadow = false;
-                        c.receiveShadow = false;
-                    }
-                });
-                return normalizeWrapper(scene, 1.95, true, Math.PI, 2.20);
+                this._enhanceBestiaryMeshQuality(scene, { smoothNormals: true, applyCreatureBump: true, bumpType: 'scales', bumpScale: 0.42, roughness: 0.44 });
+                return normalizeWrapper(scene, 1.95, true, -Math.PI / 2, 2.20);
             });
         } else if (templateKey === 'bestiary_fox') {
             loadPromise = this._loadSingleGltfScene('/assets/models/monsters/bestiary/Fox.glb').then(scene => {
@@ -8662,7 +8755,7 @@ class Dungeon3D {
                         c.receiveShadow = false;
                     }
                 });
-                return normalizeWrapper(scene, 0.62, true, -Math.PI / 2, 1.15);
+                return normalizeWrapper(scene, 0.62, true, 0, 1.15);
             });
         } else if (templateKey === 'bestiary_horse') {
             loadPromise = loadGltf('/assets/models/monsters/bestiary/horse_mount.glb', '/assets/models/monsters/bestiary/wolf.glb').then(scene => {
@@ -8863,7 +8956,7 @@ class Dungeon3D {
         } else if (templateKey === 'bestiary_werewolf') {
             loadPromise = loadGltf('/assets/models/monsters/bestiary/werewolf.glb', () => this._ensureMonster3DTemplate('bestiary_wolf')).then(scene => {
                 this._enhanceBestiaryMeshQuality(scene, { smoothNormals: true, applyCreatureBump: true, bumpType: 'fur', bumpScale: 0.38, roughness: 0.54 });
-                return normalizeWrapper(scene, 1.75, true, -Math.PI / 2, 1.55);
+                return normalizeWrapper(scene, 1.75, true, 0, 1.55);
             });
         } else if (templateKey === 'bestiary_hellhound') {
             loadPromise = loadGltf('/assets/models/monsters/bestiary/hellhound.glb', () => this._ensureMonster3DTemplate('bestiary_wolf')).then(scene => {
@@ -8891,7 +8984,7 @@ class Dungeon3D {
             });
         } else if (templateKey === 'bestiary_lion') {
             loadPromise = loadGltf('/assets/models/monsters/bestiary/MountainLion.glb', () => this._ensureMonster3DTemplate('bestiary_fox')).then(scene => {
-                this._enhanceBestiaryMeshQuality(scene, { smoothNormals: true, applyCreatureBump: true, bumpType: 'fur' });
+                this._enhanceBestiaryMeshQuality(scene, { smoothNormals: true, applyCreatureBump: true, bumpType: 'fur', bumpScale: 0.34, roughness: 0.56 });
                 return normalizeWrapper(scene, 0.95, true, -Math.PI / 2, 1.45);
             });
         } else if (templateKey === 'bestiary_owl') {
@@ -8953,7 +9046,7 @@ class Dungeon3D {
         } else if (templateKey === 'obj_frog' || templateKey === 'bestiary_frog') {
             loadPromise = loadGltf('/assets/models/monsters/bestiary/frog.glb').then(scene => {
                 this._enhanceBestiaryMeshQuality(scene, { smoothNormals: true, applyCreatureBump: true, bumpType: 'organic', roughness: 0.38 });
-                return normalizeWrapper(scene, 0.48, true, -Math.PI / 2, 0.95);
+                return normalizeWrapper(scene, 0.48, true, 0, 0.95);
             });
         } else if (templateKey === 'bestiary_eye') {
             loadPromise = loadGltf('/assets/models/monsters/bestiary/floating_eye.glb', () => loadGltf('/assets/models/monsters/bestiary/Skull.glb', () => this._ensureMonster3DTemplate('bestiary_wraith'))).then(scene => {
@@ -9147,11 +9240,13 @@ class Dungeon3D {
             });
         } else if (templateKey === 'bestiary_hydra') {
             loadPromise = loadGltf('/assets/models/monsters/bestiary/hydra.glb', () => this._ensureMonster3DTemplate('bestiary_dragon')).then(scene => {
-                return normalizeWrapper(scene, 1.45, true, 0, 1.55);
+                this._enhanceBestiaryMeshQuality(scene, { smoothNormals: true, applyCreatureBump: true, bumpType: 'scales', bumpScale: 0.38, roughness: 0.46 });
+                return normalizeWrapper(scene, 1.45, true, -Math.PI / 2, 1.55);
             });
         } else if (templateKey === 'bestiary_naga') {
             loadPromise = loadGltf('/assets/models/monsters/bestiary/naga.glb', () => this._ensureMonster3DTemplate('obj_snake')).then(scene => {
-                return normalizeWrapper(scene, 1.25, true, 0, 1.25);
+                this._enhanceBestiaryMeshQuality(scene, { smoothNormals: true, applyCreatureBump: true, bumpType: 'scales', bumpScale: 0.36, roughness: 0.46 });
+                return normalizeWrapper(scene, 1.28, true, -Math.PI / 2, 1.35);
             });
         } else if (templateKey === 'bestiary_bat') {
             loadPromise = loadGltf('/assets/models/monsters/bestiary/bat.glb', () => loadGltf('/assets/models/monsters/bestiary/Owl.glb', () => this._ensureMonster3DTemplate('bestiary_owl'))).then(scene => {
@@ -9159,7 +9254,8 @@ class Dungeon3D {
             });
         } else if (templateKey === 'bestiary_bear') {
             loadPromise = loadGltf('/assets/models/monsters/bestiary/bear.glb', () => loadGltf('/assets/models/monsters/bestiary/wolf.glb', () => this._ensureMonster3DTemplate('bestiary_wolf'))).then(scene => {
-                return normalizeWrapper(scene, 1.05, true, -Math.PI / 2, 1.45);
+                this._enhanceBestiaryMeshQuality(scene, { smoothNormals: true, applyCreatureBump: true, bumpType: 'fur', bumpScale: 0.38, roughness: 0.58 });
+                return normalizeWrapper(scene, 1.08, true, -Math.PI / 2, 1.48);
             });
         } else if (templateKey === 'bestiary_bear_armored') {
             loadPromise = loadGltf('/assets/models/monsters/bestiary/bear_armored.glb', () => this._ensureMonster3DTemplate('bestiary_bear')).then(scene => {
@@ -9167,7 +9263,7 @@ class Dungeon3D {
             });
         } else if (templateKey === 'bestiary_lizard') {
             loadPromise = loadGltf('/assets/models/monsters/bestiary/lizard.glb', () => this._ensureMonster3DTemplate('obj_frog')).then(scene => {
-                return normalizeWrapper(scene, 0.54, true, Math.PI / 2, 1.35);
+                return normalizeWrapper(scene, 0.54, true, 0, 1.35);
             });
         } else if (templateKey === 'bestiary_kraken') {
             loadPromise = loadGltf('/assets/models/monsters/bestiary/kraken.glb', () => this._ensureMonster3DTemplate('bestiary_aquatic')).then(scene => {
@@ -9205,19 +9301,20 @@ class Dungeon3D {
                 seed
             };
         }
-        if (/\bfox|kitsune|vixen\b/.test(lowerName)) {
+        if (/\b(fox|kitsune|vixen|jackal|coyote|dingo)\b/.test(lowerName)) {
             const foxCoats = ['#d97706', '#ea580c', '#e2e8f0', '#b45309'];
+            const useFoxCoat = /\b(fox|kitsune|vixen)\b/.test(lowerName);
             return {
                 templateKey: 'bestiary_fox',
                 scale: /kitsune|nine-tailed/.test(lowerName) ? 1.24 : 0.92,
-                tintHex: colorHex || foxCoats[seed % foxCoats.length],
+                tintHex: useFoxCoat ? (colorHex || foxCoats[seed % foxCoats.length]) : null,
                 seed
             };
         }
-        if (/\b(little dog|small dog|scruffy|pup|puppy|jackal|coyote|wild dog|fang|grip|shiba|terrier|dingo)\b/.test(lowerName)) {
+        if (/\b(little dog|small dog|scruffy|pup|puppy|shiba|terrier)\b/.test(lowerName)) {
             const shibaCoats = ['#f59e0b', '#fef3c7', '#78350f', '#9ca3af'];
             return {
-                templateKey: (/\b(coyote|dingo)\b/.test(lowerName) && seed % 2 === 1) ? 'bestiary_fox' : 'bestiary_shiba',
+                templateKey: 'bestiary_shiba',
                 scale: /pup|little|small|scruffy/.test(lowerName) ? 0.78 : 0.94,
                 tintHex: colorHex || shibaCoats[seed % shibaCoats.length],
                 seed
@@ -9230,19 +9327,20 @@ class Dungeon3D {
         else if (/\b(acid|venom|poison|water|nexus)\b/.test(lowerName)) emissiveHex = '#a3e635';
         else if (/\b(aether|chaos|ether|time|gravity|inertia|mana|nether|tindalos|spirit)\b/.test(lowerName)) emissiveHex = '#c084fc';
 
+        const isElementalCanine = /\b(fire|hell|cold|frost|ice|energy|lightning|acid|venom|aether|chaos|ether|time|gravity|inertia|mana|nether|plasma|multi-hued)\b/.test(lowerName);
         const isHellHoundBreed = /\b(hell hound|hellhound|cerberus|fire hound|plasma hound|lava hound)\b/.test(lowerName);
         const isHuskyBreed = /\b(husky|winter wolf|frost|cold|ice|blink dog|silver|white wolf|zephyr|hound)\b/.test(lowerName) && !/\b(warg|dire|carcharoth|draugluin|werewolf|hell|fire|plasma)\b/.test(lowerName);
         const templateKey = isHellHoundBreed
             ? 'bestiary_hellhound'
             : (isHuskyBreed
                 ? ((/\bhound\b/.test(lowerName) && seed % 2 === 1) ? 'bestiary_wolf' : 'bestiary_husky')
-                : ((seed % 4 === 3 && !/\b(warg|dire|carcharoth|draugluin)\b/.test(lowerName)) ? 'bestiary_husky' : 'bestiary_wolf'));
+                : ((seed % 4 === 3 && !/\b(warg|dire|carcharoth|draugluin|wild dog|fang|grip)\b/.test(lowerName)) ? 'bestiary_husky' : 'bestiary_wolf'));
         const isBossCanine = /\b(carcharoth|gorthaur|draugluin|cerberus|fenrir|huan)\b/.test(lowerName);
         const isLargeCanine = isBossCanine || /\b(warg|dire|hell hound|alpha|pack leader|emperor)\b/.test(lowerName);
         return {
             templateKey,
             scale: isBossCanine ? 1.46 : (isLargeCanine ? 1.22 : 1.0),
-            tintHex: colorHex,
+            tintHex: isElementalCanine ? colorHex : null,
             emissiveHex,
             isBoss: isBossCanine,
             seed
@@ -9274,13 +9372,14 @@ class Dungeon3D {
             if (/\b(lycanthrope|wolfman)\b/.test(ln)) {
                 return { templateKey: 'bestiary_werewolf', scale: /alpha|lord|king/.test(ln) ? 1.32 : 1.08, tintHex: cHex, seed: s };
             }
-            if (/\bfox|kitsune|vixen\b/.test(ln)) {
+            if (/\b(fox|kitsune|vixen|jackal|coyote|dingo)\b/.test(ln)) {
                 const foxCoats = ['#d97706', '#ea580c', '#e2e8f0', '#b45309'];
-                return { templateKey: 'bestiary_fox', scale: /kitsune|nine-tailed/.test(ln) ? 1.24 : 0.92, tintHex: cHex || foxCoats[s % foxCoats.length], seed: s };
+                const useFoxCoat = /\b(fox|kitsune|vixen)\b/.test(ln);
+                return { templateKey: 'bestiary_fox', scale: /kitsune|nine-tailed/.test(ln) ? 1.24 : 0.92, tintHex: useFoxCoat ? (cHex || foxCoats[s % foxCoats.length]) : null, seed: s };
             }
-            if (/\b(little dog|small dog|scruffy|pup|puppy|jackal|coyote|wild dog|fang|grip|shiba|terrier|dingo)\b/.test(ln)) {
+            if (/\b(little dog|small dog|scruffy|pup|puppy|shiba|terrier)\b/.test(ln)) {
                 const shibaCoats = ['#f59e0b', '#fef3c7', '#78350f', '#9ca3af'];
-                return { templateKey: (/\b(coyote|dingo)\b/.test(ln) && s % 2 === 1) ? 'bestiary_fox' : 'bestiary_shiba', scale: /pup|little|small|scruffy/.test(ln) ? 0.78 : 0.94, tintHex: cHex || shibaCoats[s % shibaCoats.length], seed: s };
+                return { templateKey: 'bestiary_shiba', scale: /pup|little|small|scruffy/.test(ln) ? 0.78 : 0.94, tintHex: cHex || shibaCoats[s % shibaCoats.length], seed: s };
             }
             let emissiveHex = null;
             if (/\b(fire|hell|plasma|lava|inferno|carcharoth|cerberus)\b/.test(ln)) emissiveHex = '#ff4500';
@@ -9288,14 +9387,15 @@ class Dungeon3D {
             else if (/\b(energy|lightning|thunder|spark|storm)\b/.test(ln)) emissiveHex = '#fde047';
             else if (/\b(acid|venom|poison|water|nexus)\b/.test(ln)) emissiveHex = '#a3e635';
             else if (/\b(aether|chaos|ether|time|gravity|inertia|mana|nether|tindalos|spirit)\b/.test(ln)) emissiveHex = '#c084fc';
+            const isElementalCanine = /\b(fire|hell|cold|frost|ice|energy|lightning|acid|venom|aether|chaos|ether|time|gravity|inertia|mana|nether|plasma|multi-hued)\b/.test(ln);
             const isHellHoundBreed = /\b(hell hound|hellhound|cerberus|fire hound|plasma hound|lava hound)\b/.test(ln);
-            const isHuskyBreed = /\b(husky|winter wolf|blink dog|silver|zephyr|frost hound|cold hound|ice hound|water hound|air hound)\b/.test(ln) && !/\b(warg|dire|carcharoth|draugluin|werewolf|white wolf|timber wolf|hell|fire|plasma)\b/.test(ln);
+            const isHuskyBreed = /\b(husky|winter wolf|blink dog|silver|zephyr|frost hound|cold hound|ice hound|water hound|air hound)\b/.test(ln) && !/\b(warg|dire|carcharoth|draugluin|werewolf|white wolf|timber wolf|hell|fire|plasma|wild dog|fang|grip)\b/.test(ln);
             const templateKey = isHellHoundBreed
                 ? 'bestiary_hellhound'
                 : (isHuskyBreed ? 'bestiary_husky' : ((/\bhound\b/.test(ln) && s % 2 === 1 && !/\b(hell|carcharoth)\b/.test(ln)) ? 'bestiary_husky' : 'bestiary_wolf'));
             const isBossCanine = /\b(carcharoth|gorthaur|draugluin|cerberus|fenrir|huan)\b/.test(ln);
             const isLargeCanine = isBossCanine || /\b(warg|dire|hell hound|alpha|pack leader|emperor)\b/.test(ln);
-            return { templateKey, scale: isBossCanine ? 1.46 : (isLargeCanine ? 1.22 : 1.0), tintHex: cHex || (/white wolf/.test(ln) ? '#f8fafc' : null), emissiveHex, isBoss: isBossCanine, seed: s };
+            return { templateKey, scale: isBossCanine ? 1.46 : (isLargeCanine ? 1.22 : 1.0), tintHex: isElementalCanine ? cHex : (/white wolf/.test(ln) ? '#f8fafc' : null), emissiveHex, isBoss: isBossCanine, seed: s };
         };
 
         // --- Multi-Realm Lore Accuracy Branches (Evaluated BEFORE Generic Glyph Fallbacks) ---
@@ -10792,8 +10892,13 @@ class Dungeon3D {
                     if (pooledMat.color && tintCol) {
                         const customTintStr = Number.isFinite(cfg.tintStrength) ? cfg.tintStrength : (isWormMass ? 0.88 : null);
                         if (hasTexMap) {
-                            const baseLum = Math.min(1.0, Math.max(0.68, pooledMat.color.r * 0.299 + pooledMat.color.g * 0.587 + pooledMat.color.b * 0.114));
-                            pooledMat.color.setRGB(baseLum, baseLum, baseLum).lerp(tintCol, customTintStr !== null ? customTintStr : 0.72);
+                            const rawLum = pooledMat.color.r * 0.299 + pooledMat.color.g * 0.587 + pooledMat.color.b * 0.114;
+                            if (rawLum > 0.14) {
+                                const minLum = cfg.templateKey === 'bestiary_wolf' ? 0.42 : 0.68;
+                                const baseLum = Math.min(1.0, Math.max(minLum, rawLum));
+                                const defaultStr = cfg.templateKey === 'bestiary_dragon' ? 0.80 : (cfg.templateKey === 'bestiary_wolf' ? 0.46 : 0.72);
+                                pooledMat.color.setRGB(baseLum, baseLum, baseLum).lerp(tintCol, customTintStr !== null ? customTintStr : defaultStr);
+                            }
                         } else if (cfg.isOrcish) {
                             const isSkin = meshName.includes('sphere.005') || meshName.includes('retopology') || meshName.includes('superhero');
                             pooledMat.color.lerp(isSkin ? tintCol : armorDarkCol, isSkin ? 0.68 : 0.58);
@@ -11219,11 +11324,9 @@ class Dungeon3D {
                 entity.lastStunned = !!m.stunned;
                 entity.lastFast = !!m.fast;
                 entity.isAsleep = !!m.asleep;
+                entity._bobPhase = ((m.x * 73 + m.y * 37) % 628) * 0.01;
                 entity._perceptVis = outdoors ? 1.0 : 0.05;
-                if (!outdoors) {
-                    entity.scale.setScalar(0.86);
-                    if (this.renderGovernor) this.renderGovernor.wake(220);
-                }
+                if (!outdoors && this.renderGovernor) this.renderGovernor.wake(220);
                 entity.monsterData = m;
                 if (entity.creatureMesh) entity.creatureMesh.monsterData = m;
                 if (entity.nameplate) entity.nameplate.monsterData = m;
@@ -12396,13 +12499,16 @@ class Dungeon3D {
                 this.renderGovernor.wake(1500, tNow);
             }
             if (!this.renderGovernor.shouldRenderFrame(tNow)) {
+                this._fpsGovFrames = 0;
+                this._fpsGovStart = 0;
                 return;
             }
         }
 
         const rawDelta = this._lastAnimTime ? (tNow - this._lastAnimTime) * 0.001 : 0.016;
         this._lastAnimTime = tNow;
-        if (rawDelta > 0.10) {
+        const _govIdleNow = Boolean(this.renderGovernor && tNow > (this.renderGovernor.activeUntilMs || 0));
+        if (rawDelta > 0.10 || _govIdleNow) {
             this._fpsGovFrames = 0;
             this._fpsGovStart = 0;
         }
@@ -12887,6 +12993,14 @@ class Dungeon3D {
                 const maxDist = sprite.maxDist || 45.0;
                 const dSq = this.camera.position.distanceToSquared(sprite.position);
                 sprite.visible = (dSq <= maxDist * maxDist);
+                if (sprite._wayfinderSprite && sprite._wayfinderMat) {
+                    const dist = Math.sqrt(dSq);
+                    const showWf = sprite.visible && dist >= 6.0;
+                    sprite._wayfinderSprite.visible = showWf;
+                    if (showWf) {
+                        sprite._wayfinderMat.opacity = Math.min(0.92, (dist - 6.0) / 5.0);
+                    }
+                }
             }
         }
         if (this.storefrontPropsGroup && this.storefrontPropsGroup.visible && this.storefrontPropsGroup.children) {
@@ -13044,8 +13158,6 @@ class Dungeon3D {
             }
             if (entity._perceptVis !== undefined && entity._perceptVis < 1.0) {
                 entity._perceptVis = Math.min(1.0, entity._perceptVis + delta / 0.14);
-                const ps = 0.86 + 0.14 * entity._perceptVis;
-                entity.scale.set(ps, ps, ps);
                 if (this.renderGovernor && entity._perceptVis < 1.0) this.renderGovernor.wake(180, tNow);
             }
 
@@ -13085,7 +13197,10 @@ class Dungeon3D {
                     const dx = entity.targetPos.x - entity.position.x;
                     const dz = entity.targetPos.z - entity.position.z;
                     if (dx * dx + dz * dz > 0.001) {
-                        entity.rotation.y = Math.atan2(dx, dz);
+                        const targetYaw = Math.atan2(dx, dz);
+                        const diff = targetYaw - entity.rotation.y;
+                        const wrapped = Math.atan2(Math.sin(diff), Math.cos(diff));
+                        entity.rotation.y += wrapped * Math.min(1.0, delta * 14.0);
                     }
                 } else {
                     // Idle: Smoothly turn to face the player's camera (matching Godot client MonsterModelResolver.cs)
@@ -13101,9 +13216,9 @@ class Dungeon3D {
                     }
                 }
             }
-            // Vertical hover/float
+            // Vertical hover for floating creatures only (grounded beasts stay firmly planted to avoid movement Y-jitter)
             const baseY = entity.isFloating ? 0.45 : 0.0;
-            entity.position.y = baseY + Math.sin(monTime + entity.position.x * 2.0) * (entity.isFloating ? 0.08 : 0.02);
+            entity.position.y = entity.isFloating ? (baseY + Math.sin(monTime + (entity._bobPhase || 0)) * 0.07) : baseY;
 
             // Apply Attack Lunge & Hit Flinch as clean local offsets on creatureMesh (never drifting entity.position off its tile)
             let localOffsetX = 0;
@@ -13435,7 +13550,7 @@ class Dungeon3D {
         if (this.lavaMaterial && (!window.GRAPHICS_CONFIG || window.GRAPHICS_CONFIG.surfaceBreathing)) {
             // # ROOT-CAUSE: Animate consecrated altar sacred flames and sparkling fountain water emissive shimmer at 60 FPS with zero extra lights or allocations.
             const time = tNow * 0.001;
-            this.lavaMaterial.emissiveIntensity = 2.15 + Math.sin(time * 2.8) * 0.45 + Math.cos(time * 6.3) * 0.20;
+            this.lavaMaterial.emissiveIntensity = 0.95 + Math.sin(time * 2.2) * 0.20 + Math.cos(time * 4.7) * 0.08;
             if (this.altarFlameMaterial) {
                 this.altarFlameMaterial.emissiveIntensity = 2.15 + Math.sin(time * 5.2) * 0.35 + Math.cos(time * 11.7) * 0.18;
             }
@@ -13470,8 +13585,8 @@ class Dungeon3D {
                         u.uNebulaColorB.value.setHex(0x8833cc);
                         u.uAuroraColor.value.setHex(0x00f0bb);
                     } else if (curRealm === 'hengband') {
-                        u.uHorizonColor.value.setHex(0x28161c);
-                        u.uZenithColor.value.setHex(0x0a0408);
+                        u.uHorizonColor.value.setHex(0x19182c);
+                        u.uZenithColor.value.setHex(0x070612);
                         u.uNebulaColorA.value.setHex(0xffaa33);
                         u.uNebulaColorB.value.setHex(0xcc3344);
                         u.uAuroraColor.value.setHex(0x2de288);
@@ -13501,30 +13616,38 @@ class Dungeon3D {
 
         if (!this._contextLost) {
             const nowGov = performance.now();
-            this._fpsGovFrames = (this._fpsGovFrames || 0) + 1;
-            if (!this._fpsGovStart) this._fpsGovStart = nowGov;
-            else if (this._fpsGovFrames >= 30) {
-                const avgMs = (nowGov - this._fpsGovStart) / this._fpsGovFrames;
+            const govIsActive = !this.renderGovernor || (nowGov <= (this.renderGovernor.activeUntilMs || 0));
+            if (!govIsActive) {
                 this._fpsGovFrames = 0;
-                this._fpsGovStart = nowGov;
-                const isPhoneGov = this.renderBudget && this.renderBudget.tier === 'phone';
-                const budgetCap = (this.renderBudget && this.renderBudget.dprCap)
-                    ? this.renderBudget.dprCap
-                    : (isPhoneGov ? 1.25 : 1.5);
-                const maxDpr = Math.min((typeof window !== 'undefined' && window.devicePixelRatio) || 1, budgetCap);
-                const minDprFloor = Math.min(maxDpr, 0.75);
-                let targetDpr = this._adaptiveDpr || maxDpr;
-                if (this.renderGovernor && typeof this.renderGovernor.recordFrameTime === 'function') {
-                    this.renderGovernor.recordFrameTime(avgMs);
-                    targetDpr = Math.max(minDprFloor, this.renderGovernor.getEffectivePixelRatio(budgetCap, (typeof window !== 'undefined' && window.devicePixelRatio) || 1));
-                } else if (avgMs > 22.5 && targetDpr > minDprFloor) {
-                    targetDpr = Math.max(minDprFloor, +(targetDpr - 0.1).toFixed(2));
-                } else if (avgMs < 15.0 && targetDpr < maxDpr) {
-                    targetDpr = Math.min(maxDpr, +(targetDpr + 0.1).toFixed(2));
-                }
-                if (Math.abs((this._adaptiveDpr || maxDpr) - targetDpr) >= 0.05) {
-                    this._adaptiveDpr = targetDpr;
-                    this.renderer.setPixelRatio(this._adaptiveDpr);
+                this._fpsGovStart = 0;
+            } else {
+                this._fpsGovFrames = (this._fpsGovFrames || 0) + 1;
+                if (!this._fpsGovStart) this._fpsGovStart = nowGov;
+                else if (this._fpsGovFrames >= 30) {
+                    const avgMs = (nowGov - this._fpsGovStart) / this._fpsGovFrames;
+                    this._fpsGovFrames = 0;
+                    this._fpsGovStart = nowGov;
+                    const isPhoneGov = this.renderBudget && this.renderBudget.tier === 'phone';
+                    const budgetCap = (this.renderBudget && this.renderBudget.dprCap)
+                        ? this.renderBudget.dprCap
+                        : (isPhoneGov ? 1.25 : 1.5);
+                    const maxDpr = Math.min((typeof window !== 'undefined' && window.devicePixelRatio) || 1, budgetCap);
+                    const minDprFloor = isPhoneGov
+                        ? Math.min(maxDpr, 0.75)
+                        : Math.min(maxDpr, Math.max(1.0, +(maxDpr * 0.85).toFixed(2)));
+                    let targetDpr = this._adaptiveDpr || maxDpr;
+                    if (this.renderGovernor && typeof this.renderGovernor.recordFrameTime === 'function') {
+                        this.renderGovernor.recordFrameTime(avgMs);
+                        targetDpr = Math.max(minDprFloor, this.renderGovernor.getEffectivePixelRatio(budgetCap, (typeof window !== 'undefined' && window.devicePixelRatio) || 1));
+                    } else if (avgMs > 22.5 && targetDpr > minDprFloor) {
+                        targetDpr = Math.max(minDprFloor, +(targetDpr - 0.1).toFixed(2));
+                    } else if (avgMs < 15.0 && targetDpr < maxDpr) {
+                        targetDpr = Math.min(maxDpr, +(targetDpr + 0.1).toFixed(2));
+                    }
+                    if (Math.abs((this._adaptiveDpr || maxDpr) - targetDpr) >= 0.05) {
+                        this._adaptiveDpr = targetDpr;
+                        this.renderer.setPixelRatio(this._adaptiveDpr);
+                    }
                 }
             }
             if (this.lastFrame) {

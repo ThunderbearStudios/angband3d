@@ -198,7 +198,8 @@
             { regex: /天狗|\btengu\b/i, config: { templateKey: 'bestiary_owl', scale: 1.20, isFloating: true, taxonomy: 'Avian / Tengu' } },
             { regex: /河童|\bkappa\b/i, config: { templateKey: 'obj_frog', scale: 1.05, taxonomy: 'Amphibian / Kappa' } },
             { regex: /九尾|\b(kitsune|nine-tailed)\b/i, config: { templateKey: 'bestiary_fox', scale: 1.22, taxonomy: 'Canine / Kitsune' } },
-            { regex: /野良犬|子犬|番犬/, config: { templateKey: 'bestiary_shiba', scale: 0.78, taxonomy: 'Canine / Dog' } },
+            { regex: /子犬/, config: { templateKey: 'bestiary_shiba', scale: 0.78, taxonomy: 'Canine / Companion' } },
+            { regex: /野良犬|番犬/, config: { templateKey: 'bestiary_husky', scale: 0.82, taxonomy: 'Canine / Dog' } },
             { regex: /犬|ハウンド|狼/, config: { templateKey: 'bestiary_wolf', scale: 1.0, taxonomy: 'Canine' } },
             { regex: /猫|虎|獅子|豹/, config: { templateKey: 'bestiary_lion', scale: 0.95, taxonomy: 'Feline' } },
             { regex: /熊|ベア/, config: { templateKey: 'bestiary_bear', scale: 1.12, taxonomy: 'Bear' } },
@@ -629,7 +630,7 @@
     // ---------------------------------------------------------------------------
     function matchUniversalSpecies(lower, normRealm) {
         // 1. Canines (Wolves, Dogs, Foxes, Hounds, Werewolves)
-        if (/\b(wolf|wolves|warg|hound|jackal|coyote|fox|vixen|kitsune|dingo|canine|dog|puppy|shiba|terrier|husky|mastiff|pit bull|cerberus|fenrir|hellhound|hell hound|dhole|werewolf|wolfman|lycanthrope)\b/.test(lower)) {
+        if (/\b(wolf|wolves|warg|hound|jackal|coyote|fox|vixen|kitsune|dingo|canine|dog|puppy|shiba|terrier|husky|mastiff|pit bull|cerberus|fenrir|hellhound|hell hound|dhole|werewolf|wolfman|lycanthrope|fang|grip)\b/.test(lower)) {
             if (/\b(werewolf|wolfman|lycanthrope)\b/.test(lower)) {
                 return { templateKey: 'bestiary_werewolf', scale: 1.12, weaponKey: 'ph_axe', taxonomy: 'Canine / Werewolf' };
             }
@@ -639,11 +640,11 @@
             if (/\b(fox|vixen|kitsune|jackal|coyote|dingo)\b/.test(lower)) {
                 return { templateKey: 'bestiary_fox', scale: 0.90, taxonomy: 'Canine / Wild' };
             }
-            if (/\b(little dog|small dog|puppy|shiba|terrier|scrawny dog)\b/.test(lower)) {
+            if (/\b(little dog|small dog|puppy|shiba|terrier)\b/.test(lower)) {
                 return { templateKey: 'bestiary_shiba', scale: 0.80, taxonomy: 'Canine / Companion' };
             }
-            const isElementalHound = /\b(hound)\b/.test(lower) && /\b(light|shadow|dark|air|water|earth|energy|ether|nexus|chaos|time|gravity|inertia|sound|shards|mana|multi-hued|aether|vibration|impact|acid|venom)\b/.test(lower);
-            if (!isElementalHound && /\b(husky|large dog|dog|hound|bloodhound|war dog|mastiff|pit bull|blink dog|frost hound|cold hound|ice hound|winter hound)\b/.test(lower)) {
+            const isElementalHound = /\b(hound|wolf)\b/.test(lower) && /\b(light|shadow|dark|air|water|earth|energy|ether|nexus|chaos|time|gravity|inertia|sound|shards|mana|multi-hued|aether|vibration|impact|acid|venom)\b/.test(lower);
+            if (!isElementalHound && /\b(husky|large dog|dog|hound|bloodhound|war dog|mastiff|pit bull|blink dog|frost hound|cold hound|ice hound|winter hound)\b/.test(lower) && !/\b(wild dog|fang|grip)\b/.test(lower)) {
                 return { templateKey: 'bestiary_husky', scale: 1.02, taxonomy: 'Canine / Hound' };
             }
             return { templateKey: 'bestiary_wolf', scale: 1.0, useAsciiTint: isElementalHound, taxonomy: 'Canine / Wolf' };
@@ -654,7 +655,7 @@
             const isSmall = /\b(kitten|housecat|wild cat|scrawny cat)\b/.test(lower);
             const isLarge = /\b(sabre-tooth|smilodon|tiger|lion|manticore)\b/.test(lower);
             const catTint = /\b(black|panther)\b/.test(lower) ? '#1f2937' : (/\bwhite\b/.test(lower) ? '#f1f5f9' : (/\btiger\b/.test(lower) ? '#ea580c' : null));
-            return { templateKey: 'bestiary_lion', scale: isSmall ? 0.46 : (isLarge ? 1.18 : 0.95), tintHex: catTint, useAsciiTint: !catTint, taxonomy: 'Feline' };
+            return { templateKey: 'bestiary_lion', scale: isSmall ? 0.46 : (isLarge ? 1.18 : 0.95), tintHex: catTint, useAsciiTint: false, taxonomy: 'Feline' };
         }
 
         // 3. Bears & Heavy Quadrupeds
