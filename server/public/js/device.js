@@ -14,6 +14,27 @@ class DeviceProfile {
     static _hasTouch = false;
     static _resizeRaf = null;
     static _gpuProfile = null;
+    static _isHandheld = false;
+
+    static getHandheldOverride() {
+        try {
+            if (typeof localStorage !== 'undefined') {
+                const v = localStorage.getItem('yasd_handheld_mode');
+                if (v === 'on' || v === 'off' || v === 'auto') return v;
+            }
+        } catch (_) {}
+        return 'auto';
+    }
+
+    static setHandheldOverride(mode) {
+        const next = (mode === 'on' || mode === 'off' || mode === 'auto') ? mode : 'auto';
+        try {
+            if (typeof localStorage !== 'undefined') {
+                localStorage.setItem('yasd_handheld_mode', next);
+            }
+        } catch (_) {}
+        return this.update();
+    }
 
     static detectGpuProfile(glOrCanvasOrString) {
         if (typeof window !== 'undefined' && window.Dungeon3DLightmap && window.Dungeon3DLightmap.HardwareGpuProfile) {
@@ -168,21 +189,30 @@ class DeviceProfile {
         const h = window.innerHeight;
         const minDim = Math.min(w, h);
         const isCoarse = window.matchMedia('(pointer: coarse)').matches;
+        const fineHover = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+        const touchNoMouse = (('ontouchstart' in window) || (navigator.maxTouchPoints > 0)) && !fineHover;
 
-        // Phones: screen's short dimension is < 600px (covers all phones portrait or landscape)
-        if (minDim < this.BREAKPOINT_PHONE) {
+        // Phones: short dimension < 600px AND primary coarse touch or mobile touch environment
+        if (minDim < this.BREAKPOINT_PHONE && (isCoarse || touchNoMouse)) {
             return 'phone';
         }
 
-        // Large desktop or touch screens
-        if (w >= this.BREAKPOINT_TABLET) {
-            // Very large touch devices (e.g. iPad Pro 12.9" in landscape)
+        // Large desktop or fine-hover mouse browser (even when resized narrow/short)
+        if (w >= this.BREAKPOINT_TABLET || (fineHover && !isCoarse)) {
+            // Very large touch devices (e.g. iPad Pro 12.9" in landscape without mouse)
             if (isCoarse && w < 1366) return 'tablet';
             return 'desktop';
         }
 
-        // Tablets: 600px <= minDim < 1024px
+        // Tablets: 600px <= minDim < 1024px (coarse / touch-first)
         return 'tablet';
+    }
+
+    static isHandheld() {
+        const ov = this.getHandheldOverride();
+        if (ov === 'on') return true;
+        if (ov === 'off') return false;
+        return this.getTier() === 'phone';
     }
 
     static isPortrait() {
@@ -196,27 +226,31 @@ class DeviceProfile {
     static update() {
         const prevTier = this._currentTier;
         const prevPortrait = this._isPortrait;
+        const prevHandheld = this._isHandheld;
 
         this._currentTier = this.getTier();
         this._isPortrait = this.isPortrait();
+        this._isHandheld = this.isHandheld();
 
-        // Update <html> root classes for seamless CSS targeting
+        // Update <html> root classes for seamless CSS targeting & zero-desktop-impact firewall
         const root = document.documentElement;
         root.classList.remove('device-desktop', 'device-tablet', 'device-phone', 'is-portrait', 'is-landscape', 'has-touch');
 
         root.classList.add(`device-${this._currentTier}`);
         root.classList.add(this._isPortrait ? 'is-portrait' : 'is-landscape');
         if (this._hasTouch) root.classList.add('has-touch');
+        root.classList.toggle('yasd-handheld', this._isHandheld);
 
         const state = {
             tier: this._currentTier,
             isPortrait: this._isPortrait,
             hasTouch: this._hasTouch,
+            isHandheld: this._isHandheld,
             width: window.innerWidth,
             height: window.innerHeight
         };
 
-        if (prevTier !== this._currentTier || prevPortrait !== this._isPortrait) {
+        if (prevTier !== this._currentTier || prevPortrait !== this._isPortrait || prevHandheld !== this._isHandheld) {
             for (const fn of this._listeners) {
                 try {
                     fn(state);
@@ -245,6 +279,7 @@ class DeviceProfile {
                 tier: this._currentTier,
                 isPortrait: this._isPortrait,
                 hasTouch: this._hasTouch,
+                isHandheld: this._isHandheld,
                 width: window.innerWidth,
                 height: window.innerHeight
             });

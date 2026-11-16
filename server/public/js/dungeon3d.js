@@ -587,22 +587,58 @@ class Dungeon3D {
         }
     }
 
+    _getViewportStageMetrics() {
+        const handheld = Boolean(
+            typeof window !== 'undefined' &&
+            window.DeviceProfile &&
+            typeof window.DeviceProfile.isHandheld === 'function' &&
+            window.DeviceProfile.isHandheld()
+        );
+        if (handheld && this.canvas) {
+            if (this.canvas.style) {
+                this.canvas.style.width = '';
+                this.canvas.style.height = '';
+            }
+            if (typeof this.canvas.getBoundingClientRect === 'function') {
+                const r = this.canvas.getBoundingClientRect();
+                if (r && r.width >= 60 && r.height >= 60) {
+                    return { w: Math.round(r.width), h: Math.round(r.height), handheld: true };
+                }
+            }
+        }
+        return {
+            w: (typeof window !== 'undefined' && window.innerWidth) || 1280,
+            h: (typeof window !== 'undefined' && window.innerHeight) || 720,
+            handheld: false
+        };
+    }
+
+    _resolveVerticalFov(baseVFovDeg, aspect, handheld) {
+        if (!handheld) return baseVFovDeg;
+        const minHFovDeg = aspect < 1.05 ? 90.0 : 96.0;
+        const minHFovRad = (minHFovDeg * Math.PI) / 180.0;
+        const reqVFovDeg = (2.0 * Math.atan(Math.tan(minHFovRad * 0.5) / Math.max(0.35, aspect)) * 180.0) / Math.PI;
+        return Math.max(baseVFovDeg, Math.min(98.0, reqVFovDeg));
+    }
+
     resize() {
         if (!this._gpuInitialized || !this.renderer || !this.camera) {
             this._pendingResize = true;
             return;
         }
+        this._cachedCanvasRect = null;
         const nextBudget = (typeof window !== 'undefined' && window.DeviceProfile && typeof window.DeviceProfile.getRenderBudget === 'function')
             ? window.DeviceProfile.getRenderBudget()
             : (this.renderBudget || {});
         this.renderBudget = nextBudget;
         const scale = (this.renderGovernor && this.renderGovernor.dynamicResolutionScale) || 1.0;
-        const w = (typeof window !== 'undefined' && window.innerWidth) || 1280;
-        const h = (typeof window !== 'undefined' && window.innerHeight) || 720;
-        this.camera.aspect = w / Math.max(1, h);
+        const { w, h, handheld } = this._getViewportStageMetrics();
+        const aspect = w / Math.max(1, h);
+        this.camera.aspect = aspect;
+        this.camera.fov = this._resolveVerticalFov(this._baseVerticalFov || 82.0, aspect, handheld);
         this.camera.far = Math.max(110, nextBudget.farDistance || 110);
         this.camera.updateProjectionMatrix();
-        this.renderer.setSize(w, h);
+        this.renderer.setSize(w, h, !handheld);
         const dprCap = nextBudget.dprCap || (nextBudget.tier === 'phone' ? 1.25 : 1.5);
         const dprFloor = Math.min(dprCap, 0.75);
         const rawDpr = Math.min((typeof window !== 'undefined' && window.devicePixelRatio) || 1, dprCap) * scale;
@@ -673,7 +709,11 @@ class Dungeon3D {
         this.scene.background = new THREE.Color(0x121b2d); // Initial town sky matching skyDome horizon
         this.scene.fog = new THREE.FogExp2(0x121b2d, initialFogDensity);
 
-        this.camera = new THREE.PerspectiveCamera(72, window.innerWidth / window.innerHeight, 0.1, farDistance);
+        const stage = this._getViewportStageMetrics();
+        const initAspect = stage.w / Math.max(1, stage.h);
+        this._baseVerticalFov = 72;
+        const initFov = this._resolveVerticalFov(this._baseVerticalFov, initAspect, stage.handheld);
+        this.camera = new THREE.PerspectiveCamera(initFov, initAspect, 0.1, farDistance);
         this.camera.position.set(0, this.eyeHeight, 0);
         this.camera.rotation.order = 'YXZ'; // Critical: Yaw first, then Pitch, then Roll (eliminates room skew / Dutch tilt)
         this.camera.rotation.y = 0; // Starts looking North (-Z)
@@ -689,7 +729,7 @@ class Dungeon3D {
             depth: true,
             preserveDrawingBuffer: isRecording
         });
-        this.renderer.setSize(window.innerWidth, window.innerHeight);
+        this.renderer.setSize(stage.w, stage.h, !stage.handheld);
         this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, dprCap));
         this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
         this.renderer.toneMappingExposure = 1.05;
@@ -769,23 +809,21 @@ class Dungeon3D {
         this.scene.add(this.camera);
 
         window.addEventListener('resize', () => {
-            this._cachedCanvasRect = null;
-            const nextBudget = (window.DeviceProfile && typeof window.DeviceProfile.getRenderBudget === 'function')
-                ? window.DeviceProfile.getRenderBudget()
-                : budget;
-            this.renderBudget = nextBudget;
-            const scale = (this.renderGovernor && this.renderGovernor.dynamicResolutionScale) || 1.0;
-
-            this.camera.aspect = window.innerWidth / window.innerHeight;
-            this.camera.far = Math.max(110, nextBudget.farDistance || 110);
-            this.camera.updateProjectionMatrix();
-            this.renderer.setSize(window.innerWidth, window.innerHeight);
-            const dprCap = nextBudget.dprCap || (nextBudget.tier === 'phone' ? 1.25 : 1.5);
-            const dprFloor = Math.min(dprCap, 0.75);
-            const rawDpr = Math.min(window.devicePixelRatio || 1, dprCap) * scale;
-            this.renderer.setPixelRatio(Math.max(dprFloor, Math.min(dprCap, rawDpr)));
-            if (this.renderGovernor) this.renderGovernor.wake(350);
+            this.resize();
         });
+        if (this.canvas && typeof ResizeObserver !== 'undefined') {
+            let canvasResizeRaf = null;
+            this._stageResizeObserver = new ResizeObserver(() => {
+                if (typeof window === 'undefined' || !window.DeviceProfile || !window.DeviceProfile.isHandheld || !window.DeviceProfile.isHandheld()) return;
+                this._cachedCanvasRect = null;
+                if (canvasResizeRaf) return;
+                canvasResizeRaf = requestAnimationFrame(() => {
+                    canvasResizeRaf = null;
+                    this.resize();
+                });
+            });
+            this._stageResizeObserver.observe(this.canvas);
+        }
     }
 
     markShadowsDirty() {
@@ -2844,8 +2882,11 @@ class Dungeon3D {
         // Subtle FOV adjustment gated to avoid redundant projection matrix math per turn
         if (this.camera) {
             const nextFov = Math.max(78.0, Math.min(88.0, 86.0 - (this.heightRatio - 0.60) * (6.0 / 0.85)));
-            if (Math.abs(this.camera.fov - nextFov) > 0.01) {
-                this.camera.fov = nextFov;
+            this._baseVerticalFov = nextFov;
+            const handheld = Boolean(typeof window !== 'undefined' && window.DeviceProfile && typeof window.DeviceProfile.isHandheld === 'function' && window.DeviceProfile.isHandheld());
+            const effFov = this._resolveVerticalFov(nextFov, this.camera.aspect || 1, handheld);
+            if (Math.abs(this.camera.fov - effFov) > 0.01) {
+                this.camera.fov = effFov;
                 this.camera.updateProjectionMatrix();
             }
         }

@@ -2054,6 +2054,11 @@ class InputController {
                     } else if (verb === 'overland') {
                         this.network.sendKey('<');
                         return;
+                    } else if ((verb === 'inven' || verb === 'equip') &&
+                        window.DeviceProfile && typeof window.DeviceProfile.isHandheld === 'function' && window.DeviceProfile.isHandheld() &&
+                        window.__MobileConsole && typeof window.__MobileConsole.openItemSheetTab === 'function') {
+                        window.__MobileConsole.openItemSheetTab(verb === 'equip' ? 'gear' : 'pack', btn);
+                        return;
                     }
 
                     let effKey = (typeof RealmKeys !== 'undefined' && RealmKeys.realmKey)
@@ -2270,7 +2275,9 @@ class InputController {
         if (actionMoreBtn && actionBar) {
             let lastMoreTime = 0;
             const updateActionBarOverflow = () => {
-                const isSmallOrCoarse = window.innerWidth <= 900 || window.matchMedia('(pointer: coarse)').matches;
+                const isHandheld = Boolean(window.DeviceProfile && typeof window.DeviceProfile.isHandheld === 'function' && window.DeviceProfile.isHandheld());
+                const fineHover = window.matchMedia && window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+                const isSmallOrCoarse = isHandheld || (window.matchMedia('(pointer: coarse)').matches && !fineHover) || (window.innerWidth <= 900 && !fineHover);
                 const allButtons = ACTION_PRIORITY.map(id => document.getElementById(id)).filter(Boolean);
                 const overflowSig = `${window.innerWidth}:${isSmallOrCoarse ? 1 : 0}:` + allButtons.map(b => `${b.id}:${b.dataset.realmHidden || 0}:${b.dataset.contextHidden || 0}:${b.classList && b.classList.contains('is-suggested') ? 1 : 0}`).join('|');
                 if (actionBar._lastOverflowSig === overflowSig) return;
@@ -2323,7 +2330,9 @@ class InputController {
                 if (ev && ev.target && typeof ev.target.blur === 'function') ev.target.blur();
                 if (window.DeviceProfile) window.DeviceProfile.triggerHaptic('light');
 
-                const isSmallOrCoarse = window.innerWidth <= 900 || window.innerHeight <= 500 || window.matchMedia('(pointer: coarse)').matches;
+                const isHandheld = Boolean(window.DeviceProfile && typeof window.DeviceProfile.isHandheld === 'function' && window.DeviceProfile.isHandheld());
+                const fineHover = window.matchMedia && window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+                const isSmallOrCoarse = isHandheld || (window.matchMedia('(pointer: coarse)').matches && !fineHover) || (window.innerWidth <= 900 && !fineHover);
                 let isOpen;
                 if (isSmallOrCoarse) {
                     isOpen = actionBar.classList.toggle('drawer-open');

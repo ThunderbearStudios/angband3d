@@ -1,6 +1,7 @@
 const { spawn } = require('child_process');
 const http = require('http');
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 const WebSocket = require('../server/node_modules/ws');
 
@@ -12,7 +13,7 @@ async function run() {
     const SERVER_PORT = 8099;
     const CDP_PORT = 9233;
     const chromePath = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
-    const profileDir = path.join(__dirname, 'temp_chrome_resp_' + Date.now());
+    const profileDir = path.join(os.tmpdir(), 'angband3d-resp-' + Date.now());
 
     console.log(`[Test] 1. Launching local Angband3D server on port ${SERVER_PORT}...`);
     const serverProcess = spawn('node', ['server/src/server.js'], {
@@ -668,8 +669,145 @@ async function run() {
             console.log(`✓ ${vp.name} header verified: ${Math.round(overlapCheck.clearance)}px safe clearance before buttons!`);
         }
 
+        console.log('\n======================================================');
+        console.log('TEST SUITE 13: Handheld Console & Desktop Zero-Impact Firewall');
+        console.log('======================================================');
+        await setViewport(1920, 1080, false);
+        await send('Emulation.setTouchEmulationEnabled', { enabled: false });
+        await send('Emulation.setEmulatedMedia', { features: [{ name: 'pointer', value: 'fine' }, { name: 'hover', value: 'hover' }] });
+        await evalJs(`window.dispatchEvent(new Event('resize')); window.DeviceProfile.update();`);
+        await sleep(150);
+        const desktopFirewall = await evalJs(`(() => ({
+            tier: window.DeviceProfile.getTier(),
+            isHandheld: window.DeviceProfile.isHandheld(),
+            hasHandheldClass: document.documentElement.classList.contains('yasd-handheld'),
+            quickBarDisplay: window.getComputedStyle(document.getElementById('quick-slot-bar')).display
+        }))()`);
+        console.log('Desktop Zero-Impact (1920x1080):', desktopFirewall);
+        if (desktopFirewall.tier !== 'desktop' || desktopFirewall.isHandheld || desktopFirewall.hasHandheldClass || desktopFirewall.quickBarDisplay !== 'none') {
+            throw new Error(`Desktop firewall failed at 1920x1080: ${JSON.stringify(desktopFirewall)}`);
+        }
+
+        await setViewport(900, 540, false);
+        await evalJs(`window.dispatchEvent(new Event('resize')); window.DeviceProfile.update();`);
+        await sleep(150);
+        const resizedDesktopFirewall = await evalJs(`(() => ({
+            tier: window.DeviceProfile.getTier(),
+            isHandheld: window.DeviceProfile.isHandheld(),
+            hasHandheldClass: document.documentElement.classList.contains('yasd-handheld')
+        }))()`);
+        console.log('Resized Desktop Window (900x540, fine pointer):', resizedDesktopFirewall);
+        if (resizedDesktopFirewall.tier !== 'desktop' || resizedDesktopFirewall.isHandheld || resizedDesktopFirewall.hasHandheldClass) {
+            throw new Error(`Fine-pointer resized desktop accidentally triggered phone/handheld: ${JSON.stringify(resizedDesktopFirewall)}`);
+        }
+
+        // Restore touch emulation for Portrait/Landscape handheld checks
+        await send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 });
+        await send('Emulation.setEmulatedMedia', { features: [{ name: 'pointer', value: 'coarse' }] });
+
+        await setViewport(390, 844, true);
+        await evalJs(`(() => {
+            const fakePlayFrame = {
+                phase: 'play',
+                realm: 'angband',
+                player: { name: 'Hero', x: 5, y: 5, hp: 20, hp_max: 20, max_hp: 20, sp: 10, sp_max: 10, depth: 1, ac: 12, inventory: [{ slot: 0, letter: 'a', name: 'Potion of Cure Light Wounds', tval: 75, number: 2 }], equipment: [] },
+                map: { w: 12, h: 10, rows: [{ g: '............', f: '000000000000' }] },
+                ui: { awaiting_command: true, overlay: 0, more: false },
+                term: { rows: [{ y: 0, g: '' }] }
+            };
+            window.__app.lastFrame = fakePlayFrame;
+            if (window.__app.network && typeof window.__app.network.onFrame === 'function') {
+                window.__app.network.onFrame(fakePlayFrame);
+            }
+            window.__app.setForceTerminal(false);
+            ['splash-overlay', 'main-menu-overlay', 'terminal-container', 'death-modal'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.classList.add('hidden');
+            });
+            document.body.classList.remove('terminal-active', 'terminal-mode-active');
+            const hud = document.getElementById('hud-overlay');
+            if (hud) hud.style.display = 'block';
+            if (window.__app && window.__app.dungeon && typeof window.__app.dungeon.ensureGpuInitialized === 'function') {
+                window.__app.dungeon.ensureGpuInitialized('angband');
+                window.__app.dungeon.resize();
+            }
+            window.DeviceProfile.update();
+        })()`);
+        await sleep(250);
+        const hhPortrait = await evalJs(`(() => {
+            const canvasRect = document.getElementById('viewport-canvas').getBoundingClientRect();
+            const touchRect = document.getElementById('touch-controls').getBoundingClientRect();
+            const actionRect = document.getElementById('action-bar').getBoundingClientRect();
+            const turnL = document.getElementById('dpad-turn-left').getBoundingClientRect();
+            const turnR = document.getElementById('dpad-turn-right').getBoundingClientRect();
+            const qsBar = document.getElementById('quick-slot-bar');
+            const qsBtns = Array.from(document.querySelectorAll('#quick-slot-bar .quick-slot-btn')).map(b => b.getBoundingClientRect().height);
+            const cam = window.__app && window.__app.dungeon && window.__app.dungeon.camera;
+            const hFovDeg = cam ? (2 * Math.atan(Math.tan((cam.fov * Math.PI / 180) * 0.5) * cam.aspect) * 180 / Math.PI) : 0;
+            document.getElementById('btn-inventory').click();
+            const sheetOpen = Boolean(window.__app.itemSheet && window.__app.itemSheet.isOpen());
+            if (window.__app.itemSheet && window.__app.itemSheet.hide) window.__app.itemSheet.hide();
+            return {
+                isHandheld: window.DeviceProfile.isHandheld(),
+                hasClass: document.documentElement.classList.contains('yasd-handheld'),
+                canvasRect: { top: canvasRect.top, bottom: canvasRect.bottom, width: canvasRect.width, height: canvasRect.height },
+                touchTop: touchRect.top,
+                actionTop: actionRect.top,
+                hFovDeg,
+                turnL: { w: turnL.width, h: turnL.height },
+                turnR: { w: turnR.width, h: turnR.height },
+                qsDisplay: window.getComputedStyle(qsBar).display,
+                qsBtns,
+                sheetOpen
+            };
+        })()`);
+        console.log('Handheld Portrait Console (390x844):', hhPortrait);
+        if (!hhPortrait.isHandheld || !hhPortrait.hasClass) throw new Error('Portrait must activate yasd-handheld');
+        if (hhPortrait.canvasRect.bottom > hhPortrait.touchTop + 2 || hhPortrait.canvasRect.bottom > hhPortrait.actionTop + 2) {
+            throw new Error(`Portrait 3D stage obstructed by bottom deck: canvasBottom=${hhPortrait.canvasRect.bottom}, touchTop=${hhPortrait.touchTop}, actionTop=${hhPortrait.actionTop}`);
+        }
+        if (hhPortrait.hFovDeg < 86) throw new Error(`Expected Hor+ HFOV >= 86 deg in Portrait, got ${hhPortrait.hFovDeg.toFixed(1)}`);
+        if (hhPortrait.turnL.w < 40 || hhPortrait.turnL.h < 40 || hhPortrait.turnR.w < 40 || hhPortrait.turnR.h < 40) throw new Error('Portrait turn wings too small');
+        if (hhPortrait.qsDisplay === 'none' || hhPortrait.qsBtns.length !== 4 || hhPortrait.qsBtns.some(h => h < 40)) {
+            throw new Error(`Quick-slot bar invalid in Portrait: ${JSON.stringify(hhPortrait)}`);
+        }
+        if (!hhPortrait.sheetOpen) throw new Error('#btn-inventory must open ItemSheet bottom sheet on handheld');
+
+        await setViewport(844, 390, true);
+        await evalJs(`if (window.__app?.dungeon?.resize) window.__app.dungeon.resize();`);
+        await sleep(250);
+        const hhLandscape = await evalJs(`(() => {
+            const canvasRect = document.getElementById('viewport-canvas').getBoundingClientRect();
+            const touchRect = document.getElementById('touch-controls').getBoundingClientRect();
+            const actionRect = document.getElementById('action-bar').getBoundingClientRect();
+            const turnL = document.getElementById('dpad-turn-left');
+            const turnR = document.getElementById('dpad-turn-right');
+            const lr = turnL.getBoundingClientRect();
+            const rr = turnR.getBoundingClientRect();
+            return {
+                isHandheld: window.DeviceProfile.isHandheld(),
+                isLandscape: document.documentElement.classList.contains('is-landscape'),
+                canvasRect: { left: canvasRect.left, right: canvasRect.right, width: canvasRect.width, height: canvasRect.height },
+                touchRight: touchRect.right,
+                actionLeft: actionRect.left,
+                turnLDisplay: window.getComputedStyle(turnL).display,
+                turnRDisplay: window.getComputedStyle(turnR).display,
+                lr: { w: lr.width, h: lr.height },
+                rr: { w: rr.width, h: rr.height }
+            };
+        })()`);
+        console.log('Handheld Landscape Console (844x390):', hhLandscape);
+        if (!hhLandscape.isHandheld || !hhLandscape.isLandscape) throw new Error('Landscape must remain yasd-handheld is-landscape');
+        if (hhLandscape.canvasRect.left < hhLandscape.touchRight - 2 || hhLandscape.canvasRect.right > hhLandscape.actionLeft + 2) {
+            throw new Error(`Landscape center 3D stage obstructed by side grips: ${JSON.stringify(hhLandscape)}`);
+        }
+        if (hhLandscape.turnLDisplay === 'none' || hhLandscape.turnRDisplay === 'none' || hhLandscape.lr.w < 40 || hhLandscape.lr.h < 40 || hhLandscape.rr.w < 40 || hhLandscape.rr.h < 40) {
+            throw new Error(`Landscape 90-deg turn wings must be visible and >= 40x40: ${JSON.stringify(hhLandscape)}`);
+        }
+        console.log('✓ Handheld Console Portrait & Landscape + Desktop Zero-Impact Firewall verified!');
+
         console.log('\n******************************************************');
-        console.log('ALL 12 RESPONSIVE & MOBILE SCALING SUITES PASSED 100%!');
+        console.log('ALL 13 RESPONSIVE & HANDHELD CONSOLE SUITES PASSED 100%!');
         console.log('******************************************************\n');
 
     } finally {
@@ -679,6 +817,7 @@ async function run() {
         console.log('[Test] Cleaning up processes...');
         chrome.kill();
         serverProcess.kill();
+        await sleep(400);
         try {
             fs.rmSync(profileDir, { recursive: true, force: true });
         } catch (_) {}

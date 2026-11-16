@@ -238,7 +238,8 @@
             const isSpell = Boolean(rawClassifier.isSpellPowerChoice || /^(cast|browse|study)$/.test(rawClassifier.verbPrompt));
             const isTarget = Boolean(rawClassifier.isItemTargetPrompt || (rawClassifier.verbPrompt && !isSpell));
             const isBirth = false;
-            const isMenuActive = Boolean((isInv || isEq || isSpell || isTarget || submenu.isSilqAbilityTree || submenu.isSilqSmithing || submenu.isFcbPowerMenu || submenu.isHengbandMagicMenu) && !isStore);
+            const isHandheld = typeof document !== 'undefined' && document.documentElement && document.documentElement.classList.contains('yasd-handheld');
+            const isMenuActive = Boolean((isInv || isEq || isSpell || isTarget || (isStore && isHandheld && items.length > 0) || submenu.isSilqAbilityTree || submenu.isSilqSmithing || submenu.isFcbPowerMenu || submenu.isHengbandMagicMenu) && (!isStore || isHandheld));
             this._menuActive = isMenuActive;
             if (!isMenuActive) { this.hide(container); return false; }
             if (this.mode === 'classic') {
@@ -252,7 +253,7 @@
             const promptText = String(options.promptText || (rawClassifier && rawClassifier.row0) || (model && model.prompt && model.prompt.text) || '').trim();
             const slicedItems = items.slice(0, 52);
             const itemDigest = slicedItems.map(it => `${it.key || it.letter || ''}:${it.desc || it.rawLabel || it.label || it.name || ''}`).join('|');
-            const sig = `${realm}:${lang}:${this.mode}:${this._activeCategory}:${submenu.kind || ''}:${isInv}:${isEq}:${isSpell}:${isTarget}:${promptText.slice(0, 32)}:${items.length}:${itemDigest}`;
+            const sig = `${realm}:${lang}:${this.mode}:${this._activeCategory}:${submenu.kind || ''}:${isInv}:${isEq}:${isStore}:${isSpell}:${isTarget}:${promptText.slice(0, 32)}:${items.length}:${itemDigest}`;
             if (sig === this._lastSig && container.style.display !== 'none') { this._syncPrimaryOpenClass(); return true; }
             const wasAlreadyOpen = container.style.display !== 'none' && container.innerHTML !== '';
             this._lastSig = sig;
@@ -262,6 +263,7 @@
             else if (submenu.isSilqSmithing) viewLabel = 'NOLDORIN ANVIL FORGE';
             else if (submenu.isFcbPowerMenu) viewLabel = 'CHAOS & RACIAL POWERS';
             else if (submenu.isHengbandMagicMenu) viewLabel = isJp ? '術法・仙術の巻' : (isBi ? 'SCROLLS OF JUTSU (術法)' : 'SCROLLS OF JUTSU & MIND');
+            else if (isStore) viewLabel = isJp ? '商店・売買' : (isBi ? 'MERCHANT BAZAAR (商店)' : 'MERCHANT BAZAAR');
             else if (isEq) viewLabel = isJp ? '装備中の武具' : (isBi ? 'WIELDED PANOPLY (装備品)' : 'WIELDED PANOPLY');
             else if (isSpell) viewLabel = isJp ? '魔道書・秘伝書' : (isBi ? 'ARCANE GRIMOIRE (魔道書)' : 'ARCANE GRIMOIRE');
             else if (isTarget) viewLabel = isJp ? '対象アイテムを選択' : (isBi ? 'CHOOSE ITEM (対象選択)' : 'CHOOSE TARGET ITEM');
@@ -324,7 +326,7 @@
             const renderItemCards = (entries) => `<div class="grimoire-card-grid" role="list">${entries.map(({ it, key, desc, cat, metrics, bucInfo, delta }) => {
                 const bucBadge = bucInfo.buc !== 'unknown' ? `<span class="grimoire-buc-badge buc-${escapeHtml(bucInfo.buc)}">${escapeHtml(bucInfo.badgeLabel)}</span>` : '';
                 const deltaBadge = delta.deltaLabel ? `<span class="grimoire-stat-delta ${delta.isUpgrade ? 'is-upgrade' : (delta.isDowngrade ? 'is-downgrade' : '')}">${escapeHtml(delta.deltaLabel)}</span>` : '';
-                const verbs = getAvailableVerbsForItem(cat.category, realm, { lang, isEquipScreen: isEq, isStoreScreen: false, isSpellPowerChoice: isSpell, isItemTargetPrompt: isTarget, itemDesc: desc, item: it, submenu });
+                const verbs = getAvailableVerbsForItem(cat.category, realm, { lang, isEquipScreen: isEq, isStoreScreen: isStore, isSpellPowerChoice: isSpell, isItemTargetPrompt: isTarget, itemDesc: desc, item: it, submenu });
                 const pv = verbs[0] || { id: 'select', label: isJp ? '選択' : 'Select', verb: '' }, sv = verbs.slice(1, 5);
                 const pBtn = `<button type="button" class="grimoire-card-verb-btn grimoire-act-btn is-primary-verb ${pv.isBind ? 'grimoire-bind-btn' : ''}" data-grimoire-cmd="item-primary" data-grimoire-key="${escapeHtml(key)}" data-grimoire-verb="${escapeHtml(pv.verb)}" data-grimoire-name="${escapeHtml(metrics.cleanName)}" data-grimoire-category="${cat.category}" data-grimoire-icon="${cat.icon}" data-grimoire-row="${Number(it.row || 0)}" data-grimoire-col="${Number(it.col || 0)}">${escapeHtml(pv.label)}</button>`;
                 const sBtns = sv.map(v => `<button type="button" class="grimoire-card-verb-btn grimoire-act-btn is-secondary-verb ${v.isBind ? 'grimoire-bind-btn' : ''}" data-grimoire-cmd="${v.isBind ? 'bind-quick-slot' : 'item-verb'}" data-grimoire-key="${escapeHtml(key)}" data-grimoire-verb="${escapeHtml(v.verb)}" data-grimoire-name="${escapeHtml(metrics.cleanName)}" data-grimoire-category="${cat.category}" data-grimoire-icon="${cat.icon}" data-grimoire-row="${Number(it.row || 0)}" data-grimoire-col="${Number(it.col || 0)}">${escapeHtml(v.label)}</button>`).join('');
