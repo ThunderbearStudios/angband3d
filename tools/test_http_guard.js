@@ -7,51 +7,65 @@
 'use strict';
 const { spawn } = require('child_process');
 const http = require('http');
+const net = require('net');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
-const root = path.join(__dirname, '..');
-const port = 20000 + Math.floor(Math.random() * 20000);
-const saveDir = fs.mkdtempSync(path.join(os.tmpdir(), 'a3d-'));
-const env = Object.assign({}, process.env, { PORT: String(port), SAVE_DIR: saveDir });
-delete env.ENABLE_RECORDING_UPLOAD;
-const child = spawn(process.execPath, [path.join(root, 'server', 'src', 'server.js')], { env, stdio: ['ignore', 'pipe', 'pipe'] });
-let log = '';
-child.stdout.on('data', d => { log += d; });
-child.stderr.on('data', d => { log += d; });
-
-const fails = [];
-const req = (opts, body) => new Promise(resolve => {
-    const r = http.request(Object.assign({ host: '127.0.0.1', port }, opts), res => {
-        let data = '';
-        res.on('data', chunk => { data += chunk; });
-        res.on('end', () => { res.body = data; resolve(res); });
+function getFreePort() {
+    return new Promise((resolve, reject) => {
+        const srv = net.createServer();
+        srv.unref();
+        srv.on('error', reject);
+        srv.listen(0, '127.0.0.1', () => {
+            const addr = srv.address();
+            const p = addr && addr.port;
+            srv.close((err) => (err ? reject(err) : resolve(p)));
+        });
     });
-    r.on('error', e => resolve({ statusCode: 0, headers: {}, error: e }));
-    if (body) r.write(body);
-    r.end();
-});
-const wsUpgrade = origin => new Promise(resolve => {
-    const headers = { Connection: 'Upgrade', Upgrade: 'websocket', 'Sec-WebSocket-Version': '13', 'Sec-WebSocket-Key': 'dGhlIHNhbXBsZSBub25jZQ==' };
-    if (origin) headers.Origin = origin;
-    const r = http.request({ host: '127.0.0.1', port, path: '/ws', headers });
-    r.on('upgrade', (res, sock) => { sock.destroy(); resolve(101); });
-    r.on('response', res => resolve(res.statusCode));
-    r.on('error', () => resolve(0));
-    r.end();
-});
-
-async function waitUp() {
-    for (let i = 0; i < 60; i++) {
-        const r = await req({ path: '/health', method: 'GET' });
-        if (r.statusCode) return true;
-        await new Promise(ok => setTimeout(ok, 250));
-    }
-    return false;
 }
 
+const root = path.join(__dirname, '..');
+const saveDir = fs.mkdtempSync(path.join(os.tmpdir(), 'a3d-'));
+const fails = [];
 (async () => {
+    const port = await getFreePort();
+    const env = Object.assign({}, process.env, { PORT: String(port), SAVE_DIR: saveDir });
+    delete env.ENABLE_RECORDING_UPLOAD;
+    const child = spawn(process.execPath, [path.join(root, 'server', 'src', 'server.js')], { env, stdio: ['ignore', 'pipe', 'pipe'] });
+    let log = '';
+    child.stdout.on('data', d => { log += d; });
+    child.stderr.on('data', d => { log += d; });
+
+    const req = (opts, body) => new Promise(resolve => {
+        const r = http.request(Object.assign({ host: '127.0.0.1', port }, opts), res => {
+            let data = '';
+            res.on('data', chunk => { data += chunk; });
+            res.on('end', () => { res.body = data; resolve(res); });
+        });
+        r.on('error', e => resolve({ statusCode: 0, headers: {}, error: e }));
+        if (body) r.write(body);
+        r.end();
+    });
+    const wsUpgrade = origin => new Promise(resolve => {
+        const headers = { Connection: 'Upgrade', Upgrade: 'websocket', 'Sec-WebSocket-Version': '13', 'Sec-WebSocket-Key': 'dGhlIHNhbXBsZSBub25jZQ==' };
+        if (origin) headers.Origin = origin;
+        const r = http.request({ host: '127.0.0.1', port, path: '/ws', headers });
+        r.on('upgrade', (res, sock) => { sock.destroy(); resolve(101); });
+        r.on('response', res => resolve(res.statusCode));
+        r.on('error', () => resolve(0));
+        r.end();
+    });
+
+    async function waitUp() {
+        for (let i = 0; i < 60; i++) {
+            const r = await req({ path: '/health', method: 'GET' });
+            if (r.statusCode) return true;
+            await new Promise(ok => setTimeout(ok, 250));
+        }
+        return false;
+    }
+
     try {
         if (!await waitUp()) { fails.push('server did not boot:\n' + log.slice(-800)); return; }
         const self = `http://127.0.0.1:${port}`;

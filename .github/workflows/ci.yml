@@ -2,6 +2,8 @@ name: build and test
 
 on:
   push:
+    tags-ignore:
+      - 'v*'
   pull_request:
   workflow_dispatch:
 
@@ -10,6 +12,7 @@ permissions:
 
 env:
   ANGBAND_TAG: "4.2.6"
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 jobs:
   build:

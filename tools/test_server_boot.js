@@ -1,12 +1,26 @@
 const { spawn } = require('child_process');
 const http = require('http');
+const net = require('net');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const WebSocket = require('../server/node_modules/ws');
 
+function getFreePort() {
+    return new Promise((resolve, reject) => {
+        const srv = net.createServer();
+        srv.unref();
+        srv.on('error', reject);
+        srv.listen(0, '127.0.0.1', () => {
+            const addr = srv.address();
+            const p = addr && addr.port;
+            srv.close((err) => (err ? reject(err) : resolve(p)));
+        });
+    });
+}
+
 async function run() {
-    const port = 20000 + Math.floor(Math.random() * 20000);
+    const port = await getFreePort();
     const saveDir = fs.mkdtempSync(path.join(os.tmpdir(), 'a3d-save-'));
     process.on('exit', () => {
         try { fs.rmSync(saveDir, { recursive: true, force: true }); } catch (_) {}

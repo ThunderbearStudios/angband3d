@@ -6,7 +6,8 @@
     "cap": "cap",
     "android:add": "cap add android",
     "android:sync": "node tools/sync_android_assets.js",
-    "android:build": "cd android && .\\gradlew.bat assembleRelease"
+    "android:build": "cd android && .\\gradlew.bat assembleRelease",
+    "test:ci-clean": "node tools/pre_push_ci_gate.js"
   },
   "dependencies": {
     "@capacitor/android": "^5.7.8",

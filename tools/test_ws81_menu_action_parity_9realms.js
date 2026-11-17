@@ -54,20 +54,20 @@ function test(name, fn) {
     }
 }
 
-function createHarness(realm) {
+function createHarness(realm, overrideOpts = {}) {
     const saveDir = path.join(tmpSaveRoot, `${realm}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`);
     fs.mkdirSync(saveDir, { recursive: true });
     let eng;
     if (realm === 'dcss') {
-        eng = new UniversalCartridgeEngine(DCSS_SPEC, { user: 'Tester', saveDir, isNew: true, randomBirth: true, seed: 424242 });
+        eng = new UniversalCartridgeEngine(DCSS_SPEC, { user: 'Tester', saveDir, isNew: true, randomBirth: true, seed: 424242, ...overrideOpts });
     } else if (realm === 'brogue') {
-        eng = new UniversalCartridgeEngine(BROGUE_SPEC, { user: 'Tester', saveDir, isNew: true, randomBirth: true, seed: 424242 });
+        eng = new UniversalCartridgeEngine(BROGUE_SPEC, { user: 'Tester', saveDir, isNew: true, randomBirth: true, seed: 424242, ...overrideOpts });
     } else if (realm === 'rogue') {
-        eng = new UniversalCartridgeEngine(ROGUE_SPEC, { user: 'Tester', saveDir, isNew: true, randomBirth: true, seed: 424242 });
+        eng = new UniversalCartridgeEngine(ROGUE_SPEC, { user: 'Tester', saveDir, isNew: true, randomBirth: true, seed: 424242, ...overrideOpts });
     } else if (realm === 'ryod') {
-        eng = new RyodEngine({ user: 'Tester', saveDir, isNew: true, randomBirth: true });
+        eng = new RyodEngine({ user: 'Tester', saveDir, isNew: true, randomBirth: true, blueprint: { seed: 'RYOD-00424242', presetId: 'obsidian_covenant' }, seed: 424242, ...overrideOpts });
     } else if (realm === 'nethack') {
-        eng = new NetHackEngine({ user: 'Tester', saveDir, isNew: true });
+        eng = new NetHackEngine({ user: 'Tester', saveDir, isNew: true, role: 'Valkyrie', seed: 424242, ...overrideOpts });
         eng.state.phase = 'play';
     } else {
         throw new Error(`Unsupported JS harness realm: ${realm}`);
@@ -367,6 +367,39 @@ test('8. DCSS [a] supports BOTH 2-step Item Activate (0 piety spent) AND 1-key D
         h.sendKey('escape');
         assert.strictEqual(h.eng.state.menuMode, 'none');
     }
+});
+
+test('8b. RYOD Beholder avatar can throw pack items via [t] / ItemSheet AND aim Beholder Gaze via [f]', () => {
+    const h = createHarness('ryod', {
+        randomBirth: false,
+        blueprint: { heroOrigin: 'beholder', presetId: 'wyrm_beholder_ascendant', seed: 'RYOD-BEH04242' }
+    });
+    const p = h.eng.state.player;
+    assert.strictEqual(p.avatarId, 'beholder', 'Harness must spawn Beholder avatar');
+    p.inventory.push({
+        slot: p.inventory.length,
+        letter: 'z',
+        kind: 'potion',
+        name: 'vial of frost',
+        count: 1,
+        weight: 10,
+        tval: 71,
+        sval: 5,
+        buc: 'uncursed'
+    });
+    h.eng.reindexInventory();
+    h.refreshFrame();
+
+    const rawVial = p.inventory.find(it => it.name === 'vial of frost');
+    h.dispatcher.run({ verb: 'throw', item: { letter: rawVial.letter, name: 'vial of frost' } });
+    assert.strictEqual(h.dispatcher.lastResult, 'Done');
+    assert(!p.inventory.some(it => it.name === 'vial of frost'), 'Beholder throw via ItemSheet must hurl the chosen item');
+
+    h.sendKey('f');
+    assert.strictEqual(h.eng.state.menuMode, 'direction', "Beholder [f] must enter direction mode for Beholder Gaze");
+    assert.strictEqual(h.eng.state.pendingVerb, 'beholder_gaze');
+    h.sendKey('escape');
+    assert.strictEqual(h.eng.state.menuMode, 'none');
 });
 
 // ---------------------------------------------------------------------------

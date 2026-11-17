@@ -25,6 +25,6 @@
 9. **Canonical Domain**: Official site is exclusively `yasd3d.com` (`https://yasd3d.com`); never emit the legacy host outside `LEGACY_DOMAINS`/CORS/`edge/` retirement routing (`test_ws82_prelaunch_9pillars.js`).
 
 ## 3. Verification Gates (Web-Only)
-- **Fast Gate**: `node tools/run_tests.js --tier fast` (`44/44 PASS`)
+- **Fast / Clean CI Gate**: `node tools/run_tests.js --tier fast` (`44/44 PASS`) & pre-push `node tools/pre_push_ci_gate.js`
 - **Engine Smoke**: `python tools/smoke_test.py` (`11/11 PASS`)
 - **LOC & Version Sync**: `node tools/check_loc_budget.js && node tools/check_version_sync.js`

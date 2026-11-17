@@ -294,6 +294,21 @@ assert.ok(
     '.github/workflows/release.yml must use deterministic npm ci instead of npm install (SLSA v1.0 / L48)'
 );
 
+const patchRawBuf = fs.readFileSync(path.join(ROOT, 'engine-patch/0001-bridge-frontend.patch'));
+assert.ok(
+    !patchRawBuf.includes(0x0d) && !patchRawBuf.includes(0x00),
+    'engine-patch/0001-bridge-frontend.patch must contain 0 CR and 0 NUL bytes for clean Ubuntu git apply'
+);
+const ciYmlSrc = fs.readFileSync(path.join(ROOT, '.github/workflows/ci.yml'), 'utf8');
+for (const [wfName, wfSrc] of [['.github/workflows/ci.yml', ciYmlSrc], ['.github/workflows/release.yml', releaseYmlSrc]]) {
+    const preIdx = wfSrc.indexOf('precompress_assets.js');
+    const runIdx = wfSrc.indexOf('run_tests.js --tier fast');
+    assert.ok(
+        preIdx !== -1 && runIdx !== -1 && preIdx < runIdx,
+        `${wfName} must run node tools/precompress_assets.js before node tools/run_tests.js --tier fast`
+    );
+}
+
 // 9. Silent Passive Regeneration & Non-Invasive Restorative Audio Invariants (L49)
 const hpDeltaBlock = d3dSrc.slice(
     d3dSrc.indexOf('// Player HP delta tracking'),

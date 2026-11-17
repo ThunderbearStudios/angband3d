@@ -4975,7 +4975,7 @@ class UniversalCartridgeEngine {
                     this.state.menuMode = 'none';
                     this.state.pendingVerb = null;
                     this.state.pendingPrompt = '';
-                    this.executeDirectedAction('fire', d[0], d[1]);
+                    this.executeDirectedAction((this.realm === 'ryod' && p.avatarId === 'beholder') ? 'beholder_gaze' : 'fire', d[0], d[1]);
                     return;
                 }
                 if (/^[a-z]$/i.test(k)) {
@@ -5228,7 +5228,7 @@ class UniversalCartridgeEngine {
         if (k === 'P') { this.openVerbPrompt('wield', 'Put on which ring or amulet? [a-z or ESC]'); return; }
         if (k === 'T' || k === 'R') { this.openVerbPrompt('takeoff', 'Remove which item? [a-z or ESC]'); return; }
         if (k === 't' || k === 'f') {
-            if (this.realm === 'ryod' && p.avatarId === 'beholder') {
+            if (k === 'f' && this.realm === 'ryod' && p.avatarId === 'beholder') {
                 this.state.menuMode = 'direction';
                 this.state.pendingVerb = 'beholder_gaze';
                 this.state.pendingPrompt = 'Direct Beholder Gaze Ray: [Direction, or Enter for nearest foe]';
