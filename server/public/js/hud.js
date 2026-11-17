@@ -34,15 +34,18 @@ class WebHUD {
         this.statStr = document.getElementById('stat-str'); this.statInt = document.getElementById('stat-int'); this.statWis = document.getElementById('stat-wis');
         this.statDex = document.getElementById('stat-dex'); this.statCon = document.getElementById('stat-con'); this.statChr = document.getElementById('stat-chr'); this.statGra = document.getElementById('stat-gra');
 
-        this.itemInt = document.getElementById('stat-item-int'); this.itemWis = document.getElementById('stat-item-wis'); this.itemChr = document.getElementById('stat-item-chr');
-        this.itemGra = document.getElementById('stat-item-gra'); this.itemGold = document.getElementById('stat-item-gold');
-        this.spLabel = document.querySelector('.gauge-sp .gauge-header span:first-child');
+        this.itemStr = document.getElementById('stat-item-str'); this.itemInt = document.getElementById('stat-item-int'); this.itemWis = document.getElementById('stat-item-wis');
+        this.itemDex = document.getElementById('stat-item-dex'); this.itemCon = document.getElementById('stat-item-con'); this.itemChr = document.getElementById('stat-item-chr');
+        this.itemGra = document.getElementById('stat-item-gra'); this.itemAc = document.getElementById('stat-item-ac'); this.itemGold = document.getElementById('stat-item-gold');
+        const docQs = typeof document.querySelector === 'function' ? (sel) => document.querySelector(sel) : () => null;
+        this.spContainer = docQs('.gauge-sp'); this.expContainer = docQs('.gauge-exp');
+        this.spLabel = docQs('.gauge-sp .gauge-header span:first-child');
 
         this.depthVal = document.getElementById('val-depth'); this.goldVal = document.getElementById('val-gold'); this.acVal = document.getElementById('val-ac'); this.pingBadge = document.getElementById('ping-badge');
 
         // Top Landscape Message Feed Window (Full message history with scrollback)
         this.messageFeedWindow = document.getElementById('message-feed-window'); this.messageFeedList = document.getElementById('message-feed-list'); this.messageFeedScroll = document.getElementById('message-feed-scroll');
-        this.messageHistory = []; this.userScrolledUp = false; this.prevMessages = null; this.lastTermRow0 = ''; this.currentTurn = 0; this.isDeadInPlay = false;
+        this.messageHistory = []; this.userScrolledUp = false; this.prevMessages = null; this.lastTermRow0 = ''; this.currentTurn = 0; this.isDeadInPlay = false; this._wasPhasePlay = false;
 
         // Detailed 3-Row Telemetry Footer (Matches Overlay.cs:1620-1740)
         this.footerDiagonalHint = document.getElementById('footer-diagonal-hint'); this.footerStairsHint = document.getElementById('footer-stairs-hint');
@@ -59,8 +62,8 @@ class WebHUD {
         this.setupCharacterPanelShortcuts();
         this.setupDeathModal();
         this.setupMessageFeed();
-        this.initUniversalMovableHud();
-        this.setDockPreset();
+        if (typeof this.initUniversalMovableHud === 'function') this.initUniversalMovableHud();
+        if (typeof this.setDockPreset === 'function') this.setDockPreset();
 
         // Offscreen canvas cache for static minimap tiles (eliminates hundreds of fillText calls per frame on turn)
         this.minimapTileCanvas = document.createElement('canvas');
@@ -230,6 +233,9 @@ class WebHUD {
                 this.messageFeedWindow.classList.add('is-idle');
             }
         }, 6000);
+        if (this._msgFeedIdleTimer && typeof this._msgFeedIdleTimer.unref === 'function') {
+            this._msgFeedIdleTimer.unref();
+        }
     }
 
     resetMessages(welcomeText = null) {
@@ -987,7 +993,11 @@ class WebHUD {
                         affEl.append(chip, loreChip, pBtn, mkBtn('cast', '✨ Cast'), mkBtn('inspect', '🔍 Inspect'));
                         affEl._distChip = chip; affEl._loreChip = loreChip; affEl._pBtn = pBtn;
                     }
-                    const acPart = (tac && tac.acVal !== undefined && tac.acVal !== null) ? ` • AC ${tac.acVal}` : '';
+                    const schemas = this._getRealmSchemas(realm);
+                    const defTag = schemas.defenseSchema.label === 'Arm' ? 'Arm' : (schemas.defenseSchema.label === 'Armor' ? 'Armor' : 'AC');
+                    const acPart = (tac && tac.acVal !== undefined && tac.acVal !== null)
+                        ? (/^EV\b/i.test(String(tac.acVal)) ? ` • ${tac.acVal}` : ` • ${defTag} ${tac.acVal}`)
+                        : '';
                     affEl._distChip.textContent = `📏 ${dist}sq • ${pct}% HP${acPart}`;
                     const loreBits = [];
                     if (tac && tac.blows) loreBits.push(`⚔ ${tac.blows}`);
@@ -1227,6 +1237,177 @@ class WebHUD {
         ctx.stroke();
     }
 
+    _getRealmCartridge() {
+        if (typeof window !== 'undefined' && window.RealmCartridge) return window.RealmCartridge;
+        if (typeof RealmCartridge !== 'undefined') return RealmCartridge;
+        return null;
+    }
+
+    _getRealmSchemas(realm) {
+        const r = String(realm || 'angband').trim().toLowerCase();
+        const rc = this._getRealmCartridge();
+        if (rc && typeof rc.getStatSchema === 'function') {
+            const statSchema = rc.getStatSchema(r);
+            return {
+                rc,
+                realm: r,
+                statSchema: Array.from(statSchema),
+                statFormat: statSchema.format || 'int',
+                defenseSchema: rc.getDefenseSchema(r),
+                resourceSchema: rc.getResourceSchema(r),
+                progressionSchema: rc.getProgressionSchema(r),
+                depthSchema: rc.getDepthSchema(r)
+            };
+        }
+        const statMap = {
+            angband: { keys: ['str', 'int', 'wis', 'dex', 'con'], fmt: 'disp' },
+            silq: { keys: ['str', 'dex', 'con', 'gra'], fmt: 'signed' },
+            dcss: { keys: ['str', 'int', 'dex'], fmt: 'int' },
+            brogue: { keys: ['str'], fmt: 'int' },
+            rogue: { keys: ['str'], fmt: 'cur/max' },
+            frogcomposband: { keys: ['str', 'int', 'wis', 'dex', 'con', 'chr'], fmt: 'disp' },
+            hengband: { keys: ['str', 'int', 'wis', 'dex', 'con', 'chr'], fmt: 'disp' },
+            nethack: { keys: ['str', 'int', 'wis', 'dex', 'con', 'chr'], fmt: 'int' },
+            ryod: { keys: ['str', 'int', 'wis', 'dex', 'con', 'chr'], fmt: 'int' }
+        };
+        const defMap = {
+            rogue: { direction: 'descending', label: 'Arm', fields: ['arm', 'ac'] },
+            nethack: { direction: 'descending', label: 'AC', fields: ['ac'] },
+            silq: { direction: 'ascending', label: 'EVN / Prot', fields: ['evn', 'pr_min', 'pr_max'], formatBracket: true },
+            dcss: { direction: 'ascending', label: 'AC | EV | SH', fields: ['ac', 'ev', 'sh'] },
+            brogue: { direction: 'ascending', label: 'Armor', fields: ['ac'] }
+        };
+        const resMap = {
+            rogue: { hasMana: false, secondaryLabel: 'Nutrition' },
+            brogue: { hasMana: false, secondaryLabel: 'Nutrition', altLabel: 'Enchantment' },
+            silq: { mpLabel: 'Voice', hasMana: true, dualSong: true },
+            nethack: { mpLabel: 'MP', hasMana: true },
+            dcss: { mpLabel: 'MP', hasMana: true },
+            ryod: { mpLabel: 'MP', hasMana: true }
+        };
+        const progMap = {
+            brogue: { hasLevels: false, hasXp: false },
+            silq: { hasLevels: false, hasXp: true, xpLabel: 'XP' },
+            dcss: { hasLevels: true, hasXp: true, levelLabel: 'XL', xpLabel: 'XP' }
+        };
+        const depthMap = {
+            nethack: { unit: 'Dlvl', feetPerLevel: 0, prefix: 'Dlvl', style: 'dlvl' },
+            dcss: { unit: ':', feetPerLevel: 0, defaultBranch: 'D', style: 'branch-colon' },
+            rogue: { unit: 'Level', feetPerLevel: 0, prefix: 'Level', style: 'level' },
+            brogue: { unit: 'Depth', feetPerLevel: 0, prefix: 'Depth', style: 'depth' },
+            ryod: { unit: 'Branch', feetPerLevel: 0, defaultBranch: 'Branch', style: 'branch-space' },
+            silq: { unit: 'ft', feetPerLevel: 50, townLabel: 'Gates of Angband', style: 'feet' },
+            frogcomposband: { unit: 'ft', feetPerLevel: 50, townLabel: 'Outpost', style: 'feet' },
+            hengband: { unit: 'ft', feetPerLevel: 50, townLabel: 'Outpost', style: 'feet' }
+        };
+        const st = statMap[r] || statMap.angband;
+        return {
+            rc: null,
+            realm: r,
+            statSchema: st.keys,
+            statFormat: st.fmt,
+            defenseSchema: defMap[r] || { direction: 'ascending', label: 'AC', fields: ['ac', 'ac_base', 'ac_to_a'] },
+            resourceSchema: resMap[r] || { mpLabel: 'SP', hasMana: true },
+            progressionSchema: progMap[r] || { hasLevels: true, hasXp: true, levelLabel: 'Lv', xpLabel: 'EXP' },
+            depthSchema: depthMap[r] || { unit: 'ft', feetPerLevel: 50, townLabel: 'Town', style: 'feet' }
+        };
+    }
+
+    _setElVisible(el, visible, displayVal = '') {
+        if (!el || !el.style) return;
+        if (visible) {
+            if (typeof el.style.removeProperty === 'function') el.style.removeProperty('display');
+            el.style.display = displayVal;
+        } else if (typeof el.style.setProperty === 'function') {
+            el.style.setProperty('display', 'none', 'important');
+        } else {
+            el.style.display = 'none';
+        }
+    }
+
+    _formatRealmStat(player, statKey, realm, schemas) {
+        if (!player) return '';
+        const statsObj = (player.stats && typeof player.stats === 'object') ? player.stats : null;
+        let entry = statsObj
+            ? (statsObj[statKey] !== undefined ? statsObj[statKey] : (statKey === 'chr' ? statsObj.cha : undefined))
+            : undefined;
+        if (entry === undefined) {
+            entry = player[statKey] !== undefined ? player[statKey] : (statKey === 'chr' ? player.cha : undefined);
+        }
+        if (entry === undefined || entry === null) return '';
+        const fmt = schemas.statFormat || 'int';
+        if (fmt === 'cur/max' && statKey === 'str' && player.str_max != null) {
+            if (typeof entry !== 'object') entry = { cur: entry, max: player.str_max };
+            else if (entry.max === undefined && entry.top === undefined) entry = { cur: entry.cur ?? entry.use, max: player.str_max };
+        }
+        if (schemas.rc && typeof schemas.rc.formatStatValue === 'function') {
+            return schemas.rc.formatStatValue(entry, realm, statKey);
+        }
+        if (fmt === 'signed') {
+            const raw = (typeof entry === 'object') ? (entry.disp ?? entry.use ?? entry.cur ?? entry.top ?? entry.max) : entry;
+            if (raw === undefined || raw === null || raw === '') return '';
+            const n = Number(raw);
+            return Number.isFinite(n) ? (n > 0 ? `+${n}` : `${n}`) : String(raw);
+        }
+        if (fmt === 'cur/max') {
+            if (typeof entry === 'string') return entry.includes('/') ? entry.trim() : `${entry.trim()}/${entry.trim()}`;
+            if (typeof entry === 'object') {
+                if (entry.disp != null && String(entry.disp).includes('/')) return String(entry.disp).trim();
+                const cur = entry.cur ?? entry.use ?? entry.val ?? entry.top ?? entry.max;
+                if (cur == null) return '';
+                return `${cur}/${entry.max ?? entry.top ?? cur}`;
+            }
+            return `${entry}/${entry}`;
+        }
+        if (typeof entry === 'object') {
+            if (entry.disp != null && String(entry.disp).trim() !== '') return String(entry.disp).trim();
+            const val = entry.use ?? entry.cur ?? entry.top ?? entry.max ?? entry.val ?? entry.value;
+            return val != null ? String(val) : '';
+        }
+        return String(entry);
+    }
+
+    _formatRealmDefense(player, realm, schemas) {
+        if (schemas.rc && typeof schemas.rc.formatDefenseValue === 'function') {
+            return schemas.rc.formatDefenseValue(player, realm);
+        }
+        const p = player || {};
+        const r = schemas.realm || String(realm || 'angband').toLowerCase();
+        if (schemas.defenseSchema.formatBracket || r === 'silq') {
+            const evn = p.evn !== undefined ? Number(p.evn) : Number(p.ac || 0);
+            return `[${evn >= 0 ? `+${evn}` : evn}, ${Number(p.pr_min || 0)}-${Number(p.pr_max || 0)}]`;
+        }
+        if (r === 'dcss') return `${p.ac !== undefined ? p.ac : 0} | ${p.ev !== undefined ? p.ev : 10} | ${p.sh !== undefined ? p.sh : 0}`;
+        if (r === 'rogue') return `${p.arm !== undefined ? p.arm : (p.ac !== undefined ? p.ac : 10)}`;
+        if (r === 'nethack') return `${p.ac !== undefined ? p.ac : 10}`;
+        if (r === 'brogue') return `${p.ac !== undefined ? p.ac : 0}`;
+        const acTotal = p.ac !== undefined ? p.ac : ((Number(p.ac_base || 0)) + (Number(p.ac_to_a || 0)));
+        const acToA = Number(p.ac_to_a || 0);
+        return acToA !== 0 ? `${acTotal} (${acToA > 0 ? '+' : ''}${acToA})` : `${acTotal}`;
+    }
+
+    _formatRealmDepth(depthOrPlayer, realm, schemas) {
+        if (schemas.rc && typeof schemas.rc.formatDepth === 'function') {
+            return schemas.rc.formatDepth(depthOrPlayer, realm);
+        }
+        const isObj = depthOrPlayer && typeof depthOrPlayer === 'object';
+        const p = isObj ? depthOrPlayer : null;
+        const ds = schemas.depthSchema || { unit: 'ft', feetPerLevel: 50, townLabel: 'Town', style: 'feet' };
+        const rawD = isObj ? (p.depth !== undefined ? p.depth : p.max_depth) : depthOrPlayer;
+        const depth = (rawD != null && Number.isFinite(Number(rawD))) ? Number(rawD) : (ds.style === 'feet' ? 0 : 1);
+        if (ds.style === 'dlvl') return `${ds.prefix || 'Dlvl'} ${depth}`;
+        if (ds.style === 'branch-colon') {
+            let br = (p && (p.branch_name || p.branch)) || ds.defaultBranch || 'D';
+            if (/^dungeon$/i.test(br)) br = 'D';
+            return `${br}:${depth}`;
+        }
+        if (ds.style === 'level') return `${ds.prefix || 'Level'} ${depth}`;
+        if (ds.style === 'depth') return `${ds.prefix || 'Depth'} ${depth}`;
+        if (ds.style === 'branch-space') return `${(p && (p.branch_name || p.branch)) || ds.defaultBranch || 'Branch'} ${depth}`;
+        if (depth === 0) return (p && p.wilderness) ? 'Wilderness' : (ds.townLabel || 'Town');
+        return `${depth * (Number(ds.feetPerLevel) || 50)} ${ds.unit || 'ft'}`;
+    }
+
     updateLanguageUI(realm, lang = 'en') {
         const isRunActive = Boolean(window.__app && window.__app.input && typeof window.__app.input.isRunningActive === 'function' ? window.__app.input.isRunningActive() : false);
         const langKey = `${realm || ''}|${lang}|${isRunActive}`;
@@ -1236,6 +1417,8 @@ class WebHUD {
         this._lastLanguageUIKey = langKey;
 
         const isHeng = realm === 'hengband';
+        const schemas = this._getRealmSchemas(realm);
+        const qs = typeof document.querySelector === 'function' ? (sel) => document.querySelector(sel) : () => null;
 
         // 1. Primary Attributes & Combat Stats
         const statLabels = {
@@ -1246,11 +1429,11 @@ class WebHUD {
             con: { en: 'CON', bi: 'CON (耐久)', jp: '耐久' },
             chr: { en: 'CHR', bi: 'CHR (魅力)', jp: '魅力' },
             gra: { en: 'GRA', bi: 'GRA (威厳)', jp: '威厳' },
-            ac:  { en: 'AC',  bi: 'AC (防御)',  jp: '防御' },
+            ac:  { en: schemas.defenseSchema.label || 'AC', bi: 'AC (防御)', jp: '防御' },
             gold:{ en: 'GOLD',bi: 'AU (金貨)', jp: '金貨' },
         };
         for (const [key, trans] of Object.entries(statLabels)) {
-            const el = document.querySelector(`#stat-item-${key} .stat-label`);
+            const el = qs(`#stat-item-${key} .stat-label`);
             if (el) {
                 if (isHeng && lang === 'jp') el.textContent = trans.jp;
                 else if (isHeng && lang === 'bilingual') el.textContent = trans.bi;
@@ -1259,8 +1442,8 @@ class WebHUD {
         }
 
         // 2. Health & Mana/Voice Gauges
-        const hpHeader = document.querySelector('.gauge-hp .gauge-header > span:first-child');
-        const spHeader = document.querySelector('.gauge-sp .gauge-header > span:first-child') || this.spLabel;
+        const hpHeader = qs('.gauge-hp .gauge-header > span:first-child');
+        const spHeader = qs('.gauge-sp .gauge-header > span:first-child') || this.spLabel;
         if (isHeng && lang === 'jp') {
             if (hpHeader) hpHeader.textContent = '体力';
             if (spHeader) spHeader.textContent = '魔力';
@@ -1271,7 +1454,7 @@ class WebHUD {
             if (this.spLabel) this.spLabel.textContent = 'MANA (魔力)';
         } else {
             if (hpHeader) hpHeader.textContent = 'HEALTH';
-            const defaultSp = (realm === 'silq') ? 'VOICE' : 'MANA';
+            const defaultSp = realm === 'silq' ? 'VOICE' : (schemas.resourceSchema.mpLabel || 'MANA');
             if (spHeader) spHeader.textContent = defaultSp;
             if (this.spLabel) this.spLabel.textContent = defaultSp;
         }
@@ -1286,7 +1469,7 @@ class WebHUD {
         const isRun = window.__app && window.__app.input ? window.__app.input.isRunningActive() : false;
         const runText = document.getElementById('action-run-text');
         const dpadRunText = document.getElementById('dpad-run-text');
-        const termRunText = document.querySelector('#term-run-toggle .term-run-text');
+        const termRunText = qs('#term-run-toggle .term-run-text');
         const runWord = isRun
             ? { en: 'Run', bi: 'Run (走る)', jp: '走る' }
             : { en: 'Walk', bi: 'Walk (歩く)', jp: '歩く' };
@@ -1361,8 +1544,8 @@ class WebHUD {
         }
 
         // 8. D-Pad Turning Wings
-        const dpadTurnLeft = document.querySelector('#dpad-turn-left .dpad-turn-text');
-        const dpadTurnRight = document.querySelector('#dpad-turn-right .dpad-turn-text');
+        const dpadTurnLeft = qs('#dpad-turn-left .dpad-turn-text');
+        const dpadTurnRight = qs('#dpad-turn-right .dpad-turn-text');
         if (dpadTurnLeft) {
             if (isHeng && lang === 'jp') dpadTurnLeft.textContent = '左回転';
             else if (isHeng && lang === 'bilingual') dpadTurnLeft.textContent = 'Turn L (左)';
@@ -1410,11 +1593,36 @@ class WebHUD {
         if (!frame) return;
         this.lastFrame = frame;
 
+        const isPlayPhase = frame.phase === 'play';
+        if (isPlayPhase && !this._wasPhasePlay) {
+            const feedWin = this.messageFeedWindow || (typeof document !== 'undefined' && (this.messageFeedWindow = document.getElementById('message-feed-window')));
+            if (feedWin && feedWin.classList) {
+                feedWin.classList.remove('expanded');
+                if (feedWin.style) feedWin.style.height = '';
+                const btnToggleSize = typeof document !== 'undefined' ? document.getElementById('btn-msg-size-toggle') : null;
+                if (btnToggleSize) {
+                    btnToggleSize.textContent = '▲ Expand';
+                    btnToggleSize.title = 'Expand Message Log to show full history';
+                }
+                this.resetMessageFeedIdleTimer();
+            }
+        }
+        this._wasPhasePlay = isPlayPhase;
+
         const player = frame.player || {};
         const ui = frame.ui || {};
 
         // Realm and Game System Differentiation
         const realm = (frame && frame.realm) || (window.__activeRealm) || (window.__app && window.__app.getActiveRealm ? window.__app.getActiveRealm() : 'angband');
+        const schemas = this._getRealmSchemas(realm);
+        const progSchema = schemas.progressionSchema;
+        const resSchema = schemas.resourceSchema;
+        const defSchema = schemas.defenseSchema;
+        const statSchema = schemas.statSchema;
+        const hasMana = resSchema.hasMana !== false && player.power_discipline !== 'none';
+        const hasLevels = progSchema.hasLevels !== false;
+        const hasXp = progSchema.hasXp !== undefined ? progSchema.hasXp !== false : hasLevels;
+
         const ht = (typeof window !== 'undefined' && window.HudTelemetry) ? window.HudTelemetry : null;
         if (ht) {
             ht.ingestFrameLore(frame, realm);
@@ -1548,102 +1756,99 @@ class WebHUD {
             }
         }
 
-        // SP / Voice / Nutrition Bar (Brogue & Classic Rogue use Nutrition in the second crystal vial)
-        const isNutritionVial = (realm === 'brogue' || realm === 'rogue' || player.progression_mode === 'brogue_item' || player.power_discipline === 'none');
-        const curSp = isNutritionVial ? (player.nutrition ?? 100) : (player.sp !== undefined ? player.sp : (player.csp !== undefined ? player.csp : 0));
-        const maxSp = isNutritionVial ? (player.nutrition_max ?? (realm === 'brogue' ? 100 : 1300)) : (player.sp_max !== undefined ? player.sp_max : (player.max_sp !== undefined ? player.max_sp : (player.msp !== undefined ? player.msp : 0)));
-        const spSig = `${curSp}/${maxSp}:${realm}:${window.__langMode || 'en'}:${isSilQ}:${player.resource_label || ''}`;
-        if (this._lastSpSig !== spSig) {
-            this._lastSpSig = spSig;
-            if (this.spLabel) {
-                const lang = window.__langMode || 'en';
-                if (realm === 'hengband' && lang === 'jp') {
-                    this.spLabel.textContent = '魔力';
-                } else if (realm === 'hengband' && lang === 'bilingual') {
-                    this.spLabel.textContent = 'MANA (魔力)';
-                } else {
-                    this.spLabel.textContent = isNutritionVial ? 'NUTRITION' : (player.resource_label || (isSilQ ? 'VOICE' : 'MANA'));
+        // SP / MP / Voice Bar (hidden when RealmCartridge resourceSchema.hasMana === false, e.g. Rogue & Brogue)
+        const spCont = this.spContainer || (typeof document !== 'undefined' && typeof document.querySelector === 'function' && (this.spContainer = document.querySelector('.gauge-sp')));
+        this._setElVisible(spCont, hasMana, 'block');
+        const curSp = player.sp !== undefined ? player.sp : (player.csp !== undefined ? player.csp : 0);
+        const maxSp = player.sp_max !== undefined ? player.sp_max : (player.max_sp !== undefined ? player.max_sp : (player.msp !== undefined ? player.msp : 0));
+        if (hasMana) {
+            const spSig = `${curSp}/${maxSp}:${realm}:${window.__langMode || 'en'}:${isSilQ}:${player.resource_label || ''}`;
+            if (this._lastSpSig !== spSig) {
+                this._lastSpSig = spSig;
+                if (this.spLabel) {
+                    const lang = window.__langMode || 'en';
+                    if (realm === 'hengband' && lang === 'jp') {
+                        this.spLabel.textContent = '魔力';
+                    } else if (realm === 'hengband' && lang === 'bilingual') {
+                        this.spLabel.textContent = 'MANA (魔力)';
+                    } else {
+                        const customRes = (player.resource_label && player.resource_label !== 'MANA') ? player.resource_label : '';
+                        this.spLabel.textContent = customRes || (isSilQ ? 'VOICE' : (resSchema.mpLabel || 'MANA'));
+                    }
                 }
-            }
-            const spPct = maxSp > 0 ? Math.max(0, Math.min(100, (curSp / maxSp) * 100)) : 0;
-            const isSpHeal = this._lastSpPct !== undefined && spPct >= this._lastSpPct;
-            this._lastSpPct = spPct;
-            if (this.spFill) {
-                this.spFill.style.width = `${spPct}%`;
-                if (typeof this.spFill.style.setProperty === 'function') this.spFill.style.setProperty('--vial-pct', `${spPct}%`);
-            }
-            if (this.spGhostFill) {
-                if (this.spGhostFill.classList) this.spGhostFill.classList.toggle('is-healing', isSpHeal);
-                this.spGhostFill.style.transitionDelay = isSpHeal ? '0s' : '';
-                this.spGhostFill.style.width = `${spPct}%`;
-                if (typeof this.spGhostFill.style.setProperty === 'function') this.spGhostFill.style.setProperty('--vial-pct', `${spPct}%`);
-            }
-            this.spText.textContent = isNutritionVial ? `${Math.round(spPct)}%` : `${curSp} / ${maxSp}`;
-        }
-
-        // Left Panel Stats
-        const getStat = s => (s && typeof s === 'object') ? (s.use || s.top || '10') : (s || '10');
-        if (isSilQ) {
-            if (this.itemGra) this.itemGra.style.display = 'flex';
-            if (this.itemInt) this.itemInt.style.display = 'none';
-            if (this.itemWis) this.itemWis.style.display = 'none';
-            if (this.itemChr) this.itemChr.style.display = 'none';
-            if (this.itemGold) this.itemGold.style.display = 'none';
-
-            if (player.stats) {
-                if (this.statStr) this.statStr.textContent = getStat(player.stats.str);
-                if (this.statDex) this.statDex.textContent = getStat(player.stats.dex);
-                if (this.statCon) this.statCon.textContent = getStat(player.stats.con);
-                if (this.statGra) this.statGra.textContent = getStat(player.stats.gra);
-            }
-        } else {
-            if (this.itemGra) this.itemGra.style.display = 'none';
-            if (this.itemInt) this.itemInt.style.display = 'flex';
-            if (this.itemWis) this.itemWis.style.display = 'flex';
-            if (this.itemChr) this.itemChr.style.display = 'flex';
-            if (this.itemGold) this.itemGold.style.display = 'flex';
-
-            if (player.stats) {
-                if (this.statStr) this.statStr.textContent = getStat(player.stats.str);
-                if (this.statInt) this.statInt.textContent = getStat(player.stats.int);
-                if (this.statWis) this.statWis.textContent = getStat(player.stats.wis);
-                if (this.statDex) this.statDex.textContent = getStat(player.stats.dex);
-                if (this.statCon) this.statCon.textContent = getStat(player.stats.con);
-                if (this.statChr) this.statChr.textContent = getStat(player.stats.chr || player.stats.cha);
+                const spPct = maxSp > 0 ? Math.max(0, Math.min(100, (curSp / maxSp) * 100)) : 0;
+                const isSpHeal = this._lastSpPct !== undefined && spPct >= this._lastSpPct;
+                this._lastSpPct = spPct;
+                if (this.spFill) {
+                    this.spFill.style.width = `${spPct}%`;
+                    if (typeof this.spFill.style.setProperty === 'function') this.spFill.style.setProperty('--vial-pct', `${spPct}%`);
+                }
+                if (this.spGhostFill) {
+                    if (this.spGhostFill.classList) this.spGhostFill.classList.toggle('is-healing', isSpHeal);
+                    this.spGhostFill.style.transitionDelay = isSpHeal ? '0s' : '';
+                    this.spGhostFill.style.width = `${spPct}%`;
+                    if (typeof this.spGhostFill.style.setProperty === 'function') this.spGhostFill.style.setProperty('--vial-pct', `${spPct}%`);
+                }
+                if (this.spText) this.spText.textContent = `${curSp} / ${maxSp}`;
             }
         }
 
-        // Depth, Wilderness, Gold, AC
+        // Left Panel Stats (driven strictly by RealmCartridge statSchema)
+        const statItemsMap = {
+            str: this.itemStr || (typeof document !== 'undefined' && (this.itemStr = document.getElementById('stat-item-str'))),
+            int: this.itemInt,
+            wis: this.itemWis,
+            dex: this.itemDex || (typeof document !== 'undefined' && (this.itemDex = document.getElementById('stat-item-dex'))),
+            con: this.itemCon || (typeof document !== 'undefined' && (this.itemCon = document.getElementById('stat-item-con'))),
+            chr: this.itemChr,
+            gra: this.itemGra
+        };
+        const statValMap = {
+            str: this.statStr, int: this.statInt, wis: this.statWis,
+            dex: this.statDex, con: this.statCon, chr: this.statChr, gra: this.statGra
+        };
+        for (const sk of ['str', 'int', 'wis', 'dex', 'con', 'chr', 'gra']) {
+            const visible = statSchema.includes(sk);
+            this._setElVisible(statItemsMap[sk], visible, 'flex');
+            if (visible && statValMap[sk]) {
+                const formatted = this._formatRealmStat(player, sk, realm, schemas);
+                if (formatted !== '') statValMap[sk].textContent = formatted;
+            }
+        }
+        const hasGold = (realm !== 'silq') && (!schemas || !schemas.resourceSchema || schemas.resourceSchema.hasGold !== false);
+        this._setElVisible(this.itemGold, hasGold, 'flex');
+        const acItemLayout = this.itemAc || (typeof document !== 'undefined' && (this.itemAc = document.getElementById('stat-item-ac')));
+        if (acItemLayout && acItemLayout.style && typeof acItemLayout.style.setProperty === 'function') {
+            if (hasGold) acItemLayout.style.removeProperty('grid-column');
+            else acItemLayout.style.setProperty('grid-column', '1 / -1', 'important');
+        }
+
+        // Depth & Wilderness (driven by RealmCartridge depthSchema / formatDepth)
         const depth = player.depth !== undefined ? player.depth : 0;
-        let locStr = depth === 0 ? 'Town' : `${depth * 50}ft`;
-        if (isSilQ) {
-            locStr = `${depth * 50}ft`;
-        } else if (depth === 0 && frame.map && frame.map.rows) {
-            const px = player.x || 0;
-            const py = player.y || 0;
-            const feat = this.getFeatAt(frame.map, px, py);
-            if ((feat >= 25 && feat <= 31) || player.wilderness || frame.is_wild_mode) {
-                locStr = 'Wilderness';
-            }
+        let isWild = Boolean(player.wilderness || frame.is_wild_mode);
+        if (!isWild && depth === 0 && frame.map && frame.map.rows) {
+            const feat = this.getFeatAt(frame.map, player.x || 0, player.y || 0);
+            if (feat >= 25 && feat <= 31) isWild = true;
         }
+        let locStr = this._formatRealmDepth({ depth, max_depth: player.max_depth, branch: player.branch, branch_name: player.branch_name, wilderness: isWild }, realm, schemas);
         if (realm === 'hengband') {
             const lang = window.__langMode || 'en';
             if (lang === 'jp') {
-                if (locStr === 'Town') locStr = '街 (宿場町)';
+                if (locStr === 'Town' || locStr === 'Outpost') locStr = '街 (宿場町)';
                 else if (locStr === 'Wilderness') locStr = '荒野';
             } else if (lang === 'bilingual') {
-                if (locStr === 'Town') locStr = 'Town (街)';
+                if (locStr === 'Town' || locStr === 'Outpost') locStr = 'Town (街)';
                 else if (locStr === 'Wilderness') locStr = 'Wilderness (荒野)';
             }
         }
         if (this.depthVal) this.depthVal.textContent = locStr;
 
-        // Sub-meta: Level, Race, Class, Deity & Depth (Wave 10 Track B + 8-Realm Support)
-        const depthLabel = player.place_label || (realm === 'brogue' ? `Depth ${depth}` : (realm === 'rogue' ? `Lvl ${depth}` : (realm === 'nethack' ? `DLvl ${depth}` : (depth === 0 ? (player.wilderness ? 'Wilderness' : 'Town') : `${depth * 50}ft`))));
+        // Sub-meta: Level, Race, Class, Deity & Depth
+        const depthLabel = String(locStr || '').replace(/ (?=\d+|ft\b)/g, '\u00A0');
         const charSubMetaEl = this._charSubMetaEl || (this._charSubMetaEl = document.getElementById('char-sub-meta'));
         if (charSubMetaEl) {
             const pLev = player.lev !== undefined ? player.lev : (player.level !== undefined ? player.level : 1);
-            const hasCharLevels = realm !== 'brogue' && !isSilQ && Number(pLev) > 0;
+            const hasCharLevels = hasLevels && Number(pLev) > 0;
             let pRace = player.race || '';
             let pClass = player.class || player.cls || '';
             const lang = window.__langMode || 'en';
@@ -1664,7 +1869,7 @@ class WebHUD {
                 pClass = txTerm(pClass);
             }
             const godSuffix = player.god && player.god !== 'No God' ? ` • ⛩ ${player.god}` : '';
-            const levPrefix = hasCharLevels ? `${realm === 'dcss' ? 'XL' : 'Lv.'}${pLev} ` : '';
+            const levPrefix = hasCharLevels ? `${progSchema.levelLabel === 'XL' ? 'XL ' : 'Lv.'}${pLev} ` : '';
             const subMetaStr = `${levPrefix}${pRace}${pClass ? ` ${pClass}` : ''} • ${depthLabel}${godSuffix}`;
             const subMetaSig = `${lang}:${subMetaStr}`;
             if (this._lastCharSubMeta !== subMetaSig) {
@@ -1672,20 +1877,28 @@ class WebHUD {
                 charSubMetaEl.textContent = subMetaStr;
             }
         }
-        const goldAcSig = `${player.gold || 0}:${player.ac || 0}:${player.ac_to_a || 0}:${player.ac_base || 0}:${isSilQ}`;
+        const goldAcSig = `${realm}:${window.__langMode || 'en'}:${player.gold || 0}:${player.ac ?? ''}:${player.arm ?? ''}:${player.ac_to_a || 0}:${player.ac_base || 0}:${player.evn ?? ''}:${player.pr_min ?? ''}:${player.pr_max ?? ''}:${player.ev ?? ''}:${player.sh ?? ''}`;
         if (this._lastGoldAcSig !== goldAcSig) {
             this._lastGoldAcSig = goldAcSig;
             if (this.goldVal) {
                 this.goldVal.textContent = (player.gold || 0).toLocaleString();
                 this.goldVal.title = `Gold: ${(player.gold || 0).toLocaleString()} AU`;
             }
+            const acItem = this.itemAc || (typeof document !== 'undefined' && (this.itemAc = document.getElementById('stat-item-ac')));
+            const acLbl = acItem && typeof acItem.querySelector === 'function' ? acItem.querySelector('.stat-label') : null;
+            if (acLbl && !(realm === 'hengband' && (window.__langMode || 'en') !== 'en')) {
+                acLbl.textContent = defSchema.label || 'AC';
+            }
             if (this.acVal) {
+                const acDisplay = this._formatRealmDefense(player, realm, schemas);
+                this.acVal.textContent = acDisplay;
                 const acTotal = player.ac !== undefined ? player.ac : 0;
                 const acToA = player.ac_to_a || 0;
-                this.acVal.textContent = acToA !== 0 ? `${acTotal} (${acToA > 0 ? '+' : ''}${acToA})` : `${acTotal}`;
-                this.acVal.title = isSilQ
-                    ? `Evasion & Protection: ${acTotal}`
-                    : `Armor Class: ${acTotal} (Base: ${player.ac_base || 0}, Bonus: ${acToA >= 0 ? '+' : ''}${acToA})`;
+                if (isSilQ) this.acVal.title = `Evasion & Protection: ${acDisplay}`;
+                else if (realm === 'dcss') this.acVal.title = `AC | EV | SH: ${acDisplay}`;
+                else if (defSchema.direction === 'descending') this.acVal.title = `${defSchema.label} (Descending — lower is better): ${acDisplay}`;
+                else if (realm === 'brogue') this.acVal.title = `Armor (Ascending): ${acDisplay}`;
+                else this.acVal.title = `Armor Class: ${acTotal} (Base: ${player.ac_base || 0}, Bonus: ${acToA >= 0 ? '+' : ''}${acToA})`;
             }
         }
         const yaw = (window.__app && window.__app.dungeon) ? window.__app.dungeon.yaw : (this.currentCameraYaw || 0);
@@ -1696,7 +1909,7 @@ class WebHUD {
         const arrowChar = sectorArrows[sector] || '▲';
         const facingName = sectorNames[sector] || 'N';
 
-        this.updateFooterFacing(yaw);
+        if (typeof this.updateFooterFacing === 'function') this.updateFooterFacing(yaw);
 
         // Minimap Header (Overlay.cs:1404)
         if (player.x !== undefined && player.y !== undefined) {
@@ -1762,9 +1975,11 @@ class WebHUD {
             const currentFeat = this.getFeatAt(frame.map, player.x, player.y);
             let stairsText = '';
             if (currentFeat === 6) {
-                stairsText = depth === 0 ? `[>] Down to Dungeon (50')` : `[>] Down to ${(depth + 1) * 50}ft`;
+                const downLbl = this._formatRealmDepth({ depth: depth + 1, branch: player.branch, branch_name: player.branch_name }, realm, schemas);
+                stairsText = `[>] Down to ${downLbl}`;
             } else if (currentFeat === 5) {
-                stairsText = depth === 1 ? `[<] Up to Town` : `[<] Up to ${(depth - 1) * 50}ft`;
+                const upLbl = this._formatRealmDepth({ depth: Math.max(0, depth - 1), branch: player.branch, branch_name: player.branch_name }, realm, schemas);
+                stairsText = `[<] Up to ${upLbl}`;
             }
             if (this.footerStairsHint) {
                 this.footerStairsHint.textContent = stairsText;
@@ -1787,21 +2002,17 @@ class WebHUD {
             (!footerCharPanelEl.style || footerCharPanelEl.style.display !== 'none')
         );
         if (this.footerLevel) {
-            if (isSilQ || charPanelVisible) {
-                this.footerLevel.style.display = 'none';
-            } else if (realm === 'brogue') {
-                this.footerLevel.style.display = 'inline';
-                const bStr = (player.stats && player.stats.str && player.stats.str.use !== undefined) ? player.stats.str.use : (player.str || 12);
-                this.footerLevel.textContent = `💪 Str ${bStr}`;
+            if (!hasLevels || charPanelVisible) {
+                this._setElVisible(this.footerLevel, false);
             } else {
-                this.footerLevel.style.display = 'inline';
+                this._setElVisible(this.footerLevel, true, 'inline');
                 const plLevel = player.level !== undefined ? player.level : (player.lev !== undefined ? player.lev : 1);
                 const lang = window.__langMode || 'en';
                 if (realm === 'hengband' && lang === 'jp') {
                     this.footerLevel.textContent = `⭐ レベル ${plLevel}`;
                 } else if (realm === 'hengband' && lang === 'bilingual') {
                     this.footerLevel.textContent = `⭐ Lvl (Lv) ${plLevel}`;
-                } else if (realm === 'dcss') {
+                } else if (progSchema.levelLabel === 'XL') {
                     this.footerLevel.textContent = `⭐ XL ${plLevel}`;
                 } else {
                     this.footerLevel.textContent = `⭐ Lvl ${plLevel}`;
@@ -1814,47 +2025,43 @@ class WebHUD {
             this.footerHp.style.color = hpRatio > 0.6 ? '#62e062' : (hpRatio > 0.25 ? '#ffd700' : '#ff4444');
         }
         if (this.footerSp) {
-            if (maxSp > 0) {
-                this.footerSp.style.display = 'inline';
-                this.footerSp.textContent = `${isSilQ ? 'VOICE' : 'SP'} ${curSp}/${maxSp}`;
+            if (hasMana && maxSp > 0) {
+                this._setElVisible(this.footerSp, true, 'inline');
+                this.footerSp.textContent = `${isSilQ ? 'VOICE' : (resSchema.mpLabel || 'SP')} ${curSp}/${maxSp}`;
             } else {
-                this.footerSp.style.display = 'none';
+                this._setElVisible(this.footerSp, false);
             }
         }
         if (this.footerAc) {
-            if (isSilQ || player.evn !== undefined) {
-                const evn = player.evn !== undefined ? player.evn : (player.ac || 0);
-                const evnStr = evn >= 0 ? `+${evn}` : `${evn}`;
-                const prMin = player.pr_min || 0;
-                const prMax = player.pr_max || 0;
-                this.footerAc.textContent = `[${evnStr}, ${prMin}-${prMax}]`;
+            const acDisp = this._formatRealmDefense(player, realm, schemas);
+            if (defSchema.formatBracket || isSilQ || player.evn !== undefined) {
+                this.footerAc.textContent = acDisp;
+            } else if (realm === 'dcss') {
+                this.footerAc.textContent = `AC|EV|SH ${acDisp}`;
             } else {
-                this.footerAc.textContent = `AC ${player.ac !== undefined ? player.ac : '0'}`;
+                this.footerAc.textContent = `${defSchema.label || 'AC'} ${acDisp}`;
             }
         }
         if (this.footerGold) {
             if (isSilQ) {
-                this.footerGold.style.display = 'none';
+                this._setElVisible(this.footerGold, false);
             } else {
-                this.footerGold.style.display = 'inline';
+                this._setElVisible(this.footerGold, true, 'inline');
                 this.footerGold.textContent = `AU ${(player.gold || 0).toLocaleString()}`;
             }
         }
         if (this.footerExp) {
-            if (charPanelVisible) {
-                this.footerExp.style.display = 'none';
+            if (charPanelVisible || (!hasLevels && !hasXp)) {
+                this._setElVisible(this.footerExp, false);
             } else {
-                this.footerExp.style.display = '';
-                if (realm === 'brogue') {
-                    const ench = player.enchantments || 0;
-                    const lum = player.lumenstones || 0;
-                    this.footerExp.textContent = lum > 0 ? `✨ Ench +${ench} • 💎 ${lum}` : `✨ Ench +${ench}`;
-                } else if (isSilQ) {
+                this._setElVisible(this.footerExp, true, '');
+                if (!hasLevels && hasXp) {
                     const unspent = Number(player.new_exp !== undefined ? player.new_exp : (player.exp || 0));
                     const total = Number(player.exp_max !== undefined ? player.exp_max : unspent);
+                    const xpLbl = progSchema.xpLabel || 'XP';
                     this.footerExp.textContent = total > unspent
-                        ? `✨ EXP ${unspent.toLocaleString()} (${total.toLocaleString()} total)`
-                        : `✨ EXP ${unspent.toLocaleString()}`;
+                        ? `✨ ${xpLbl} ${unspent.toLocaleString()} (${total.toLocaleString()} total)`
+                        : `✨ ${xpLbl} ${unspent.toLocaleString()}`;
                 } else {
                     const expNext = player.exp_next;
                     const expVal = (player.exp !== undefined) ? player.exp.toLocaleString() : '0';
@@ -1868,30 +2075,33 @@ class WebHUD {
                     } else if (realm === 'hengband' && lang === 'bilingual') {
                         this.footerExp.textContent = `✨ EXP (経験値) ${expVal}${nextStr}`;
                     } else {
-                        this.footerExp.textContent = `✨ EXP ${expVal}${nextStr}`;
+                        this.footerExp.textContent = `✨ ${progSchema.xpLabel || 'EXP'} ${expVal}${nextStr}`;
                     }
                 }
             }
         }
+        const expCont = this.expContainer || (typeof document !== 'undefined' && typeof document.querySelector === 'function' && (this.expContainer = document.querySelector('.gauge-exp')));
+        this._setElVisible(expCont, hasLevels || hasXp, 'block');
         const expFillEl = this._expFillEl || (typeof document !== 'undefined' && (this._expFillEl = document.getElementById('exp-fill')));
         const expTextEl = this._expTextEl || (typeof document !== 'undefined' && (this._expTextEl = document.getElementById('exp-text')));
         const expLabelEl = this._expLabelEl || (typeof document !== 'undefined' && (this._expLabelEl = document.getElementById('exp-label')));
-        if (expFillEl && expTextEl) {
+        if ((hasLevels || hasXp) && expFillEl && expTextEl) {
             const plLev = Number(player.level !== undefined ? player.level : (player.lev !== undefined ? player.lev : 1));
             const curExpNum = Number(player.exp !== undefined ? player.exp : (player.new_exp || 0));
             const nextExpNum = Number(player.exp_next !== undefined ? player.exp_next : (player.exp_max || 0));
             let expPct = 100;
-            if (realm === 'brogue') {
-                expPct = Math.min(100, Math.max(12, ((player.enchantments || 0) % 10) * 10 + 15));
-                if (expLabelEl) expLabelEl.textContent = 'ENCH';
-                expTextEl.textContent = `+${player.enchantments || 0}${(player.lumenstones || 0) > 0 ? ` • 💎${player.lumenstones}` : ''}`;
+            if (!hasLevels && hasXp) {
+                const total = Number(player.exp_max !== undefined ? player.exp_max : curExpNum);
+                expPct = total > 0 ? Math.max(8, Math.min(100, (curExpNum / total) * 100)) : Math.min(100, Math.max(14, (curExpNum % 1000) * 0.1));
+                if (expLabelEl) expLabelEl.textContent = progSchema.xpLabel || 'XP';
+                expTextEl.textContent = total > curExpNum ? `${curExpNum.toLocaleString()} / ${total.toLocaleString()}` : `${curExpNum.toLocaleString()} XP`;
             } else if (nextExpNum > 0) {
                 expPct = Math.max(8, Math.min(100, (curExpNum / Math.max(1, nextExpNum)) * 100));
-                if (expLabelEl) expLabelEl.textContent = realm === 'dcss' ? `XL ${plLev}` : `EXP`;
+                if (expLabelEl) expLabelEl.textContent = progSchema.levelLabel === 'XL' ? `XL ${plLev}` : (progSchema.xpLabel || 'EXP');
                 expTextEl.textContent = `${curExpNum.toLocaleString()} / ${nextExpNum.toLocaleString()}`;
             } else {
                 expPct = plLev >= 20 ? 100 : Math.min(100, Math.max(14, (curExpNum % 1000) * 0.1));
-                if (expLabelEl) expLabelEl.textContent = isSilQ ? 'XP' : `LV.${plLev}`;
+                if (expLabelEl) expLabelEl.textContent = `${progSchema.levelLabel || 'LV'}.${plLev}`;
                 expTextEl.textContent = `${curExpNum.toLocaleString()} XP`;
             }
             expFillEl.style.width = `${expPct}%`;
@@ -1901,20 +2111,16 @@ class WebHUD {
         }
         if (this.footerPlace) {
             const lang = window.__langMode || 'en';
-            if (realm === 'hengband') {
-                if (lang === 'jp') {
-                    this.footerPlace.textContent = (locStr.includes('荒野') || locStr === 'Wilderness')
-                        ? '荒野'
-                        : (depth === 0 ? '街 (宿場町)' : `地下${depth}階 (${depth * 50}ft)`);
-                } else if (lang === 'bilingual') {
-                    this.footerPlace.textContent = (locStr.includes('荒野') || locStr === 'Wilderness')
-                        ? 'Wilderness (荒野)'
-                        : (depth === 0 ? 'Town (街)' : `DL ${depth} (${depth * 50}ft - 地下${depth}階)`);
-                } else {
-                    this.footerPlace.textContent = locStr === 'Wilderness' ? 'Wilderness' : (depth === 0 ? 'Town' : `DL ${depth} (${depth * 50}ft)`);
-                }
+            if (realm === 'hengband' && lang === 'jp') {
+                this.footerPlace.textContent = (locStr.includes('荒野') || locStr === 'Wilderness')
+                    ? '荒野'
+                    : (depth === 0 ? '街 (宿場町)' : `地下${depth}階 (${depth * 50}ft)`);
+            } else if (realm === 'hengband' && lang === 'bilingual') {
+                this.footerPlace.textContent = (locStr.includes('荒野') || locStr === 'Wilderness')
+                    ? 'Wilderness (荒野)'
+                    : (depth === 0 ? 'Town (街)' : `DL ${depth} (${depth * 50}ft - 地下${depth}階)`);
             } else {
-                this.footerPlace.textContent = isSilQ ? `${depth * 50}ft` : (locStr === 'Wilderness' ? 'Wilderness' : (depth === 0 ? 'Town' : `DL ${depth} (${depth * 50}ft)`));
+                this.footerPlace.textContent = locStr;
             }
         }
         if (this.footerSpeed) {
@@ -1981,7 +2187,7 @@ class WebHUD {
             this.footerLight.style.color = isLowFuel ? '#fbbf24' : '';
         }
         if (this.footerFacing) {
-            this.updateFooterFacing(yaw);
+            if (typeof this.updateFooterFacing === 'function') this.updateFooterFacing(yaw);
         }
 
         // Target tracking
@@ -1995,7 +2201,9 @@ class WebHUD {
             const statusesKey = (player.statuses && Array.isArray(player.statuses))
                 ? player.statuses.map(st => `${st.name || ''}:${st.attr !== undefined ? st.attr : ''}`).join(',')
                 : '';
-            const badgesKey = `${realm}:${lang}:${charPanelVisible ? 1 : 0}:${statusesKey}:${player.study || 0}:${player.resting || 0}:${player.word_recall || 0}:${player.song || ''}:${player.stealth_mode ? 1 : 0}`;
+            const song1Badge = player.song_name || (player.song && Number(player.song) !== 100 ? String(player.song) : '');
+            const song2Badge = (player.song2 != null && Number(player.song2) !== 0 && Number(player.song2) !== 100 && player.song2_name) ? String(player.song2_name) : '';
+            const badgesKey = `${realm}:${lang}:${charPanelVisible ? 1 : 0}:${statusesKey}:${player.study || 0}:${player.resting || 0}:${player.word_recall || 0}:${song1Badge}:${player.song2 || 0}:${song2Badge}:${player.stealth_mode ? 1 : 0}`;
             if (this._lastBadgesKey !== badgesKey) {
                 this._lastBadgesKey = badgesKey;
                 const desiredBadges = [];
@@ -2039,8 +2247,9 @@ class WebHUD {
                     desiredBadges.push({ cls: 'footer-badge badge-recall', text: `[RECALL: ${player.word_recall}t]`, color: '' });
                 }
 
-                if (!charPanelVisible && player.song) {
-                    desiredBadges.push({ cls: 'footer-badge badge-song', text: `[SONG: ${player.song}]`, color: '#70c0ff' });
+                if (!charPanelVisible && (song1Badge || song2Badge)) {
+                    const sText = song1Badge && song2Badge ? `${song1Badge} + ${song2Badge}` : (song1Badge || song2Badge);
+                    desiredBadges.push({ cls: 'footer-badge badge-song', text: `[SONG: ${sText}]`, color: '#70c0ff' });
                 }
 
                 if (!charPanelVisible && player.stealth_mode) {
@@ -2119,8 +2328,8 @@ class WebHUD {
             const reconcileDrawerGrid = (sig, pairs) => {
                 if (this._lastExtendedDrawerSig === sig) return;
                 this._lastExtendedDrawerSig = sig;
-                const gridEl = drawerEl.querySelector('.char-ext-grid');
-                const existingItems = gridEl ? Array.from(gridEl.querySelectorAll('.char-ext-item')) : [];
+                const gridEl = typeof drawerEl.querySelector === 'function' ? drawerEl.querySelector('.char-ext-grid') : null;
+                const existingItems = gridEl && typeof gridEl.querySelectorAll === 'function' ? Array.from(gridEl.querySelectorAll('.char-ext-item')) : [];
                 if (gridEl && existingItems.length === pairs.length) {
                     for (let i = 0; i < pairs.length; i++) {
                         const [k, v] = pairs[i];
@@ -2136,13 +2345,13 @@ class WebHUD {
                     drawerEl.innerHTML = `<div class="char-ext-grid">${pairs.map(([k, v]) => `<div class="char-ext-item"><span class="char-ext-lbl">${esc(k)}</span><span class="char-ext-val" title="${esc(v)}">${esc(v)}</span></div>`).join('')}</div>`;
                 }
             };
+            const maxD = this._formatRealmDepth({ depth: player.max_depth !== undefined ? player.max_depth : depth, branch: player.branch, branch_name: player.branch_name, wilderness: isWild }, realm, schemas);
             if (isSilQ) {
-                const getSilqSkill = (sk) => {
-                    if (player.skills && player.skills[sk.toLowerCase()] !== undefined) {
-                        return String(player.skills[sk.toLowerCase()]);
-                    }
-                    if (player.skills && player.skills[sk] !== undefined) {
-                        return String(player.skills[sk]);
+                const getSilqSkill = (sk, abbr) => {
+                    if (player.skills) {
+                        if (abbr && player.skills[abbr] !== undefined) return String(player.skills[abbr]);
+                        if (player.skills[sk.toLowerCase()] !== undefined) return String(player.skills[sk.toLowerCase()]);
+                        if (player.skills[sk] !== undefined) return String(player.skills[sk]);
                     }
                     if (frame.term && frame.term.lines) {
                         const text = frame.term.lines.join('\n');
@@ -2152,56 +2361,73 @@ class WebHUD {
                     }
                     return '0';
                 };
-                const mel = getSilqSkill('Melee');
-                const arc = getSilqSkill('Archery');
-                const eva = getSilqSkill('Evasion') !== '0' ? getSilqSkill('Evasion') : (getSilqSkill('Evade') !== '0' ? getSilqSkill('Evade') : (player.evn !== undefined ? String(player.evn) : '0'));
-                const stl = getSilqSkill('Stealth');
-                const per = getSilqSkill('Perception');
-                const wil = getSilqSkill('Will');
-                const smi = getSilqSkill('Smithing');
-                const sng = getSilqSkill('Song');
+                const mel = getSilqSkill('Melee', 'mel');
+                const arc = getSilqSkill('Archery', 'arc');
+                const evaRaw = getSilqSkill('Evasion', 'evn');
+                const eva = evaRaw !== '0' ? evaRaw : (getSilqSkill('Evade', 'evn') !== '0' ? getSilqSkill('Evade', 'evn') : (player.evn !== undefined ? String(player.evn) : '0'));
+                const stl = getSilqSkill('Stealth', 'stl');
+                const per = getSilqSkill('Perception', 'per');
+                const wil = getSilqSkill('Will', 'wil');
+                const smi = getSilqSkill('Smithing', 'smt');
+                const sng = getSilqSkill('Song', 'sng');
                 const voice = `${curSp}/${maxSp}`;
                 const unspentXp = Number(player.new_exp !== undefined ? player.new_exp : (player.exp || 0));
                 const totalXp = Number(player.exp_max !== undefined ? player.exp_max : unspentXp);
                 const xpPool = `${unspentXp.toLocaleString()} / ${totalXp.toLocaleString()}`;
-                const sig = `silq:${mel}:${arc}:${eva}:${stl}:${per}:${wil}:${smi}:${sng}:${voice}:${xpPool}`;
-                reconcileDrawerGrid(sig, [
+                const song1Name = player.song_name ? String(player.song_name) : 'None';
+                const song2Active = player.song2 != null && Number(player.song2) !== 0 && Number(player.song2) !== 100 && Boolean(player.song2_name);
+                const song2Name = song2Active ? String(player.song2_name) : '';
+                const sig = `silq:${mel}:${arc}:${eva}:${stl}:${per}:${wil}:${smi}:${sng}:${voice}:${xpPool}:${song1Name}:${player.song2 || 0}:${song2Name}:${maxD}`;
+                const silqPairs = [
                     ['Melee', mel], ['Archery', arc],
                     ['Evasion', eva], ['Stealth', stl],
                     ['Perception', per], ['Will', wil],
-                    ['Smithing', smi], ['Song', sng],
-                    ['Voice', voice], ['XP (Pool)', xpPool]
-                ]);
+                    ['Smithing', smi], ['Song Skill', sng],
+                    ['Voice', voice], ['XP (Pool)', xpPool],
+                    ['Song', song1Name],
+                    song2Active ? ['Song 2', song2Name] : ['Max Depth', maxD]
+                ];
+                reconcileDrawerGrid(sig, silqPairs);
             } else {
-                const isBrogueProg = (realm === 'brogue' || player.progression_mode === 'brogue_item');
-                const maxD = (realm === 'brogue' || realm === 'rogue' || realm === 'ryod')
-                    ? `Depth ${player.max_depth || depth}`
-                    : (realm === 'nethack'
-                        ? `Dlvl ${player.max_depth || depth}`
-                        : (realm === 'dcss'
-                            ? `${player.place_label || ('D:' + depth)} (Max ${player.max_depth || depth})`
-                            : (player.max_depth ? `${player.max_depth * 50}ft (DL${player.max_depth})` : (depth > 0 ? `${depth * 50}ft (DL${depth})` : 'Town'))));
                 const spd = this._lastSpdStr || 'Normal (0)';
                 const turn = String(this.currentTurn || 0);
-                const xpLabel = isBrogueProg ? 'Enchantments' : 'XP';
-                const xp = isBrogueProg
-                    ? `+${player.enchantments || 0}${(player.lumenstones || 0) > 0 ? ` (${player.lumenstones} Lumen)` : ''}`
-                    : `${(player.exp || 0).toLocaleString()}${player.exp_next ? ` / ${player.exp_next.toLocaleString()}` : ''}`;
                 const eqCount = (player.equipment && Array.isArray(player.equipment)) ? String(player.equipment.length) : (player.equip_count !== undefined ? String(player.equip_count) : (player.equip ? String(Object.keys(player.equip).length) : '--'));
                 const pkCount = (player.inventory && Array.isArray(player.inventory)) ? String(player.inventory.length) : (player.inven_count !== undefined ? String(player.inven_count) : (player.inven ? String(Object.keys(player.inven).length) : '--'));
                 const weap = _hudItemStr(player.weapon_item) || 'Bare Hands';
                 const light = _hudItemStr(player.light_item) || (player.cur_light > 0 ? `Light +${player.cur_light}` : (player.light > 0 ? `Light +${player.light}` : 'Daylight / Dark'));
-                const sig = `std:${realm}:${maxD}:${spd}:${turn}:${xp}:${eqCount}:${pkCount}:${weap}:${light}`;
-                reconcileDrawerGrid(sig, [
-                    ['Max Depth', maxD],
-                    ['Speed', spd],
-                    ['Turn', turn],
-                    [xpLabel, xp],
-                    ['Equip Count', eqCount],
-                    ['Pack Count', pkCount],
-                    ['Weapon', weap],
-                    ['Light/Torch', light]
-                ]);
+                const fmtSigned = (v) => { const n = Number(v) || 0; return n >= 0 ? `+${n}` : `${n}`; };
+                const pairs = [['Max Depth', maxD], ['Speed', spd], ['Turn', turn]];
+                if (!hasLevels && !hasXp) {
+                    pairs.push(['Enchantments', `+${player.enchantments || 0}`]);
+                    pairs.push(['Lumenstones', String(player.lumenstones || 0)]);
+                    pairs.push(['Nutrition', `${Math.round(player.nutrition ?? 100)}%`]);
+                } else {
+                    const xp = `${(player.exp || 0).toLocaleString()}${player.exp_next ? ` / ${player.exp_next.toLocaleString()}` : ''}`;
+                    pairs.push([progSchema.xpLabel || 'XP', xp]);
+                }
+                if (realm === 'dcss') {
+                    const pty = Number(player.piety) || 0;
+                    const pietyStr = (player.god && player.god !== 'No God') ? `${'★'.repeat(Math.max(0, Math.min(6, pty))).padEnd(6, '☆')} (${pty}/6)` : '—';
+                    pairs.push(['Deity', player.god || 'No God'], ['Piety', pietyStr], ['Runes', `${Number(player.runes) || 0} / 3`]);
+                } else if (realm === 'nethack') {
+                    pairs.push(['Alignment', player.align || player.alignment || 'Neutral'], ['Hunger', player.hunger_state || 'Not Hungry']);
+                } else if (realm === 'angband' || realm === 'frogcomposband' || realm === 'hengband') {
+                    if (player.melee_to_h !== undefined || player.melee_to_d !== undefined) {
+                        pairs.push(['Melee', `(${fmtSigned(player.melee_to_h)}, ${fmtSigned(player.melee_to_d)})`]);
+                    }
+                    if (player.blows !== undefined) {
+                        const b = Number(player.blows);
+                        pairs.push(['Blows', `${b >= 20 ? (b / 100).toFixed(1) : b}/turn`]);
+                    }
+                    if (player.total_weight !== undefined) {
+                        pairs.push(['Weight', `${(Number(player.total_weight) / 10).toFixed(1)} lbs`]);
+                    }
+                } else if (realm === 'rogue') {
+                    pairs.push(['Nutrition', `${Math.round(((player.nutrition ?? 1300) / (player.nutrition_max || 1300)) * 100)}%`]);
+                }
+                pairs.push(['Equip Count', eqCount], ['Pack Count', pkCount], ['Weapon', weap], ['Light/Torch', light]);
+                const sig = `std:${realm}:${pairs.map(([k, v]) => `${k}=${v}`).join('|')}`;
+                reconcileDrawerGrid(sig, pairs);
             }
         }
 
@@ -2226,7 +2452,7 @@ class WebHUD {
                 } else {
                     this.messageFeedWindow.style.display = 'flex';
                     this.messageFeedWindow.style.visibility = 'visible';
-                    this.messageFeedWindow.style.opacity = '1';
+                    this.messageFeedWindow.style.opacity = '';
                 }
             } else {
                 this.messageFeedWindow.style.display = 'none';
@@ -2253,8 +2479,10 @@ class WebHUD {
                 welcomeMsg = realmText.town
                     ? `Welcome to ${realmText.town}! Visit the General Store and Armory to equip your journey.`
                     : "Welcome! Prepare to begin your journey.";
-            } else {
+            } else if (schemas.depthSchema.style === 'feet') {
                 welcomeMsg = `You descend into Dungeon Level ${depth} (${depth * feetPerLvl}${depthUnit}).`;
+            } else {
+                welcomeMsg = `You enter ${locStr}.`;
             }
 
             this.resetMessages(welcomeMsg);
@@ -2278,11 +2506,16 @@ class WebHUD {
             const depthUnit = realmText.depthUnit || 'ft';
 
             if (player.depth > this.lastDepth) {
-                this.addMessage(`You descend into Dungeon Level ${player.depth} (${player.depth * feetPerLvl}${depthUnit}).`, '#ffd700');
+                const descMsg = schemas.depthSchema.style === 'feet'
+                    ? `You descend into Dungeon Level ${player.depth} (${player.depth * feetPerLvl}${depthUnit}).`
+                    : `You descend to ${locStr}.`;
+                this.addMessage(descMsg, '#ffd700');
             } else if (player.depth < this.lastDepth) {
                 const ascendMsg = player.depth === 0
                     ? (realmText.town ? `You return to the surface of ${realmText.town}.` : "You return to the surface.")
-                    : `You ascend to Dungeon Level ${player.depth} (${player.depth * feetPerLvl}${depthUnit}).`;
+                    : (schemas.depthSchema.style === 'feet'
+                        ? `You ascend to Dungeon Level ${player.depth} (${player.depth * feetPerLvl}${depthUnit}).`
+                        : `You ascend to ${locStr}.`);
                 this.addMessage(ascendMsg, '#ffd700');
             }
             this.lastDepth = player.depth;

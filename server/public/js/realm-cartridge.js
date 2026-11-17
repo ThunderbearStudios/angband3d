@@ -1,21 +1,25 @@
 /**
- * realm-cartridge.js — Universal Dungeon Cartridge Schema v2 & Declarative 5-Realm Engine
+ * realm-cartridge.js — Universal Dungeon Cartridge Schema v3 & Declarative 9-Realm Engine
  *
- * Provides the single declarative source of truth for:
+ * Provides the single declarative source of truth for all 9 playable realms:
  *   1. Angband 4.2.6 (`angband`) — Forged Blackened Iron & Morgul Gold
  *   2. Sil-Q 1.5+ (`silq`) — First-Age Starlight Silver & Beleriand Slate
  *   3. FrogComposBand 7.1 (`frogcomposband`) — Eldritch Pattern Amethyst & Chaos Gold
  *   4. Hengband 3.0.2 (`hengband`) — Lacquered Vermilion-Obsidian & Shakudo Brass
  *   5. NetHack 3.6.7 (`nethack`) — Subterranean Verdigris Bronze & Gehennom Emerald
- *   + Universal Cartridge Schema v2 loader for any external roguelike or original ThunderBear realm.
+ *   6. Dungeon Crawl Stone Soup (`dcss`) — Pantheon & Multi-Branch Zot
+ *   7. Brogue CE (`brogue`) — Bioluminescent Caverns & Enchantments
+ *   8. Classic Rogue 5.4 (`rogue`) — 1980 Dungeons of Doom
+ *   9. Roll Your Own Dungeon (`ryod`) — Infinite Procedural Forge
+ *   + Universal Cartridge Schema v3 loader for external roguelikes & custom realms.
  *
  * Architecture:
- *   - Declarative Menu Grammar Taxonomy (`MENU_GRAMMAR_ARCHETYPES`) covering all 7 canonical
- *     roguelike interaction models (Select-Noun-Then-Verb, Verb-First-Prompt, Unified-Command-Popup,
- *     Contextual-Use-Verb, Extended-Ritual-Hash, Paged-ASCII-Table, Spatial-Radial-Marking-Menu).
+ *   - Declarative Schema v3 (`statSchema`, `defenseSchema`, `resourceSchema`, `progressionSchema`,
+ *     `depthSchema`, `equipmentSlots` + species/avatar overrides, authoritative `verbs`).
+ *   - Declarative Menu Grammar Taxonomy (`MENU_GRAMMAR_ARCHETYPES`).
  *   - Bespoke Realm Material Language (`themeTokens` + `applyThemeTokens`).
- *   - Hero Panoply Equipment Slot Definitions (`getEquipmentSlots`).
- *   - Stat-Delta Comparison Engine (`compareWithEquipped`) for instant upgrade/downgrade badges.
+ *   - Stat-Delta Comparison Engine (`computeStatDelta` / `compareWithEquipped`) supporting
+ *     both ascending and descending AC models.
  *   - Beatitude BUC Parser (`parseBeatitudeBUC`) and Diagonal Doorway Rule (`canMoveDiagonally`).
  *
  * Contract: Pure UMD module, zero external runtime dependencies, 100% IP-clean (IP-CLEAN-01).
@@ -27,7 +31,7 @@
 })(typeof self !== 'undefined' ? self : this, function () {
     'use strict';
 
-    const CARTRIDGE_SCHEMA_VERSION = '2.0.0';
+    const CARTRIDGE_SCHEMA_VERSION = 3;
     const VANILLA_LETTERS = 'abcdefgimnopqrstuvwxyz';
     const NETHACK_SLOTS = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ$';
     const SUPPORTED_TRANSPORTS = Object.freeze([
@@ -37,6 +41,38 @@
         'wasm-worker',
         'godot-ipc'
     ]);
+
+    const STAT_LABELS = Object.freeze({
+        str: 'STR',
+        int: 'INT',
+        wis: 'WIS',
+        dex: 'DEX',
+        con: 'CON',
+        chr: 'CHR',
+        cha: 'CHR',
+        gra: 'GRA'
+    });
+
+    /**
+     * Builds a frozen statSchema array (`['str', ...]`) with non-enumerable Schema v3
+     * metadata (`fields`, `keys`, `stats`, `format`, `aliases`, `labels`, `count`)
+     * so both array-based and object-based consumers work identically.
+     */
+    function createStatSchema(statKeys, opts = {}) {
+        const arr = (Array.isArray(statKeys) ? statKeys : ['str', 'int', 'wis', 'dex', 'con']).slice();
+        const aliases = Object.freeze(Object.assign({}, opts.aliases || {}));
+        const labels = Object.freeze(Object.assign({}, STAT_LABELS, opts.labels || {}));
+        Object.defineProperties(arr, {
+            fields:  { value: arr, enumerable: false },
+            keys:    { value: arr, enumerable: false },
+            stats:   { value: arr, enumerable: false },
+            count:   { value: arr.length, enumerable: false },
+            format:  { value: opts.format || 'int', enumerable: false },
+            aliases: { value: aliases, enumerable: false },
+            labels:  { value: labels, enumerable: false }
+        });
+        return Object.freeze(arr);
+    }
 
     /**
      * Universal Roguelike Menu Grammar Taxonomy — covers the 7 canonical interaction models
@@ -141,6 +177,64 @@
         { id: 'light',     label: '🕯️ Lit Lamp / Torch', slotKey: 'n', categories: ['light'] }
     ]);
 
+    const ROGUE_EQUIPMENT_SLOTS = Object.freeze([
+        { id: 'mainhand', label: '⚔️ Weapon', slotKey: 'a', categories: ['weapon'] },
+        { id: 'body',     label: '🛡️ Armor', slotKey: 'b', categories: ['armor'] },
+        { id: 'ring_l',   label: '💍 Left Ring', slotKey: 'c', categories: ['jewelry'] },
+        { id: 'ring_r',   label: '💍 Right Ring', slotKey: 'd', categories: ['jewelry'] }
+    ]);
+
+    const BROGUE_EQUIPMENT_SLOTS = Object.freeze([
+        { id: 'mainhand', label: '⚔️ Weapon', slotKey: 'a', categories: ['weapon'] },
+        { id: 'body',     label: '🛡️ Armor', slotKey: 'b', categories: ['armor'] },
+        { id: 'ring_l',   label: '💍 Left Ring', slotKey: 'c', categories: ['jewelry'] },
+        { id: 'ring_r',   label: '💍 Right Ring', slotKey: 'd', categories: ['jewelry'] }
+    ]);
+
+    const DCSS_EQUIPMENT_SLOTS = Object.freeze([
+        { id: 'mainhand', label: '⚔️ Weapon', slotKey: 'a', categories: ['weapon', 'ranged'] },
+        { id: 'shield',   label: '🛡️ Shield / Offhand', slotKey: 'b', categories: ['armor', 'weapon'] },
+        { id: 'quiver',   label: '🏹 Quivered Missile', slotKey: 'c', categories: ['ranged'] },
+        { id: 'body',     label: '🛡️ Body Armour', slotKey: 'd', categories: ['armor'] },
+        { id: 'cloak',    label: '🧥 Cloak', slotKey: 'e', categories: ['armor'] },
+        { id: 'helm',     label: '👑 Helmet', slotKey: 'f', categories: ['armor'] },
+        { id: 'gloves',   label: '🧤 Gloves', slotKey: 'g', categories: ['armor'] },
+        { id: 'boots',    label: '🥾 Boots', slotKey: 'h', categories: ['armor'] },
+        { id: 'amulet',   label: '📿 Amulet', slotKey: 'i', categories: ['jewelry'] },
+        { id: 'ring_l',   label: '💍 Left Ring', slotKey: 'j', categories: ['jewelry'] },
+        { id: 'ring_r',   label: '💍 Right Ring', slotKey: 'k', categories: ['jewelry'] }
+    ]);
+
+    const DCSS_OCTOPODE_SLOTS = Object.freeze([
+        { id: 'mainhand', label: '⚔️ Weapon', slotKey: 'a', categories: ['weapon', 'ranged'] },
+        { id: 'shield',   label: '🛡️ Shield / Offhand', slotKey: 'b', categories: ['armor', 'weapon'] },
+        { id: 'quiver',   label: '🏹 Quivered Missile', slotKey: 'c', categories: ['ranged'] },
+        { id: 'amulet',   label: '📿 Amulet', slotKey: 'd', categories: ['jewelry'] },
+        { id: 'ring_1',   label: '💍 Tentacle Ring 1', slotKey: 'e', categories: ['jewelry'] },
+        { id: 'ring_2',   label: '💍 Tentacle Ring 2', slotKey: 'f', categories: ['jewelry'] },
+        { id: 'ring_3',   label: '💍 Tentacle Ring 3', slotKey: 'g', categories: ['jewelry'] },
+        { id: 'ring_4',   label: '💍 Tentacle Ring 4', slotKey: 'h', categories: ['jewelry'] },
+        { id: 'ring_5',   label: '💍 Tentacle Ring 5', slotKey: 'i', categories: ['jewelry'] },
+        { id: 'ring_6',   label: '💍 Tentacle Ring 6', slotKey: 'j', categories: ['jewelry'] },
+        { id: 'ring_7',   label: '💍 Tentacle Ring 7', slotKey: 'k', categories: ['jewelry'] },
+        { id: 'ring_8',   label: '💍 Tentacle Ring 8', slotKey: 'l', categories: ['jewelry'] }
+    ]);
+
+    const RYOD_BEHOLDER_SLOTS = Object.freeze([
+        { id: 'mainhand', label: '👁️ Focus / Weapon', slotKey: 'a', categories: ['weapon', 'device'] },
+        { id: 'quiver',   label: '🏹 Telekinetic Ammo', slotKey: 'b', categories: ['ranged'] },
+        { id: 'amulet',   label: '📿 Amulet', slotKey: 'c', categories: ['jewelry'] },
+        { id: 'light',    label: '🕯️ Light / Orb', slotKey: 'd', categories: ['light'] },
+        { id: 'cloak',    label: '🧥 Shroud / Cloak', slotKey: 'e', categories: ['armor'] },
+        { id: 'helm',     label: '👑 Crown / Diadem', slotKey: 'f', categories: ['armor'] },
+        { id: 'ring_1',   label: '💍 Eyestalk Ring 1', slotKey: 'g', categories: ['jewelry'] },
+        { id: 'ring_2',   label: '💍 Eyestalk Ring 2', slotKey: 'h', categories: ['jewelry'] },
+        { id: 'ring_3',   label: '💍 Eyestalk Ring 3', slotKey: 'i', categories: ['jewelry'] },
+        { id: 'ring_4',   label: '💍 Eyestalk Ring 4', slotKey: 'j', categories: ['jewelry'] },
+        { id: 'ring_5',   label: '💍 Eyestalk Ring 5', slotKey: 'k', categories: ['jewelry'] },
+        { id: 'ring_6',   label: '💍 Eyestalk Ring 6', slotKey: 'l', categories: ['jewelry'] }
+    ]);
+
     const CARTRIDGES = {
         angband: {
             id: 'angband',
@@ -163,6 +257,11 @@
                 glowAccent: 'rgba(212, 175, 55, 0.22)'
             },
             equipmentSlots: STANDARD_EQUIPMENT_SLOTS,
+            statSchema: createStatSchema(['str', 'int', 'wis', 'dex', 'con'], { format: 'disp' }),
+            defenseSchema: Object.freeze({ direction: 'ascending', label: 'AC', fields: Object.freeze(['ac', 'ac_base', 'ac_to_a']) }),
+            resourceSchema: Object.freeze({ mpLabel: 'SP', hasMana: true }),
+            progressionSchema: Object.freeze({ hasLevels: true, hasXp: true, levelLabel: 'Lv', xpLabel: 'EXP' }),
+            depthSchema: Object.freeze({ unit: 'ft', feetPerLevel: 50, townLabel: 'Town', style: 'feet' }),
             capabilities: {
                 inventorySlots: 'a-w',
                 maxInventoryVisible: 24,
@@ -175,7 +274,7 @@
                 multiBranchGraph: false,
                 hasTown: true,
                 hasShops: true,
-                statCount: 6,
+                statCount: 5,
                 invenMode: 'select',
                 hasPopupCommandMenu: false,
                 isBilingual: false
@@ -187,6 +286,7 @@
                 takeoff: { id: 'takeoff', key: 't', label: '🔓 Take Off' },
                 puton: { id: 'puton', key: 'w', label: '💍 Put On' },
                 remove: { id: 'remove', key: 't', label: '💍 Remove' },
+                equip: { id: 'equip', key: 'e', label: '🛡️ Equipment' },
                 quaff: { id: 'quaff', key: 'q', label: '🧪 Quaff' },
                 read: { id: 'read', key: 'r', label: '📜 Read' },
                 eat: { id: 'eat', key: 'E', label: '🍞 Eat' },
@@ -206,7 +306,9 @@
                 close: { id: 'close', key: 'c', label: '🚪 Close' },
                 disarm: { id: 'disarm', key: 'D', label: '⚙️ Disarm' },
                 search: { id: 'search', key: 's', label: '👁️ Search' },
-                pickup: { id: 'pickup', key: 'g', label: '✋ Pick Up' }
+                pickup: { id: 'pickup', key: 'g', label: '✋ Pick Up' },
+                rest: { id: 'rest', key: 'R', label: '⏳ Rest' },
+                explore: { id: 'explore', key: 'p', label: '🗺️ Auto-Explore' }
             },
             extendedCommands: [],
             biomeBranches: {
@@ -248,6 +350,11 @@
                 glowAccent: 'rgba(168, 213, 229, 0.20)'
             },
             equipmentSlots: STANDARD_EQUIPMENT_SLOTS,
+            statSchema: createStatSchema(['str', 'dex', 'con', 'gra'], { format: 'signed' }),
+            defenseSchema: Object.freeze({ direction: 'ascending', label: 'EVN / Prot', fields: Object.freeze(['evn', 'pr_min', 'pr_max']), formatBracket: true }),
+            resourceSchema: Object.freeze({ mpLabel: 'Voice', hasMana: true, hasGold: false, dualSong: true }),
+            progressionSchema: Object.freeze({ hasLevels: false, hasXp: true, xpLabel: 'XP' }),
+            depthSchema: Object.freeze({ unit: 'ft', feetPerLevel: 50, townLabel: 'Gates of Angband', style: 'feet' }),
             capabilities: {
                 inventorySlots: 'a-w',
                 maxInventoryVisible: 24,
@@ -273,6 +380,7 @@
                 takeoff: { id: 'takeoff', key: 'r', label: '🔓 Remove' },
                 puton: { id: 'puton', key: 'w', label: '💍 Put On' },
                 remove: { id: 'remove', key: 'r', label: '💍 Remove' },
+                equip: { id: 'equip', key: 'e', label: '🛡️ Equipment' },
                 use: { id: 'use', key: 'u', label: '✨ Use Item' },
                 quaff: { id: 'quaff', key: 'q', label: '🧪 Quaff' },
                 read: { id: 'read', key: 'u', label: '📜 Read' },
@@ -286,6 +394,7 @@
                 abilities: { id: 'abilities', key: 'tab', label: '🌟 Abilities' },
                 increaseSkills: { id: 'increaseSkills', key: '@', label: '📈 Increase Skills' },
                 forge: { id: 'forge', key: '0', label: '🔨 Forge' },
+                smith: { id: 'smith', key: '0', label: '🔨 Smith' },
                 fletchery: { id: 'fletchery', key: '-', label: '🏹 Fletchery' },
                 fire: { id: 'fire', key: 'f', label: '🏹 Fire' },
                 throw: { id: 'throw', key: 't', label: '🎯 Throw' },
@@ -296,7 +405,8 @@
                 disarm: { id: 'disarm', key: 'D', label: '⚙️ Disarm' },
                 stealthMode: { id: 'stealthMode', key: 'S', label: '🌑 Stealth Mode' },
                 search: { id: 'search', key: 'S', label: '👁️ Stealth Mode' },
-                pickup: { id: 'pickup', key: 'g', label: '✋ Pick Up' }
+                pickup: { id: 'pickup', key: 'g', label: '✋ Pick Up' },
+                rest: { id: 'rest', key: '%', label: '⏳ Rest' }
             },
             extendedCommands: [],
             biomeBranches: {
@@ -337,10 +447,15 @@
                 glowAccent: 'rgba(180, 126, 222, 0.22)'
             },
             equipmentSlots: STANDARD_EQUIPMENT_SLOTS,
+            statSchema: createStatSchema(['str', 'int', 'wis', 'dex', 'con', 'chr'], { format: 'disp', aliases: { cha: 'chr' } }),
+            defenseSchema: Object.freeze({ direction: 'ascending', label: 'AC', fields: Object.freeze(['ac', 'ac_base', 'ac_to_a']) }),
+            resourceSchema: Object.freeze({ mpLabel: 'SP', hasMana: true }),
+            progressionSchema: Object.freeze({ hasLevels: true, hasXp: true, levelLabel: 'Lv', xpLabel: 'EXP' }),
+            depthSchema: Object.freeze({ unit: 'ft', feetPerLevel: 50, townLabel: 'Outpost', style: 'feet' }),
             capabilities: {
                 inventorySlots: 'a-w',
                 maxInventoryVisible: 24,
-                hasQuiver: false,
+                hasQuiver: true,
                 beatitudeBUC: false,
                 diagonalDoorwayBlocked: false,
                 extendedHashCommands: false,
@@ -362,6 +477,7 @@
                 takeoff: { id: 'takeoff', key: 't', label: '🔓 Take Off' },
                 puton: { id: 'puton', key: 'w', label: '💍 Put On' },
                 remove: { id: 'remove', key: 't', label: '💍 Remove' },
+                equip: { id: 'equip', key: 'e', label: '🛡️ Equipment' },
                 quaff: { id: 'quaff', key: 'q', label: '🧪 Quaff' },
                 read: { id: 'read', key: 'r', label: '📜 Read' },
                 eat: { id: 'eat', key: 'E', label: '🍞 Eat' },
@@ -381,7 +497,8 @@
                 close: { id: 'close', key: 'c', label: '🚪 Close' },
                 disarm: { id: 'disarm', key: 'D', label: '⚙️ Disarm' },
                 search: { id: 'search', key: 's', label: '👁️ Search' },
-                pickup: { id: 'pickup', key: 'g', label: '✋ Pick Up' }
+                pickup: { id: 'pickup', key: 'g', label: '✋ Pick Up' },
+                rest: { id: 'rest', key: 'R', label: '⏳ Rest' }
             },
             extendedCommands: [],
             biomeBranches: {
@@ -421,10 +538,15 @@
                 glowAccent: 'rgba(224, 83, 60, 0.22)'
             },
             equipmentSlots: STANDARD_EQUIPMENT_SLOTS,
+            statSchema: createStatSchema(['str', 'int', 'wis', 'dex', 'con', 'chr'], { format: 'disp', aliases: { cha: 'chr' } }),
+            defenseSchema: Object.freeze({ direction: 'ascending', label: 'AC', fields: Object.freeze(['ac', 'ac_base', 'ac_to_a']) }),
+            resourceSchema: Object.freeze({ mpLabel: 'SP', hasMana: true, mpLabelJp: '魔力' }),
+            progressionSchema: Object.freeze({ hasLevels: true, hasXp: true, levelLabel: 'Lv', xpLabel: 'EXP' }),
+            depthSchema: Object.freeze({ unit: 'ft', feetPerLevel: 50, townLabel: 'Outpost', style: 'feet' }),
             capabilities: {
                 inventorySlots: 'a-w',
                 maxInventoryVisible: 24,
-                hasQuiver: false,
+                hasQuiver: true,
                 beatitudeBUC: false,
                 diagonalDoorwayBlocked: false,
                 extendedHashCommands: false,
@@ -446,6 +568,7 @@
                 takeoff: { id: 'takeoff', key: 't', label: '🔓 Take Off', labelJp: '🔓 外す', labelBi: '🔓 Take Off (外す)' },
                 puton: { id: 'puton', key: 'w', label: '💍 Put On', labelJp: '💍 着ける', labelBi: '💍 Put On (着)' },
                 remove: { id: 'remove', key: 't', label: '💍 Remove', labelJp: '💍 外す', labelBi: '💍 Remove (外)' },
+                equip: { id: 'equip', key: 'e', label: '🛡️ Equipment', labelJp: '🛡️ 装備一覧', labelBi: '🛡️ Equipment (装備一覧)' },
                 quaff: { id: 'quaff', key: 'q', label: '🧪 Quaff', labelJp: '🧪 飲む', labelBi: '🧪 Quaff (薬)' },
                 read: { id: 'read', key: 'r', label: '📜 Read', labelJp: '📜 読む', labelBi: '📜 Read (巻)' },
                 eat: { id: 'eat', key: 'E', label: '🍞 Eat', labelJp: '🍞 食べる', labelBi: '🍞 Eat (食)' },
@@ -464,7 +587,8 @@
                 close: { id: 'close', key: 'c', label: '🚪 Close', labelJp: '🚪 閉める', labelBi: '🚪 Close (閉)' },
                 disarm: { id: 'disarm', key: 'D', label: '⚙️ Disarm', labelJp: '⚙️ 解除', labelBi: '⚙️ Disarm (解)' },
                 search: { id: 'search', key: 's', label: '👁️ Search', labelJp: '👁️ 探索', labelBi: '👁️ Search (探)' },
-                pickup: { id: 'pickup', key: 'g', label: '✋ Pick Up', labelJp: '✋ 拾う', labelBi: '✋ Pick Up (拾)' }
+                pickup: { id: 'pickup', key: 'g', label: '✋ Pick Up', labelJp: '✋ 拾う', labelBi: '✋ Pick Up (拾)' },
+                rest: { id: 'rest', key: 'R', label: '⏳ Rest', labelJp: '⏳ 休憩', labelBi: '⏳ Rest (休憩)' }
             },
             extendedCommands: [],
             biomeBranches: {
@@ -504,6 +628,11 @@
                 glowAccent: 'rgba(16, 185, 129, 0.22)'
             },
             equipmentSlots: NETHACK_EQUIPMENT_SLOTS,
+            statSchema: createStatSchema(['str', 'int', 'wis', 'dex', 'con', 'chr'], { format: 'int', aliases: { cha: 'chr' } }),
+            defenseSchema: Object.freeze({ direction: 'descending', label: 'AC', fields: Object.freeze(['ac']) }),
+            resourceSchema: Object.freeze({ mpLabel: 'MP', hasMana: true }),
+            progressionSchema: Object.freeze({ hasLevels: true, hasXp: true, levelLabel: 'Lv', xpLabel: 'EXP' }),
+            depthSchema: Object.freeze({ unit: 'Dlvl', feetPerLevel: 0, prefix: 'Dlvl', style: 'dlvl' }),
             capabilities: {
                 inventorySlots: 'a-zA-Z$',
                 maxInventoryVisible: 52,
@@ -533,10 +662,12 @@
                 takeoff: { id: 'takeoff', key: 'T', label: '🔓 Take Off Armor' },
                 puton: { id: 'puton', key: 'P', label: '💍 Put On Accessory' },
                 remove: { id: 'remove', key: 'R', label: '💍 Remove Accessory' },
+                equip: { id: 'equip', key: '[', aliases: ['#equip'], label: '🛡️ Equipment' },
                 quiver: { id: 'quiver', key: 'Q', label: '🏹 Ready in Quiver' },
                 quaff: { id: 'quaff', key: 'q', label: '🧪 Quaff' },
                 read: { id: 'read', key: 'r', label: '📜 Read' },
                 eat: { id: 'eat', key: 'e', label: '🍞 Eat' },
+                engrave: { id: 'engrave', key: 'E', label: '✒️ Engrave' },
                 aim: { id: 'aim', key: 'z', label: '🪄 Zap Wand' },
                 zap: { id: 'zap', key: 'z', label: '⚡ Zap Wand' },
                 use_staff: { id: 'use_staff', key: 'z', label: '🪄 Zap Wand / Staff' },
@@ -553,9 +684,10 @@
                 disarm: { id: 'disarm', key: '#untrap\n', label: '🪤 #untrap', isExtended: true },
                 search: { id: 'search', key: 's', label: '👁️ Search' },
                 pickup: { id: 'pickup', key: ',', label: '✋ Pick Up' },
-                pray: { id: 'pray', key: '#pray\n', label: '🙏 #pray', isExtended: true },
+                rest: { id: 'rest', key: '.', label: '⏳ Rest' },
+                pray: { id: 'pray', key: '#pray', label: '🙏 #pray', isExtended: true },
                 dip: { id: 'dip', key: '#dip\n', label: '⛲ #dip', isExtended: true },
-                offer: { id: 'offer', key: '#offer\n', label: '🕯️ #offer', isExtended: true },
+                offer: { id: 'offer', key: '#offer', label: '🕯️ #offer', isExtended: true },
                 loot: { id: 'loot', key: '#loot\n', label: '📦 #loot', isExtended: true },
                 untrap: { id: 'untrap', key: '#untrap\n', label: '🪤 #untrap', isExtended: true },
                 chat: { id: 'chat', key: '#chat\n', label: '💬 #chat', isExtended: true },
@@ -644,7 +776,13 @@
                 crestColor: '#d8b4fe',
                 glowAccent: 'rgba(168, 85, 247, 0.22)'
             },
-            equipmentSlots: STANDARD_EQUIPMENT_SLOTS,
+            equipmentSlots: DCSS_EQUIPMENT_SLOTS,
+            slotOverrides: Object.freeze({ octopode: DCSS_OCTOPODE_SLOTS }),
+            statSchema: createStatSchema(['str', 'int', 'dex'], { format: 'int' }),
+            defenseSchema: Object.freeze({ direction: 'ascending', label: 'AC | EV | SH', fields: Object.freeze(['ac', 'ev', 'sh']) }),
+            resourceSchema: Object.freeze({ mpLabel: 'MP', hasMana: true }),
+            progressionSchema: Object.freeze({ hasLevels: true, hasXp: true, levelLabel: 'XL', xpLabel: 'XP' }),
+            depthSchema: Object.freeze({ unit: ':', feetPerLevel: 0, defaultBranch: 'D', style: 'branch-colon' }),
             capabilities: {
                 inventorySlots: 'a-z',
                 maxInventoryVisible: 26,
@@ -665,6 +803,7 @@
                 takeoff: { id: 'takeoff', key: 'T', label: '🔓 Take Off' },
                 puton: { id: 'puton', key: 'P', label: '💍 Put On' },
                 remove: { id: 'remove', key: 'R', label: '💍 Remove' },
+                equip: { id: 'equip', key: 'E', label: '🛡️ Equipment' },
                 quaff: { id: 'quaff', key: 'q', label: '🧪 Quaff' },
                 read: { id: 'read', key: 'r', label: '📜 Read' },
                 eat: { id: 'eat', key: 'e', label: '🍖 Eat' },
@@ -675,8 +814,14 @@
                 browse: { id: 'browse', key: 'I', label: '📖 Browse Spells' },
                 study: { id: 'study', key: 'M', label: '📚 Spell Library' },
                 skills: { id: 'skills', key: 'm', label: '📊 Skills' },
+                abilities: { id: 'abilities', key: 'm', label: '📊 Skills / Abilities' },
                 power: { id: 'power', key: 'a', label: '🙏 Divine Ability' },
                 pray: { id: 'pray', key: 'p', label: '⛩️ Pray at Altar' },
+                god: { id: 'god', key: '^', label: '⛩️ God / Piety' },
+                mutations: { id: 'mutations', key: 'A', label: '🧬 Mutations' },
+                explore: { id: 'explore', key: 'o', label: '🗺️ Auto-Explore' },
+                autofight: { id: 'autofight', key: 'tab', label: '⚔️ Auto-Fight' },
+                rest: { id: 'rest', key: '5', label: '⏳ Rest' },
                 fire: { id: 'fire', key: 'f', label: '🏹 Fire' },
                 throw: { id: 'throw', key: 'f', label: '🎯 Throw' },
                 drop: { id: 'drop', key: 'd', label: '⬇️ Drop' },
@@ -725,7 +870,12 @@
                 crestColor: '#5eead4',
                 glowAccent: 'rgba(45, 212, 191, 0.22)'
             },
-            equipmentSlots: STANDARD_EQUIPMENT_SLOTS,
+            equipmentSlots: BROGUE_EQUIPMENT_SLOTS,
+            statSchema: createStatSchema(['str'], { format: 'int' }),
+            defenseSchema: Object.freeze({ direction: 'ascending', label: 'Armor', fields: Object.freeze(['ac']) }),
+            resourceSchema: Object.freeze({ hasMana: false, secondaryLabel: 'Nutrition', altLabel: 'Enchantment' }),
+            progressionSchema: Object.freeze({ hasLevels: false, hasXp: false }),
+            depthSchema: Object.freeze({ unit: 'Depth', feetPerLevel: 0, prefix: 'Depth', style: 'depth' }),
             capabilities: {
                 inventorySlots: 'a-z',
                 maxInventoryVisible: 26,
@@ -736,7 +886,7 @@
                 multiBranchGraph: false,
                 hasTown: false,
                 hasShops: false,
-                statCount: 2,
+                statCount: 1,
                 invenMode: 'select'
             },
             movement: Object.assign({}, DEFAULT_MOVEMENT, { restKey: 'z' }),
@@ -744,7 +894,9 @@
                 wield: { id: 'wield', key: 'w', label: '⚔️ Equip' },
                 wear: { id: 'wear', key: 'w', label: '🛡️ Wear' },
                 takeoff: { id: 'takeoff', key: 'T', label: '🔓 Remove' },
+                equip: { id: 'equip', key: '[', label: '🛡️ Equipment' },
                 use: { id: 'use', key: 'a', label: '✨ Apply / Use' },
+                apply: { id: 'apply', key: 'a', label: '✨ Apply / Use' },
                 quaff: { id: 'quaff', key: 'q', label: '🧪 Quaff' },
                 read: { id: 'read', key: 'r', label: '📜 Read' },
                 eat: { id: 'eat', key: 'E', label: '🍖 Eat' },
@@ -756,7 +908,10 @@
                 open: { id: 'open', key: 'o', label: '🚪 Open' },
                 close: { id: 'close', key: 'c', label: '🚪 Close' },
                 search: { id: 'search', key: 's', label: '👁️ Search' },
-                pickup: { id: 'pickup', key: 'g', label: '✋ Pick Up' }
+                pickup: { id: 'pickup', key: 'g', label: '✋ Pick Up' },
+                explore: { id: 'explore', key: 'e', label: '🗺️ Auto-Explore' },
+                rest: { id: 'rest', key: 'z', label: '⏳ Rest' },
+                discoveries: { id: 'discoveries', key: 'D', label: '📖 Discoveries' }
             },
             extendedCommands: [],
             biomeBranches: {
@@ -794,18 +949,23 @@
                 crestColor: '#f1f5f9',
                 glowAccent: 'rgba(226, 232, 240, 0.18)'
             },
-            equipmentSlots: STANDARD_EQUIPMENT_SLOTS,
+            equipmentSlots: ROGUE_EQUIPMENT_SLOTS,
+            statSchema: createStatSchema(['str'], { format: 'cur/max' }),
+            defenseSchema: Object.freeze({ direction: 'descending', label: 'Arm', fields: Object.freeze(['arm', 'ac']) }),
+            resourceSchema: Object.freeze({ hasMana: false, secondaryLabel: 'Nutrition' }),
+            progressionSchema: Object.freeze({ hasLevels: true, hasXp: true, levelLabel: 'Lv', xpLabel: 'EXP' }),
+            depthSchema: Object.freeze({ unit: 'Level', feetPerLevel: 0, prefix: 'Level', style: 'level' }),
             capabilities: {
                 inventorySlots: 'a-z',
                 maxInventoryVisible: 26,
-                hasQuiver: true,
+                hasQuiver: false,
                 beatitudeBUC: false,
                 diagonalDoorwayBlocked: true,
                 extendedHashCommands: false,
                 multiBranchGraph: false,
                 hasTown: false,
                 hasShops: false,
-                statCount: 2,
+                statCount: 1,
                 invenMode: 'select'
             },
             movement: Object.assign({}, DEFAULT_MOVEMENT, { restKey: '.' }),
@@ -813,10 +973,14 @@
                 wield: { id: 'wield', key: 'w', label: '⚔️ Wield' },
                 wear: { id: 'wear', key: 'W', label: '🛡️ Wear' },
                 takeoff: { id: 'takeoff', key: 'T', label: '🔓 Take Off' },
+                puton: { id: 'puton', key: 'P', label: '💍 Put On' },
+                remove: { id: 'remove', key: 'R', label: '💍 Remove' },
+                equip: { id: 'equip', key: 'E', aliases: [']', '='], label: '🛡️ Equipment' },
                 quaff: { id: 'quaff', key: 'q', label: '🧪 Quaff' },
                 read: { id: 'read', key: 'r', label: '📜 Read' },
                 eat: { id: 'eat', key: 'e', label: '🍖 Eat' },
                 aim: { id: 'aim', key: 'z', label: '🪄 Zap Wand/Staff' },
+                zap: { id: 'zap', key: 'z', label: '⚡ Zap Wand/Staff' },
                 fire: { id: 'fire', key: 't', label: '🏹 Throw / Fire' },
                 throw: { id: 'throw', key: 't', label: '🎯 Throw' },
                 drop: { id: 'drop', key: 'd', label: '⬇️ Drop' },
@@ -824,7 +988,10 @@
                 open: { id: 'open', key: 'o', label: '🚪 Open' },
                 close: { id: 'close', key: 'c', label: '🚪 Close' },
                 disarm: { id: 'disarm', key: 'D', label: '⚙️ Disarm' },
+                discoveries: { id: 'discoveries', key: 'D', label: '📖 Discoveries' },
                 search: { id: 'search', key: 's', label: '👁️ Search' },
+                id_trap: { id: 'id_trap', key: '^', label: '🪤 Identify Trap' },
+                rest: { id: 'rest', key: '.', label: '⏳ Rest' },
                 pickup: { id: 'pickup', key: ',', label: '✋ Pick Up' }
             },
             extendedCommands: [],
@@ -862,6 +1029,12 @@
                 glowAccent: 'rgba(245, 158, 11, 0.24)'
             },
             equipmentSlots: STANDARD_EQUIPMENT_SLOTS,
+            slotOverrides: Object.freeze({ beholder: RYOD_BEHOLDER_SLOTS }),
+            statSchema: createStatSchema(['str', 'int', 'wis', 'dex', 'con', 'chr'], { format: 'int', aliases: { cha: 'chr' } }),
+            defenseSchema: Object.freeze({ direction: 'ascending', label: 'AC', fields: Object.freeze(['ac', 'ac_base', 'ac_to_a']) }),
+            resourceSchema: Object.freeze({ mpLabel: 'MP', hasMana: true }),
+            progressionSchema: Object.freeze({ hasLevels: true, hasXp: true, levelLabel: 'Lv', xpLabel: 'EXP' }),
+            depthSchema: Object.freeze({ unit: 'Branch', feetPerLevel: 0, defaultBranch: 'Branch', style: 'branch-space' }),
             capabilities: {
                 inventorySlots: 'a-w',
                 maxInventoryVisible: 23,
@@ -884,6 +1057,7 @@
                 wield: { id: 'wield', key: 'w', label: '⚔️ Wield' },
                 wear: { id: 'wear', key: 'w', label: '🛡️ Wear' },
                 takeoff: { id: 'takeoff', key: 'T', label: '🔓 Take Off' },
+                equip: { id: 'equip', key: 'e', label: '🛡️ Equipment' },
                 quaff: { id: 'quaff', key: 'q', label: '🧪 Quaff' },
                 read: { id: 'read', key: 'r', label: '📜 Read' },
                 eat: { id: 'eat', key: 'e', label: '🍞 Eat' },
@@ -896,6 +1070,7 @@
                 cast: { id: 'cast', key: 'm', label: '✨ Cast / Power' },
                 abilities: { id: 'abilities', key: 'm', label: '✨ Abilities / Magic' },
                 study: { id: 'study', key: 'M', label: '📘 Powers' },
+                smith: { id: 'smith', key: '0', label: '🔨 Smith / Forge' },
                 pet: { id: 'pet', key: 'p', label: '🐾 Pet / Interact' },
                 fire: { id: 'fire', key: 'f', label: '🏹 Fire' },
                 throw: { id: 'throw', key: 't', label: '🎯 Throw' },
@@ -905,7 +1080,8 @@
                 close: { id: 'close', key: 'c', label: '🚪 Close' },
                 disarm: { id: 'disarm', key: 'D', label: '⚙️ Disarm' },
                 search: { id: 'search', key: 's', label: '👁️ Search' },
-                pickup: { id: 'pickup', key: 'g', label: '✋ Pick Up' }
+                pickup: { id: 'pickup', key: 'g', label: '✋ Pick Up' },
+                rest: { id: 'rest', key: '.', label: '⏳ Rest' }
             },
             extendedCommands: [],
             biomeBranches: {
@@ -954,6 +1130,37 @@
         return (c && c.capabilities) || CARTRIDGES.angband.capabilities;
     }
 
+    function getStatSchema(realm) {
+        const c = getCartridge(realm);
+        return (c && c.statSchema) || CARTRIDGES.angband.statSchema;
+    }
+
+    function getDefenseSchema(realm) {
+        const c = getCartridge(realm);
+        return (c && c.defenseSchema) || CARTRIDGES.angband.defenseSchema;
+    }
+
+    function getResourceSchema(realm) {
+        const c = getCartridge(realm);
+        return (c && c.resourceSchema) || CARTRIDGES.angband.resourceSchema;
+    }
+
+    function getProgressionSchema(realm) {
+        const c = getCartridge(realm);
+        return (c && c.progressionSchema) || CARTRIDGES.angband.progressionSchema;
+    }
+
+    function getDepthSchema(realm) {
+        const c = getCartridge(realm);
+        return (c && c.depthSchema) || CARTRIDGES.angband.depthSchema;
+    }
+
+    function getVerbKey(verbId, realm) {
+        const c = getCartridge(realm);
+        const entry = c && c.verbs && c.verbs[verbId];
+        return entry ? entry.key : null;
+    }
+
     function getHeraldry(realm) {
         const c = getCartridge(realm);
         return (c && c.heraldry) || CARTRIDGES.angband.heraldry;
@@ -988,9 +1195,204 @@
         return tokens;
     }
 
-    function getEquipmentSlots(realm) {
-        const c = getCartridge(realm);
-        return (c && Array.isArray(c.equipmentSlots)) ? c.equipmentSlots.slice() : STANDARD_EQUIPMENT_SLOTS.slice();
+    function getEquipmentSlots(realm, playerOrOpts) {
+        const r = normalizeRealmId(realm);
+        const c = getCartridge(r);
+        let baseSlots = (c && Array.isArray(c.equipmentSlots)) ? c.equipmentSlots : STANDARD_EQUIPMENT_SLOTS;
+
+        if (playerOrOpts && typeof playerOrOpts === 'object') {
+            const raceToken = String(playerOrOpts.race || playerOrOpts.species || playerOrOpts.avatarId || playerOrOpts.originId || '').toLowerCase();
+            if (r === 'dcss' && /octopode/.test(raceToken) && c.slotOverrides && Array.isArray(c.slotOverrides.octopode)) {
+                baseSlots = c.slotOverrides.octopode;
+            } else if (r === 'ryod' && /beholder/.test(raceToken) && c.slotOverrides && Array.isArray(c.slotOverrides.beholder)) {
+                baseSlots = c.slotOverrides.beholder;
+            }
+            if (!playerOrOpts.includeUnsupported) {
+                return baseSlots.slice();
+            }
+        }
+
+        // Preserve >= 12 paperdoll slot invariant when called without player/options context
+        if (baseSlots.length >= 12) return baseSlots.slice();
+        const usedIds = new Set(baseSlots.map(s => s.id));
+        const padded = baseSlots.slice();
+        for (const stdSlot of STANDARD_EQUIPMENT_SLOTS) {
+            if (padded.length >= 12) break;
+            if (!usedIds.has(stdSlot.id)) {
+                padded.push(Object.assign({}, stdSlot, { supported: false }));
+                usedIds.add(stdSlot.id);
+            }
+        }
+        return padded;
+    }
+
+    /**
+     * Resolves a stat entry from a player.stats map, supporting `'chr'`/`'cha'` aliasing seamlessly.
+     */
+    function getStatEntry(statsOrPlayer, statKey) {
+        if (!statsOrPlayer || typeof statsOrPlayer !== 'object') return undefined;
+        const container = (statsOrPlayer.stats && typeof statsOrPlayer.stats === 'object') ? statsOrPlayer.stats : statsOrPlayer;
+        const k = String(statKey || '').toLowerCase();
+        if (!k) return undefined;
+        if (container[k] !== undefined) return container[k];
+        if (k === 'chr' && container.cha !== undefined) return container.cha;
+        if (k === 'cha' && container.chr !== undefined) return container.chr;
+        if (statsOrPlayer !== container) {
+            if (statsOrPlayer[k] !== undefined) return statsOrPlayer[k];
+            if (k === 'chr' && statsOrPlayer.cha !== undefined) return statsOrPlayer.cha;
+            if (k === 'cha' && statsOrPlayer.chr !== undefined) return statsOrPlayer.chr;
+        }
+        return undefined;
+    }
+
+    /**
+     * Formats a single stat entry or looks up `statKey` from a `stats` / `player` object
+     * according to the realm's `statSchema` (`disp`, signed `+2`/`0`/`-1`, numeric, or `cur/max`).
+     */
+    function formatStatValue(statOrStats, realmOrOpts, maybeStatKey) {
+        let realm = _activeRealmId;
+        let statKey = maybeStatKey || null;
+        if (typeof realmOrOpts === 'object' && realmOrOpts !== null) {
+            realm = realmOrOpts.realm || _activeRealmId;
+            statKey = realmOrOpts.statKey || realmOrOpts.key || statKey;
+        } else if (typeof realmOrOpts === 'string') {
+            const lowerArg2 = realmOrOpts.trim().toLowerCase();
+            const lowerArg3 = typeof maybeStatKey === 'string' ? maybeStatKey.trim().toLowerCase() : '';
+            if (lowerArg3 && CARTRIDGES[lowerArg3] && !CARTRIDGES[lowerArg2]) {
+                statKey = lowerArg2;
+                realm = lowerArg3;
+            } else {
+                realm = realmOrOpts;
+            }
+        }
+
+        const r = normalizeRealmId(realm);
+        const schema = getStatSchema(r);
+        let entry = statOrStats;
+
+        if (entry && typeof entry === 'object' && !Array.isArray(entry)) {
+            const isLeafStat = entry.use !== undefined || entry.disp !== undefined || entry.cur !== undefined ||
+                entry.top !== undefined || entry.max !== undefined || entry.val !== undefined || entry.value !== undefined;
+            if (!isLeafStat && (statKey || entry.stats)) {
+                entry = getStatEntry(entry, statKey || schema[0] || 'str');
+            }
+        }
+
+        if (entry === null || entry === undefined) return '';
+        const fmt = schema.format || 'int';
+
+        if (fmt === 'signed') {
+            const raw = (typeof entry === 'object')
+                ? (entry.disp !== undefined ? entry.disp : (entry.use !== undefined ? entry.use : (entry.cur !== undefined ? entry.cur : (entry.top !== undefined ? entry.top : entry.max))))
+                : entry;
+            if (raw === null || raw === undefined || raw === '') return '';
+            const n = Number(raw);
+            if (Number.isFinite(n)) return n > 0 ? `+${n}` : `${n}`;
+            return String(raw);
+        }
+
+        if (fmt === 'cur/max') {
+            if (typeof entry === 'string') {
+                const trimmed = entry.trim();
+                if (trimmed.includes('/')) return trimmed;
+                if (trimmed !== '' && Number.isFinite(Number(trimmed))) return `${trimmed}/${trimmed}`;
+                return trimmed;
+            }
+            if (typeof entry === 'object') {
+                if (entry.disp !== undefined && entry.disp !== null && String(entry.disp).includes('/')) {
+                    return String(entry.disp).trim();
+                }
+                const cur = entry.cur !== undefined ? entry.cur : (entry.use !== undefined ? entry.use : (entry.val !== undefined ? entry.val : (entry.top !== undefined ? entry.top : entry.max)));
+                if (cur === undefined || cur === null) return '';
+                const max = entry.max !== undefined ? entry.max : (entry.top !== undefined ? entry.top : cur);
+                return `${cur}/${max}`;
+            }
+            return `${entry}/${entry}`;
+        }
+
+        if (typeof entry === 'object') {
+            if (entry.disp !== undefined && entry.disp !== null && String(entry.disp).trim() !== '') {
+                return String(entry.disp).trim();
+            }
+            const val = entry.use !== undefined ? entry.use : (entry.cur !== undefined ? entry.cur : (entry.top !== undefined ? entry.top : (entry.max !== undefined ? entry.max : (entry.val !== undefined ? entry.val : entry.value))));
+            return val !== undefined && val !== null ? String(val) : '';
+        }
+        return String(entry);
+    }
+
+    /**
+     * Formats player defense readout according to `defenseSchema` across all 9 realms.
+     */
+    function formatDefenseValue(player, realm) {
+        const p = player || {};
+        const r = normalizeRealmId(realm);
+        const ds = getDefenseSchema(r);
+
+        if (ds.formatBracket || r === 'silq') {
+            const evn = p.evn !== undefined ? Number(p.evn) : Number(p.ac || 0);
+            const evnStr = evn >= 0 ? `+${evn}` : `${evn}`;
+            const prMin = Number(p.pr_min || 0);
+            const prMax = Number(p.pr_max || 0);
+            return `[${evnStr}, ${prMin}-${prMax}]`;
+        }
+        if (r === 'dcss') {
+            const ac = p.ac !== undefined ? p.ac : 0;
+            const ev = p.ev !== undefined ? p.ev : 10;
+            const sh = p.sh !== undefined ? p.sh : 0;
+            return `${ac} | ${ev} | ${sh}`;
+        }
+        if (r === 'rogue') {
+            const arm = p.arm !== undefined ? p.arm : (p.ac !== undefined ? p.ac : 10);
+            return `${arm}`;
+        }
+        if (r === 'nethack') {
+            return `${p.ac !== undefined ? p.ac : 10}`;
+        }
+        if (r === 'brogue') {
+            return `${p.ac !== undefined ? p.ac : 0}`;
+        }
+        const acTotal = p.ac !== undefined ? p.ac : ((Number(p.ac_base || 0)) + (Number(p.ac_to_a || 0)));
+        const acToA = Number(p.ac_to_a || 0);
+        return acToA !== 0 ? `${acTotal} (${acToA > 0 ? '+' : ''}${acToA})` : `${acTotal}`;
+    }
+
+    /**
+     * Formats depth/location string according to `depthSchema` across all 9 realms.
+     */
+    function formatDepth(depthOrPlayer, realm, branchOrOpts) {
+        const isObj = depthOrPlayer && typeof depthOrPlayer === 'object';
+        const p = isObj ? depthOrPlayer : null;
+        const r = normalizeRealmId(realm || (p && p.realm));
+        const ds = getDepthSchema(r);
+        const opts = (branchOrOpts && typeof branchOrOpts === 'object') ? branchOrOpts : {};
+        const explicitBranch = typeof branchOrOpts === 'string' ? branchOrOpts.trim() : (typeof opts.branch === 'string' ? opts.branch.trim() : '');
+        const rawDepth = isObj ? (p.depth !== undefined ? p.depth : p.max_depth) : depthOrPlayer;
+        const depth = (rawDepth !== undefined && rawDepth !== null && Number.isFinite(Number(rawDepth))) ? Number(rawDepth) : (ds.style === 'feet' ? 0 : 1);
+
+        if (ds.style === 'dlvl') {
+            return `${ds.prefix || 'Dlvl'} ${depth}`;
+        }
+        if (ds.style === 'branch-colon') {
+            let branch = explicitBranch || (p && (p.branch_name || p.branch)) || ds.defaultBranch || 'D';
+            if (/^dungeon$/i.test(branch)) branch = 'D';
+            return `${branch}:${depth}`;
+        }
+        if (ds.style === 'level') {
+            return `${ds.prefix || 'Level'} ${depth}`;
+        }
+        if (ds.style === 'depth') {
+            return `${ds.prefix || 'Depth'} ${depth}`;
+        }
+        if (ds.style === 'branch-space') {
+            const branch = explicitBranch || (p && (p.branch_name || p.branch)) || ds.defaultBranch || 'Branch';
+            return `${branch} ${depth}`;
+        }
+        const fpl = Number(ds.feetPerLevel) || 50;
+        if (depth === 0 && !opts.numericZero) {
+            if (p && p.wilderness) return 'Wilderness';
+            return ds.townLabel || 'Town';
+        }
+        return `${depth * fpl} ${ds.unit || 'ft'}`;
     }
 
     function getExtendedCommands(realm) {
@@ -1037,14 +1439,73 @@
     }
 
     /**
-     * Parses numeric weapon average damage or armor total AC from an item description or metrics string
-     * and computes a human-friendly stat delta (`▲ +3 AC`, `▲ +2.5 Dmg`, `▼ -2 AC`) against equipped gear.
+     * Parses numeric weapon average damage or armor total AC from an item object, description,
+     * or metrics string, and computes realm-aware stat delta (`▲ +3 AC`, `▲ +2.5 Dmg`, `▼ -2 AC`)
+     * respecting `defenseSchema.direction === 'descending'` (`rogue`, `nethack`).
      */
-    function _extractCombatScore(textOrObj, category) {
+    function _inferCombatCategory(item, equippedItem) {
+        for (const candidate of [item, equippedItem]) {
+            if (!candidate || typeof candidate !== 'object') continue;
+            const kind = String(candidate.category || candidate.kind || candidate.slot_name || '').toLowerCase();
+            if (/^(armor|armour|body|shield|cloak|helm|gloves|boots|shirt|panoply)$/.test(kind)) return 'armor';
+            if (/^(weapon|ranged|melee|bow)$/.test(kind)) return kind === 'ranged' ? 'ranged' : 'weapon';
+            if (candidate.ac !== undefined || candidate.arm !== undefined || candidate.ac_base !== undefined || candidate.evn !== undefined) {
+                return 'armor';
+            }
+            if (candidate.dmg !== undefined || (candidate.dd !== undefined && candidate.ds !== undefined) || candidate.to_d !== undefined) {
+                return 'weapon';
+            }
+        }
+        const txt = [item, equippedItem].map(x => typeof x === 'string' ? x : String((x && (x.stats || x.cleanName || x.desc || x.name)) || '')).join(' ');
+        if (/\[[+-]?\d+|\b(?:ac|arm)\s*[:=]?\s*[+-]?\d+\b|\b(plate|mail|leather|cloak|shield|helm|boots|gloves|armor|armour|robe|scale|splint|banded)\b/i.test(txt)) {
+            return 'armor';
+        }
+        return 'weapon';
+    }
+
+    function _extractCombatScore(textOrObj, category, realm) {
+        if (textOrObj == null) return null;
+        if (typeof textOrObj === 'number') return Number.isFinite(textOrObj) ? textOrObj : null;
+
+        const cat = String(category || 'weapon').toLowerCase();
+        const r = realm ? normalizeRealmId(realm) : null;
+        const ds = r ? getDefenseSchema(r) : null;
+        const isDescending = Boolean(cat === 'armor' && ds && ds.direction === 'descending');
+
+        if (typeof textOrObj === 'object') {
+            if (cat === 'armor') {
+                let baseAc = null;
+                if (textOrObj.arm !== undefined && textOrObj.arm !== null) baseAc = Number(textOrObj.arm);
+                else if (textOrObj.ac !== undefined && textOrObj.ac !== null) baseAc = Number(textOrObj.ac);
+                else if (textOrObj.ac_base !== undefined && textOrObj.ac_base !== null) baseAc = Number(textOrObj.ac_base);
+                else if (textOrObj.evn !== undefined && textOrObj.evn !== null) baseAc = Number(textOrObj.evn);
+                if (baseAc !== null && Number.isFinite(baseAc)) {
+                    const bonus = Number(
+                        textOrObj.to_a !== undefined ? textOrObj.to_a :
+                            (textOrObj.ac_to_a !== undefined ? textOrObj.ac_to_a :
+                                (textOrObj.bonus !== undefined ? textOrObj.bonus : 0))
+                    ) || 0;
+                    return isDescending ? (baseAc - bonus) : (baseAc + bonus);
+                }
+            }
+            if (cat === 'weapon' || cat === 'ranged') {
+                const toDam = Number(textOrObj.to_d !== undefined ? textOrObj.to_d : (textOrObj.bonus !== undefined ? textOrObj.bonus : 0)) || 0;
+                if (textOrObj.dd != null && textOrObj.ds != null) {
+                    return (Number(textOrObj.dd) || 1) * (((Number(textOrObj.ds) || 1) + 1) / 2) + toDam;
+                }
+                if (typeof textOrObj.dmg === 'string') {
+                    const dm = textOrObj.dmg.match(/(\d+)d(\d+)/);
+                    if (dm) return (Number(dm[1]) || 1) * (((Number(dm[2]) || 1) + 1) / 2) + toDam;
+                }
+                if (typeof textOrObj.dmg === 'number' && Number.isFinite(textOrObj.dmg)) {
+                    return textOrObj.dmg + toDam;
+                }
+            }
+        }
+
         const raw = typeof textOrObj === 'string'
             ? textOrObj
             : String((textOrObj && (textOrObj.stats || textOrObj.cleanName || textOrObj.desc || textOrObj.name)) || '');
-        const cat = String(category || 'weapon').toLowerCase();
 
         if (cat === 'weapon' || cat === 'ranged') {
             const diceMatch = raw.match(/\((\d+)d(\d+)\)(?:\s*\(([+-]?\d+)(?:,\s*([+-]?\d+))?\))?/);
@@ -1060,34 +1521,53 @@
         }
 
         if (cat === 'armor') {
-            const acMatch = raw.match(/\[(\d+)(?:,\s*([+-]?\d+))?\]/);
+            const acMatch = raw.match(/\[([+-]?\d+)(?:,\s*([+-]?\d+))?\]/);
             if (acMatch) {
-                return (Number(acMatch[1]) || 0) + (Number(acMatch[2]) || 0);
+                const base = Number(acMatch[1]) || 0;
+                const extra = Number(acMatch[2]) || 0;
+                return isDescending ? (base - extra) : (base + extra);
             }
+            const namedAc = raw.match(/\b(?:ac|arm)\s*[:=]?\s*([+-]?\d+)\b/i);
+            if (namedAc) return Number(namedAc[1]);
             const plusAc = raw.match(/(?:^|\s)([+-]\d+)\s+(?:plate|mail|leather|cloak|shield|helm|boots|gloves|armor|armour)/i);
-            if (plusAc) return 3 + (Number(plusAc[1]) || 0);
+            if (plusAc) {
+                const bonus = Number(plusAc[1]) || 0;
+                return isDescending ? (3 - bonus) : (3 + bonus);
+            }
             return null;
         }
 
         return null;
     }
 
-    function compareWithEquipped(candidateMetrics, equippedMetrics, category) {
-        const cat = String(category || 'weapon').toLowerCase();
-        const candScore = _extractCombatScore(candidateMetrics, cat);
-        const eqScore = _extractCombatScore(equippedMetrics, cat);
-        if (candScore == null || eqScore == null) {
-            return { deltaScore: 0, deltaLabel: '', isUpgrade: false, isDowngrade: false };
-        }
-        const diff = Number((candScore - eqScore).toFixed(1));
+    function computeStatDelta(item, equippedItem, realm, category) {
+        const r = normalizeRealmId(realm || _activeRealmId);
+        const cat = String(category || _inferCombatCategory(item, equippedItem) || 'weapon').toLowerCase();
+        const ds = getDefenseSchema(r);
+        const isDescending = Boolean(cat === 'armor' && ds && ds.direction === 'descending');
+        const direction = isDescending ? 'descending' : 'ascending';
         const unit = (cat === 'armor') ? 'AC' : 'Dmg';
+
+        const candScore = _extractCombatScore(item, cat, r);
+        const eqScore = _extractCombatScore(equippedItem, cat, r);
+        if (candScore == null || eqScore == null) {
+            return { delta: 0, deltaScore: 0, metric: unit, direction, deltaLabel: '', isUpgrade: false, isDowngrade: false };
+        }
+        const rawDiff = isDescending ? (eqScore - candScore) : (candScore - eqScore);
+        let diff = Number(rawDiff.toFixed(1));
+        if (Object.is(diff, -0)) diff = 0;
+
         if (diff > 0.05) {
-            return { deltaScore: diff, deltaLabel: `▲ +${diff} ${unit}`, isUpgrade: true, isDowngrade: false };
+            return { delta: diff, deltaScore: diff, metric: unit, direction, deltaLabel: `▲ +${diff} ${unit}`, isUpgrade: true, isDowngrade: false };
         }
         if (diff < -0.05) {
-            return { deltaScore: diff, deltaLabel: `▼ ${diff} ${unit}`, isUpgrade: false, isDowngrade: true };
+            return { delta: diff, deltaScore: diff, metric: unit, direction, deltaLabel: `▼ ${diff} ${unit}`, isUpgrade: false, isDowngrade: true };
         }
-        return { deltaScore: 0, deltaLabel: `= 0 ${unit}`, isUpgrade: false, isDowngrade: false };
+        return { delta: 0, deltaScore: 0, metric: unit, direction, deltaLabel: `= 0 ${unit}`, isUpgrade: false, isDowngrade: false };
+    }
+
+    function compareWithEquipped(candidateMetrics, equippedMetrics, category, realm) {
+        return computeStatDelta(candidateMetrics, equippedMetrics, realm || 'angband', category || 'weapon');
     }
 
     function canMoveDiagonally(realm, fromFeat, toFeat) {
@@ -1195,7 +1675,7 @@
             } else if (cat === 'scroll') {
                 nhVerbs.push({ id: 'read', label: '📜 Read (r)', verb: 'r' }, { id: 'bind', label: '⚡ Bind', verb: 'r', isBind: true });
             } else if (cat === 'food') {
-                nhVerbs.push({ id: 'eat', label: '🍞 Eat (e)', verb: 'E' }, { id: 'offer', label: '🕯️ #offer', verb: '#offer\n', isExtended: true });
+                nhVerbs.push({ id: 'eat', label: '🍞 Eat (e)', verb: 'e' }, { id: 'offer', label: '🕯️ #offer', verb: '#offer\n', isExtended: true });
             } else if (cat === 'device') {
                 nhVerbs.push({ id: 'zap', label: '🪄 Zap (z)', verb: 'z' }, { id: 'apply', label: '🔧 Apply (a)', verb: 'a' }, { id: 'bind', label: '⚡ Bind', verb: 'z', isBind: true });
             } else if (cat === 'tome') {
@@ -1268,7 +1748,7 @@
         }
 
         const verbs = [];
-        const eatKey = (r === 'dcss' || r === 'rogue' || r === 'brogue') ? 'e' : 'E';
+        const eatKey = (r === 'dcss' || r === 'rogue' || r === 'nethack') ? 'e' : 'E';
         const wieldKey = (cat === 'armor' && (r === 'dcss' || r === 'rogue')) ? 'W' : ((cat === 'jewelry' && (r === 'dcss' || r === 'rogue')) ? 'P' : 'w');
         if (/^(weapon|ranged|armor|jewelry|light)$/.test(cat)) {
             verbs.push({ id: 'wield', label: lbl('⚔️ Wield', '⚔️ 装備', '⚔️ Wield (装備)'), verb: wieldKey });
@@ -1335,12 +1815,25 @@
         if (!spec || !spec.id) return null;
         const key = String(spec.id).trim().toLowerCase();
         const base = CARTRIDGES[key] || CARTRIDGES.angband;
+        const resolvedStatSchema = Array.isArray(spec.statSchema)
+            ? createStatSchema(spec.statSchema, {
+                format: (spec.statSchema.format || (base.statSchema && base.statSchema.format) || 'int'),
+                aliases: (spec.statSchema.aliases || (base.statSchema && base.statSchema.aliases) || {}),
+                labels: (spec.statSchema.labels || (base.statSchema && base.statSchema.labels) || {})
+            })
+            : (base.statSchema || CARTRIDGES.angband.statSchema);
         CARTRIDGES[key] = Object.assign({}, base, spec, {
             id: key,
             schemaVersion: spec.schemaVersion || CARTRIDGE_SCHEMA_VERSION,
             heraldry: Object.assign({}, base.heraldry, spec.heraldry || {}, { id: key }),
             themeTokens: Object.assign({}, base.themeTokens, spec.themeTokens || {}),
             equipmentSlots: Array.isArray(spec.equipmentSlots) ? spec.equipmentSlots : base.equipmentSlots,
+            slotOverrides: spec.slotOverrides ? Object.assign({}, base.slotOverrides || {}, spec.slotOverrides) : base.slotOverrides,
+            statSchema: resolvedStatSchema,
+            defenseSchema: spec.defenseSchema ? Object.assign({}, base.defenseSchema, spec.defenseSchema) : base.defenseSchema,
+            resourceSchema: spec.resourceSchema ? Object.assign({}, base.resourceSchema, spec.resourceSchema) : base.resourceSchema,
+            progressionSchema: spec.progressionSchema ? Object.assign({}, base.progressionSchema, spec.progressionSchema) : base.progressionSchema,
+            depthSchema: spec.depthSchema ? Object.assign({}, base.depthSchema, spec.depthSchema) : base.depthSchema,
             capabilities: Object.assign({}, base.capabilities, spec.capabilities || {}),
             movement: Object.assign({}, base.movement, spec.movement || {}),
             verbs: Object.assign({}, base.verbs, spec.verbs || {}),
@@ -1500,22 +1993,25 @@
         const p = player || {};
         const r = String(realmId || 'angband').toLowerCase();
         const esc = typeof escFn === 'function' ? escFn : (s => String(s ?? ''));
-        const getStat = s => (s && typeof s === 'object') ? (s.use || s.top || '10') : (s !== undefined ? s : '10');
+        const getStat = (s, fallback = '10') => {
+            const formatted = formatStatValue(s, r);
+            return formatted !== '' ? formatted : fallback;
+        };
         const stats = p.stats || {};
         const cards = [];
         const add = (label, val) => cards.push(`<div class="death-stat-card"><div class="stat-name">${esc(label)}</div><div class="stat-num">${esc(String(val))}</div></div>`);
 
         if (r === 'silq') {
-            add('STRENGTH', getStat(stats.str));
-            add('DEXTERITY', getStat(stats.dex));
-            add('CONSTITUTION', getStat(stats.con));
-            add('GRACE', getStat(stats.gra));
-            add('ARMOR', p.ac || 0);
+            add('STRENGTH', getStat(stats.str, '0'));
+            add('DEXTERITY', getStat(stats.dex, '0'));
+            add('CONSTITUTION', getStat(stats.con, '0'));
+            add('GRACE', getStat(stats.gra, '0'));
+            add('ARMOR', formatDefenseValue(p, 'silq'));
             add('VOICE', `${p.sp || 0}/${p.sp_max || 0}`);
             add('TURNS', p.turns || 1);
             add('DEEPEST', `${(p.max_depth || p.depth || 0) * 50} ft`);
         } else if (r === 'brogue') {
-            add('STRENGTH', getStat(stats.str));
+            add('STRENGTH', getStat(stats.str, '12'));
             add('ARMOR', p.ac || 0);
             add('NUTRITION', `${p.nutrition || 0}%`);
             add('LUMENSTONES', p.lumenstones || 0);
@@ -1523,6 +2019,14 @@
             add('ALLIES', p.allies_count || 0);
             add('TURNS', p.turns || 1);
             add('DEEPEST', `Depth ${p.max_depth || p.depth || 1}`);
+        } else if (r === 'rogue') {
+            add('STRENGTH', getStat(stats.str, '16/16'));
+            add('ARMOR', p.arm !== undefined ? p.arm : (p.ac ?? 10));
+            add('LEVEL', p.level || 1);
+            add('EXPERIENCE', p.exp || 0);
+            add('GOLD', p.gold || 0);
+            add('TURNS', p.turns || 1);
+            add('DEEPEST', `Level ${p.max_depth || p.depth || 1}`);
         } else if (r === 'dcss') {
             add('STRENGTH', getStat(stats.str));
             add('INTELLIGENCE', getStat(stats.int));
@@ -1538,6 +2042,9 @@
             add('WISDOM', getStat(stats.wis));
             add('DEXTERITY', getStat(stats.dex));
             add('CONSTITUTION', getStat(stats.con));
+            if (r !== 'angband') {
+                add('CHARISMA', getStat(getStatEntry(stats, 'chr')));
+            }
             add('ARMOR CLASS', p.ac ?? 10);
             add(r === 'nethack' ? 'ALIGNMENT' : 'SPEED', r === 'nethack' ? (p.alignment || 'Neutral') : (p.speed || 110));
             add('DEEP LEVEL', `${p.max_depth || p.depth || 0}`);
@@ -1597,12 +2104,13 @@
             const skillNames = ['Melee', 'Archery', 'Evasion', 'Stealth', 'Perception', 'Will', 'Smithing', 'Song'];
             const bases = [0, 0, 0, 0, 0, 0, 0, 0];
             for (let i = 0; i < skillNames.length; i++) {
-                const re = new RegExp(`\\b${skillNames[i]}\\s+(-?\\d+)`, 'i');
-                const m = txt.match(re);
+                const reEq = new RegExp(`\\b${skillNames[i]}[^\\n]*?=\\s*(-?\\d+)`, 'i');
+                const rePlain = new RegExp(`\\b${skillNames[i]}\\s+(-?\\d+)`, 'i');
+                const m = txt.match(reEq) || txt.match(rePlain);
                 if (m) bases[i] = parseInt(m[1], 10) || 0;
             }
-            const expMatch = txt.match(/Experience\s+Left\s*:\s*(-?\d+)/i);
-            let expLeft = expMatch ? parseInt(expMatch[1], 10) : 1000;
+            const expMatch = txt.match(/(?:Points|Experience)\s+Left\s*:\s*(-?\d+)/i);
+            let expLeft = expMatch ? parseInt(expMatch[1], 10) : 5000;
             if (!Number.isFinite(expLeft) || expLeft <= 0) expLeft = 1000;
             const inc = [0, 0, 0, 0, 0, 0, 0, 0];
             const priorityByArchetype = {
@@ -1669,6 +2177,7 @@
         CARTRIDGE_SCHEMA_VERSION,
         SUPPORTED_TRANSPORTS,
         MENU_GRAMMAR_ARCHETYPES,
+        STAT_LABELS,
         CARTRIDGES,
         VANILLA_LETTERS,
         NETHACK_SLOTS,
@@ -1677,14 +2186,25 @@
         getActive,
         setActive,
         getCapabilities,
+        getStatSchema,
+        getDefenseSchema,
+        getResourceSchema,
+        getProgressionSchema,
+        getDepthSchema,
+        getVerbKey,
         getHeraldry,
         getThemeTokens,
         applyThemeTokens,
         getEquipmentSlots,
         getExtendedCommands,
         getSlotLetter,
+        getStatEntry,
+        formatStatValue,
+        formatDefenseValue,
+        formatDepth,
         resolveVerbsForCategory,
         parseBeatitudeBUC,
+        computeStatDelta,
         compareWithEquipped,
         canMoveDiagonally,
         canTraverseDoorwayDiagonally,

@@ -321,7 +321,9 @@ test('all 8 realms define accurate keybindings and never swallow native keys in 
         assert(list.length >= 25, `Realm '${r}' must define >= 25 commands (got ${list.length})`);
     }
     // DCSS pins
-    assert.strictEqual(ActionCatalog.keyFor('eat', 'dcss'), 'E');
+    assert.strictEqual(ActionCatalog.keyFor('eat', 'dcss'), 'e');
+    assert.strictEqual(ActionCatalog.keyFor('equipment', 'dcss'), 'E');
+    assert.strictEqual(ActionCatalog.keyFor('explore', 'dcss'), 'o');
     assert.strictEqual(ActionCatalog.keyFor('cast', 'dcss'), 'z');
     assert.strictEqual(ActionCatalog.keyFor('aim', 'dcss'), 'V');
     assert.strictEqual(ActionCatalog.keyFor('power', 'dcss'), 'a');
@@ -330,7 +332,9 @@ test('all 8 realms define accurate keybindings and never swallow native keys in 
     assert.strictEqual(ActionCatalog.keyFor('rest', 'dcss'), '5');
 
     // Brogue pins
+    assert.strictEqual(ActionCatalog.keyFor('explore', 'brogue'), 'e');
     assert.strictEqual(ActionCatalog.keyFor('eat', 'brogue'), 'E');
+    assert.strictEqual(ActionCatalog.keyFor('equipment', 'brogue'), '[');
     assert.strictEqual(ActionCatalog.keyFor('aim', 'brogue'), 'a');
     assert.strictEqual(ActionCatalog.keyFor('throw', 'brogue'), 't');
     assert.strictEqual(ActionCatalog.keyFor('takeoff', 'brogue'), 'T');
@@ -338,13 +342,20 @@ test('all 8 realms define accurate keybindings and never swallow native keys in 
     assert.strictEqual(ActionCatalog.keyFor('cast', 'brogue'), null);
 
     // Rogue pins
-    assert.strictEqual(ActionCatalog.keyFor('eat', 'rogue'), 'E');
+    assert.strictEqual(ActionCatalog.keyFor('eat', 'rogue'), 'e');
+    assert.strictEqual(ActionCatalog.keyFor('equipment', 'rogue'), 'E');
+    assert.strictEqual(ActionCatalog.keyFor('discoveries', 'rogue'), 'D');
     assert.strictEqual(ActionCatalog.keyFor('aim', 'rogue'), 'z');
     assert.strictEqual(ActionCatalog.keyFor('throw', 'rogue'), 't');
     assert.strictEqual(ActionCatalog.keyFor('takeoff', 'rogue'), 'T');
     assert.strictEqual(ActionCatalog.keyFor('pickup', 'rogue'), ',');
     assert.strictEqual(ActionCatalog.keyFor('rest', 'rogue'), '.');
     assert.strictEqual(ActionCatalog.keyFor('cast', 'rogue'), null);
+
+    // NetHack pins
+    assert.strictEqual(ActionCatalog.keyFor('eat', 'nethack'), 'e');
+    assert.strictEqual(ActionCatalog.keyFor('engrave', 'nethack'), 'E');
+    assert.strictEqual(ActionCatalog.keyFor('equipment', 'nethack'), '[');
 
     // Native cartridge keys must never be hijacked or return null in fromVanillaKey
     assert.strictEqual(ActionCatalog.fromVanillaKey('e', 'dcss'), 'e');

@@ -2878,7 +2878,10 @@
             p.str = (p.str || 15) + 3;
             log(engine, `Trog roars! Berserk vigor courses through your veins! (+20 HP, +3 STR)`);
         } else if (p.deity === 'Okawaru') {
-            p.ac += 4; p.bonusDmg = (p.bonusDmg || 0) + 4;
+            p.bonusAc = (p.bonusAc || 0) + 4;
+            p.bonusDmg = (p.bonusDmg || 0) + 4;
+            if (typeof engine.recalcPlayerDefenses === 'function') engine.recalcPlayerDefenses();
+            else p.ac += 4;
             log(engine, `Okawaru grants martial perfection! (+4 AC, +4 Dmg)`);
         } else if (p.deity === 'Sif Muna') {
             p.pw = Math.min(p.pwMax, (p.pw || 0) + 24);
@@ -2979,8 +2982,10 @@
         }
         let uncursedCount = 0;
         for (const item of p.inventory) {
-            if (item.beatitude === 'cursed') {
+            if (item.beatitude === 'cursed' || item.cursed === true || item.curse === true) {
                 item.beatitude = 'uncursed';
+                delete item.cursed;
+                delete item.curse;
                 uncursedCount++;
             }
         }
@@ -3149,6 +3154,7 @@
                 player._evolvedStages[targetStage] = true;
                 player.hpMax += 15;
                 player.hp += 15;
+                player.bonusAc = (player.bonusAc || 0) + 2;
                 player.ac += 2;
             }
         }
@@ -3212,6 +3218,7 @@ const FEAT = Object.freeze({
     OPEN_DOOR: 3,
     UP_STAIR: 5,
     DOWN_STAIR: 6,
+    SECRET_DOOR: 15,
     TRAP: 45,
     WALL: 21,
     PERM_WALL: 22,
@@ -3228,27 +3235,65 @@ const FEAT = Object.freeze({
 });
 
 function parseCliArgs(argv, defaultSaveDir) {
-    let user = 'Adventurer';
-    let saveDir = defaultSaveDir;
-    let isNew = false;
-    let customBirth = false;
-    let randomBirth = false;
-    let seed = undefined;
+    let user = 'Adventurer', saveDir = defaultSaveDir, isNew = false, customBirth = false, randomBirth = false, seed;
     for (let i = 2; i < argv.length; i++) {
         const arg = String(argv[i] || '');
         if (arg === '-n') isNew = true;
         else if (arg === '-c' || arg === '--custom') customBirth = true;
         else if (arg === '-r' || arg === '--random') randomBirth = true;
         else if (arg.startsWith('--seed=')) seed = arg.slice(7) || undefined;
-        else if (arg.startsWith('-u')) user = arg.slice(2) || user;
+        else if ((arg === '-s' || arg === '--seed') && argv[i + 1]) seed = String(argv[++i]) || undefined;
+        else if (arg.startsWith('-u')) user = arg.slice(2) || (argv[i + 1] ? String(argv[++i]) : user);
         else if (arg.startsWith('-dsave=')) saveDir = arg.slice(7) || saveDir;
+        else if (arg.startsWith('-d=')) saveDir = arg.slice(3) || saveDir;
+        else if (arg === '-d' && argv[i + 1]) saveDir = String(argv[++i]) || saveDir;
+        else if (arg.startsWith('-d') && arg.length > 2) saveDir = arg.slice(2) || saveDir;
     }
     const cleanUser = user.replace(/[^a-zA-Z0-9_.-]/g, '_') || 'Adventurer';
     return { user: cleanUser, saveDir, isNew, customBirth, randomBirth, seed };
 }
 
 function isWalkableFeat(feat) {
-    return feat !== FEAT.NONE && feat !== FEAT.WALL && feat !== FEAT.PERM_WALL && feat !== FEAT.CLOSED_DOOR && feat !== FEAT.CHASM;
+    return feat !== FEAT.NONE && feat !== FEAT.WALL && feat !== FEAT.PERM_WALL && feat !== FEAT.CLOSED_DOOR && feat !== FEAT.CHASM && feat !== FEAT.SECRET_DOOR;
+}
+
+function isRingSlot(slotName) {
+    return typeof slotName === 'string' && /^ring(_?\d+|Left|Right)?$/i.test(slotName);
+}
+
+function isShieldItem(it) {
+    return Boolean(it && (it.equipped === 'shield' || (it.equipped === 'off_hand' && /\b(shield|buckler|kite|tower|targe)\b/i.test(it.name || ''))));
+}
+
+function isItemCursed(it) {
+    return Boolean(it && (it.beatitude === 'cursed' || it.cursed === true || it.curse === true));
+}
+
+function getProtectionRingValue(it) {
+    if (!it) return 0;
+    const nm = String(it.name || '');
+    if (/evasion|dodg/i.test(nm)) return 0;
+    const isProt = /protection|armor|armour|defense|warding|overlord|sun/i.test(nm) || it.ac != null || it.acBonus != null;
+    if (!isProt) return 0;
+    if (it.ac != null || it.acBonus != null) {
+        const baseAc = Number(it.ac != null ? it.ac : it.acBonus);
+        if (typeof it.bonus === 'number' && it.bonus < 0) return it.bonus;
+        return Math.max(baseAc, typeof it.bonus === 'number' ? it.bonus : baseAc);
+    }
+    return typeof it.bonus === 'number' ? it.bonus : 1;
+}
+
+function getShieldBlockValue(shield) {
+    if (!shield) return 0;
+    if (shield.sh != null) return Math.max(0, Number(shield.sh) + Number(shield.bonus || 0));
+    if (shield.ac != null) return Math.max(0, Number(shield.ac) + Number(shield.bonus || 0));
+    const nm = String(shield.name || '').toLowerCase();
+    const base = /tower/.test(nm) ? 10 : (/kite|large/.test(nm) ? 7 : (/buckler/.test(nm) ? 3 : 5));
+    return Math.max(0, base + Number(shield.bonus || 0));
+}
+
+function isMetallicBodyArmor(item) {
+    return Boolean(item && !/leather|hide|robe|cloak|dragon/i.test(item.name || '') && !item.rustproof && !item.protected);
 }
 
 function computeVerbMask(item) {
@@ -3385,8 +3430,20 @@ class UniversalCartridgeEngine {
         const r = roles[roleIdx % roles.length] || roles[0];
         const inv = [];
         const defaultBeatitude = this.spec.beatitude ? 'blessed' : undefined;
+        const avatarId = r.avatarId || this.spec.avatarId || (r.originId === 'beholder' ? 'beholder' : (r.originId === 'red_dragon' ? 'dragon' : (r.originId === 'arch_lich' ? 'lich' : (r.originId === 'vampire_scion' ? 'vampire' : (r.originId === 'iron_golem' ? 'golem' : (r.originId === 'minotaur' ? 'minotaur' : null))))));
+        const isOctopode = /octopode/i.test(r.race || '');
+        const isBeholder = avatarId === 'beholder' || r.originId === 'beholder';
+        const ringSlots = Number(r.ringSlots || (isOctopode ? 8 : (isBeholder ? 6 : 2)));
+        const allowBodyArmor = (r.allowBodyArmor !== undefined) ? Boolean(r.allowBodyArmor) : !(isOctopode || isBeholder);
         if (r.weapon) inv.push({ beatitude: defaultBeatitude, ...r.weapon, kind: 'weapon', glyph: ')', equipped: 'weapon', count: 1 });
-        if (r.armor) inv.push({ beatitude: defaultBeatitude, ...r.armor, kind: 'armor', glyph: '[', equipped: 'body', count: 1 });
+        if (r.armor) {
+            const isRingArmor = r.armor.kind === 'ring' || r.armor.tval === 45 || (r.armor.kind !== 'armor' && /\bring\b/i.test(r.armor.name || '') && !/\b(mail|armou?r|plate|hauberk|cuirass)\b/i.test(r.armor.name || ''));
+            if (isRingArmor) {
+                inv.push({ beatitude: defaultBeatitude, ...r.armor, kind: 'ring', glyph: '=', equipped: ringSlots > 2 ? 'ring_1' : 'ringLeft', count: 1 });
+            } else if (allowBodyArmor !== false) {
+                inv.push({ beatitude: defaultBeatitude, ...r.armor, kind: 'armor', glyph: '[', equipped: 'body', count: 1 });
+            }
+        }
         if (r.extra) inv.push({ ...r.extra, count: r.extra.count || 1 });
         inv.push({ kind: 'potion', name: this.spec.healingPotionName || 'potion of healing', glyph: '!', attr: 13, heal: 22, count: 2, weight: 15, tval: 71, sval: 38 });
         inv.push({ kind: 'food', name: this.spec.foodName || 'food ration', glyph: '%', attr: 3, nutrition: 800, count: 2, weight: 20, tval: 80, sval: 1 });
@@ -3458,6 +3515,9 @@ class UniversalCartridgeEngine {
             inv.push({ kind: 'food', name: 'iron ration', glyph: ':', attr: 3, nutrition: 900, count: 2, weight: 20, tval: 80, sval: 1 });
         }
 
+        const startStr = r.str || (this.realm === 'brogue' ? 12 : 16);
+        const startDeity = r.deity !== undefined ? r.deity : (this.realm === 'dcss' ? (this.spec.defaultDeity || null) : (this.spec.defaultDeity || 'Fate'));
+
         this.state = {
             realm: this.realm,
             ryodHash: this.spec.ryodHash || null,
@@ -3467,6 +3527,7 @@ class UniversalCartridgeEngine {
             d20Fate: bpFate,
             slainActBosses: {},
             visitedActs: {},
+            vaultLocks: {},
             phase: 'setup',
             menuMode: 'none',
             pendingVerb: null,
@@ -3481,17 +3542,20 @@ class UniversalCartridgeEngine {
                 race: r.race || 'Human',
                 class: r.id || 'Warrior',
                 originId: r.originId || null,
-                avatarId: r.avatarId || this.spec.avatarId || (r.originId === 'beholder' ? 'beholder' : (r.originId === 'red_dragon' ? 'dragon' : (r.originId === 'arch_lich' ? 'lich' : (r.originId === 'vampire_scion' ? 'vampire' : (r.originId === 'iron_golem' ? 'golem' : (r.originId === 'minotaur' ? 'minotaur' : null)))))),
+                avatarId,
                 isMonsterAvatar: Boolean(r.isMonsterAvatar || r.avatarId || this.spec.isMonsterAvatar || this.spec.avatarId),
                 avatarMonsterName: r.avatarMonsterName || null,
+                ringSlots,
+                allowBodyArmor,
                 innatePower: r.innatePower || null,
                 disciplinePowers: Array.isArray(r.disciplinePowers) ? r.disciplinePowers : null,
                 progressionMode: this.spec.progressionMode || (hasLevels ? 'xp' : 'brogue_item'),
                 powerDiscipline: this.spec.powerDiscipline || 'arcane',
                 godMode: Boolean(this.spec.godMode),
                 align: r.align || 'Neutral',
-                deity: r.deity || (this.spec.defaultDeity || 'Fate'),
-                piety: r.piety != null ? r.piety : 2,
+                god: startDeity,
+                deity: startDeity,
+                piety: r.piety != null ? r.piety : (this.realm === 'dcss' ? 0 : 2),
                 blessed: (this.realm === 'ryod' && bpFate === 20),
                 shrineBlessing: (this.realm === 'ryod' && bpFate === 20),
                 runes: 0,
@@ -3508,8 +3572,12 @@ class UniversalCartridgeEngine {
                 hpMax: r.hp || 18,
                 pw: r.pw != null ? r.pw : 8,
                 pwMax: r.pw != null ? r.pw : 8,
-                ac: r.ac != null ? r.ac : 4,
-                str: r.str || 16,
+                ac: r.ac != null ? r.ac : (this.realm === 'rogue' ? 10 : 4),
+                ev: 10,
+                sh: 0,
+                bonusAc: 0,
+                str: startStr,
+                strMax: startStr,
                 int: r.int || 12,
                 wis: r.wis || 12,
                 dex: r.dex || 14,
@@ -3521,7 +3589,11 @@ class UniversalCartridgeEngine {
                 diedFrom: '',
                 hasAmulet: false,
                 poisoned: 0,
+                weakened: 0,
+                heroism: 0,
+                _heroTempHp: 0,
                 speedBoost: 0,
+                mutations: Array.isArray(r.mutations) ? r.mutations.slice() : [],
                 weaponName: r.weapon ? r.weapon.name : 'blade',
                 inventory: inv
             },
@@ -3589,7 +3661,7 @@ class UniversalCartridgeEngine {
         }
 
         const w = p.inventory.find(it => it.equipped === 'weapon') || p.inventory[0];
-        const a = p.inventory.find(it => it.equipped === 'armor');
+        const a = p.inventory.find(it => it.equipped === 'body' || it.equipped === 'armor');
         if (kitBoon === 'expedition') {
             p.inventory.push({ kind: 'potion', name: 'potion of healing', glyph: '!', attr: 11, heal: 22, count: 1, weight: 10, tval: 71, sval: 38 });
             p.inventory.push({ kind: 'scroll', name: 'scroll of magic mapping', glyph: '?', attr: 14, count: 1, weight: 5, tval: 70, sval: 12 });
@@ -3602,6 +3674,7 @@ class UniversalCartridgeEngine {
             if (w) w.bonus = (w.bonus || 0) + 1;
             if (this.realm === 'brogue') p.enchantments = (p.enchantments || 0) + 1;
         }
+        p.strMax = Math.max(p.strMax || p.str, p.str);
         this.reindexInventory();
     }
 
@@ -3610,6 +3683,36 @@ class UniversalCartridgeEngine {
             return this.spec.getBranchForDepth(depth);
         }
         return this.spec.defaultBranch || 'Dungeons of Doom';
+    }
+
+    getRoleForState() {
+        const roles = this.spec && Array.isArray(this.spec.roles) ? this.spec.roles : [];
+        return roles[(this.state && this.state.selectedRoleIdx) || 0] || roles[0] || {};
+    }
+
+    getRingCapacity() {
+        const p = this.state && this.state.player;
+        const role = this.getRoleForState();
+        if (p && p.ringSlots) return Number(p.ringSlots);
+        if (role && role.ringSlots) return Number(role.ringSlots);
+        if (p && /octopode/i.test(p.race || '')) return 8;
+        if ((p && p.avatarId === 'beholder') || (role && (role.originId === 'beholder' || role.avatarId === 'beholder'))) return 6;
+        return 2;
+    }
+
+    allowsBodyArmor() {
+        const p = this.state && this.state.player;
+        const role = this.getRoleForState();
+        if (role && role.allowBodyArmor === false) return false;
+        if (p && p.allowBodyArmor === false) return false;
+        if (p && (/octopode/i.test(p.race || '') || p.avatarId === 'beholder')) return false;
+        return true;
+    }
+
+    rogueSwing(lvl, arm, wplus = 0) {
+        const res = this.rand(20) + 1;
+        const need = 20 - (lvl || 1) - (arm != null ? arm : 8);
+        return (res + (wplus || 0)) >= need;
     }
 
     reindexInventory() {
@@ -3621,7 +3724,7 @@ class UniversalCartridgeEngine {
             it.letter = String.fromCharCode(97 + (idx % 26));
         });
         const w = p.inventory.find(it => it.equipped === 'weapon');
-        const sh = p.inventory.find(it => it.equipped === 'shield');
+        const sh = p.inventory.find(isShieldItem);
         const bw = p.inventory.find(it => it.equipped === 'bow');
         p.weaponName = w ? w.name : 'bare hands';
         p.shieldName = sh ? sh.name : '';
@@ -3633,18 +3736,44 @@ class UniversalCartridgeEngine {
         const p = this.state && this.state.player;
         if (!p || !Array.isArray(p.inventory)) return;
         const body = p.inventory.find(it => it.equipped === 'body' || it.equipped === 'armor');
-        const shield = p.inventory.find(it => it.equipped === 'shield');
-        const ring = p.inventory.find(it => it.equipped === 'ring' && /protection|armor|defense/i.test(it.name || ''));
-        const armorBase = body ? Number(body.ac != null ? body.ac : 4) : 0;
-        const shieldAc = shield ? (Number(shield.ac != null ? shield.ac : 2) + Number(shield.bonus || 0)) : 0;
-        const heroBonus = (p.heroism && p.heroism > 0) ? 4 : 0;
-        const armorBonus = (body ? Number(body.bonus || 0) : 0) + (ring ? Number(ring.bonus || 1) : 0) + shieldAc + heroBonus;
+        const shield = p.inventory.find(isShieldItem);
+        const auxSlotDefaults = { helm: 1, head: 1, cloak: 1, gloves: 1, hands: 1, boots: 1, feet: 1 };
+        const auxItems = p.inventory.filter(it => it.equipped && Object.prototype.hasOwnProperty.call(auxSlotDefaults, it.equipped));
+        const auxAc = auxItems.reduce((sum, it) => sum + Number(it.ac != null ? it.ac : auxSlotDefaults[it.equipped]) + Number(it.bonus || 0), 0);
+        const wornRings = p.inventory.filter(it => isRingSlot(it.equipped));
+        const ringProtBonus = wornRings.reduce((sum, it) => sum + getProtectionRingValue(it), 0);
+        const ringEvBonus = wornRings
+            .filter(it => /evasion|dodg/i.test(it.name || '') || it.ev != null)
+            .reduce((sum, it) => sum + Number(it.ev != null ? it.ev : (it.bonus != null ? it.bonus : 2)), 0);
+        const amuletAc = p.inventory
+            .filter(it => it.equipped === 'amulet' && (it.ac != null || it.acBonus != null))
+            .reduce((sum, it) => sum + Number(it.ac != null ? it.ac : it.acBonus) + Number(it.bonus || 0), 0);
+        const shieldSh = shield ? getShieldBlockValue(shield) : 0;
+
         if (this.realm === 'rogue') {
-            p.ac = body ? Math.max(-10, (body.ac != null ? body.ac : 7) - armorBonus) : (10 - shieldAc - heroBonus);
+            const armorBonus = body ? Number(body.bonus || 0) : 0;
+            p.ac = Math.max(-15, (body ? ((body.ac != null ? Number(body.ac) : 7) - armorBonus) : 10) - ringProtBonus);
+            p.ev = 0;
+            p.sh = 0;
+        } else if (this.realm === 'dcss') {
+            const bodyAc = body ? (Number(body.ac != null ? body.ac : 4) + Number(body.bonus || 0)) : 0;
+            p.ac = Math.max(0, bodyAc + auxAc + ringProtBonus + amuletAc + Number(p.bonusAc || 0));
+            const encPenalty = body
+                ? (body.encumbrance != null ? Number(body.encumbrance) : Math.floor(Math.max(0, (body.weight || 0) - 80) / 60))
+                : 0;
+            p.ev = Math.max(1, 10 + Math.floor(((p.dex || 12) - 10) / 2) - encPenalty + ringEvBonus);
+            p.sh = shieldSh;
+        } else if (this.realm === 'brogue') {
+            const bodyAc = body ? (Number(body.ac != null ? body.ac : 3) + Number(body.bonus || 0)) : 0;
+            p.ac = Math.max(0, bodyAc + shieldSh + auxAc + ringProtBonus + amuletAc + Number(p.bonusAc || 0));
+            p.ev = Math.max(4, 10 + Math.floor(((p.dex || 12) - 10) / 2) - (body && (body.weight || 0) >= 250 ? 2 : 0) + ringEvBonus);
+            p.sh = shieldSh;
         } else {
-            p.ac = Math.max(0, (body ? (armorBase + armorBonus) : (2 + armorBonus)) + Math.floor(((p.dex || 12) - 10) / 3));
+            const bodyAc = body ? (Number(body.ac != null ? body.ac : 4) + Number(body.bonus || 0)) : 2;
+            p.ac = Math.max(0, bodyAc + shieldSh + auxAc + ringProtBonus + amuletAc + Number(p.bonusAc || 0) + Math.floor(((p.dex || 12) - 10) / 3));
+            p.ev = Math.max(4, 10 + Math.floor(((p.dex || 12) - 10) / 2) - (body && (body.weight || 0) >= 250 ? 2 : 0) + ringEvBonus);
+            p.sh = shieldSh;
         }
-        p.ev = Math.max(4, 10 + Math.floor(((p.dex || 12) - 10) / 2) - (body && (body.weight || 0) >= 250 ? 2 : 0));
     }
 
     placeSurvivingPets(survivingPets, startMonId = 9000) {
@@ -3929,10 +4058,11 @@ class UniversalCartridgeEngine {
             const stepCell = (ny, nx, prevFeat) => {
                 if (map[ny][nx].feat === FEAT.WALL) {
                     const placeDoor = prevFeat === FEAT.FLOOR && !map[ny][nx].roomLit && this.rand(100) < 35;
+                    const isSecret = placeDoor && isRogue && this.rand(100) < 25;
                     map[ny][nx] = {
-                        glyph: placeDoor ? '+' : '.',
-                        attr: placeDoor ? 3 : 2,
-                        feat: placeDoor ? FEAT.CLOSED_DOOR : FEAT.FLOOR,
+                        glyph: isSecret ? '#' : (placeDoor ? '+' : '.'),
+                        attr: isSecret ? 1 : (placeDoor ? 3 : 2),
+                        feat: isSecret ? FEAT.SECRET_DOOR : (placeDoor ? FEAT.CLOSED_DOOR : FEAT.FLOOR),
                         known: false,
                         inView: false,
                         roomLit: false
@@ -4048,6 +4178,34 @@ class UniversalCartridgeEngine {
             RyodSystems.stampMicroVault(this, rooms, depth);
         }
         this.sanitizeDoorPlacement();
+        if (isRogue) {
+            let hasSecret = map.some(row => row.some(c => c.feat === FEAT.SECRET_DOOR));
+            if (!hasSecret) {
+                outerSecret: for (let y = 2; y < MAP_H - 2; y++) {
+                    for (let x = 2; x < MAP_W - 2; x++) {
+                        if (map[y][x].feat !== FEAT.WALL) continue;
+                        const nsOpen = isWalkableFeat(map[y - 1][x].feat) && isWalkableFeat(map[y + 1][x].feat) && map[y][x - 1].feat === FEAT.WALL && map[y][x + 1].feat === FEAT.WALL;
+                        const ewOpen = isWalkableFeat(map[y][x - 1].feat) && isWalkableFeat(map[y][x + 1].feat) && map[y - 1][x].feat === FEAT.WALL && map[y + 1][x].feat === FEAT.WALL;
+                        if (nsOpen || ewOpen) {
+                            map[y][x] = { glyph: '#', attr: 1, feat: FEAT.SECRET_DOOR, known: false, inView: false, roomLit: false };
+                            hasSecret = true;
+                            break outerSecret;
+                        }
+                    }
+                }
+            }
+            if (!hasSecret) {
+                outerDoor: for (let y = 2; y < MAP_H - 2; y++) {
+                    for (let x = 2; x < MAP_W - 2; x++) {
+                        if (map[y][x].feat === FEAT.CLOSED_DOOR) {
+                            map[y][x] = { glyph: '#', attr: 1, feat: FEAT.SECRET_DOOR, known: false, inView: false, roomLit: false };
+                            hasSecret = true;
+                            break outerDoor;
+                        }
+                    }
+                }
+            }
+        }
         this.state.monsters = [];
         this.state.objects = [];
 
@@ -4214,7 +4372,10 @@ class UniversalCartridgeEngine {
         const eligibleItems = Array.isArray(this.spec.items)
             ? this.spec.items.filter(it => !it.tier || it.tier <= currentTier)
             : [];
-        const itemPool = eligibleItems.length > 0 ? eligibleItems : (this.spec.items || []);
+        const itemPool = (eligibleItems.length > 0 ? eligibleItems : (this.spec.items || [])).slice();
+        if (this.realm === 'rogue' && !itemPool.some(it => it.effect === 'scare_monster' || /scare\s*monster/i.test(it.name || ''))) {
+            itemPool.push({ kind: 'scroll', name: 'scroll of scare monster', glyph: '?', attr: 11, effect: 'scare_monster', weight: 5, tval: 70, sval: 18 });
+        }
 
         for (let i = 1; i < shuffledRooms.length; i++) {
             const rm = shuffledRooms[i];
@@ -4230,6 +4391,44 @@ class UniversalCartridgeEngine {
                     count: tpl.count || 1
                 });
             }
+        }
+
+        // Brogue Key Vault: multiple vault treasures locked once one is taken, unlockable by returning it
+        if (this.realm === 'brogue' && shuffledRooms.length > 2) {
+            const vRoom = shuffledRooms.length > 4 ? shuffledRooms[3] : shuffledRooms[shuffledRooms.length - 1];
+            const vaultId = `kv_${depth}`;
+            this.state.vaultLocks = this.state.vaultLocks || {};
+            delete this.state.vaultLocks[vaultId];
+            const vaultGear = [
+                { kind: 'weapon', name: 'runic broadsword', glyph: ')', attr: 11, bonus: 2, strReq: 13, count: 1, weight: 40, tval: 23, sval: 14 },
+                { kind: 'ring', name: 'ring of protection', glyph: '=', attr: 10, ac: 2, bonus: 2, count: 1, weight: 2, tval: 45, sval: 1 }
+            ];
+            const spots = [];
+            for (const candRoom of [vRoom, ...shuffledRooms.slice(1)]) {
+                for (let ry = candRoom.y0 + 1; ry <= candRoom.y1 - 1 && spots.length < 2; ry++) {
+                    for (let rx = candRoom.x0 + 1; rx <= candRoom.x1 - 1 && spots.length < 2; rx++) {
+                        if (map[ry] && map[ry][rx] && map[ry][rx].feat === FEAT.FLOOR && !spots.some(s => s[0] === rx && s[1] === ry)) {
+                            spots.push([rx, ry]);
+                        }
+                    }
+                }
+                if (spots.length >= 2) break;
+            }
+            vaultGear.forEach((tpl, idx) => {
+                if (!spots[idx]) return;
+                const [vx, vy] = spots[idx];
+                map[vy][vx].vaultId = vaultId;
+                this.state.objects.push({
+                    ...tpl,
+                    x: vx,
+                    y: vy,
+                    vaultId,
+                    vaultDepth: depth,
+                    vaultOriginX: vx,
+                    vaultOriginY: vy,
+                    vaultLocked: false
+                });
+            });
         }
 
         // Synergy Guarantee: Metered Strength & Enchantment drops in Brogue / Hybrid progression modes
@@ -4353,7 +4552,7 @@ class UniversalCartridgeEngine {
             for (let x = 1; x < MAP_W - 1; x++) {
                 const cell = grid[y] && grid[y][x];
                 if (!cell) continue;
-                if (cell.feat === FEAT.CLOSED_DOOR || cell.feat === FEAT.OPEN_DOOR || cell.glyph === '+' || cell.glyph === "'") {
+                if (cell.feat === FEAT.CLOSED_DOOR || cell.feat === FEAT.OPEN_DOOR || cell.feat === FEAT.SECRET_DOOR || cell.glyph === '+' || cell.glyph === "'") {
                     const wallN = isWallCell(y - 1, x);
                     const wallS = isWallCell(y + 1, x);
                     const wallW = isWallCell(y, x - 1);
@@ -4405,7 +4604,7 @@ class UniversalCartridgeEngine {
     hasLineOfSight(x0, y0, x1, y1) {
         const isOpaqueCell = (x, y) => {
             const c = this.state.map[y] && this.state.map[y][x];
-            return !c || c.feat === FEAT.WALL || c.feat === FEAT.PERM_WALL || c.feat === FEAT.CLOSED_DOOR;
+            return !c || c.feat === FEAT.WALL || c.feat === FEAT.PERM_WALL || c.feat === FEAT.CLOSED_DOOR || c.feat === FEAT.SECRET_DOOR;
         };
         let dx = Math.abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
         let dy = -Math.abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
@@ -4513,7 +4712,14 @@ class UniversalCartridgeEngine {
                 if (loaded.rngState) this.rngState = loaded.rngState;
                 this.state.phase = 'play';
                 this.state.menuMode = 'none';
+                if (this.state.player) {
+                    if (!this.state.player.strMax) this.state.player.strMax = this.state.player.str || 12;
+                    if (!this.state.player.ringSlots) this.state.player.ringSlots = this.getRingCapacity();
+                    if (this.state.player.allowBodyArmor === undefined) this.state.player.allowBodyArmor = this.allowsBodyArmor();
+                    if (this.state.player.god === undefined) this.state.player.god = this.state.player.deity || null;
+                }
                 this.checkExperience({ silent: true });
+                this.recalcPlayerDefenses();
                 this.updateVisibility();
                 return true;
             }
@@ -4531,8 +4737,15 @@ class UniversalCartridgeEngine {
                     if (lLoaded.rngState) this.rngState = lLoaded.rngState;
                     this.state.phase = 'play';
                     this.state.menuMode = 'none';
+                    if (this.state.player) {
+                        if (!this.state.player.strMax) this.state.player.strMax = this.state.player.str || 12;
+                        if (!this.state.player.ringSlots) this.state.player.ringSlots = this.getRingCapacity();
+                        if (this.state.player.allowBodyArmor === undefined) this.state.player.allowBodyArmor = this.allowsBodyArmor();
+                        if (this.state.player.god === undefined) this.state.player.god = this.state.player.deity || null;
+                    }
                     fs.copyFileSync(this.saveFile + '.living.sav', this.saveFile);
                     this.checkExperience({ silent: true });
+                    this.recalcPlayerDefenses();
                     this.updateVisibility();
                     return true;
                 }
@@ -4542,7 +4755,8 @@ class UniversalCartridgeEngine {
     }
 
     handleKey(rawKey) {
-        const k = String(rawKey || '').trim();
+        const isTabRaw = rawKey === '\t';
+        const k = isTabRaw ? 'Tab' : String(rawKey || '').trim();
         if (!k) return;
         const lower = k.toLowerCase();
         const p = this.state.player;
@@ -4641,7 +4855,17 @@ class UniversalCartridgeEngine {
                 return;
             }
             if (this.state.menuMode === 'inven' || this.state.menuMode === 'equip') {
-                if (k === '/' || k === '|' || (this.state.menuMode === 'inven' && k === 'e') || (this.state.menuMode === 'equip' && k === 'i')) {
+                const isEquipSwitchKey = (
+                    k === '/' || k === '|' ||
+                    (this.state.menuMode === 'inven' && (
+                        (k === 'e' && (this.realm === 'ryod' || this.realm === 'nethack')) ||
+                        (k === 'E' && (this.realm === 'rogue' || this.realm === 'dcss')) ||
+                        (k === '[' && (this.realm === 'dcss' || this.realm === 'brogue')) ||
+                        ((k === ']' || k === '=') && this.realm === 'rogue')
+                    )) ||
+                    (this.state.menuMode === 'equip' && k === 'i')
+                );
+                if (isEquipSwitchKey) {
                     this.state.menuMode = this.state.menuMode === 'inven' ? 'equip' : 'inven';
                     return;
                 }
@@ -4928,12 +5152,61 @@ class UniversalCartridgeEngine {
         }
 
         if (k === 'i') { this.state.menuMode = 'inven'; return; }
-        if (k === 'e' && this.realm !== 'nethack') {
+        if (k === 'e') {
+            if (this.realm === 'brogue') {
+                this.autoExplore();
+                return;
+            }
+            if (this.realm === 'rogue' || this.realm === 'dcss' || this.realm === 'nethack') {
+                this.openVerbPrompt('eat', 'Eat which food item? [a-z or ESC]');
+                return;
+            }
             this.state.menuMode = 'equip';
             return;
         }
-        if (k === 'E' || (k === 'e' && this.realm === 'nethack')) {
+        if (k === 'E') {
+            if (this.realm === 'rogue' || this.realm === 'dcss') {
+                this.state.menuMode = 'equip';
+                return;
+            }
             this.openVerbPrompt('eat', 'Eat which food item? [a-z or ESC]');
+            return;
+        }
+        if (k === '[' && (this.realm === 'dcss' || this.realm === 'brogue')) {
+            this.state.menuMode = 'equip';
+            return;
+        }
+        if ((k === ']' || k === '=') && this.realm === 'rogue') {
+            this.state.menuMode = 'equip';
+            return;
+        }
+        if (lower === 'tab' && this.realm === 'dcss') {
+            this.autoFight();
+            return;
+        }
+        if (k === '^') {
+            if (this.realm === 'dcss') {
+                this.state.menuMode = 'religion';
+                this.state.pendingPrompt = 'God & Piety Overview (Press ESC or Space to return)';
+                return;
+            }
+            if (this.realm === 'rogue') {
+                this.identifyAdjacentTrap();
+                return;
+            }
+        }
+        if (k === 'A' && this.realm === 'dcss') {
+            this.state.menuMode = 'mutations';
+            this.state.pendingPrompt = 'Mutations & Innate Traits (Press ESC or Space to return)';
+            return;
+        }
+        if (k === '0' && this.realm === 'ryod') {
+            if (RyodSystems && typeof RyodSystems.smithAtAnvil === 'function') {
+                const ok = RyodSystems.smithAtAnvil(this, 0);
+                if (ok) this.advanceTurn();
+            } else {
+                this.interactContextualFeature();
+            }
             return;
         }
         if (k === 'q') {
@@ -4976,6 +5249,10 @@ class UniversalCartridgeEngine {
             this.openVerbPrompt('inspect', 'Examine which item? [a-z or ESC]');
             return;
         }
+        if (this.realm === 'dcss' && k === 'V') {
+            this.openVerbPrompt('use', 'Evoke which item? [a-z or ESC]');
+            return;
+        }
         if (k === 'v' || (k === 'x' && this.realm === 'brogue')) {
             this.openVerbPrompt('inspect', 'Examine which item? [a-z or ESC]');
             return;
@@ -5005,9 +5282,7 @@ class UniversalCartridgeEngine {
             return;
         }
         if (k === 'z' && this.realm === 'brogue') {
-            if (p.hp < p.hpMax) p.hp = Math.min(p.hpMax, p.hp + 1);
-            if (p.pw < p.pwMax && this.state.turn % 2 === 0) p.pw++;
-            this.advanceTurn();
+            this.restUntilHealedOrInterrupted(100);
             return;
         }
         if (k === 'z' && this.realm === 'dcss' && this.getAvailablePowers().length > 0) {
@@ -5018,6 +5293,10 @@ class UniversalCartridgeEngine {
             return;
         }
         if (k === 'a' || k === 'V' || k === 'z' || k === 'Z' || k === 'u' || k === 'U') {
+            if (this.realm === 'brogue' && k === 'a') {
+                this.openVerbPrompt('use', 'Apply which item? [a-z or ESC]');
+                return;
+            }
             if (this.realm === 'ryod' && k === 'a') {
                 this.openVerbPrompt('use', 'Activate which item? [a-z or ESC]');
                 return;
@@ -5083,9 +5362,25 @@ class UniversalCartridgeEngine {
             this.addMessage(vis.length ? `Visible: ${vis.map(m => `${m.race} (${m.hp}/${m.hp_max} HP)`).join(', ')}.` : `You survey ${this.state.branchName} ${this.state.depth}: no monsters in sight.`, 11);
             return;
         }
-        if (k === 'o' || k === 'O') { this.openOrCloseDoor(true); return; }
+        if (k === 'o') {
+            if (this.realm === 'dcss') {
+                this.autoExplore();
+                return;
+            }
+            this.openOrCloseDoor(true);
+            return;
+        }
+        if (k === 'O') { this.openOrCloseDoor(true); return; }
         if (k === 'c') { this.openOrCloseDoor(false); return; }
-        if (k === 'D') { this.disarmAdjacentTrap(); return; }
+        if (k === 'D') {
+            if (this.realm === 'rogue' || this.realm === 'brogue') {
+                this.state.menuMode = 'knowledge';
+                this.state.pendingPrompt = 'Discoveries & Identified Lore (Press ESC or Space to return)';
+                return;
+            }
+            this.disarmAdjacentTrap();
+            return;
+        }
         if (k === 'p') {
             this.interactContextualFeature();
             return;
@@ -5113,11 +5408,15 @@ class UniversalCartridgeEngine {
             const cell = this.state.map[p.y][p.x];
             if (cell.feat === FEAT.UP_STAIR) {
                 const minDepth = this.spec.hasTown ? 0 : 1;
-                if (this.state.depth === 1 && p.hasAmulet) {
+                const hasGoalAmulet = Boolean(p.hasAmulet || p.inventory.some(it => it.isGoalArtifact || /amulet of yendor/i.test(it.name || '')));
+                if (this.state.depth === 1 && hasGoalAmulet) {
                     if (this.spec.hasTown) this.generateLevel(0);
+                    p.hasAmulet = true;
                     p.winner = true;
                     this.addMessage(`Glorious Victory! You ascend into the sunlight with the ${this.spec.goalItemName || 'Amulet of Yendor'}!`, 14);
                     this.saveGame();
+                } else if (this.state.depth === 1 && this.realm === 'rogue') {
+                    this.addMessage('The stairway to the surface is sealed—seek the Amulet of Yendor!', 12);
                 } else if (this.state.depth > minDepth) {
                     this.generateLevel(this.state.depth - 1);
                     this.addMessage(this.state.depth === 0 ? `You return to Sanctuary Town (${this.state.branchName}).` : `You climb upward to Level ${this.state.depth}.`, 11);
@@ -5284,19 +5583,216 @@ class UniversalCartridgeEngine {
         this.addMessage('You find no trap nearby to disarm.');
     }
 
+    identifyAdjacentTrap() {
+        const p = this.state.player;
+        for (let oy = -1; oy <= 1; oy++) {
+            for (let ox = -1; ox <= 1; ox++) {
+                const tx = p.x + ox, ty = p.y + oy;
+                if (tx < 0 || ty < 0 || tx >= MAP_W || ty >= MAP_H) continue;
+                const cell = this.state.map[ty] && this.state.map[ty][tx];
+                if (cell && (cell.hiddenTrap || cell.feat === FEAT.TRAP || cell.glyph === '^')) {
+                    cell.hiddenTrap = false;
+                    cell.feat = FEAT.TRAP;
+                    cell.glyph = '^';
+                    cell.known = true;
+                    this.addMessage(`That is a ${cell.trapType || 'dungeon trap'}.`, 14);
+                    return true;
+                }
+            }
+        }
+        this.addMessage('There is no trap nearby to identify.');
+        return false;
+    }
+
+    _hasVisibleHostile() {
+        const map = this.state && this.state.map;
+        if (!Array.isArray(map) || !Array.isArray(this.state.monsters)) return null;
+        return this.state.monsters.find(m =>
+            m && m.hp > 0 && !m.isPet && !m.peaceful && !m.captive &&
+            map[m.y] && map[m.y][m.x] && map[m.y][m.x].inView
+        ) || null;
+    }
+
+    autoExplore() {
+        const p = this.state.player;
+        const map = this.state.map;
+        const initialHostile = this._hasVisibleHostile();
+        if (initialHostile) {
+            this.addMessage(`You cannot auto-explore while ${initialHostile.race} is in sight!`, 12);
+            return;
+        }
+        const findNextStep = () => {
+            const visited = Array.from({ length: MAP_H }, () => new Uint8Array(MAP_W));
+            const queue = [];
+            visited[p.y][p.x] = 1;
+            const dirs = [[0, -1], [1, 0], [0, 1], [-1, 0], [-1, -1], [1, -1], [-1, 1], [1, 1]];
+            for (const [dx, dy] of dirs) {
+                const nx = p.x + dx, ny = p.y + dy;
+                if (nx <= 0 || ny <= 0 || nx >= MAP_W - 1 || ny >= MAP_H - 1) continue;
+                const c = map[ny] && map[ny][nx];
+                if (!c) continue;
+                if (!c.known && (isWalkableFeat(c.feat) || c.feat === FEAT.CLOSED_DOOR)) {
+                    return [dx, dy];
+                }
+                if (isWalkableFeat(c.feat) || c.feat === FEAT.CLOSED_DOOR) {
+                    if (c.feat !== FEAT.LAVA && c.feat !== FEAT.TRAP) {
+                        visited[ny][nx] = 1;
+                        queue.push({ x: nx, y: ny, firstDx: dx, firstDy: dy });
+                    }
+                }
+            }
+            let head = 0;
+            while (head < queue.length) {
+                const cur = queue[head++];
+                for (const [dx, dy] of dirs) {
+                    const nx = cur.x + dx, ny = cur.y + dy;
+                    if (nx <= 0 || ny <= 0 || nx >= MAP_W - 1 || ny >= MAP_H - 1) continue;
+                    if (visited[ny][nx]) continue;
+                    const c = map[ny] && map[ny][nx];
+                    if (!c) continue;
+                    if (!c.known && (isWalkableFeat(c.feat) || c.feat === FEAT.CLOSED_DOOR)) {
+                        return [cur.firstDx, cur.firstDy];
+                    }
+                    if ((isWalkableFeat(c.feat) || c.feat === FEAT.CLOSED_DOOR) && c.feat !== FEAT.LAVA && c.feat !== FEAT.TRAP) {
+                        visited[ny][nx] = 1;
+                        queue.push({ x: nx, y: ny, firstDx: cur.firstDx, firstDy: cur.firstDy });
+                    }
+                }
+            }
+            return null;
+        };
+
+        let steps = 0;
+        for (let i = 0; i < 80; i++) {
+            const step = findNextStep();
+            if (!step) {
+                if (steps === 0) this.addMessage('Done exploring.', 11);
+                else this.addMessage('Done exploring.', 11);
+                return;
+            }
+            const prevX = p.x, prevY = p.y;
+            this.moveOrAttack(step[0], step[1]);
+            steps++;
+            if (p.dead) return;
+            const spotted = this._hasVisibleHostile();
+            if (spotted) {
+                this.addMessage(`You spot a ${spotted.race}!`, 14);
+                return;
+            }
+            const curCell = map[p.y] && map[p.y][p.x];
+            if (this.state.objects.some(o => o.x === p.x && o.y === p.y)) return;
+            if (curCell && (curCell.feat === FEAT.DOWN_STAIR || curCell.feat === FEAT.UP_STAIR || curCell.feat === FEAT.ALTAR)) return;
+            if (p.x === prevX && p.y === prevY && curCell && curCell.feat !== FEAT.OPEN_DOOR) return;
+        }
+    }
+
+    autoFight() {
+        const p = this.state.player;
+        const map = this.state.map;
+        const visibleHostiles = this.state.monsters
+            .filter(m => m && m.hp > 0 && !m.isPet && !m.peaceful && !m.captive && map[m.y] && map[m.y][m.x] && map[m.y][m.x].inView)
+            .sort((a, b) => {
+                const da = Math.max(Math.abs(a.x - p.x), Math.abs(a.y - p.y));
+                const db = Math.max(Math.abs(b.x - p.x), Math.abs(b.y - p.y));
+                return da !== db ? da - db : Math.hypot(a.x - p.x, a.y - p.y) - Math.hypot(b.x - p.x, b.y - p.y);
+            });
+        if (visibleHostiles.length === 0) {
+            this.addMessage('No hostile monsters in sight.');
+            return;
+        }
+        const target = visibleHostiles[0];
+        const dx = Math.sign(target.x - p.x);
+        const dy = Math.sign(target.y - p.y);
+        if (Math.abs(target.x - p.x) <= 1 && Math.abs(target.y - p.y) <= 1) {
+            this.moveOrAttack(dx, dy);
+            return;
+        }
+        const candidates = [[dx, dy]];
+        if (dx !== 0 && dy !== 0) {
+            candidates.push([dx, 0], [0, dy]);
+        } else if (dx !== 0) {
+            candidates.push([dx, 1], [dx, -1]);
+        } else {
+            candidates.push([1, dy], [-1, dy]);
+        }
+        for (const [cx, cy] of candidates) {
+            const nx = p.x + cx, ny = p.y + cy;
+            const c = map[ny] && map[ny][nx];
+            if (c && (isWalkableFeat(c.feat) || c.feat === FEAT.CLOSED_DOOR)) {
+                this.moveOrAttack(cx, cy);
+                return;
+            }
+        }
+        this.moveOrAttack(dx, dy);
+    }
+
+    restUntilHealedOrInterrupted(maxTurns = 100) {
+        const p = this.state.player;
+        const threat = this._hasVisibleHostile();
+        if (threat) {
+            this.addMessage(`You cannot rest while a ${threat.race} is in sight!`, 12);
+            return;
+        }
+        for (let t = 0; t < maxTurns; t++) {
+            const preHp = p.hp;
+            if (p.hp < p.hpMax && !this._hasMutator('vampire_thirst')) {
+                p.hp = Math.min(p.hpMax, p.hp + 1);
+            }
+            if (p.pw < p.pwMax && this.state.turn % 2 === 0) p.pw++;
+            this.advanceTurn();
+            if (p.dead) return;
+            const seen = this._hasVisibleHostile();
+            if (seen) {
+                this.addMessage(`Your rest is interrupted by the ${seen.race}!`, 14);
+                return;
+            }
+            if (p.hp < preHp) {
+                this.addMessage('Your rest is interrupted by injury!', 12);
+                return;
+            }
+            if (p.hp >= p.hpMax && !p.poisoned && !p.confused) return;
+            if (p.nutrition != null && p.nutrition <= 150) {
+                this.addMessage('Hunger interrupts your rest.', 12);
+                return;
+            }
+        }
+    }
+
     searchAround() {
         const p = this.state.player;
         let found = 0;
+        let secretOpened = 0;
         for (let oy = -1; oy <= 1; oy++) {
             for (let ox = -1; ox <= 1; ox++) {
                 const tx = p.x + ox, ty = p.y + oy;
                 if (tx < 0 || ty < 0 || tx >= MAP_W || ty >= MAP_H) continue;
                 const cell = this.state.map[ty][tx];
-                if (!cell.known) { cell.known = true; found++; }
+                if (cell.feat === FEAT.SECRET_DOOR) {
+                    cell.feat = FEAT.OPEN_DOOR;
+                    cell.glyph = "'";
+                    cell.attr = 3;
+                    cell.known = true;
+                    secretOpened++;
+                    found++;
+                } else if (cell.hiddenTrap) {
+                    cell.hiddenTrap = false;
+                    cell.feat = FEAT.TRAP;
+                    cell.glyph = '^';
+                    cell.known = true;
+                    found++;
+                } else if (!cell.known) {
+                    cell.known = true;
+                    found++;
+                }
             }
         }
+        if (secretOpened > 0) this.updateVisibility();
         if (p.hp < p.hpMax && !this._hasMutator('vampire_thirst')) p.hp = Math.min(p.hpMax, p.hp + 1);
-        this.addMessage(found > 0 ? 'You search the surrounding stonework and spot hidden detail!' : 'You search the surrounding area carefully.');
+        if (secretOpened > 0) {
+            this.addMessage('You found a secret door and swung it open!', 14);
+        } else {
+            this.addMessage(found > 0 ? 'You search the surrounding stonework and spot hidden detail!' : 'You search the surrounding area carefully.');
+        }
         this.advanceTurn();
     }
 
@@ -5325,6 +5821,32 @@ class UniversalCartridgeEngine {
                 item.identified = true;
             }
             const pLower = String(item.name || '').toLowerCase();
+            if (isItemCursed(item) || item.damage || item.poisonTurns || item.confusionTurns || item.drainExp || item.weakness) {
+                p.poisoned = Math.max(p.poisoned || 0, item.poisonTurns || 8);
+                p.strMax = Math.max(p.strMax || p.str, p.str);
+                if (p.str > 3) {
+                    p.str = Math.max(3, p.str - 1);
+                    p.weakened = Math.max(p.weakened || 0, 12);
+                }
+                if (item.confusionTurns || item.confuse || /confusion/i.test(pLower)) {
+                    p.confused = Math.max(p.confused || 0, item.confusionTurns || 8);
+                }
+                if (item.drainExp && this.usesExpLevels()) {
+                    p.exp = Math.max(0, (p.exp || 0) - Number(item.drainExp));
+                }
+                const harm = Number(item.damage || 6);
+                p.hp -= harm;
+                if (p.godMode || this.spec.godMode) p.hp = Math.max(1, p.hp);
+                this.addMessage(`You drink the ${isItemCursed(item) ? 'cursed ' : ''}${item.name}! Foul poison and weakness rack your limbs! (-${harm} HP)`, 12);
+                item.count = (item.count || 1) - 1;
+                this.reindexInventory();
+                if (p.hp <= 0) {
+                    this._checkLethalOrLifesave(`a cursed ${item.name}`);
+                    return;
+                }
+                this.advanceTurn();
+                return;
+            }
             if (item.levelGain) {
                 if (this.usesExpLevels()) {
                     const nextReq = this.getExpNextForLevel(p.level);
@@ -5337,19 +5859,40 @@ class UniversalCartridgeEngine {
                         this.addMessage(`You quaff the ${item.name} and feel more experienced!`, 14);
                     }
                 }
+            } else if (this.realm === 'brogue' && /potion of life/i.test(pLower)) {
+                const lifeGain = Math.max(1, Math.ceil(p.hpMax * 0.25));
+                p.hpMax += lifeGain;
+                p.hp = p.hpMax;
+                p.poisoned = 0;
+                p.weakened = 0;
+                if (p.strMax && p.str < p.strMax) p.str = p.strMax;
+                this.addMessage(`You drink the ${item.name}! Max HP increases by ${lifeGain} to ${p.hpMax} and all wounds & toxins vanish!`, 14);
+            } else if (this.realm === 'brogue' && (item.strengthGain || /potion of strength/i.test(pLower))) {
+                p.str = Math.max(p.str || 12, p.strMax || 12) + 1;
+                p.strMax = p.str;
+                p.weakened = 0;
+                this.addMessage(`You quaff the ${item.name}. Your strength increases to ${p.str}!`, 14);
             } else if (item.strengthGain) {
                 p.str += item.strengthGain;
+                p.strMax = Math.max(p.strMax || p.str, p.str);
                 p.hpMax += 6;
                 p.hp = p.hpMax;
                 this.addMessage(`You quaff the ${item.name}. Surge of power! Strength increases to ${p.str} and max health rises!`, 14);
             } else if (item.speedTurns || /speed/i.test(pLower)) {
                 p.speedBoost = Math.max(p.speedBoost || 0, 25);
                 this.addMessage(`You drink the ${item.name}. Swiftness surges through your limbs!`, 14);
-            } else if (item.heroismTurns || /heroism/i.test(pLower)) {
-                p.heroism = 25;
-                p.hp = Math.min(p.hpMax, p.hp + 20);
-                p.ac += 4;
-                this.addMessage(`You drink the ${item.name}. Ancient heroism fills your soul! (+20 HP, +4 AC)`, 14);
+            } else if (item.heroismTurns || item.heroTurns || /\bhero(ism)?\b/i.test(pLower)) {
+                const prevHeroTemp = p._heroTempHp || 0;
+                const tempDelta = 10 - prevHeroTemp;
+                p.heroism = Math.max(p.heroism || 0, item.heroismTurns || item.heroTurns || 25);
+                if (tempDelta > 0) {
+                    p._heroTempHp = 10;
+                    p.hpMax += tempDelta;
+                    p.hp = Math.min(p.hpMax, p.hp + tempDelta);
+                } else {
+                    p.hp = Math.min(p.hpMax, p.hp + 10);
+                }
+                this.addMessage(`You drink the ${item.name}. Ancient heroism fills your soul! (+10 temp HP, +to-hit)`, 14);
             } else if (item.levitationTurns || /levitation/i.test(pLower)) {
                 p.levitating = Math.max(p.levitating || 0, 30);
                 this.addMessage(`You drink the ${item.name}. Your feet rise gracefully off the stone floor!`, 14);
@@ -5359,6 +5902,8 @@ class UniversalCartridgeEngine {
                 p.poisoned = 0;
                 p.blind = 0;
                 p.confused = 0;
+                p.weakened = 0;
+                if (p.strMax && p.str < p.strMax) p.str = p.strMax;
                 this.addMessage(`You drink the ${item.name}. Boundless vitality and mana are restored!`, 14);
             } else if (/poison/i.test(pLower)) {
                 p.poisoned = Math.max(p.poisoned || 0, 10);
@@ -5389,18 +5934,82 @@ class UniversalCartridgeEngine {
                 item.identified = true;
             }
             const sLower = String(item.name || '').toLowerCase();
-            if (/identify/i.test(sLower)) {
+            if (item.effect === 'scare_monster' || /scare\s*monster/i.test(sLower)) {
+                this.addMessage('You hear maniacal laughter in the distance.', 14);
+            } else if (/identify/i.test(sLower)) {
                 p.inventory.forEach(it => { it.identified = true; if (this.state.identifiedTypes) this.state.identifiedTypes[it.name] = true; });
                 this.addMessage(`You read the ${item.name}. Brilliant revelation illuminates every item in your pack!`, 14);
             } else if (/remove curse/i.test(sLower)) {
                 let lifted = 0;
-                p.inventory.forEach(it => { if (it.beatitude === 'cursed') { it.beatitude = 'uncursed'; lifted++; } });
+                p.inventory.forEach(it => {
+                    if (isItemCursed(it)) {
+                        it.beatitude = 'uncursed';
+                        delete it.cursed;
+                        delete it.curse;
+                        lifted++;
+                    }
+                });
                 this.addMessage(`You read the ${item.name}. Holy radiance lifts ${lifted} curse(s) from your gear!`, 14);
+            } else if (isItemCursed(item) || item.confuse || item.blind || item.summonMonster) {
+                if (item.confuse) {
+                    p.confused = Math.max(p.confused || 0, 10);
+                    this.addMessage(`You read the cursed ${item.name}. Swirling confusion clouds your mind!`, 12);
+                } else if (item.blind) {
+                    if (!p.rBlind) {
+                        p.blind = Math.max(p.blind || 0, 15);
+                        this.updateVisibility();
+                    }
+                    this.addMessage(`You read the cursed ${item.name}. Dark shadows shroud your vision!`, 12);
+                } else {
+                    const tpl = (Array.isArray(this.spec.monsters) && this.spec.monsters.length > 0)
+                        ? this.spec.monsters[this.rand(this.spec.monsters.length)]
+                        : { name: 'imp', glyph: 'i', attr: 4, hp: 14, ac: 6, dmg: 5, exp: 12 };
+                    let summoned = false;
+                    for (const [ox, oy] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1]]) {
+                        const sx = p.x + ox, sy = p.y + oy;
+                        const c = this.state.map[sy] && this.state.map[sy][sx];
+                        if (c && isWalkableFeat(c.feat) && !this.state.monsters.some(m => m.x === sx && m.y === sy)) {
+                            const maxId = this.state.monsters.reduce((acc, m) => Math.max(acc, m.id || 0), 0);
+                            this.state.monsters.push({
+                                id: maxId + 1,
+                                race: tpl.name,
+                                glyph: tpl.glyph || 'm',
+                                attr: tpl.attr || 12,
+                                x: sx,
+                                y: sy,
+                                hp: tpl.hp || 14,
+                                hp_max: tpl.hp || 14,
+                                ac: tpl.ac != null ? tpl.ac : 6,
+                                dmg: tpl.dmg || 5,
+                                exp: tpl.exp != null ? tpl.exp : 10,
+                                speed: tpl.speed || 110,
+                                isPet: false,
+                                peaceful: false,
+                                captive: false
+                            });
+                            summoned = true;
+                            break;
+                        }
+                    }
+                    const eqTarget = p.inventory.find(i => i.equipped && !isItemCursed(i));
+                    if (!summoned && eqTarget) {
+                        eqTarget.beatitude = 'cursed';
+                        this.addMessage(`You read the cursed ${item.name}. Dark runes bind your ${eqTarget.name} with a curse!`, 12);
+                    } else if (summoned) {
+                        this.addMessage(`You read the cursed ${item.name}. A hostile ${tpl.name} materializes beside you!`, 12);
+                    } else {
+                        p.confused = Math.max(p.confused || 0, 8);
+                        this.addMessage(`You read the cursed ${item.name}. Maddening glyphs cloud your mind!`, 12);
+                    }
+                }
             } else if (/enchant weapon/i.test(sLower)) {
                 const wep = p.inventory.find(i => i.equipped === 'weapon') || p.inventory.find(i => i.kind === 'weapon');
                 if (wep) {
                     wep.bonus = (wep.bonus || 0) + 1;
                     p.enchantments = (p.enchantments || 0) + 1;
+                    if (wep.strReq != null || this.realm === 'brogue') {
+                        wep.strReq = Math.max(1, (wep.strReq != null ? Number(wep.strReq) : 10) - 1);
+                    }
                     this.addMessage(`Glowing runes infuse your ${wep.name} (+${wep.bonus})!`, 14);
                 } else {
                     this.addMessage(`The magic fizzles; you hold no weapon to enchant.`);
@@ -5410,21 +6019,27 @@ class UniversalCartridgeEngine {
                 if (arm) {
                     arm.bonus = (arm.bonus || 0) + 1;
                     p.enchantments = (p.enchantments || 0) + 1;
+                    if (arm.strReq != null || this.realm === 'brogue') {
+                        arm.strReq = Math.max(1, (arm.strReq != null ? Number(arm.strReq) : 10) - 1);
+                    }
                     this.recalcPlayerDefenses();
                     this.addMessage(`Impervious steel runes harden your ${arm.name} (+${arm.bonus})!`, 14);
                 } else {
                     this.addMessage(`The magic fizzles; you wear no armor to enchant.`);
                 }
-            } else if (item.enchantGain || /universal enchantment/i.test(sLower)) {
+            } else if (item.enchantGain || /universal enchantment|enchanting|enchantment/i.test(sLower)) {
                 p.enchantments = (p.enchantments || 0) + 1;
                 const eq = p.inventory.find(i => i.equipped === 'weapon')
                     || p.inventory.find(i => i.equipped === 'body' || i.equipped === 'armor')
-                    || p.inventory.find(i => i.kind === 'staff' || i.kind === 'wand' || i.kind === 'ring')
+                    || p.inventory.find(i => i !== item && (i.kind === 'weapon' || i.kind === 'armor' || i.kind === 'shield' || i.kind === 'staff' || i.kind === 'wand' || i.kind === 'ring'))
                     || item;
                 eq.bonus = (eq.bonus || 0) + 1;
+                if (eq !== item && (eq.kind === 'weapon' || eq.kind === 'armor' || eq.kind === 'shield')) {
+                    eq.strReq = Math.max(1, (eq.strReq != null ? Number(eq.strReq) : 10) - 1);
+                }
                 if (typeof eq.charges === 'number') eq.charges += 1;
                 this.recalcPlayerDefenses();
-                this.addMessage(`Universal runes of enchantment infuse your ${eq.name} (+${eq.bonus})!`, 14);
+                this.addMessage(`Runes of enchantment infuse your ${eq.name} (+${eq.bonus})!`, 14);
             } else if (/teleport/i.test(sLower)) {
                 for (let attempt = 0; attempt < 40; attempt++) {
                     const tx = 2 + this.rand(MAP_W - 4);
@@ -5450,6 +6065,9 @@ class UniversalCartridgeEngine {
             } else if (/recharging/i.test(sLower)) {
                 p.inventory.filter(i => i.kind === 'wand').forEach(w => { w.charges = w.maxCharges || 5; });
                 this.addMessage(`Crackling mana cascades through your pack; all wands are fully recharged!`, 14);
+            } else if (/holy chant/i.test(sLower) && item.heal) {
+                p.hp = Math.min(p.hpMax, p.hp + item.heal);
+                this.addMessage(`You read the ${item.name}. Warm light mends your wounds! (${p.hp}/${p.hpMax} HP)`, 14);
             } else {
                 for (let y = 0; y < MAP_H; y++) {
                     for (let x = 0; x < MAP_W; x++) {
@@ -5472,49 +6090,56 @@ class UniversalCartridgeEngine {
             this.advanceTurn();
             return;
         }
-        if (verb === 'wield') {
-            if (p.avatarId === 'beholder') {
-                const lowerItem = String(item.name || '').toLowerCase();
-                const k = String(item.kind || '').toLowerCase();
-                if (k === 'armor' || k === 'body' || k === 'cloak' || k === 'shield' || k === 'helm' || k === 'gloves' || k === 'boots' ||
-                    /\b(armor|mail|plate|robe|cloak|shield|buckler|helm|helmet|cap|gloves|gauntlets|boots|shoes)\b/.test(lowerItem)) {
-                    this.addMessage(`An eyestalk aberration cannot wear body armor or martial barding!`, 12);
-                    return;
-                }
+        if (verb === 'wield' || (verb === 'use' && ['weapon', 'ranged', 'bow', 'armor', 'ring', 'amulet', 'jewelry', 'shield', 'cloak', 'helm', 'gloves', 'boots', 'light'].includes(String(item.kind || '').toLowerCase()))) {
+            if (verb === 'use' && item.equipped) {
+                return this.applyVerbToItem('takeoff', item);
             }
             const lowerItem = String(item.name || '').toLowerCase();
             const k = String(item.kind || '').toLowerCase();
             let slot = typeof item.slot === 'string' ? item.slot : null;
             if (!slot) {
                 if (k === 'bow' || k === 'ranged' || /\b(bow|crossbow|sling)\b/.test(lowerItem)) slot = 'bow';
-                else if (k === 'shield' || /\b(shield|buckler|targe)\b/.test(lowerItem)) slot = 'shield';
+                else if (k === 'shield' || /\b(shield|buckler|targe|kite|tower)\b/.test(lowerItem)) slot = 'shield';
                 else if (k === 'cloak' || /\b(cloak|cape|mantle)\b/.test(lowerItem)) slot = 'cloak';
-                else if (k === 'helm' || /\b(helm|helmet|crown|cap|coif)\b/.test(lowerItem)) slot = 'helm';
+                else if (k === 'helm' || /\b(helm|helmet|crown|cap|coif|hat)\b/.test(lowerItem)) slot = 'helm';
                 else if (k === 'gloves' || /\b(gloves|gauntlets|bracers)\b/.test(lowerItem)) slot = 'gloves';
                 else if (k === 'boots' || /\b(boots|shoes|greaves)\b/.test(lowerItem)) slot = 'boots';
                 else if (k === 'light' || /\b(lantern|torch|phial)\b/.test(lowerItem)) slot = 'light';
                 else if (k === 'amulet' || /\b(amulet|necklace|periapt|talisman)\b/.test(lowerItem)) slot = 'amulet';
-                else if (k === 'ring' || /\b(ring|band)\b/.test(lowerItem)) {
-                    if (p.avatarId === 'beholder') {
-                        const used = new Set(p.inventory.filter(i => i.equipped && i.equipped.startsWith('ring')).map(i => i.equipped));
-                        const freeSlot = ['ring1', 'ring2', 'ring3', 'ring4', 'ring5', 'ring6'].find(s => !used.has(s));
-                        if (!freeSlot) {
-                            this.addMessage('All 6 of your eyestalks are already bearing rings! (Remove one first with [T]).', 12);
-                            return;
-                        }
-                        slot = freeSlot;
-                    } else {
-                        const hasLeft = p.inventory.some(i => i.equipped === 'ringLeft');
-                        slot = !hasLeft ? 'ringLeft' : 'ringRight';
+                else if (k === 'armor' || /\b(armor|armour|mail|plate|robe|cuirass|hauberk|leather|tunic|vestment|scales)\b/.test(lowerItem)) slot = 'body';
+                else if (k === 'ring' || k === 'jewelry' || /\b(ring|band)\b/.test(lowerItem)) slot = 'ring';
+                else slot = 'weapon';
+            }
+
+            if (p.avatarId === 'beholder' && ['body', 'armor', 'cloak', 'shield', 'helm', 'gloves', 'boots'].includes(slot)) {
+                this.addMessage(`An eyestalk aberration cannot wear body armor or martial barding!`, 12);
+                return;
+            }
+            if ((slot === 'body' || slot === 'armor') && !this.allowsBodyArmor()) {
+                this.addMessage(`Your ${p.race || 'current'} anatomy cannot wear standard torso body armor!`, 12);
+                return;
+            }
+
+            if (slot === 'ring') {
+                const maxRings = this.getRingCapacity();
+                if (maxRings > 2) {
+                    const used = new Set(p.inventory.filter(i => i.equipped && isRingSlot(i.equipped)).map(i => i.equipped));
+                    const ringSlots = Array.from({ length: maxRings }, (_, idx) => `ring_${idx + 1}`);
+                    const freeSlot = ringSlots.find((s, idx) => !used.has(s) && !used.has(`ring${idx + 1}`));
+                    if (!freeSlot) {
+                        const limbWord = p.avatarId === 'beholder' ? 'eyestalks' : (/octopode/i.test(p.race || '') ? 'tentacles' : 'ring slots');
+                        this.addMessage(`All ${maxRings} of your ${limbWord} are already bearing rings! (Remove one first with [T]).`, 12);
+                        return;
                     }
-                } else if (k === 'armor' || /\b(armor|mail|plate|robe|cuirass|hauberk|leather|tunic|vestment)\b/.test(lowerItem)) {
-                    slot = 'body';
+                    slot = freeSlot;
                 } else {
-                    slot = 'weapon';
+                    const hasLeft = p.inventory.some(i => i.equipped === 'ringLeft');
+                    slot = !hasLeft ? 'ringLeft' : 'ringRight';
                 }
             }
+
             const existing = p.inventory.find(it => it.equipped === slot);
-            if (existing && existing.beatitude === 'cursed') {
+            if (existing && isItemCursed(existing)) {
                 this.addMessage(`The cursed ${existing.name} is welded to your flesh and cannot be removed!`, 12);
                 return;
             }
@@ -5526,7 +6151,7 @@ class UniversalCartridgeEngine {
             return;
         }
         if (verb === 'takeoff') {
-            if (item.beatitude === 'cursed') {
+            if (isItemCursed(item)) {
                 this.addMessage(`The cursed ${item.name} is welded to your flesh and cannot be removed!`, 12);
                 return;
             }
@@ -5538,14 +6163,36 @@ class UniversalCartridgeEngine {
             return;
         }
         if (verb === 'drop') {
-            this.state.objects.push({ ...item, x: p.x, y: p.y, count: 1, equipped: null });
+            if (item.equipped && isItemCursed(item)) {
+                this.addMessage(`The cursed ${item.name} is welded to your flesh and cannot be dropped!`, 12);
+                return;
+            }
+            const isScareMonster = item.effect === 'scare_monster' || /scare\s*monster/i.test(item.name || '');
+            const droppedObj = { ...item, x: p.x, y: p.y, count: 1, equipped: null };
+            if (isScareMonster) droppedObj.scared = true;
+            this.state.objects.push(droppedObj);
             item.count = (item.count || 1) - 1;
+            if (item.vaultId && item.vaultDepth === this.state.depth) {
+                for (const o of this.state.objects) {
+                    if (o.vaultId === item.vaultId) {
+                        o.vaultLocked = false;
+                        if (this.state.map[o.y] && this.state.map[o.y][o.x] && this.state.map[o.y][o.x].feat === FEAT.CAGE) {
+                            this.state.map[o.y][o.x].feat = FEAT.FLOOR;
+                            this.state.map[o.y][o.x].glyph = '.';
+                        }
+                    }
+                }
+                if (this.state.vaultLocks) delete this.state.vaultLocks[item.vaultId];
+                this.addMessage(`Returning the ${item.name} unlocks the Key Vault cages for swapping!`, 14);
+            } else {
+                this.addMessage(`You drop the ${item.name}.`);
+            }
             this.reindexInventory();
-            this.addMessage(`You drop the ${item.name}.`);
             this.advanceTurn();
             return;
         }
-        if (verb === 'zap' || (verb === 'use' && item.kind === 'wand')) {
+        const isDevice = item.kind === 'wand' || item.kind === 'staff' || item.kind === 'rod' || item.kind === 'charm' || item.kind === 'tool';
+        if (verb === 'zap' || (verb === 'use' && isDevice)) {
             if (this.state && item) {
                 this.state.identifiedTypes = this.state.identifiedTypes || {};
                 this.state.identifiedTypes[item.name] = true;
@@ -5828,7 +6475,21 @@ class UniversalCartridgeEngine {
             this.addMessage('There is nothing here to pick up.');
             return;
         }
+        const peekObj = this.state.objects[idx];
+        if (peekObj.vaultLocked) {
+            const heldVault = p.inventory.find(it => it.vaultId && it.vaultId === peekObj.vaultId);
+            if (heldVault) {
+                this.addMessage(`The Key Vault cage around ${peekObj.name} is sealed! Drop your ${heldVault.name} to swap.`, 12);
+                return;
+            }
+            peekObj.vaultLocked = false;
+        }
         const obj = this.state.objects.splice(idx, 1)[0];
+        if (obj.scared) {
+            this.addMessage(`As you pick up the ${obj.name || 'scroll'}, it crumbles into dust and blows away!`, 12);
+            this.advanceTurn();
+            return;
+        }
         if (obj.kind === 'gold') {
             p.gold += obj.amount || 15;
             this.addMessage(`You pick up ${obj.amount || 15} gold pieces.`, 14);
@@ -5852,6 +6513,13 @@ class UniversalCartridgeEngine {
                     const dest = this.spec.hasTown ? 'Sanctuary Town (Level 0)' : 'Level 1';
                     this.addMessage(`You seize the ${obj.name}! Now ascend to ${dest} to claim immortal victory!`, 14);
                 }
+            } else if (obj.vaultId) {
+                this.state.vaultLocks = this.state.vaultLocks || {};
+                this.state.vaultLocks[obj.vaultId] = true;
+                for (const sib of this.state.objects) {
+                    if (sib.vaultId === obj.vaultId) sib.vaultLocked = true;
+                }
+                this.addMessage(`You claim ${formatItemDesc(obj)} from the Key Vault—the sibling cage seals! (Drop to swap.)`, 14);
             } else {
                 this.addMessage(`You pick up ${formatItemDesc(obj)}.`, 11);
             }
@@ -5931,33 +6599,68 @@ class UniversalCartridgeEngine {
             const stanceMult = p.activeStance === 'byakko' ? 1.5 : 1.0;
             const songDmgBonus = p.activeSong === 'slaying' ? 4 : 0;
             const rawDmg = Math.max(2, Math.round((baseRoll + strBonus + wepBonus + songDmgBonus) * mutMult * stanceMult));
-
-            // AC vs DEX/Level/toHit hit roll
-            const dexBonus = p.dex ? Math.floor((p.dex - 10) / 2) : 0;
-            const toHitBonus = (wep ? (wep.toHit || wep.bonus || 0) : 0) + (p.level || 1) + (p.activeSong === 'sharpness' ? 2 : 0);
-            const d20Attack = 1 + this.rand(20);
-            const hitRoll = 10 + dexBonus + toHitBonus + d20Attack;
-            const targetAC = mon.ac != null ? mon.ac : 8;
+            const heroismToHit = p.heroism > 0 ? 4 : 0;
 
             let hitQuality = 'hit';
             let dmg = rawDmg;
+            let missDef = mon.ac != null ? mon.ac : 8;
 
-            if (d20Attack === 20 || hitRoll >= targetAC + 10) {
-                hitQuality = 'crit';
-                dmg = Math.max(2, Math.round(rawDmg * 1.75));
-            } else if (hitRoll >= targetAC) {
-                hitQuality = 'hit';
-                dmg = Math.max(1, rawDmg);
-            } else if (hitRoll >= targetAC - 4) {
-                hitQuality = 'graze';
-                dmg = Math.max(1, Math.round(rawDmg * 0.5));
+            if (this.realm === 'rogue') {
+                const weaponToHit = (wep ? (wep.toHit || wep.bonus || 0) : 0) + (p.activeSong === 'sharpness' ? 2 : 0) + heroismToHit;
+                missDef = mon.ac != null ? mon.ac : 8;
+                if (this.rogueSwing(p.level || 1, missDef, weaponToHit)) {
+                    hitQuality = 'hit';
+                    dmg = Math.max(1, rawDmg);
+                } else {
+                    hitQuality = 'miss';
+                    dmg = 0;
+                }
+            } else if (this.realm === 'brogue') {
+                const strReq = wep ? (wep.strReq || 10) : 10;
+                const bonus = wep ? (wep.bonus || 0) : 0;
+                const strDiff = (p.str || 12) - strReq;
+                const effEnchant = bonus + (strDiff >= 0 ? strDiff * 0.25 : strDiff * 2.5) + (p.activeSong === 'sharpness' ? 1.5 : 0) + (p.heroism > 0 ? 2 : 0);
+                const acc = 1.0 * Math.pow(1.06, effEnchant);
+                const targetDef = mon.ev != null ? Math.max(0, mon.ev) : Math.max(0, mon.ac != null ? mon.ac : 8);
+                missDef = targetDef;
+                const hitProb = Math.max(0.03, Math.min(0.99, acc * Math.pow(0.986, targetDef)));
+                const rollProb = this.rand(1000) / 1000;
+                if (rollProb < hitProb) {
+                    hitQuality = rollProb < 0.04 ? 'crit' : 'hit';
+                    dmg = hitQuality === 'crit' ? Math.max(2, Math.round(rawDmg * 1.6)) : Math.max(1, rawDmg);
+                } else {
+                    hitQuality = 'miss';
+                    dmg = 0;
+                }
             } else {
-                hitQuality = 'miss';
-                dmg = 0;
+                // Ascending AC/EV hit roll (DCSS / generic; negative monster AC maps to high ascending defense)
+                const dexBonus = p.dex ? Math.floor((p.dex - 10) / 2) : 0;
+                const toHitBonus = (wep ? (wep.toHit || wep.bonus || 0) : 0) + (p.level || 1) + (p.activeSong === 'sharpness' ? 2 : 0) + heroismToHit;
+                const d20Attack = 1 + this.rand(20);
+                const hitRoll = 10 + dexBonus + toHitBonus + d20Attack;
+                const rawMonDef = mon.ev != null ? mon.ev : (mon.ac != null ? mon.ac : 8);
+                const targetDef = this.realm === 'dcss'
+                    ? (rawMonDef < 0 ? 10 - rawMonDef : rawMonDef)
+                    : Math.max(0, rawMonDef);
+                missDef = targetDef;
+
+                if (d20Attack === 20 || ((hitRoll - targetDef) >= 10 && d20Attack >= 18)) {
+                    hitQuality = 'crit';
+                    dmg = Math.max(2, Math.round(rawDmg * 1.75));
+                } else if (hitRoll >= targetDef) {
+                    hitQuality = 'hit';
+                    dmg = Math.max(1, rawDmg);
+                } else if (hitRoll >= targetDef - 4) {
+                    hitQuality = 'graze';
+                    dmg = Math.max(1, Math.round(rawDmg * 0.5));
+                } else {
+                    hitQuality = 'miss';
+                    dmg = 0;
+                }
             }
 
             if (hitQuality === 'miss') {
-                this.addMessage(`Your swing at the ${mon.race} is deflected by armor! (AC ${targetAC})`, 7);
+                this.addMessage(`Your swing at the ${mon.race} is deflected! (Def ${missDef})`, 7);
                 this.advanceTurn();
                 return;
             }
@@ -5981,6 +6684,11 @@ class UniversalCartridgeEngine {
                 this.addMessage(`Glancing blow! You graze the ${mon.race} for ${dmg} damage.`, 8);
             } else {
                 this.addMessage(`You strike the ${mon.race} with your ${p.weaponName}! (${dmg} dmg)`, 11);
+            }
+            if ((mon.special === 'corrode' || /acid mound/i.test(mon.race || '')) && wep && !wep.protected && !wep.acidProof && !(wep.flags && wep.flags.acidProof) && (wep.bonus || 0) > -4) {
+                wep.bonus = (wep.bonus || 0) - 1;
+                this.recalcPlayerDefenses();
+                this.addMessage(`The ${mon.race}'s caustic flesh corrodes your ${wep.name}! (-1)`, 12);
             }
             if (dmg > 0) {
                 if (this._hasMutator('vampire_thirst') && p.hp < p.hpMax) {
@@ -6006,12 +6714,28 @@ class UniversalCartridgeEngine {
                     mon.dmg = (mon.dmg || 8) + 2;
                     this.addMessage(`Your edged ${wep.name} severs a head — two more grow back in its place!`, 12);
                 }
-            } else if (mLower.includes('jelly') && mon.hp > 6 && this.state.monsters.length < 18) {
-                const half = Math.max(3, Math.floor(mon.hp / 2));
-                mon.hp = half;
-                const maxId = this.state.monsters.reduce((acc, m) => Math.max(acc, m.id || 0), 0);
-                this.state.monsters.push({ ...mon, id: maxId + 1, hp: half, hp_max: half, x: Math.min(MAP_W - 2, mon.x + 1) });
-                this.addMessage(`The ${mon.race} splits in two under your blow!`, 11);
+            } else if ((mon.special === 'split' || /pink jelly/i.test(mon.race || '') || mLower.includes('jelly')) && mon.hp > 1 && this.state.monsters.length < 24) {
+                const splitOffsets = [[-1, 0], [1, 0], [0, -1], [0, 1], [-1, -1], [1, -1], [-1, 1], [1, 1]];
+                let spawnPos = null;
+                for (const [ox, oy] of splitOffsets) {
+                    const sx = mon.x + ox;
+                    const sy = mon.y + oy;
+                    if (sx <= 0 || sy <= 0 || sx >= MAP_W - 1 || sy >= MAP_H - 1) continue;
+                    const sc = this.state.map[sy] && this.state.map[sy][sx];
+                    if (!sc || !isWalkableFeat(sc.feat)) continue;
+                    if (sx === p.x && sy === p.y) continue;
+                    if (this.state.monsters.some(m => m.x === sx && m.y === sy)) continue;
+                    spawnPos = [sx, sy];
+                    break;
+                }
+                if (spawnPos) {
+                    const halfA = Math.max(1, Math.floor(mon.hp / 2));
+                    const halfB = Math.max(1, mon.hp - halfA);
+                    mon.hp = halfA;
+                    const maxId = this.state.monsters.reduce((acc, m) => Math.max(acc, m.id || 0), 0);
+                    this.state.monsters.push({ ...mon, id: maxId + 1, hp: halfB, hp_max: mon.hp_max || (halfA + halfB), x: spawnPos[0], y: spawnPos[1] });
+                    this.addMessage(`The ${mon.race} splits in two under your blow!`, 11);
+                }
             }
             this.advanceTurn();
             return;
@@ -6019,6 +6743,15 @@ class UniversalCartridgeEngine {
 
         const cell = this.state.map[ty][tx];
         if (cell.feat === FEAT.CLOSED_DOOR) {
+            if (cell.locked) {
+                const vKey = p.inventory.find(it => it.kind === 'key' || (cell.vaultId && it.vaultId === cell.vaultId) || /vault key|key/i.test(it.name || ''));
+                if (!vKey) {
+                    this.addMessage('The vault door is sealed—you need the vault key!', 12);
+                    return;
+                }
+                cell.locked = false;
+                this.addMessage(`You unlock the door with ${vKey.name}!`, 14);
+            }
             cell.feat = FEAT.OPEN_DOOR;
             cell.glyph = "'";
             this.addMessage('You open the door.');
@@ -6043,7 +6776,11 @@ class UniversalCartridgeEngine {
         }
         const floorObj = this.state.objects.find(o => o.x === tx && o.y === ty);
         if (floorObj) {
-            this.addMessage(`You see here ${formatItemDesc(floorObj)}. (Press [g] or [,] to pick up)`, 14);
+            if (floorObj.vaultLocked) {
+                this.addMessage(`You see here ${formatItemDesc(floorObj)} inside a sealed Key Vault cage (drop your chosen vault prize to swap).`, 12);
+            } else {
+                this.addMessage(`You see here ${formatItemDesc(floorObj)}. (Press [g] or [,] to pick up)`, 14);
+            }
         }
         if (cell.feat === FEAT.ALTAR && cell.deity) {
             this.addMessage(`There is a glowing altar of ${cell.deity} here. (Press [p] to pray)`, 14);
@@ -6055,6 +6792,26 @@ class UniversalCartridgeEngine {
     handleMonsterKilled(mon) {
         const p = this.state.player;
         this.state.monsters = this.state.monsters.filter(m => m.id !== mon.id);
+        this.state.killLedger = this.state.killLedger || {};
+        this.state.killLedger[mon.race] = (this.state.killLedger[mon.race] || 0) + 1;
+        if ((mon.special === 'caustic_bloat' || /bloated/i.test(mon.race || '')) && !mon._bloatExploded) {
+            mon._bloatExploded = true;
+            const mx = mon.x != null ? mon.x : p.x;
+            const my = mon.y != null ? mon.y : p.y;
+            const blastDmg = 4 + this.rand(5);
+            this.addMessage(`💥 The ${mon.race} ruptures into a searing cloud of caustic gas!`, 10);
+            if (Math.max(Math.abs(p.x - mx), Math.abs(p.y - my)) <= 2 && !p.godMode && !(this.spec && this.spec.godMode)) {
+                p.hp -= blastDmg;
+                this.addMessage(`The caustic gas blisters you for ${blastDmg} damage!`, 12);
+                if (this._checkLethalOrLifesave(`caustic gas from ${mon.race}`)) return;
+            }
+            for (const other of this.state.monsters.slice()) {
+                if (other.hp > 0 && Math.max(Math.abs(other.x - mx), Math.abs(other.y - my)) <= 2) {
+                    other.hp -= blastDmg;
+                    if (other.hp <= 0) this.handleMonsterKilled(other);
+                }
+            }
+        }
         if (this._hasMutator('blood_moon')) {
             p.hp = Math.min(p.hpMax, p.hp + 4);
             p.pw = Math.min(p.pwMax, (p.pw || 0) + 1);
@@ -6157,8 +6914,13 @@ class UniversalCartridgeEngine {
 
     advanceTurn() {
         const p = this.state.player;
+        if (!p || p.dead) return;
         this.state.turn++;
         if (p.speedBoost > 0) p.speedBoost--;
+        if (p.weakened > 0) {
+            p.weakened--;
+            if (p.weakened === 0) this.addMessage('Your strength stabilizes once more.', 10);
+        }
         if (p.confused > 0) {
             p.confused--;
             if (p.confused === 0) this.addMessage('Your head clears; you are no longer confused.', 11);
@@ -6177,6 +6939,11 @@ class UniversalCartridgeEngine {
         if (p.heroism > 0) {
             p.heroism--;
             if (p.heroism === 0) {
+                if (p._heroTempHp > 0) {
+                    p.hpMax = Math.max(1, (p.hpMax || 10) - p._heroTempHp);
+                    p.hp = Math.min(p.hpMax, p.hp);
+                    p._heroTempHp = 0;
+                }
                 this.recalcPlayerDefenses();
                 this.addMessage('The surge of ancient heroism fades.', 11);
             }
@@ -6199,9 +6966,19 @@ class UniversalCartridgeEngine {
             if (p.poisoned === 0) this.addMessage('The poison leaves your bloodstream.', 10);
         }
         if (!p.godMode && !this.spec.godMode) {
+            let hungerCost = 1;
+            if (this.realm === 'rogue') {
+                const wornRings = Array.isArray(p.inventory) ? p.inventory.filter(it => isRingSlot(it.equipped)) : [];
+                for (const ring of wornRings) {
+                    const isSlowDigest = ring.effect === 'slow_digestion' || (ring.flags && ring.flags.slowDigest) || /slow digest/i.test(ring.name || '');
+                    hungerCost += isSlowDigest ? -1 : 1;
+                }
+                hungerCost = Math.max(0, hungerCost);
+            }
             if (p.nutrition > 0) {
-                p.nutrition--;
-                if (p.nutrition === 150) this.addMessage('You are getting dangerously hungry!', 12);
+                const prevNut = p.nutrition;
+                p.nutrition = Math.max(0, p.nutrition - hungerCost);
+                if (prevNut > 150 && p.nutrition <= 150) this.addMessage('You are getting dangerously hungry!', 12);
             } else if (this.state.turn % 6 === 0) {
                 p.hp -= 1;
                 this.addMessage('You are weak from starvation! (-1 HP)', 12);
@@ -6451,14 +7228,42 @@ class UniversalCartridgeEngine {
             }
 
             // Standard Melee Attack when adjacent
+            const isScaredAt = (tx, ty) => this.state.objects.some(o => o.x === tx && o.y === ty && o.scared === true);
             if (dist <= 1.5) {
-                const wornBody = p.inventory.find(it => it.equipped === 'body' || it.equipped === 'armor');
-                if ((mLower.includes('aquator') || mLower.includes('acid') || mLower.includes('rust')) && wornBody && !/leather|robe|cloak/i.test(wornBody.name || '')) {
-                    wornBody.bonus = Math.max(-3, (wornBody.bonus || 0) - 1);
-                    this.recalcPlayerDefenses();
-                    this.addMessage(`The ${mon.race}'s corrosive touch rusts your ${wornBody.name}!`, 12);
-                    if (mLower.includes('aquator')) continue;
+                if (isScaredAt(p.x, p.y)) {
+                    if (this.rand(100) < 35) {
+                        this.addMessage(`${subjName} recoils in terror from the cursed parchment at your feet!`, 11);
+                    }
+                    continue;
                 }
+                const wornBody = p.inventory.find(it => it.equipped === 'body' || it.equipped === 'armor');
+                const hasMaintainArmor = p.inventory.some(it => isRingSlot(it.equipped) && (it.effect === 'maintain_armor' || (it.flags && it.flags.maintainArmor) || /maintain armor/i.test(it.name || '')));
+                const monLvl = mon.level || mon.lvl || mon.race_level || Math.max(1, Math.round((mon.hp_max || 8) / 5));
+                const isAquator = mon.glyph === 'A' || mon.special === 'rust' || mLower.includes('aquator');
+
+                if (isAquator) {
+                    // Authentic Rogue Aquator: 0 HP damage ALWAYS; rusts metallic unprotected armor via swing()
+                    const aqHit = this.realm === 'rogue' ? this.rogueSwing(monLvl, p.ac, 0) : true;
+                    if (aqHit) {
+                        if (wornBody && isMetallicBodyArmor(wornBody) && !wornBody.protected && !wornBody.rustProof && !(wornBody.flags && wornBody.flags.rustProof) && !hasMaintainArmor) {
+                            if (this.realm === 'rogue') {
+                                wornBody.ac = Math.min(9, (wornBody.ac != null ? Number(wornBody.ac) : 7) + 1);
+                            } else {
+                                wornBody.bonus = Math.max(-3, (wornBody.bonus || 0) - 1);
+                            }
+                            this.recalcPlayerDefenses();
+                            this.addMessage(`${subjName}'s corrosive touch rusts your ${wornBody.name}!`, 12);
+                        } else if (wornBody) {
+                            this.addMessage(`${subjName}'s touch fails to rust your ${wornBody.name}.`, 11);
+                        } else {
+                            this.addMessage(`${subjName} lashes at you harmlessly—you wear no metal armor!`, 7);
+                        }
+                    } else {
+                        this.addMessage(`${subjName} lunges at your armor and misses.`, 7);
+                    }
+                    continue;
+                }
+
                 if (mLower.includes('leprechaun') && p.gold > 0) {
                     const stolen = Math.min(p.gold, 5 + this.rand(25));
                     p.gold -= stolen;
@@ -6476,14 +7281,56 @@ class UniversalCartridgeEngine {
                         continue;
                     }
                 }
-                const acMitigation = this.realm === 'rogue' ? Math.max(0, Math.floor((10 - (p.ac ?? 7)) / 3)) : Math.max(0, Math.floor((p.ac || 2) / 4));
-                const dmg = Math.max(1, (mon.dmg || 4) - acMitigation - this.rand(2));
+
+                // Authentic Hit / Defense Checks
+                let dmg = 0;
+                if (this.realm === 'rogue') {
+                    if (!this.rogueSwing(monLvl, p.ac, 0)) {
+                        this.addMessage(`${subjName} swings at you and misses.`, 7);
+                        continue;
+                    }
+                    dmg = Math.max(1, (mon.dmg || 4) - this.rand(2));
+                } else if (this.realm === 'dcss') {
+                    // DCSS 3-Stage Defense: (1) EV dodge, (2) SH block, (3) AC reduction
+                    const monAccRoll = (mon.hitBonus || monLvl) + 1 + this.rand(25);
+                    if ((p.ev || 0) >= monAccRoll) {
+                        this.addMessage(`${subjName} strikes, but you deftly evade!`, 7);
+                        continue;
+                    }
+                    if ((p.sh || 0) > 0) {
+                        const shRoll = 1 + this.rand(25 + Math.floor((mon.dmg || 4) / 2));
+                        if (shRoll <= p.sh) {
+                            this.addMessage(`You block ${subjName.toLowerCase()}'s attack with your shield!`, 11);
+                            continue;
+                        }
+                    }
+                    const acAbsorb = this.rand(1 + Math.max(0, p.ac || 0));
+                    dmg = Math.max(0, (mon.dmg || 4) + this.rand(3) - 1 - acAbsorb);
+                } else {
+                    const acMitigation = Math.max(0, Math.floor((p.ac || 2) / 4));
+                    dmg = Math.max(1, (mon.dmg || 4) - acMitigation - this.rand(2));
+                }
+
+                // Acid Mound / Rust monster armor corrosion on hit
+                if ((mon.special === 'corrode' || /acid mound/i.test(mon.race || '') || mLower.includes('acid') || mLower.includes('rust')) &&
+                    wornBody && !wornBody.protected && !wornBody.acidProof && !wornBody.rustProof &&
+                    !(wornBody.flags && wornBody.flags.acidProof) && !hasMaintainArmor &&
+                    (this.realm === 'brogue' || !/leather|hide|robe|cloak/i.test(wornBody.name || ''))) {
+                    wornBody.bonus = Math.max(-5, (wornBody.bonus || 0) - 1);
+                    this.recalcPlayerDefenses();
+                    this.addMessage(`${subjName}'s caustic acid corrodes your ${wornBody.name}! (-1)`, 12);
+                }
+
                 p.hp -= dmg;
                 if (p.godMode || this.spec.godMode) {
                     p.hp = Math.max(1, p.hp);
                 }
-                this.addMessage(`${subjName} hits you! (-${dmg} HP)`, 4);
-                if (this._checkLethalOrLifesave(killerArticle)) return;
+                if (dmg === 0) {
+                    this.addMessage(`${subjName} strikes your armor, dealing no damage!`, 7);
+                } else {
+                    this.addMessage(`${subjName} hits you! (-${dmg} HP)`, 4);
+                    if (this._checkLethalOrLifesave(killerArticle)) return;
+                }
             } else if (dist <= 7 && inView) {
                 const dx = p.x - mon.x;
                 const dy = p.y - mon.y;
@@ -6502,7 +7349,7 @@ class UniversalCartridgeEngine {
                     candidates.push([mon.x + 1, mon.y + sy], [mon.x - 1, mon.y + sy]);
                 }
                 for (const [nx, ny] of candidates) {
-                    if (this.state.map[ny] && this.state.map[ny][nx] && isWalkableFeat(this.state.map[ny][nx].feat) && !this.state.monsters.some(m => m !== mon && m.x === nx && m.y === ny) && !(nx === p.x && ny === p.y)) {
+                    if (this.state.map[ny] && this.state.map[ny][nx] && isWalkableFeat(this.state.map[ny][nx].feat) && !this.state.monsters.some(m => m !== mon && m.x === nx && m.y === ny) && !(nx === p.x && ny === p.y) && !isScaredAt(nx, ny)) {
                         mon.x = nx;
                         mon.y = ny;
                         break;
@@ -6606,12 +7453,13 @@ class UniversalCartridgeEngine {
             return rows;
         }
 
-        if (this.state.menuMode === 'char' || this.state.menuMode === 'help' || this.state.menuMode === 'knowledge' || this.state.menuMode === 'skills' || this.state.menuMode === 'spells' || this.state.menuMode === 'power_select') {
+        if (this.state.menuMode === 'char' || this.state.menuMode === 'help' || this.state.menuMode === 'knowledge' || this.state.menuMode === 'skills' || this.state.menuMode === 'spells' || this.state.menuMode === 'power_select' || this.state.menuMode === 'religion' || this.state.menuMode === 'mutations') {
             const rows = [];
             rows.push({ g: pad80(this.state.pendingPrompt || 'Character Overview (Press ESC or Space to return)'), a: attr80('0e') });
             rows.push({ g: pad80('=============================================================================='), a: attr80('02') });
             if (this.state.menuMode === 'char') {
-                rows.push({ g: pad80(`  Name:  ${p.name.padEnd(22, ' ')} Race:  ${p.race}`), a: attr80('01') });
+                const wornRingCount = p.inventory.filter(it => isRingSlot(it.equipped)).length;
+                rows.push({ g: pad80(`  Name:  ${p.name.padEnd(22, ' ')} Race:  ${p.race} (Rings ${wornRingCount}/${this.getRingCapacity()})`), a: attr80('01') });
                 if (this.usesExpLevels()) {
                     const xpNextStr = p.expNext > 0 ? `${p.exp}/${p.expNext}` : `${p.exp} (MAX)`;
                     rows.push({ g: pad80(`  Class: ${p.class.padEnd(22, ' ')} Level: ${p.level} (XP: ${xpNextStr})`), a: attr80('01') });
@@ -6619,11 +7467,33 @@ class UniversalCartridgeEngine {
                     rows.push({ g: pad80(`  Class: ${p.class.padEnd(22, ' ')} Strength: ${p.str}  Enchantments: +${p.enchantments || 0}`), a: attr80('01') });
                 }
                 rows.push({ g: pad80(`  Place: ${this.state.branchName} ${this.state.depth} (Deepest: ${this.state.maxDepth})   Turn:  ${this.state.turn}`), a: attr80('01') });
-                rows.push({ g: pad80(`  STR: ${p.str}   DEX: ${p.dex}   INT: ${p.int}   WIS: ${p.wis}   CON: ${p.con}   AC: ${p.ac}`), a: attr80('0b') });
+                const defSummary = this.realm === 'rogue'
+                    ? `Arm: ${p.ac}`
+                    : (this.realm === 'dcss' ? `AC: ${p.ac}  EV: ${p.ev || 0}  SH: ${p.sh || 0}` : `AC: ${p.ac}`);
+                rows.push({ g: pad80(`  STR: ${p.str}/${p.strMax || p.str}   DEX: ${p.dex}   INT: ${p.int}   WIS: ${p.wis}   CON: ${p.con}   ${defSummary}`), a: attr80('0b') });
                 rows.push({ g: pad80(`  HP:  ${p.hp}/${p.hpMax}   Power/MP: ${p.pw}/${p.pwMax}   Gold: ${p.gold}`), a: attr80('0a') });
-                if (this.realm === 'dcss') rows.push({ g: pad80(`  Deity: ${p.deity} (Piety: ${'★'.repeat(Math.max(0, p.piety || 0))})   Runes: ${p.runes || 0}/3`), a: attr80('0e') });
+                if (this.realm === 'dcss') rows.push({ g: pad80(`  Deity: ${p.god || p.deity || 'No God'} (Piety: ${'★'.repeat(Math.max(0, p.piety || 0))})   Runes: ${p.runes || 0}/3`), a: attr80('0e') });
                 if (this.realm === 'brogue') rows.push({ g: pad80(`  Enchantments: +${p.enchantments || 0}   Lumenstones: ${p.lumenstones || 0}`), a: attr80('0e') });
                 if (this.realm === 'ryod') rows.push({ g: pad80(`  World: ${this.spec.ryodHash || 'RYOD'} • Mutator: ${this.spec.mutatorId || 'balanced'} • Goal: ${this.spec.goalItemName || 'Relic'} (D:${this.spec.goalDepth || 15})`), a: attr80('0e') });
+            } else if (this.state.menuMode === 'religion') {
+                const godLabel = p.god || p.deity || 'Agnostic (No God)';
+                const stars = '★'.repeat(Math.max(0, p.piety || 0)).padEnd(6, '☆');
+                rows.push({ g: pad80(`  Worshiped Deity : ${godLabel}`), a: attr80('0e') });
+                rows.push({ g: pad80(`  Devotion Piety  : ${stars} (${p.piety || 0}/6)`), a: attr80('0b') });
+                rows.push({ g: pad80(`  Runes of Zot    : ${p.runes || 0}/3`), a: attr80('0a') });
+                rows.push({ g: pad80(''), a: attr80('01') });
+                rows.push({ g: pad80('  Pray at an Altar (_) with [p] to devote yourself or offer sacrifices,'), a: attr80('01') });
+                rows.push({ g: pad80('  or press [a] in combat to channel an active deity invocation.'), a: attr80('01') });
+            } else if (this.state.menuMode === 'mutations') {
+                const wornRingCount = p.inventory.filter(it => isRingSlot(it.equipped)).length;
+                rows.push({ g: pad80(`  Species Morphology : ${p.race} (${this.allowsBodyArmor() ? 'Standard Body Armor' : 'No Torso Body Armor'})`), a: attr80('0e') });
+                rows.push({ g: pad80(`  Ring Capacity      : ${wornRingCount}/${this.getRingCapacity()} active ring slots`), a: attr80('0b') });
+                const muts = Array.isArray(p.mutations) ? p.mutations : [];
+                if (muts.length > 0) {
+                    muts.slice(0, 12).forEach((m, idx) => rows.push({ g: pad80(`  ${idx + 1}) ${m}`), a: attr80('0a') }));
+                } else {
+                    rows.push({ g: pad80('  Acquired Mutations : None yet (innate species traits active).'), a: attr80('01') });
+                }
             } else if (this.state.menuMode === 'skills') {
                 const sk = this.state.skills || { fighting: 2, dodging: 1, evocations: 1, invocations: 1 };
                 const focus = this.state.skillFocus || 'fighting';
@@ -6650,8 +7520,12 @@ class UniversalCartridgeEngine {
                     if (this.realm === 'dcss') rows.push({ g: pad80(`  d) Invocations (${p.deity})       Piety ${p.piety || 1}/6`), a: attr80('0e') });
                 }
             } else if (this.state.menuMode === 'knowledge') {
-                rows.push({ g: pad80(`  Discovered Items (${p.inventory.length} in pack) • Branch: ${this.state.branchName} ${this.state.depth}`), a: attr80('0b') });
-                p.inventory.slice(0, 14).forEach((it) => {
+                const knownIds = Array.isArray(p.identifiedTypes) ? p.identifiedTypes : (this.state.identifiedTypes ? Object.keys(this.state.identifiedTypes) : []);
+                rows.push({ g: pad80(`  Discovered Items (${p.inventory.length} in pack, ${knownIds.length} identified) • Branch: ${this.state.branchName} ${this.state.depth}`), a: attr80('0b') });
+                knownIds.slice(0, 6).forEach((nm, idx) => {
+                    rows.push({ g: pad80(`    [ID ${idx + 1}] ${nm}`), a: attr80('0e') });
+                });
+                p.inventory.slice(0, 12).forEach((it) => {
                     rows.push({ g: pad80(`    ${it.letter}) ${formatItemDesc(it)}`), a: attr80('01') });
                 });
             } else {
@@ -6710,7 +7584,7 @@ class UniversalCartridgeEngine {
                 `AC:  ${String(p.ac).padStart(6, ' ')}`,
                 `HP: ${String(p.hp + '/' + p.hpMax).padStart(7, ' ')}`,
                 (this.realm === 'brogue' || p.progressionMode === 'brogue_item') ? `ENC: ${String(p.enchantments || 0).padStart(6, ' ')}` : `${(this.spec.resourceLabel || 'MP').slice(0, 3)}: ${String(p.pw + '/' + p.pwMax).padStart(7, ' ')}`,
-                (this.realm === 'dcss' || p.powerDiscipline === 'piety') ? `GOD:${String(p.deity).slice(0, 7).padStart(7, ' ')}` : `$:  ${String(p.gold).padStart(7, ' ')}`,
+                (this.realm === 'dcss' || p.powerDiscipline === 'piety') ? `GOD:${String(p.god || p.deity || 'None').slice(0, 7).padStart(7, ' ')}` : `$:  ${String(p.gold).padStart(7, ' ')}`,
                 `${this.state.branchName.slice(0, 6)}:${String(this.state.depth).padStart(4, ' ')}`
             ][y] || '';
             let mapChars = '';
@@ -6767,12 +7641,14 @@ class UniversalCartridgeEngine {
         const statuses = [];
         if (p.poisoned > 0) statuses.push({ name: 'Poisoned', attr: 4, val: p.poisoned });
         if (p.speedBoost > 0) statuses.push({ name: 'Fast', attr: 10, val: p.speedBoost });
+        if (p.heroism > 0) statuses.push({ name: 'Heroism', attr: 14, val: p.heroism });
+        if (p.weakened > 0) statuses.push({ name: 'Weakened', attr: 12, val: p.weakened });
         if (p.nutrition != null && p.nutrition < 50) statuses.push({ name: 'Starving', attr: 4, val: 3 });
         else if (p.nutrition != null && p.nutrition < 150) statuses.push({ name: 'Weak', attr: 12, val: 2 });
         else if (p.nutrition != null && p.nutrition < 300) statuses.push({ name: 'Hungry', attr: 14, val: 1 });
         if (p.hasAmulet) statuses.push({ name: this.spec.goalBadge || 'Amulet', attr: 14, val: 1 });
-        if ((this.realm === 'dcss' || p.powerDiscipline === 'piety') && p.deity) {
-            statuses.push({ name: `${p.deity} (${'★'.repeat(Math.max(1, p.piety || 1))})`, attr: 14, val: p.piety || 1 });
+        if ((this.realm === 'dcss' || p.powerDiscipline === 'piety') && (p.god || p.deity)) {
+            statuses.push({ name: `${p.god || p.deity} (${'★'.repeat(Math.max(0, p.piety || 0))})`, attr: 14, val: p.piety || 0 });
         }
         if (this.realm === 'brogue' || p.progressionMode === 'brogue_item' || p.progressionMode === 'hybrid') {
             statuses.push({ name: `Str ${p.str} • +${p.enchantments || 0} Ench`, attr: 11, val: p.str });
@@ -6988,22 +7864,17 @@ class UniversalCartridgeEngine {
                 god_mode: Boolean(p.godMode || this.spec.godMode),
                 stakes_mode: p.stakesMode || (bp && bp.stakesMode) || 'ironman',
                 resurrection_count: p.resurrectionCount || 0,
-                deity: p.deity,
-                piety: p.piety,
-                runes: p.runes || 0,
-                lumenstones: p.lumenstones || 0,
-                enchantments: p.enchantments || 0,
-                nutrition: p.nutrition || 1000,
+                deity: p.deity != null ? p.deity : null,
                 branch: this.state.branchName,
                 branch_name: this.state.branchName,
                 place_label: this.state.depth === 0 ? `${this.state.branchName || 'Sanctuary'}:Town` : `${this.state.branchName === 'D' ? 'Dungeon' : (this.state.branchName || 'Dungeon')}:${this.state.depth || 1}`,
-                god: p.god || p.deity || 'No God',
+                god: this.realm === 'dcss' ? (p.god || null) : (p.god || p.deity || 'No God'),
                 piety: p.piety || 0,
                 runes: Array.isArray(p.runes) ? p.runes.length : (p.runes || 0),
                 rune_list: Array.isArray(p.runes) ? p.runes : [],
                 lumenstones: p.lumenstones || 0,
                 enchantments: p.enchantments || 0,
-                nutrition: Math.min(100, Math.round((p.nutrition || 1000) / 10)),
+                nutrition: Math.min(100, Math.round(((p.nutrition != null ? p.nutrition : 1000)) / 10)),
                 nutrition_max: 100,
                 history: this.spec.lore || `Venturing through ${this.state.branchName}.`,
                 y: p.y,
@@ -7015,12 +7886,19 @@ class UniversalCartridgeEngine {
                 exp: this.usesExpLevels() ? p.exp : 0,
                 exp_max: this.usesExpLevels() ? (p.maxExp || p.exp) : 0,
                 exp_next: this.usesExpLevels() ? p.expNext : 0,
+                str: this.realm === 'brogue' ? (p.str || 12) : p.str,
+                str_max: p.strMax || p.str || 12,
                 gold: p.gold,
                 hp: p.hp,
                 hp_max: p.hpMax,
-                sp: this.realm === 'brogue' || this.realm === 'rogue' ? Math.round((p.nutrition || 1000) / 20) : p.pw,
+                sp: this.realm === 'brogue' || this.realm === 'rogue' ? Math.round(((p.nutrition != null ? p.nutrition : 1000)) / 20) : p.pw,
                 sp_max: this.realm === 'brogue' || this.realm === 'rogue' ? 100 : p.pwMax,
                 ac: p.ac,
+                ...(this.realm === 'rogue' ? { arm: p.ac } : {}),
+                ev: p.ev != null ? p.ev : 0,
+                sh: p.sh != null ? p.sh : 0,
+                ring_slots: this.getRingCapacity(),
+                allow_body_armor: this.allowsBodyArmor(),
                 ac_base: p.ac,
                 ac_to_a: 0,
                 study: 0,
@@ -7037,7 +7915,7 @@ class UniversalCartridgeEngine {
                 died_from: p.diedFrom || p.killed_by || 'mortal wounds',
                 turn: this.state.turn,
                 stats: {
-                    str: { use: p.str, max: p.str, top: p.str, reduced: false },
+                    str: { use: p.str, max: p.strMax || p.str, top: p.strMax || p.str, reduced: p.str < (p.strMax || p.str) },
                     int: { use: p.int, max: p.int, top: p.int, reduced: false },
                     wis: { use: p.wis, max: p.wis, top: p.wis, reduced: false },
                     dex: { use: p.dex, max: p.dex, top: p.dex, reduced: false },
@@ -7110,9 +7988,12 @@ class UniversalCartridgeEngine {
     }
 }
 
-function runCartridgeMain(spec, defaultSaveDir) {
-    const opts = parseCliArgs(process.argv, defaultSaveDir);
-    const engine = new UniversalCartridgeEngine(spec, opts);
+function runCartridgeMain(EngineOrSpec, specOrSaveDir, defaultSaveDir) {
+    const EngineClass = typeof EngineOrSpec === 'function' ? EngineOrSpec : UniversalCartridgeEngine;
+    const spec = typeof EngineOrSpec === 'function' ? specOrSaveDir : EngineOrSpec;
+    const saveDir = typeof EngineOrSpec === 'function' ? defaultSaveDir : specOrSaveDir;
+    const opts = parseCliArgs(process.argv, saveDir);
+    const engine = typeof EngineOrSpec === 'function' ? new EngineClass(opts) : new UniversalCartridgeEngine(spec, opts);
 
     const writeJson = (obj) => {
         process.stdout.write(JSON.stringify(obj) + '\n');
@@ -7207,10 +8088,11 @@ module.exports = {
  *   - 66x22 3D-compatible Map Grid (`g`, `a`, `f`, `l` with Bresenham LOS & room lighting)
  *   - 80x24 Classic Terminal (`term.rows`) + Full Sovereign Grimoire Card compatibility
  *   - 52-Slot (`a-zA-Z`) + `$` Gold Inventory with Beatitude (`blessed`, `uncursed`, `cursed`)
- *   - Equipment (`e`), Quaff (`q`), Read (`r`), Wield (`w`), Wear (`W`), Take Off (`T`),
- *     Put On (`P`), Remove (`R`), Zap Wand (`z`), Apply Tool (`a`), Eat (`e`), Cast (`Z`),
- *     Examine (`:`/`I`/`x`), Drop (`d`), Pickup (`,`/`g`), Open (`o`), Close (`c`), Search (`s`)
- *   - Extended `#` Rituals: `#pray`, `#dip`, `#offer`, `#loot`, `#untrap`, `#chat`, `#force`
+ *   - Equipment (`[` / `#equip`), Quaff (`q`), Read (`r`), Wield (`w`), Wear (`W`), Take Off (`T`),
+ *     Put On (`P`), Remove (`R`), Zap Wand (`z`), Apply Tool (`a`), Eat (`e`), Engrave (`E`),
+ *     Cast (`Z`), Examine (`:`/`I`/`x`), Drop (`d`), Pickup (`,`/`g`), Open (`o`), Close (`c`), Search (`s`)
+ *   - Extended `#` Rituals: `#pray`, `#dip`, `#offer`, `#loot`, `#untrap`, `#chat`, `#force`,
+ *     `#enhance`, `#sit`, `#rub`, `#ride`, `#equip`
  *   - Faithful Pet Companion (`d` Little Dog / `f` Kitten) AI & Monster Tactical AI
  *   - Native `.SAV` persistence with `SaveNHCK` + `description` binary header for `/api/saves`
  */
@@ -7241,13 +8123,19 @@ const FEAT = {
 };
 
 const ROLES = [
-    { key: 'a', id: 'Valkyrie', race: 'Human', align: 'Lawful', hp: 18, pw: 3, str: 18, int: 10, wis: 13, dex: 15, con: 17, weapon: { name: 'long sword', dmg: '1d8', bonus: 1, buc: 'blessed', tval: 23, sval: 12, weight: 40 }, armor: { name: 'hard leather armor', ac: 3, bonus: 1, buc: 'uncursed', tval: 36, sval: 6, weight: 150 }, extra: { kind: 'food', name: 'food ration', count: 2, buc: 'uncursed', weight: 20, tval: 80, sval: 1 } },
-    { key: 'b', id: 'Wizard', race: 'Elf', align: 'Neutral', hp: 12, pw: 14, str: 10, int: 18, wis: 15, dex: 14, con: 12, weapon: { name: 'quarterstaff', dmg: '1d6', bonus: 1, buc: 'blessed', tval: 21, sval: 3, weight: 40 }, armor: { name: 'cloak of magic resistance', ac: 2, bonus: 1, buc: 'blessed', tval: 35, sval: 2, weight: 10 }, extra: { kind: 'wand', name: 'wand of magic missile', charges: 7, buc: 'uncursed', weight: 7, tval: 65, sval: 2 } },
-    { key: 'c', id: 'Archeologist', race: 'Human', align: 'Lawful', hp: 15, pw: 6, str: 14, int: 15, wis: 14, dex: 16, con: 14, weapon: { name: 'bullwhip', dmg: '1d6', bonus: 2, buc: 'uncursed', tval: 21, sval: 2, weight: 20 }, armor: { name: 'leather jacket', ac: 3, bonus: 0, buc: 'uncursed', tval: 36, sval: 4, weight: 30 }, extra: { kind: 'tool', name: 'pick-axe', buc: 'uncursed', weight: 100, tval: 20, sval: 1 } },
-    { key: 'd', id: 'Samurai', race: 'Human', align: 'Lawful', hp: 17, pw: 4, str: 17, int: 11, wis: 13, dex: 17, con: 16, weapon: { name: 'katana', dmg: '1d10', bonus: 1, buc: 'blessed', tval: 23, sval: 20, weight: 40 }, armor: { name: 'splint mail', ac: 6, bonus: 0, buc: 'uncursed', tval: 37, sval: 6, weight: 400 }, extra: { kind: 'ranged', name: 'yumi bow', dmg: '1d6', bonus: 1, buc: 'uncursed', weight: 30, tval: 19, sval: 2 } },
-    { key: 'e', id: 'Knight', race: 'Human', align: 'Lawful', hp: 17, pw: 6, str: 16, int: 12, wis: 15, dex: 14, con: 16, weapon: { name: 'long sword', dmg: '1d8', bonus: 1, buc: 'uncursed', tval: 23, sval: 12, weight: 40 }, armor: { name: 'ring mail', ac: 4, bonus: 1, buc: 'blessed', tval: 37, sval: 2, weight: 250 }, extra: { kind: 'armor', name: 'helmet', ac: 1, bonus: 0, buc: 'uncursed', weight: 30, tval: 32, sval: 2 } },
-    { key: 'f', id: 'Rogue', race: 'Human', align: 'Chaotic', hp: 14, pw: 5, str: 14, int: 14, wis: 11, dex: 18, con: 14, weapon: { name: 'short sword', dmg: '1d6', bonus: 1, buc: 'uncursed', tval: 23, sval: 8, weight: 30 }, armor: { name: 'leather armor', ac: 2, bonus: 1, buc: 'uncursed', tval: 36, sval: 4, weight: 150 }, extra: { kind: 'potion', name: 'potion of sickness', count: 1, buc: 'cursed', weight: 20, tval: 71, sval: 9 } },
-    { key: 'g', id: 'Priest', race: 'Human', align: 'Lawful', hp: 14, pw: 12, str: 13, int: 13, wis: 18, dex: 12, con: 14, weapon: { name: 'mace', dmg: '2d4', bonus: 1, buc: 'blessed', tval: 21, sval: 5, weight: 30 }, armor: { name: 'robe', ac: 2, bonus: 1, buc: 'blessed', tval: 36, sval: 2, weight: 40 }, extra: { kind: 'potion', name: 'potion of holy water', count: 2, buc: 'blessed', weight: 20, tval: 71, sval: 1 } }
+    { key: 'a', id: 'Valkyrie', race: 'Human', align: 'Lawful', hp: 18, pw: 3, str: 18, int: 10, wis: 13, dex: 15, con: 17, cha: 10, weapon: { name: 'long sword', dmg: '1d8', bonus: 1, buc: 'blessed', tval: 23, sval: 12, weight: 40 }, armor: { name: 'hard leather armor', ac: 3, bonus: 1, buc: 'uncursed', tval: 36, sval: 6, weight: 150 }, extra: { kind: 'food', name: 'food ration', count: 2, buc: 'uncursed', weight: 20, tval: 80, sval: 1, nutrition: 800 } },
+    { key: 'b', id: 'Wizard', race: 'Elf', align: 'Neutral', hp: 12, pw: 14, str: 10, int: 18, wis: 15, dex: 14, con: 12, cha: 11, weapon: { name: 'quarterstaff', dmg: '1d6', bonus: 1, buc: 'blessed', tval: 21, sval: 3, weight: 40 }, armor: { name: 'cloak of magic resistance', ac: 2, bonus: 1, buc: 'blessed', tval: 35, sval: 2, weight: 10 }, extra: { kind: 'wand', name: 'wand of magic missile', charges: 7, buc: 'uncursed', weight: 7, tval: 65, sval: 2 } },
+    { key: 'c', id: 'Archeologist', race: 'Human', align: 'Lawful', hp: 15, pw: 6, str: 14, int: 15, wis: 14, dex: 16, con: 14, cha: 12, weapon: { name: 'bullwhip', dmg: '1d6', bonus: 2, buc: 'uncursed', tval: 21, sval: 2, weight: 20 }, armor: { name: 'leather jacket', ac: 3, bonus: 0, buc: 'uncursed', tval: 36, sval: 4, weight: 30 }, extra: { kind: 'tool', name: 'pick-axe', buc: 'uncursed', weight: 100, tval: 20, sval: 1 } },
+    { key: 'd', id: 'Samurai', race: 'Human', align: 'Lawful', hp: 17, pw: 4, str: 17, int: 11, wis: 13, dex: 17, con: 16, cha: 12, weapon: { name: 'katana', dmg: '1d10', bonus: 1, buc: 'blessed', tval: 23, sval: 20, weight: 40 }, armor: { name: 'splint mail', ac: 6, bonus: 0, buc: 'uncursed', tval: 37, sval: 6, weight: 400 }, extra: { kind: 'ranged', name: 'yumi bow', dmg: '1d6', bonus: 1, buc: 'uncursed', weight: 30, tval: 19, sval: 2 } },
+    { key: 'e', id: 'Knight', race: 'Human', align: 'Lawful', hp: 17, pw: 6, str: 16, int: 12, wis: 15, dex: 14, con: 16, cha: 14, weapon: { name: 'long sword', dmg: '1d8', bonus: 1, buc: 'uncursed', tval: 23, sval: 12, weight: 40 }, armor: { name: 'ring mail', ac: 4, bonus: 1, buc: 'blessed', tval: 37, sval: 2, weight: 250 }, extra: { kind: 'armor', name: 'helmet', ac: 1, bonus: 0, buc: 'uncursed', weight: 30, tval: 32, sval: 2 } },
+    { key: 'f', id: 'Rogue', race: 'Human', align: 'Chaotic', hp: 14, pw: 5, str: 14, int: 14, wis: 11, dex: 18, con: 14, cha: 9, weapon: { name: 'short sword', dmg: '1d6', bonus: 1, buc: 'uncursed', tval: 23, sval: 8, weight: 30 }, armor: { name: 'leather armor', ac: 2, bonus: 1, buc: 'uncursed', tval: 36, sval: 4, weight: 150 }, extra: { kind: 'potion', name: 'potion of sickness', count: 1, buc: 'cursed', weight: 20, tval: 71, sval: 9 } },
+    { key: 'g', id: 'Priest', race: 'Human', align: 'Lawful', hp: 14, pw: 12, str: 13, int: 13, wis: 18, dex: 12, con: 14, cha: 13, weapon: { name: 'mace', dmg: '2d4', bonus: 1, buc: 'blessed', tval: 21, sval: 5, weight: 30 }, armor: { name: 'robe', ac: 2, bonus: 1, buc: 'blessed', tval: 36, sval: 2, weight: 40 }, extra: { kind: 'potion', name: 'potion of holy water', count: 2, buc: 'blessed', weight: 20, tval: 71, sval: 1 } },
+    { key: 'h', id: 'Barbarian', race: 'Human', align: 'Chaotic', hp: 19, pw: 2, str: 18, int: 9, wis: 10, dex: 15, con: 18, cha: 8, weapon: { name: 'two-handed sword', dmg: '1d12', bonus: 0, buc: 'uncursed', tval: 23, sval: 25, weight: 150 }, armor: { name: 'ring mail', ac: 3, bonus: 0, buc: 'uncursed', tval: 37, sval: 2, weight: 250 }, extra: { kind: 'food', name: 'food ration', count: 2, buc: 'uncursed', weight: 20, tval: 80, sval: 1, nutrition: 800 } },
+    { key: 'i', id: 'Caveman', race: 'Human', align: 'Neutral', hp: 18, pw: 3, str: 18, int: 8, wis: 10, dex: 12, con: 18, cha: 7, weapon: { name: 'club', dmg: '1d6', bonus: 1, buc: 'uncursed', tval: 21, sval: 1, weight: 30 }, armor: { name: 'leather armor', ac: 2, bonus: 0, buc: 'uncursed', tval: 36, sval: 4, weight: 150 }, extra: { kind: 'ranged', name: 'sling', dmg: '1d4', bonus: 0, buc: 'uncursed', weight: 10, tval: 19, sval: 1 } },
+    { key: 'j', id: 'Healer', race: 'Human', align: 'Neutral', hp: 14, pw: 10, str: 11, int: 14, wis: 16, dex: 13, con: 14, cha: 16, weapon: { name: 'scalpel', dmg: '1d4', bonus: 0, buc: 'uncursed', tval: 23, sval: 2, weight: 5 }, armor: { name: 'leather gloves', ac: 1, bonus: 0, buc: 'uncursed', tval: 31, sval: 1, weight: 10 }, extra: { kind: 'potion', name: 'potion of extra healing', count: 4, buc: 'uncursed', weight: 20, tval: 71, sval: 39, heal: 28 } },
+    { key: 'k', id: 'Monk', race: 'Human', align: 'Lawful', hp: 15, pw: 10, str: 13, int: 13, wis: 15, dex: 17, con: 14, cha: 11, weapon: { name: 'quarterstaff', dmg: '1d6', bonus: 1, buc: 'uncursed', tval: 21, sval: 3, weight: 40 }, armor: { name: 'robe', ac: 2, bonus: 0, buc: 'uncursed', tval: 36, sval: 2, weight: 15 }, extra: { kind: 'food', name: 'lembas wafer', count: 3, buc: 'blessed', weight: 5, tval: 80, sval: 3, nutrition: 800 } },
+    { key: 'l', id: 'Ranger', race: 'Elf', align: 'Chaotic', hp: 15, pw: 7, str: 14, int: 13, wis: 14, dex: 17, con: 14, cha: 11, weapon: { name: 'dagger', dmg: '1d4', bonus: 1, buc: 'uncursed', tval: 23, sval: 4, weight: 10 }, armor: { name: 'cloak of displacement', ac: 1, bonus: 2, buc: 'uncursed', tval: 35, sval: 3, weight: 10 }, extra: { kind: 'ranged', name: 'elven bow', dmg: '1d8', bonus: 1, buc: 'uncursed', weight: 30, tval: 19, sval: 2 } },
+    { key: 'm', id: 'Tourist', race: 'Human', align: 'Neutral', hp: 12, pw: 4, str: 10, int: 12, wis: 10, dex: 14, con: 11, cha: 17, weapon: { name: 'dart', dmg: '1d3', bonus: 2, count: 25, buc: 'uncursed', tval: 23, sval: 1, weight: 1 }, armor: { name: 'Hawaiian shirt', ac: 0, bonus: 0, buc: 'uncursed', tval: 36, sval: 1, weight: 5 }, extra: { kind: 'food', name: 'lembas wafer', count: 4, buc: 'blessed', weight: 5, tval: 80, sval: 3, nutrition: 800 } }
 ];
 
 const MONSTER_TABLE = [
@@ -7263,18 +8151,24 @@ const MONSTER_TABLE = [
     { name: 'yellow light', glyph: 'y', attr: 14, minDepth: 2, hp: 8, ac: 0, dmg: 6, exp: 14, speed: 120 },
     { name: 'violet fungus', glyph: 'F', attr: 13, minDepth: 3, hp: 14, ac: 7, dmg: 5, exp: 18, speed: 85 },
     { name: 'gelatinous cube', glyph: 'b', attr: 11, minDepth: 3, hp: 16, ac: 8, dmg: 7, exp: 22, speed: 95 },
+    { name: 'killer bee', glyph: 'a', attr: 14, minDepth: 3, hp: 12, ac: 6, dmg: 7, exp: 20, speed: 125 },
+    { name: 'chickatrice', glyph: 'c', attr: 14, minDepth: 3, hp: 15, ac: 7, dmg: 6, exp: 28, speed: 110 },
     { name: 'hill orc', glyph: 'o', attr: 14, minDepth: 3, hp: 14, ac: 6, dmg: 8, exp: 20, speed: 110 },
     { name: 'spotted jelly', glyph: 'j', attr: 10, minDepth: 3, hp: 15, ac: 8, dmg: 6, exp: 19, speed: 90 },
+    { name: 'fire ant', glyph: 'a', attr: 4, minDepth: 4, hp: 18, ac: 3, dmg: 9, exp: 30, speed: 120 },
     { name: 'cockatrice', glyph: 'c', attr: 14, minDepth: 4, hp: 20, ac: 6, dmg: 8, exp: 36, speed: 110 },
     { name: 'raven', glyph: 'B', attr: 8, minDepth: 4, hp: 13, ac: 4, dmg: 6, exp: 20, speed: 125 },
     { name: 'rust monster', glyph: 'R', attr: 3, minDepth: 4, hp: 18, ac: 2, dmg: 6, exp: 32, speed: 120 },
     { name: 'owlbear', glyph: 'Y', attr: 3, minDepth: 5, hp: 28, ac: 5, dmg: 12, exp: 48, speed: 110 },
     { name: 'mumak', glyph: 'q', attr: 8, minDepth: 5, hp: 32, ac: 4, dmg: 13, exp: 55, speed: 105 },
+    { name: 'hill giant', glyph: 'H', attr: 3, minDepth: 6, hp: 40, ac: 6, dmg: 15, exp: 80, speed: 105 },
     { name: 'leocrotta', glyph: 'q', attr: 4, minDepth: 6, hp: 34, ac: 4, dmg: 14, exp: 65, speed: 120 },
     { name: 'winter wolf', glyph: 'd', attr: 11, minDepth: 6, hp: 30, ac: 4, dmg: 12, exp: 58, speed: 120 },
+    { name: 'wraith', glyph: 'W', attr: 8, minDepth: 7, hp: 28, ac: 4, dmg: 11, exp: 75, speed: 115 },
     { name: 'mind flayer', glyph: 'h', attr: 13, minDepth: 8, hp: 42, ac: 5, dmg: 16, exp: 110, speed: 115 },
     { name: 'umber hulk', glyph: 'X', attr: 3, minDepth: 9, hp: 48, ac: 2, dmg: 18, exp: 130, speed: 105 },
     { name: 'minotaur', glyph: 'H', attr: 3, minDepth: 10, hp: 58, ac: 6, dmg: 22, exp: 160, speed: 115 },
+    { name: 'blue dragon', glyph: 'D', attr: 9, minDepth: 11, hp: 72, ac: -1, dmg: 24, exp: 250, speed: 115 },
     { name: 'vampire lord', glyph: 'V', attr: 4, minDepth: 11, hp: 66, ac: 0, dmg: 20, exp: 210, speed: 120 },
     { name: 'red dragon', glyph: 'D', attr: 4, minDepth: 12, hp: 76, ac: -1, dmg: 26, exp: 280, speed: 115 },
     { name: 'black dragon', glyph: 'D', attr: 8, minDepth: 13, hp: 80, ac: -2, dmg: 28, exp: 310, speed: 115 },
@@ -7303,6 +8197,14 @@ const ITEM_POOL = [
     { kind: 'weapon', name: 'silver saber', dmg: '1d8', bonus: 2, glyph: ')', attr: 1, buc: 'blessed', weight: 40, tval: 23, sval: 15 },
     { kind: 'armor', name: 'dwarvish mithril-coat', ac: 6, bonus: 2, glyph: '[', attr: 11, buc: 'blessed', weight: 150, tval: 37, sval: 10 },
     { kind: 'armor', name: 'elven mithril-coat', ac: 5, bonus: 2, glyph: '[', attr: 10, buc: 'blessed', weight: 150, tval: 37, sval: 9 },
+    { kind: 'armor', name: 'plate mail', ac: 7, bonus: 0, glyph: '[', attr: 8, buc: 'uncursed', weight: 450, tval: 37, sval: 11 },
+    { kind: 'armor', name: 'small shield', ac: 2, bonus: 0, glyph: '[', attr: 3, buc: 'uncursed', weight: 30, tval: 34, sval: 1 },
+    { kind: 'armor', name: 'helmet', ac: 1, bonus: 0, glyph: '[', attr: 8, buc: 'uncursed', weight: 30, tval: 32, sval: 2 },
+    { kind: 'armor', name: 'cloak of protection', ac: 3, bonus: 0, glyph: '[', attr: 1, buc: 'uncursed', weight: 10, tval: 35, sval: 1 },
+    { kind: 'armor', name: 'leather gloves', ac: 1, bonus: 0, glyph: '[', attr: 3, buc: 'uncursed', weight: 10, tval: 31, sval: 1 },
+    { kind: 'armor', name: 'low boots', ac: 1, bonus: 0, glyph: '[', attr: 3, buc: 'uncursed', weight: 10, tval: 30, sval: 1 },
+    { kind: 'jewelry', name: 'ring of protection', glyph: '=', attr: 14, bonus: 2, buc: 'blessed', weight: 3, tval: 45, sval: 1 },
+    { kind: 'jewelry', name: 'ring of slow digestion', glyph: '=', attr: 11, buc: 'blessed', weight: 3, tval: 45, sval: 4 },
     { kind: 'jewelry', name: 'ring of regeneration', glyph: '=', attr: 10, buc: 'blessed', weight: 3, tval: 45, sval: 10 },
     { kind: 'jewelry', name: 'amulet of ESP', glyph: '"', attr: 11, buc: 'blessed', weight: 3, tval: 40, sval: 3, grantsTelepathy: true },
     { kind: 'jewelry', name: 'amulet of life saving', glyph: '"', attr: 1, buc: 'blessed', weight: 3, tval: 40, sval: 5 },
@@ -7332,16 +8234,35 @@ function parseCliArgs(argv) {
     let saveDir = path.resolve(__dirname, '../lib/save');
     let user = 'Rodney';
     let isNew = false;
+    let customBirth = false;
     let randomBirth = false;
+    let role = null;
     let seed = null;
-    for (const arg of argv.slice(2)) {
+    const args = argv.slice(2);
+    for (let i = 0; i < args.length; i++) {
+        const arg = String(args[i] || '');
         if (arg.startsWith('-dsave=')) saveDir = arg.slice(7);
         else if (arg.startsWith('-u')) user = arg.slice(2) || user;
         else if (arg === '-n') isNew = true;
         else if (arg === '-r' || arg === '--random') randomBirth = true;
-        else if (arg.startsWith('--seed=')) seed = arg.slice(7);
+        else if (arg === '-c' || arg === '--custom') {
+            customBirth = true;
+            const next = args[i + 1];
+            if (next && !String(next).startsWith('-')) {
+                role = String(next).trim();
+                i++;
+            }
+        } else if (arg.startsWith('-c=')) {
+            role = arg.slice(3).trim() || null;
+            customBirth = true;
+        } else if (arg.startsWith('-c') && arg.length > 2) {
+            role = arg.slice(2).trim() || null;
+            customBirth = true;
+        } else if (arg.startsWith('--role=')) {
+            role = arg.slice(7).trim() || null;
+        } else if (arg.startsWith('--seed=')) seed = arg.slice(7);
     }
-    return { saveDir, user, isNew, randomBirth, seed };
+    return { saveDir, user, isNew, customBirth, randomBirth, role, seed };
 }
 
 function formatItemDesc(it) {
@@ -7355,7 +8276,11 @@ function formatItemDesc(it) {
         stats = ` (${it.dmg || '1d6'}) (${b >= 0 ? '+' + b : b},${b >= 0 ? '+' + b : b})`;
     } else if (it.kind === 'armor') {
         const b = Number(it.bonus || 0);
-        stats = ` [${it.ac || 2},${b >= 0 ? '+' + b : b}]`;
+        const baseAc = it.ac != null ? Number(it.ac) : 2;
+        stats = ` [${baseAc},${b >= 0 ? '+' + b : b}]`;
+    } else if (it.kind === 'jewelry' && /protection/i.test(it.name || '') && it.bonus != null) {
+        const b = Number(it.bonus || 0);
+        stats = ` (${b >= 0 ? '+' + b : b})`;
     } else if (it.kind === 'wand' && it.charges != null) {
         stats = ` (0:${it.charges})`;
     }
@@ -7435,20 +8360,28 @@ function computeVerbMask(it) {
 
 class NetHackEngine {
     constructor(opts) {
-        this.saveDir = opts.saveDir;
-        this.user = opts.user;
+        opts = opts || {};
+        this.saveDir = opts.saveDir || path.resolve(__dirname, '../lib/save');
+        this.user = opts.user || 'Rodney';
         this.saveFile = path.join(this.saveDir, this.user);
         this.seq = 0;
-        const parsedSeed = opts && opts.seed != null ? parseSeedInput(opts.seed) : 0;
+        const parsedSeed = opts.seed != null ? parseSeedInput(opts.seed) : 0;
         this.baseSeed = parsedSeed || ((crypto.randomBytes(4).readUInt32LE(0) || ((Date.now() ^ 0x5f3759df) >>> 0)) >>> 0);
         this.seed = this.baseSeed;
         this.state = null;
         this._lastLivingSnapshot = null;
-        if (!opts.isNew && !opts.randomBirth && this.loadSave()) {
+        const directRoleIdx = this.resolveRoleIndex(opts.role);
+        if (!opts.isNew && !opts.randomBirth && !opts.customBirth && directRoleIdx < 0 && this.loadSave()) {
             // Loaded existing character
             if (this.state && this.state.player && !this.state.player.dead) {
                 this._lastLivingSnapshot = JSON.stringify(this.state);
             }
+        } else if (directRoleIdx >= 0) {
+            this.initNewState(true, directRoleIdx);
+            if (this.state && this.state.player && !this.state.player.dead) {
+                this._lastLivingSnapshot = JSON.stringify(this.state);
+            }
+            this.saveGame();
         } else if (opts.randomBirth) {
             const roleIdx = this.rand(ROLES.length);
             this.initNewState(false, roleIdx);
@@ -7464,6 +8397,67 @@ class NetHackEngine {
                 this._lastLivingSnapshot = JSON.stringify(this.state);
             }
         }
+    }
+
+    resolveRoleIndex(roleSpec) {
+        if (roleSpec == null || roleSpec === '') return -1;
+        const s = String(roleSpec).trim().toLowerCase();
+        if (!s) return -1;
+        let idx = ROLES.findIndex(r => r.id.toLowerCase() === s);
+        if (idx >= 0) return idx;
+        idx = ROLES.findIndex(r => r.key.toLowerCase() === s);
+        if (idx >= 0) return idx;
+        idx = ROLES.findIndex(r => r.id.toLowerCase().startsWith(s));
+        return idx;
+    }
+
+    getHungerState(hungerVal) {
+        const h = hungerVal == null ? 900 : Number(hungerVal);
+        if (h <= 0) return 'Fainting';
+        if (h <= 150) return 'Weak';
+        if (h <= 300) return 'Hungry';
+        if (h >= 1000) return 'Satiated';
+        return 'Normal';
+    }
+
+    rollDice(spec) {
+        const m = String(spec || '1d4').match(/(\d+)d(\d+)/i);
+        if (!m) return 1 + this.rand(4);
+        const count = Math.max(1, parseInt(m[1], 10));
+        const sides = Math.max(1, parseInt(m[2], 10));
+        let sum = 0;
+        for (let i = 0; i < count; i++) sum += 1 + this.rand(sides);
+        return sum;
+    }
+
+    isCockatriceCorpse(it) {
+        if (!it) return false;
+        const txt = `${it.race || ''} ${it.name || ''}`.toLowerCase();
+        return Boolean((it.isCorpse || /corpse/.test(txt)) && /(cockatrice|chickatrice)/.test(txt));
+    }
+
+    hasGlovesEquipped() {
+        const p = this.state && this.state.player;
+        if (!p || !Array.isArray(p.inventory)) return false;
+        return p.inventory.some(it => it.equipped && (it.equipped === 'hands' || resolveEquipMeta(it).slot_name === 'hands'));
+    }
+
+    triggerPetrification(reason) {
+        const p = this.state && this.state.player;
+        if (!p || p.stoneRes) return false;
+        const lifeSave = p.inventory.find(it => /life saving/i.test(it.name || ''));
+        if (lifeSave) {
+            lifeSave.count = 0;
+            this.reindexInventory();
+            p.hp = p.hpMax;
+            this.addMessage('You turn to stone... Your amulet of life saving glows incandescently and disintegrates! You live!', 14);
+            return false;
+        }
+        p.hp = 0;
+        p.dead = true;
+        p.diedFrom = reason || 'petrification';
+        this.addMessage('You slow down... Your limbs stiffen... You turn to stone! You die...', 4);
+        return true;
     }
 
     rand(max) {
@@ -7556,6 +8550,9 @@ class NetHackEngine {
                 wis: role.wis,
                 dex: role.dex,
                 con: role.con,
+                cha: role.cha != null ? role.cha : 12,
+                luck: 0,
+                intrinsicAc: 0,
                 hunger: 900,
                 poisoned: 0,
                 confused: 0,
@@ -7563,6 +8560,14 @@ class NetHackEngine {
                 telepathy: false,
                 intrinsicTelepathy: false,
                 rBlind: false,
+                fireRes: false,
+                coldRes: false,
+                elecRes: false,
+                poisonRes: false,
+                disenRes: false,
+                stoneRes: false,
+                riding: false,
+                ridingMount: '',
                 speedBoost: 0,
                 hasAmulet: false,
                 winner: false,
@@ -7619,7 +8624,6 @@ class NetHackEngine {
             p.pw = p.pwMax;
         } else if (statFocus === 'agile') {
             p.dex += 3;
-            p.ac -= 1;
         } else {
             if (clsLower.includes('wizard') || clsLower.includes('priest')) {
                 p.int += 2;
@@ -7639,7 +8643,7 @@ class NetHackEngine {
             }
         }
         const w = p.inventory.find(it => it.equipped === 'weapon');
-        const a = p.inventory.find(it => it.equipped === 'armor');
+        const a = p.inventory.find(it => it.equipped === 'body' || it.equipped === 'armor' || it.equipped === 'cloak' || it.equipped === 'hands');
         if (kitBoon === 'expedition') {
             const healPot = p.inventory.find(it => it.name && it.name.includes('potion of healing'));
             if (healPot) healPot.count = (healPot.count || 1) + 1;
@@ -7647,10 +8651,10 @@ class NetHackEngine {
         } else if (kitBoon === 'blessed') {
             if (w) { w.buc = 'blessed'; w.bonus = (w.bonus || 0) + 1; }
             if (a) { a.buc = 'blessed'; a.bonus = (a.bonus || 0) + 1; }
-            this.recalcPlayerAc();
         } else {
             if (w) w.bonus = (w.bonus || 0) + 1;
         }
+        this.recalcPlayerAc();
     }
 
     populateStartingKit(role) {
@@ -7665,7 +8669,9 @@ class NetHackEngine {
             }));
         };
         add(Object.assign({ kind: 'weapon' }, role.weapon), 'weapon');
-        add(Object.assign({ kind: 'armor' }, role.armor), 'armor');
+        const armorMeta = resolveEquipMeta(role.armor);
+        const armorSlot = (armorMeta && armorMeta.slot_name && armorMeta.slot_name !== 'weapon') ? armorMeta.slot_name : 'body';
+        add(Object.assign({ kind: 'armor' }, role.armor), armorSlot);
         if (role.extra) add(role.extra, null);
         add({ kind: 'potion', name: 'potion of healing', buc: 'blessed', count: 2, weight: 20, tval: 71, sval: 38, heal: 16 }, null);
         add({ kind: 'scroll', name: 'scroll of identify', buc: 'blessed', count: 2, weight: 5, tval: 70, sval: 12 }, null);
@@ -7688,25 +8694,35 @@ class NetHackEngine {
     }
 
     recalcPlayerAc() {
-        let armorSum = 0;
+        const p = this.state && this.state.player;
+        if (!p || !Array.isArray(p.inventory)) return;
+        let armorProtection = 0;
         let weapName = '';
         let shieldName = '';
         let bowName = '';
         const armorSlots = new Set(['armor', 'body', 'cloak', 'shield', 'head', 'hands', 'feet']);
-        for (const it of this.state.player.inventory) {
+        for (const it of p.inventory) {
             if (!it.equipped) continue;
             const meta = resolveEquipMeta(it);
-            if (armorSlots.has(it.equipped) || armorSlots.has(meta.slot_name)) {
-                armorSum += (it.ac != null ? Number(it.ac) : 2) + (Number(it.bonus) || 0);
+            const rawEq = String(it.equipped).toLowerCase();
+            const normSlot = rawEq === 'armor' ? 'body' : rawEq;
+            if (armorSlots.has(normSlot) || (armorSlots.has(meta.slot_name) && normSlot !== 'weapon' && normSlot !== 'bow')) {
+                const baseProt = it.ac != null ? Number(it.ac) : 2;
+                armorProtection += baseProt + (Number(it.bonus) || 0);
+            } else if (normSlot === 'ring' || meta.slot_name === 'ring') {
+                if (/protection/i.test(it.name || '')) {
+                    armorProtection += (it.ac != null ? Number(it.ac) : 0) + (Number(it.bonus) || 0);
+                }
             }
-            if (meta.slot_name === 'weapon') weapName = it.name;
-            else if (meta.slot_name === 'shield') shieldName = it.name;
-            else if (meta.slot_name === 'bow') bowName = it.name;
+            if (normSlot === 'weapon' || meta.slot_name === 'weapon') weapName = it.name;
+            else if (normSlot === 'shield' || meta.slot_name === 'shield') shieldName = it.name;
+            else if (normSlot === 'bow' || meta.slot_name === 'bow') bowName = it.name;
         }
-        this.state.player.ac = 10 - armorSum;
-        this.state.player.weaponName = weapName;
-        this.state.player.shieldName = shieldName;
-        this.state.player.bowName = bowName;
+        const divineProt = Number(p.intrinsicAc || 0);
+        p.ac = Math.max(-128, 10 - armorProtection - divineProt);
+        p.weaponName = weapName;
+        p.shieldName = shieldName;
+        p.bowName = bowName;
     }
 
     generateDungeonLevel(depth) {
@@ -8157,6 +9173,7 @@ class NetHackEngine {
                 }
                 this.sanitizeDoorPlacement();
                 this.checkExperience({ silent: true });
+                this.recalcPlayerAc();
                 this.updateVisibility();
                 this.addMessage('You are restored to your last living checkpoint!', 14);
                 this.saveGame();
@@ -8195,6 +9212,13 @@ class NetHackEngine {
                 if (loaded.rngSeed) this.seed = loaded.rngSeed;
                 this.state.phase = 'play';
                 this.state.menuMode = 'none';
+                const rp = this.state.player;
+                const matchRole = ROLES.find(r => r.id.toLowerCase() === String(rp.class || '').toLowerCase()) || ROLES[this.state.selectedRoleIdx || 0] || ROLES[0];
+                if (rp.cha == null) rp.cha = matchRole.cha != null ? matchRole.cha : 12;
+                if (!rp.align) rp.align = matchRole.align || 'Neutral';
+                if (rp.hunger == null) rp.hunger = 900;
+                if (rp.luck == null) rp.luck = 0;
+                if (rp.intrinsicAc == null) rp.intrinsicAc = 0;
                 // Normalize any legacy feature codes in saved maps to canonical 3D feature codes
                 for (let y = 0; y < this.state.map.length; y++) {
                     const row = this.state.map[y];
@@ -8212,6 +9236,7 @@ class NetHackEngine {
                 }
                 this.sanitizeDoorPlacement();
                 this.checkExperience({ silent: true });
+                this.recalcPlayerAc();
                 this.updateVisibility();
                 return true;
             }
@@ -8220,6 +9245,11 @@ class NetHackEngine {
     }
 
     handleKey(rawKey) {
+        if (rawKey === ' ' && this.state && this.state.menuMode === 'engrave') {
+            this.state.engraveBuffer = (this.state.engraveBuffer || '') + ' ';
+            this.state.pendingPrompt = `What do you want to engrave? "${this.state.engraveBuffer}" ([Enter] to confirm, ESC cancel)`;
+            return;
+        }
         const k = String(rawKey || '').trim();
         if (!k) return;
 
@@ -8299,10 +9329,10 @@ class NetHackEngine {
             return;
         }
 
-        // 2. Extended `#` Commands (`#pray`, `#dip`, `#offer`, `#loot`, `#untrap`, `#chat`, `#force`, `#enhance`)
+        // 2. Extended `#` Commands (`#pray`, `#dip`, `#offer`, `#loot`, `#untrap`, `#chat`, `#force`, `#enhance`, `#sit`, `#rub`, `#ride`, `#equip`)
         if (k === '#') {
             this.state.menuMode = 'extended';
-            this.state.pendingPrompt = '# Extended command: [p]ray [d]ip [o]ffer [l]oot [u]ntrap [c]hat [f]orce [e]nhance (ESC)';
+            this.state.pendingPrompt = '# Extended command: [p]ray [d]ip [o]ffer [s]it [r]ub [m]ount/ride [q]equip [l]oot [u]ntrap [c]hat [f]orce [e]nhance (ESC)';
             return;
         }
         if (k.startsWith('#')) {
@@ -8320,14 +9350,54 @@ class NetHackEngine {
                 this.state.pendingVerb = '';
                 this.state.pendingPrompt = '';
                 this.state.selectedItem = null;
+                this.state.engraveBuffer = '';
+                this.state.floorEatPromptActive = false;
+                this.state.fountainPromptActive = false;
                 return;
             }
             if (this.state.menuMode === 'extended') {
-                const extMap = { p: '#pray', d: '#dip', o: '#offer', l: '#loot', u: '#untrap', c: '#chat', f: '#force', e: '#enhance', k: '#kick' };
+                const extMap = { p: '#pray', d: '#dip', o: '#offer', s: '#sit', r: '#rub', m: '#ride', q: '#equip', l: '#loot', u: '#untrap', c: '#chat', f: '#force', e: '#enhance', k: '#kick' };
                 const mapped = extMap[k.toLowerCase()];
                 this.state.menuMode = 'none';
                 this.state.pendingPrompt = '';
                 if (mapped) this.executeExtendedCommand(mapped);
+                return;
+            }
+            if (this.state.menuMode === 'engrave') {
+                const kl = k.toLowerCase();
+                if (kl === 'enter' || kl === 'return') {
+                    const txt = (this.state.engraveBuffer || '').trim() || 'Elbereth';
+                    this.state.menuMode = 'none';
+                    this.state.pendingVerb = '';
+                    this.state.pendingPrompt = '';
+                    this.state.engraveBuffer = '';
+                    this.engraveFloor(txt);
+                    return;
+                }
+                if (kl === 'backspace') {
+                    this.state.engraveBuffer = (this.state.engraveBuffer || '').slice(0, -1);
+                    this.state.pendingPrompt = `What do you want to engrave? "${this.state.engraveBuffer}" ([Enter] to confirm, ESC cancel)`;
+                    return;
+                }
+                if (kl === 'space') {
+                    this.state.engraveBuffer = (this.state.engraveBuffer || '') + ' ';
+                    this.state.pendingPrompt = `What do you want to engrave? "${this.state.engraveBuffer}" ([Enter] to confirm, ESC cancel)`;
+                    return;
+                }
+                if (k.length > 1) {
+                    this.state.menuMode = 'none';
+                    this.state.pendingVerb = '';
+                    this.state.pendingPrompt = '';
+                    this.state.engraveBuffer = '';
+                    this.engraveFloor(k);
+                    return;
+                }
+                if (!this.state.engraveBuffer && k === '-') {
+                    this.state.pendingPrompt = 'Write in the dust with your fingers: type text + [Enter] (or [Enter] for "Elbereth")';
+                    return;
+                }
+                this.state.engraveBuffer = (this.state.engraveBuffer || '') + k;
+                this.state.pendingPrompt = `What do you want to engrave? "${this.state.engraveBuffer}" ([Enter] to confirm, ESC cancel)`;
                 return;
             }
             if (this.state.menuMode === 'item_action') {
@@ -8338,6 +9408,7 @@ class NetHackEngine {
                 if (!item) return;
                 if (k === 'd') { this.executeItemVerb('d', item.letter); return; }
                 if (k === 't' || k === 'f') {
+                    this.state.thrownItem = item;
                     this.state.menuMode = 'direction';
                     this.state.pendingVerb = 'throw';
                     this.state.pendingPrompt = 'In what direction do you want to throw/fire?';
@@ -8365,22 +9436,25 @@ class NetHackEngine {
                     return;
                 }
                 if (k === 'i') { this.state.menuMode = 'inven'; return; }
-                if (k === 'e' && this.state.menuMode === 'inven') {
-                    this.openVerbPrompt('E');
+                if (k === '[') { this.state.menuMode = 'equip'; return; }
+                if (k === 'e') {
+                    this.openVerbPrompt('e');
+                    return;
+                }
+                if (k === 'E') {
+                    this.state.menuMode = 'engrave';
+                    this.state.engraveBuffer = '';
+                    this.state.pendingVerb = 'engrave';
+                    this.state.pendingPrompt = 'What do you want to engrave on the floor? ([Enter] for "Elbereth", [-] dust, or type text)';
                     return;
                 }
                 // Uppercase, brace, or colon verbs switch directly to verb prompt
-                if (/^[WTPREZI:{}]$/.test(k)) {
+                if (/^[WTPRZI:{}]$/.test(k)) {
                     this.openVerbPrompt(k);
                     return;
                 }
                 const item = this.state.player.inventory.find(it => it.letter === k);
                 if (item) {
-                    // When 'e' opened equip/eat mode and the player selects a food item slot (e.g. Grimoire Eat ['escape','e',slotKey]), consume it immediately!
-                    if (this.state.menuMode === 'equip' && item.kind === 'food') {
-                        this.executeItemVerb('e', k);
-                        return;
-                    }
                     this.state.selectedItem = item;
                     this.state.menuMode = 'item_action';
                     this.state.pendingPrompt = `${item.letter}) ${formatItemDesc(item)} — [Enter] Use/Equip [d]rop [t]hrow [:]Examine (ESC)`;
@@ -8423,8 +9497,20 @@ class NetHackEngine {
             this.state.menuMode = 'inven';
             return;
         }
-        if (k === 'e') {
+        if (k === '[') {
             this.state.menuMode = 'equip';
+            this.state.pendingPrompt = 'Equipment (Worn/Wielded — / for Inventory, ESC)';
+            return;
+        }
+        if (k === 'e') {
+            this.openVerbPrompt('e');
+            return;
+        }
+        if (k === 'E') {
+            this.state.menuMode = 'engrave';
+            this.state.engraveBuffer = '';
+            this.state.pendingVerb = 'engrave';
+            this.state.pendingPrompt = 'What do you want to engrave on the floor? ([Enter] for "Elbereth", [-] dust, or type text)';
             return;
         }
         if (k === 'p') {
@@ -8436,7 +9522,7 @@ class NetHackEngine {
             this.state.pendingPrompt = 'Cast which spell? [a] force bolt [b] healing [c] magic mapping [d] haste self [e] cure ailment (ESC)';
             return;
         }
-        if (/^[qrwWTPRzdatIE:{}]$/.test(k)) {
+        if (/^[qrwWTPRzdatI:{}]$/.test(k)) {
             this.openVerbPrompt(k);
             return;
         }
@@ -8445,6 +9531,11 @@ class NetHackEngine {
             const weapons = p.inventory.filter(it => it.kind === 'weapon' || it.kind === 'ranged');
             if (weapons.length > 1) {
                 const curIdx = weapons.findIndex(it => it.equipped === 'weapon');
+                const curW = curIdx >= 0 ? weapons[curIdx] : null;
+                if (curW && curW.buc === 'cursed') {
+                    this.addMessage(`You cannot unwield your cursed ${curW.name}! It is welded to your hand.`, 4);
+                    return;
+                }
                 weapons.forEach(it => { it.equipped = null; });
                 const nextW = weapons[(curIdx + 1) % weapons.length];
                 nextW.equipped = 'weapon';
@@ -8598,18 +9689,20 @@ class NetHackEngine {
         return null;
     }
 
-    openVerbPrompt(verb, skipFountain = false) {
+    openVerbPrompt(verb, skipContext = false) {
         const p = this.state.player;
         const cell = this.state.map && this.state.map[p.y] && this.state.map[p.y][p.x];
-        const onFountain = !skipFountain && Boolean(cell && (cell.feat === FEAT.FOUNTAIN || cell.glyph === '{'));
+        const onFountain = !skipContext && Boolean(cell && (cell.feat === FEAT.FOUNTAIN || cell.glyph === '{'));
+        const floorFood = !skipContext ? this.state.objects.find(o => o.x === p.x && o.y === p.y && o.kind === 'food') : null;
         const prompts = {
             'q': onFountain
                 ? 'Drink from the fountain? [y/n] (or select potion [a-z])'
                 : 'What do you want to drink? [a-z or ?*]',
             'r': 'What do you want to read? [a-z or ?*]',
-            'e': 'What do you want to eat? [a-z or ?*]',
-            'E': 'What do you want to eat? [a-z or ?*]',
-            'w': 'What do you want to wield? [a-z or ?*]',
+            'e': floorFood
+                ? `There is ${formatItemDesc(floorFood)} here; eat it? [y/n] (or select item [a-z])`
+                : 'What do you want to eat? [a-z or ?*]',
+            'w': 'What do you want to wield? [a-z or -]',
             'W': 'What do you want to wear? [a-z or ?*]',
             'T': 'What do you want to take off? [a-z or ?*]',
             'P': 'What do you want to put on? [a-z or ?*]',
@@ -8629,6 +9722,7 @@ class NetHackEngine {
         this.state.pendingVerb = verb;
         this.state.pendingPrompt = prompts[verb] || 'Select an item: [a-z]';
         this.state.fountainPromptActive = Boolean(verb === 'q' && onFountain);
+        this.state.floorEatPromptActive = Boolean(verb === 'e' && floorFood);
     }
 
     executeSpellCast(spellKey) {
@@ -8695,10 +9789,32 @@ class NetHackEngine {
         const p = this.state.player;
         const item = p.inventory.find(it => it.letter === slotKey);
         const wasFountainPrompt = Boolean(this.state.fountainPromptActive);
+        const wasFloorEatPrompt = Boolean(this.state.floorEatPromptActive);
         this.state.menuMode = 'none';
         this.state.pendingVerb = '';
         this.state.pendingPrompt = '';
         this.state.fountainPromptActive = false;
+        this.state.floorEatPromptActive = false;
+
+        if (slotKey === '?' || slotKey === '*') {
+            const matchesVerb = (it) => {
+                if (verb === 'q') return it.kind === 'potion';
+                if (verb === 'r') return it.kind === 'scroll' || it.kind === 'tome';
+                if (verb === 'e') return it.kind === 'food';
+                if (verb === 'z') return it.kind === 'wand';
+                if (verb === 'w') return it.kind === 'weapon' || it.kind === 'ranged';
+                if (verb === 'W') return it.kind === 'armor';
+                if (verb === 'P') return it.kind === 'jewelry';
+                if (verb === 'T' || verb === 'R') return Boolean(it.equipped);
+                if (verb === 'a') return it.kind === 'tool';
+                return true;
+            };
+            const list = p.inventory.filter(matchesVerb).map(it => `${it.letter}) ${it.name}`).join(', ');
+            this.state.menuMode = 'verb';
+            this.state.pendingVerb = verb;
+            this.state.pendingPrompt = list ? `Choices: ${list}` : 'You have nothing appropriate for that command. (ESC)';
+            return;
+        }
 
         const cell = this.state.map && this.state.map[p.y] && this.state.map[p.y][p.x];
         const onFountain = Boolean(cell && (cell.feat === FEAT.FOUNTAIN || cell.glyph === '{'));
@@ -8729,6 +9845,49 @@ class NetHackEngine {
             }
         }
 
+        const floorFoodIdx = this.state.objects.findIndex(o => o.x === p.x && o.y === p.y && o.kind === 'food');
+        if (verb === 'e' && floorFoodIdx >= 0 && wasFloorEatPrompt) {
+            const sk = String(slotKey || '').toLowerCase();
+            if (sk === 'y' || sk === 'enter' || sk === 'return' || sk === ',') {
+                const floorFood = this.state.objects[floorFoodIdx];
+                if (this.isCockatriceCorpse(floorFood) && !this.hasGlovesEquipped() && !p.stoneRes) {
+                    this.state.objects.splice(floorFoodIdx, 1);
+                    this.consumeFoodItem(floorFood);
+                    if (!p.dead) this.advanceWorldTurn();
+                    return;
+                }
+                this.state.objects.splice(floorFoodIdx, 1);
+                this.consumeFoodItem(floorFood);
+                if (!p.dead) this.advanceWorldTurn();
+                return;
+            }
+            if (sk === 'n') {
+                if (p.inventory.some(it => it.kind === 'food')) {
+                    this.openVerbPrompt('e', true);
+                } else {
+                    this.addMessage('Never mind.', 1);
+                }
+                return;
+            }
+        }
+
+        if (verb === 'w' && slotKey === '-') {
+            const curWep = p.inventory.find(it => it.equipped === 'weapon');
+            if (!curWep) {
+                this.addMessage('You are already empty-handed.', 1);
+                return;
+            }
+            if (curWep.buc === 'cursed') {
+                this.addMessage(`You cannot unwield your cursed ${curWep.name}! It is welded to your hand.`, 4);
+                return;
+            }
+            curWep.equipped = null;
+            this.recalcPlayerAc();
+            this.addMessage('You are now empty-handed.', 1);
+            this.advanceWorldTurn();
+            return;
+        }
+
         if (!item) {
             if (verb === 't' || verb === 'f') {
                 const dir = this.parseDirection(slotKey);
@@ -8742,7 +9901,12 @@ class NetHackEngine {
         }
 
         if (verb === ':' || verb === 'I' || verb === 'x') {
-            this.addMessage(`${item.letter}) ${formatItemDesc(item)} — Weight: ${(item.weight / 10).toFixed(1)} lb, Beatitude: ${(item.buc || 'uncursed').toUpperCase()}.`, 11);
+            let corpseNote = '';
+            if (item.isCorpse) {
+                const age = this.state.turn - (item.corpseTurn != null ? item.corpseTurn : this.state.turn);
+                corpseNote = age >= 50 ? `, ROTTEN (${age}t)` : `, Fresh (${age}t)`;
+            }
+            this.addMessage(`${item.letter}) ${formatItemDesc(item)} — Weight: ${(item.weight / 10).toFixed(1)} lb, Beatitude: ${(item.buc || 'uncursed').toUpperCase()}${corpseNote}.`, 11);
             return;
         }
 
@@ -8759,6 +9923,10 @@ class NetHackEngine {
         }
 
         if (verb === 't' || verb === 'f') {
+            if (this.isCockatriceCorpse(item) && !this.hasGlovesEquipped() && !p.stoneRes) {
+                this.triggerPetrification(`touching a ${item.race || 'cockatrice'} corpse barehanded`);
+                return;
+            }
             this.state.thrownItem = item;
             this.state.menuMode = 'direction';
             this.state.pendingVerb = 'throw';
@@ -8817,7 +9985,7 @@ class NetHackEngine {
                 return;
             }
             if (item.name.includes('identify')) {
-                p.inventory.forEach(it => { if (!it.buc) it.buc = 'uncursed'; });
+                p.inventory.forEach(it => { if (!it.buc) it.buc = 'uncursed'; it.bucKnown = true; });
                 this.addMessage('Your pack glows with amber light! All carried items are identified.', 14);
             } else if (item.name.includes('enchant weapon')) {
                 const w = p.inventory.find(it => it.equipped === 'weapon');
@@ -8829,12 +9997,15 @@ class NetHackEngine {
                     this.addMessage('Your hands twitch.', 1);
                 }
             } else if (item.name.includes('enchant armor')) {
-                const a = p.inventory.find(it => it.equipped === 'armor');
+                const a = p.inventory.find(it => it.equipped === 'body' || it.equipped === 'armor')
+                    || p.inventory.find(it => ['cloak', 'shield', 'head', 'hands', 'feet'].includes(it.equipped));
                 if (a) {
                     a.bonus = (a.bonus || 0) + (item.buc === 'blessed' ? 2 : 1);
                     a.buc = 'blessed';
                     this.recalcPlayerAc();
                     this.addMessage(`Your ${a.name} glows silver for a moment!`, 11);
+                } else {
+                    this.addMessage('Your skin feels itchy.', 1);
                 }
             } else if (item.name.includes('remove curse')) {
                 p.inventory.forEach(it => { if (it.buc === 'cursed') it.buc = 'uncursed'; });
@@ -8854,18 +10025,40 @@ class NetHackEngine {
         }
 
         if (verb === 'w') {
+            if (this.isCockatriceCorpse(item) && !this.hasGlovesEquipped() && !p.stoneRes) {
+                this.triggerPetrification(`wielding a ${item.race || 'cockatrice'} corpse barehanded`);
+                return;
+            }
             const wSlot = resolveEquipMeta(item).slot_name === 'bow' ? 'bow' : 'weapon';
+            const curWep = p.inventory.find(it => it.equipped === wSlot);
+            if (curWep && curWep !== item && curWep.buc === 'cursed') {
+                this.addMessage(`You cannot unwield your cursed ${curWep.name}! It is welded to your hand.`, 4);
+                return;
+            }
             p.inventory.forEach(it => { if (it.equipped === wSlot) it.equipped = null; });
             item.equipped = wSlot;
             this.recalcPlayerAc();
-            this.addMessage(`You now wield ${formatItemDesc(item)}.`, 11);
+            if (item.buc === 'cursed') {
+                this.addMessage(`You wield ${formatItemDesc(item)}. It welds to your hand!`, 4);
+            } else {
+                this.addMessage(`You now wield ${formatItemDesc(item)}.`, 11);
+            }
             this.advanceWorldTurn();
             return;
         }
 
         if (verb === 'W' || verb === 'P') {
+            if (item.kind === 'potion' || item.kind === 'scroll' || item.kind === 'food' || item.kind === 'wand') {
+                this.addMessage('You cannot wear that!', 1);
+                return;
+            }
             const meta = resolveEquipMeta(item);
             const slot = meta.slot_name === 'weapon' ? 'body' : meta.slot_name;
+            const curEquipped = p.inventory.find(it => (it.equipped === slot || (slot === 'body' && it.equipped === 'armor')) && it !== item);
+            if (curEquipped && curEquipped.buc === 'cursed') {
+                this.addMessage(`You cannot take off your cursed ${curEquipped.name}! It is welded to you.`, 4);
+                return;
+            }
             p.inventory.forEach(it => {
                 if (it.equipped === slot || (slot === 'body' && it.equipped === 'armor')) it.equipped = null;
             });
@@ -8874,7 +10067,11 @@ class NetHackEngine {
                 p.telepathy = true;
             }
             this.recalcPlayerAc();
-            this.addMessage(`You wear ${formatItemDesc(item)}.`, 11);
+            if (item.buc === 'cursed') {
+                this.addMessage(`You wear ${formatItemDesc(item)}. Oops — it is cursed and welds to you!`, 4);
+            } else {
+                this.addMessage(`You wear ${formatItemDesc(item)}.`, 11);
+            }
             this.advanceWorldTurn();
             return;
         }
@@ -8914,24 +10111,15 @@ class NetHackEngine {
             return;
         }
 
-        if (verb === 'e' || verb === 'E') {
+        if (verb === 'e') {
             if (item.kind !== 'food') {
                 this.addMessage('That is not something you can eat!', 1);
                 return;
             }
-            p.hunger = Math.min(2000, (p.hunger || 900) + (item.nutrition || 800));
-            const heal = item.buc === 'blessed' ? 8 : 4;
-            p.hp = Math.min(p.hpMax, p.hp + heal);
-            if (item.grantsTelepathy || /floating eye/i.test(item.name || '')) {
-                p.intrinsicTelepathy = true;
-                p.telepathy = true;
-                this.addMessage('You feel a strange mental acuity! You gain intrinsic telepathy!', 11);
-            } else {
-                this.addMessage(`You finish eating the ${item.buc} ${item.name}. Delicious! (+${heal} HP)`, 10);
-            }
+            this.consumeFoodItem(item);
             item.count = (item.count || 1) - 1;
             this.reindexInventory();
-            this.advanceWorldTurn();
+            if (!p.dead) this.advanceWorldTurn();
             return;
         }
 
@@ -8962,12 +10150,138 @@ class NetHackEngine {
                 return;
             }
             item.equipped = null;
-            this.state.objects.push(Object.assign({}, item, { x: p.x, y: p.y, count: 1 }));
+            const dropped = Object.assign({}, item, { x: p.x, y: p.y, count: 1 });
+            this.state.objects.push(dropped);
             item.count = (item.count || 1) - 1;
             this.reindexInventory();
             this.addMessage(`You drop ${item.name}.`, 1);
+            if (cell && cell.feat === FEAT.ALTAR) {
+                this.revealAltarBuc(cell, dropped);
+            }
             this.advanceWorldTurn();
             return;
+        }
+    }
+
+    consumeFoodItem(item) {
+        const p = this.state.player;
+        const txt = `${item.race || ''} ${item.name || ''}`.toLowerCase();
+        const isCorpse = Boolean(item.isCorpse || /corpse/.test(txt));
+        const age = isCorpse ? (this.state.turn - (item.corpseTurn != null ? item.corpseTurn : this.state.turn)) : 0;
+        const isRotten = Boolean(isCorpse && age >= 50);
+
+        if (this.isCockatriceCorpse(item)) {
+            if (!p.stoneRes) {
+                this.triggerPetrification(`eating a ${item.race || 'cockatrice'} corpse`);
+                return;
+            }
+            p.hunger = Math.min(2000, (p.hunger || 900) + (item.nutrition || 150));
+            this.addMessage('You finish eating the cockatrice corpse safely thanks to your stone resistance.', 10);
+            return;
+        }
+
+        if (isRotten || /\bkobold\b/.test(txt)) {
+            if (isRotten) {
+                p.poisoned = Math.max(p.poisoned || 0, 12);
+                const sickDmg = Math.min(Math.max(1, p.hp - 1), 3 + this.rand(4));
+                p.hp = Math.max(1, p.hp - sickDmg);
+                this.addMessage(`Ulch! That ${item.name} is rotten — you suffer food poisoning! (-${sickDmg} HP)`, 4);
+            } else if (!p.poisonRes) {
+                p.poisoned = Math.max(p.poisoned || 0, 10);
+                this.addMessage(`Ugh! The ${item.name} is poisonous!`, 4);
+            } else {
+                this.addMessage(`You finish eating the ${item.name}. Your poison resistance protects you.`, 10);
+            }
+            p.hunger = Math.min(2000, (p.hunger || 900) + Math.floor((item.nutrition || 150) / 2));
+            return;
+        }
+
+        p.hunger = Math.min(2000, (p.hunger || 900) + (item.nutrition || 800));
+        const heal = item.buc === 'blessed' ? 8 : 4;
+        p.hp = Math.min(p.hpMax, p.hp + heal);
+
+        if (item.grantsTelepathy || /floating eye/.test(txt)) {
+            p.intrinsicTelepathy = true;
+            p.telepathy = true;
+            this.addMessage(`You finish eating the ${item.name}. You gain intrinsic telepathy!`, 11);
+        } else if (/\bwraith\b/.test(txt)) {
+            const nextReq = this.getExpNextForLevel(p.level);
+            if (nextReq > 0) {
+                p.exp = Math.max(p.exp, nextReq);
+                this.checkExperience();
+            }
+            this.addMessage(`You finish eating the ${item.name} and absorb its spectral essence! (+1 Level)`, 14);
+        } else if (/\b(giant|ettin)\b/.test(txt)) {
+            p.str = Math.min(25, (p.str || 12) + 1);
+            this.addMessage(`You finish eating the ${item.name}. You feel much stronger! (+1 STR)`, 14);
+        } else if (/\b(fire ant|red dragon|fire elemental|salamander|hell hound|fire vortex)\b/.test(txt)) {
+            p.fireRes = true;
+            this.addMessage(`You finish eating the ${item.name}. You feel warm inside! (Fire Resistance)`, 11);
+        } else if (/\b(winter wolf|white dragon|frost giant|ice vortex|yeti)\b/.test(txt)) {
+            p.coldRes = true;
+            this.addMessage(`You finish eating the ${item.name}. You feel full of hot air! (Cold Resistance)`, 11);
+        } else if (/\b(grid bug|blue dragon|energy vortex|shocking sphere|blue jelly)\b/.test(txt)) {
+            p.elecRes = true;
+            this.addMessage(`You finish eating the ${item.name}. Your skin tingles with static! (Shock Resistance)`, 11);
+        } else if (/\b(killer bee|snake|scorpion|spider|pit viper|rabid rat|green dragon|violet fungus|spotted jelly|acid blob)\b/.test(txt)) {
+            p.poisonRes = true;
+            this.addMessage(`You finish eating the ${item.name}. You feel healthy and immune to venom! (Poison Resistance)`, 11);
+        } else if (/\bblack dragon\b/.test(txt)) {
+            p.disenRes = true;
+            this.addMessage(`You finish eating the ${item.name}. You feel extraordinarily solid! (Disintegration Resistance)`, 11);
+        } else {
+            this.addMessage(`You finish eating the ${item.buc || 'uncursed'} ${item.name}. Delicious! (+${heal} HP)`, 10);
+        }
+    }
+
+    engraveFloor(rawText) {
+        const p = this.state.player;
+        const cell = this.state.map && this.state.map[p.y] && this.state.map[p.y][p.x];
+        if (!cell) return;
+        const text = String(rawText || 'Elbereth').trim() || 'Elbereth';
+        if (p.blind > 0) {
+            this.addMessage('You feel around and scratch on the floor in the dark.', 11);
+        }
+        cell.engraving = text;
+        if (/elbereth/i.test(text)) {
+            cell.elbereth = true;
+            cell.elberethTurn = this.state.turn;
+            this.addMessage('You engrave "Elbereth" in the dust on the floor.', 14);
+        } else {
+            cell.elbereth = false;
+            this.addMessage(`You engrave "${text}" on the dungeon floor.`, 11);
+        }
+        this.advanceWorldTurn();
+    }
+
+    revealAltarBuc(cell, specificItem = null) {
+        const p = this.state.player;
+        if (!cell || cell.feat !== FEAT.ALTAR) return;
+        if (specificItem) {
+            specificItem.bucKnown = true;
+            const buc = specificItem.buc || 'uncursed';
+            const flash = buc === 'blessed' ? 'amber flash' : (buc === 'cursed' ? 'black flash' : 'clear silver flash');
+            const attr = buc === 'blessed' ? 14 : (buc === 'cursed' ? 4 : 11);
+            this.addMessage(`The altar responds with a ${flash}! ${specificItem.name} is ${buc}.`, attr);
+            return;
+        }
+        const floorItems = this.state.objects.filter(o => o.x === p.x && o.y === p.y);
+        const allItems = [...p.inventory, ...floorItems];
+        const blessed = [];
+        const cursed = [];
+        for (const it of allItems) {
+            it.bucKnown = true;
+            if (it.buc === 'blessed') blessed.push(it.name);
+            else if (it.buc === 'cursed') cursed.push(it.name);
+        }
+        if (cursed.length > 0 && blessed.length > 0) {
+            this.addMessage(`The altar of ${p.deity} pulses with amber & black flashes! Blessed: ${blessed.slice(0, 3).join(', ')} | Cursed: ${cursed.slice(0, 3).join(', ')}.`, 14);
+        } else if (cursed.length > 0) {
+            this.addMessage(`A black flash pulses across the altar of ${p.deity}! Cursed gear detected: ${cursed.slice(0, 4).join(', ')}.`, 4);
+        } else if (blessed.length > 0) {
+            this.addMessage(`An amber flash illuminates the altar of ${p.deity}! Blessed gear detected: ${blessed.slice(0, 4).join(', ')}.`, 14);
+        } else {
+            this.addMessage(`The high altar of ${p.deity} hums softly — your carried items appear uncursed.`, 11);
         }
     }
 
@@ -9094,6 +10408,11 @@ class NetHackEngine {
     executeExtendedCommand(cmd) {
         const p = this.state.player;
         const cell = this.state.map[p.y][p.x];
+        if (cmd.includes('equip')) {
+            this.state.menuMode = 'equip';
+            this.state.pendingPrompt = 'Equipment (Worn/Wielded — / for Inventory, ESC)';
+            return;
+        }
         if (cmd.includes('pray')) {
             const wasBlind = p.blind > 0;
             p.hp = p.hpMax;
@@ -9104,6 +10423,9 @@ class NetHackEngine {
                 p.inventory.forEach(it => { if (it.equipped) it.buc = 'blessed'; });
                 this.addMessage(`A golden aura surrounds you on the high altar! ${p.deity} blesses your panoply and restores your strength!`, 14);
             } else {
+                if ((p.luck || 0) >= 0) {
+                    p.inventory.forEach(it => { if (it.equipped && it.buc === 'cursed') it.buc = 'uncursed'; });
+                }
                 this.addMessage(`You feel that ${p.deity} is well-pleased. A warm golden glow surrounds you and restores your health!`, 14);
             }
             this.advanceWorldTurn();
@@ -9111,6 +10433,8 @@ class NetHackEngine {
         }
         if (cmd.includes('dip')) {
             const w = p.inventory.find(it => it.equipped === 'weapon') || p.inventory[0];
+            const holyWater = p.inventory.find(it => /holy water/i.test(it.name || '') && it.buc === 'blessed')
+                || p.inventory.find(it => /holy water/i.test(it.name || ''));
             if (cell.feat === FEAT.FOUNTAIN && w) {
                 if (w.name.includes('long sword') && p.level >= 1) {
                     w.name = 'Excalibur';
@@ -9123,19 +10447,133 @@ class NetHackEngine {
                     w.buc = 'blessed';
                     this.addMessage(`You dip your ${w.name} into the sparkling fountain. It glows with a soft amber light!`, 11);
                 }
+            } else if (holyWater) {
+                const cursedItem = p.inventory.find(it => it.equipped && it.buc === 'cursed')
+                    || p.inventory.find(it => it.buc === 'cursed');
+                if (cursedItem) {
+                    cursedItem.buc = 'uncursed';
+                    holyWater.count = (holyWater.count || 1) - 1;
+                    this.reindexInventory();
+                    this.addMessage(`You dip your ${cursedItem.name} into the ${holyWater.name}. The curse is lifted!`, 14);
+                } else if (w) {
+                    w.buc = 'blessed';
+                    holyWater.count = (holyWater.count || 1) - 1;
+                    this.reindexInventory();
+                    this.addMessage(`You dip your ${w.name} into the ${holyWater.name}. It glows with a blessed amber aura!`, 14);
+                } else {
+                    this.addMessage('You have nothing to dip into your holy water.', 1);
+                }
             } else {
-                this.addMessage('There is no fountain here to dip into.', 1);
+                this.addMessage('There is no fountain or holy water here to dip into.', 1);
             }
             this.advanceWorldTurn();
             return;
         }
         if (cmd.includes('offer')) {
-            if (cell.feat === FEAT.ALTAR) {
-                p.hpMax += 4;
-                p.hp = p.hpMax;
-                this.addMessage(`Your sacrifice is consumed in a burst of divine light! ${p.deity} grants you enduring vitality!`, 14);
-            } else {
+            if (cell.feat !== FEAT.ALTAR) {
                 this.addMessage('You are not standing upon an altar.', 1);
+                this.advanceWorldTurn();
+                return;
+            }
+            const floorCorpseIdx = this.state.objects.findIndex(o => o.x === p.x && o.y === p.y && (o.isCorpse || /corpse/i.test(o.name || '')));
+            const invCorpse = floorCorpseIdx < 0 ? p.inventory.find(it => it.isCorpse || /corpse/i.test(it.name || '')) : null;
+            const corpse = floorCorpseIdx >= 0 ? this.state.objects[floorCorpseIdx] : invCorpse;
+            if (corpse) {
+                const age = this.state.turn - (corpse.corpseTurn != null ? corpse.corpseTurn : this.state.turn);
+                if (floorCorpseIdx >= 0) {
+                    this.state.objects.splice(floorCorpseIdx, 1);
+                } else if (invCorpse) {
+                    invCorpse.count = (invCorpse.count || 1) - 1;
+                    this.reindexInventory();
+                }
+                if (age >= 50) {
+                    this.addMessage(`You offer the ${corpse.name} on the altar, but nothing happens — it is too old.`, 1);
+                } else {
+                    p.luck = Math.min(10, (p.luck || 0) + 1);
+                    p.hpMax += 2;
+                    p.hp = p.hpMax;
+                    p.pw = p.pwMax;
+                    if ((p.intrinsicAc || 0) < 5) {
+                        p.intrinsicAc = (p.intrinsicAc || 0) + 1;
+                        this.recalcPlayerAc();
+                    }
+                    p.inventory.forEach(it => { if (it.equipped && it.buc === 'cursed') it.buc = 'uncursed'; });
+                    this.addMessage(`You sacrifice the ${corpse.name} to ${p.deity}! A golden flame consumes it (+1 Luck, +1 Divine AC, +2 HP)!`, 14);
+                }
+            } else {
+                p.luck = Math.min(10, (p.luck || 0) + 1);
+                p.hpMax += 2;
+                p.hp = p.hpMax;
+                p.inventory.forEach(it => { if (it.equipped && it.buc === 'cursed') it.buc = 'uncursed'; });
+                this.addMessage(`You kneel at the altar of ${p.deity} and offer devotion. Divine warmth restores your vitality (+1 Luck)!`, 14);
+            }
+            this.advanceWorldTurn();
+            return;
+        }
+        if (cmd.includes('sit')) {
+            if (cell.feat === FEAT.ALTAR) {
+                p.luck = Math.max(-5, (p.luck || 0) - 1);
+                this.addMessage(`You sit on the high altar! ${p.deity} is displeased at your irreverence.`, 4);
+            } else if (cell.feat === FEAT.FOUNTAIN) {
+                this.addMessage('You sit down in the sparkling fountain and get thoroughly soaked!', 11);
+            } else {
+                p.pw = Math.min(p.pwMax, p.pw + 1);
+                this.addMessage('You sit on the cold dungeon floor and catch your breath (+1 Pw).', 1);
+            }
+            this.advanceWorldTurn();
+            return;
+        }
+        if (cmd.includes('rub')) {
+            const lamp = p.inventory.find(it => /magic lamp/i.test(it.name || '') && !it.rubbed);
+            if (lamp) {
+                lamp.rubbed = true;
+                lamp.name = 'oil lamp (expended)';
+                p.luck = Math.min(10, (p.luck || 0) + 2);
+                p.hp = p.hpMax;
+                p.pw = p.pwMax;
+                p.inventory.forEach(it => { if (it.buc === 'cursed') it.buc = 'uncursed'; });
+                const w = p.inventory.find(it => it.equipped === 'weapon');
+                const a = p.inventory.find(it => it.equipped === 'body' || it.equipped === 'armor' || it.equipped === 'cloak');
+                if (w) { w.buc = 'blessed'; w.bonus = (w.bonus || 0) + 1; }
+                if (a) { a.buc = 'blessed'; a.bonus = (a.bonus || 0) + 1; }
+                this.recalcPlayerAc();
+                this.addMessage('You rub the magic lamp! A grateful djinni appears and blesses your panoply (+2 Luck, +1 Gear)!', 14);
+            } else {
+                const brass = p.inventory.find(it => /lamp|lantern/i.test(it.name || ''));
+                const ring = p.inventory.find(it => it.kind === 'jewelry');
+                if (brass) {
+                    this.addMessage(`You polish your ${brass.name}, but only a warm glow answers.`, 1);
+                } else if (ring) {
+                    this.addMessage(`You rub the ${ring.name}, testing its luster.`, 1);
+                } else {
+                    this.addMessage('You have nothing suitable to rub.', 1);
+                }
+            }
+            this.advanceWorldTurn();
+            return;
+        }
+        if (cmd.includes('ride')) {
+            if (p.riding) {
+                const mountName = p.ridingMount || 'steed';
+                p.riding = false;
+                p.ridingMount = '';
+                this.addMessage(`You dismount from your ${mountName}.`, 11);
+            } else {
+                const adjSteed = this.state.monsters.find(m =>
+                    (m.isPet || m.peaceful) &&
+                    Math.abs(m.x - p.x) <= 1 && Math.abs(m.y - p.y) <= 1 &&
+                    /\b(pony|horse|warhorse|steed|unicorn|ki-rin|dragon)\b/i.test(m.race || '')
+                );
+                if (adjSteed) {
+                    p.riding = true;
+                    p.ridingMount = adjSteed.race;
+                    p.speedBoost = Math.max(p.speedBoost || 0, 25);
+                    this.addMessage(`You deftly mount the ${adjSteed.race}! (+Fast riding speed)`, 14);
+                } else if (this.state.monsters.some(m => m.isPet && Math.abs(m.x - p.x) <= 1 && Math.abs(m.y - p.y) <= 1)) {
+                    this.addMessage('Your faithful companion is too small to serve as a mount! Tame a pony, horse, or unicorn.', 11);
+                } else {
+                    this.addMessage('There is no tame steed nearby to ride.', 1);
+                }
             }
             this.advanceWorldTurn();
             return;
@@ -9230,12 +10668,20 @@ class NetHackEngine {
             return;
         }
         const obj = this.state.objects.splice(idx, 1)[0];
+        if (this.isCockatriceCorpse(obj)) {
+            if (!this.hasGlovesEquipped() && !p.stoneRes) {
+                this.state.objects.push(obj);
+                this.triggerPetrification(`touching a ${obj.race || 'cockatrice'} corpse barehanded`);
+                return;
+            }
+            this.addMessage('Your gloves protect your hands from the cockatrice corpse.', 11);
+        }
         if (p.inventory.length >= 52) {
             this.state.objects.push(obj);
             this.addMessage('Your pack cannot hold any more items (52/52)!', 4);
             return;
         }
-        const existing = (obj.kind === 'potion' || obj.kind === 'scroll' || obj.kind === 'food')
+        const existing = (!obj.isCorpse && (obj.kind === 'potion' || obj.kind === 'scroll' || obj.kind === 'food'))
             ? p.inventory.find(it => it.name === obj.name && it.buc === obj.buc)
             : null;
         if (existing) {
@@ -9302,11 +10748,16 @@ class NetHackEngine {
 
         const floorObj = this.state.objects.find(o => o.x === nx && o.y === ny);
         if (floorObj) {
-            this.addMessage(`You see here ${formatItemDesc(floorObj)}. (Press [,] or [g] to pick up)`, 11);
+            if (this.isCockatriceCorpse(floorObj) && !this.hasGlovesEquipped()) {
+                this.addMessage(`Beware! There is ${formatItemDesc(floorObj)} here — NEVER touch it barehanded without gloves!`, 4);
+            } else {
+                this.addMessage(`You see here ${formatItemDesc(floorObj)}. (Press [,] or [g] to pick up)`, 11);
+            }
         } else if (cell.feat === FEAT.FOUNTAIN) {
             this.addMessage('There is a sparkling magic fountain here ({). Use #dip or [q] to interact.', 11);
         } else if (cell.feat === FEAT.ALTAR) {
             this.addMessage(`There is a high altar of ${p.deity} here (_). Use #pray or #offer.`, 14);
+            this.revealAltarBuc(cell);
         } else if (cell.feat === FEAT.DOWN_STAIR) {
             this.addMessage('There is a staircase leading down here (>).', 1);
         } else if (cell.feat === FEAT.UP_STAIR) {
@@ -9319,21 +10770,43 @@ class NetHackEngine {
     attackMonster(mon) {
         const p = this.state.player;
         const w = p.inventory.find(it => it.equipped === 'weapon');
-        let baseDmg = 4;
-        if (w) {
-            const dm = String(w.dmg || '1d6').match(/(\d+)d(\d+)/i);
-            const diceAvg = dm ? (parseInt(dm[1], 10) * (parseInt(dm[2], 10) + 1)) / 2 : 6;
-            baseDmg = Math.round(diceAvg) + (w.name === 'Excalibur' ? 8 : 3) + (w.bonus || 0);
+        const rLower = String(mon.race || '').toLowerCase();
+        if (!w && /(cockatrice|chickatrice)/.test(rLower) && !this.hasGlovesEquipped() && !p.stoneRes) {
+            this.triggerPetrification(`striking a ${mon.race} barehanded`);
+            return;
         }
-        const dmg = Math.max(2, baseDmg + this.rand(6));
+
+        // Authentic NetHack uhitm.c descending-AC d20 hit roll
+        const d20 = 1 + this.rand(20);
+        const dexVal = p.dex != null ? Number(p.dex) : 12;
+        const dexBonus = dexVal >= 18 ? 3 : (dexVal >= 16 ? 2 : (dexVal >= 14 ? 1 : (dexVal <= 5 ? -2 : (dexVal <= 7 ? -1 : 0))));
+        const toHitBonus = (w ? (Number(w.bonus) || 0) : 0) + ((this.state.weaponSkillLevel || 1) - 1);
+        const luck = Number(p.luck || 0);
+        const playerRoll = d20 + (p.level || 1) + luck + dexBonus + toHitBonus;
+        const monAc = mon.ac != null ? Number(mon.ac) : 8;
+        const targetDefense = 20 - monAc; // Lower mon.ac => higher defense (harder to hit)
+        const isHit = (d20 === 20) || (d20 !== 1 && playerRoll >= targetDefense);
+
         mon.asleep = false;
+        if (!isHit) {
+            this.addMessage(`You miss the ${mon.race}.`, 7);
+            return;
+        }
+
+        const strVal = p.str != null ? Number(p.str) : 12;
+        const strBonus = strVal >= 18 ? 3 : (strVal >= 16 ? 2 : (strVal >= 14 ? 1 : (strVal <= 6 ? -1 : 0)));
+        const rolled = w ? this.rollDice(w.dmg || '1d6') : this.rollDice('1d4');
+        const skillDmg = Math.max(0, (this.state.weaponSkillLevel || 1) - 1);
+        const excalBonus = (w && w.name === 'Excalibur') ? 5 : 0;
+        const critMult = (d20 === 20) ? 2 : 1;
+        const dmg = Math.max(1, rolled * critMult + strBonus + (w ? (Number(w.bonus) || 0) : 0) + excalBonus + skillDmg);
+
         mon.hp -= dmg;
-        this.addMessage(`You hit the ${mon.race} with your ${w ? w.name : 'fists'}! (${dmg} dmg)`, 10);
+        this.addMessage(`${d20 === 20 ? 'Critical strike! ' : ''}You hit the ${mon.race} with your ${w ? w.name : 'fists'}! (${dmg} dmg)`, 10);
         if (mon.hp <= 0) {
             this.handleMonsterDefeat(mon);
             return;
         }
-        const rLower = String(mon.race || '').toLowerCase();
         if (rLower.includes('floating eye') && !p.blind) {
             p.paralyzed = 2;
             this.addMessage("You are frozen by the floating eye's gaze!", 11);
@@ -9354,22 +10827,31 @@ class NetHackEngine {
         const goldDrop = 5 + this.rand(20);
         p.gold += goldDrop;
         this.addMessage(`You destroy the ${mon.race}! (+${xpGain} XP, +${goldDrop}$)`, 14);
-        if (/floating eye/i.test(mon.race || '')) {
+        const raceLower = String(mon.race || '').toLowerCase();
+        if (!mon.isBoss && !/yellow light/.test(raceLower)) {
+            const isCock = /(cockatrice|chickatrice)/.test(raceLower);
+            const isEye = /floating eye/.test(raceLower);
             this.state.objects.push({
                 kind: 'food',
-                name: 'floating eye corpse',
+                isCorpse: true,
+                race: mon.race,
+                name: `${mon.race} corpse`,
                 glyph: '%',
-                attr: 11,
+                attr: mon.attr || (isEye ? 11 : 3),
                 buc: 'uncursed',
-                weight: 10,
+                weight: 20,
                 tval: 80,
                 sval: 2,
-                nutrition: 100,
-                grantsTelepathy: true,
+                nutrition: isEye ? 100 : 200,
+                corpseTurn: this.state.turn,
+                grantsTelepathy: isEye,
                 x: mon.x,
                 y: mon.y,
                 count: 1
             });
+            if (isCock && !this.hasGlovesEquipped()) {
+                this.addMessage(`Beware! The ${mon.race} leaves a corpse — NEVER touch it barehanded without gloves!`, 4);
+            }
         }
         if (mon.isBoss) {
             p.hasAmulet = true;
@@ -9405,10 +10887,52 @@ class NetHackEngine {
                 this.addMessage('You feel less confused now.', 11);
             }
         }
-        if (p.poisoned > 0) p.poisoned--;
-        if (this.state.turn % 8 === 0 && p.hp < p.hpMax) p.hp++;
+        if (p.poisoned > 0) {
+            p.poisoned--;
+            if (!p.poisonRes && this.state.turn % 2 === 0 && p.hp > 1) p.hp--;
+        }
+
+        // NetHack hunger clock (slower with Ring of Slow Digestion, faster with Ring of Regeneration / extra rings)
+        const hasSlowDigestion = p.inventory.some(it => it.equipped && /slow digestion/i.test(it.name || ''));
+        const hasRegen = p.inventory.some(it => it.equipped && /regeneration/i.test(it.name || ''));
+        const equippedRings = p.inventory.filter(it => it.equipped && (it.equipped === 'ring' || resolveEquipMeta(it).slot_name === 'ring')).length;
+        let hungerCost = hasSlowDigestion ? (this.state.turn % 20 === 0 ? 1 : 0) : 1;
+        if (hasRegen) hungerCost += 1;
+        if (!hasSlowDigestion && equippedRings > (hasRegen ? 1 : 0) && (this.state.turn % 2 === 0)) {
+            hungerCost += 1;
+        }
+        const prevHungerState = this.getHungerState(p.hunger);
+        p.hunger = Math.max(-100, (p.hunger != null ? p.hunger : 900) - hungerCost);
+        const newHungerState = this.getHungerState(p.hunger);
+        if (newHungerState !== prevHungerState) {
+            if (newHungerState === 'Hungry') this.addMessage('You are beginning to feel hungry.', 6);
+            else if (newHungerState === 'Weak') this.addMessage('You are beginning to feel weak.', 6);
+            else if (newHungerState === 'Fainting') this.addMessage('You faint from lack of food!', 4);
+        }
+        if (p.hunger <= 0) {
+            if (this.state.turn % 3 === 0) p.hp = Math.max(0, p.hp - 1);
+            if (p.hunger <= -100 || p.hp <= 0) {
+                const lifeSave = p.inventory.find(it => /life saving/i.test(it.name || ''));
+                if (lifeSave) {
+                    lifeSave.count = 0;
+                    this.reindexInventory();
+                    p.hp = p.hpMax;
+                    p.hunger = 900;
+                    this.addMessage('Your amulet of life saving glows incandescently and disintegrates! You survive starvation!', 14);
+                } else {
+                    p.hp = 0;
+                    p.dead = true;
+                    p.diedFrom = 'starvation';
+                    this.addMessage(`You starve to death on Dlvl ${this.state.depth}... Press [R] or [Enter] to start anew.`, 4);
+                    return;
+                }
+            }
+        }
+
+        if (this.state.turn % 8 === 0 && p.hp < p.hpMax && p.hunger > 0) p.hp++;
 
         const isWalkableFeat = (f) => f === FEAT.FLOOR || f === FEAT.OPEN_DOOR || f === FEAT.UP_STAIR || f === FEAT.DOWN_STAIR || f === FEAT.ALTAR || f === FEAT.FOUNTAIN;
+        const playerCell = this.state.map[p.y] && this.state.map[p.y][p.x];
 
         // Move monsters & faithful pet
         for (const mon of [...this.state.monsters]) {
@@ -9487,17 +11011,40 @@ class NetHackEngine {
                     }
                     continue;
                 }
-                const wornArmor = p.inventory.find(it => it.equipped === 'armor');
-                if ((rLower.includes('rust monster') || rLower.includes('acid blob')) && wornArmor && !/leather|robe|cloak|dragon/i.test(wornArmor.name || '')) {
-                    wornArmor.bonus = Math.max(-3, (wornArmor.bonus || 0) - 1);
-                    this.recalcPlayerAc();
-                    this.addMessage(`The ${mon.race}'s touch corrodes your ${wornArmor.name}!`, 12);
+                // Elbereth deterrence: stops non-blind, non-human, non-minotaur monsters from meleeing you!
+                const isBlindMon = Boolean(mon.blind > 0 || /eyeless|gremlin/.test(rLower));
+                const isHumanMon = Boolean(mon.glyph === '@' || /\b(human|watchman|shopkeeper|priest|soldier|captain|guard|mercenary|knight|wizard of yendor)\b/.test(rLower));
+                const isMinotaurMon = /minotaur/.test(rLower);
+                if (playerCell && playerCell.elbereth && !isBlindMon && !isHumanMon && !isMinotaurMon) {
+                    this.addMessage(`The ${mon.race} recoils from the Elbereth engraving!`, 11);
+                    continue;
                 }
-                const dmg = Math.max(1, (mon.dmg || 4) - Math.max(0, Math.floor((10 - p.ac) / 2)));
+                // Authentic NetHack mhitu.c descending-AC d20 monster hit roll
+                const d20 = 1 + this.rand(20);
+                const monLv = Math.max(1, Number(mon.race_level || 1));
+                const playerAc = p.ac != null ? Number(p.ac) : 10;
+                const targetDef = 20 - playerAc; // Lower playerAc => harder for monster to hit
+                const monHits = (d20 === 20) || (d20 !== 1 && (d20 + monLv) >= targetDef);
+                if (!monHits) {
+                    this.addMessage(`The ${mon.race} misses you.`, 1);
+                    continue;
+                }
+                const wornMetalArmor = p.inventory.find(it =>
+                    ['body', 'armor', 'shield', 'head', 'hands', 'feet'].includes(it.equipped) &&
+                    !/leather|robe|cloak|dragon/i.test(it.name || '')
+                );
+                if ((rLower.includes('rust monster') || rLower.includes('acid blob')) && wornMetalArmor) {
+                    wornMetalArmor.bonus = Math.max(-3, (wornMetalArmor.bonus || 0) - 1);
+                    this.recalcPlayerAc();
+                    this.addMessage(`The ${mon.race}'s touch corrodes your ${wornMetalArmor.name}!`, 12);
+                }
+                const baseHit = Math.max(1, Math.floor((mon.dmg || 4) * 0.6) + this.rand(Math.max(2, Math.floor((mon.dmg || 4) * 0.6) + 1)));
+                const negAcDr = playerAc < 0 ? 1 + this.rand(-playerAc) : 0;
+                const dmg = Math.max(1, baseHit - Math.max(0, Math.floor((10 - playerAc) / 4)) - negAcDr);
                 p.hp -= dmg;
                 this.addMessage(`The ${mon.race} hits you! (-${dmg} HP)`, 4);
                 if (p.hp <= 0) {
-                    const lifeSave = p.inventory.find(it => it.name.includes('life saving'));
+                    const lifeSave = p.inventory.find(it => /life saving/i.test(it.name || ''));
                     if (lifeSave) {
                         p.hp = p.hpMax;
                         lifeSave.count = 0;
@@ -9637,7 +11184,7 @@ class NetHackEngine {
                 }
             }
             while (rows.length < TERM_H - 1) rows.push({ g: pad80(''), a: attr80('01') });
-            rows.push({ g: pad80(`[#pray] [#dip] [#offer] [#loot] [#untrap] [#chat] | Dlvl:${this.state.depth} HP:${p.hp}(${p.hpMax}) AC:${p.ac}`), a: attr80('0b') });
+            rows.push({ g: pad80(`[#pray] [#dip] [#offer] [#sit] [#rub] [#ride] | Dlvl:${this.state.depth} HP:${p.hp}(${p.hpMax}) AC:${p.ac}`), a: attr80('0b') });
             return rows;
         }
 
@@ -9672,11 +11219,12 @@ class NetHackEngine {
             rows.push({ g: pad80('=============================================================================='), a: attr80('02') });
             if (this.state.menuMode === 'char') {
                 const xpNextStr = p.expNext > 0 ? `${p.exp}/${p.expNext}` : `${p.exp} (MAX)`;
+                const hState = this.getHungerState(p.hunger);
                 rows.push({ g: pad80(`  Name:  ${p.name.padEnd(20, ' ')} Role:  ${p.class} (${p.race}, ${p.align})`), a: attr80('01') });
                 rows.push({ g: pad80(`  Level: ${String(p.level).padEnd(20, ' ')} XP:    ${xpNextStr}`), a: attr80('01') });
                 rows.push({ g: pad80(`  Deity: ${p.deity.padEnd(20, ' ')} Dlvl:  ${this.state.depth} (${this.state.branchName})`), a: attr80('01') });
-                rows.push({ g: pad80(`  STR: ${p.str}  INT: ${p.int}  WIS: ${p.wis}  DEX: ${p.dex}  CON: ${p.con}  AC: ${p.ac}`), a: attr80('0b') });
-                rows.push({ g: pad80(`  HP: ${p.hp}/${p.hpMax}   Pw: ${p.pw}/${p.pwMax}   Gold: ${p.gold}zm   Turns: ${this.state.turn}`), a: attr80('0a') });
+                rows.push({ g: pad80(`  STR:${p.str} INT:${p.int} WIS:${p.wis} DEX:${p.dex} CON:${p.con} CHA:${p.cha != null ? p.cha : 12}  AC:${p.ac}`), a: attr80('0b') });
+                rows.push({ g: pad80(`  HP:${p.hp}/${p.hpMax} Pw:${p.pw}/${p.pwMax} Gold:${p.gold}zm Hunger:${hState} Luck:${p.luck || 0} T:${this.state.turn}`), a: attr80('0a') });
             } else if (this.state.menuMode === 'knowledge') {
                 rows.push({ g: pad80(`  Discovered Knowledge (${p.inventory.length} items carried in ${this.state.branchName}):`), a: attr80('0b') });
                 p.inventory.slice(0, 15).forEach((it) => {
@@ -9684,16 +11232,16 @@ class NetHackEngine {
                 });
             } else {
                 rows.push({ g: pad80('  === NETHACK 3.6.7 — IN-GAME COMMAND & SURVIVAL REFERENCE ==='), a: attr80('0b') });
-                rows.push({ g: pad80('  [i] Inventory  [e] Equipment  [,] Pick Up   [e/E] Eat   [q] Quaff   [r] Read'), a: attr80('01') });
+                rows.push({ g: pad80('  [i] Inventory  [[] Equipment  [,] Pick Up   [e] Eat   [E] Engrave  [q] Quaff'), a: attr80('01') });
                 rows.push({ g: pad80('  [w] Wield      [W] Wear       [T] Take Off  [P] Put On  [R] Remove  [z] Zap'), a: attr80('01') });
                 rows.push({ g: pad80('  [Z] Cast Spell [a] Apply Tool [t/f] Throw   [o/c] Door  [s] Search  [.] Wait'), a: attr80('01') });
                 rows.push({ g: pad80('  --- EXTENDED (#) COMMANDS ---'), a: attr80('0e') });
                 rows.push({ g: pad80('  [#pray] Pray to Deity      [#offer] Sacrifice Corpse on Altar'), a: attr80('01') });
-                rows.push({ g: pad80('  [#dip]  Dip in Potion/Ftn  [#chat]  Talk to Priest/Shopkeeper/Oracle'), a: attr80('01') });
-                rows.push({ g: pad80('  [#loot] Loot Chest/Box     [#untrap] Disarm Trap   [#force] Force Lock'), a: attr80('01') });
+                rows.push({ g: pad80('  [#dip]  Dip in Potion/Ftn  [#sit]   Sit     [#rub] Rub Lamp  [#ride] Mount'), a: attr80('01') });
+                rows.push({ g: pad80('  [#loot] Loot Chest/Box     [#untrap] Disarm  [#enhance] Skill [#equip] Gear'), a: attr80('01') });
                 rows.push({ g: pad80('  --- ESSENTIAL SURVIVAL RULES ---'), a: attr80('0a') });
-                rows.push({ g: pad80('  • BUC Testing: Drop unknown items on Altars (_) or let your Pet test for curses!'), a: attr80('01') });
-                rows.push({ g: pad80('  • Corpses: Eat Floating Eye for Telepathy; NEVER touch Cockatrices barehanded!'), a: attr80('01') });
+                rows.push({ g: pad80('  • BUC Testing: Step on or drop items onto Altars (_) to reveal BUC flashes!'), a: attr80('01') });
+                rows.push({ g: pad80('  • Corpses: Eat fresh corpses for intrinsics; NEVER touch Cockatrices barehanded!'), a: attr80('01') });
                 rows.push({ g: pad80('  • Click [? HELP] on the HUD for the full NetHack 3.6.7 Guidebook & Spoilers.'), a: attr80('0b') });
             }
             while (rows.length < TERM_H) rows.push({ g: pad80(''), a: attr80('01') });
@@ -9701,7 +11249,7 @@ class NetHackEngine {
         }
 
         // Standard dungeon viewport + NetHack bottom status lines
-        const lastMsg = (this.state.menuMode === 'direction' || this.state.menuMode === 'extended')
+        const lastMsg = (this.state.menuMode === 'direction' || this.state.menuMode === 'extended' || this.state.menuMode === 'engrave')
             ? this.state.pendingPrompt
             : ((this.state.messages[this.state.messages.length - 1] && this.state.messages[this.state.messages.length - 1].text) || '');
         rows.push({ g: pad80(lastMsg), a: attr80('01') });
@@ -9716,6 +11264,7 @@ class NetHackEngine {
                 `WIS: ${String(p.wis).padStart(6, ' ')}`,
                 `DEX: ${String(p.dex).padStart(6, ' ')}`,
                 `CON: ${String(p.con).padStart(6, ' ')}`,
+                `CHA: ${String(p.cha != null ? p.cha : 12).padStart(6, ' ')}`,
                 `AC:  ${String(p.ac).padStart(6, ' ')}`,
                 `HP: ${String(p.hp + '/' + p.hpMax).padStart(7, ' ')}`,
                 `Pw: ${String(p.pw + '/' + p.pwMax).padStart(7, ' ')}`,
@@ -9735,8 +11284,9 @@ class NetHackEngine {
             rows.push({ g: pad80(side.padEnd(13, ' ') + mapChars), a: attr80('01') });
         }
 
-        rows.push({ g: pad80(`${p.name} the ${p.class}  St:${p.str} Dx:${p.dex} Co:${p.con} In:${p.int} Wi:${p.wis}  ${p.align}`), a: attr80('0e') });
-        rows.push({ g: pad80(`Dlvl:${this.state.depth} $:${p.gold} HP:${p.hp}(${p.hpMax}) Pw:${p.pw}(${p.pwMax}) AC:${p.ac} Xp:${p.level}/${p.exp} T:${this.state.turn}`), a: attr80('0b') });
+        const hungerSuffix = this.getHungerState(p.hunger) !== 'Normal' ? ` ${this.getHungerState(p.hunger)}` : '';
+        rows.push({ g: pad80(`${p.name} the ${p.class}  St:${p.str} Dx:${p.dex} Co:${p.con} In:${p.int} Wi:${p.wis} Ch:${p.cha != null ? p.cha : 12}  ${p.align}`), a: attr80('0e') });
+        rows.push({ g: pad80(`Dlvl:${this.state.depth} $:${p.gold} HP:${p.hp}(${p.hpMax}) Pw:${p.pw}(${p.pwMax}) AC:${p.ac} Xp:${p.level}/${p.exp} T:${this.state.turn}${hungerSuffix}`), a: attr80('0b') });
         return rows;
     }
 
@@ -9816,14 +11366,22 @@ class NetHackEngine {
 
         const isOverlay = this.state.phase === 'setup' || this.state.menuMode !== 'none';
         const promptObj = this.state.menuMode !== 'none'
-            ? { kind: this.state.menuMode === 'direction' ? 'direction' : 'item', text: this.state.pendingPrompt || 'Inventory' }
+            ? { kind: this.state.menuMode === 'direction' ? 'direction' : (this.state.menuMode === 'engrave' ? 'string' : 'item'), text: this.state.pendingPrompt || 'Inventory' }
             : null;
 
+        const hungerState = this.getHungerState(p.hunger);
+        const curCell = this.state.map && this.state.map[p.y] && this.state.map[p.y][p.x];
         const statuses = [];
         if (p.blind > 0) statuses.push({ name: 'Blind', attr: 6, val: p.blind });
         if (p.confused > 0) statuses.push({ name: 'Confused', attr: 6, val: p.confused });
         if (p.poisoned > 0) statuses.push({ name: 'Poisoned', attr: 4, val: p.poisoned });
         if (p.speedBoost > 0) statuses.push({ name: 'Fast', attr: 10, val: p.speedBoost });
+        if (hungerState !== 'Normal') {
+            const hAttr = hungerState === 'Fainting' ? 4 : (hungerState === 'Satiated' ? 10 : 6);
+            statuses.push({ name: hungerState, attr: hAttr, val: p.hunger });
+        }
+        if (curCell && curCell.elbereth) statuses.push({ name: 'Elbereth', attr: 14, val: 1 });
+        if (p.riding) statuses.push({ name: 'Riding', attr: 11, val: 1 });
         if (p.hasAmulet) statuses.push({ name: 'Amulet', attr: 14, val: 1 });
 
         let curWeaponItem = p.weaponName || '';
@@ -9890,15 +11448,21 @@ class NetHackEngine {
         }));
 
         const resists = {
-            acid: 0, elec: 0, fire: 0, cold: 0, pois: p.poisonRes ? 1 : 0,
-            light: 0, dark: 0, sound: 0, shards: 0, nexus: 0, nether: 0, chaos: 0, disen: 0
+            acid: 0,
+            elec: p.elecRes ? 1 : 0,
+            fire: p.fireRes ? 1 : 0,
+            cold: p.coldRes ? 1 : 0,
+            pois: p.poisonRes ? 1 : 0,
+            light: 0, dark: 0, sound: 0, shards: 0, nexus: 0, nether: 0, chaos: 0,
+            disen: p.disenRes ? 1 : 0
         };
         const flags = {
             rFear: false, rBlind: Boolean(p.rBlind), rConf: false, rStun: false,
             freeAct: false, holdLife: false, seeInvis: false,
             esp: Boolean(hasTelepathy), telepathy: Boolean(hasTelepathy || (isBlind && (p.telepathy || p.esp || p.intrinsicTelepathy))),
             regen: p.inventory.some(it => it.equipped && /regeneration/i.test(it.name || '')),
-            feather: false, slowDigest: false
+            feather: false,
+            slowDigest: p.inventory.some(it => it.equipped && /slow digestion/i.test(it.name || ''))
         };
         if (isBlind && (p.telepathy || p.esp || p.intrinsicTelepathy || hasTelepathy)) {
             flags.telepathy = true;
@@ -9972,6 +11536,10 @@ class NetHackEngine {
                 name: p.name,
                 race: p.race,
                 class: p.class,
+                align: p.align || 'Neutral',
+                hunger: p.hunger != null ? p.hunger : 900,
+                hunger_state: hungerState,
+                luck: p.luck || 0,
                 stakes_mode: p.stakesMode || 'ironman',
                 resurrection_count: p.resurrectionCount || 0,
                 history: `Chosen by ${p.deity} (${p.align}) to descend the ${this.state.branchName} and retrieve the Amulet of Yendor.`,
@@ -10012,7 +11580,8 @@ class NetHackEngine {
                     int: { use: p.int, max: p.int, top: p.int, reduced: false },
                     wis: { use: p.wis, max: p.wis, top: p.wis, reduced: false },
                     dex: { use: p.dex, max: p.dex, top: p.dex, reduced: false },
-                    con: { use: p.con, max: p.con, top: p.con, reduced: false }
+                    con: { use: p.con, max: p.con, top: p.con, reduced: false },
+                    cha: { use: p.cha != null ? p.cha : 12, max: p.cha != null ? p.cha : 12, top: p.cha != null ? p.cha : 12, reduced: false }
                 },
                 resists,
                 flags,
@@ -10294,8 +11863,10 @@ const DCSS_SPEC = {
         },
         {
             key: 'e', id: 'Transmuter', race: 'Octopode', deity: 'Ashenzari', piety: 3, align: 'Neutral', hp: 17, pw: 12, ac: 4, str: 14, int: 16, wis: 14, dex: 18, con: 15,
+            ringSlots: 8, allowBodyArmor: false,
             weapon: { name: 'trident of freezing', dmg: '1d11', bonus: 2, weight: 35, tval: 22, sval: 5 },
-            armor: { name: 'ring of protection +4', ac: 4, bonus: 4, weight: 5, tval: 45, sval: 2 },
+            armor: null,
+            ring: { kind: 'ring', name: 'ring of protection', glyph: '=', attr: 14, acBonus: 4, bonus: 4, equipped: 'ring_1', count: 1, weight: 5, tval: 45, sval: 2 },
             extra: { kind: 'scroll', name: 'scroll of enchant weapon', glyph: '?', enchantGain: 1, count: 2, weight: 5, tval: 70, sval: 15 },
             innatePower: { name: 'Octopode Constriction Crush', cost: 2, dmg: 19, desc: 'Eight-tentacle constriction crush.' },
             disciplinePowers: [
@@ -10307,20 +11878,20 @@ const DCSS_SPEC = {
         }
     ],
     monsters: [
-        { name: 'goblin', glyph: 'g', attr: 3, minDepth: 1, hp: 6, ac: 9, dmg: 3, exp: 5, lore: 'Small, cruel dungeon scavenger.' },
-        { name: 'kobold', glyph: 'K', attr: 3, minDepth: 1, hp: 8, ac: 8, dmg: 4, exp: 7, lore: 'Cunning subterranean tunnel-dweller armed with a short blade.' },
-        { name: 'adder', glyph: 'S', attr: 10, minDepth: 1, hp: 10, ac: 7, dmg: 5, exp: 11, lore: 'Fast, venomous serpent of the early Dungeon.' },
-        { name: 'Sigmund', glyph: '@', attr: 14, minDepth: 2, hp: 24, ac: 6, dmg: 10, exp: 45, lore: 'Notorious early-dungeon Unique armed with a deadly scythe and confusion magic.' },
-        { name: 'orc priest', glyph: 'o', attr: 10, minDepth: 3, hp: 18, ac: 6, dmg: 8, exp: 25, lore: 'Zealous servant of Beogh who smites heretics from afar.' },
-        { name: 'gnoll sergeant', glyph: 'g', attr: 14, minDepth: 3, hp: 26, ac: 5, dmg: 10, exp: 32, lore: 'Veteran pack-leader wielding a halberd and buckler.' },
-        { name: 'ogre', glyph: 'O', attr: 3, minDepth: 4, hp: 36, ac: 6, dmg: 14, exp: 40, lore: 'Towering brute swinging a giant spiked club.' },
-        { name: 'spiny frog', glyph: 'F', attr: 10, minDepth: 5, hp: 42, ac: 4, dmg: 15, exp: 58, lore: 'Venomous predator native to the Lair of Beasts.' },
-        { name: 'five-headed hydra', glyph: 'H', attr: 10, minDepth: 6, hp: 58, ac: 3, dmg: 18, exp: 95, lore: 'Regenerating Lair monstrosity whose heads multiply when severed by edged blades.' },
-        { name: 'orc warlord', glyph: 'o', attr: 4, minDepth: 8, hp: 72, ac: 1, dmg: 21, exp: 150, lore: 'Supreme commander of the Orcish Mines clad in heavy plate.' },
-        { name: 'vault guard', glyph: '@', attr: 11, minDepth: 10, hp: 80, ac: 0, dmg: 22, exp: 180, lore: 'Disciplined sentinel patrolling the sealed Vaults.' },
-        { name: 'ancient lich', glyph: 'L', attr: 13, minDepth: 12, hp: 98, ac: -3, dmg: 28, exp: 320, lore: 'Undead archmage commanding crystal spears and necromantic torment.' },
-        { name: 'orb guardian', glyph: 'X', attr: 13, minDepth: 13, hp: 115, ac: -4, dmg: 30, exp: 420, lore: 'Metallic multi-limbed sentinel forged to defend the Realm of Zot.' },
-        { name: 'orb of fire', glyph: '*', attr: 4, minDepth: 14, hp: 140, ac: -6, dmg: 36, exp: 650, lore: 'Blazing sphere of primordial destruction haunting Zot:5.' }
+        { name: 'goblin', glyph: 'g', attr: 3, minDepth: 1, hp: 6, ac: 1, ev: 12, dmg: 3, exp: 5, lore: 'Small, cruel dungeon scavenger.' },
+        { name: 'kobold', glyph: 'K', attr: 3, minDepth: 1, hp: 8, ac: 1, ev: 12, dmg: 4, exp: 7, lore: 'Cunning subterranean tunnel-dweller armed with a short blade.' },
+        { name: 'adder', glyph: 'S', attr: 10, minDepth: 1, hp: 10, ac: 2, ev: 15, dmg: 5, exp: 11, lore: 'Fast, venomous serpent of the early Dungeon.' },
+        { name: 'Sigmund', glyph: '@', attr: 14, minDepth: 2, hp: 24, ac: 2, ev: 12, dmg: 10, exp: 45, lore: 'Notorious early-dungeon Unique armed with a deadly scythe and confusion magic.' },
+        { name: 'orc priest', glyph: 'o', attr: 10, minDepth: 3, hp: 18, ac: 4, ev: 10, dmg: 8, exp: 25, lore: 'Zealous servant of Beogh who smites heretics from afar.' },
+        { name: 'gnoll sergeant', glyph: 'g', attr: 14, minDepth: 3, hp: 26, ac: 5, ev: 11, dmg: 10, exp: 32, lore: 'Veteran pack-leader wielding a halberd and buckler.' },
+        { name: 'ogre', glyph: 'O', attr: 3, minDepth: 4, hp: 36, ac: 3, ev: 8, dmg: 14, exp: 40, lore: 'Towering brute swinging a giant spiked club.' },
+        { name: 'spiny frog', glyph: 'F', attr: 10, minDepth: 5, hp: 42, ac: 5, ev: 13, dmg: 15, exp: 58, lore: 'Venomous predator native to the Lair of Beasts.' },
+        { name: 'five-headed hydra', glyph: 'H', attr: 10, minDepth: 6, hp: 58, ac: 6, ev: 9, dmg: 18, exp: 95, lore: 'Regenerating Lair monstrosity whose heads multiply when severed by edged blades.' },
+        { name: 'orc warlord', glyph: 'o', attr: 4, minDepth: 8, hp: 72, ac: 14, ev: 9, dmg: 21, exp: 150, lore: 'Supreme commander of the Orcish Mines clad in heavy plate.' },
+        { name: 'vault guard', glyph: '@', attr: 11, minDepth: 10, hp: 80, ac: 12, ev: 11, dmg: 22, exp: 180, lore: 'Disciplined sentinel patrolling the sealed Vaults.' },
+        { name: 'ancient lich', glyph: 'L', attr: 13, minDepth: 12, hp: 98, ac: 12, ev: 11, dmg: 28, exp: 320, lore: 'Undead archmage commanding crystal spears and necromantic torment.' },
+        { name: 'orb guardian', glyph: 'X', attr: 13, minDepth: 13, hp: 115, ac: 18, ev: 12, dmg: 30, exp: 420, lore: 'Metallic multi-limbed sentinel forged to defend the Realm of Zot.' },
+        { name: 'orb of fire', glyph: '*', attr: 4, minDepth: 14, hp: 140, ac: 20, ev: 22, dmg: 36, exp: 650, lore: 'Blazing sphere of primordial destruction haunting Zot:5.' }
     ],
     items: [
         { kind: 'gold', name: 'pile of gold pieces', glyph: '$', attr: 14, amount: 40, weight: 2 },
@@ -10355,6 +11926,7 @@ class DCSSEngine extends UniversalCartridgeEngine {
     initNewState(roleIdx = 0) {
         super.initNewState(roleIdx);
         const p = this.state.player;
+        const role = (DCSS_SPEC.roles && DCSS_SPEC.roles[roleIdx % DCSS_SPEC.roles.length]) || DCSS_SPEC.roles[0];
         p.blind = 0;
         p.telepathy = false;
         p.esp = false;
@@ -10362,6 +11934,18 @@ class DCSSEngine extends UniversalCartridgeEngine {
         p.rBlind = false;
         p.runeList = [];
         p.runes = 0;
+        p.ringSlots = (role && role.ringSlots) || 2;
+        p.allowBodyArmor = role ? (role.allowBodyArmor !== false) : true;
+        if (role && role.ring && !p.inventory.some(it => it.kind === 'ring' && it.name === role.ring.name)) {
+            p.inventory.push({
+                ...role.ring,
+                kind: 'ring',
+                glyph: role.ring.glyph || '=',
+                equipped: role.ring.equipped || 'ring_1',
+                count: role.ring.count || 1
+            });
+        }
+        this.reindexInventory();
     }
 
     loadSave() {
@@ -10373,6 +11957,10 @@ class DCSSEngine extends UniversalCartridgeEngine {
             p.esp = Boolean(p.esp || p.telepathy);
             if (!Array.isArray(p.runeList)) p.runeList = [];
             p.runes = p.runeList.length;
+            if (p.race === 'Octopode') {
+                if (!p.ringSlots) p.ringSlots = 8;
+                p.allowBodyArmor = false;
+            }
         }
         return ok;
     }
@@ -10526,6 +12114,31 @@ class DCSSEngine extends UniversalCartridgeEngine {
             p.telepathy = true;
             p.esp = true;
             p.telepathyTurns = Math.max(p.telepathyTurns || 0, (item.telepathyTurns || 35) + 1);
+        } else if (item && verb === 'wield') {
+            const lowerItem = String(item.name || '').toLowerCase();
+            const k = String(item.kind || '').toLowerCase();
+            if (p.allowBodyArmor === false && (k === 'armor' || k === 'body' || /\b(armor|armour|mail|plate|robe|leather|scales|tunic|vestment)\b/.test(lowerItem))) {
+                this.addMessage('An Octopode cannot wear body armour!', 12);
+                return;
+            }
+            const ringSlots = Number(p.ringSlots || 2);
+            if (ringSlots > 2 && (k === 'ring' || /\b(ring|band)\b/.test(lowerItem))) {
+                const used = new Set(p.inventory.filter(i => i.equipped && /^ring/i.test(i.equipped)).map(i => i.equipped));
+                let freeSlot = null;
+                for (let idx = 1; idx <= ringSlots; idx++) {
+                    const cand = `ring_${idx}`;
+                    if (!used.has(cand)) { freeSlot = cand; break; }
+                }
+                if (!freeSlot) {
+                    this.addMessage(`All ${ringSlots} of your ring slots are occupied! (Remove one first with [R]).`, 12);
+                    return;
+                }
+                item.equipped = freeSlot;
+                this.reindexInventory();
+                this.addMessage(`You put on the ${item.name} (${freeSlot}).`, 11);
+                this.advanceTurn();
+                return;
+            }
         }
         super.applyVerbToItem(verb, item);
     }
@@ -10607,7 +12220,8 @@ class DCSSEngine extends UniversalCartridgeEngine {
             hp: m.hp,
             hp_max: m.hp_max,
             ac: m.ac != null ? m.ac : 8,
-            dmg: m.dmg || 4,
+            ev: m.ev != null ? m.ev : 10,
+            dmg: m.dmg != null ? m.dmg : 4,
             speed: (m.speed != null ? m.speed : 110) - 110,
             unique: Boolean(m.isBoss || m.isNemesis || m.unique),
             attitude: m.isPet ? 'pet' : ((m.peaceful || m.friendly) ? 'friendly' : 'hostile'),
@@ -10677,30 +12291,7 @@ class DCSSEngine extends UniversalCartridgeEngine {
 }
 
 if (require.main === module) {
-    const readline = require('readline');
-    const defaultSaveDir = path.resolve(__dirname, '../lib/save');
-    let user = 'Adventurer', saveDir = defaultSaveDir, isNew = false, customBirth = false, randomBirth = false;
-    for (let i = 2; i < process.argv.length; i++) {
-        const arg = String(process.argv[i] || '');
-        if (arg === '-n') isNew = true;
-        else if (arg === '-c' || arg === '--custom') customBirth = true;
-        else if (arg === '-r' || arg === '--random') randomBirth = true;
-        else if (arg.startsWith('-u')) user = arg.slice(2) || user;
-        else if (arg.startsWith('-dsave=')) saveDir = arg.slice(7) || saveDir;
-    }
-    const engine = new DCSSEngine({ user: user.replace(/[^a-zA-Z0-9_.-]/g, '_') || 'Adventurer', saveDir, isNew, customBirth, randomBirth });
-    const writeJson = (obj) => process.stdout.write(JSON.stringify(obj) + '\n');
-    writeJson({ t: 'hello', protocol: 1, protocol_minor: 2, version: DCSS_SPEC.version, realm: DCSS_SPEC.realm, savefile: engine.saveFile });
-    writeJson({ t: 'commands', realm: DCSS_SPEC.realm, verbBits: ['quaff', 'read', 'eat', 'aim', 'use_staff', 'zap', 'activate', 'fire', 'throw', 'wield', 'takeoff', 'drop', 'inscribe', 'uninscribe', 'refill', 'browse', 'study', 'cast', 'ignore', 'examine'] });
-    writeJson(engine.buildFrame());
-    readline.createInterface({ input: process.stdin, terminal: false }).on('line', (rawLine) => {
-        const line = String(rawLine || '').trim();
-        if (!line) return;
-        if (line === 'save') { writeJson({ t: 'saved', ok: engine.saveGame() }); return; }
-        if (line === 'frame') { writeJson(engine.buildFrame()); return; }
-        if (line === 'quit' || line === 'exit') { engine.saveGame(); process.exit(0); return; }
-        if (line.startsWith('key ') || line.startsWith('keys ')) { engine.handleKey(line.replace(/^keys?\s+/, '')); writeJson(engine.buildFrame()); }
-    });
+    runCartridgeMain(DCSSEngine, DCSS_SPEC, path.resolve(__dirname, '../lib/save'));
 }
 
 module.exports = { DCSS_SPEC, DCSSEngine };
@@ -10742,9 +12333,9 @@ const BROGUE_SPEC = {
         return `Depth: ${state.depth}  Gold: ${p.gold}  HP: ${p.hp}/${p.hpMax}  Strength: ${p.str}  Enchantments: +${p.enchantments || 0}  Lumenstones: ${p.lumenstones || 0}  (${nut})`;
     },
     roles: [
-        { key: 'a', id: 'Rogue Delver', race: 'Human', align: 'Neutral', hp: 30, pw: 0, ac: 3, str: 12, int: 12, wis: 12, dex: 14, con: 14, weapon: { name: 'dagger', dmg: '1d6', bonus: 0, weight: 15, tval: 23, sval: 2 }, armor: { name: 'leather armor', ac: 3, bonus: 0, weight: 120, tval: 36, sval: 4 }, extra: { kind: 'scroll', name: 'scroll of enchanting', glyph: '?', enchantGain: 1, count: 2, weight: 5, tval: 70, sval: 15 } },
-        { key: 'b', id: 'Staff Weaver', race: 'Human', align: 'Neutral', hp: 28, pw: 0, ac: 3, str: 12, int: 15, wis: 14, dex: 13, con: 13, weapon: { name: 'broadsword', dmg: '2d6', bonus: 1, weight: 40, tval: 23, sval: 14 }, armor: { name: 'scale mail', ac: 5, bonus: 0, weight: 200, tval: 37, sval: 3 }, extra: { kind: 'wand', name: 'staff of lightning [4/4]', glyph: '\\', charges: 4, count: 1, weight: 20, tval: 55, sval: 8 } },
-        { key: 'c', id: 'Ally Liberator', race: 'Human', align: 'Lawful', hp: 32, pw: 0, ac: 4, str: 13, int: 12, wis: 14, dex: 14, con: 15, weapon: { name: 'war pike', dmg: '2d5', bonus: 1, weight: 45, tval: 22, sval: 8 }, armor: { name: 'chain mail', ac: 6, bonus: 1, weight: 240, tval: 37, sval: 4 }, extra: { kind: 'potion', name: 'potion of strength', glyph: '!', strengthGain: 2, count: 1, weight: 15, tval: 71, sval: 40 } }
+        { key: 'a', id: 'Rogue Delver', race: 'Human', align: 'Neutral', hp: 30, pw: 0, ac: 3, str: 12, int: 12, wis: 12, dex: 14, con: 14, weapon: { name: 'dagger', dmg: '1d6', bonus: 0, strReq: 10, weight: 15, tval: 23, sval: 2 }, armor: { name: 'leather armor', ac: 3, bonus: 0, strReq: 10, weight: 120, tval: 36, sval: 4 }, extra: { kind: 'scroll', name: 'scroll of enchanting', glyph: '?', enchantGain: 1, count: 2, weight: 5, tval: 70, sval: 15 } },
+        { key: 'b', id: 'Staff Weaver', race: 'Human', align: 'Neutral', hp: 28, pw: 0, ac: 3, str: 12, int: 15, wis: 14, dex: 13, con: 13, weapon: { name: 'broadsword', dmg: '2d6', bonus: 1, strReq: 15, weight: 40, tval: 23, sval: 14 }, armor: { name: 'scale mail', ac: 5, bonus: 0, strReq: 12, weight: 200, tval: 37, sval: 3 }, extra: { kind: 'wand', name: 'staff of lightning [4/4]', glyph: '\\', charges: 4, count: 1, weight: 20, tval: 55, sval: 8 } },
+        { key: 'c', id: 'Ally Liberator', race: 'Human', align: 'Lawful', hp: 32, pw: 0, ac: 4, str: 13, int: 12, wis: 14, dex: 14, con: 15, weapon: { name: 'war pike', dmg: '2d5', bonus: 1, strReq: 16, weight: 45, tval: 22, sval: 8 }, armor: { name: 'chain mail', ac: 6, bonus: 1, strReq: 14, weight: 240, tval: 37, sval: 4 }, extra: { kind: 'potion', name: 'potion of strength', glyph: '!', strengthGain: 2, count: 1, weight: 15, tval: 71, sval: 40 } }
     ],
     allies: [
         { name: 'monkey ally', glyph: 'm', hp: 18, dmg: 5, lore: 'Nimble liberated captive that darts into melee and learns monster traits.' },
@@ -10753,23 +12344,23 @@ const BROGUE_SPEC = {
         { name: 'naga ally', glyph: 'N', hp: 55, dmg: 15, lore: 'Serpentine guardian that cleaves multiple adjacent foes at once.' }
     ],
     monsters: [
-        { name: 'kobold', glyph: 'k', attr: 4, minDepth: 1, hp: 8, ac: 8, dmg: 3, exp: 0, lore: 'Scrappy cavern scavenger of the shallow depths.' },
-        { name: 'jackal', glyph: 'j', attr: 3, minDepth: 1, hp: 7, ac: 7, dmg: 3, exp: 0, lore: 'Hunts in swift packs through dim corridors.' },
-        { name: 'goblin', glyph: 'g', attr: 3, minDepth: 1, hp: 12, ac: 7, dmg: 5, exp: 0, lore: 'Spear-wielding tribal ambusher.' },
-        { name: 'bloated', glyph: 'b', attr: 13, minDepth: 2, hp: 10, ac: 9, dmg: 4, exp: 0, lore: 'Floating gas-filled creature that ruptures into caustic clouds when slain.' },
-        { name: 'pink jelly', glyph: 'J', attr: 13, minDepth: 2, hp: 20, ac: 9, dmg: 5, exp: 0, lore: 'Amorphous ooze that divides when struck with steel.' },
-        { name: 'vampire bat', glyph: 'v', attr: 8, minDepth: 3, hp: 14, ac: 4, dmg: 5, exp: 0, lore: 'Swooping predator whose bite drains life.' },
-        { name: 'goblin mystic', glyph: 'g', attr: 11, minDepth: 3, hp: 14, ac: 8, dmg: 4, exp: 0, lore: 'Weaves shielding wards around nearby goblins.' },
-        { name: 'acid mound', glyph: 'a', attr: 10, minDepth: 4, hp: 16, ac: 8, dmg: 6, exp: 0, lore: 'Corrosive slime that degrades weapons and armor on contact.' },
-        { name: 'centipede', glyph: 'c', attr: 4, minDepth: 5, hp: 22, ac: 5, dmg: 8, exp: 0, lore: 'Venomous arthropod whose bite weakens strength.' },
-        { name: 'ogre', glyph: 'O', attr: 3, minDepth: 6, hp: 38, ac: 5, dmg: 13, exp: 0, lore: 'Lumbering giant whose club strikes with crushing force.' },
-        { name: 'flame turret', glyph: 'T', attr: 4, minDepth: 7, hp: 28, ac: 2, dmg: 11, exp: 0, lore: 'Wall-mounted crystalline emitter that launches bolts of fire.' },
-        { name: 'wraith', glyph: 'W', attr: 8, minDepth: 9, hp: 44, ac: 3, dmg: 14, exp: 0, lore: 'Invisible phantom that reveals itself only when striking.' },
-        { name: 'salamander', glyph: 's', attr: 4, minDepth: 10, hp: 48, ac: 3, dmg: 15, exp: 0, lore: 'Molten amphibian that leaves trails of searing fire across lava.' },
-        { name: 'troll', glyph: 'T', attr: 10, minDepth: 12, hp: 62, ac: 3, dmg: 18, exp: 0, lore: 'Regenerating subterranean behemoth.' },
-        { name: 'golem', glyph: 'G', attr: 15, minDepth: 16, hp: 90, ac: 0, dmg: 20, exp: 0, lore: 'Unstoppable stone automaton immune to fire and poison.' },
-        { name: 'tentacle horror', glyph: 'H', attr: 13, minDepth: 20, hp: 105, ac: -1, dmg: 26, exp: 0, lore: 'Abyssal monstrosity of the deep lumenstone caverns.' },
-        { name: 'dragon', glyph: 'D', attr: 4, minDepth: 23, hp: 135, ac: -3, dmg: 32, exp: 0, lore: 'Supreme apex predator of the deep caverns whose breath ignites the air.' }
+        { name: 'kobold', glyph: 'k', attr: 4, minDepth: 1, hp: 8, ac: 25, dmg: 3, exp: 0, lore: 'Scrappy cavern scavenger of the shallow depths.' },
+        { name: 'jackal', glyph: 'j', attr: 3, minDepth: 1, hp: 7, ac: 25, dmg: 3, exp: 0, lore: 'Hunts in swift packs through dim corridors.' },
+        { name: 'goblin', glyph: 'g', attr: 3, minDepth: 1, hp: 12, ac: 30, dmg: 5, exp: 0, lore: 'Spear-wielding tribal ambusher.' },
+        { name: 'bloated', glyph: 'b', attr: 13, minDepth: 2, hp: 10, ac: 0, dmg: 4, special: 'caustic_bloat', exp: 0, lore: 'Floating gas-filled creature that ruptures into caustic clouds when slain.' },
+        { name: 'pink jelly', glyph: 'J', attr: 13, minDepth: 2, hp: 20, ac: 0, dmg: 5, special: 'split', exp: 0, lore: 'Amorphous ooze that divides when struck with steel.' },
+        { name: 'vampire bat', glyph: 'v', attr: 8, minDepth: 3, hp: 14, ac: 65, dmg: 5, exp: 0, lore: 'Swooping predator whose bite drains life.' },
+        { name: 'goblin mystic', glyph: 'g', attr: 11, minDepth: 3, hp: 14, ac: 30, dmg: 4, exp: 0, lore: 'Weaves shielding wards around nearby goblins.' },
+        { name: 'acid mound', glyph: 'a', attr: 10, minDepth: 4, hp: 16, ac: 0, dmg: 6, special: 'corrode', exp: 0, lore: 'Corrosive slime that degrades weapons and armor on contact.' },
+        { name: 'centipede', glyph: 'c', attr: 4, minDepth: 5, hp: 22, ac: 40, dmg: 8, exp: 0, lore: 'Venomous arthropod whose bite weakens strength.' },
+        { name: 'ogre', glyph: 'O', attr: 3, minDepth: 6, hp: 38, ac: 30, dmg: 13, exp: 0, lore: 'Lumbering giant whose club strikes with crushing force.' },
+        { name: 'flame turret', glyph: 'T', attr: 4, minDepth: 7, hp: 28, ac: 0, dmg: 11, exp: 0, lore: 'Wall-mounted crystalline emitter that launches bolts of fire.' },
+        { name: 'wraith', glyph: 'W', attr: 8, minDepth: 9, hp: 44, ac: 80, dmg: 14, exp: 0, lore: 'Invisible phantom that reveals itself only when striking.' },
+        { name: 'salamander', glyph: 's', attr: 4, minDepth: 10, hp: 48, ac: 40, dmg: 15, exp: 0, lore: 'Molten amphibian that leaves trails of searing fire across lava.' },
+        { name: 'troll', glyph: 'T', attr: 10, minDepth: 12, hp: 62, ac: 45, dmg: 18, exp: 0, lore: 'Regenerating subterranean behemoth.' },
+        { name: 'golem', glyph: 'G', attr: 15, minDepth: 16, hp: 90, ac: 55, dmg: 20, exp: 0, lore: 'Unstoppable stone automaton immune to fire and poison.' },
+        { name: 'tentacle horror', glyph: 'H', attr: 13, minDepth: 20, hp: 105, ac: 75, dmg: 26, exp: 0, lore: 'Abyssal monstrosity of the deep lumenstone caverns.' },
+        { name: 'dragon', glyph: 'D', attr: 4, minDepth: 23, hp: 135, ac: 80, dmg: 32, exp: 0, lore: 'Supreme apex predator of the deep caverns whose breath ignites the air.' }
     ],
     items: [
         { kind: 'potion', name: 'potion of life', glyph: '!', attr: 4, heal: 40, weight: 15, tval: 71, sval: 39 },
@@ -10779,8 +12370,19 @@ const BROGUE_SPEC = {
         { kind: 'scroll', name: 'scroll of enchanting', glyph: '?', attr: 11, enchantGain: 1, weight: 5, tval: 70, sval: 15 },
         { kind: 'scroll', name: 'scroll of magic mapping', glyph: '?', attr: 11, weight: 5, tval: 70, sval: 12 },
         { kind: 'food', name: 'food ration', glyph: ':', attr: 3, nutrition: 950, weight: 20, tval: 80, sval: 1 },
-        { kind: 'weapon', name: 'runic broadsword', glyph: ')', attr: 11, bonus: 3, weight: 40, tval: 23, sval: 14 },
-        { kind: 'armor', name: 'splint mail of mutuality', glyph: '[', attr: 15, ac: 7, bonus: 2, weight: 300, tval: 37, sval: 8 },
+        { kind: 'weapon', name: 'dagger', glyph: ')', attr: 11, dmg: '1d6', bonus: 0, strReq: 10, weight: 15, tval: 23, sval: 2 },
+        { kind: 'weapon', name: 'spear', glyph: ')', attr: 11, dmg: '2d4', bonus: 0, strReq: 12, weight: 30, tval: 22, sval: 3 },
+        { kind: 'weapon', name: 'mace', glyph: ')', attr: 11, dmg: '2d5', bonus: 0, strReq: 14, weight: 35, tval: 21, sval: 5 },
+        { kind: 'weapon', name: 'broad sword', glyph: ')', attr: 11, dmg: '2d6', bonus: 0, strReq: 15, weight: 40, tval: 23, sval: 14 },
+        { kind: 'weapon', name: 'war axe', glyph: ')', attr: 11, dmg: '2d8', bonus: 0, strReq: 17, weight: 55, tval: 22, sval: 10 },
+        { kind: 'weapon', name: 'runic broadsword', glyph: ')', attr: 11, dmg: '2d6', bonus: 3, strReq: 15, weight: 40, tval: 23, sval: 14 },
+        { kind: 'armor', name: 'leather armor', glyph: '[', attr: 3, ac: 3, bonus: 0, strReq: 10, weight: 120, tval: 36, sval: 4 },
+        { kind: 'armor', name: 'scale mail', glyph: '[', attr: 15, ac: 5, bonus: 0, strReq: 12, weight: 200, tval: 37, sval: 3 },
+        { kind: 'armor', name: 'chain mail', glyph: '[', attr: 15, ac: 6, bonus: 0, strReq: 14, weight: 240, tval: 37, sval: 4 },
+        { kind: 'armor', name: 'banded mail', glyph: '[', attr: 15, ac: 7, bonus: 0, strReq: 16, weight: 280, tval: 37, sval: 9 },
+        { kind: 'armor', name: 'splint mail', glyph: '[', attr: 15, ac: 8, bonus: 0, strReq: 18, weight: 300, tval: 37, sval: 8 },
+        { kind: 'armor', name: 'splint mail of mutuality', glyph: '[', attr: 15, ac: 7, bonus: 2, strReq: 18, weight: 300, tval: 37, sval: 8 },
+        { kind: 'armor', name: 'plate armor', glyph: '[', attr: 15, ac: 10, bonus: 0, strReq: 20, weight: 350, tval: 37, sval: 10 },
         { kind: 'wand', name: 'staff of firebolt [4/4]', glyph: '\\', attr: 4, charges: 4, weight: 20, tval: 55, sval: 6 },
         { kind: 'lumenstone', name: 'glowing lumenstone', glyph: '*', attr: 14, weight: 5 }
     ]
@@ -10879,7 +12481,7 @@ class BrogueEngine extends UniversalCartridgeEngine {
 
     handleMonsterKilled(mon) {
         const p = this.state.player;
-        if (mon && /bloat/i.test(mon.race || '') && !p.rBlind && Math.hypot(mon.x - p.x, mon.y - p.y) <= 1.5) {
+        if (mon && (mon.special === 'caustic_bloat' || /bloat/i.test(mon.race || '')) && !p.rBlind && Math.hypot(mon.x - p.x, mon.y - p.y) <= 1.5) {
             p.blind = Math.max(p.blind || 0, 9);
             this.updateVisibility();
             this.addMessage('The bloated creature ruptures in blindness gas! A veil of darkness blinds you!', 13);
@@ -10938,7 +12540,8 @@ class BrogueEngine extends UniversalCartridgeEngine {
             hp: m.hp,
             hp_max: m.hp_max,
             ac: m.ac != null ? m.ac : 8,
-            dmg: m.dmg || 4,
+            dmg: m.dmg != null ? m.dmg : 4,
+            special: m.special || null,
             speed: (m.speed != null ? m.speed : 110) - 110,
             unique: Boolean(m.isBoss || m.isNemesis || m.unique),
             attitude: m.isPet ? 'pet' : ((m.peaceful || m.friendly) ? 'friendly' : 'hostile'),
@@ -11003,30 +12606,7 @@ class BrogueEngine extends UniversalCartridgeEngine {
 }
 
 if (require.main === module) {
-    const readline = require('readline');
-    const defaultSaveDir = path.resolve(__dirname, '../lib/save');
-    let user = 'Adventurer', saveDir = defaultSaveDir, isNew = false, customBirth = false, randomBirth = false;
-    for (let i = 2; i < process.argv.length; i++) {
-        const arg = String(process.argv[i] || '');
-        if (arg === '-n') isNew = true;
-        else if (arg === '-c' || arg === '--custom') customBirth = true;
-        else if (arg === '-r' || arg === '--random') randomBirth = true;
-        else if (arg.startsWith('-u')) user = arg.slice(2) || user;
-        else if (arg.startsWith('-dsave=')) saveDir = arg.slice(7) || saveDir;
-    }
-    const engine = new BrogueEngine({ user: user.replace(/[^a-zA-Z0-9_.-]/g, '_') || 'Adventurer', saveDir, isNew, customBirth, randomBirth });
-    const writeJson = (obj) => process.stdout.write(JSON.stringify(obj) + '\n');
-    writeJson({ t: 'hello', protocol: 1, protocol_minor: 2, version: BROGUE_SPEC.version, realm: BROGUE_SPEC.realm, savefile: engine.saveFile });
-    writeJson({ t: 'commands', realm: BROGUE_SPEC.realm, verbBits: ['quaff', 'read', 'eat', 'aim', 'use_staff', 'zap', 'activate', 'fire', 'throw', 'wield', 'takeoff', 'drop', 'inscribe', 'uninscribe', 'refill', 'browse', 'study', 'cast', 'ignore', 'examine'] });
-    writeJson(engine.buildFrame());
-    readline.createInterface({ input: process.stdin, terminal: false }).on('line', (rawLine) => {
-        const line = String(rawLine || '').trim();
-        if (!line) return;
-        if (line === 'save') { writeJson({ t: 'saved', ok: engine.saveGame() }); return; }
-        if (line === 'frame') { writeJson(engine.buildFrame()); return; }
-        if (line === 'quit' || line === 'exit') { engine.saveGame(); process.exit(0); return; }
-        if (line.startsWith('key ') || line.startsWith('keys ')) { engine.handleKey(line.replace(/^keys?\s+/, '')); writeJson(engine.buildFrame()); }
-    });
+    runCartridgeMain(BrogueEngine, BROGUE_SPEC, path.resolve(__dirname, '../lib/save'));
 }
 
 module.exports = { BROGUE_SPEC, BrogueEngine };
@@ -11078,11 +12658,11 @@ const ROGUE_SPEC = {
         return `Level: ${state.depth}  Gold: ${p.gold}      Hp: ${p.hp}(${p.hpMax})  Str: ${p.str}(${p.str})  Arm: ${p.ac}   Exp: ${p.level}/${p.exp}${hunger}`;
     },
     roles: [
-        { key: 'a', id: 'Fighter', race: 'Human', align: 'Neutral', hp: 12, pw: 0, ac: 4, str: 16, int: 12, wis: 12, dex: 14, con: 15, weapon: { name: 'mace', dmg: '2d4', bonus: 1, weight: 30, tval: 21, sval: 5 }, armor: { name: 'ring mail', ac: 4, bonus: 1, weight: 250, tval: 37, sval: 2 }, extra: { kind: 'ranged', name: 'short bow', glyph: '}', dmg: '1d6', bonus: 1, count: 1, weight: 30, tval: 19, sval: 2 } },
-        { key: 'b', id: 'Rogue Delver', race: 'Human', align: 'Chaotic', hp: 12, pw: 0, ac: 5, str: 16, int: 14, wis: 11, dex: 16, con: 14, weapon: { name: 'two-handed sword', dmg: '3d6', bonus: 1, weight: 60, tval: 23, sval: 25 }, armor: { name: 'studded leather armor', ac: 5, bonus: 1, weight: 180, tval: 36, sval: 5 }, extra: { kind: 'wand', name: 'staff of striking', glyph: '/', charges: 6, count: 1, weight: 25, tval: 55, sval: 4 } },
-        { key: 'c', id: 'Archivist', race: 'Elf', align: 'Lawful', hp: 11, pw: 0, ac: 4, str: 15, int: 16, wis: 15, dex: 15, con: 13, weapon: { name: 'long sword', dmg: '1d10', bonus: 1, weight: 40, tval: 23, sval: 12 }, armor: { name: 'scale mail', ac: 4, bonus: 1, weight: 220, tval: 37, sval: 3 }, extra: { kind: 'scroll', name: 'scroll of magic mapping', glyph: '?', count: 2, weight: 5, tval: 70, sval: 12 } }
+        { key: 'a', id: 'Fighter', race: 'Human', align: 'Neutral', hp: 12, pw: 0, ac: 6, str: 16, int: 12, wis: 12, dex: 14, con: 15, weapon: { name: 'mace', dmg: '2d4', bonus: 1, weight: 30, tval: 21, sval: 5 }, armor: { name: 'ring mail', ac: 7, bonus: 1, weight: 250, tval: 37, sval: 2 }, extra: { kind: 'ranged', name: 'short bow', glyph: '}', dmg: '1d6', bonus: 1, count: 1, weight: 30, tval: 19, sval: 2 } },
+        { key: 'b', id: 'Rogue Delver', race: 'Human', align: 'Chaotic', hp: 12, pw: 0, ac: 6, str: 16, int: 14, wis: 11, dex: 16, con: 14, weapon: { name: 'two-handed sword', dmg: '3d6', bonus: 1, weight: 60, tval: 23, sval: 25 }, armor: { name: 'studded leather armor', ac: 7, bonus: 1, weight: 180, tval: 36, sval: 5 }, extra: { kind: 'wand', name: 'staff of striking', glyph: '/', charges: 6, count: 1, weight: 25, tval: 55, sval: 4 } },
+        { key: 'c', id: 'Archivist', race: 'Elf', align: 'Lawful', hp: 11, pw: 0, ac: 5, str: 15, int: 16, wis: 15, dex: 15, con: 13, weapon: { name: 'long sword', dmg: '1d10', bonus: 1, weight: 40, tval: 23, sval: 12 }, armor: { name: 'scale mail', ac: 6, bonus: 1, weight: 220, tval: 37, sval: 3 }, extra: { kind: 'scroll', name: 'scroll of magic mapping', glyph: '?', count: 2, weight: 5, tval: 70, sval: 12 } }
     ],
-    // All 26 classic A-Z Rogue 5.4 monsters
+    // All 26 classic A-Z Rogue 5.4 monsters (authentic descending ACs -2..10)
     monsters: [
         { name: 'bat', glyph: 'B', attr: 3, minDepth: 1, hp: 5, ac: 3, dmg: 2, exp: 2, lore: 'Flits erratically through the upper corridors.' },
         { name: 'emu', glyph: 'E', attr: 3, minDepth: 1, hp: 6, ac: 7, dmg: 3, exp: 3, lore: 'An aggressive subterranean flightless bird from 1980 BSD Rogue.' },
@@ -11095,7 +12675,7 @@ const ROGUE_SPEC = {
         { name: 'zombie', glyph: 'Z', attr: 8, minDepth: 3, hp: 15, ac: 8, dmg: 6, exp: 12, lore: 'Shambling corpse of a fallen adventurer.' },
         { name: 'leprechaun', glyph: 'L', attr: 10, minDepth: 4, hp: 14, ac: 8, dmg: 4, exp: 15, lore: 'Nimble trickster notorious for snatching purses of gold.' },
         { name: 'centaur', glyph: 'C', attr: 3, minDepth: 5, hp: 20, ac: 4, dmg: 8, exp: 22, lore: 'Galloping half-horse marksman of the middle vaults.' },
-        { name: 'aquator', glyph: 'A', attr: 11, minDepth: 6, hp: 24, ac: 2, dmg: 7, exp: 28, lore: 'Corrosive rust-demon whose touch oxidizes iron armor.' },
+        { name: 'aquator', glyph: 'A', attr: 11, minDepth: 6, hp: 24, ac: 2, dmg: 0, special: 'rust', exp: 28, lore: 'Corrosive rust-demon whose touch oxidizes iron armor.' },
         { name: 'nymph', glyph: 'N', attr: 13, minDepth: 6, hp: 22, ac: 9, dmg: 5, exp: 30, lore: 'Beguiling spirit who vanishes with enchanted gear.' },
         { name: 'quagga', glyph: 'Q', attr: 14, minDepth: 7, hp: 26, ac: 3, dmg: 10, exp: 35, lore: 'Striped subterranean beast with vicious hooves.' },
         { name: 'venus flytrap', glyph: 'F', attr: 10, minDepth: 8, hp: 32, ac: 3, dmg: 11, exp: 50, lore: 'Carnivorous dungeon flora that lashes out with crushing vines.' },
@@ -11108,7 +12688,7 @@ const ROGUE_SPEC = {
         { name: 'phantom', glyph: 'P', attr: 13, minDepth: 17, hp: 64, ac: 3, dmg: 19, exp: 220, lore: 'Unseen stalker shimmering at the edge of torchlight.' },
         { name: 'black unicorn', glyph: 'U', attr: 8, minDepth: 18, hp: 70, ac: -2, dmg: 22, exp: 260, lore: 'Dread steed of shadow with an obsidian horn.' },
         { name: 'vampire', glyph: 'V', attr: 4, minDepth: 20, hp: 78, ac: 1, dmg: 24, exp: 350, lore: 'Ancient night-lord who feasts upon mortal vitality.' },
-        { name: 'jabberwock', glyph: 'J', attr: 13, minDepth: 22, hp: 88, ac: 6, dmg: 28, exp: 500, lore: 'With eyes of flame and jaws that bite, the terror of deep Rogue.' },
+        { name: 'jabberwock', glyph: 'J', attr: 13, minDepth: 22, hp: 88, ac: -1, dmg: 28, exp: 500, lore: 'With eyes of flame and jaws that bite, the terror of deep Rogue.' },
         { name: 'dragon', glyph: 'D', attr: 4, minDepth: 24, hp: 110, ac: -1, dmg: 32, exp: 800, lore: 'Ancient fire-breathing wyrm guarding the Amulet of Yendor.' }
     ],
     items: [
@@ -11120,8 +12700,20 @@ const ROGUE_SPEC = {
         { kind: 'potion', name: 'potion of monster detection', glyph: '!', attr: 11, telepathyTurns: 40, grantsTelepathy: true, weight: 15, tval: 71, sval: 42 },
         { kind: 'scroll', name: 'scroll of enchant weapon', glyph: '?', attr: 11, enchantGain: 1, weight: 5, tval: 70, sval: 15 },
         { kind: 'scroll', name: 'scroll of magic mapping', glyph: '?', attr: 11, weight: 5, tval: 70, sval: 12 },
+        { kind: 'scroll', name: 'scroll of scare monster', glyph: '?', attr: 11, effect: 'scare_monster', weight: 5, tval: 70, sval: 14 },
+        { kind: 'scroll', name: 'scroll of protect armor', glyph: '?', attr: 11, effect: 'protect_armor', weight: 5, tval: 70, sval: 16 },
+        { kind: 'ring', name: 'ring of maintain armor', glyph: '=', attr: 14, effect: 'maintain_armor', weight: 2, tval: 45, sval: 4 },
+        { kind: 'ring', name: 'ring of slow digestion', glyph: '=', attr: 14, effect: 'slow_digestion', flags: { slowDigest: true }, weight: 2, tval: 45, sval: 5 },
+        { kind: 'ring', name: 'ring of protection', glyph: '=', attr: 14, acBonus: 1, bonus: 1, weight: 2, tval: 45, sval: 2 },
         { kind: 'food', name: 'food ration', glyph: ':', attr: 3, nutrition: 850, weight: 20, tval: 80, sval: 1 },
         { kind: 'weapon', name: 'long sword', glyph: ')', attr: 11, bonus: 2, weight: 40, tval: 23, sval: 12 },
+        { kind: 'armor', name: 'leather armor', glyph: '[', attr: 3, ac: 8, rustproof: true, bonus: 0, weight: 150, tval: 36, sval: 4 },
+        { kind: 'armor', name: 'ring mail', glyph: '[', attr: 15, ac: 7, bonus: 0, weight: 250, tval: 37, sval: 2 },
+        { kind: 'armor', name: 'studded leather armor', glyph: '[', attr: 3, ac: 7, bonus: 0, weight: 180, tval: 36, sval: 5 },
+        { kind: 'armor', name: 'scale mail', glyph: '[', attr: 15, ac: 6, bonus: 0, weight: 220, tval: 37, sval: 3 },
+        { kind: 'armor', name: 'chain mail', glyph: '[', attr: 15, ac: 5, bonus: 0, weight: 240, tval: 37, sval: 4 },
+        { kind: 'armor', name: 'splint mail', glyph: '[', attr: 15, ac: 4, bonus: 0, weight: 280, tval: 37, sval: 8 },
+        { kind: 'armor', name: 'banded mail', glyph: '[', attr: 15, ac: 4, bonus: 0, weight: 300, tval: 37, sval: 9 },
         { kind: 'armor', name: 'plate mail', glyph: '[', attr: 15, ac: 3, bonus: 2, weight: 350, tval: 37, sval: 10 },
         { kind: 'wand', name: 'wand of lightning', glyph: '/', attr: 14, charges: 6, weight: 15, tval: 65, sval: 8 }
     ]
@@ -11143,6 +12735,16 @@ class RogueEngine extends UniversalCartridgeEngine {
         p.esp = false;
         p.telepathyTurns = 0;
         p.rBlind = false;
+        if (Array.isArray(p.inventory)) {
+            for (const it of p.inventory) {
+                if (/ring mail/i.test(it.name || '') && it.kind !== 'armor') {
+                    it.kind = 'armor';
+                    it.glyph = '[';
+                    it.equipped = 'body';
+                }
+            }
+            this.reindexInventory();
+        }
     }
 
     loadSave() {
@@ -11180,8 +12782,48 @@ class RogueEngine extends UniversalCartridgeEngine {
         );
     }
 
+    swing(atLvl, opArm, wplus = 0) {
+        const res = this.rand(20);
+        const need = (20 - Number(atLvl || 1)) - Number(opArm != null ? opArm : 10);
+        return (res + Number(wplus || 0)) >= need;
+    }
+
     applyVerbToItem(verb, item) {
         const p = this.state.player;
+        if (item && (verb === 'read' || (verb === 'use' && item.kind === 'scroll'))) {
+            const nm = String(item.name || '');
+            if (item.effect === 'scare_monster' || /scare monster/i.test(nm)) {
+                this.state.identifiedTypes = this.state.identifiedTypes || {};
+                this.state.identifiedTypes[item.name] = true;
+                item.identified = true;
+                for (const m of (this.state.monsters || [])) {
+                    if (!m.isPet && !m.peaceful && Math.hypot(m.x - p.x, m.y - p.y) <= 6) {
+                        m.scared = (m.scared || 0) + 12;
+                    }
+                }
+                this.addMessage('You hear maniacal laughter in the distance! Nearby monsters recoil in terror!', 14);
+                item.count = (item.count || 1) - 1;
+                this.reindexInventory();
+                this.advanceTurn();
+                return;
+            }
+            if (item.effect === 'protect_armor' || /protect armor/i.test(nm)) {
+                this.state.identifiedTypes = this.state.identifiedTypes || {};
+                this.state.identifiedTypes[item.name] = true;
+                item.identified = true;
+                const arm = p.inventory.find(i => i.equipped === 'body' || i.equipped === 'armor') || p.inventory.find(i => i.kind === 'armor');
+                if (arm) {
+                    arm.rustproof = true;
+                    this.addMessage('Your armor is covered by a shimmering gold shield!', 14);
+                } else {
+                    this.addMessage('Your skin tingles briefly, though you wear no armor.', 11);
+                }
+                item.count = (item.count || 1) - 1;
+                this.reindexInventory();
+                this.advanceTurn();
+                return;
+            }
+        }
         if (item && (verb === 'quaff' || (verb === 'use' && item.kind === 'potion'))) {
             const nm = String(item.name || '');
             if (item.blindTurns || /blindness|darkness/i.test(nm)) {
@@ -11221,8 +12863,20 @@ class RogueEngine extends UniversalCartridgeEngine {
     advanceTurn() {
         const p = this.state.player;
         const wasBlind = p.blind > 0;
+        const wornBody = Array.isArray(p.inventory) ? p.inventory.find(it => it.equipped === 'body' || it.equipped === 'armor') : null;
+        const prevBonus = wornBody ? (wornBody.bonus || 0) : 0;
+        const hasMaintain = Array.isArray(p.inventory) && p.inventory.some(it => it.equipped && (it.effect === 'maintain_armor' || /maintain armor/i.test(it.name || '')));
+        const hasSlowDigest = Array.isArray(p.inventory) && p.inventory.some(it => it.equipped && (it.effect === 'slow_digestion' || (it.flags && it.flags.slowDigest) || /slow digestion/i.test(it.name || '')));
         super.advanceTurn();
         if (p.dead) return;
+        if (wornBody && (wornBody.rustproof || hasMaintain) && (wornBody.bonus || 0) < prevBonus) {
+            wornBody.bonus = prevBonus;
+            this.recalcPlayerDefenses();
+            this.addMessage(`Your ${wornBody.name} gleams unscathed against the rust!`, 11);
+        }
+        if (hasSlowDigest && this.state.turn % 2 === 1 && p.nutrition > 0 && p.nutrition < 1200) {
+            p.nutrition++;
+        }
         if (wasBlind && p.blind > 0) {
             p.blind--;
             if (p.blind === 0) {
@@ -11269,7 +12923,8 @@ class RogueEngine extends UniversalCartridgeEngine {
             hp: m.hp,
             hp_max: m.hp_max,
             ac: m.ac != null ? m.ac : 8,
-            dmg: m.dmg || 4,
+            dmg: m.dmg != null ? m.dmg : 4,
+            special: m.special || null,
             speed: (m.speed != null ? m.speed : 110) - 110,
             unique: Boolean(m.isBoss || m.isNemesis || m.unique),
             attitude: m.isPet ? 'pet' : ((m.peaceful || m.friendly) ? 'friendly' : 'hostile'),
@@ -11334,30 +12989,7 @@ class RogueEngine extends UniversalCartridgeEngine {
 }
 
 if (require.main === module) {
-    const readline = require('readline');
-    const defaultSaveDir = path.resolve(__dirname, '../lib/save');
-    let user = 'Adventurer', saveDir = defaultSaveDir, isNew = false, customBirth = false, randomBirth = false;
-    for (let i = 2; i < process.argv.length; i++) {
-        const arg = String(process.argv[i] || '');
-        if (arg === '-n') isNew = true;
-        else if (arg === '-c' || arg === '--custom') customBirth = true;
-        else if (arg === '-r' || arg === '--random') randomBirth = true;
-        else if (arg.startsWith('-u')) user = arg.slice(2) || user;
-        else if (arg.startsWith('-dsave=')) saveDir = arg.slice(7) || saveDir;
-    }
-    const engine = new RogueEngine({ user: user.replace(/[^a-zA-Z0-9_.-]/g, '_') || 'Adventurer', saveDir, isNew, customBirth, randomBirth });
-    const writeJson = (obj) => process.stdout.write(JSON.stringify(obj) + '\n');
-    writeJson({ t: 'hello', protocol: 1, protocol_minor: 2, version: ROGUE_SPEC.version, realm: ROGUE_SPEC.realm, savefile: engine.saveFile });
-    writeJson({ t: 'commands', realm: ROGUE_SPEC.realm, verbBits: ['quaff', 'read', 'eat', 'aim', 'use_staff', 'zap', 'activate', 'fire', 'throw', 'wield', 'takeoff', 'drop', 'inscribe', 'uninscribe', 'refill', 'browse', 'study', 'cast', 'ignore', 'examine'] });
-    writeJson(engine.buildFrame());
-    readline.createInterface({ input: process.stdin, terminal: false }).on('line', (rawLine) => {
-        const line = String(rawLine || '').trim();
-        if (!line) return;
-        if (line === 'save') { writeJson({ t: 'saved', ok: engine.saveGame() }); return; }
-        if (line === 'frame') { writeJson(engine.buildFrame()); return; }
-        if (line === 'quit' || line === 'exit') { engine.saveGame(); process.exit(0); return; }
-        if (line.startsWith('key ') || line.startsWith('keys ')) { engine.handleKey(line.replace(/^keys?\s+/, '')); writeJson(engine.buildFrame()); }
-    });
+    runCartridgeMain(RogueEngine, ROGUE_SPEC, path.resolve(__dirname, '../lib/save'));
 }
 
 module.exports = { ROGUE_SPEC, RogueEngine };
@@ -11705,41 +13337,11 @@ class RyodEngine extends UniversalCartridgeEngine {
     }
 }
 
-if (require.main === module) {
-    const readline = require('readline');
-    const defaultSaveDir = path.resolve(__dirname, '../lib/save');
-    const argv = process.argv;
-    let saveDir = defaultSaveDir, user = 'Adventurer', isNew = false, customBirth = false, randomBirth = false, seed = null;
-    for (let i = 2; i < argv.length; i++) {
-        const arg = String(argv[i] || '');
-        if (arg === '-n') isNew = true;
-        else if (arg === '-c' || arg === '--custom') customBirth = true;
-        else if (arg === '-r' || arg === '--random') randomBirth = true;
-        else if (arg === '-d' && argv[i + 1]) saveDir = argv[++i];
-        else if (arg.startsWith('-dsave=')) saveDir = arg.slice(7);
-        else if (arg.startsWith('-d=')) saveDir = arg.slice(3);
-        else if (arg === '-u' && argv[i + 1]) user = argv[++i];
-        else if (arg.startsWith('-u')) user = arg.slice(2) || user;
-        else if ((arg === '-s' || arg === '--seed') && argv[i + 1]) seed = argv[++i];
-        else if (arg.startsWith('--seed=')) seed = arg.slice(7);
-    }
-    const engine = new RyodEngine({ saveDir, user: user.replace(/[^a-zA-Z0-9_.-]/g, '_') || 'Adventurer', isNew, customBirth, randomBirth, seed });
-    const spec = engine.spec;
-    const writeJson = (obj) => process.stdout.write(JSON.stringify(obj) + '\n');
-    writeJson({ t: 'hello', protocol: 1, protocol_minor: 2, version: spec.version || '2.0.0-ryod', realm: spec.realm || 'ryod', savefile: engine.saveFile });
-    writeJson({ t: 'commands', realm: spec.realm || 'ryod', verbBits: ['quaff', 'read', 'eat', 'aim', 'use_staff', 'zap', 'activate', 'fire', 'throw', 'wield', 'takeoff', 'drop', 'inscribe', 'uninscribe', 'refill', 'browse', 'study', 'cast', 'ignore', 'examine'] });
-    writeJson(engine.buildFrame());
-    readline.createInterface({ input: process.stdin, terminal: false }).on('line', (rawLine) => {
-        const line = String(rawLine || '').trim();
-        if (!line) return;
-        if (line === 'save') { writeJson({ t: 'saved', ok: engine.saveGame() }); return; }
-        if (line === 'frame') { writeJson(engine.buildFrame()); return; }
-        if (line === 'quit' || line === 'exit') { engine.saveGame(); process.exit(0); return; }
-        if (line.startsWith('key ') || line.startsWith('keys ')) { engine.handleKey(line.replace(/^keys?\s+/, '')); writeJson(engine.buildFrame()); }
-    });
-}
-
 const DEFAULT_RYOD_SPEC = buildRyodSpec(RyodCompiler.normalizeConfig({ archetypeId: 'obsidian_covenant' }));
+
+if (require.main === module) {
+    runCartridgeMain(RyodEngine, DEFAULT_RYOD_SPEC, path.resolve(__dirname, '../lib/save'));
+}
 
 module.exports = { DEFAULT_RYOD_SPEC, RyodEngine, buildRyodSpec, resolveInitialBlueprint, RyodCompiler, RyodSystems };
 
@@ -11780,14 +13382,40 @@ module.exports = { DEFAULT_RYOD_SPEC, RyodEngine, buildRyodSpec, resolveInitialB
         'browse', 'study', 'cast', 'ignore', 'examine'
     ];
 
+    const NAMED_KEY_RE = /^(up|down|left|right|home|end|pageup|pagedown|pgup|pgdn|enter|return|escape|esc|space|tab|backspace|delete|c-[a-z0-9_[\]^@])$/i;
+
     function splitKeysSequence(arg) {
         const s = String(arg || '');
         if (!s) return [];
-        if (/^(up|down|left|right|home|end|pageup|pagedown|enter|return|escape|esc|space|tab|backspace|delete)$/i.test(s)) {
-            return [s];
+        if (NAMED_KEY_RE.test(s.trim())) {
+            return [s.trim()];
+        }
+        const trimmed = s.trim();
+        if (/^#[a-z]{2,24}$/i.test(trimmed)) {
+            return [trimmed.toLowerCase()];
         }
         if (s.length === 1) return [s];
-        return s.split('');
+        const out = [];
+        for (let i = 0; i < s.length; i++) {
+            if (s[i] === '#') {
+                const rest = s.slice(i);
+                const mTerm = rest.match(/^#([a-z]{1,24})(?:\r\n|\r|\n)/i);
+                if (mTerm) {
+                    out.push('#' + mTerm[1].toLowerCase());
+                    i += mTerm[0].length - 1;
+                    continue;
+                }
+                const mEnd = rest.match(/^#([a-z]{2,24})$/i);
+                if (mEnd) {
+                    out.push('#' + mEnd[1].toLowerCase());
+                    i += mEnd[0].length - 1;
+                    continue;
+                }
+            }
+            if (s[i] === '\r' || s[i] === '\n') continue;
+            out.push(s[i]);
+        }
+        return out;
     }
 
     function createCartridgeSession(opts = {}) {
@@ -11857,7 +13485,8 @@ module.exports = { DEFAULT_RYOD_SPEC, RyodEngine, buildRyodSpec, resolveInitialB
                 return engine.buildFrame();
             },
             handleCommand(rawCmd) {
-                const line = String(rawCmd || '').trim();
+                const raw = String(rawCmd || '');
+                const line = raw.trim();
                 if (!line) return [];
                 if (line === 'save') {
                     const ok = engine.saveGame();
@@ -11871,12 +13500,24 @@ module.exports = { DEFAULT_RYOD_SPEC, RyodEngine, buildRyodSpec, resolveInitialB
                     return [{ t: 'bye', detail: 'Game session saved and closed' }];
                 }
                 if (line.startsWith('keys ')) {
-                    const keys = splitKeysSequence(line.slice(5));
+                    const rawSeq = raw.replace(/^\s*keys\s+/, '').replace(/\r?\n$/, '');
+                    const keys = splitKeysSequence(rawSeq);
                     for (const k of keys) engine.handleKey(k);
                     return [engine.buildFrame()];
                 }
                 if (line.startsWith('key ')) {
-                    engine.handleKey(line.slice(4));
+                    const keyArg = line.slice(4);
+                    if (keyArg.startsWith('#')) {
+                        if (/^#[a-z]{1,24}$/i.test(keyArg)) {
+                            engine.handleKey(keyArg.toLowerCase());
+                        } else if (keyArg.length === 1) {
+                            engine.handleKey('#');
+                        } else {
+                            for (const k of splitKeysSequence(keyArg)) engine.handleKey(k);
+                        }
+                    } else {
+                        engine.handleKey(keyArg);
+                    }
                     return [engine.buildFrame()];
                 }
                 return [];

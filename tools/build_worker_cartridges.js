@@ -367,14 +367,40 @@ ${moduleEntries.join(',\n')}
         'browse', 'study', 'cast', 'ignore', 'examine'
     ];
 
+    const NAMED_KEY_RE = /^(up|down|left|right|home|end|pageup|pagedown|pgup|pgdn|enter|return|escape|esc|space|tab|backspace|delete|c-[a-z0-9_[\\\]^@])$/i;
+
     function splitKeysSequence(arg) {
         const s = String(arg || '');
         if (!s) return [];
-        if (/^(up|down|left|right|home|end|pageup|pagedown|enter|return|escape|esc|space|tab|backspace|delete)$/i.test(s)) {
-            return [s];
+        if (NAMED_KEY_RE.test(s.trim())) {
+            return [s.trim()];
+        }
+        const trimmed = s.trim();
+        if (/^#[a-z]{2,24}$/i.test(trimmed)) {
+            return [trimmed.toLowerCase()];
         }
         if (s.length === 1) return [s];
-        return s.split('');
+        const out = [];
+        for (let i = 0; i < s.length; i++) {
+            if (s[i] === '#') {
+                const rest = s.slice(i);
+                const mTerm = rest.match(/^#([a-z]{1,24})(?:\\r\\n|\\r|\\n)/i);
+                if (mTerm) {
+                    out.push('#' + mTerm[1].toLowerCase());
+                    i += mTerm[0].length - 1;
+                    continue;
+                }
+                const mEnd = rest.match(/^#([a-z]{2,24})$/i);
+                if (mEnd) {
+                    out.push('#' + mEnd[1].toLowerCase());
+                    i += mEnd[0].length - 1;
+                    continue;
+                }
+            }
+            if (s[i] === '\\r' || s[i] === '\\n') continue;
+            out.push(s[i]);
+        }
+        return out;
     }
 
     function createCartridgeSession(opts = {}) {
@@ -444,7 +470,8 @@ ${moduleEntries.join(',\n')}
                 return engine.buildFrame();
             },
             handleCommand(rawCmd) {
-                const line = String(rawCmd || '').trim();
+                const raw = String(rawCmd || '');
+                const line = raw.trim();
                 if (!line) return [];
                 if (line === 'save') {
                     const ok = engine.saveGame();
@@ -458,12 +485,24 @@ ${moduleEntries.join(',\n')}
                     return [{ t: 'bye', detail: 'Game session saved and closed' }];
                 }
                 if (line.startsWith('keys ')) {
-                    const keys = splitKeysSequence(line.slice(5));
+                    const rawSeq = raw.replace(/^\\s*keys\\s+/, '').replace(/\\r?\\n$/, '');
+                    const keys = splitKeysSequence(rawSeq);
                     for (const k of keys) engine.handleKey(k);
                     return [engine.buildFrame()];
                 }
                 if (line.startsWith('key ')) {
-                    engine.handleKey(line.slice(4));
+                    const keyArg = line.slice(4);
+                    if (keyArg.startsWith('#')) {
+                        if (/^#[a-z]{1,24}$/i.test(keyArg)) {
+                            engine.handleKey(keyArg.toLowerCase());
+                        } else if (keyArg.length === 1) {
+                            engine.handleKey('#');
+                        } else {
+                            for (const k of splitKeysSequence(keyArg)) engine.handleKey(k);
+                        }
+                    } else {
+                        engine.handleKey(keyArg);
+                    }
                     return [engine.buildFrame()];
                 }
                 return [];

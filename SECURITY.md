@@ -6,9 +6,9 @@ Thunderbear Studios actively maintains security updates and patches for the foll
 
 | Version | Supported | Notes |
 |---|---|---|
-| **Web v12.0.x / Desktop 12.0.x** | :white_check_mark: | Current Active Release (`yasd3d.com`) |
-| **Web v11.9.x** | :white_check_mark: | Security Patches Only |
-| **< 11.9.0** | :x: | Deprecated / End of Life |
+| **Web v13.0.x / Desktop 13.0.x** | :white_check_mark: | Current Active Release (`yasd3d.com`) |
+| **Web v12.x** | :white_check_mark: | Security Patches Only |
+| **< 12.0.0** | :x: | Deprecated / End of Life |
 
 ---
 

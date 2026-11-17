@@ -6,11 +6,26 @@
 })(typeof self !== 'undefined' ? self : this, function () {
     'use strict';
 
-    let ActionCatalogModule = null;
-    if (typeof require === 'function') { try { ActionCatalogModule = require('./action-catalog'); } catch (_) {} }
+    let ActionCatalogModule = null, RealmCartridgeModule = null;
+    if (typeof require === 'function') {
+        try { ActionCatalogModule = require('./action-catalog'); } catch (_) {}
+        try { RealmCartridgeModule = require('./realm-cartridge'); } catch (_) {}
+    }
     function getActionCatalog() {
         if (typeof window !== 'undefined' && window.ActionCatalog) return window.ActionCatalog;
         return ActionCatalogModule || null;
+    }
+    function getRealmCartridge() {
+        if (typeof window !== 'undefined' && window.RealmCartridge) return window.RealmCartridge;
+        return RealmCartridgeModule || null;
+    }
+    const EXAMINE_KEYS = Object.freeze({ angband: 'I', frogcomposband: 'I', hengband: 'I', silq: 'x', nethack: ':', dcss: 'v', brogue: 'x', rogue: 'I', ryod: 'I' });
+    function getVisibleTabs(realm) {
+        const r = String(realm || 'angband').toLowerCase();
+        const RC = getRealmCartridge();
+        const caps = (RC && typeof RC.getCapabilities === 'function') ? RC.getCapabilities(r) : null;
+        const hasQuiver = (caps && caps.hasQuiver !== undefined) ? (caps.hasQuiver !== false) : (r !== 'silq' && r !== 'rogue' && r !== 'brogue');
+        return hasQuiver ? ['pack', 'gear', 'quiver'] : ['pack', 'gear'];
     }
 
     // # ROOT-CAUSE: Track _selectedIndex and expose isOpen(), close(), and handleKeyDown() so keyboard navigation works seamlessly inside #item-sheet.
@@ -26,11 +41,11 @@
         const sh = String((raw && (raw.slot_name || raw.slotName || raw.equip_slot)) || '').toLowerCase();
         for (const [k, re] of [['bow', /^(ranged|launcher|bow|shooter)$/], ['melee', /^(weapon|melee|main_hand|wield)$/], ['boots', /^(feet|boots)$/], ['gloves', /^(hands|gloves|gauntlets)$/], ['head', /^(head|helm|helmet|crown)$/], ['shield', /^(shield|off_hand|arm)$/], ['cloak', /^(cloak|mantle|back)$/], ['body', /^(body|torso|armor|armour)$/], ['light', /^(light|lite|source)$/], ['amulet', /^(neck|amulet)$/], ['ring', /^(finger|ring|left_ring|right_ring)$/]]) { if (re.test(sh)) return k; }
         const s = String(name || (raw && (raw.name || raw.dname || raw.label)) || '').toLowerCase();
-        for (const [k, re] of [['bow', /\b(short bow|long bow|crossbow|sling|bow)\b/], ['boots', /\b(boots|sandals|shoes|greaves)\b/], ['gloves', /\b(gloves|gauntlets|cesti|mittens)\b/], ['head', /\b(helm|helmet|cap|crown|hat|hood)\b/], ['shield', /\b(shield|buckler|targe)\b/], ['cloak', /\b(cloak|cape|mantle)\b/], ['amulet', /\b(amulet|necklace|pendant|talisman)\b/], ['ring', /\bring\b/], ['light', /\b(torch|lantern|phial|star of|arkenstone)\b/], ['body', /\b(mail|armour|armor|robe|leather|plate|hauberk|brigandine|doublet|jerkin|coat|dragon scale)\b/], ['melee', /\b(dagger|sword|blade|rapier|sabre|cutlass|tulwar|scimitar|katana|bastard|zweihander|spear|lance|pike|halberd|glaive|axe|hatchet|mace|club|flail|morning star|war hammer|quarterstaff|whip|pick|mattock|trident)\b/]]) { if (re.test(s)) return k; }
+        for (const [k, re] of [['bow', /\b(short bow|long bow|crossbow|sling|bow)\b/], ['boots', /\b(boots|sandals|shoes|greaves)\b/], ['gloves', /\b(gloves|gauntlets|cesti|mittens)\b/], ['head', /\b(helm|helmet|cap|crown|hat|hood)\b/], ['shield', /\b(shield|buckler|targe)\b/], ['cloak', /\b(cloak|cape|mantle)\b/], ['amulet', /\b(amulet|necklace|pendant|talisman)\b/], ['light', /\b(torch|lantern|phial|star of|arkenstone)\b/], ['body', /\b(mail|armour|armor|robe|leather|plate|hauberk|brigandine|doublet|jerkin|coat|dragon scale)\b/], ['ring', /\bring(?!\s+mail)\b/], ['melee', /\b(dagger|sword|blade|rapier|sabre|cutlass|tulwar|scimitar|katana|bastard|zweihander|spear|lance|pike|halberd|glaive|axe|hatchet|mace|club|flail|morning star|war hammer|quarterstaff|whip|pick|mattock|trident)\b/]]) { if (re.test(s)) return k; }
         return null;
     }
 
-    function parseGearStats(name, raw, slotCat) {
+    function parseGearStats(name, raw, slotCat, isDescAc) {
         const s = String(name || (raw && (raw.name || raw.dname || raw.label)) || '');
         const diceM = s.match(/\((\d+)d(\d+)\)/), multM = s.match(/\(x(\d+)\)/i);
         const hitDamM = s.match(/\(([+-]\d+),\s*([+-]\d+)\)/);
@@ -38,25 +53,38 @@
         const avgDice = diceM ? (Number(diceM[1]) * (Number(diceM[2]) + 1) * 0.5) : ((raw && raw.dd && raw.ds) ? (Number(raw.dd) * (Number(raw.ds) + 1) * 0.5) : 0);
         const toDam = hitDamM ? Number(hitDamM[2]) : (Number(raw && (raw.to_d !== undefined ? raw.to_d : raw.bonus)) || 0);
         const dam = slotCat === 'bow' ? ((multM ? Number(multM[1]) : 1) * (2 + toDam)) : (toDam + avgDice);
-        const ac = acM ? (acM[2] !== undefined ? Number(acM[1]) + Number(acM[2]) : Number(acM[1])) : ((Number(raw && raw.ac) || 0) + (Number(raw && (raw.to_a !== undefined ? raw.to_a : raw.bonus)) || 0));
+        const acBonus = Number(raw && (raw.to_a !== undefined ? raw.to_a : raw.bonus)) || 0;
+        const acBase = Number(raw && (raw.ac !== undefined ? raw.ac : raw.arm)) || 0;
+        const ac = acM ? (acM[2] !== undefined ? Number(acM[1]) + (isDescAc ? -Number(acM[2]) : Number(acM[2])) : Number(acM[1])) : (isDescAc ? (acBase - acBonus) : (acBase + acBonus));
         const wt = Number(raw && raw.weight) || 0;
         const isWep = slotCat === 'melee' || slotCat === 'bow' || Boolean(diceM || (raw && raw.kind === 'weapon'));
         const isArm = (slotCat && /^(boots|gloves|head|shield|cloak|body)$/.test(slotCat)) || Boolean((acM && !diceM && !multM) || (raw && raw.kind === 'armor'));
         return { dam, ac, wt, isWep, isArm };
     }
 
-    function compareWithEquipped(raw, nameOrEqList, maybeEqList) {
-        const eqList = Array.isArray(nameOrEqList) ? nameOrEqList : maybeEqList;
-        const name = Array.isArray(nameOrEqList) ? ((raw && (raw.name || raw.dname || raw.label)) || '') : nameOrEqList;
+    function compareWithEquipped(raw, nameOrEqList, maybeEqListOrRealm, maybeRealm) {
+        const arg2IsArr = Array.isArray(nameOrEqList);
+        const eqList = arg2IsArr ? nameOrEqList : maybeEqListOrRealm;
+        const name = arg2IsArr ? ((raw && (raw.name || raw.dname || raw.label)) || '') : nameOrEqList;
+        const realmArg = arg2IsArr ? (typeof maybeEqListOrRealm === 'string' ? maybeEqListOrRealm : maybeRealm) : maybeRealm;
         if (!Array.isArray(eqList) || !eqList.length) return null;
         const slotCat = resolveEquipSlotCategory(raw, name);
         if (!slotCat) return null;
-        const cur = parseGearStats(name, raw, slotCat);
+        const r = String(realmArg || (raw && raw.realm) || _lastRealm || (typeof window !== 'undefined' && ((window.__app && window.__app.getActiveRealm && window.__app.getActiveRealm()) || window.__activeRealm)) || 'angband').toLowerCase();
+        const RC = getRealmCartridge();
+        const ds = (RC && typeof RC.getDefenseSchema === 'function') ? RC.getDefenseSchema(r) : null;
+        const isDescAc = ds ? ds.direction === 'descending' : (r === 'rogue' || r === 'nethack');
+        const cur = parseGearStats(name, raw, slotCat, isDescAc);
         if (!cur.isWep && !cur.isArm) return null;
         const eqMatch = eqList.find((e) => e && resolveEquipSlotCategory(e, e.name) === slotCat);
         if (!eqMatch) return null;
-        const base = parseGearStats(eqMatch.name, eqMatch, slotCat);
-        const dVal = Math.round((cur.isWep ? (cur.dam - base.dam) : (cur.ac - base.ac)) * 10) / 10;
+        const base = parseGearStats(eqMatch.name, eqMatch, slotCat, isDescAc);
+        let dVal;
+        if (!cur.isWep && RC && typeof RC.computeStatDelta === 'function') {
+            const rcDelta = RC.computeStatDelta(raw, eqMatch, r, 'armor');
+            if (rcDelta && rcDelta.deltaLabel) dVal = rcDelta.delta;
+        }
+        if (dVal === undefined) dVal = Math.round((cur.isWep ? (cur.dam - base.dam) : (isDescAc ? (base.ac - cur.ac) : (cur.ac - base.ac))) * 10) / 10;
         const dWt = cur.wt && base.wt ? Math.round((cur.wt - base.wt) / 10 * 10) / 10 : 0;
         return { metric: cur.isWep ? 'Dmg' : 'AC', delta: dVal, wtLb: cur.wt ? (cur.wt / 10).toFixed(1) : null, wtDelta: dWt };
     }
@@ -85,7 +113,7 @@
             if (catalog && typeof catalog.validVerbsForItem === 'function') {
                 catalogVerbs = catalog.validVerbsForItem(isEquipped ? raw : Object.assign({}, raw, { slot: undefined }), r, isEquipped);
             } else {
-                catalogVerbs = (isEquipped ? ['takeoff', 'examine'] : ['wield', 'drop', 'examine']).map((id) => ({ id, keys: { [r]: id[0] }, labels: { en: id, jp: id } }));
+                catalogVerbs = (isEquipped ? ['takeoff', 'examine'] : ['wield', 'drop', 'examine']).map((id) => ({ id, keys: { [r]: id === 'examine' ? (EXAMINE_KEYS[r] || 'I') : id[0] }, labels: { en: id, jp: id } }));
             }
             if (tabNorm === 'quiver' && !catalogVerbs.some((c) => c.id === 'fire')) {
                 const fireCmd = catalog && typeof catalog.get === 'function' ? catalog.get('fire') : null;
@@ -95,7 +123,8 @@
             const validVerbs = [];
             for (let v = 0; v < catalogVerbs.length; v++) {
                 const cmd = catalogVerbs[v];
-                const verbKey = (cmd.keys && cmd.keys[r] !== undefined && cmd.keys[r] !== null) ? cmd.keys[r] : (cmd.key || '');
+                const rawKey = (cmd.keys && cmd.keys[r] !== undefined && cmd.keys[r] !== null) ? cmd.keys[r] : (cmd.key || '');
+                const verbKey = (cmd.id === 'examine' && EXAMINE_KEYS[r]) ? EXAMINE_KEYS[r] : rawKey;
                 const label = (lang === 'bilingual' && cmd.labels && cmd.labels.jp && cmd.labels.en) ? `${cmd.labels.en} (${cmd.labels.jp})` : ((lang === 'jp' && cmd.labels && cmd.labels.jp) ? cmd.labels.jp : ((cmd.labels && cmd.labels.en) || cmd.name || cmd.id));
                 let primary = false;
                 if (isEquipped) primary = (cmd.id === 'takeoff');
@@ -111,7 +140,7 @@
                 }
                 validVerbs.push({ id: cmd.id, key: verbKey, label, primary, disabled, reason });
             }
-            const compare = !isEquipped ? compareWithEquipped(raw, name, eqList) : null;
+            const compare = !isEquipped ? compareWithEquipped(raw, name, eqList, r) : null;
             result.push({ slot, letter, name, tval, count, inscription, compare, validVerbs, raw });
         }
         return result;
@@ -135,14 +164,16 @@
     function executeVerb(item, verb, realm, dispatcher) {
         if (!verb || verb.disabled) return;
         hide();
+        const r = String(realm || _lastRealm || 'angband').toLowerCase();
+        const verbId = verb.id === 'inspect' ? 'examine' : verb.id;
+        const verbKey = verb.key || (verb.keys && verb.keys[r]) || (verbId === 'examine' ? EXAMINE_KEYS[r] : '');
         const d = dispatcher || (typeof window !== 'undefined' && window.__app && window.__app.dispatcher) || null;
         if (d && typeof d.run === 'function') {
-            d.run({ verb: verb.id, item: item.raw || item });
+            d.run({ verb: verbId, key: verbKey || undefined, item: item.raw || item }, realm ? { realm: r } : undefined);
         } else {
-            const key = verb.key || (verb.keys && verb.keys[realm]);
             const net = (typeof window !== 'undefined') && ((window.__app && window.__app.network) || window.network);
-            if (key && net && typeof net.sendKey === 'function') {
-                net.sendKey(key);
+            if (verbKey && net && typeof net.sendKey === 'function') {
+                net.sendKey(verbKey);
             }
         }
     }
@@ -173,7 +204,9 @@
 
         // # ROOT-CAUSE: Store _lastFrame/_lastRealm/_lastItems in render() and expose isOpen(), close(), and handleKeyDown() for full keyboard navigation inside #item-sheet.
         const r = String(typeof realm === 'string' ? realm : ((frame && frame.realm) || 'angband')).toLowerCase();
-        const tab = opts.tab || _activeTab;
+        const visibleTabs = getVisibleTabs(r);
+        let tab = String(opts.tab || _activeTab || 'pack').toLowerCase();
+        if (!visibleTabs.includes(tab)) { tab = 'pack'; _activeTab = 'pack'; }
         const lang = (typeof window !== 'undefined' && window.__langMode) || 'en';
         const items = buildItemViewModel(frame, r, tab, lang);
 
@@ -188,43 +221,30 @@
         container.textContent = '';
         container.classList.toggle('is-open-stable', wasAlreadyOpen);
 
-        // Header with tabs
-        const header = document.createElement('div');
+        const seen = [], header = document.createElement('div');
         header.className = 'item-sheet-header';
         const tabsWrap = document.createElement('div');
         tabsWrap.className = 'item-sheet-tabs';
-        const tabDefs = [
+        for (const td of [
             { id: 'pack', label: lang === 'jp' ? '持ち物' : (lang === 'bilingual' ? 'Pack (持ち物)' : 'Pack') },
             { id: 'gear', label: lang === 'jp' ? '装備' : (lang === 'bilingual' ? 'Gear (装備)' : 'Gear') },
             { id: 'quiver', label: lang === 'jp' ? '矢筒' : (lang === 'bilingual' ? 'Quiver (矢筒)' : 'Quiver') }
-        ];
-
-        for (let t = 0; t < tabDefs.length; t++) {
-            const td = tabDefs[t];
+        ].filter((t) => visibleTabs.includes(t.id))) {
             const tabBtn = document.createElement('button');
-            tabBtn.type = 'button';
-            tabBtn.className = `item-sheet-tab ${td.id === tab ? 'active' : ''}`;
-            tabBtn.textContent = td.label;
-            tabBtn.setAttribute('data-tab', td.id);
-            tabBtn.addEventListener('click', function () {
-                _activeTab = td.id; _selectedIndex = 0; _lastSig = null;
-                render(frame, r, { container, tab: td.id, dispatcher: opts.dispatcher });
-            });
+            tabBtn.type = 'button'; tabBtn.className = `item-sheet-tab ${td.id === tab ? 'active' : ''}`;
+            tabBtn.textContent = td.label; tabBtn.setAttribute('data-tab', td.id);
+            tabBtn.addEventListener('click', () => { _activeTab = td.id; _selectedIndex = 0; _lastSig = null; render(frame, r, { container, tab: td.id, dispatcher: opts.dispatcher }); });
             tabsWrap.appendChild(tabBtn);
         }
         header.appendChild(tabsWrap);
-
         const closeBtn = document.createElement('button');
         closeBtn.type = 'button'; closeBtn.className = 'item-sheet-close'; closeBtn.textContent = '✕';
         closeBtn.setAttribute('aria-label', 'Close Item Sheet');
-        closeBtn.addEventListener('click', function () { hide(); });
+        closeBtn.addEventListener('click', hide);
         header.appendChild(closeBtn);
         container.appendChild(header);
-
-        // Item List
         const listEl = document.createElement('div');
         listEl.className = 'item-sheet-list';
-
         if (items.length === 0) {
             const emptyEl = document.createElement('div');
             emptyEl.className = 'item-sheet-empty';
@@ -232,37 +252,23 @@
             listEl.appendChild(emptyEl);
         } else {
             for (let i = 0; i < items.length; i++) {
-                const item = items[i];
-                const card = document.createElement('div');
+                const item = items[i], card = document.createElement('div');
                 card.className = `item-sheet-card${i === _selectedIndex ? ' is-selected' : ''}`;
-                card.addEventListener('click', function () {
-                    _selectedIndex = i; _lastSig = null;
-                    render(frame, r, { container, tab, dispatcher: opts.dispatcher });
-                });
-
-                const infoRow = document.createElement('div');
-                infoRow.className = 'item-sheet-info';
-                const badge = document.createElement('kbd');
-                badge.className = 'item-sheet-badge';
+                card.addEventListener('click', () => { _selectedIndex = i; _lastSig = null; render(frame, r, { container, tab, dispatcher: opts.dispatcher }); });
+                const infoRow = document.createElement('div'), badge = document.createElement('kbd'), nameWrap = document.createElement('div'), nameEl = document.createElement('span');
+                infoRow.className = 'item-sheet-info'; badge.className = 'item-sheet-badge';
                 badge.textContent = item.letter ? `[${item.letter}]` : `[${i + 1}]`;
                 infoRow.appendChild(badge);
-
-                const nameWrap = document.createElement('div');
-                nameWrap.className = 'item-sheet-name-wrap';
-                const nameEl = document.createElement('span');
-                nameEl.className = 'item-sheet-name';
+                nameWrap.className = 'item-sheet-name-wrap'; nameEl.className = 'item-sheet-name';
                 nameEl.textContent = item.count > 1 ? `${item.count}x ${item.name}` : item.name;
                 nameWrap.appendChild(nameEl);
-
                 if (item.inscription) {
                     const inscEl = document.createElement('span');
-                    inscEl.className = 'item-sheet-inscription';
-                    inscEl.textContent = ` {${item.inscription}}`;
+                    inscEl.className = 'item-sheet-inscription'; inscEl.textContent = ` {${item.inscription}}`;
                     nameWrap.appendChild(inscEl);
                 }
                 if (item.compare) {
-                    const cmpEl = document.createElement('span');
-                    const d = item.compare.delta;
+                    const cmpEl = document.createElement('span'), d = item.compare.delta;
                     cmpEl.className = `item-sheet-delta ${d > 0 ? 'delta-up' : (d < 0 ? 'delta-down' : 'delta-even')}`;
                     cmpEl.style.cssText = `margin-left:8px;font-size:11px;font-weight:700;color:${d > 0 ? '#4ade80' : (d < 0 ? '#f87171' : '#94a3b8')};`;
                     cmpEl.textContent = `${d > 0 ? '+' : ''}${d} ${item.compare.metric}${item.compare.wtLb ? ` • ${item.compare.wtLb}lb` : ''}`;
@@ -270,33 +276,22 @@
                 }
                 infoRow.appendChild(nameWrap);
                 card.appendChild(infoRow);
-
-                // Verbs row
                 const verbsRow = document.createElement('div');
                 verbsRow.className = 'item-sheet-verbs';
-
-                for (let v = 0; v < item.validVerbs.length; v++) {
-                    const verb = item.validVerbs[v];
+                for (const verb of item.validVerbs) {
                     const vBtn = document.createElement('button');
-                    vBtn.type = 'button';
-                    vBtn.className = `item-verb-btn ${verb.primary ? 'primary' : ''} ${verb.disabled ? 'disabled' : ''}`;
+                    vBtn.type = 'button'; vBtn.className = `item-verb-btn ${verb.primary ? 'primary' : ''} ${verb.disabled ? 'disabled' : ''}`;
                     if (verb.disabled) { vBtn.setAttribute('aria-disabled', 'true'); vBtn.title = verb.reason; }
-                    if (verb.key) {
-                        const kbd = document.createElement('kbd');
-                        kbd.className = 'item-verb-kbd'; kbd.textContent = `[${verb.key}]`;
-                        vBtn.appendChild(kbd);
-                    }
-                    const labelSpan = document.createElement('span');
-                    labelSpan.textContent = verb.label;
+                    if (verb.key) { const kbd = document.createElement('kbd'); kbd.className = 'item-verb-kbd'; kbd.textContent = `[${verb.key}]`; vBtn.appendChild(kbd); }
+                    const labelSpan = document.createElement('span'); labelSpan.textContent = verb.label;
                     vBtn.appendChild(labelSpan);
-                    vBtn.addEventListener('click', function (e) { e.stopPropagation(); executeVerb(item, verb, r, opts.dispatcher); });
+                    vBtn.addEventListener('click', (e) => { e.stopPropagation(); executeVerb(item, verb, r, opts.dispatcher); });
                     verbsRow.appendChild(vBtn);
                 }
-
-                card.appendChild(verbsRow);
-                listEl.appendChild(card);
+                card.appendChild(verbsRow); listEl.appendChild(card);
             }
         }
+        void seen;
 
         container.appendChild(listEl);
     }
@@ -315,8 +310,11 @@
         if (!e.ctrlKey && !e.altKey && !e.metaKey) {
             if (e.key === 'Tab' || e.key === '1' || e.key === '2' || e.key === '3') {
                 e.preventDefault();
-                const tabOrder = ['pack', 'gear', 'quiver'];
-                _activeTab = e.key === 'Tab' ? tabOrder[(tabOrder.indexOf(_activeTab) + (e.shiftKey ? 2 : 1)) % 3] : (tabOrder[parseInt(e.key, 10) - 1] || 'pack');
+                const visibleTabs = getVisibleTabs(_lastRealm);
+                if (e.key === '3' && visibleTabs.length < 3) return true;
+                const curIdx = Math.max(0, visibleTabs.indexOf(_activeTab));
+                const len = visibleTabs.length;
+                _activeTab = e.key === 'Tab' ? visibleTabs[(curIdx + (e.shiftKey ? len - 1 : 1)) % len] : (visibleTabs[parseInt(e.key, 10) - 1] || 'pack');
                 _selectedIndex = 0; _lastSig = null;
                 render(_lastFrame, _lastRealm, { tab: _activeTab, dispatcher: _lastDispatcher });
                 return true;
@@ -354,6 +352,8 @@
 
     function show(frame, realm, invokerEl) {
         _invokerEl = invokerEl || null; _selectedIndex = 0;
+        const r = String(typeof realm === 'string' ? realm : ((frame && frame.realm) || 'angband')).toLowerCase();
+        if (!getVisibleTabs(r).includes(_activeTab)) _activeTab = 'pack';
         const c = ensureContainer();
         if (c) {
             c.hidden = false; c.classList.remove('hidden');

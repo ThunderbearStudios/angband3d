@@ -17,6 +17,7 @@
  */
 'use strict';
 
+const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 const { runCdpSession, sleep } = require('./lib/cdp');
@@ -182,9 +183,77 @@ async function testRealmLayout(realm) {
                     }
                 ` : ''}
 
+                // Check strict desktop child clipping, AC label/value spacing & unique <kbd> shortcuts
+                const clipIssues = [];
+                const collisionIssues = [];
+                const duplicateKbds = [];
+                ${!vp.mobile ? `
+                    const mmCont = document.getElementById('minimap-container');
+                    const wasCompact = mmCont ? mmCont.classList.contains('compact') : false;
+                    const checkClips = (tag) => {
+                        for (const pId of ['minimap-controls-bar', 'stats-strip']) {
+                            const p = document.getElementById(pId);
+                            if (!p) continue;
+                            const ps = window.getComputedStyle(p);
+                            if (ps.display === 'none' || ps.visibility === 'hidden') continue;
+                            const pr = p.getBoundingClientRect();
+                            if (pr.width <= 0 || pr.height <= 0) continue;
+                            for (const ch of p.querySelectorAll('button, .stat-item')) {
+                                const cs = window.getComputedStyle(ch);
+                                if (cs.display === 'none' || cs.visibility === 'hidden') continue;
+                                const cr = ch.getBoundingClientRect();
+                                if (cr.width <= 0 || cr.height <= 0) continue;
+                                if (cr.right > pr.right + 1.5 || cr.left < pr.left - 1.5) {
+                                    clipIssues.push(tag + ':' + pId + '->' + (ch.id || ch.textContent.trim().slice(0, 12)) + ' (' + cr.left.toFixed(1) + '..' + cr.right.toFixed(1) + ' vs ' + pr.left.toFixed(1) + '..' + pr.right.toFixed(1) + ')');
+                                }
+                            }
+                        }
+                    };
+                    checkClips('normal');
+                    if (mmCont && ${vp.width === 1920 ? 'true' : 'false'} && !wasCompact) {
+                        mmCont.classList.add('compact');
+                        void mmCont.offsetWidth;
+                        checkClips('compact');
+                        mmCont.classList.remove('compact');
+                    }
+
+                    const acItem = document.getElementById('stat-item-ac');
+                    if (acItem && window.getComputedStyle(acItem).display !== 'none') {
+                        const lbl = acItem.querySelector('.stat-label');
+                        const val = acItem.querySelector('.stat-value');
+                        if (lbl && val) {
+                            const lr = lbl.getBoundingClientRect();
+                            const vr = val.getBoundingClientRect();
+                            if (lr.width > 0 && vr.width > 0 && lr.right > vr.left - 4) {
+                                collisionIssues.push('#stat-item-ac label right ' + lr.right.toFixed(1) + ' collides with value left ' + vr.left.toFixed(1));
+                            }
+                        }
+                    }
+
+                    const kbdMap = new Map();
+                    for (const btn of document.querySelectorAll('#action-bar .action-btn')) {
+                        const bs = window.getComputedStyle(btn);
+                        if (bs.display === 'none' || bs.visibility === 'hidden') continue;
+                        const br = btn.getBoundingClientRect();
+                        if (br.width <= 0 || br.height <= 0) continue;
+                        const k = btn.querySelector('kbd');
+                        if (!k || window.getComputedStyle(k).display === 'none') continue;
+                        const txt = k.textContent.trim();
+                        if (!txt) continue;
+                        if (kbdMap.has(txt)) {
+                            duplicateKbds.push(txt + ' (' + kbdMap.get(txt) + ' & ' + (btn.id || btn.textContent.trim()) + ')');
+                        } else {
+                            kbdMap.set(txt, btn.id || btn.textContent.trim());
+                        }
+                    }
+                ` : ''}
+
                 return {
                     intersections,
                     smallButtons,
+                    clipIssues,
+                    collisionIssues,
+                    duplicateKbds,
                     activeCount: activeRects.length
                 };
             })()`);
@@ -203,6 +272,23 @@ async function testRealmLayout(realm) {
                 console.log(`    ✓ No bounding rect overlaps in ${vp.name}`);
             }
 
+            if (checkResult.clipIssues && checkResult.clipIssues.length > 0) {
+                console.log(`    ❌ Child clipping in ${vp.name}:`, checkResult.clipIssues);
+                for (const ci of checkResult.clipIssues) failures.push(`${realm} @ ${vp.name}: clip ${ci}`);
+            } else if (!vp.mobile) {
+                console.log(`    ✓ Zero child clipping in #minimap-controls-bar / #stats-strip (${vp.name})`);
+            }
+
+            if (checkResult.collisionIssues && checkResult.collisionIssues.length > 0) {
+                console.log(`    ❌ AC label/value collision in ${vp.name}:`, checkResult.collisionIssues);
+                for (const co of checkResult.collisionIssues) failures.push(`${realm} @ ${vp.name}: ${co}`);
+            }
+
+            if (checkResult.duplicateKbds && checkResult.duplicateKbds.length > 0) {
+                console.log(`    ❌ Duplicate <kbd> badges in ${vp.name}:`, checkResult.duplicateKbds);
+                for (const dk of checkResult.duplicateKbds) failures.push(`${realm} @ ${vp.name}: duplicate <kbd> ${dk}`);
+            }
+
             if (checkResult.smallButtons && checkResult.smallButtons.length > 0) {
                 console.log(`    ❌ Buttons smaller than 40x40 under coarse pointer:`);
                 for (const sb of checkResult.smallButtons.slice(0, 5)) {
@@ -218,9 +304,46 @@ async function testRealmLayout(realm) {
     return failures;
 }
 
+async function testMainMenuSymmetry() {
+    console.log('\n--- Testing Main Menu [1-4] Sequence & Column Symmetry ---');
+    const failures = [];
+    await runCdpSession(BASE + '/', async ({ send, evaluate }) => {
+        await send('Runtime.enable');
+        await send('Page.enable');
+        for (const vp of [{ width: 1920, height: 1080 }, { width: 1366, height: 768 }]) {
+            await send('Emulation.setDeviceMetricsOverride', { width: vp.width, height: vp.height, deviceScaleFactor: 1, mobile: false });
+            await sleep(300);
+            await evaluate(`(() => {
+                const s = document.getElementById('btn-splash-start');
+                if (s && document.getElementById('main-menu-overlay')?.classList.contains('hidden')) s.click();
+            })()`);
+            await sleep(350);
+            const res = await evaluate(`(() => {
+                const nums = Array.from(document.querySelectorAll('#main-menu-options .menu-option-btn')).filter(b => window.getComputedStyle(b).display !== 'none').map(b => b.querySelector('.menu-num')?.textContent?.trim());
+                const left = document.querySelector('.main-menu-realm-atlas')?.getBoundingClientRect();
+                const right = document.querySelector('.main-menu-launch-deck')?.getBoundingClientRect();
+                return { nums, leftBottom: left ? left.bottom : null, rightBottom: right ? right.bottom : null };
+            })()`);
+            assert.deepStrictEqual(res.nums, ['1', '2', '3', '4'], `Main Menu numbers at ${vp.width}x${vp.height} expected [1,2,3,4], got ${JSON.stringify(res.nums)}`);
+            const delta = Math.abs(res.leftBottom - res.rightBottom);
+            console.log(`  ✓ Main Menu ${vp.width}x${vp.height}: nums=[${res.nums.join(',')}] column bottom delta=${delta.toFixed(1)}px`);
+            if (delta > 16) failures.push(`Main Menu ${vp.width}x${vp.height}: column bottom delta ${delta.toFixed(1)}px > 16px`);
+        }
+    });
+    return failures;
+}
+
 async function main() {
     console.log('=== Running WS9.1 Layout Overlap & Touch Target Verification ===\n');
     let totalFailures = 0;
+
+    try {
+        const menuFailures = await testMainMenuSymmetry();
+        totalFailures += menuFailures.length;
+    } catch (err) {
+        console.error('Error testing Main Menu symmetry:', err);
+        totalFailures++;
+    }
 
     for (const realm of TARGET_REALMS) {
         try {

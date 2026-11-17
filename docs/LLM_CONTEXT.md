@@ -1,24 +1,24 @@
-# angband3d — AI Context & Onboarding Guide
+# angband3d / YASD 3D — AI Context & Onboarding Guide (`v13.0.2`)
 
 ## Mission & Architecture
-`angband3d` is a multi-realm first-person 3D dungeon crawler platform powered by **4 authoritative C/C++ roguelike engines** (`Vanilla Angband 4.2.6`, `Sil-Q`, `FrogComposBand`, and `Hengband`) paired with both a **Web Three.js / CRT Canvas / Living Chronicle client** (plus Offline Emscripten WASM, Windows `.NET 8` WebView2, and Android Capacitor APK) and a **native Godot 4.7.2 C# client**.
-Rather than rewriting game rules, each engine runs as a headless child process (or WebWorker) communicating via line-delimited JSON over stdio / WebSockets.
+`angband3d` (`https://yasd3d.com`) is a 9-realm first-person 3D dungeon crawler platform powered by **4 authoritative C/C++ roguelike engines** (`Vanilla Angband 4.2.6`, `Sil-Q 1.5.0`, `FrogComposBand 7.1.1`, and `Hengband 3.0.1`) plus **5 UniversalCartridge offline browser-worker realms** (`NetHack 3.6.7`, `DCSS`, `Brogue CE`, `Rogue 5.4`, and `RYOD Forge`) paired with a **Web Three.js / Illuminated Vellum Canvas / Living Chronicle PWA client**.
+Rather than rewriting game rules, each engine runs as an isolated worker/process communicating via line-delimited JSON over stdio / WebSockets.
 
 ```
 +------------------------------------------+              +-----------------------------------------------+
-| 4 Authoritative C/C++ Engines            |  JSON stdio  | Cloud Relay & AI Proxy (server/src/server.js) |
+| 4 C/C++ Engines + 5 UniversalCartridges  |  JSON stdio  | Cloud Relay & AI Proxy (server/src/server.js) |
 |  - engine/src/main-bridge.c (Vanilla)    | <----------> |  - WS multiplexer & TOFU owner tokens         |
 |  - variants/silq-src/src/main-bridge.c   |              |  - /api/llm/generate & /api/tts (Gemini)      |
 |  - variants/frogcomposband-src/...       |              +-----------------------+-----------------------+
 |  - variants/hengband-src/... (.cpp)      |                                      | WebSocket / REST
-+--------------------+---------------------+                                      v
-                     | Direct stdio / WS                  +-----------------------------------------------+
-                     v                                    | Web / Mobile / Desktop / Offline WASM Client  |
-+------------------------------------------+              |  - app.js, input.js, screen-context.js        |
-| Godot 4.7.2 C# Client (client/scripts/)  |              |  - menu-router.js, realm-keys.js, heng/*.js   |
-|  - BridgeClient.cs / WebSocketBridge.cs  |              |  - dungeon3d.js (Three.js), hud.js, terminal  |
-|  - Main.cs, DungeonWorld.cs, Overlay.cs  |              |  - chronicle/*.js (Voiced Lorekeeper & Tome)  |
-|  - ViewModel.cs, *ModelResolver.cs       |              |  - local_bridge.js + engine-worker.js (WASM)  |
+|  - server/src/cartridges/* + variants/*  |                                      v
++--------------------+---------------------+              +-----------------------------------------------+
+                     | Direct stdio / WS                  | Web / Mobile / PWA / Offline WASM Client      |
+                     v                                    |  - app.js, input.js, screen-context.js        |
++------------------------------------------+              |  - menu-router.js, realm-keys.js, heng/*.js   |
+| Archived Godot Client (archive/)         |              |  - dungeon3d.js (Three.js), hud.js, terminal  |
+|  - Reference C# client                   |              |  - chronicle/*.js (Voiced Lorekeeper & Tome)  |
+|                                          |              |  - local_bridge.js + engine-worker.js (WASM)  |
 +------------------------------------------+              +-----------------------------------------------+
 ```
 

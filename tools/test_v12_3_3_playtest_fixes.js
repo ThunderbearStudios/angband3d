@@ -289,20 +289,19 @@ function testRealisticBeastsAndRouting() {
 
         const j = parseGlb(b1);
         assert((j.textures || []).length >= 2, `${file} must have >= 2 embedded PBR textures`);
+        const gen = String((j.asset && j.asset.generator) || '');
+        assert(!/Bestiary Generator|Dark Bestiary Sculptor|WS79-Builder/i.test(gen), `${file} must use a genuine 3rd-party sculpted/rigged GLB, not procedural generator "${gen}"`);
+        let vertCount = 0;
         for (const m of (j.meshes || [])) {
             for (const p of (m.primitives || [])) {
                 assert(p.attributes && p.attributes.POSITION !== undefined, `${file} missing POSITION`);
                 assert(p.attributes.NORMAL !== undefined, `${file} missing NORMAL`);
                 assert(p.attributes.TEXCOORD_0 !== undefined, `${file} missing TEXCOORD_0`);
+                vertCount += (j.accessors[p.attributes.POSITION].count || 0);
             }
         }
-        if (file === 'wolf.glb') {
-            const animNames = (j.animations || []).map(a => a.name);
-            assert(animNames.includes('idle') && animNames.includes('walk'), 'wolf.glb must retain idle/walk animations');
-            const posAcc = j.accessors[j.meshes[0].primitives[0].attributes.POSITION];
-            const spanZ = posAcc.max[2] - posAcc.min[2];
-            const spanY = posAcc.max[1] - posAcc.min[1];
-            assert(spanZ / spanY >= 1.5, `wolf.glb must be elongated quadruped (ratio=${(spanZ / spanY).toFixed(2)})`);
+        if (['wolf.glb', 'husky.glb', 'werewolf.glb'].includes(file)) {
+            assert(vertCount >= 10000, `${file} must use restored high-poly 3rd-party sculpt (>=10000 verts, got ${vertCount})`);
         }
         if (file === 'Fox.glb') {
             const animNames = (j.animations || []).map(a => a.name);
@@ -311,15 +310,6 @@ function testRealisticBeastsAndRouting() {
         if (file === 'frog.glb') {
             const animNames = (j.animations || []).map(a => a.name);
             assert(animNames.includes('attack') && animNames.includes('idle') && animNames.includes('jump'), 'frog.glb must keep attack/idle/jump anims');
-        }
-        if (file === 'werewolf.glb') {
-            const posAcc = j.accessors[j.meshes[0].primitives[0].attributes.POSITION];
-            const heightY = posAcc.max[1] - posAcc.min[1];
-            assert(heightY >= 1.8, `werewolf.glb must be towering lupine beastman (height=${heightY.toFixed(2)})`);
-        }
-        if (file === 'husky.glb') {
-            const rootNode = j.nodes[j.scenes[0].nodes[0]];
-            assert(rootNode && Array.isArray(rootNode.rotation) && Math.abs(rootNode.rotation[1] - Math.SQRT1_2) < 0.01, 'husky.glb must carry +90 deg Husky_Root for pinned -Math.PI/2 wrapper');
         }
     }
 

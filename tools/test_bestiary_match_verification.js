@@ -193,7 +193,12 @@ test('Live multi-realm resolveMonster3DConfig maps 40+ signature creatures acros
     assert.strictEqual(resolve({ race: 'Easterling warrior', glyph: 'p' }, 'p', 'silq').templateKey, 'char_male_ranger');
     assert.strictEqual(resolve({ race: 'Gorlim the Traitor', glyph: 'p' }, 'p', 'silq').templateKey, 'char_male_ranger');
     assert.strictEqual(resolve({ race: 'Shadow spider', glyph: 'S' }, 'S', 'silq').templateKey, 'obj_spider');
-    assert.strictEqual(resolve({ race: 'Werewolf', glyph: 'C' }, 'C', 'silq').templateKey, 'bestiary_wolf');
+    assert.strictEqual(resolve({ race: 'Werewolf', glyph: 'C' }, 'C', 'silq').templateKey, 'bestiary_werewolf');
+    assert.strictEqual(resolve({ race: 'Draugluin, Sire of Werewolves', glyph: 'C' }, 'C', 'silq').templateKey, 'bestiary_werewolf');
+    assert.strictEqual(resolve({ race: 'Huan, Wolfhound of Valinor', glyph: 'C' }, 'C', 'silq').templateKey, 'bestiary_wolf');
+    assert.strictEqual(resolve({ race: 'Beleg', glyph: '@' }, '@', 'silq').templateKey, 'char_male_ranger');
+    assert.strictEqual(resolve({ race: 'Mablung', glyph: '@' }, '@', 'silq').templateKey, 'char_male_guard');
+    assert.notStrictEqual(resolve({ race: 'maia', glyph: '@' }, '@', 'silq').templateKey, 'bestiary_horror');
 
     // --- Realm 2: Vanilla Angband ---
     // Morgoth (P) -> ph_sledgehammer
@@ -306,7 +311,7 @@ test('Live multi-realm resolveMonster3DConfig maps 40+ signature creatures acros
 
     // Additional FCB checks
     assert.strictEqual(resolve({ race: 'Oremorj', glyph: 'U' }, 'U', 'frogcomposband').templateKey, 'bestiary_imp');
-    assert.strictEqual(resolve({ race: 'Yeek king', glyph: 'y' }, 'y', 'frogcomposband').templateKey, 'bestiary_puglin');
+    assert.strictEqual(resolve({ race: 'Yeek king', glyph: 'y' }, 'y', 'frogcomposband').templateKey, 'bestiary_goblin');
     assert.strictEqual(resolve({ race: 'Chaos drake', glyph: 'd' }, 'd', 'frogcomposband').templateKey, 'bestiary_dragon');
     assert.strictEqual(resolve({ race: 'Forest spider', glyph: 'S' }, 'S', 'frogcomposband').templateKey, 'obj_spider');
 
@@ -329,11 +334,11 @@ test('Live multi-realm resolveMonster3DConfig maps 40+ signature creatures acros
     const orochiJp = resolve({ race: '八岐大蛇', glyph: 'M' }, 'M', 'hengband');
     assert.strictEqual(orochiJp.templateKey, 'bestiary_dragon', 'Hengband Orochi (JP) must map to bestiary_dragon');
 
-    // Shuten-douji / 酒呑童子 (O) -> bestiary_yeti
+    // Shuten-douji / 酒呑童子 (O) -> bestiary_ogre
     const shutenEn = resolve({ race: 'Shuten-douji', glyph: 'O' }, 'O', 'hengband');
-    assert.strictEqual(shutenEn.templateKey, 'bestiary_yeti', 'Hengband Shuten-douji (EN) must map to bestiary_yeti');
+    assert.strictEqual(shutenEn.templateKey, 'bestiary_ogre', 'Hengband Shuten-douji (EN) must map to bestiary_ogre');
     const shutenJp = resolve({ race: '酒呑童子', glyph: 'O' }, 'O', 'hengband');
-    assert.strictEqual(shutenJp.templateKey, 'bestiary_yeti', 'Hengband Shuten-douji (JP) must map to bestiary_yeti');
+    assert.strictEqual(shutenJp.templateKey, 'bestiary_ogre', 'Hengband Shuten-douji (JP) must map to bestiary_ogre');
 
     // Tengu / 天狗 (u) -> bestiary_owl
     const tenguEn = resolve({ race: 'Tengu', glyph: 'u' }, 'u', 'hengband');
@@ -362,7 +367,7 @@ test('Live multi-realm resolveMonster3DConfig maps 40+ signature creatures acros
 
     // --- Realm 5: NetHack & 4-Model Canine Pack ---
     assert(['bestiary_shiba', 'bestiary_wolf'].includes(resolve({ race: 'little dog (tame)', glyph: 'd' }, 'd', 'nethack').templateKey));
-    assert.strictEqual(resolve({ race: 'Frost hound', glyph: 'Z' }, 'Z', 'angband').templateKey, 'bestiary_husky');
+    assert.strictEqual(resolve({ race: 'Frost hound', glyph: 'Z' }, 'Z', 'angband').templateKey, 'bestiary_wolf');
     assert.strictEqual(resolve({ race: 'Little dog', glyph: 'C' }, 'C', 'angband').templateKey, 'bestiary_shiba');
     assert.strictEqual(resolve({ race: 'Red fox', glyph: 'C' }, 'C', 'angband').templateKey, 'bestiary_fox');
     assert.strictEqual(resolve({ race: 'grid bug', glyph: 'x' }, 'x', 'nethack').templateKey, 'bestiary_beetle');
@@ -370,11 +375,24 @@ test('Live multi-realm resolveMonster3DConfig maps 40+ signature creatures acros
     assert.strictEqual(resolve({ race: 'gnome', glyph: 'G' }, 'G', 'nethack').templateKey, 'bestiary_goblin');
     assert.strictEqual(resolve({ race: 'owlbear', glyph: 'Y' }, 'Y', 'nethack').templateKey, 'bestiary_bear');
     assert.strictEqual(resolve({ race: 'rust monster', glyph: 'R' }, 'R', 'nethack').templateKey, 'bestiary_scorpion');
-    assert(['bestiary_flamingo', 'bestiary_owl'].includes(resolve({ race: 'cockatrice', glyph: 'c' }, 'c', 'nethack').templateKey));
+    assert.strictEqual(resolve({ race: 'cockatrice', glyph: 'c' }, 'c', 'nethack').templateKey, 'bestiary_cockatrice');
+    assert.strictEqual(resolve({ race: 'chickatrice', glyph: 'c' }, 'c', 'nethack').templateKey, 'bestiary_cockatrice');
+    assert.strictEqual(resolve({ race: 'pyrolisk', glyph: 'c' }, 'c', 'nethack').templateKey, 'bestiary_cockatrice');
     assert.strictEqual(resolve({ race: 'mind flayer', glyph: 'h' }, 'h', 'nethack').templateKey, 'bestiary_mind_flayer');
     assert.strictEqual(resolve({ race: 'minotaur', glyph: 'H' }, 'H', 'nethack').templateKey, 'bestiary_guardian');
     assert.strictEqual(resolve({ race: 'Wizard of Yendor', glyph: '@' }, '@', 'nethack').templateKey, 'char_male_priest');
     assert(['char_male_peasant', 'char_male_steward'].includes(resolve({ race: 'Shopkeeper (peaceful)', glyph: '@' }, '@', 'nethack').templateKey));
+
+    // --- Realm 6..9: Rogue, DCSS, Angband Celestial/Trees, RYOD v13.0 ---
+    assert.strictEqual(resolve({ race: 'ice monster', glyph: 'I' }, 'I', 'rogue').templateKey, 'bestiary_frost_construct');
+    const sigmund = resolve({ race: 'Sigmund', glyph: '@' }, '@', 'dcss');
+    assert.strictEqual(sigmund.templateKey, 'char_male_priest');
+    assert.strictEqual(sigmund.weaponKey, 'item_spear');
+    assert.strictEqual(resolve({ race: 'Old Man Willow', glyph: 'l' }, 'l', 'angband').templateKey, 'bestiary_treeman');
+    assert(['char_male_guard', 'char_valkyrie'].includes(resolve({ race: 'Archon', glyph: 'A' }, 'A', 'angband').templateKey));
+    assert(['char_male_guard', 'char_valkyrie'].includes(resolve({ race: 'Planetar', glyph: 'A' }, 'A', 'frogcomposband').templateKey));
+    assert.strictEqual(resolve({ race: 'Xylora, the Mycelial Matriarch', glyph: 'M' }, 'M', 'ryod').templateKey, 'env_fungi_cluster');
+    assert.strictEqual(resolve({ race: 'The Vault Cockatrice', glyph: 'c' }, 'c', 'ryod').templateKey, 'bestiary_cockatrice');
 });
 
 // ==============================================================================
@@ -449,8 +467,73 @@ test('MonsterModelResolver.cs has zero references to cartoon models and zero tra
         assert(resolverSrc.includes(model), `MonsterModelResolver.cs missing reference to realistic model: ${model}`);
     }
 
-    // Realm parameter on signature methods
+    // Realm parameter on signature methods & v13.0 dark-fantasy GLB refs
     assert(resolverSrc.includes('string realm = "angband"'), 'MonsterModelResolver.cs must support realm parameter');
+    assert(resolverSrc.includes('frost_construct.glb'), 'MonsterModelResolver.cs must reference frost_construct.glb');
+    assert(resolverSrc.includes('cockatrice.glb'), 'MonsterModelResolver.cs must reference cockatrice.glb');
+    assert(!resolverSrc.includes('Flamingo.glb'), 'MonsterModelResolver.cs must not reference Flamingo.glb');
+});
+
+test('v13.0 dark-fantasy GLBs & <=512x512 VRAM texture diet + archive mirror parity', () => {
+    const checkGlb = (srvRel, arcRel, requireGroundZero) => {
+        const p1 = path.join(ROOT, srvRel);
+        const p2 = path.join(ROOT, resolveClientRel(arcRel));
+        assert(fs.existsSync(p1), `Missing server GLB: ${srvRel}`);
+        assert(fs.existsSync(p2), `Missing archive GLB: ${arcRel}`);
+        const b1 = fs.readFileSync(p1);
+        const b2 = fs.readFileSync(p2);
+        assert(b1.equals(b2), `Archive mirror mismatch on ${path.basename(srvRel)}`);
+        const jl = b1.readUInt32LE(12);
+        const j = JSON.parse(b1.slice(20, 20 + jl).toString('utf8'));
+        const binOff = 20 + jl;
+        const bl = b1.readUInt32LE(binOff);
+        const bin = b1.subarray(binOff + 8, binOff + 8 + bl);
+        assert((j.textures || []).length >= 2, `${srvRel} must embed >=2 PBR textures`);
+        const gen = String((j.asset && j.asset.generator) || '');
+        assert(!/Bestiary Generator|Dark Bestiary Sculptor|WS79-Builder/i.test(gen), `${srvRel} must not use procedural generator "${gen}"`);
+        let minY = Infinity;
+        for (const m of (j.meshes || [])) {
+            for (const p of (m.primitives || [])) {
+                assert(p.attributes.POSITION !== undefined && p.attributes.NORMAL !== undefined && p.attributes.TEXCOORD_0 !== undefined, `${srvRel} missing required vertex attributes`);
+                const pa = j.accessors[p.attributes.POSITION];
+                if (pa.min && pa.min[1] < minY) minY = pa.min[1];
+            }
+        }
+        if (requireGroundZero) {
+            assert(Math.abs(minY) < 1e-4, `${srvRel} must align ground minY=0 (got ${minY})`);
+        }
+        for (const im of (j.images || [])) {
+            if (im.bufferView === undefined) continue;
+            const bv = j.bufferViews[im.bufferView];
+            const sl = bin.subarray(bv.byteOffset || 0, (bv.byteOffset || 0) + bv.byteLength);
+            if (sl[0] === 0x89 && sl[1] === 0x50) {
+                const w = sl.readUInt32BE(16), h = sl.readUInt32BE(20);
+                assert(w <= 512 && h <= 512, `${srvRel} PNG ${im.name} (${w}x${h}) exceeds 512x512 VRAM diet`);
+            }
+        }
+    };
+    const monsDir = path.join(ROOT, 'server/public/assets/models/monsters');
+    const walkGlbs = (d) => {
+        for (const ent of fs.readdirSync(d, { withFileTypes: true })) {
+            const p = path.join(d, ent.name);
+            if (ent.isDirectory()) walkGlbs(p);
+            else if (ent.name.endsWith('.glb')) {
+                const buf = fs.readFileSync(p);
+                const jl = buf.readUInt32LE(12);
+                const j = JSON.parse(buf.slice(20, 20 + jl).toString('utf8'));
+                const gen = String((j.asset && j.asset.generator) || '');
+                assert(!/Bestiary Generator|Dark Bestiary Sculptor|WS79-Builder/i.test(gen), `${path.relative(ROOT, p)} has banned procedural generator "${gen}"`);
+            }
+        }
+    };
+    walkGlbs(monsDir);
+    checkGlb('server/public/assets/models/monsters/bestiary/frost_construct.glb', 'client/assets/models/monsters/bestiary/frost_construct.glb', true);
+    checkGlb('server/public/assets/models/monsters/bestiary/YetiSmall.glb', 'client/assets/models/monsters/bestiary/YetiSmall.glb', true);
+    checkGlb('server/public/assets/models/monsters/bestiary/cockatrice.glb', 'client/assets/models/monsters/bestiary/cockatrice.glb', true);
+    checkGlb('server/public/assets/models/monsters/Imp.glb', 'client/assets/models/monsters/bestiary/Imp.glb', false);
+    checkGlb('server/public/assets/models/monsters/Puglin.glb', 'client/assets/models/monsters/bestiary/Puglin.glb', false);
+    checkGlb('server/public/assets/models/monsters/bestiary/Skull.glb', 'client/assets/models/monsters/bestiary/Skull.glb', false);
+    checkGlb('server/public/assets/models/monsters/bestiary/stone_golem.glb', 'client/assets/models/monsters/bestiary/stone_golem.glb', false);
 });
 
 // ==============================================================================

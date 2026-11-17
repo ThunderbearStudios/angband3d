@@ -340,40 +340,10 @@ class RyodEngine extends UniversalCartridgeEngine {
     }
 }
 
-if (require.main === module) {
-    const readline = require('readline');
-    const defaultSaveDir = path.resolve(__dirname, '../lib/save');
-    const argv = process.argv;
-    let saveDir = defaultSaveDir, user = 'Adventurer', isNew = false, customBirth = false, randomBirth = false, seed = null;
-    for (let i = 2; i < argv.length; i++) {
-        const arg = String(argv[i] || '');
-        if (arg === '-n') isNew = true;
-        else if (arg === '-c' || arg === '--custom') customBirth = true;
-        else if (arg === '-r' || arg === '--random') randomBirth = true;
-        else if (arg === '-d' && argv[i + 1]) saveDir = argv[++i];
-        else if (arg.startsWith('-dsave=')) saveDir = arg.slice(7);
-        else if (arg.startsWith('-d=')) saveDir = arg.slice(3);
-        else if (arg === '-u' && argv[i + 1]) user = argv[++i];
-        else if (arg.startsWith('-u')) user = arg.slice(2) || user;
-        else if ((arg === '-s' || arg === '--seed') && argv[i + 1]) seed = argv[++i];
-        else if (arg.startsWith('--seed=')) seed = arg.slice(7);
-    }
-    const engine = new RyodEngine({ saveDir, user: user.replace(/[^a-zA-Z0-9_.-]/g, '_') || 'Adventurer', isNew, customBirth, randomBirth, seed });
-    const spec = engine.spec;
-    const writeJson = (obj) => process.stdout.write(JSON.stringify(obj) + '\n');
-    writeJson({ t: 'hello', protocol: 1, protocol_minor: 2, version: spec.version || '2.0.0-ryod', realm: spec.realm || 'ryod', savefile: engine.saveFile });
-    writeJson({ t: 'commands', realm: spec.realm || 'ryod', verbBits: ['quaff', 'read', 'eat', 'aim', 'use_staff', 'zap', 'activate', 'fire', 'throw', 'wield', 'takeoff', 'drop', 'inscribe', 'uninscribe', 'refill', 'browse', 'study', 'cast', 'ignore', 'examine'] });
-    writeJson(engine.buildFrame());
-    readline.createInterface({ input: process.stdin, terminal: false }).on('line', (rawLine) => {
-        const line = String(rawLine || '').trim();
-        if (!line) return;
-        if (line === 'save') { writeJson({ t: 'saved', ok: engine.saveGame() }); return; }
-        if (line === 'frame') { writeJson(engine.buildFrame()); return; }
-        if (line === 'quit' || line === 'exit') { engine.saveGame(); process.exit(0); return; }
-        if (line.startsWith('key ') || line.startsWith('keys ')) { engine.handleKey(line.replace(/^keys?\s+/, '')); writeJson(engine.buildFrame()); }
-    });
-}
-
 const DEFAULT_RYOD_SPEC = buildRyodSpec(RyodCompiler.normalizeConfig({ archetypeId: 'obsidian_covenant' }));
+
+if (require.main === module) {
+    runCartridgeMain(RyodEngine, DEFAULT_RYOD_SPEC, path.resolve(__dirname, '../lib/save'));
+}
 
 module.exports = { DEFAULT_RYOD_SPEC, RyodEngine, buildRyodSpec, resolveInitialBlueprint, RyodCompiler, RyodSystems };

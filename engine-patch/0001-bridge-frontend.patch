@@ -283,10 +283,10 @@ index 000000000..0350760fc
 +endmacro()
 diff --git a/src/main-bridge.c b/src/main-bridge.c
 new file mode 100644
-index 000000000..6f5075e19
+index 000000000..0e48d2102
 --- /dev/null
 +++ b/src/main-bridge.c
-@@ -0,0 +1,2464 @@
+@@ -0,0 +1,2476 @@
 +/**
 + * \file main-bridge.c
 + * \brief JSON state bridge front end, for driving Angband from an external client.
@@ -629,6 +629,14 @@ index 000000000..6f5075e19
 +	fputc(',', fp);
 +	bj_kv_int(fp, "ac_to_a", player->known_state.to_a);
 +	fputc(',', fp);
++	bj_kv_int(fp, "melee_to_h", player->known_state.to_h);
++	fputc(',', fp);
++	bj_kv_int(fp, "melee_to_d", player->known_state.to_d);
++	fputc(',', fp);
++	bj_kv_int(fp, "blows", player->known_state.num_blows);
++	fputc(',', fp);
++	bj_kv_int(fp, "total_weight", player->upkeep ? player->upkeep->total_weight : 0);
++	fputc(',', fp);
 +	bj_kv_int(fp, "study", player->upkeep->new_spells);
 +	fputc(',', fp);
 +	bj_kv_int(fp, "resting", player_is_resting(player) ? player_resting_count(player) : 0);
@@ -748,10 +756,14 @@ index 000000000..6f5075e19
 +	fputc('{', fp);
 +	const char *stat_keys[STAT_MAX] = { "str", "int", "wis", "dex", "con" };
 +	for (int i = 0; i < STAT_MAX; i++) {
++		char sbuf[16];
++		cnv_stat(player->state.stat_use[i], sbuf, sizeof(sbuf));
 +		if (i) fputc(',', fp);
 +		bj_key(fp, stat_keys[i]);
 +		fputc('{', fp);
 +		bj_kv_int(fp, "use", player->state.stat_use[i]);
++		fputc(',', fp);
++		bj_kv_string(fp, "disp", sbuf);
 +		fputc(',', fp);
 +		bj_kv_int(fp, "max", player->stat_max[i]);
 +		fputc(',', fp);

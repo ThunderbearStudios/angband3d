@@ -162,6 +162,7 @@
         constructor() {
             this.mode = 'classic';
             this.manualTerminalMode = true;
+            this._manualSplitChosen = false;
             this._menuActive = false;
             this._lastSig = '';
             this._boundContainer = null;
@@ -169,16 +170,42 @@
             this._activeCategory = 'all';
             this._lastOptions = null;
         }
-        isSupportedMode(m) { return m === 'classic' || m === 'hybrid' || m === 'grimoire'; }
-        setMode(m) {
+        isSupportedMode(m) { return m === 'classic' || m === 'hybrid' || m === 'grimoire' || m === 'split' || m === 'cards'; }
+        _isSplitMode(m = this.mode) { return m === 'hybrid' || m === 'split'; }
+        _isShortNonMobileViewport() {
+            if (typeof window === 'undefined') return false;
+            const h = Number(window.innerHeight) || 0;
+            const w = Number(window.innerWidth) || 0;
+            if (h <= 0 || h >= 820) return false;
+            const cls = (typeof document !== 'undefined' && document.documentElement) ? document.documentElement.classList : null;
+            if (cls && (cls.contains('yasd-handheld') || cls.contains('device-phone') || cls.contains('device-tablet'))) return false;
+            if (window.DeviceProfile && typeof window.DeviceProfile.getTier === 'function' && window.DeviceProfile.getTier() !== 'desktop') return false;
+            return w === 0 || w > 640;
+        }
+        setMode(m, opts) {
             if (!this.isSupportedMode(m)) return this.mode;
             this.mode = (m === 'grimoire') ? 'hybrid' : m;
             this.manualTerminalMode = (this.mode === 'classic');
+            if (this.mode === 'classic' || this.mode === 'cards') this._manualSplitChosen = false;
+            else if (this._isSplitMode(this.mode)) this._manualSplitChosen = Boolean((opts && opts.userToggle) ? this._isShortNonMobileViewport() : !(opts && opts.auto));
             this._lastSig = '';
             this._syncPrimaryOpenClass();
             return this.mode;
         }
-        toggleMode() { return this.setMode(this.mode === 'classic' ? 'hybrid' : 'classic'); }
+        toggleMode() {
+            const isShortDesktop = this._isShortNonMobileViewport();
+            let next;
+            if (this.mode === 'classic') {
+                return this.setMode(isShortDesktop ? 'cards' : 'hybrid', { userToggle: true, auto: !isShortDesktop });
+            }
+            if (this.mode === 'cards') next = isShortDesktop ? 'split' : 'classic';
+            else next = isShortDesktop ? 'classic' : 'cards';
+            const res = this.setMode(next, { userToggle: true });
+            if (this._boundContainer && this._lastOptions && Array.isArray(this._lastOptions.items) && this._lastOptions.items.length > 0) {
+                this.render(this._boundContainer, this._lastOptions);
+            }
+            return res;
+        }
         setCategory(catId) {
             this._activeCategory = String(catId || 'all').toLowerCase();
             this._lastSig = '';
@@ -194,19 +221,58 @@
             if (RC && typeof RC.getHeraldry === 'function') return RC.getHeraldry(key);
             return REALM_HERALDRY.angband;
         }
+        _nextToggleLabel(isJp) {
+            const isShortDesktop = this._isShortNonMobileViewport();
+            if (this.mode === 'classic') return isJp ? '📜 カード表示 [F10]' : '🃏 Cards [F10]';
+            if (this.mode === 'cards') return isShortDesktop ? (isJp ? '◫ 分割 [F10]' : '◫ Split [F10]') : (isJp ? '📜 端末のみ [F10]' : '⌨️ Classic [F10]');
+            return isShortDesktop ? (isJp ? '📜 端末のみ [F10]' : '⌨️ Classic [F10]') : (isJp ? '📜 カードのみ [F10]' : '🃏 Cards Only [F10]');
+        }
         _syncPrimaryOpenClass() {
             if (typeof document === 'undefined') return;
             const c = this._boundContainer || document.getElementById('grimoire-deck-container');
-            const open = Boolean(c && c.style.display !== 'none' && !this.manualTerminalMode && this.mode !== 'classic');
-            if (document.body) document.body.classList.toggle('grimoire-primary-open', open);
+            const open = Boolean(c && c.style && c.style.display !== 'none' && !this.manualTerminalMode && this.mode !== 'classic');
+            const cardsOnly = Boolean(open && this.mode === 'cards');
+            if (document.body && document.body.classList) {
+                document.body.classList.toggle('grimoire-primary-open', open);
+                document.body.classList.toggle('grimoire-cards-only', cardsOnly);
+            }
             ['terminal-window', 'terminal-card', 'terminal-container'].forEach(id => {
-                const el = document.getElementById(id); if (el) el.classList.toggle('grimoire-primary-open', open);
+                const el = document.getElementById(id);
+                if (el && el.classList) {
+                    el.classList.toggle('grimoire-primary-open', open);
+                    el.classList.toggle('grimoire-cards-only', cardsOnly);
+                }
             });
+            if (c) {
+                if (c.classList) c.classList.toggle('grimoire-cards-only', cardsOnly);
+                if (c.style && typeof c.style.setProperty === 'function') {
+                    if (cardsOnly) {
+                        c.style.setProperty('flex', '1 1 auto', 'important');
+                        c.style.setProperty('min-height', '0', 'important');
+                        c.style.setProperty('max-height', 'min(76dvh, 680px)', 'important');
+                    } else {
+                        c.style.removeProperty('flex');
+                        c.style.removeProperty('min-height');
+                        c.style.removeProperty('max-height');
+                    }
+                }
+                if (typeof c.querySelector === 'function') {
+                    const shell = c.querySelector('.grimoire-deck-shell');
+                    const grid = c.querySelector('.grimoire-card-grid');
+                    if (shell && shell.style) shell.style.minHeight = cardsOnly ? '0' : '';
+                    if (grid && grid.style) grid.style.minHeight = cardsOnly ? '0' : '';
+                }
+            }
+            const vp = document.getElementById('terminal-viewport');
+            if (vp && vp.style && typeof vp.style.setProperty === 'function') {
+                if (cardsOnly) vp.style.setProperty('display', 'none', 'important');
+                else vp.style.removeProperty('display');
+            }
             const btn = document.getElementById('btn-term-grimoire-toggle');
             if (btn) {
                 if (!btn._gBound) { btn._gBound = true; btn.addEventListener('click', () => { this.toggleMode(); if (this._onActionCallback) this._onActionCallback({ type: 'toggle-mode', mode: this.mode }); }); }
                 btn.style.display = this._menuActive ? 'inline-flex' : 'none';
-                if (this._menuActive) btn.textContent = (this.mode === 'classic') ? '🃏 Cards [F10]' : '⌨️ Classic [F10]';
+                if (this._menuActive) btn.textContent = this._nextToggleLabel(false);
             }
         }
         hide(container) {
@@ -242,6 +308,10 @@
             const isMenuActive = Boolean((isInv || isEq || isSpell || isTarget || (isStore && isHandheld && items.length > 0) || submenu.isSilqAbilityTree || submenu.isSilqSmithing || submenu.isFcbPowerMenu || submenu.isHengbandMagicMenu) && (!isStore || isHandheld));
             this._menuActive = isMenuActive;
             if (!isMenuActive) { this.hide(container); return false; }
+            if (this._isSplitMode() && !this._manualSplitChosen && this._isShortNonMobileViewport()) {
+                this.mode = 'cards';
+                this.manualTerminalMode = false;
+            }
             if (this.mode === 'classic') {
                 if (container.style.display !== 'none') { container.style.display = 'none'; container.innerHTML = ''; }
                 this._lastSig = `classic:${realm}`;
@@ -295,7 +365,7 @@
                 else if (bucInfo.buc === 'cursed') cursedCount++;
                 const eqRef = equippedByCategory[cat.category] || null;
                 const delta = (RC && typeof RC.compareWithEquipped === 'function' && eqRef && !isEq)
-                    ? RC.compareWithEquipped(metrics.cleanName + ' ' + metrics.stats, eqRef, cat.category)
+                    ? RC.compareWithEquipped(metrics.cleanName + ' ' + metrics.stats, eqRef, cat.category, realm)
                     : { deltaLabel: '', isUpgrade: false, isDowngrade: false };
                 return { it, idx, key, desc, cat, metrics, bucInfo, delta };
             });
@@ -377,7 +447,7 @@
                 ritualBarHtml = `<div class="grimoire-ritual-bar" role="toolbar"><span class="grimoire-ritual-title">⚱️ Rituals:</span>${extCmds.map(c => `<button type="button" class="grimoire-ritual-btn" data-grimoire-cmd="extended-cmd" data-grimoire-verb="${escapeHtml(c.verb)}" title="${escapeHtml(c.hint || c.label)}">${escapeHtml(c.label)}</button>`).join('')}</div>`;
             }
 
-            const modeBtn = this.mode === 'classic' ? (isJp ? '📜 カード表示 [F10]' : '📜 Cards [F10]') : (isJp ? '📜 端末のみ [F10]' : '📜 Classic [F10]');
+            const modeBtn = this._nextToggleLabel(isJp);
             container.innerHTML = `<div class="grimoire-deck-shell${wasAlreadyOpen ? ' is-open-stable' : ''}" data-realm="${escapeHtml(realm)}" data-mode="${this.mode}"><div class="grimoire-deck-header"><div class="grimoire-crest-banner"><span class="grimoire-crest-icon">${heraldry.svgCrest}</span><span class="grimoire-crest-realm">${escapeHtml(isJp ? '五輪書・変愚蛮怒' : heraldry.crestTitle)}</span><span class="grimoire-crest-sep">·</span><span class="grimoire-crest-view">${escapeHtml(viewLabel)}</span>${promptText ? `<span class="grimoire-prompt-subtitle">${escapeHtml(promptText)}</span>` : `<span class="grimoire-crest-sub">${escapeHtml(heraldry.subtitle)}</span>`}</div><div class="grimoire-header-controls">${switcher}<button type="button" class="grimoire-mode-toggle-btn" data-grimoire-cmd="toggle-mode">${escapeHtml(modeBtn)}</button></div></div>${subPromptHtml}${panoplyAndFilterBar}${body}${ritualBarHtml}</div>`;
             container.style.display = 'block';
             this._syncPrimaryOpenClass();
@@ -418,7 +488,7 @@
         render: (c, o) => singleton.render(c, o),
         hide: (c) => singleton.hide(c),
         toggleMode: () => singleton.toggleMode(),
-        setMode: (m) => singleton.setMode(m),
+        setMode: (m, opts) => singleton.setMode(m, opts),
         setCategory: (cat) => singleton.setCategory(cat),
         isSupportedMode: (m) => singleton.isSupportedMode(m)
     };

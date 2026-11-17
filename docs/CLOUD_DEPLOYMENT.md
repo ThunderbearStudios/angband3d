@@ -5,9 +5,9 @@ Angband3D implements a **decoupled, cloud-native architecture**:
 - **WebSocket Gateway (`/ws`)**: A lightweight Node.js daemon manages client sessions, spawns isolated child engine processes per player session, and pipes stdin/stdout streams to/from WebSocket JSON frames in real-time.
 - **Save Game Storage (`/data/save`)**: Persistent volume or cloud storage mount preserving binary character save files (`SaveVNLA` format). Fully cross-compatible between Web and Desktop clients.
 - **Three.js WebGL 3D Client (`server/public/`)**: Delivers an immersive, zero-install 3D dungeon crawler directly in modern desktop, tablet, and mobile browsers (iOS Safari, Android Chrome, Desktop Edge/Chrome/Firefox/Safari). Features PBR materials, dynamic character scaling, curated 3D bestiary models, first-person viewmodel, Living Chronicle & Voiced Lorekeeper, and collision-free mobile touch controls.
-- **Canonical Live Production Deployment (`v11.1.0`)**:
-  - Custom Domain: [https://yasd3d.com](https://yasd3d.com)
-  - Cloud Run Services (`Google Cloud Run Multi-Region`):
+- **Canonical Live Production Deployment (`v13.0.2`)**:
+  - Custom Domain: [https://yasd3d.com](https://yasd3d.com) (routed via Cloudflare Worker `yasd3d-edge`; canonical Cloud Run origin `angband3d-cloud` `us-central1`)
+  - Cloud Run Services (`angband3d-cloud` `us-central1` canonical origin + mirrors):
     - `angband3d` (`us-central1`): `https://angband3d-564958309282.us-central1.run.app`
     - `angband3d-cloud` (`us-central1`): `https://angband3d-cloud-564958309282.us-central1.run.app`
     - `angband3d-web` (`us-central1`): `https://angband3d-web-564958309282.us-central1.run.app`
@@ -48,7 +48,7 @@ Expected response:
   "status": "ok",
   "uptime": 12.4,
   "engine": true,
-  "version": "1.0.0"
+  "version": "13.0.2"
 }
 ```
 
@@ -170,9 +170,9 @@ Navigate to `https://angband.example.com/` — the client runs directly in your 
 
 ---
 
-## High-Traffic & Viral Scaling Specification (`v11.5.5` — `2 vCPU / 2GiB RAM`)
+## High-Traffic & Viral Scaling Specification (`v13.0.2` — `2 vCPU / 2GiB RAM`)
 
-To support viral spikes across all 8 realms (`angband`, `silq`, `frogcomposband`, `hengband`, `nethack`, `dcss`, `brogue`, `rogue`):
+To support viral spikes across all 9 realms (`angband`, `silq`, `frogcomposband`, `hengband`, `nethack`, `dcss`, `brogue`, `rogue`, `ryod`):
 
 - **Edge & Browser Cache Offload (`server/src/server.js`)**:
   - `.mp3`, `.wav`, `.ogg` (`58` music tracks + `101` foley SFX): `Cache-Control: public, max-age=604800, no-transform` (`7 days`) on both HTTP `200` and HTTP `206 Partial Content` Range responses.

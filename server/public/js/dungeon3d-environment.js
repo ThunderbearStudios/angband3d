@@ -67,133 +67,65 @@ Dungeon3DProto._mergeBufferGeometries = function _mergeBufferGeometries(geometri
     merged.setAttribute('uv', new THREE.BufferAttribute(uvArr, 2));
     merged.setAttribute('color', new THREE.BufferAttribute(colArr, 3));
     merged.setIndex(new THREE.BufferAttribute(indexArr, 1));
-    merged.computeBoundingBox();
-    merged.computeBoundingSphere();
+    merged.computeBoundingBox(); merged.computeBoundingSphere();
     return merged;
 };
 
 function _createSpineLimbGeometry(spine, radialSegs, vScale = 1.6) {
-    const ringCount = spine.length;
-    const stride = radialSegs + 1;
-    const vertCount = ringCount * stride;
-    const pos = new Float32Array(vertCount * 3);
-    const norm = new Float32Array(vertCount * 3);
-    const uv = new Float32Array(vertCount * 2);
-    const col = new Float32Array(vertCount * 3);
+    const ringCount = spine.length, stride = radialSegs + 1, vertCount = ringCount * stride;
+    const pos = new Float32Array(vertCount * 3), norm = new Float32Array(vertCount * 3), uv = new Float32Array(vertCount * 2), col = new Float32Array(vertCount * 3);
     let cumV = 0;
 
     for (let k = 0; k < ringCount; k++) {
-        const pt = spine[k];
-        const prev = spine[Math.max(0, k - 1)];
-        const next = spine[Math.min(ringCount - 1, k + 1)];
+        const pt = spine[k], prev = spine[Math.max(0, k - 1)], next = spine[Math.min(ringCount - 1, k + 1)];
         if (k > 0) cumV += Math.hypot(pt.x - prev.x, pt.y - prev.y, pt.z - prev.z) * vScale;
-
         let tx = next.x - prev.x, ty = next.y - prev.y, tz = next.z - prev.z;
         const tLen = Math.hypot(tx, ty, tz) || 1;
         tx /= tLen; ty /= tLen; tz /= tLen;
-
-        const rxRef = Math.abs(tz) > 0.9 ? 1 : 0, ryRef = 0, rzRef = Math.abs(tz) > 0.9 ? 0 : 1;
-        let ux = ryRef * tz - rzRef * ty;
-        let uy = rzRef * tx - rxRef * tz;
-        let uz = rxRef * ty - ryRef * tx;
+        const rxRef = Math.abs(tz) > 0.9 ? 1 : 0, rzRef = Math.abs(tz) > 0.9 ? 0 : 1;
+        let ux = -rzRef * ty, uy = rzRef * tx - rxRef * tz, uz = rxRef * ty;
         const uLen = Math.hypot(ux, uy, uz) || 1;
         ux /= uLen; uy /= uLen; uz /= uLen;
-
-        const vx = ty * uz - tz * uy;
-        const vy = tz * ux - tx * uz;
-        const vz = tx * uy - ty * ux;
-        const ao = pt.ao !== undefined ? pt.ao : 0.85;
-
+        const vx = ty * uz - tz * uy, vy = tz * ux - tx * uz, vz = tx * uy - ty * ux, ao = pt.ao !== undefined ? pt.ao : 0.85;
         for (let i = 0; i <= radialSegs; i++) {
-            const ang = (i / radialSegs) * Math.PI * 2;
-            const ca = Math.cos(ang), sa = Math.sin(ang);
-            const nx = ca * ux + sa * vx;
-            const ny = ca * uy + sa * vy;
-            const nz = ca * uz + sa * vz;
-            const vi = k * stride + i;
-            pos[vi * 3] = pt.x + nx * pt.r;
-            pos[vi * 3 + 1] = pt.y + ny * pt.r;
-            pos[vi * 3 + 2] = pt.z + nz * pt.r;
-            norm[vi * 3] = nx;
-            norm[vi * 3 + 1] = ny;
-            norm[vi * 3 + 2] = nz;
-            uv[vi * 2] = i / radialSegs;
-            uv[vi * 2 + 1] = cumV;
-            col[vi * 3] = ao;
-            col[vi * 3 + 1] = ao * 0.96;
-            col[vi * 3 + 2] = ao * 0.92;
+            const ang = (i / radialSegs) * Math.PI * 2, ca = Math.cos(ang), sa = Math.sin(ang);
+            const nx = ca * ux + sa * vx, ny = ca * uy + sa * vy, nz = ca * uz + sa * vz, vi = k * stride + i;
+            pos[vi * 3] = pt.x + nx * pt.r; pos[vi * 3 + 1] = pt.y + ny * pt.r; pos[vi * 3 + 2] = pt.z + nz * pt.r;
+            norm[vi * 3] = nx; norm[vi * 3 + 1] = ny; norm[vi * 3 + 2] = nz;
+            uv[vi * 2] = i / radialSegs; uv[vi * 2 + 1] = cumV;
+            col[vi * 3] = ao; col[vi * 3 + 1] = ao * 0.96; col[vi * 3 + 2] = ao * 0.92;
         }
     }
-
     const indices = [];
-    for (let k = 0; k < ringCount - 1; k++) {
-        for (let i = 0; i < radialSegs; i++) {
-            const a = k * stride + i, b = a + 1, c = a + stride, d = c + 1;
-            indices.push(a, b, d, a, d, c);
-        }
-    }
+    for (let k = 0; k < ringCount - 1; k++) for (let i = 0; i < radialSegs; i++) { const a = k * stride + i, b = a + 1, c = a + stride, d = c + 1; indices.push(a, b, d, a, d, c); }
     const geo = new THREE.BufferGeometry();
-    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-    geo.setAttribute('normal', new THREE.BufferAttribute(norm, 3));
-    geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
-    geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setAttribute('normal', new THREE.BufferAttribute(norm, 3));
+    geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2)); geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
     geo.setIndex(indices);
     return geo;
 }
 
 function _createFoliageLobeGeometry(rx, ry, rz, cx, cy, cz, lonSegs, latSegs, seed) {
-    const stride = lonSegs + 1;
-    const vertCount = (latSegs + 1) * stride;
-    const pos = new Float32Array(vertCount * 3);
-    const norm = new Float32Array(vertCount * 3);
-    const uv = new Float32Array(vertCount * 2);
-    const col = new Float32Array(vertCount * 3);
-
+    const stride = lonSegs + 1, vertCount = (latSegs + 1) * stride;
+    const pos = new Float32Array(vertCount * 3), norm = new Float32Array(vertCount * 3), uv = new Float32Array(vertCount * 2), col = new Float32Array(vertCount * 3);
     for (let j = 0; j <= latSegs; j++) {
-        const vFrac = j / latSegs;
-        const phi = vFrac * Math.PI;
-        const sinPhi = Math.sin(phi), cosPhi = Math.cos(phi);
-        const ao = 0.36 + 0.64 * Math.pow(0.5 + 0.5 * cosPhi, 0.85);
+        const phi = (j / latSegs) * Math.PI, sinPhi = Math.sin(phi), cosPhi = Math.cos(phi), ao = 0.36 + 0.64 * Math.pow(0.5 + 0.5 * cosPhi, 0.85);
         for (let i = 0; i <= lonSegs; i++) {
-            const uFrac = i / lonSegs;
-            const theta = uFrac * Math.PI * 2;
-            const ux = -Math.cos(theta) * sinPhi;
-            const uy = cosPhi;
-            const uz = Math.sin(theta) * sinPhi;
-            const lobe = 0.86 + 0.18 * Math.sin(theta * 3 + seed) * Math.sin(phi * 2 + seed * 0.5);
-            const vi = j * stride + i;
-            const px = cx + ux * rx * lobe;
-            const py = cy + uy * ry * lobe;
-            const pz = cz + uz * rz * lobe;
-            pos[vi * 3] = px;
-            pos[vi * 3 + 1] = py;
-            pos[vi * 3 + 2] = pz;
-            let nx = ux * 0.65, ny = uy * 0.50 + 0.48, nz = uz * 0.65;
-            const nLen = Math.hypot(nx, ny, nz) || 1;
-            norm[vi * 3] = nx / nLen;
-            norm[vi * 3 + 1] = ny / nLen;
-            norm[vi * 3 + 2] = nz / nLen;
-            uv[vi * 2] = (px + pz) * 0.85;
-            uv[vi * 2 + 1] = py * 0.95 + (px - pz) * 0.35;
-            col[vi * 3] = ao * 0.92;
-            col[vi * 3 + 1] = ao;
-            col[vi * 3 + 2] = ao * 0.82;
+            const theta = (i / lonSegs) * Math.PI * 2, ux = -Math.cos(theta) * sinPhi, uy = cosPhi, uz = Math.sin(theta) * sinPhi;
+            const lobe = 0.86 + 0.18 * Math.sin(theta * 3 + seed) * Math.sin(phi * 2 + seed * 0.5), vi = j * stride + i;
+            const px = cx + ux * rx * lobe, py = cy + uy * ry * lobe, pz = cz + uz * rz * lobe;
+            pos[vi * 3] = px; pos[vi * 3 + 1] = py; pos[vi * 3 + 2] = pz;
+            const nx = ux * 0.65, ny = uy * 0.50 + 0.48, nz = uz * 0.65, nLen = Math.hypot(nx, ny, nz) || 1;
+            norm[vi * 3] = nx / nLen; norm[vi * 3 + 1] = ny / nLen; norm[vi * 3 + 2] = nz / nLen;
+            uv[vi * 2] = (px + pz) * 0.85; uv[vi * 2 + 1] = py * 0.95 + (px - pz) * 0.35;
+            col[vi * 3] = ao * 0.92; col[vi * 3 + 1] = ao; col[vi * 3 + 2] = ao * 0.82;
         }
     }
-
     const indices = [];
-    for (let j = 0; j < latSegs; j++) {
-        for (let i = 0; i < lonSegs; i++) {
-            const a = j * stride + i, b = a + 1, c = a + stride, d = c + 1;
-            if (j !== 0) indices.push(a, d, b);
-            if (j !== latSegs - 1) indices.push(a, c, d);
-        }
-    }
+    for (let j = 0; j < latSegs; j++) for (let i = 0; i < lonSegs; i++) { const a = j * stride + i, b = a + 1, c = a + stride, d = c + 1; if (j !== 0) indices.push(a, d, b); if (j !== latSegs - 1) indices.push(a, c, d); }
     const geo = new THREE.BufferGeometry();
-    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-    geo.setAttribute('normal', new THREE.BufferAttribute(norm, 3));
-    geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
-    geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setAttribute('normal', new THREE.BufferAttribute(norm, 3));
+    geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2)); geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
     geo.setIndex(indices);
     return geo;
 }

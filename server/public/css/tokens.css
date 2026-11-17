@@ -9,13 +9,13 @@
         color-scheme: dark;
         --surface-0: #161920;      /* Viewport & root dark slate */
         --surface-1: #14171d;      /* Recessed terminal & log surface */
-        --surface-2: #1e222b;      /* Slate modal & HUD panel surface */
+        --surface-2: #1a1f27;      /* Slate modal & HUD panel surface */
         --surface-3: #282d38;      /* Hover / interactive elevation */
-        --text-heading: #dce0e8;   /* <= 13.5:1 scotopic heading ceiling */
-        --text-primary: #c8cdd6;   /* 10.6:1 comfort prose band */
-        --text-secondary: #9ca3b2; /* 6.6:1 secondary labels */
-        --text-muted: #94a3b8;     /* >= 5.2:1 WCAG 2.2 AA muted floor */
-        --border-subtle: rgba(148, 163, 184, 0.22);
+        --text-heading: #e6eaf0;   /* <= 13.8:1 scotopic heading ceiling on #1a1f27 */
+        --text-primary: #d0d6e0;   /* 11.4:1 comfort prose band */
+        --text-secondary: #cbd5e1; /* 10.8:1 secondary labels */
+        --text-muted: #cbd5e1;     /* >= 4.5:1 WCAG 2.2 AA muted floor */
+        --border-subtle: rgba(148, 163, 184, 0.24);
         --border-control: #687082; /* >= 3.12:1 control boundary */
         --brass-hairline: rgba(212, 175, 55, 0.48);
         --brass-accent: #e6c35c;
@@ -101,11 +101,16 @@
     backdrop-filter: none;
 }
 
+#hud-scale-range {
+    accent-color: var(--brass-accent);
+    cursor: pointer;
+}
+
 /* ============================================================================
  * Coarse-Pointer Tap Targets (>= 44x44 CSS px) & iOS 16px Auto-Zoom Guard
  * ============================================================================ */
 @media (pointer: coarse), (max-width: 768px) {
-    #app-container :is(#top-controls .icon-btn, .terminal-toolbar .term-btn, #pause-modal .main-menu-btn, .char-mini-btn) {
+    #app-container :is(#top-controls .icon-btn, .terminal-toolbar .term-btn, #pause-modal .main-menu-btn, .char-mini-btn, #action-bar .action-btn, #touch-controls .dpad-btn, #quick-slot-bar .quick-slot-btn) {
         min-width: 44px;
         min-height: 44px;
         touch-action: manipulation;

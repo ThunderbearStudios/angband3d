@@ -103,6 +103,7 @@
     let _currentBlueprint = null;
     let _savedLibrary = [];
     let _modalEl = null;
+    let _lastFocusedEl = null;
     let _hasImportedBlueprint = false;
     let _activeArcadeAdvId = null;
 
@@ -177,7 +178,7 @@
             }
             .ryod-forge-overlay.hidden { display: none !important; }
             .ryod-forge-card {
-                width: min(980px, 96vw); max-height: 95vh;
+                width: min(980px, 96vw); max-height: min(92dvh, 860px);
                 background: radial-gradient(120% 90% at 50% 0%, rgba(212, 175, 55, 0.08) 0%, transparent 58%), linear-gradient(180deg, rgba(18, 21, 30, 0.99) 0%, rgba(9, 11, 16, 0.99) 100%);
                 border: 1px solid rgba(212, 175, 55, 0.56); border-top: 2px solid #e5c158; border-radius: 10px;
                 box-shadow: 0 24px 64px rgba(0, 0, 0, 0.94), inset 0 1px 0 rgba(255, 236, 179, 0.18), inset 0 0 0 1px rgba(255, 255, 255, 0.04);
@@ -185,7 +186,7 @@
                 font-family: var(--font-ui, 'Outfit', sans-serif);
             }
             .ryod-forge-header {
-                display: flex; align-items: center; justify-content: space-between; gap: 8px;
+                display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-shrink: 0;
                 padding: 10px 16px; border-bottom: 1px solid rgba(212, 175, 55, 0.24);
                 background: linear-gradient(180deg, rgba(22, 26, 38, 0.96) 0%, rgba(13, 16, 24, 0.98) 100%);
             }
@@ -196,7 +197,17 @@
             }
             .ryod-forge-subtitle { font-size: 0.73rem; color: #9ca3b2; margin-top: 1px; }
             .ryod-forge-body {
+                flex: 1 1 auto; min-height: 0;
                 padding: 10px 16px; overflow-y: auto; overflow-x: hidden; display: flex; flex-direction: column; gap: 9px;
+            }
+            .ryod-forge-card button:focus-visible,
+            .ryod-forge-card [role="button"]:focus-visible,
+            .ryod-forge-card select:focus-visible,
+            .ryod-forge-card summary:focus-visible,
+            .ryod-forge-card label[tabindex]:focus-visible {
+                outline: 2px solid #fde68a;
+                outline-offset: 2px;
+                box-shadow: 0 0 0 3px rgba(245, 215, 127, 0.28);
             }
             .ryod-dice-tray {
                 display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap;
@@ -372,7 +383,7 @@
                 font-size: 0.72rem; color: #b8c0ce; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
             }
             .ryod-forge-footer {
-                display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap;
+                display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; flex-shrink: 0;
                 gap: 6px; padding: 9px 16px; border-top: 1px solid rgba(212, 175, 55, 0.24);
                 background: linear-gradient(180deg, rgba(16, 19, 28, 0.98) 0%, rgba(10, 12, 18, 0.99) 100%);
             }
@@ -1075,7 +1086,7 @@
                     <div class="ryod-btn-row">
                         <button type="button" id="btn-ryod-save-lib" class="ryod-btn-outline" title="Pin this run to your browser">📌 Pin</button>
                         <button type="button" id="btn-ryod-export-json" class="ryod-btn-outline" title="Download .ryod.json blueprint file">💾 Save .json</button>
-                        <label for="ryod-file-import" class="ryod-btn-outline" style="cursor:pointer; margin:0;" title="Load a .ryod.json blueprint file">📂 Load .json</label>
+                        <label for="ryod-file-import" class="ryod-btn-outline" role="button" tabindex="0" style="cursor:pointer; margin:0;" title="Load a .ryod.json blueprint file">📂 Load .json</label>
                         <input type="file" id="ryod-file-import" accept=".json,.ryod.json" style="display:none;">
                         <button type="button" id="btn-ryod-copy-link" class="ryod-btn-outline" title="Copy shareable URL permalink">🔗 Share Link</button>
                         <span id="ryod-saved-shelf" style="display:inline-flex; gap:4px; align-items:center;"></span>
@@ -1550,6 +1561,67 @@
             if (e.target === overlay) close();
         });
 
+        const getFocusableControls = () => Array.from(
+            overlay.querySelectorAll('button:not(:disabled), select:not(:disabled), input:not([type="hidden"]):not(:disabled), summary, [role="button"][tabindex="0"]')
+        ).filter((el) => {
+            if (el.offsetParent === null) return false;
+            const closedDetails = el.closest('details:not([open])');
+            if (closedDetails && el.tagName !== 'SUMMARY') return false;
+            return true;
+        });
+
+        const moveFocusBy = (delta) => {
+            const list = getFocusableControls();
+            if (!list.length) return;
+            const idx = list.indexOf(document.activeElement);
+            const nextIdx = idx === -1 ? (delta > 0 ? 0 : list.length - 1) : (idx + delta + list.length) % list.length;
+            const target = list[nextIdx];
+            if (target && typeof target.focus === 'function') {
+                target.focus({ preventScroll: true });
+                if (typeof target.scrollIntoView === 'function') target.scrollIntoView({ block: 'nearest' });
+            }
+        };
+
+        const handleOverlayKey = (e) => {
+            if (!isOpen()) return;
+            const tag = e.target && e.target.tagName;
+            const inField = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+            const isBareBacktick = e.key === '`' && !e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey;
+            if (!inField && (e.key === 'Escape' || isBareBacktick)) {
+                e.preventDefault();
+                e.stopPropagation();
+                close();
+                return;
+            }
+            if (!inField && (e.key === 'ArrowDown' || e.key === 'ArrowRight' || e.key === 'ArrowUp' || e.key === 'ArrowLeft')) {
+                e.preventDefault();
+                e.stopPropagation();
+                moveFocusBy(e.key === 'ArrowDown' || e.key === 'ArrowRight' ? 1 : -1);
+                return;
+            }
+            if (e.key === 'Enter' || e.key === ' ') {
+                const lbl = e.target && e.target.closest ? e.target.closest('label[for="ryod-file-import"]') : null;
+                if (lbl && importInput) {
+                    e.preventDefault();
+                    importInput.click();
+                }
+            }
+        };
+        overlay.addEventListener('keydown', handleOverlayKey);
+        if (typeof window !== 'undefined' && !overlay._ryodWinKeyBound) {
+            overlay._ryodWinKeyBound = true;
+            window.addEventListener('keydown', (e) => {
+                if (!isOpen()) return;
+                if (overlay.contains(e.target)) return;
+                const tag = e.target && e.target.tagName;
+                if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+                if (e.key === 'ArrowDown' || e.key === 'ArrowRight' || e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
+                    e.preventDefault();
+                    moveFocusBy(e.key === 'ArrowDown' || e.key === 'ArrowRight' ? 1 : -1);
+                }
+            });
+        }
+
         const rerollBtn = overlay.querySelector('#btn-ryod-reroll-spine');
         if (rerollBtn) {
             rerollBtn.addEventListener('click', () => {
@@ -1737,16 +1809,28 @@
     function open(opts = {}) {
         const modal = buildModalDOM();
         if (!modal) return;
+        if (typeof document !== 'undefined') _lastFocusedEl = document.activeElement;
         if (opts.forceReroll || !_currentBlueprint) {
             rollAllUnlockedDice();
         } else {
             renderDiceUI();
         }
         modal.classList.remove('hidden');
+        const focusInitial = () => {
+            if (!isOpen()) return;
+            const target = modal.querySelector('#btn-ryod-daily-blitz') || modal.querySelector('button:not(:disabled)');
+            if (target && typeof target.focus === 'function') target.focus({ preventScroll: true });
+        };
+        if (typeof requestAnimationFrame === 'function') requestAnimationFrame(focusInitial);
+        else focusInitial();
     }
 
     function close() {
         if (_modalEl) _modalEl.classList.add('hidden');
+        if (_lastFocusedEl && _lastFocusedEl.isConnected && typeof _lastFocusedEl.focus === 'function') {
+            try { _lastFocusedEl.focus({ preventScroll: true }); } catch (_) {}
+        }
+        _lastFocusedEl = null;
     }
 
     function isOpen() {

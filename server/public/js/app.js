@@ -445,6 +445,8 @@ window.addEventListener('DOMContentLoaded', () => {
     let silqStatAllocated = false;
     let silqSkillAllocated = false;
     let silqNameSent = false;
+    let quickBirthIgnoreUntilSeq = 0;
+    let quickBirthIgnoreExpiresAt = 0;
     let fcbRaceDone = false;
     let fcbClassDone = false;
     let fcbPersDone = false;
@@ -461,6 +463,8 @@ window.addEventListener('DOMContentLoaded', () => {
         silqStatAllocated = false;
         silqSkillAllocated = false;
         silqNameSent = false;
+        quickBirthIgnoreUntilSeq = 0;
+        quickBirthIgnoreExpiresAt = 0;
         fcbRaceDone = false;
         fcbClassDone = false;
         fcbPersDone = false;
@@ -548,6 +552,13 @@ window.addEventListener('DOMContentLoaded', () => {
         if (frame.phase === 'play' && frame.map && frame.player && !hasMore) {
             finalizeHeroBirth();
             return;
+        }
+        if (quickBirthIgnoreUntilSeq > 0) {
+            if (Date.now() <= quickBirthIgnoreExpiresAt && (typeof frame.seq !== 'number' || frame.seq < quickBirthIgnoreUntilSeq)) {
+                return;
+            }
+            quickBirthIgnoreUntilSeq = 0;
+            quickBirthIgnoreExpiresAt = 0;
         }
         if (++quickBirthStep > 120) {
             quickBirthActive = false;
@@ -696,18 +707,26 @@ window.addEventListener('DOMContentLoaded', () => {
             const pKeys = Array.isArray(planner.fcbPersonalityKeys) ? planner.fcbPersonalityKeys : ['a', 'd'];
             pKeys.forEach(pk => network.sendKey(pk));
             network.sendKey('enter');
+            if (typeof frame.seq === 'number') {
+                quickBirthIgnoreUntilSeq = frame.seq + pKeys.length + 1;
+                quickBirthIgnoreExpiresAt = Date.now() + 900;
+            }
             return;
         }
         // 9. Sil-Q Skills & Stats Allocation
         if (screenText.includes('allocate points to skills') || screenText.includes('skill increases') || screenText.includes('accept skills')) {
-            const expMatch = rawText.match(/Experience\s+Left\s*:\s*(-?\d+)/i);
-            const expLeft = expMatch ? parseInt(expMatch[1], 10) : 1000;
+            const expMatch = rawText.match(/(?:Points|Experience)\s+Left\s*:\s*(-?\d+)/i);
+            const expLeft = expMatch ? parseInt(expMatch[1], 10) : 5000;
             if (!silqSkillAllocated && expLeft >= 100) {
                 silqSkillAllocated = true;
                 const skillKeys = (typeof planner.computeSilqSkillKeys === 'function')
                     ? planner.computeSilqSkillKeys(rawText)
                     : (Array.isArray(planner.silqSkillSequence) ? planner.silqSkillSequence : ['6', '6', '6', '2', '2', '6', '6', '2', '2', '6', '6', 'enter']);
                 skillKeys.forEach(k => network.sendKey(k));
+                if (typeof frame.seq === 'number' && skillKeys.length > 1) {
+                    quickBirthIgnoreUntilSeq = frame.seq + skillKeys.length;
+                    quickBirthIgnoreExpiresAt = Date.now() + 1400;
+                }
             } else if (expLeft < 0) {
                 network.sendKey('r');
                 silqSkillAllocated = false;
@@ -724,8 +743,13 @@ window.addEventListener('DOMContentLoaded', () => {
                 const seq = Array.isArray(planner.silqStatSequence)
                     ? planner.silqStatSequence
                     : ['6', '6', '6', '2', '6', '6', '2', '6', '6', '2', '6', 'enter'];
-                if (ptsLeft !== 13) network.sendKey('r');
+                let sentCount = seq.length;
+                if (ptsLeft !== 13) { network.sendKey('r'); sentCount++; }
                 seq.forEach(k => network.sendKey(k));
+                if (typeof frame.seq === 'number' && sentCount > 1) {
+                    quickBirthIgnoreUntilSeq = frame.seq + sentCount;
+                    quickBirthIgnoreExpiresAt = Date.now() + 900;
+                }
             } else if (ptsLeft < 0) {
                 network.sendKey('r');
                 silqStatAllocated = false;
@@ -743,6 +767,7 @@ window.addEventListener('DOMContentLoaded', () => {
             if (!silqNameSent) {
                 silqNameSent = true;
                 network.sendKey('tab');
+                return;
             }
             network.sendKey('enter');
             return;
@@ -1286,9 +1311,9 @@ window.addEventListener('DOMContentLoaded', () => {
     // Draggable and Resizable Windows Coordinator (Minimap and Message Log)
     function setupDraggableAndResizableWindows() {
         try {
-            if (localStorage.getItem('angband3d_hud_v1141_clean') !== '1') {
-                ['angband_map_pos', 'angband_map_size', 'angband_char_size', 'angband_deck_size', 'angband3d_hud_layout_v2'].forEach(k => localStorage.removeItem(k));
-                localStorage.setItem('angband3d_hud_v1141_clean', '1');
+            if (localStorage.getItem('angband3d_hud_v1301_clean') !== '1') {
+                ['angband_map_pos', 'angband_map_size', 'angband_msg_pos', 'angband_char_size', 'angband_deck_size', 'angband3d_hud_layout_v2'].forEach(k => localStorage.removeItem(k));
+                localStorage.setItem('angband3d_hud_v1301_clean', '1');
             }
         } catch (_) {}
         const makeWindowDraggableAndResizable = (winEl, headerEl, resizeHandleEl, storageKey, onResize) => {
@@ -1303,6 +1328,7 @@ window.addEventListener('DOMContentLoaded', () => {
                         const maxTop = Math.max(10, window.innerHeight - 40);
                         winEl.style.left = `${Math.max(10, Math.min(pos.left, maxLeft))}px`;
                         winEl.style.top = `${Math.max(10, Math.min(pos.top, maxTop))}px`;
+                        winEl.style.transform = 'none';
                         winEl.style.right = 'auto';
                         winEl.style.bottom = 'auto';
                     }
@@ -1346,6 +1372,7 @@ window.addEventListener('DOMContentLoaded', () => {
                     fixedH = rect.height;
                     winEl.style.left = `${initialLeft}px`;
                     winEl.style.top = `${initialTop}px`;
+                    winEl.style.transform = 'none';
                     winEl.style.right = 'auto';
                     winEl.style.bottom = 'auto';
                     headerEl.style.cursor = 'grabbing';
@@ -1399,12 +1426,14 @@ window.addEventListener('DOMContentLoaded', () => {
                     winEl.style.position = '';
                     winEl.style.left = '';
                     winEl.style.top = '';
+                    winEl.style.transform = '';
                     winEl.style.right = '';
                     winEl.style.bottom = '';
                     winEl.style.margin = '';
                     try {
                         localStorage.removeItem(storageKey + '_pos');
                     } catch (_) {}
+                    if (storageKey === 'angband_msg' && window.__syncMsgDockBottom) window.__syncMsgDockBottom();
                 });
             }
             // Resizing via bottom-right handle (supports both mouse and touch via Pointer Events)
@@ -1490,6 +1519,27 @@ window.addEventListener('DOMContentLoaded', () => {
         const charWin = document.getElementById('char-panel');
         const deckWin = document.getElementById('hud-center-column');
         wireShadeToggle('btn-char-minimize', charWin);
+        const syncMsgDockBottom = () => {
+            if (!msgWin || !deckWin) return;
+            if (window.innerWidth <= 960) {
+                msgWin.style.removeProperty('bottom');
+                return;
+            }
+            let hasCustomPos = false;
+            try { hasCustomPos = Boolean(localStorage.getItem('angband_msg_pos')); } catch (_) {}
+            if (hasCustomPos) return;
+            const colRect = deckWin.getBoundingClientRect();
+            if (colRect.height > 10 && colRect.top > 0) {
+                const bottomOffset = Math.ceil(window.innerHeight - colRect.top + 12);
+                msgWin.style.bottom = `${Math.max(96, bottomOffset)}px`;
+            }
+        };
+        window.__syncMsgDockBottom = syncMsgDockBottom;
+        if (typeof ResizeObserver !== 'undefined' && deckWin) {
+            new ResizeObserver(syncMsgDockBottom).observe(deckWin);
+        }
+        window.addEventListener('resize', syncMsgDockBottom);
+        syncMsgDockBottom();
 
         const wireTopToggle = (topBtnId, winEl) => {
             const topBtn = document.getElementById(topBtnId);
@@ -1914,7 +1964,7 @@ window.addEventListener('DOMContentLoaded', () => {
         if (btnToggleChronicle) btnToggleChronicle.style.display = 'none';
         const globalAudioBar = document.getElementById('global-audio-bar');
         if (globalAudioBar) {
-            globalAudioBar.style.display = (appState === 'game' && !exceptEl) ? 'none' : 'flex';
+            globalAudioBar.style.display = ((appState === 'game' && !exceptEl) || exceptEl === mainMenuOverlay) ? 'none' : 'flex';
         }
     }
 
@@ -2038,6 +2088,8 @@ window.addEventListener('DOMContentLoaded', () => {
         stopBackgroundSessionAndNarration();
         updateRealmUI();
         hideModals(mainMenuOverlay);
+        const realmToastEl = document.getElementById('realm-toast-banner');
+        if (realmToastEl) realmToastEl.classList.remove('show');
         if (mainMenuOverlay) mainMenuOverlay.classList.remove('hidden');
         if (input) input.setTerminalMode(false);
         if (audio) {
@@ -2572,6 +2624,14 @@ window.addEventListener('DOMContentLoaded', () => {
         }
         selectedPauseIndex = 0;
         updatePauseMenuSelectionUI();
+        const pauseDpadBtn = document.getElementById('btn-toggle-dpad');
+        if (pauseDpadBtn) {
+            const dpadVis = isDpadActiveNow();
+            pauseDpadBtn.classList.toggle('active', dpadVis);
+            pauseDpadBtn.classList.toggle('panel-off', !dpadVis);
+            pauseDpadBtn.setAttribute('aria-pressed', dpadVis ? 'true' : 'false');
+        }
+        if (typeof syncHudScaleControl === 'function') syncHudScaleControl();
         if (audio) audio.playMenuOpen();
     }
 
@@ -3442,10 +3502,14 @@ window.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    let checkSavesReqSeq = 0;
     async function checkSaves() {
+        const reqSeq = ++checkSavesReqSeq;
+        const realmParam = String((window.__app && typeof window.__app.getActiveRealm === 'function') ? window.__app.getActiveRealm() : (activeRealm || 'angband')).toLowerCase();
+        const btnContinue = document.getElementById('btn-menu-continue');
+        const btnRandom = document.getElementById('btn-menu-random');
         try {
             let saves = [];
-            const realmParam = (window.__app && typeof window.__app.getActiveRealm === 'function') ? window.__app.getActiveRealm() : (activeRealm || 'angband');
             if (window.SaveVaultClient && typeof window.SaveVaultClient.listUnifiedSaves === 'function') {
                 saves = await window.SaveVaultClient.listUnifiedSaves(realmParam, window.LocalSaveManager);
             } else if (engineMode === 'local' && window.LocalSaveManager) {
@@ -3457,7 +3521,10 @@ window.addEventListener('DOMContentLoaded', () => {
                     saves = data.saves || [];
                 }
             }
-            if (saves && saves.length > 0) {
+            const nowRealm = String((window.__app && typeof window.__app.getActiveRealm === 'function') ? window.__app.getActiveRealm() : (activeRealm || 'angband')).toLowerCase();
+            if (reqSeq !== checkSavesReqSeq || nowRealm !== realmParam) return;
+            saves = Array.isArray(saves) ? saves.filter((s) => !s.realm || String(s.realm).toLowerCase() === realmParam) : [];
+            if (saves.length > 0) {
                 latestSave = saves[0];
                 loadedSaves = saves;
                 if (window.RealmCarousel && typeof window.RealmCarousel.setResumeCandidate === 'function') {
@@ -3468,27 +3535,42 @@ window.addEventListener('DOMContentLoaded', () => {
                 const stampStr = latestSave.timestamp || (latestSave.lastModified ? new Date(latestSave.lastModified).toLocaleString([], { month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : '');
                 const label = document.getElementById('menu-continue-label');
                 const desc = document.getElementById('menu-continue-desc');
-                const btn = document.getElementById('btn-menu-continue');
                 if (label) label.textContent = `Continue ([${realmBadge}] ${latestSave.characterName || latestSave.filename})`;
                 if (desc) desc.textContent = `${latestSave.description || 'Saved Adventurer'}${stampStr ? ' • ' + stampStr : ''}`;
-                if (btn) btn.style.opacity = '1.0';
+                if (btnContinue) {
+                    btnContinue.classList.add('btn-primary-cta', 'has-save');
+                    btnContinue.style.opacity = '1.0';
+                }
+                if (btnRandom) btnRandom.classList.remove('btn-primary-cta');
+                selectedMenuIndex = 0;
+                updateMenuSelectionUI();
                 renderMainMenuSavesPanel();
                 return;
             }
         } catch (_) {}
+        const nowRealmErr = String((window.__app && typeof window.__app.getActiveRealm === 'function') ? window.__app.getActiveRealm() : (activeRealm || 'angband')).toLowerCase();
+        if (reqSeq !== checkSavesReqSeq || nowRealmErr !== realmParam) return;
         latestSave = null;
         loadedSaves = [];
         if (window.RealmCarousel && typeof window.RealmCarousel.setResumeCandidate === 'function') {
             window.RealmCarousel.setResumeCandidate(null);
         }
+        const shortRealm = (REALM_DATA[realmParam]?.name || realmParam).split(' ')[0];
         const label = document.getElementById('menu-continue-label');
-        if (label) label.textContent = 'Continue Adventure';
+        if (label) {
+            if (realmParam === 'hengband' && langMode === 'jp') label.textContent = 'Hengband の冒険データなし';
+            else if (realmParam === 'hengband' && langMode === 'bilingual') label.textContent = `No Saved Hero in ${shortRealm} (記録なし)`;
+            else label.textContent = `No Saved Hero in ${shortRealm}`;
+        }
         const desc = document.getElementById('menu-continue-desc');
-        if (desc) desc.textContent = engineMode === 'local'
-            ? 'No saved adventurer found in this realm (Choose [3] Quick Start or [4] Custom Hero)'
-            : 'No saved adventurer found in this realm (Choose [3] Quick Start or [4] Custom Hero)';
-        const btn = document.getElementById('btn-menu-continue');
-        if (btn) btn.style.opacity = '0.6';
+        if (desc) desc.textContent = 'Choose [2] Quick Start or [3] Custom Hero below to start a new run';
+        if (btnContinue) {
+            btnContinue.classList.remove('btn-primary-cta', 'has-save');
+            btnContinue.style.opacity = '0.75';
+        }
+        if (btnRandom) btnRandom.classList.add('btn-primary-cta');
+        selectedMenuIndex = 1;
+        updateMenuSelectionUI();
         renderMainMenuSavesPanel();
     }
 
@@ -3499,7 +3581,7 @@ window.addEventListener('DOMContentLoaded', () => {
         const idx = overrideIndex !== null ? overrideIndex : defaultIdx;
         const menuActions = [
             () => latestSave ? startGame({ charName: latestSave.characterName || 'Adventurer', saveFile: latestSave.filename, isNew: false, autoBirth: false }) : startNewRandomHero(),
-            () => showLoadMenu(false), startNewRandomHero, startNewCustomHero,
+            startNewRandomHero, startNewCustomHero, () => showLoadMenu(false),
             () => showGuide(0, 'mainMenu'), () => showPWAModal('mainMenu'),
             () => showGuide(6, 'mainMenu'), () => showGuide(6, 'mainMenu'), () => showSplash()
         ];
@@ -3874,10 +3956,9 @@ window.addEventListener('DOMContentLoaded', () => {
             clearTimeout(window.__localBootFallbackTimer);
             window.__localBootFallbackTimer = null;
         }
+        cancelQuickBirth();
         quickBirthActive = !!options.autoBirth;
         quickBirthStep = 0;
-        lastQuickBirthSig = '';
-        quickBirthStallCount = 0;
         forceTerminal = false;
         lastFrame = null;
         if (window.__dungeonRenderer) {
@@ -4156,7 +4237,7 @@ window.addEventListener('DOMContentLoaded', () => {
     if (btnSplashQuickStart) {
         bindFastTap(btnSplashQuickStart, () => {
             showMainMenu();
-            activateMenuItem(2); // Option [3]: Quick Start (Random Hero)
+            activateMenuItem(1); // Option [2]: Quick Start (Random Hero)
         });
     }
 
@@ -4244,11 +4325,12 @@ window.addEventListener('DOMContentLoaded', () => {
     const splashNoticeDownload = document.getElementById('splash-notice-download');
     if (splashNoticeDownload) bindFastTap(splashNoticeDownload, () => showPWAModal('splash'));
 
-    // Main Menu secondary dock buttons ([5] Guide, [6] Downloads, [7] Demo, [8] Credits)
-    const menuDockBtns = document.querySelectorAll('.main-menu-secondary-dock .menu-dock-btn');
+    // Main Menu utility bar buttons ([5] Guide, [6] Downloads, [7] Credits)
+    const menuDockBtns = document.querySelectorAll('.main-menu-header-tools .menu-dock-btn[data-index], .main-menu-secondary-dock .menu-dock-btn[data-index]');
     menuDockBtns.forEach((btn) => {
+        if (btn.id === 'btn-menu-pwa') return; // bound explicitly below
         const idx = parseInt(btn.dataset.index, 10);
-        bindFastTap(btn, () => activateMenuItem(idx));
+        if (Number.isFinite(idx)) bindFastTap(btn, () => activateMenuItem(idx));
     });
 
     const btnMenuPwa = document.getElementById('btn-menu-pwa');
@@ -4280,7 +4362,7 @@ window.addEventListener('DOMContentLoaded', () => {
         startGame({ realm: effRealm, isNew: true, autoBirth: true, seed: dailySeed, charName: 'DailyHero' });
     }
 
-    [['btn-menu-guide', () => showGuide(0, 'mainMenu')], ['btn-menu-credits', () => showGuide(6, 'mainMenu')], ['btn-menu-realms', () => { if (appState === 'realmModal' || (realmModal && !realmModal.classList.contains('hidden'))) hideRealmSelector(); else showRealmSelector('mainMenu'); }], ['btn-menu-daily-seed', () => launchDailySeededDescent()], ['btn-menu-ryod-forge', () => { if (activeRealm !== 'ryod') selectRealm('ryod', false); if (window.RyodForge && typeof window.RyodForge.open === 'function') window.RyodForge.open(); }], ['btn-menu-ryod-main', () => { if (activeRealm !== 'ryod') selectRealm('ryod', false); if (window.RyodForge && typeof window.RyodForge.open === 'function') window.RyodForge.open(); }], ['btn-menu-ryod-quick', () => { if (activeRealm !== 'ryod') selectRealm('ryod', false); if (window.RyodForge && typeof window.RyodForge.quickRandomizeAndLaunch === 'function') window.RyodForge.quickRandomizeAndLaunch(); }]].forEach(([id, fn]) => {
+    [['btn-menu-guide', () => showGuide(0, 'mainMenu')], ['btn-menu-credits', () => showGuide(6, 'mainMenu')], ['btn-menu-fullscreen', () => { if (input && typeof input.toggleFullscreen === 'function') input.toggleFullscreen(); }], ['btn-menu-realms', () => { if (appState === 'realmModal' || (realmModal && !realmModal.classList.contains('hidden'))) hideRealmSelector(); else showRealmSelector('mainMenu'); }], ['btn-menu-daily-seed', () => launchDailySeededDescent()], ['btn-menu-ryod-forge', () => { if (activeRealm !== 'ryod') selectRealm('ryod', false); if (window.RyodForge && typeof window.RyodForge.open === 'function') window.RyodForge.open(); }], ['btn-menu-ryod-main', () => { if (activeRealm !== 'ryod') selectRealm('ryod', false); if (window.RyodForge && typeof window.RyodForge.open === 'function') window.RyodForge.open(); }], ['btn-menu-ryod-quick', () => { if (activeRealm !== 'ryod') selectRealm('ryod', false); if (window.RyodForge && typeof window.RyodForge.quickRandomizeAndLaunch === 'function') window.RyodForge.quickRandomizeAndLaunch(); }]].forEach(([id, fn]) => {
         const el = document.getElementById(id);
         if (el) bindFastTap(el, fn);
     });
@@ -4332,7 +4414,7 @@ window.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    [['btn-menu-quick-start', () => activateMenuItem(2)], ['btn-menu-new-game', () => activateMenuItem(3)], ['btn-menu-switch-realm', () => showSplash()], ['btn-menu-how-to-play', () => showGuide(0, 'mainMenu')], ['btn-menu-controls', () => showGuide(4, 'mainMenu')], ['btn-menu-audio', () => { if (audio && typeof audio.toggleMute === 'function') { audio.toggleMute(); syncAudioUI(); } }], ['btn-menu-saves-close', () => { const p = document.getElementById('main-menu-saves-panel'); if (p) p.classList.add('hidden'); }], ['btn-menu-saves-refresh', () => { checkSaves(); fetchAndRenderSaves(); }]].forEach(([id, fn]) => {
+    [['btn-menu-quick-start', () => activateMenuItem(1)], ['btn-menu-new-game', () => activateMenuItem(2)], ['btn-menu-switch-realm', () => showSplash()], ['btn-menu-how-to-play', () => showGuide(0, 'mainMenu')], ['btn-menu-controls', () => showGuide(4, 'mainMenu')], ['btn-menu-audio', () => { if (audio && typeof audio.toggleMute === 'function') { audio.toggleMute(); syncAudioUI(); } }], ['btn-menu-saves-close', () => { const p = document.getElementById('main-menu-saves-panel'); if (p) p.classList.add('hidden'); }], ['btn-menu-saves-refresh', () => { checkSaves(); fetchAndRenderSaves(); }]].forEach(([id, fn]) => {
         const el = document.getElementById(id);
         if (el) bindFastTap(el, fn);
     });
@@ -5281,6 +5363,10 @@ window.addEventListener('DOMContentLoaded', () => {
             document.body.appendChild(toast);
         }
         toast.innerHTML = `<span style="font-size: 20px;">🌌</span><span>${escapeHtml(message)}</span>`;
+        if (appState === 'mainMenu') {
+            toast.classList.remove('show');
+            return;
+        }
         toast.classList.add('show');
         if (realmToastTimeout) clearTimeout(realmToastTimeout);
         realmToastTimeout = setTimeout(() => {
@@ -5485,16 +5571,17 @@ window.addEventListener('DOMContentLoaded', () => {
         }
         // Main Menu / Pause Menu Localization
         const continueLabel = document.getElementById('menu-continue-label');
-        if (continueLabel) {
-            if (isHengband && langMode === 'jp') continueLabel.textContent = '冒険を続ける';
-            else if (isHengband && langMode === 'bilingual') continueLabel.textContent = 'Continue Adventure (冒険継続)';
+        const btnContEl = document.getElementById('btn-menu-continue');
+        if (continueLabel && !latestSave && (!btnContEl || !btnContEl.classList.contains('has-save'))) {
+            if (isHengband && langMode === 'jp') continueLabel.textContent = 'Hengband の冒険データなし';
+            else if (isHengband && langMode === 'bilingual') continueLabel.textContent = 'No Saved Hero in Hengband (記録なし)';
             else continueLabel.textContent = 'Continue Adventure';
         }
         const loadLabel = document.querySelector('#btn-menu-load .menu-label');
         if (loadLabel) {
             if (isHengband && langMode === 'jp') loadLabel.textContent = 'セーブデータを読込...';
-            else if (isHengband && langMode === 'bilingual') loadLabel.textContent = 'Load Saved Character (記録読込)...';
-            else loadLabel.textContent = 'Load Saved Character...';
+            else if (isHengband && langMode === 'bilingual') loadLabel.textContent = 'Load / Manage Saves (記録読込)...';
+            else loadLabel.textContent = 'Load / Manage Saved Characters (.sav)';
         }
         const randLabel = document.querySelector('#btn-menu-random .menu-label');
         if (randLabel) {
@@ -5556,7 +5643,6 @@ window.addEventListener('DOMContentLoaded', () => {
         }
         // 2. Main Menu UI Synchronization
         setTxt('menu-active-realm-name', realm.name);
-        setTxt('main-menu-subtitle', realm.tagline);
         setTxt('main-menu-realm-tagline', realm.tagline);
         setTxt('menu-active-realm-desc', realm.desc || realm.tagline);
         const menuHeroArt = document.getElementById('menu-realm-hero-art');
@@ -5800,6 +5886,7 @@ window.addEventListener('DOMContentLoaded', () => {
     Object.assign(window.__app, {
         getAppState: () => appState,
         setAppState: (s) => { appState = s; },
+        enterFromSplash,
         showSplash,
         showMainMenu,
         showDemoModal,
@@ -7081,7 +7168,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 }
             }
             wasInStore = inStore;
-            const showTouch = window.__dpadVisible !== undefined ? window.__dpadVisible : true;
+            const showTouch = isDpadActiveNow();
             if (touchControls) touchControls.style.display = showTouch ? 'flex' : 'none';
             // Update top bar toggle indicators
             // # ROOT-CAUSE: Synchronize .is-panel-open and aria-pressed on #btn-toggle-msg-feed, #btn-toggle-minimap, and #btn-toggle-chronicle, and un-minimize #minimap-container if clicked while shaded.
@@ -7102,6 +7189,8 @@ window.addEventListener('DOMContentLoaded', () => {
             if (btnToggleDpad) {
                 btnToggleDpad.style.display = 'inline-flex';
                 btnToggleDpad.classList.toggle('active', Boolean(showTouch));
+                btnToggleDpad.classList.toggle('panel-off', !showTouch);
+                btnToggleDpad.setAttribute('aria-pressed', showTouch ? 'true' : 'false');
             }
             if (btnToggleChronicle && !isApk && !document.body.classList.contains('is-standalone')) {
                 btnToggleChronicle.style.display = 'inline-flex';
@@ -7159,16 +7248,73 @@ window.addEventListener('DOMContentLoaded', () => {
             toggleTerminalView();
         });
     }
+    function isFinePointerDesktopEnv() {
+        const isHandheld = Boolean(window.DeviceProfile && typeof window.DeviceProfile.isHandheld === 'function' && window.DeviceProfile.isHandheld());
+        const isFine = Boolean(typeof window.matchMedia === 'function' && window.matchMedia('(pointer: fine)').matches);
+        return !isHandheld && isFine;
+    }
+    function isDpadActiveNow() {
+        if (isFinePointerDesktopEnv()) {
+            return Boolean(window.__dpadUserVisible === true || (document.body && document.body.classList.contains('force-dpad-visible')));
+        }
+        return window.__dpadVisible !== undefined ? Boolean(window.__dpadVisible) : true;
+    }
+    function applyHudScaleSetting(rawVal, persist = false) {
+        const parsed = parseFloat(rawVal);
+        const clamped = Math.max(0.85, Math.min(1.25, Number.isFinite(parsed) ? Math.round(parsed * 20) / 20 : 1.0));
+        if (document.documentElement && document.documentElement.style) {
+            document.documentElement.style.setProperty('--hud-scale', String(clamped));
+        }
+        if (hud && typeof hud === 'object') hud._hudScale = clamped;
+        const sliderEl = document.getElementById('hud-scale-range');
+        if (sliderEl && document.activeElement !== sliderEl) sliderEl.value = String(clamped);
+        const valEl = document.getElementById('hud-scale-val');
+        if (valEl) valEl.textContent = `${Math.round(clamped * 100)}%`;
+        if (persist) {
+            try {
+                localStorage.setItem('yasd_hud_scale', String(clamped));
+                localStorage.setItem('angband3d_hud_scale', String(clamped));
+            } catch (_) {}
+        }
+        return clamped;
+    }
+    function syncHudScaleControl() {
+        let saved = 1.0;
+        try {
+            const raw = localStorage.getItem('yasd_hud_scale') ?? localStorage.getItem('angband3d_hud_scale');
+            if (raw !== null && raw !== '') saved = parseFloat(raw);
+        } catch (_) {}
+        return applyHudScaleSetting(saved, false);
+    }
+    syncHudScaleControl();
+    const hudScaleRangeEl = document.getElementById('hud-scale-range');
+    if (hudScaleRangeEl) {
+        const onHudScaleInput = () => applyHudScaleSetting(hudScaleRangeEl.value, true);
+        hudScaleRangeEl.addEventListener('input', onHudScaleInput);
+        hudScaleRangeEl.addEventListener('change', onHudScaleInput);
+    }
+
     const btnToggleDpad = document.getElementById('btn-toggle-dpad');
     if (btnToggleDpad) {
         btnToggleDpad.addEventListener('click', () => {
-            const isDesktopTier = (typeof DeviceProfile !== 'undefined' && typeof DeviceProfile.getTier === 'function')
-                ? DeviceProfile.getTier() === 'desktop'
-                : (typeof window !== 'undefined' && window.innerWidth >= 1024 && !window.matchMedia?.('(pointer: coarse)')?.matches);
-            const currentlyVisible = window.__dpadVisible !== undefined ? window.__dpadVisible : !isDesktopTier;
-            window.__dpadVisible = !currentlyVisible;
+            const nextVisible = !isDpadActiveNow();
+            window.__dpadVisible = nextVisible;
+            window.__dpadUserVisible = nextVisible;
+            if (document.body && document.body.classList) {
+                document.body.classList.toggle('force-dpad-visible', nextVisible);
+            }
+            btnToggleDpad.classList.toggle('active', nextVisible);
+            btnToggleDpad.classList.toggle('panel-off', !nextVisible);
+            btnToggleDpad.setAttribute('aria-pressed', nextVisible ? 'true' : 'false');
             if (window.DeviceProfile && window.DeviceProfile.triggerHaptic) window.DeviceProfile.triggerHaptic('light');
             updateViewMode();
+        });
+    }
+    const btnDpadCloseSync = document.getElementById('btn-dpad-close');
+    if (btnDpadCloseSync) {
+        btnDpadCloseSync.addEventListener('click', () => {
+            window.__dpadUserVisible = false;
+            if (document.body && document.body.classList) document.body.classList.remove('force-dpad-visible');
         });
     }
     const btnGraphicsPreset = document.getElementById('btn-graphics-preset');
@@ -7215,6 +7361,8 @@ window.addEventListener('DOMContentLoaded', () => {
     if (btnPauseResetHud) {
         btnPauseResetHud.addEventListener('click', (e) => {
             e.stopPropagation();
+            window.__dpadUserVisible = false;
+            if (document.body && document.body.classList) document.body.classList.remove('force-dpad-visible');
             if (hud && typeof hud.resetHudLayout === 'function') {
                 hud.resetHudLayout();
             }

@@ -31,10 +31,8 @@
         'examine'     // bit 19 (524288)
     ]);
 
-        const RAW_COMMANDS = [
-        // =========================================================================
+    const RAW_COMMANDS = [
         // Items Group
-        // =========================================================================
         { id: 'wield', group: 'items', icon: 'sword', labels: { en: 'Wield / Wear', jp: '装備する' }, synonyms: ['wear', 'equip', 'arm'], keys: { angband: 'w', silq: 'w', frogcomposband: 'w', hengband: 'w', nethack: 'w' }, target: 'item', itemFilter: 'equipment', primaryFor: ['weapon', 'armour', 'shield', 'ring', 'amulet', 'cloak', 'boots', 'gloves', 'helm', 'crown', 'bow', 'light'], needsIdle: true, atomic: false },
         { id: 'takeoff', group: 'items', icon: 'shield', labels: { en: 'Take Off', jp: '装備をはずす' }, synonyms: ['remove', 'unwield', 'unequip'], keys: { angband: 't', silq: 'r', frogcomposband: 't', hengband: 't', nethack: 'T' }, target: 'item', itemFilter: 'equipped', primaryFor: [], needsIdle: true, atomic: false },
         { id: 'drop', group: 'items', icon: 'drop', labels: { en: 'Drop', jp: '落とす' }, synonyms: ['discard', 'put_down'], keys: { angband: 'd', silq: 'd', frogcomposband: 'd', hengband: 'd', nethack: 'd' }, target: 'item', itemFilter: null, primaryFor: [], needsIdle: true, atomic: false },
@@ -42,7 +40,7 @@
         { id: 'quaff', group: 'items', icon: 'potion', labels: { en: 'Quaff', jp: '飲む' }, synonyms: ['drink', 'potion', 'draught'], keys: { angband: 'q', silq: 'q', frogcomposband: 'q', hengband: 'q', nethack: 'q' }, target: 'item', itemFilter: 'potion', primaryFor: ['potion'], needsIdle: true, atomic: false },
         { id: 'read', group: 'items', icon: 'scroll', labels: { en: 'Read', jp: '読む' }, synonyms: ['scroll', 'recite'], keys: { angband: 'r', silq: null, frogcomposband: 'r', hengband: 'r', nethack: 'r' }, target: 'item', itemFilter: 'scroll', primaryFor: ['scroll'], needsIdle: true, atomic: false },
         { id: 'eat', group: 'items', icon: 'food', labels: { en: 'Eat', jp: '食べる' }, synonyms: ['food', 'consume', 'ration', 'mushroom'], keys: { angband: 'E', silq: 'E', frogcomposband: 'E', hengband: 'E', nethack: 'e' }, target: 'item', itemFilter: 'food', primaryFor: ['food'], needsIdle: true, atomic: false },
-        { id: 'aim', group: 'items', icon: 'wand', labels: { en: 'Aim Wand', jp: '振る(魔法棒)' }, synonyms: ['wand', 'shoot_wand'], keys: { angband: 'a', silq: null, frogcomposband: 'a', hengband: 'a', nethack: 'z' }, target: 'item+dir', itemFilter: 'wand', primaryFor: ['wand'], needsIdle: true, atomic: false },
+        { id: 'aim', group: 'items', icon: 'wand', labels: { en: 'Aim Wand', jp: '振る(魔法棒)' }, synonyms: ['wand', 'shoot_wand', 'evoke'], keys: { angband: 'a', silq: null, frogcomposband: 'a', hengband: 'a', nethack: 'z' }, target: 'item+dir', itemFilter: 'wand', primaryFor: ['wand'], needsIdle: true, atomic: false },
         { id: 'use_staff', group: 'items', icon: 'staff', labels: { en: 'Use Staff', jp: '使う(杖)' }, synonyms: ['staff', 'strike_staff'], keys: { angband: 'u', silq: 'a', frogcomposband: 'u', hengband: 'u', nethack: 'a' }, target: 'item', itemFilter: 'staff', primaryFor: ['staff'], needsIdle: true, atomic: false },
         { id: 'zap', group: 'items', icon: 'rod', labels: { en: 'Zap Rod', jp: '使う(ロッド)' }, synonyms: ['rod', 'discharge'], keys: { angband: 'z', silq: null, frogcomposband: 'z', hengband: 'z', nethack: 'z' }, target: 'item', itemFilter: 'rod', primaryFor: ['rod'], needsIdle: true, atomic: false },
         { id: 'activate', group: 'items', icon: 'activate', labels: { en: 'Activate / Sound Horn', jp: '始動する' }, synonyms: ['artifact', 'trigger', 'invoke'], keys: { angband: 'A', silq: 'p', frogcomposband: 'A', hengband: 'A', nethack: 'a' }, target: 'item', itemFilter: 'activatable', primaryFor: [], needsIdle: true, atomic: false },
@@ -96,9 +94,12 @@
         { id: 'loot', group: 'action', icon: 'chest', labels: { en: 'Loot / Open Container', jp: '漁る' }, synonyms: ['plunder'], keys: { angband: null, silq: null, frogcomposband: null, hengband: null, nethack: '#loot' }, target: 'none', itemFilter: null, primaryFor: [], needsIdle: true, atomic: true },
         { id: 'force', group: 'action', icon: 'lock', labels: { en: 'Force Lock', jp: 'こじ開ける' }, synonyms: ['pry'], keys: { angband: null, silq: null, frogcomposband: null, hengband: null, nethack: '#force' }, target: 'none', itemFilter: null, primaryFor: [], needsIdle: true, atomic: true },
         { id: 'kick', group: 'action', icon: 'kick', labels: { en: 'Kick Door / Foe', jp: '蹴る' }, synonyms: ['boot'], keys: { angband: null, silq: null, frogcomposband: null, hengband: null, nethack: 'C-d' }, target: 'dir', itemFilter: null, primaryFor: [], needsIdle: true, atomic: false },
+        { id: 'engrave', group: 'action', icon: 'inscribe', labels: { en: 'Engrave (Elbereth)', jp: '床に刻む' }, synonyms: ['elbereth', 'write_floor'], keys: { angband: null, silq: null, frogcomposband: null, hengband: null, nethack: 'E' }, target: 'prompt', itemFilter: null, primaryFor: [], needsIdle: true, atomic: false },
+        { id: 'id_trap', group: 'action', icon: 'trap', labels: { en: 'Identify Trap', jp: '罠を調べる' }, synonyms: ['identify_trap', 'trap_type'], keys: { angband: null, silq: null, frogcomposband: null, hengband: null, nethack: null }, target: 'dir', itemFilter: null, primaryFor: [], needsIdle: true, atomic: false },
+        { id: 'autofight', group: 'action', icon: 'sword', labels: { en: 'Auto-Fight', jp: '自動攻撃' }, synonyms: ['auto_fight', 'tab_attack'], keys: { angband: null, silq: null, frogcomposband: null, hengband: null, nethack: null }, target: 'none', itemFilter: null, primaryFor: [], needsIdle: true, atomic: true },
         // Information / Manage Group
         { id: 'inventory', group: 'info', icon: 'pack', labels: { en: 'Inventory', jp: '持ち物一覧' }, synonyms: ['inven', 'pack', 'items', 'bag'], keys: { angband: 'i', silq: 'i', frogcomposband: 'i', hengband: 'i', nethack: 'i' }, target: 'screen', itemFilter: null, primaryFor: [], needsIdle: true, atomic: false },
-        { id: 'equipment', group: 'info', icon: 'shield', labels: { en: 'Equipment', jp: '装備品一覧' }, synonyms: ['equip', 'gear', 'worn'], keys: { angband: 'e', silq: 'e', frogcomposband: 'e', hengband: 'e', nethack: 'e' }, target: 'screen', itemFilter: null, primaryFor: [], needsIdle: true, atomic: false },
+        { id: 'equipment', group: 'info', icon: 'shield', labels: { en: 'Equipment', jp: '装備品一覧' }, synonyms: ['equip', 'gear', 'worn'], keys: { angband: 'e', silq: 'e', frogcomposband: 'e', hengband: 'e', nethack: '[' }, target: 'screen', itemFilter: null, primaryFor: [], needsIdle: true, atomic: false },
         { id: 'quiver', group: 'info', icon: 'quiver', labels: { en: 'Quiver', jp: '矢筒' }, synonyms: ['ammo', 'arrows', 'bolts', 'shots'], keys: { angband: '|', silq: null, frogcomposband: null, hengband: null, nethack: 'Q' }, target: 'screen', itemFilter: null, primaryFor: [], needsIdle: true, atomic: false },
         { id: 'look', group: 'info', icon: 'eye', labels: { en: 'Look / Inspect Target', jp: 'マップ調査' }, synonyms: ['view', 'inspect', 'survey'], keys: { angband: 'l', silq: 'l', frogcomposband: 'l', hengband: 'l', nethack: ';' }, target: 'none', itemFilter: null, primaryFor: [], needsIdle: true, atomic: false },
         { id: 'target', group: 'info', icon: 'target', labels: { en: 'Target', jp: 'ターゲット' }, synonyms: ['aim', 'reticle', 'lock'], keys: { angband: '*', silq: null, frogcomposband: '*', hengband: '*', nethack: ';' }, target: 'none', itemFilter: null, primaryFor: [], needsIdle: true, atomic: false },
@@ -112,24 +113,29 @@
         { id: 'help', group: 'manage', icon: 'question', labels: { en: 'Help & Manual', jp: 'ヘルプ' }, synonyms: ['manual', 'guide', 'docs'], keys: { angband: '?', silq: '?', frogcomposband: '?', hengband: '?', nethack: '?' }, target: 'screen', itemFilter: null, primaryFor: [], needsIdle: true, atomic: false },
         { id: 'command_menu', group: 'manage', icon: 'menu', labels: { en: 'Command Menu', jp: 'コマンドメニュー' }, synonyms: ['menu', 'actions', 'palette'], keys: { angband: 'enter', silq: 'm', frogcomposband: 'enter', hengband: 'enter', nethack: '#' }, target: 'menu', itemFilter: null, primaryFor: [], needsIdle: true, atomic: false },
         { id: 'overland', group: 'info', icon: 'world-map', labels: { en: 'Overland Wilderness Map', jp: '広域マップ' }, synonyms: ['wilderness', 'world', 'overworld'], keys: { angband: null, silq: null, frogcomposband: null, hengband: null, nethack: null }, target: 'screen', itemFilter: null, primaryFor: [], needsIdle: true, atomic: false },
-        { id: 'quests', group: 'info', icon: 'quest', labels: { en: 'Quests & Bounties', jp: '任務/賞金首' }, synonyms: ['bounties', 'missions', 'tasks'], keys: { angband: null, silq: null, frogcomposband: null, hengband: null, nethack: null }, target: 'screen', itemFilter: null, primaryFor: [], needsIdle: true, atomic: false }
+        { id: 'quests', group: 'info', icon: 'quest', labels: { en: 'Quests & Bounties', jp: '任務/賞金首' }, synonyms: ['bounties', 'missions', 'tasks'], keys: { angband: null, silq: null, frogcomposband: null, hengband: null, nethack: null }, target: 'screen', itemFilter: null, primaryFor: [], needsIdle: true, atomic: false },
+        { id: 'discoveries', group: 'info', icon: 'scroll-knowledge', labels: { en: 'Discoveries', jp: '発見記録' }, synonyms: ['discovered', 'identified'], keys: { angband: null, silq: null, frogcomposband: null, hengband: null, nethack: null }, target: 'screen', itemFilter: null, primaryFor: [], needsIdle: true, atomic: false },
+        { id: 'god', group: 'info', icon: 'pray', labels: { en: 'God & Piety', jp: '信仰と神' }, synonyms: ['religion', 'piety', 'deity'], keys: { angband: null, silq: null, frogcomposband: null, hengband: null, nethack: null }, target: 'screen', itemFilter: null, primaryFor: [], needsIdle: true, atomic: false },
+        { id: 'mutations', group: 'info', icon: 'power', labels: { en: 'Mutations & Traits', jp: '突然変異' }, synonyms: ['traits', 'innate'], keys: { angband: null, silq: null, frogcomposband: null, hengband: null, nethack: null }, target: 'screen', itemFilter: null, primaryFor: [], needsIdle: true, atomic: false }
     ];
 
         // Deep freeze command definitions with authoritative 9-realm key overrides
     const REALM_KEY_OVERRIDES = {
         dcss: {
-            wield: 'w', takeoff: 'T', drop: 'd', ignore: null, quaff: 'q', read: 'r', eat: 'E',
+            wield: 'w', takeoff: 'T', drop: 'd', ignore: null, quaff: 'q', read: 'r', eat: 'e',
             aim: 'V', use_staff: 'V', zap: 'V', activate: 'a', use: 'a', play_horn: 'V',
             fire: 'f', throw: 'f', inscribe: '{', uninscribe: '}', refill: null, examine: 'v',
             cast: 'z', browse: 'I', study: 'M', song: null, abilities: 'm', smithing: null, smith: null,
-            power: 'a', pet: null, tunnel: 'T', open: 'o', close: 'c', bash: 'O', spike: null,
+            power: 'a', pet: null, tunnel: 'T', open: 'O', close: 'c', bash: 'O', spike: null,
             disarm: 'D', alter: '+', exchange: "'", steal: null, rest: '5', pickup: 'g',
-            hold: '.', walk: ';', run: '.', search_mode: 's', search: 's', explore: 'Alt+E',
+            hold: '.', walk: ';', run: '.', search_mode: 's', search: 's', explore: 'o',
             travel: 'G', stairs_up: '<', stairs_down: '>', repeat: '`', count: '0',
             pray: 'p', offer: null, dip: null, chat: null, loot: null, force: null, kick: null,
-            inventory: 'i', equipment: 'e', quiver: 'Q', look: 'x', target: 'x', map: 'X',
+            engrave: null, id_trap: null, autofight: 'tab',
+            inventory: 'i', equipment: 'E', quiver: 'Q', look: 'x', target: 'x', map: 'X',
             locate: '@', char_sheet: '%', knowledge: '\\', messages: 'C-p', save: 'S',
-            options: '=', help: '?', command_menu: 'a', overland: null, quests: null
+            options: '=', help: '?', command_menu: 'a', overland: null, quests: null,
+            discoveries: null, god: '^', mutations: 'A'
         },
         brogue: {
             wield: 'w', takeoff: 'T', drop: 'd', ignore: null, quaff: 'q', read: 'r', eat: 'E',
@@ -138,15 +144,17 @@
             cast: null, browse: null, study: null, song: null, abilities: null, smithing: null, smith: null,
             power: null, pet: null, tunnel: 'T', open: 'o', close: 'c', bash: null, spike: null,
             disarm: 'D', alter: null, exchange: null, steal: null, rest: 'z', pickup: 'g',
-            hold: '.', walk: ';', run: '.', search_mode: 's', search: 's', explore: 'Alt+E',
+            hold: '.', walk: ';', run: '.', search_mode: 's', search: 's', explore: 'e',
             travel: '_', stairs_up: '<', stairs_down: '>', repeat: 'n', count: '0',
             pray: null, offer: null, dip: null, chat: null, loot: null, force: null, kick: null,
-            inventory: 'i', equipment: 'e', quiver: null, look: 'x', target: 'x', map: 'M',
+            engrave: null, id_trap: null, autofight: null,
+            inventory: 'i', equipment: '[', quiver: null, look: 'x', target: 'x', map: 'M',
             locate: 'L', char_sheet: 'C', knowledge: '~', messages: 'C-p', save: 'S',
-            options: '=', help: '?', command_menu: 'enter', overland: null, quests: null
+            options: '=', help: '?', command_menu: 'enter', overland: null, quests: null,
+            discoveries: 'D', god: null, mutations: null
         },
         rogue: {
-            wield: 'w', takeoff: 'T', drop: 'd', ignore: null, quaff: 'q', read: 'r', eat: 'E',
+            wield: 'w', takeoff: 'T', drop: 'd', ignore: null, quaff: 'q', read: 'r', eat: 'e',
             aim: 'z', use_staff: 'z', zap: 'z', activate: 'z', use: 'z', play_horn: null,
             fire: 't', throw: 't', inscribe: '{', uninscribe: '}', refill: null, examine: 'I',
             cast: null, browse: null, study: null, song: null, abilities: null, smithing: null, smith: null,
@@ -155,23 +163,27 @@
             hold: '.', walk: ';', run: '.', search_mode: 's', search: 's', explore: 'Alt+E',
             travel: '_', stairs_up: '<', stairs_down: '>', repeat: 'n', count: '0',
             pray: null, offer: null, dip: null, chat: null, loot: null, force: null, kick: null,
-            inventory: 'i', equipment: 'e', quiver: null, look: ';', target: ';', map: 'M',
+            engrave: null, id_trap: '^', autofight: null,
+            inventory: 'i', equipment: 'E', quiver: null, look: ';', target: ';', map: 'M',
             locate: '@', char_sheet: 'C', knowledge: '\\', messages: 'C-p', save: 'S',
-            options: '=', help: '?', command_menu: 'enter', overland: null, quests: null
+            options: '=', help: '?', command_menu: 'enter', overland: null, quests: null,
+            discoveries: 'D', god: null, mutations: null
         },
         ryod: {
             wield: 'w', takeoff: 'T', drop: 'd', ignore: null, quaff: 'q', read: 'r', eat: 'E',
             aim: 'a', use_staff: 'a', zap: 'a', activate: 'a', use: 'a', play_horn: 'a',
             fire: 'f', throw: 't', inscribe: '{', uninscribe: '}', refill: null, examine: 'I',
-            cast: 'm', browse: 'M', study: 'M', song: 'm', abilities: 'm', smithing: null, smith: 'y',
+            cast: 'm', browse: 'M', study: 'M', song: 'm', abilities: 'm', smithing: null, smith: '0',
             power: 'm', pet: 'p', tunnel: 'T', open: 'o', close: 'c', bash: 'o', spike: null,
             disarm: 'D', alter: '+', exchange: 'x', steal: null, rest: '.', pickup: 'g',
             hold: '.', walk: ';', run: '.', search_mode: 's', search: 's', explore: 'Alt+E',
             travel: '_', stairs_up: '<', stairs_down: '>', repeat: 'n', count: '0',
             pray: 'p', offer: null, dip: null, chat: null, loot: null, force: null, kick: null,
+            engrave: null, id_trap: null, autofight: null,
             inventory: 'i', equipment: 'e', quiver: 'Q', look: 'x', target: 'x', map: 'M',
             locate: '@', char_sheet: 'C', knowledge: '~', messages: 'C-p', save: 'S',
-            options: '=', help: '?', command_menu: 'enter', overland: null, quests: null
+            options: '=', help: '?', command_menu: 'enter', overland: null, quests: null,
+            discoveries: null, god: null, mutations: null
         }
     };
 
@@ -181,60 +193,29 @@
         if (k.brogue === undefined) k.brogue = (c.id in REALM_KEY_OVERRIDES.brogue) ? REALM_KEY_OVERRIDES.brogue[c.id] : k.angband;
         if (k.rogue === undefined) k.rogue = (c.id in REALM_KEY_OVERRIDES.rogue) ? REALM_KEY_OVERRIDES.rogue[c.id] : (k.nethack !== undefined ? k.nethack : k.angband);
         if (k.ryod === undefined) k.ryod = (c.id in REALM_KEY_OVERRIDES.ryod) ? REALM_KEY_OVERRIDES.ryod[c.id] : k.angband;
-        return Object.freeze({
-            ...c,
-            labels: Object.freeze({ ...c.labels }),
-            synonyms: Object.freeze(c.synonyms.slice()),
-            keys: Object.freeze(k),
-            primaryFor: Object.freeze(c.primaryFor.slice())
-        });
+        return Object.freeze({ ...c, labels: Object.freeze({ ...c.labels }), synonyms: Object.freeze(c.synonyms.slice()), keys: Object.freeze(k), primaryFor: Object.freeze(c.primaryFor.slice()) });
     }));
 
-    // Fast indexed maps by id and synonym
-    const COMMAND_MAP = new Map();
-    const SYNONYM_MAP = new Map();
-
+    const COMMAND_MAP = new Map(), SYNONYM_MAP = new Map();
     for (const cmd of COMMANDS) {
         COMMAND_MAP.set(cmd.id, cmd);
-        for (const syn of cmd.synonyms) {
-            if (!SYNONYM_MAP.has(syn)) {
-                SYNONYM_MAP.set(syn, cmd);
-            }
-        }
+        for (const syn of cmd.synonyms) if (!SYNONYM_MAP.has(syn)) SYNONYM_MAP.set(syn, cmd);
     }
-
-    // Additional canonical aliases for legacy / shorthand compatibility
-    const ALIAS_MAP = new Map([
-        ['inven', 'inventory'],
-        ['equip', 'equipment'],
-        ['skills', 'abilities'],
-        ['skill', 'abilities'],
-        ['remove', 'takeoff'],
-        ['destroy', 'ignore'],
-        ['sing', 'song']
-    ]);
-
-    // Runtime bridge commands state (updated via ingestBridgeCommands without mutating defaults)
+    const ALIAS_MAP = new Map([['inven', 'inventory'], ['equip', 'equipment'], ['skills', 'abilities'], ['skill', 'abilities'], ['remove', 'takeoff'], ['destroy', 'ignore'], ['sing', 'song']]);
     let runtimeVerbBits = null;
     const runtimeAvailable = new Map();
 
-        function get(idOrSynonym) {
+    function get(idOrSynonym) {
         if (!idOrSynonym || typeof idOrSynonym !== 'string') return null;
         const normalized = idOrSynonym.trim().toLowerCase();
         if (COMMAND_MAP.has(normalized)) return COMMAND_MAP.get(normalized);
-        if (ALIAS_MAP.has(normalized)) {
-            const aliased = ALIAS_MAP.get(normalized);
-            if (COMMAND_MAP.has(aliased)) return COMMAND_MAP.get(aliased);
-        }
-        if (SYNONYM_MAP.has(normalized)) return SYNONYM_MAP.get(normalized);
-        return null;
+        if (ALIAS_MAP.has(normalized)) { const a = ALIAS_MAP.get(normalized); if (COMMAND_MAP.has(a)) return COMMAND_MAP.get(a); }
+        return SYNONYM_MAP.has(normalized) ? SYNONYM_MAP.get(normalized) : null;
     }
 
-        function keyFor(id, realm) {
-        const r = (realm || 'angband').toLowerCase();
-        const cmd = get(id);
-        if (!cmd) return null;
-        return cmd.keys[r] !== undefined ? cmd.keys[r] : null;
+    function keyFor(id, realm) {
+        const cmd = get(id), r = (realm || 'angband').toLowerCase();
+        return (cmd && cmd.keys[r] !== undefined) ? cmd.keys[r] : null;
     }
 
         function fromVanillaKey(vanillaKey, realm) {
@@ -275,39 +256,19 @@
         return vanillaKey;
     }
 
-        function listForRealm(realm) {
-        const r = realm || 'angband';
-        return COMMANDS.filter(cmd => cmd.keys[r] !== null && cmd.keys[r] !== undefined);
+    function listForRealm(realm) { const r = realm || 'angband'; return COMMANDS.filter(c => c.keys[r] !== null && c.keys[r] !== undefined); }
+    function shadowedByWasd(realm) {
+        const r = realm || 'angband', wasdKeys = new Set(['w', 'a', 's', 'd']);
+        return COMMANDS.filter(c => c.keys[r] !== null && c.keys[r] !== undefined && wasdKeys.has(c.keys[r]));
     }
-
-        function shadowedByWasd(realm) {
-        const r = realm || 'angband';
-        const wasdKeys = new Set(['w', 'a', 's', 'd']);
-        return COMMANDS.filter(cmd => {
-            const k = cmd.keys[r];
-            return k !== null && k !== undefined && wasdKeys.has(k);
-        });
-    }
-
-        function decodeVerbMask(vm, realm) {
+    function decodeVerbMask(vm, realm) {
         if (typeof vm !== 'number' || !Number.isFinite(vm) || vm === 0) return [];
-        const r = realm || 'angband';
-        const bits = runtimeVerbBits || VERB_BITS;
-        const result = [];
-
+        const r = realm || 'angband', bits = runtimeVerbBits || VERB_BITS, result = [];
         for (let i = 0; i < bits.length; i++) {
-            if ((vm & (1 << i)) !== 0) {
-                let verbId = bits[i];
-                if (verbId === 'activate' && r === 'silq') {
-                    verbId = 'play_horn';
-                }
-                const cmd = get(verbId);
-                if (cmd && cmd.keys[r] !== null && cmd.keys[r] !== undefined) {
-                    result.push(cmd);
-                }
-            }
+            if ((vm & (1 << i)) === 0) continue;
+            const cmd = get(bits[i] === 'activate' && r === 'silq' ? 'play_horn' : bits[i]);
+            if (cmd && cmd.keys[r] !== null && cmd.keys[r] !== undefined) result.push(cmd);
         }
-
         return result;
     }
 
@@ -582,48 +543,21 @@
         return { supported: true, available, suggested, badge, itemSample };
     }
 
-        function ingestBridgeCommands(msg) {
+    function ingestBridgeCommands(msg) {
         if (!msg || typeof msg !== 'object') return false;
-        if (Array.isArray(msg.verbBits)) {
-            runtimeVerbBits = Object.freeze(msg.verbBits.slice());
-        }
+        if (Array.isArray(msg.verbBits)) runtimeVerbBits = Object.freeze(msg.verbBits.slice());
         if (Array.isArray(msg.groups)) {
             for (const grp of msg.groups) {
-                if (grp && Array.isArray(grp.cmds)) {
-                    for (const c of grp.cmds) {
-                        if (c && c.id) {
-                            if (c.available !== undefined) {
-                                runtimeAvailable.set(c.id, Boolean(c.available));
-                            }
-                        }
-                    }
+                for (const c of (grp && Array.isArray(grp.cmds) ? grp.cmds : [])) {
+                    if (c && c.id && c.available !== undefined) runtimeAvailable.set(c.id, Boolean(c.available));
                 }
             }
         }
         return true;
     }
-
-        function isAvailable(id) {
+    function isAvailable(id) {
         const cmd = get(id);
-        if (!cmd) return false;
-        if (runtimeAvailable.has(cmd.id)) {
-            return runtimeAvailable.get(cmd.id);
-        }
-        return true;
+        return cmd ? (runtimeAvailable.has(cmd.id) ? runtimeAvailable.get(cmd.id) : true) : false;
     }
-
-    return Object.freeze({
-        VERB_BITS,
-        COMMANDS,
-        get,
-        keyFor,
-        fromVanillaKey,
-        listForRealm,
-        shadowedByWasd,
-        decodeVerbMask,
-        validVerbsForItem,
-        evaluateActionAvailability,
-        ingestBridgeCommands,
-        isAvailable
-    });
+    return Object.freeze({ VERB_BITS, COMMANDS, get, keyFor, getKey: keyFor, fromVanillaKey, listForRealm, shadowedByWasd, decodeVerbMask, validVerbsForItem, evaluateActionAvailability, ingestBridgeCommands, isAvailable });
 });

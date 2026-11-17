@@ -59,14 +59,21 @@ const REALM_TEST_CASES = [
     { realm: 'nethack', name: 'Watchman', glyph: '@', expectKey: 'char_male_guard' },
     { realm: 'nethack', name: 'Shopkeeper', glyph: '@', expectKey: 'char_male_peasant', expectNoWeapon: true },
     { realm: 'nethack', name: 'Wizard of Yendor', glyph: '@', expectKey: 'char_male_priest', expectWeapon: 'item_staff' },
+    { realm: 'nethack', name: 'cockatrice', glyph: 'c', expectKey: 'bestiary_cockatrice', expectNoWeapon: true },
     // Angband
     { realm: 'angband', name: 'Squint-eyed rogue', glyph: 't', expectKey: 'char_male_rogue', expectInspectionType: 'Human / Rogue' },
     { realm: 'angband', name: 'Scruffy little dog', glyph: 'C', expectKey: 'bestiary_shiba', expectNoWeapon: true, expectNullTint: true },
     { realm: 'angband', name: 'White wolf', glyph: 'C', expectKey: 'bestiary_wolf', expectNoWeapon: true },
     { realm: 'angband', name: 'Ancient multi-hued dragon', glyph: 'D', expectKey: 'bestiary_dragon', expectNoWeapon: true },
     { realm: 'angband', name: 'Morgoth, Lord of Darkness', glyph: 'P', expectKey: 'char_male_ranger', expectWeapon: 'ph_sledgehammer' },
+    { realm: 'angband', name: 'Old Man Willow', glyph: 'l', expectKey: 'bestiary_treeman', expectNoWeapon: true },
+    { realm: 'angband', name: 'Yeek', glyph: 'y', expectKey: 'bestiary_goblin', expectWeapon: 'ph_dagger' },
+    { realm: 'angband', name: 'Archon', glyph: 'A', expectKey: 'char_male_guard', expectWeapon: 'item_rune_blade' },
     // Sil-Q
     { realm: 'silq', name: 'Carcharoth, the Jaws of Thirst', glyph: 'C', expectKey: 'bestiary_wolf', expectNoWeapon: true },
+    { realm: 'silq', name: 'Draugluin, Sire of Werewolves', glyph: 'C', expectKey: 'bestiary_werewolf', expectNoWeapon: true },
+    { realm: 'silq', name: 'Beleg', glyph: '@', expectKey: 'char_male_ranger', expectWeapon: 'item_bow' },
+    { realm: 'silq', name: 'Mablung', glyph: '@', expectKey: 'char_male_guard', expectWeapon: 'item_longsword' },
     { realm: 'silq', name: 'Orc soldier', glyph: 'o', expectKey: 'bestiary_orc' },
     // FrogComposband
     { realm: 'frogcomposband', name: 'The Serpent of Chaos', glyph: 'J', expectKey: 'bestiary_dragon' },
@@ -76,12 +83,13 @@ const REALM_TEST_CASES = [
     { realm: 'hengband', name: '子犬', glyph: 'C', expectKey: 'bestiary_shiba', expectNoWeapon: true },
     { realm: 'hengband', name: '混沌のサーペント', glyph: 'J', expectKey: 'bestiary_dragon' },
     { realm: 'hengband', name: 'サイバーデーモン', glyph: 'U', expectKey: 'bestiary_imp', expectWeapon: 'ph_sledgehammer' },
+    { realm: 'hengband', name: 'Shuten-douji', glyph: 'O', expectKey: 'bestiary_ogre', expectWeapon: 'ph_sledgehammer' },
     // Classic Rogue ('A'-'Z')
     { realm: 'rogue', name: 'aquator', glyph: 'A', expectKey: 'bestiary_aquatic' },
     { realm: 'rogue', name: 'emu', glyph: 'E', expectKey: 'bestiary_stork' },
     { realm: 'rogue', name: 'venus flytrap', glyph: 'F', expectKey: 'env_tanglethorn' },
     { realm: 'rogue', name: 'griffin', glyph: 'G', expectKey: 'bestiary_owl' },
-    { realm: 'rogue', name: 'ice monster', glyph: 'I', expectKey: 'bestiary_yeti' },
+    { realm: 'rogue', name: 'ice monster', glyph: 'I', expectKey: 'bestiary_frost_construct' },
     { realm: 'rogue', name: 'jabberwock', glyph: 'J', expectKey: 'bestiary_dragon' },
     { realm: 'rogue', name: 'kestrel', glyph: 'K', expectKey: 'bestiary_bird' },
     { realm: 'rogue', name: 'rattlesnake', glyph: 'R', expectKey: 'obj_snake' },
@@ -93,12 +101,15 @@ const REALM_TEST_CASES = [
     { realm: 'brogue', name: 'ifrit', glyph: 'I', expectKey: 'bestiary_vortex' },
     { realm: 'brogue', name: 'pixie', glyph: 'p', expectKey: 'char_female_peasant' },
     // DCSS
+    { realm: 'dcss', name: 'Sigmund', glyph: '@', expectKey: 'char_male_priest', expectWeapon: 'item_spear' },
     { realm: 'dcss', name: 'quokka', glyph: 'r', expectKey: 'ph_street_rat' },
     { realm: 'dcss', name: 'spriggan', glyph: 'i', expectKey: 'bestiary_goblin' },
     { realm: 'dcss', name: 'boggart', glyph: 'g', expectKey: 'bestiary_goblin' },
     { realm: 'dcss', name: 'oklob plant', glyph: 'P', expectKey: 'env_tanglethorn' },
     { realm: 'dcss', name: 'Killer Klown', glyph: 'p', expectKey: 'char_male_ranger' },
-    { realm: 'dcss', name: 'Orb of Fire', glyph: '*', expectKey: 'bestiary_vortex' }
+    { realm: 'dcss', name: 'Orb of Fire', glyph: '*', expectKey: 'bestiary_vortex' },
+    // RYOD
+    { realm: 'ryod', name: 'Xylora, the Mycelial Matriarch', glyph: 'M', expectKey: 'env_fungi_cluster' }
 ];
 
 for (const tc of REALM_TEST_CASES) {

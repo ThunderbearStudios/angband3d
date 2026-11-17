@@ -10,19 +10,26 @@
 #handheld-deck-plate,
 #handheld-autonav-stop,
 #quick-slot-bar,
-#quick-slot-popover {
+#quick-slot-popover,
+#btn-hh-fullscreen {
     display: none;
 }
 
+@media (pointer: coarse) and (max-width: 900px) {
+    #app-container #top-right-bar #btn-hh-fullscreen {
+        display: inline-flex !important;
+    }
+}
+
 html.yasd-handheld {
-    --hh-bg-deck: #12151c;
-    --hh-bg-surface: #181d27;
-    --hh-bg-button: #202736;
-    --hh-bg-button-press: #2a3346;
-    --hh-border: rgba(212, 175, 55, 0.36);
+    --hh-bg-deck: #14171d;
+    --hh-bg-surface: #1a1f27;
+    --hh-bg-button: #222836;
+    --hh-bg-button-press: #2c3548;
+    --hh-border: rgba(212, 175, 55, 0.38);
     --hh-border-strong: rgba(223, 184, 88, 0.72);
-    --hh-ink: #e2ded3;
-    --hh-ink-muted: #b6bfd0;
+    --hh-ink: #e6eaf0;
+    --hh-ink-muted: #cbd5e1;
     --hh-gold: #dfb858;
     --hh-safe-top: env(safe-area-inset-top, 0px);
     --hh-safe-bottom: env(safe-area-inset-bottom, 0px);
@@ -123,11 +130,15 @@ html.yasd-handheld #app-container #top-right-bar .menu-label {
     display: none !important;
 }
 
+html.yasd-handheld #app-container #top-right-bar #btn-hh-fullscreen {
+    display: inline-flex !important;
+}
+
 html.yasd-handheld #app-container #top-message-banner {
     position: fixed !important;
     top: calc(2px + var(--hh-safe-top)) !important;
     left: calc(6px + var(--hh-safe-left)) !important;
-    right: calc(118px + var(--hh-safe-right)) !important;
+    right: calc(128px + var(--hh-safe-right)) !important;
     width: auto !important;
     max-width: none !important;
     height: 30px !important;
@@ -248,7 +259,7 @@ html.yasd-handheld #app-container #quick-slot-bar .quick-slot-btn {
     width: 100% !important;
     height: 100% !important;
     min-width: 44px !important;
-    min-height: 42px !important;
+    min-height: 44px !important;
     padding: 2px 6px !important;
     background: var(--hh-bg-button) !important;
     border: 1px solid var(--hh-border) !important;
@@ -261,8 +272,8 @@ html.yasd-handheld #app-container #quick-slot-bar .quick-slot-btn {
 }
 
 html.yasd-handheld #app-container #quick-slot-bar .quick-slot-btn.is-depleted {
-    opacity: 0.72 !important;
-    color: #aeb8cc !important;
+    opacity: 0.86 !important;
+    color: #cbd5e1 !important;
 }
 
 html.yasd-handheld #app-container #quick-slot-bar .qs-hotkey {
@@ -292,7 +303,7 @@ html.yasd-handheld #app-container #touch-controls {
 
 html.yasd-handheld #app-container #touch-controls .dpad-turn-wings {
     display: grid !important;
-    grid-template-columns: repeat(3, minmax(40px, 1fr)) !important;
+    grid-template-columns: repeat(3, minmax(44px, 1fr)) !important;
     gap: 4px !important;
     width: 100% !important;
     flex: 0 0 auto !important;
@@ -302,8 +313,8 @@ html.yasd-handheld #app-container #touch-controls .dpad-turn-wings {
 html.yasd-handheld #app-container #touch-controls .dpad-grid,
 html.yasd-handheld #app-container #touch-controls.dpad-collapsed .dpad-grid {
     display: grid !important;
-    grid-template-columns: repeat(3, minmax(40px, 1fr)) !important;
-    grid-template-rows: repeat(3, minmax(40px, 1fr)) !important;
+    grid-template-columns: repeat(3, minmax(44px, 1fr)) !important;
+    grid-template-rows: repeat(3, minmax(44px, 1fr)) !important;
     gap: 4px !important;
     width: 100% !important;
     flex: 1 1 auto !important;
@@ -313,8 +324,8 @@ html.yasd-handheld #app-container #touch-controls.dpad-collapsed .dpad-grid {
 html.yasd-handheld #app-container #touch-controls .dpad-btn {
     width: 100% !important;
     height: 100% !important;
-    min-width: 40px !important;
-    min-height: 40px !important;
+    min-width: 44px !important;
+    min-height: 44px !important;
     margin: 0 !important;
     padding: 0 !important;
     display: flex !important;
@@ -657,7 +668,7 @@ html.yasd-handheld.is-portrait #app-container #action-bar:not(.drawer-open) {
 }
 
 /* ----------------------------------------------------------------------------
-   3. LANDSCAPE CONSOLE (Steam Deck / Switch Side-Grip Split, 92% Stage Height)
+   3. LANDSCAPE CONSOLE (Steam Deck / Switch Side-Grip Split, 800x360 & 844x390)
    ---------------------------------------------------------------------------- */
 html.yasd-handheld.is-landscape #app-container #viewport-canvas,
 html.yasd-handheld.is-landscape #app-container #dungeon-vignette {
@@ -666,12 +677,12 @@ html.yasd-handheld.is-landscape #app-container #dungeon-vignette {
     left: calc(174px + var(--hh-safe-left)) !important;
     right: auto !important;
     bottom: auto !important;
-    width: calc(100vw - 362px - var(--hh-safe-left) - var(--hh-safe-right)) !important;
+    width: calc(100vw - 370px - var(--hh-safe-left) - var(--hh-safe-right)) !important;
     height: calc(100dvh - 32px - var(--hh-safe-top) - var(--hh-safe-bottom)) !important;
 }
 
 html.yasd-handheld.is-landscape #app-container #diegetic-reticle {
-    left: calc(174px + var(--hh-safe-left) + (100vw - 362px - var(--hh-safe-left) - var(--hh-safe-right)) * 0.5) !important;
+    left: calc(174px + var(--hh-safe-left) + (100vw - 370px - var(--hh-safe-left) - var(--hh-safe-right)) * 0.5) !important;
     top: calc(32px + var(--hh-safe-top) + (100dvh - 32px - var(--hh-safe-top) - var(--hh-safe-bottom)) * 0.5) !important;
 }
 
@@ -688,14 +699,14 @@ html.yasd-handheld.is-landscape #app-container #char-panel:not(.handheld-char-ex
     width: 164px !important;
     min-width: 164px !important;
     max-width: 164px !important;
-    height: 50px !important;
+    height: 48px !important;
     z-index: 30 !important;
 }
 
 html.yasd-handheld.is-landscape #app-container #touch-controls,
 html.yasd-handheld.is-landscape #app-container #touch-controls.dpad-collapsed {
     position: fixed !important;
-    top: calc(88px + var(--hh-safe-top)) !important;
+    top: calc(86px + var(--hh-safe-top)) !important;
     left: calc(6px + var(--hh-safe-left)) !important;
     right: auto !important;
     bottom: calc(6px + var(--hh-safe-bottom)) !important;
@@ -710,11 +721,11 @@ html.yasd-handheld.is-landscape #app-container #minimap-container:not(.handheld-
     right: calc(6px + var(--hh-safe-right)) !important;
     left: auto !important;
     bottom: auto !important;
-    width: 176px !important;
-    min-width: 176px !important;
-    max-width: 176px !important;
-    height: 50px !important;
-    min-height: 50px !important;
+    width: 184px !important;
+    min-width: 184px !important;
+    max-width: 184px !important;
+    height: 48px !important;
+    min-height: 48px !important;
     padding: 2px 8px !important;
     flex-direction: row !important;
     align-items: center !important;
@@ -724,9 +735,9 @@ html.yasd-handheld.is-landscape #app-container #minimap-container:not(.handheld-
 }
 
 html.yasd-handheld.is-landscape #app-container #minimap-container:not(.handheld-map-expanded) #minimap-canvas {
-    width: 44px !important;
-    height: 44px !important;
-    flex: 0 0 44px !important;
+    width: 42px !important;
+    height: 42px !important;
+    flex: 0 0 42px !important;
 }
 
 html.yasd-handheld.is-landscape #app-container #minimap-container:not(.handheld-map-expanded)::after {
@@ -739,20 +750,35 @@ html.yasd-handheld.is-landscape #app-container #minimap-container:not(.handheld-
 
 html.yasd-handheld.is-landscape #app-container #action-bar:not(.drawer-open) {
     position: fixed !important;
-    top: calc(88px + var(--hh-safe-top)) !important;
+    top: calc(86px + var(--hh-safe-top)) !important;
     right: calc(6px + var(--hh-safe-right)) !important;
     left: auto !important;
-    bottom: calc(100px + var(--hh-safe-bottom)) !important;
-    width: 176px !important;
-    max-width: 176px !important;
+    bottom: calc(102px + var(--hh-safe-bottom)) !important;
+    width: 184px !important;
+    max-width: 184px !important;
     height: auto !important;
     padding: 4px !important;
     margin: 0 !important;
     display: grid !important;
-    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-    grid-template-rows: repeat(4, minmax(40px, 1fr)) !important;
+    grid-template-columns: repeat(3, minmax(44px, 1fr)) !important;
+    grid-template-rows: repeat(3, minmax(44px, 1fr)) !important;
     gap: 4px !important;
     z-index: 35 !important;
+}
+
+html.yasd-handheld.is-landscape #app-container #action-bar:not(.drawer-open) .action-btn:not(#btn-hero-action) {
+    flex-direction: column !important;
+    justify-content: center !important;
+    gap: 1px !important;
+    padding: 2px 2px !important;
+    font-size: 9px !important;
+    letter-spacing: 0 !important;
+    line-height: 1.05 !important;
+}
+
+html.yasd-handheld.is-landscape #app-container #action-bar:not(.drawer-open) #btn-hero-action {
+    font-size: 12px !important;
+    letter-spacing: 0 !important;
 }
 
 html.yasd-handheld.is-landscape #app-container #quick-slot-bar {
@@ -760,10 +786,10 @@ html.yasd-handheld.is-landscape #app-container #quick-slot-bar {
     right: calc(6px + var(--hh-safe-right)) !important;
     left: auto !important;
     bottom: calc(6px + var(--hh-safe-bottom)) !important;
-    width: 176px !important;
-    height: 90px !important;
-    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-    grid-template-rows: repeat(2, minmax(40px, 1fr)) !important;
+    width: 184px !important;
+    height: 92px !important;
+    grid-template-columns: repeat(2, minmax(44px, 1fr)) !important;
+    grid-template-rows: repeat(2, minmax(44px, 1fr)) !important;
     gap: 4px !important;
     z-index: 35 !important;
 }
@@ -854,7 +880,7 @@ html.yasd-handheld.is-portrait #app-container #prompt-mirror:not([hidden]):not(.
 
 html.yasd-handheld.is-landscape #app-container #prompt-mirror:not([hidden]):not(.hidden) {
     left: calc(176px + var(--hh-safe-left)) !important;
-    right: calc(188px + var(--hh-safe-right)) !important;
+    right: calc(196px + var(--hh-safe-right)) !important;
     bottom: calc(8px + var(--hh-safe-bottom)) !important;
     width: auto !important;
 }
@@ -1006,6 +1032,20 @@ html.yasd-handheld #app-container #handheld-autonav-stop.is-active {
     gap: 6px;
 }
 
+html.yasd-handheld #app-container #chronicle-window {
+    position: fixed !important;
+    top: calc(36px + var(--hh-safe-top)) !important;
+    left: calc(8px + var(--hh-safe-left)) !important;
+    right: calc(8px + var(--hh-safe-right)) !important;
+    bottom: auto !important;
+    width: auto !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    height: min(440px, calc(100dvh - 46px - var(--hh-safe-top) - var(--hh-safe-bottom))) !important;
+    max-height: calc(100dvh - 46px - var(--hh-safe-top) - var(--hh-safe-bottom)) !important;
+    z-index: 85 !important;
+}
+
 /* Message Feed Expanded Drawer */
 html.yasd-handheld #app-container #message-feed-window:not(.mobile-expanded) {
     display: none !important;
@@ -1051,14 +1091,14 @@ html.yasd-handheld.is-portrait .ftue-coachmark-pill {
 
 html.yasd-handheld.is-landscape .ftue-coachmark-pill {
     top: calc(36px + var(--hh-safe-top)) !important;
-    left: calc(180px + var(--hh-safe-left)) !important;
-    right: calc(188px + var(--hh-safe-right)) !important;
+    left: calc(176px + var(--hh-safe-left)) !important;
+    right: calc(196px + var(--hh-safe-right)) !important;
 }
 
 html.yasd-handheld .ftue-coachmark-btn,
 html.yasd-handheld .ftue-coachmark-dismiss {
-    min-width: 40px !important;
-    min-height: 38px !important;
+    min-width: 44px !important;
+    min-height: 44px !important;
     flex-shrink: 0 !important;
 }
 
@@ -1066,11 +1106,45 @@ html.yasd-handheld .ftue-coachmark-dismiss {
 html.device-tablet #app-container #action-bar .action-btn,
 html.device-tablet #app-container #action-bar .act-btn,
 html.device-tablet #app-container #touch-controls .dpad-btn {
-    min-width: 40px !important;
-    min-height: 40px !important;
-    height: 40px !important;
+    min-width: 44px !important;
+    min-height: 44px !important;
+    height: 44px !important;
 }
 
 html.device-tablet #app-container #action-bar {
     margin-bottom: 4px !important;
+}
+
+html.device-tablet.is-portrait #app-container #top-message-banner {
+    top: calc(6px + var(--safe-top, 0px)) !important;
+    left: max(8px, var(--safe-left, 0px)) !important;
+    right: calc(min(55vw, 424px) + var(--safe-right, 0px)) !important;
+    width: auto !important;
+    padding-right: 10px !important;
+}
+
+html.device-tablet.is-portrait #app-container #minimap-container {
+    top: calc(62px + var(--safe-top, 0px)) !important;
+    right: max(10px, var(--safe-right, 0px)) !important;
+    left: auto !important;
+    width: 156px !important;
+}
+
+html.device-tablet.is-portrait #app-container #hud-overlay {
+    right: var(--hud-gap, 14px) !important;
+    align-items: flex-start !important;
+}
+
+html.device-tablet.is-portrait #app-container #char-panel {
+    width: min(440px, calc(100% - 172px)) !important;
+    max-width: calc(100% - 172px) !important;
+    min-width: 220px !important;
+    align-self: flex-start !important;
+}
+
+html.device-tablet.is-portrait #app-container #hud-center-column {
+    margin-left: 168px !important;
+    width: calc(100% - 168px) !important;
+    max-width: calc(100% - 168px) !important;
+    align-self: flex-end !important;
 }

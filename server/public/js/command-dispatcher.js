@@ -9,11 +9,18 @@
     let ScreenContextModule = null;
     let RealmKeysModule = null;
     let QuickActionsModule = null;
+    let ActionCatalogModule = null;
+    let RealmCartridgeModule = null;
+    let MenuRouterModule = null;
     if (typeof require === 'function') {
         try { ScreenContextModule = require('./screen-context'); } catch (_) {}
         try { RealmKeysModule = require('./realm-keys'); } catch (_) {}
         try { QuickActionsModule = require('./quick-actions'); } catch (_) {}
+        try { ActionCatalogModule = require('./action-catalog'); } catch (_) {}
+        try { RealmCartridgeModule = require('./realm-cartridge'); } catch (_) {}
+        try { MenuRouterModule = require('./menu-router'); } catch (_) {}
     }
+    const CANONICAL_REALMS = new Set(['angband', 'silq', 'frogcomposband', 'hengband', 'nethack', 'dcss', 'brogue', 'rogue', 'ryod']);
     const VANILLA_LETTERS = 'abcdefgimnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
     function getVanillaLetter(i) {
         if (typeof i !== 'number' || i < 0) return 'a';
@@ -21,6 +28,7 @@
     }
     function normalizeKey(key) {
         if (typeof key !== 'string') return '';
+        if (key === '\t') return 'tab';
         if (key === ' ' || key.toLowerCase() === 'space') return 'space';
         if (key.length === 1) return key;
         const lower = key.trim().toLowerCase();
@@ -46,7 +54,7 @@
     const CANONICAL_KEYS = Object.freeze({
         quaff: Object.freeze({ angband: 'q', silq: 'q', frogcomposband: 'q', hengband: 'q', nethack: 'q', dcss: 'q', brogue: 'q', rogue: 'q', ryod: 'q' }),
         read: Object.freeze({ angband: 'r', silq: null, frogcomposband: 'r', hengband: 'r', nethack: 'r', dcss: 'r', brogue: 'r', rogue: 'r', ryod: 'r' }),
-        eat: Object.freeze({ angband: 'E', silq: 'E', frogcomposband: 'E', hengband: 'E', nethack: 'E', dcss: 'E', brogue: 'E', rogue: 'E', ryod: 'E' }),
+        eat: Object.freeze({ angband: 'E', silq: 'E', frogcomposband: 'E', hengband: 'E', nethack: 'e', dcss: 'e', brogue: 'E', rogue: 'e', ryod: 'E' }),
         wield: Object.freeze({ angband: 'w', silq: 'w', frogcomposband: 'w', hengband: 'w', nethack: 'w', dcss: 'w', brogue: 'w', rogue: 'w', ryod: 'w' }),
         wear: Object.freeze({ angband: 'w', silq: 'w', frogcomposband: 'w', hengband: 'w', nethack: 'W', dcss: 'W', brogue: 'w', rogue: 'W', ryod: 'W' }),
         puton: Object.freeze({ angband: 'w', silq: 'w', frogcomposband: 'w', hengband: 'w', nethack: 'P', dcss: 'P', brogue: 'w', rogue: 'P', ryod: 'P' }),
@@ -76,7 +84,7 @@
         power: Object.freeze({ angband: null, silq: null, frogcomposband: 'U', hengband: 'U', nethack: '#', dcss: 'a', brogue: null, rogue: null, ryod: 'm' }),
         pet: Object.freeze({ angband: null, silq: null, frogcomposband: 'p', hengband: 'p', nethack: 'C', dcss: null, brogue: null, rogue: null, ryod: 'p' }),
         rest: Object.freeze({ angband: 'R', silq: '%', frogcomposband: 'R', hengband: 'R', nethack: '.', dcss: '5', brogue: 'z', rogue: '.', ryod: '.' }),
-        open: Object.freeze({ angband: 'o', silq: 'o', frogcomposband: 'o', hengband: 'o', nethack: 'o', dcss: 'o', brogue: 'o', rogue: 'o', ryod: 'o' }),
+        open: Object.freeze({ angband: 'o', silq: 'o', frogcomposband: 'o', hengband: 'o', nethack: 'o', dcss: 'O', brogue: 'o', rogue: 'o', ryod: 'o' }),
         close: Object.freeze({ angband: 'c', silq: 'c', frogcomposband: 'c', hengband: 'c', nethack: 'c', dcss: 'c', brogue: 'c', rogue: 'c', ryod: 'c' }),
         bash: Object.freeze({ angband: null, silq: 'b', frogcomposband: 'B', hengband: 'B', nethack: 'a', dcss: 'O', brogue: null, rogue: null, ryod: 'o' }),
         spike: Object.freeze({ angband: null, silq: null, frogcomposband: 'j', hengband: 'j', nethack: null, dcss: null, brogue: null, rogue: null, ryod: null }),
@@ -91,7 +99,7 @@
         run: Object.freeze({ angband: '.', silq: '.', frogcomposband: '.', hengband: '.', nethack: 'g', dcss: '.', brogue: '.', rogue: '.', ryod: '.' }),
         search_mode: Object.freeze({ angband: null, silq: 'S', frogcomposband: 'S', hengband: 'S', nethack: 's', dcss: 's', brogue: 's', rogue: 's', ryod: 's' }),
         search: Object.freeze({ angband: null, silq: null, frogcomposband: 'S', hengband: 'S', nethack: 's', dcss: 's', brogue: 's', rogue: 's', ryod: 's' }),
-        explore: Object.freeze({ angband: 'p', silq: null, frogcomposband: null, hengband: null, nethack: null, dcss: null, brogue: null, rogue: null, ryod: null }),
+        explore: Object.freeze({ angband: 'p', silq: 'Alt+E', frogcomposband: 'Alt+E', hengband: 'Alt+E', nethack: 'Alt+E', dcss: 'o', brogue: 'e', rogue: 'Alt+E', ryod: 'Alt+E' }),
         travel: Object.freeze({ angband: null, silq: null, frogcomposband: '`', hengband: '`', nethack: '_', dcss: 'G', brogue: '_', rogue: '_', ryod: '_' }),
         stairs_up: Object.freeze({ angband: '<', silq: '<', frogcomposband: '<', hengband: '<', nethack: '<', dcss: '<', brogue: '<', rogue: '<', ryod: '<' }),
         stairs_down: Object.freeze({ angband: '>', silq: '>', frogcomposband: '>', hengband: '>', nethack: '>', dcss: '>', brogue: '>', rogue: '>', ryod: '>' }),
@@ -101,8 +109,8 @@
         knowledge: Object.freeze({ angband: '~', silq: '~', frogcomposband: '~', hengband: '~', nethack: '\\', dcss: '\\', brogue: '~', rogue: '\\', ryod: '~' }),
         inven: Object.freeze({ angband: 'i', silq: 'i', frogcomposband: 'i', hengband: 'i', nethack: 'i', dcss: 'i', brogue: 'i', rogue: 'i', ryod: 'i' }),
         inventory: Object.freeze({ angband: 'i', silq: 'i', frogcomposband: 'i', hengband: 'i', nethack: 'i', dcss: 'i', brogue: 'i', rogue: 'i', ryod: 'i' }),
-        equip: Object.freeze({ angband: 'e', silq: 'e', frogcomposband: 'e', hengband: 'e', nethack: 'e', dcss: 'e', brogue: 'e', rogue: 'e', ryod: 'e' }),
-        equipment: Object.freeze({ angband: 'e', silq: 'e', frogcomposband: 'e', hengband: 'e', nethack: 'e', dcss: 'e', brogue: 'e', rogue: 'e', ryod: 'e' }),
+        equip: Object.freeze({ angband: 'e', silq: 'e', frogcomposband: 'e', hengband: 'e', nethack: '[', dcss: 'E', brogue: '[', rogue: 'E', ryod: 'e' }),
+        equipment: Object.freeze({ angband: 'e', silq: 'e', frogcomposband: 'e', hengband: 'e', nethack: '[', dcss: 'E', brogue: '[', rogue: 'E', ryod: 'e' }),
         quiver: Object.freeze({ angband: '|', silq: null, frogcomposband: null, hengband: null, nethack: 'Q', dcss: 'Q', brogue: null, rogue: null, ryod: 'Q' }),
         look: Object.freeze({ angband: 'l', silq: 'l', frogcomposband: 'l', hengband: 'l', nethack: ';', dcss: 'x', brogue: 'x', rogue: ';', ryod: 'x' }),
         target: Object.freeze({ angband: '*', silq: null, frogcomposband: '*', hengband: '*', nethack: ';', dcss: 'x', brogue: 'x', rogue: ';', ryod: 'x' }),
@@ -119,7 +127,14 @@
         loot: Object.freeze({ angband: null, silq: null, frogcomposband: null, hengband: null, nethack: '#loot', dcss: null, brogue: null, rogue: null, ryod: null }),
         force: Object.freeze({ angband: null, silq: null, frogcomposband: null, hengband: null, nethack: '#force', dcss: null, brogue: null, rogue: null, ryod: null }),
         kick: Object.freeze({ angband: null, silq: null, frogcomposband: null, hengband: null, nethack: 'C-d', dcss: null, brogue: null, rogue: null, ryod: null }),
-        smith: Object.freeze({ angband: null, silq: '0', frogcomposband: null, hengband: null, nethack: null, dcss: null, brogue: null, rogue: null, ryod: 'y' })
+        smith: Object.freeze({ angband: null, silq: '0', frogcomposband: null, hengband: null, nethack: null, dcss: null, brogue: null, rogue: null, ryod: '0' }),
+        engrave: Object.freeze({ angband: null, silq: null, frogcomposband: null, hengband: null, nethack: 'E', dcss: null, brogue: null, rogue: null, ryod: null }),
+        discoveries: Object.freeze({ angband: null, silq: null, frogcomposband: null, hengband: null, nethack: null, dcss: null, brogue: 'D', rogue: 'D', ryod: null }),
+        id_trap: Object.freeze({ angband: null, silq: null, frogcomposband: null, hengband: null, nethack: null, dcss: null, brogue: null, rogue: '^', ryod: null }),
+        god: Object.freeze({ angband: null, silq: null, frogcomposband: null, hengband: null, nethack: null, dcss: '^', brogue: null, rogue: null, ryod: null }),
+        mutations: Object.freeze({ angband: null, silq: null, frogcomposband: null, hengband: null, nethack: null, dcss: 'A', brogue: null, rogue: null, ryod: null }),
+        autofight: Object.freeze({ angband: null, silq: null, frogcomposband: null, hengband: null, nethack: null, dcss: 'tab', brogue: null, rogue: null, ryod: null }),
+        evoke: Object.freeze({ angband: null, silq: null, frogcomposband: null, hengband: null, nethack: null, dcss: 'V', brogue: null, rogue: null, ryod: null })
     });
     function resolveTargetKey(realm, target) {
         const r = (realm || 'angband').toLowerCase();
@@ -228,32 +243,53 @@
     CommandDispatcher.prototype._classify = function (frame) {
         return classifyFrame(frame, this.getRealm(), this.deps);
     };
+    CommandDispatcher.prototype._clearMenuRouterPending = function () {
+        const mr = (this.deps && this.deps.MenuRouter) || MenuRouterModule || (typeof window !== 'undefined' ? window.MenuRouter : null);
+        if (mr && typeof mr.clearPending === 'function') {
+            try { mr.clearPending(); } catch (_) {}
+        }
+    };
     CommandDispatcher.prototype.resolveVerbKey = function (verb, realm) {
+        if (!verb || typeof verb !== 'string') return null;
+        const trimmed = verb.trim();
+        if (!trimmed) return null;
+        if (/^#[a-z]{1,20}$/i.test(trimmed)) return trimmed.toLowerCase();
         const r = (realm || this.getRealm() || 'angband').toLowerCase();
-        if (this.deps.ActionCatalog) {
-            if (typeof this.deps.ActionCatalog.getKey === 'function') {
-                const k = this.deps.ActionCatalog.getKey(verb, r);
-                if (k !== undefined) return k;
-            }
-            if (typeof this.deps.ActionCatalog.get === 'function') {
-                const entry = this.deps.ActionCatalog.get(verb);
+        const cart = (this.deps && this.deps.RealmCartridge) || RealmCartridgeModule || (typeof window !== 'undefined' ? window.RealmCartridge : null);
+        if (!CANONICAL_REALMS.has(r) && cart && typeof cart.getVerbKey === 'function') {
+            const ck = cart.getVerbKey(trimmed, r);
+            if (ck !== null && ck !== undefined) return ck;
+        }
+        const subDistinction = (trimmed === 'wear' || trimmed === 'puton' || trimmed === 'remove' || trimmed === 'evoke');
+        if (subDistinction && CANONICAL_KEYS[trimmed] && CANONICAL_KEYS[trimmed][r] !== undefined) {
+            return CANONICAL_KEYS[trimmed][r];
+        }
+        const cat = (this.deps && this.deps.ActionCatalog) || ActionCatalogModule || (typeof window !== 'undefined' ? window.ActionCatalog : null);
+        if (cat) {
+            if (typeof cat.get === 'function') {
+                const entry = cat.get(trimmed);
                 if (entry && entry.keys && entry.keys[r] !== undefined) return entry.keys[r];
             }
+            if (typeof cat.keyFor === 'function') {
+                const k = cat.keyFor(trimmed, r);
+                if (k !== null && k !== undefined) return k;
+            }
+            if (typeof cat.getKey === 'function') {
+                const k = cat.getKey(trimmed, r);
+                if (k !== null && k !== undefined) return k;
+            }
         }
-        if (this.deps.RealmKeys && typeof this.deps.RealmKeys.realmKey === 'function') {
-            const k = this.deps.RealmKeys.realmKey(verb, r);
-            if (k !== undefined) return k;
+        const rk = (this.deps && this.deps.RealmKeys) || RealmKeysModule || (typeof window !== 'undefined' ? window.RealmKeys : null);
+        if (rk && typeof rk.realmKey === 'function') {
+            const k = rk.realmKey(trimmed, r);
+            if (k !== null && k !== undefined) return k;
         }
-        if (RealmKeysModule && typeof RealmKeysModule.realmKey === 'function') {
-            const k = RealmKeysModule.realmKey(verb, r);
-            if (k !== undefined) return k;
+        const mapped = CANONICAL_KEYS[trimmed];
+        if (mapped && mapped[r] !== undefined) return mapped[r];
+        if (cart && typeof cart.getVerbKey === 'function') {
+            const ck = cart.getVerbKey(trimmed, r);
+            if (ck !== undefined) return ck;
         }
-        if (typeof window !== 'undefined' && window.RealmKeys && typeof window.RealmKeys.realmKey === 'function') {
-            const k = window.RealmKeys.realmKey(verb, r);
-            if (k !== undefined) return k;
-        }
-        const mapped = CANONICAL_KEYS[verb];
-        if (mapped && mapped[r] !== undefined) { return mapped[r]; }
         return null;
     };
     CommandDispatcher.prototype._startDeadlineTimer = function () {
@@ -276,7 +312,10 @@
         }
     };
     CommandDispatcher.prototype.cancel = function (reason = 'user-key') {
+        const isModeExit = (reason === 'escape' || reason === 'mode-exit' || reason === 'exit');
+        if (isModeExit) { this._clearMenuRouterPending(); }
         if (this.state === 'Idle') { return false; }
+        if (reason !== 'user-key') { this._clearMenuRouterPending(); }
         this._clearDeadlineTimer();
         const prevState = this.state;
         this.state = 'Idle';
@@ -290,6 +329,9 @@
     };
     CommandDispatcher.prototype._finish = function (status, reason) {
         this._clearDeadlineTimer();
+        if (reason === 'escape' || reason === 'mode-exit' || (this.plan && this.plan.some(s => s && s.send === 'escape'))) {
+            this._clearMenuRouterPending();
+        }
         const finalStatus = status || 'Done';
         this.lastResult = finalStatus;
         this.state = finalStatus;
@@ -429,26 +471,39 @@
                 }
             ];
         }
-        if (intent.verb === 'char_sheet' || intent.verb === 'knowledge' || intent.verb === 'options' ||
-            intent.verb === 'help' || intent.verb === 'inven' || intent.verb === 'inventory' ||
-            intent.verb === 'equip' || intent.verb === 'equipment' || intent.verb === 'abilities' ||
-            intent.verb === 'skills' || intent.verb === 'smithing' || intent.verb === 'quiver' ||
-            intent.verb === 'map' || intent.verb === 'messages' || intent.verb === 'command_menu' ||
-            intent.verb === 'menu' || intent.verb === 'pickup' || intent.verb === 'hold' ||
-            intent.verb === 'exchange' || intent.verb === 'search_mode' || intent.verb === 'search' ||
-            intent.verb === 'explore' || intent.verb === 'travel' || intent.verb === 'stairs_up' ||
-            intent.verb === 'stairs_down' || intent.verb === 'repeat' || intent.verb === 'look' ||
-            intent.verb === 'target' || intent.verb === 'locate' || intent.verb === 'save') {
+        const vLower = typeof intent.verb === 'string' ? intent.verb.trim().toLowerCase() : '';
+        if (vLower === 'engrave' && typeof intent.text === 'string' && !intent.item && !intent.dir) {
+            const eKey = intent.key || this.resolveVerbKey('engrave', r) || 'E';
+            const eSteps = [{ send: eKey, expect: (model, fr) => model.isIdle || !fr.ui.awaiting_command || true, desc: 'open:engrave' }];
+            for (const ch of intent.text) eSteps.push({ send: normalizeKey(ch), expect: () => true, desc: `engrave-char:${ch}` });
+            eSteps.push({ send: 'enter', expect: (model, fr) => model.isIdle || (fr.ui && fr.ui.more), desc: 'engrave-confirm' });
+            return eSteps;
+        }
+        if ((vLower.startsWith('#') ||
+            vLower === 'char_sheet' || vLower === 'knowledge' || vLower === 'options' ||
+            vLower === 'help' || vLower === 'inven' || vLower === 'inventory' ||
+            vLower === 'equip' || vLower === 'equipment' || vLower === 'abilities' ||
+            vLower === 'skills' || vLower === 'smithing' || vLower === 'smith' || vLower === 'quiver' ||
+            vLower === 'map' || vLower === 'messages' || vLower === 'command_menu' ||
+            vLower === 'menu' || vLower === 'pickup' || vLower === 'hold' ||
+            vLower === 'exchange' || vLower === 'search_mode' || vLower === 'search' ||
+            vLower === 'explore' || vLower === 'travel' || vLower === 'stairs_up' ||
+            vLower === 'stairs_down' || vLower === 'repeat' || vLower === 'look' ||
+            vLower === 'target' || vLower === 'locate' || vLower === 'save' ||
+            vLower === 'discoveries' || vLower === 'god' || vLower === 'mutations' ||
+            vLower === 'autofight' || vLower === 'pray' || vLower === 'offer' ||
+            vLower === 'dip' || vLower === 'chat' || vLower === 'loot' ||
+            vLower === 'force' || vLower === 'engrave') && !intent.item && !intent.dir) {
             let verbKey;
             if (intent.key) {
-                verbKey = intent.key; } else if (intent.verb === 'command_menu' || intent.verb === 'menu') {
+                verbKey = normalizeKey(intent.key); } else if (vLower === 'command_menu' || vLower === 'menu') {
                 verbKey = this.resolveVerbKey('command_menu', r) || (r === 'silq' ? 'm' : 'enter'); } else {
                 verbKey = this.resolveVerbKey(intent.verb, r);
             }
             if (!verbKey) return null;
             const steps = [
                 {
-                    send: verbKey,
+                    send: normalizeKey(verbKey),
                     expect: (model, fr) => (fr.ui && fr.ui.overlay > 0) || !fr.ui.awaiting_command || true,
                     desc: `open:${intent.verb}`
                 }
@@ -536,7 +591,7 @@
         if (intent.verb === 'open' || intent.verb === 'close' || intent.verb === 'disarm' ||
             intent.verb === 'tunnel' || intent.verb === 'alter' || intent.verb === 'bash' ||
             intent.verb === 'spike' || intent.verb === 'steal' || intent.verb === 'walk' ||
-            intent.verb === 'run' || intent.verb === 'kick') {
+            intent.verb === 'run' || intent.verb === 'kick' || intent.verb === 'id_trap') {
             const verbKey = this.resolveVerbKey(intent.verb, r) || intent.key;
             if (!verbKey) return null;
             const steps = [
@@ -553,12 +608,12 @@
         }
         let verbKey;
         if (intent.verb === 'fire') {
-            if (r === 'angband' && intent.target === 'nearest') { verbKey = 'h'; } else { verbKey = this.resolveVerbKey('fire', r) || 'f'; }
+            if (r === 'angband' && intent.target === 'nearest') { verbKey = 'h'; } else { verbKey = intent.key || this.resolveVerbKey('fire', r) || 'f'; }
         } else {
-            verbKey = this.resolveVerbKey(intent.verb, r) || intent.key;
-            if (intent.verb === 'eat' && verbKey === 'e') verbKey = 'E';
+            verbKey = intent.key || this.resolveVerbKey(intent.verb, r);
         }
         if (!verbKey) return null;
+        verbKey = normalizeKey(verbKey);
         if (verbKey === 'h') {
             return [{
                 send: 'h',
@@ -583,7 +638,7 @@
             }
             steps.push({ send: 'enter', expect: (model, fr) => model.isIdle || (fr.ui && fr.ui.more), desc: 'drop-confirm-qty' });
         }
-        if (intent.dir || intent.target) {
+        if (intent.dir || (intent.target && !['quaff', 'eat', 'read', 'wield', 'takeoff', 'drop', 'ignore', 'examine', 'inscribe', 'uninscribe', 'refill', 'browse', 'study'].includes(vLower))) {
             const targetKey = intent.dir || resolveTargetKey(r, intent.target);
             steps.push({ send: targetKey, expect: (model, fr) => model.isIdle || (fr.ui && fr.ui.more), desc: `target:${targetKey}` });
         }
@@ -612,6 +667,7 @@
                 this.state = 'Idle';
                 return false;
             }
+            this._clearMenuRouterPending();
             this.state = 'Unwinding';
             this.unwindCount = 0;
             this.pendingIntent = intent;
@@ -642,6 +698,9 @@
         if (this.state === 'Idle') { return; }
         if (this.sentSeq !== null && frame && frame.seq !== undefined && frame.seq <= this.sentSeq) { return; }
         this.lastFrame = frame;
+        if (frame && ((frame.phase && frame.phase !== 'play') || (frame.player && frame.player.dead))) {
+            this._clearMenuRouterPending();
+        }
         if (this.state === 'Unwinding') {
             this._clearDeadlineTimer();
             this.unwindCount++;

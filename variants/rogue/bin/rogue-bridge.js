@@ -44,11 +44,11 @@ const ROGUE_SPEC = {
         return `Level: ${state.depth}  Gold: ${p.gold}      Hp: ${p.hp}(${p.hpMax})  Str: ${p.str}(${p.str})  Arm: ${p.ac}   Exp: ${p.level}/${p.exp}${hunger}`;
     },
     roles: [
-        { key: 'a', id: 'Fighter', race: 'Human', align: 'Neutral', hp: 12, pw: 0, ac: 4, str: 16, int: 12, wis: 12, dex: 14, con: 15, weapon: { name: 'mace', dmg: '2d4', bonus: 1, weight: 30, tval: 21, sval: 5 }, armor: { name: 'ring mail', ac: 4, bonus: 1, weight: 250, tval: 37, sval: 2 }, extra: { kind: 'ranged', name: 'short bow', glyph: '}', dmg: '1d6', bonus: 1, count: 1, weight: 30, tval: 19, sval: 2 } },
-        { key: 'b', id: 'Rogue Delver', race: 'Human', align: 'Chaotic', hp: 12, pw: 0, ac: 5, str: 16, int: 14, wis: 11, dex: 16, con: 14, weapon: { name: 'two-handed sword', dmg: '3d6', bonus: 1, weight: 60, tval: 23, sval: 25 }, armor: { name: 'studded leather armor', ac: 5, bonus: 1, weight: 180, tval: 36, sval: 5 }, extra: { kind: 'wand', name: 'staff of striking', glyph: '/', charges: 6, count: 1, weight: 25, tval: 55, sval: 4 } },
-        { key: 'c', id: 'Archivist', race: 'Elf', align: 'Lawful', hp: 11, pw: 0, ac: 4, str: 15, int: 16, wis: 15, dex: 15, con: 13, weapon: { name: 'long sword', dmg: '1d10', bonus: 1, weight: 40, tval: 23, sval: 12 }, armor: { name: 'scale mail', ac: 4, bonus: 1, weight: 220, tval: 37, sval: 3 }, extra: { kind: 'scroll', name: 'scroll of magic mapping', glyph: '?', count: 2, weight: 5, tval: 70, sval: 12 } }
+        { key: 'a', id: 'Fighter', race: 'Human', align: 'Neutral', hp: 12, pw: 0, ac: 6, str: 16, int: 12, wis: 12, dex: 14, con: 15, weapon: { name: 'mace', dmg: '2d4', bonus: 1, weight: 30, tval: 21, sval: 5 }, armor: { name: 'ring mail', ac: 7, bonus: 1, weight: 250, tval: 37, sval: 2 }, extra: { kind: 'ranged', name: 'short bow', glyph: '}', dmg: '1d6', bonus: 1, count: 1, weight: 30, tval: 19, sval: 2 } },
+        { key: 'b', id: 'Rogue Delver', race: 'Human', align: 'Chaotic', hp: 12, pw: 0, ac: 6, str: 16, int: 14, wis: 11, dex: 16, con: 14, weapon: { name: 'two-handed sword', dmg: '3d6', bonus: 1, weight: 60, tval: 23, sval: 25 }, armor: { name: 'studded leather armor', ac: 7, bonus: 1, weight: 180, tval: 36, sval: 5 }, extra: { kind: 'wand', name: 'staff of striking', glyph: '/', charges: 6, count: 1, weight: 25, tval: 55, sval: 4 } },
+        { key: 'c', id: 'Archivist', race: 'Elf', align: 'Lawful', hp: 11, pw: 0, ac: 5, str: 15, int: 16, wis: 15, dex: 15, con: 13, weapon: { name: 'long sword', dmg: '1d10', bonus: 1, weight: 40, tval: 23, sval: 12 }, armor: { name: 'scale mail', ac: 6, bonus: 1, weight: 220, tval: 37, sval: 3 }, extra: { kind: 'scroll', name: 'scroll of magic mapping', glyph: '?', count: 2, weight: 5, tval: 70, sval: 12 } }
     ],
-    // All 26 classic A-Z Rogue 5.4 monsters
+    // All 26 classic A-Z Rogue 5.4 monsters (authentic descending ACs -2..10)
     monsters: [
         { name: 'bat', glyph: 'B', attr: 3, minDepth: 1, hp: 5, ac: 3, dmg: 2, exp: 2, lore: 'Flits erratically through the upper corridors.' },
         { name: 'emu', glyph: 'E', attr: 3, minDepth: 1, hp: 6, ac: 7, dmg: 3, exp: 3, lore: 'An aggressive subterranean flightless bird from 1980 BSD Rogue.' },
@@ -61,7 +61,7 @@ const ROGUE_SPEC = {
         { name: 'zombie', glyph: 'Z', attr: 8, minDepth: 3, hp: 15, ac: 8, dmg: 6, exp: 12, lore: 'Shambling corpse of a fallen adventurer.' },
         { name: 'leprechaun', glyph: 'L', attr: 10, minDepth: 4, hp: 14, ac: 8, dmg: 4, exp: 15, lore: 'Nimble trickster notorious for snatching purses of gold.' },
         { name: 'centaur', glyph: 'C', attr: 3, minDepth: 5, hp: 20, ac: 4, dmg: 8, exp: 22, lore: 'Galloping half-horse marksman of the middle vaults.' },
-        { name: 'aquator', glyph: 'A', attr: 11, minDepth: 6, hp: 24, ac: 2, dmg: 7, exp: 28, lore: 'Corrosive rust-demon whose touch oxidizes iron armor.' },
+        { name: 'aquator', glyph: 'A', attr: 11, minDepth: 6, hp: 24, ac: 2, dmg: 0, special: 'rust', exp: 28, lore: 'Corrosive rust-demon whose touch oxidizes iron armor.' },
         { name: 'nymph', glyph: 'N', attr: 13, minDepth: 6, hp: 22, ac: 9, dmg: 5, exp: 30, lore: 'Beguiling spirit who vanishes with enchanted gear.' },
         { name: 'quagga', glyph: 'Q', attr: 14, minDepth: 7, hp: 26, ac: 3, dmg: 10, exp: 35, lore: 'Striped subterranean beast with vicious hooves.' },
         { name: 'venus flytrap', glyph: 'F', attr: 10, minDepth: 8, hp: 32, ac: 3, dmg: 11, exp: 50, lore: 'Carnivorous dungeon flora that lashes out with crushing vines.' },
@@ -74,7 +74,7 @@ const ROGUE_SPEC = {
         { name: 'phantom', glyph: 'P', attr: 13, minDepth: 17, hp: 64, ac: 3, dmg: 19, exp: 220, lore: 'Unseen stalker shimmering at the edge of torchlight.' },
         { name: 'black unicorn', glyph: 'U', attr: 8, minDepth: 18, hp: 70, ac: -2, dmg: 22, exp: 260, lore: 'Dread steed of shadow with an obsidian horn.' },
         { name: 'vampire', glyph: 'V', attr: 4, minDepth: 20, hp: 78, ac: 1, dmg: 24, exp: 350, lore: 'Ancient night-lord who feasts upon mortal vitality.' },
-        { name: 'jabberwock', glyph: 'J', attr: 13, minDepth: 22, hp: 88, ac: 6, dmg: 28, exp: 500, lore: 'With eyes of flame and jaws that bite, the terror of deep Rogue.' },
+        { name: 'jabberwock', glyph: 'J', attr: 13, minDepth: 22, hp: 88, ac: -1, dmg: 28, exp: 500, lore: 'With eyes of flame and jaws that bite, the terror of deep Rogue.' },
         { name: 'dragon', glyph: 'D', attr: 4, minDepth: 24, hp: 110, ac: -1, dmg: 32, exp: 800, lore: 'Ancient fire-breathing wyrm guarding the Amulet of Yendor.' }
     ],
     items: [
@@ -86,8 +86,20 @@ const ROGUE_SPEC = {
         { kind: 'potion', name: 'potion of monster detection', glyph: '!', attr: 11, telepathyTurns: 40, grantsTelepathy: true, weight: 15, tval: 71, sval: 42 },
         { kind: 'scroll', name: 'scroll of enchant weapon', glyph: '?', attr: 11, enchantGain: 1, weight: 5, tval: 70, sval: 15 },
         { kind: 'scroll', name: 'scroll of magic mapping', glyph: '?', attr: 11, weight: 5, tval: 70, sval: 12 },
+        { kind: 'scroll', name: 'scroll of scare monster', glyph: '?', attr: 11, effect: 'scare_monster', weight: 5, tval: 70, sval: 14 },
+        { kind: 'scroll', name: 'scroll of protect armor', glyph: '?', attr: 11, effect: 'protect_armor', weight: 5, tval: 70, sval: 16 },
+        { kind: 'ring', name: 'ring of maintain armor', glyph: '=', attr: 14, effect: 'maintain_armor', weight: 2, tval: 45, sval: 4 },
+        { kind: 'ring', name: 'ring of slow digestion', glyph: '=', attr: 14, effect: 'slow_digestion', flags: { slowDigest: true }, weight: 2, tval: 45, sval: 5 },
+        { kind: 'ring', name: 'ring of protection', glyph: '=', attr: 14, acBonus: 1, bonus: 1, weight: 2, tval: 45, sval: 2 },
         { kind: 'food', name: 'food ration', glyph: ':', attr: 3, nutrition: 850, weight: 20, tval: 80, sval: 1 },
         { kind: 'weapon', name: 'long sword', glyph: ')', attr: 11, bonus: 2, weight: 40, tval: 23, sval: 12 },
+        { kind: 'armor', name: 'leather armor', glyph: '[', attr: 3, ac: 8, rustproof: true, bonus: 0, weight: 150, tval: 36, sval: 4 },
+        { kind: 'armor', name: 'ring mail', glyph: '[', attr: 15, ac: 7, bonus: 0, weight: 250, tval: 37, sval: 2 },
+        { kind: 'armor', name: 'studded leather armor', glyph: '[', attr: 3, ac: 7, bonus: 0, weight: 180, tval: 36, sval: 5 },
+        { kind: 'armor', name: 'scale mail', glyph: '[', attr: 15, ac: 6, bonus: 0, weight: 220, tval: 37, sval: 3 },
+        { kind: 'armor', name: 'chain mail', glyph: '[', attr: 15, ac: 5, bonus: 0, weight: 240, tval: 37, sval: 4 },
+        { kind: 'armor', name: 'splint mail', glyph: '[', attr: 15, ac: 4, bonus: 0, weight: 280, tval: 37, sval: 8 },
+        { kind: 'armor', name: 'banded mail', glyph: '[', attr: 15, ac: 4, bonus: 0, weight: 300, tval: 37, sval: 9 },
         { kind: 'armor', name: 'plate mail', glyph: '[', attr: 15, ac: 3, bonus: 2, weight: 350, tval: 37, sval: 10 },
         { kind: 'wand', name: 'wand of lightning', glyph: '/', attr: 14, charges: 6, weight: 15, tval: 65, sval: 8 }
     ]
@@ -109,6 +121,16 @@ class RogueEngine extends UniversalCartridgeEngine {
         p.esp = false;
         p.telepathyTurns = 0;
         p.rBlind = false;
+        if (Array.isArray(p.inventory)) {
+            for (const it of p.inventory) {
+                if (/ring mail/i.test(it.name || '') && it.kind !== 'armor') {
+                    it.kind = 'armor';
+                    it.glyph = '[';
+                    it.equipped = 'body';
+                }
+            }
+            this.reindexInventory();
+        }
     }
 
     loadSave() {
@@ -146,8 +168,48 @@ class RogueEngine extends UniversalCartridgeEngine {
         );
     }
 
+    swing(atLvl, opArm, wplus = 0) {
+        const res = this.rand(20);
+        const need = (20 - Number(atLvl || 1)) - Number(opArm != null ? opArm : 10);
+        return (res + Number(wplus || 0)) >= need;
+    }
+
     applyVerbToItem(verb, item) {
         const p = this.state.player;
+        if (item && (verb === 'read' || (verb === 'use' && item.kind === 'scroll'))) {
+            const nm = String(item.name || '');
+            if (item.effect === 'scare_monster' || /scare monster/i.test(nm)) {
+                this.state.identifiedTypes = this.state.identifiedTypes || {};
+                this.state.identifiedTypes[item.name] = true;
+                item.identified = true;
+                for (const m of (this.state.monsters || [])) {
+                    if (!m.isPet && !m.peaceful && Math.hypot(m.x - p.x, m.y - p.y) <= 6) {
+                        m.scared = (m.scared || 0) + 12;
+                    }
+                }
+                this.addMessage('You hear maniacal laughter in the distance! Nearby monsters recoil in terror!', 14);
+                item.count = (item.count || 1) - 1;
+                this.reindexInventory();
+                this.advanceTurn();
+                return;
+            }
+            if (item.effect === 'protect_armor' || /protect armor/i.test(nm)) {
+                this.state.identifiedTypes = this.state.identifiedTypes || {};
+                this.state.identifiedTypes[item.name] = true;
+                item.identified = true;
+                const arm = p.inventory.find(i => i.equipped === 'body' || i.equipped === 'armor') || p.inventory.find(i => i.kind === 'armor');
+                if (arm) {
+                    arm.rustproof = true;
+                    this.addMessage('Your armor is covered by a shimmering gold shield!', 14);
+                } else {
+                    this.addMessage('Your skin tingles briefly, though you wear no armor.', 11);
+                }
+                item.count = (item.count || 1) - 1;
+                this.reindexInventory();
+                this.advanceTurn();
+                return;
+            }
+        }
         if (item && (verb === 'quaff' || (verb === 'use' && item.kind === 'potion'))) {
             const nm = String(item.name || '');
             if (item.blindTurns || /blindness|darkness/i.test(nm)) {
@@ -187,8 +249,20 @@ class RogueEngine extends UniversalCartridgeEngine {
     advanceTurn() {
         const p = this.state.player;
         const wasBlind = p.blind > 0;
+        const wornBody = Array.isArray(p.inventory) ? p.inventory.find(it => it.equipped === 'body' || it.equipped === 'armor') : null;
+        const prevBonus = wornBody ? (wornBody.bonus || 0) : 0;
+        const hasMaintain = Array.isArray(p.inventory) && p.inventory.some(it => it.equipped && (it.effect === 'maintain_armor' || /maintain armor/i.test(it.name || '')));
+        const hasSlowDigest = Array.isArray(p.inventory) && p.inventory.some(it => it.equipped && (it.effect === 'slow_digestion' || (it.flags && it.flags.slowDigest) || /slow digestion/i.test(it.name || '')));
         super.advanceTurn();
         if (p.dead) return;
+        if (wornBody && (wornBody.rustproof || hasMaintain) && (wornBody.bonus || 0) < prevBonus) {
+            wornBody.bonus = prevBonus;
+            this.recalcPlayerDefenses();
+            this.addMessage(`Your ${wornBody.name} gleams unscathed against the rust!`, 11);
+        }
+        if (hasSlowDigest && this.state.turn % 2 === 1 && p.nutrition > 0 && p.nutrition < 1200) {
+            p.nutrition++;
+        }
         if (wasBlind && p.blind > 0) {
             p.blind--;
             if (p.blind === 0) {
@@ -235,7 +309,8 @@ class RogueEngine extends UniversalCartridgeEngine {
             hp: m.hp,
             hp_max: m.hp_max,
             ac: m.ac != null ? m.ac : 8,
-            dmg: m.dmg || 4,
+            dmg: m.dmg != null ? m.dmg : 4,
+            special: m.special || null,
             speed: (m.speed != null ? m.speed : 110) - 110,
             unique: Boolean(m.isBoss || m.isNemesis || m.unique),
             attitude: m.isPet ? 'pet' : ((m.peaceful || m.friendly) ? 'friendly' : 'hostile'),
@@ -300,30 +375,7 @@ class RogueEngine extends UniversalCartridgeEngine {
 }
 
 if (require.main === module) {
-    const readline = require('readline');
-    const defaultSaveDir = path.resolve(__dirname, '../lib/save');
-    let user = 'Adventurer', saveDir = defaultSaveDir, isNew = false, customBirth = false, randomBirth = false;
-    for (let i = 2; i < process.argv.length; i++) {
-        const arg = String(process.argv[i] || '');
-        if (arg === '-n') isNew = true;
-        else if (arg === '-c' || arg === '--custom') customBirth = true;
-        else if (arg === '-r' || arg === '--random') randomBirth = true;
-        else if (arg.startsWith('-u')) user = arg.slice(2) || user;
-        else if (arg.startsWith('-dsave=')) saveDir = arg.slice(7) || saveDir;
-    }
-    const engine = new RogueEngine({ user: user.replace(/[^a-zA-Z0-9_.-]/g, '_') || 'Adventurer', saveDir, isNew, customBirth, randomBirth });
-    const writeJson = (obj) => process.stdout.write(JSON.stringify(obj) + '\n');
-    writeJson({ t: 'hello', protocol: 1, protocol_minor: 2, version: ROGUE_SPEC.version, realm: ROGUE_SPEC.realm, savefile: engine.saveFile });
-    writeJson({ t: 'commands', realm: ROGUE_SPEC.realm, verbBits: ['quaff', 'read', 'eat', 'aim', 'use_staff', 'zap', 'activate', 'fire', 'throw', 'wield', 'takeoff', 'drop', 'inscribe', 'uninscribe', 'refill', 'browse', 'study', 'cast', 'ignore', 'examine'] });
-    writeJson(engine.buildFrame());
-    readline.createInterface({ input: process.stdin, terminal: false }).on('line', (rawLine) => {
-        const line = String(rawLine || '').trim();
-        if (!line) return;
-        if (line === 'save') { writeJson({ t: 'saved', ok: engine.saveGame() }); return; }
-        if (line === 'frame') { writeJson(engine.buildFrame()); return; }
-        if (line === 'quit' || line === 'exit') { engine.saveGame(); process.exit(0); return; }
-        if (line.startsWith('key ') || line.startsWith('keys ')) { engine.handleKey(line.replace(/^keys?\s+/, '')); writeJson(engine.buildFrame()); }
-    });
+    runCartridgeMain(RogueEngine, ROGUE_SPEC, path.resolve(__dirname, '../lib/save'));
 }
 
 module.exports = { ROGUE_SPEC, RogueEngine };

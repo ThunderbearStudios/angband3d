@@ -297,7 +297,10 @@
             p.str = (p.str || 15) + 3;
             log(engine, `Trog roars! Berserk vigor courses through your veins! (+20 HP, +3 STR)`);
         } else if (p.deity === 'Okawaru') {
-            p.ac += 4; p.bonusDmg = (p.bonusDmg || 0) + 4;
+            p.bonusAc = (p.bonusAc || 0) + 4;
+            p.bonusDmg = (p.bonusDmg || 0) + 4;
+            if (typeof engine.recalcPlayerDefenses === 'function') engine.recalcPlayerDefenses();
+            else p.ac += 4;
             log(engine, `Okawaru grants martial perfection! (+4 AC, +4 Dmg)`);
         } else if (p.deity === 'Sif Muna') {
             p.pw = Math.min(p.pwMax, (p.pw || 0) + 24);
@@ -398,8 +401,10 @@
         }
         let uncursedCount = 0;
         for (const item of p.inventory) {
-            if (item.beatitude === 'cursed') {
+            if (item.beatitude === 'cursed' || item.cursed === true || item.curse === true) {
                 item.beatitude = 'uncursed';
+                delete item.cursed;
+                delete item.curse;
                 uncursedCount++;
             }
         }
@@ -568,6 +573,7 @@
                 player._evolvedStages[targetStage] = true;
                 player.hpMax += 15;
                 player.hp += 15;
+                player.bonusAc = (player.bonusAc || 0) + 2;
                 player.ac += 2;
             }
         }

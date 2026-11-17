@@ -3,14 +3,14 @@
 /**
  * server/src/realm-help-files.js
  *
- * Unified 8-Realm Official Help File & Manual Provider.
+ * Unified 9-Realm Official Help File & Manual Provider.
  * Serves:
  *  - Official upstream help files from disk for Angband 4.2.6, Sil-Q 1.5.0,
  *    FrogComposband 7.1, and Hengband 3.0.1.26 (English & Japanese).
  *  - Complete multi-chapter manuals, command tables, role/deity compendiums,
  *    and live engine bestiaries/item encyclopedias for NetHack 3.6.7,
  *    Dungeon Crawl Stone Soup 0.31, Brogue CE 1.13, Classic Rogue 5.4.4,
- *    Sil-Q 1.5.0, and Vanilla Angband 4.2.6.
+ *    Sil-Q 1.5.0, Vanilla Angband 4.2.6, and Regions of Yendor: Dungeons (RYOD).
  */
 
 const fs = require('fs');
@@ -273,43 +273,51 @@ The Three Required Invocation Artifacts:
 
 INVENTORY & EQUIPMENT
   i       List inventory
+  [       List worn/wielded equipment (/ or | toggles Inventory <-> Equipment)
   , or g  Pick up item(s) on current tile
-  d / D   Drop single item / Drop multiple items by category
+  d / D   Drop single item / Drop multiple items
   w       Wield a weapon (or 'w -' to fight barehanded)
   W / T   Wear armor / Take off armor
   P / R   Put on accessory (ring, amulet, blindfold, towel) / Remove accessory
   x       Swap between primary and secondary weapons
+  I / :   Examine an inventory item
 
 CONSUMABLES, MAGIC & TOOLS
-  e       Eat food ration, tin, or monster corpse on floor/inventory
-  q       Quaff (drink) a potion
+  e       Eat food ration, tin, or monster corpse (on floor [y/n] or pack [a-z])
+  q       Quaff (drink) a potion (or fountain when standing on '{')
   r       Read a scroll or spellbook
   z       Zap a wand in a direction
-  Z       Cast a memorized spell
+  Z / +   Cast a memorized spell
   a       Apply (use) a tool: key, lockpick, stethoscope, lamp, unicorn horn, bag, pick-axe
-  t / f   Throw an item / Fire quivered ammunition
+  t / f   Throw an item / Fire ammunition (also v / Q)
 
-DUNGEON INTERACTION & EXPLORATION
+DUNGEON INTERACTION, EXPLORATION & SYSTEM
+  Move    Arrow Keys / Numpad / Vi-keys hjklyubn (Opt-in WASD via Alt+W)
   o / c   Open a door / Close a door
-  k / C-d Kick a locked door, chest, or monster
-  s       Search adjacent tiles for secret doors and traps
-  .       Rest / wait 1 turn
+  C-d     Kick a locked door, chest, or monster (also #kick; k moves North!)
+  D / u   Disarm / untrap an adjacent trap
+  s / .   Search adjacent tiles for secret doors and traps / Wait 1 turn
   < / >   Climb up stairs (or ladder) / Descend down stairs
-  :       Look at what is on the floor at your feet
-  ;       Look at distant map tiles
-  E       Engrave writing on the floor (e.g., Elbereth or wand identification)
-  p       Pay your shopping bill to the shopkeeper
+  ; / /   Survey creatures in immediate view
+  E       Engrave floor text (Enter = "Elbereth", - = write in dust, or custom text)
+  p       Pray to your alignment's deity (shortcut for #pray)
+  C / @   Character sheet     |   \\ / ~   Discovered lore & knowledge
+  ? / O   Commands & help     |   S / C-s Save game
 
 EXTENDED COMMANDS (Press #)
-  #pray     Pray to your alignment's deity for emergency help or water blessing
-  #chat     Talk to adjacent shopkeeper, priest, Oracle, or Quest Leader
-  #offer    Sacrifice a fresh corpse on an altar for luck, mollification, or Artifacts
-  #dip      Dip an item into a potion (e.g.Holy Water or Poison) or fountain
-  #loot     Open or put items into a chest, box, or sack on the floor
-  #untrap   Disarm an adjacent trap or trapped chest
-  #force    Force the lock of a chest using your wielded weapon
-  #enhance  Advance weapon and spell school skill levels
-  #monster  Use your monster racial ability (if polymorphed)`
+  #pray     Pray to your alignment's deity for emergency help or water blessing [p]
+  #dip      Dip an item into a potion (e.g., Holy Water) or fountain (Excalibur!) [d]
+  #offer    Sacrifice a fresh corpse on an altar for luck, AC, or blessing [o]
+  #sit      Sit down on the floor, fountain, or altar [s]
+  #rub      Rub a magic lamp or brass lantern to summon a djinni [r]
+  #ride     Mount or dismount an adjacent tame steed (pony, horse, unicorn) [m]
+  #equip    Open the worn/wielded Equipment screen (same as '[') [q]
+  #loot     Open or loot a chest, box, or sack on the floor [l]
+  #untrap   Disarm an adjacent trap or trapped chest [u]
+  #chat     Talk to your companion or listen to the Oracle's counsel [c]
+  #force    Force the lock of a chest using your wielded weapon [f]
+  #enhance  Advance weapon and spell school skill levels [e]
+  #kick     Kick in a direction (same as Ctrl+D / C-d) [k]`
             },
             {
                 name: 'Bestiary_and_Spoilers.txt',
@@ -426,31 +434,37 @@ auto-explore ('o'), and a deep Pantheon of 25+ Gods. To win a standard game:
 ==============================================================================
 
 EXPLORATION & COMBAT
+  Move      Arrow Keys / Numpad / Vi-keys hjklyubn (Opt-in WASD via Alt+W)
   o         Auto-explore current floor (stops on monsters, stairs, altars, items)
   Tab       Auto-fight nearest threat with wielded weapon
-  5 or .    Rest until HP and MP are full (or wait 1 turn)
-  < / >     Ascend up staircase / Descend down staircase
-  G         Inter-level travel (jump to any discovered branch or staircase)
-  X         Full-screen level map overview
-  Ctrl+F    Search all discovered items across the entire dungeon
+  5 or .    Rest / wait 1 turn (also Space)
+  < / >     Ascend up staircase / Descend down staircase (> on Altar also prays)
+  O / c     Open closed door / Close adjacent door
+  g or ,    Pick up item(s) at your feet
+  s         Search adjacent tiles for hidden doors & traps
+  p         Pray at Temple Altar / Interact with fountain or companion
+  x / ;     Survey visible monsters and branch floor
+  v         Examine / inspect an inventory item (0 turns)
+  C / @ / % Character overview sheet  |  \\ / ~ Knowledge  |  ? Help
 
 MAGIC, GODS & SKILLS
-  m         Open Skill Training allocation screen
-  a         Use Divine Ability (God power), Species power, or Evocable item
-  z / Z     Cast a memorized spell / Force-cast spell
-  M         Memorize a new spell from your Spell Library
-  I         Inspect memorized spells & power ratings
+  m         Open Skill Training focus ([a-d/1-4] Fighting/Dodging/Evocations/Invocations, M spells)
+  a         Invoke God Divine Power ([1/Enter]) or Activate item ([a-z])
+  z / Z     Cast spell ([1-4/a-d]) or innate species/avatar power
+  M / I     Open Spell Library & Memorized Spells (or inspect item with I when no spells)
   ^         View your worshipped God's tenets, Piety rank, and abilities
   A         View Mutations, Innate Species Traits, and Resistances
 
 INVENTORY & EQUIPMENT
   i         Open Inventory
-  w         Wield a weapon
+  E / [     Open worn/wielded Equipment (/ or | toggles Inventory <-> Equipment)
+  e         Eat a food ration
+  w         Wield a weapon or equip shield (' swaps weapons)
   W / T     Wear armor / Take off armor
   P / R     Put on ring or amulet / Remove ring or amulet
   q / r     Quaff a potion / Read a scroll
-  f / Q     Fire quivered ranged attack / Select quiver action
-  v         Evoke a wand or miscellaneous magical device
+  f / t     Fire quivered ranged attack / Throw item
+  V         Evoke a wand or miscellaneous magical device
   d         Drop item(s)`
             },
             {
@@ -493,7 +507,7 @@ Throughout the dungeon, you will find Key Vaults containing 3–6 cages.
 ---------------------------------------------------
   • Swamp Gas: Vents when stepping on pressure plates. Shooting a Staff of Firebolt
     or throwing an Incendiary Dart into Swamp Gas triggers a massive fiery explosion!
-  • Caustic / Paralytic / Confusion Gas: Throw harmful potions (q/t) at a distance
+  • Caustic / Paralytic / Confusion Gas: Throw harmful potions (with 't', never 'q'!)
     into monster packs—never drink unknown harmful potions next to enemies!
   • Deep Water & Eels: Never fight Eels while standing in deep water. Lure them onto
     shallow water or dry land where their defense drops plummet.
@@ -527,18 +541,22 @@ Throughout the dungeon, you will find Key Vaults containing 3–6 cages.
 ==============================================================================
 
 KEYBINDINGS
+  Move      Arrow Keys / Numpad / Vi-keys hjklyubn (Opt-in WASD via Alt+W)
   e         Auto-explore current cavern depth
-  z         Rest until healed (up to 100 turns)
-  Space / . Wait 1 turn in place
+  z / 5 / . Rest / wait 1 turn (Space also waits 1 turn)
   i         Open Inventory
-  a         Apply (use/equip/drink/read/zap) any inventory item
+  [         View worn/wielded Equipment (/ or | toggles Inventory <-> Equipment)
+  E         Eat a food ration or mango
+  a         Apply (use/zap/activate) any staff, wand, or charm
   q / r     Quaff potion / Read scroll
-  w / W / R Equip weapon, armor, or ring / Remove equipped gear
-  t / f     Throw item or harmful potion / Fire dart or staff
+  w / W / P Equip weapon, armor, or ring  |  T / R   Take off / Remove equipped gear
+  t / f     Throw item or harmful potion / Fire dart
+  o / c     Open door / Close door       |  , / g  Pick up item  |  d  Drop item
   s         Search adjacent tiles for hidden traps & secret doors
-  x         Examine visible monsters, terrain gases, and items
+  x / :     Examine inventory item       |  ;      Survey visible monsters
   D         Open Discoveries table (all identified potions, scrolls, rings)
   > / <     Descend stairs / Ascend stairs
+  C / @     Character overview sheet     |  ?      Commands & help
 
 ` + buildCartridgeBestiaryAndItems(brogueSpec, 'Brogue CE 1.13')
             }
@@ -580,23 +598,28 @@ until the Amulet of Yendor is in your possession!
 
 3. KEYBINDINGS
 --------------
-  Arrow Keys / WASD / hjklyubn   Move or attack
+  Arrow Keys / Numpad / hjklyubn   Move or attack (Opt-in WASD via Alt+W)
   s                              Search adjacent walls for secret doors & traps
-  .                              Rest 1 turn
+  . / 5 / Space                  Rest 1 turn
   >                              Descend staircase to the next level
   <                              Ascend staircase (ONLY works once you hold the Amulet of Yendor!)
+  , or g                         Pick up item or gold at your feet
+  o / c                          Open door / Close door
   i                              List inventory
+  E / ] (or =)                   List worn/wielded Equipment (/ or i returns to Inventory)
   e                              Eat Food Ration or slime-mold
   q                              Quaff a potion
   r                              Read a scroll
   w                              Wield a weapon
   W / T                          Wear armor / Take off armor
-  P / R                          Put on ring (Left or Right hand) / Remove ring
+  P / R                          Put on ring / Remove ring
   z                              Zap a wand or staff in a direction
-  t                              Throw arrow (with Short Bow wielded!), dagger, or dart
+  t / f                          Throw arrow (with Short Bow wielded!), dagger, or dart
   d                              Drop item on the floor
+  I / :                          Examine an inventory item (; surveys visible monsters)
   D                              List all discovered/identified Potions, Scrolls, Rings, and Staves
-  ^                              Identify an adjacent trap`
+  ^                              Identify an adjacent trap
+  C / @                          Character sheet   |   ?   Help & commands`
             },
             {
                 name: 'Rogue_AZ_Bestiary.txt',
@@ -634,8 +657,8 @@ all the way back to the Gates of Angband (0 ft).
   • Armor Protection [XdY]: Armor absorbs damage via dice (e.g., Mail Corslet [2d4])
     at the cost of small Evasion and Stealth penalties.
 
-3. THE EIGHT SKILL TREES & ABILITIES (Press Tab or @)
------------------------------------------------------
+3. THE EIGHT SKILL TREES & ABILITIES (Press Tab for Skills, @ for Sheet)
+---------------------------------------------------------------------------
   Spend XP directly at any time to raise skills and buy active/passive Abilities:
   • Melee:      Finesse, Power, Polearm Mastery, Charge, Follow-Through, Whirlwind, Rapid Attack
   • Archery:    Precision, Point Blank, Versatile, Flaming Arrows, Crippling Shot
@@ -650,7 +673,16 @@ all the way back to the Gates of Angband (0 ft).
 ------------------------------------------------------
   Glowing Forges spawn throughout the upper and middle depths. Stand on a Forge
   and press '0' to craft custom weapons, mail, shields, rings, or amulets with
-  chosen slays (Orcs, Trolls, Rauko, Dragons, Spiders), resistances, or stat bonuses.`
+  chosen slays (Orcs, Trolls, Rauko, Dragons, Spiders), resistances, or stat bonuses.
+
+5. ESSENTIAL SIL-Q KEYBINDINGS
+------------------------------
+  • Move:    Arrow Keys / Numpad / Vi-keys hjklyubn (Opt-in WASD via Alt+W)
+  • Combat:  f Fire bow  |  t Throw  |  X Exchange weapons  |  s Sing Song
+  • Items:   i Inventory |  e Equipment |  w Wield/Wear  |  r Remove  |  d Drop  |  k Destroy
+  • Consum.: q Quaff potion |  a Activate staff |  E Eat food |  u Use item |  p Sound horn
+  • Dungeon: g Get item |  o/c/b/D Open/Close/Bash/Disarm |  S Stealth |  % / Z Rest |  z Hold
+  • Info:    Tab Skills & Abilities |  0 Anvil Forging |  @ Sheet |  ~ Lore |  x Examine |  m Menu`
             }
         ],
         angband: [
@@ -686,6 +718,226 @@ all the way back to the Gates of Angband (0 ft).
     - 20,000 HP, Speed +30, shatters walls with Earthquakes, summons Unique Monsters,
       and casts Mana Storm (up to 550 unresistable damage!). Stock 15+ Healing/*Healing*/Life
       potions, Phase Door, Teleportation, and Mass Banishment.`
+            }
+        ],
+        ryod: [
+            {
+                name: 'RYOD_Overview_and_Biomes.txt',
+                label: '🌍 RYOD Chapter 1: Realms Overview, 7 Biomes, Scaling & Shrines',
+                type: 'text',
+                content: `==============================================================================
+  REGIONS OF YENDOR: DUNGEONS (RYOD) — OVERVIEW, BIOMES & SHRINES
+==============================================================================
+
+1. SANDBOX ARCHITECTURE & DETERMINISTIC BLUEPRINTS (RYOD-XXXXXXXX)
+--------------------------------------------------------------------
+Regions of Yendor: Dungeons (RYOD) is YASD 3D's procedural roguelike sandbox.
+Every run compiles into a deterministic RYOD-XXXXXXXX config hash and shareable
+blueprint combining Biome, Map Layout, Goal Depth, Victory Rule, Story Arc,
+Hero Origin (or Creature Avatar), Power Discipline, and up to 3 Mutators.
+
+2. THE SEVEN BIOMES
+-------------------
+  • obsidian        Obsidian Stronghold (Iron & Torchlight)
+                    Defaults: angband audio | warbands bestiary | shattered_covenant story
+  • bioluminescent  Bioluminescent Underdark (Glowing Flora & Chasms)
+                    Defaults: caverns layout | brogue audio | beasts_wyrms | spore_choir
+  • catacombs       Ecumenical Marble Sanctum (Crypts, Altars & Fountains)
+                    Defaults: nethack audio | necropolis bestiary | ossuary_crown story
+  • shadow_keep     Eastern Shadow Keep (Crimson Timber & Mist)
+                    Defaults: hengband audio | eastern_oni bestiary | crown_of_cinders story
+  • chaos_rift      Abyssal Chaos Rift (Arcane Crystal & Void)
+                    Defaults: frogcomposband audio | constructs bestiary | clockwork_abyss
+  • frozen_wastes   Frozen Iron Wastes (Glacial Vaults & Frost)
+                    Defaults: silq audio | shadow_host bestiary | iron_crown_song story
+  • gilded_treasury Sunken Golden Treasury (Gilded Halls & Traps)
+                    Defaults: rogue audio | dungeons_of_doom bestiary | sovereign_heist
+
+3. MAP LAYOUTS, GOAL DEPTH & PROCEDURAL SCALING
+-----------------------------------------------
+  • 4 Map Layouts:   classic (Bastion Rooms), caverns (Winding Caverns),
+                     labyrinth (Dense Minotaur Corridors), arena (Grand Vaults)
+  • Goal Depth:      Configurable from 5 to 30 floors (default 15, or 8 with Boss Rush).
+  • 5-Act Pacing:    Act I (Start), Act II (~25% depth), Act III (~50%),
+                     Act IV (~75%), and Act V Sovereign Nemesis Boss on goalDepth.
+  • Victory Modes:   boss_kill (Slay Nemesis), ascension (Surface escape),
+                     three_runes (Claim 3 Runes), or relic_ascent (Artifact heist).
+  • Difficulty:      story (gentle scaling), standard, or nightmare (+enemy dmg/HP).
+  • Progression:     xp (Leveling), brogue_item (Enchantment/Strength), or hybrid.
+  • d20 Fate Roll:   Rolls 1–20 (default 15): 1 = Grim Dare, 15–19 = Explorer Cache,
+                     20 = Nat 20 Boon & blessed ring.
+
+4. SANCTUARY TOWN, SHRINES, ALTARS & VAULTS
+-------------------------------------------
+  • Depth 0 Town:    Optional Sanctuary Hub with Temple Altar (_), Fountain ({),
+                     Town Elder (t), Sanctuary Quartermaster (p), and Down Stair (>).
+  • Pantheon Altars: Altars (_) channel 6 deities: Trog, Okawaru, Sif Muna,
+                     Yredelemnul, Vehumet, and Xom. Press 'p' or Enter on an altar
+                     to sanctify worn gear, restore HP/Power, lift curses, and gain
+                     Piety (up to 6). Invoke your deity later via 'm' -> '6'!
+  • Fountains ({):   Stand on a fountain and press 'p', 'q', or Enter to heal +20 HP.
+  • Micro-Vaults:    Procedural rooms stamp Mithril Forges ('0' Anvil), Caged Allies,
+                     Pantheon Shrines, Caustic Crucibles, Runic Vaults, and Wyrm Hoards.`
+            },
+            {
+                name: 'RYOD_Origins_and_Avatars.txt',
+                label: '🧬 RYOD Chapter 2: Hero Origins, Beholder 6-Ring & Creature Avatars',
+                type: 'text',
+                content: `==============================================================================
+  REGIONS OF YENDOR: DUNGEONS (RYOD) — HERO ORIGINS & MONSTER AVATARS
+==============================================================================
+
+1. MORTAL CLASS ORIGINS (HP / PW / AC | STR/INT/WIS/DEX/CON | STARTING KIT)
+--------------------------------------------------------------------------
+  • Sovereign Warrior (warrior)     — Discipline: martial (KI)
+    40 HP / 10 PW / 5 AC | 17/10/11/14/16 | long sword, chain mail,
+    potion of berserk strength | Innate: Shield Bash Surge
+  • Shieldmaiden Valkyrie (valkyrie) — Discipline: songs (VOICE)
+    38 HP / 14 PW / 6 AC | 16/12/15/15/16 | war spear, scale mail,
+    potion of curing | Innate: Valkyrie Spear-Leap
+  • Ronin Samurai (samurai)         — Discipline: martial (KI)
+    36 HP / 16 PW / 5 AC | 16/12/13/16/15 | katana, splint mail,
+    scroll of enchant weapon | Innate: Tsubame Gaeshi (Swallow Cut)
+  • Arch-Mage Evoker (mage)         — Discipline: arcane (MANA)
+    26 HP / 28 PW / 2 AC | 10/18/15/14/12 | quarterstaff, robe of the magi,
+    wand of fireballs [6/6] | Innate: Aether Nova
+  • Deepwood Ranger (ranger)        — Discipline: songs (VOICE)
+    32 HP / 16 PW / 4 AC | 14/14/14/18/14 | long bow, studded leather,
+    rod of lightning bolts [5/5] | Innate: Heartseeker Volley
+  • Shadowblade Rogue (rogue)       — Discipline: arcane (MANA)
+    30 HP / 18 PW / 4 AC | 13/15/11/18/14 | assassin dagger, shadow cloak,
+    scroll of teleportation | Innate: Shadowstep Backstab
+  • Templar High Priest (priest)    — Discipline: piety (PIETY)
+    34 HP / 24 PW / 5 AC | 14/13/18/12/15 | blessed warhammer, hauberk of light,
+    potion of extra healing | Innate: Sanctified Judgment
+
+2. PLAYABLE MONSTER AVATARS & SIGNATURE TRAITS
+----------------------------------------------
+  • Eldritch Beholder Eye (beholder) — Discipline: arcane (MANA)
+    34 HP / 30 PW / 7 AC | 12/19/17/15/15 | central antimagic lens,
+    wand of disintegration [5/5] | Innate: Disintegration Ray
+    SPECIAL RULES: ringSlots = 6 (wear up to 6 rings!), allowBodyArmor = false
+    (cannot wear torso armor, cloaks, helms, shields, gloves, or boots),
+    intrinsic levitation over chasms, and directional Gaze Ray via 't'/'f' or 'm'->'5'.
+  • Red Dragon Wyrmling (red_dragon) — Discipline: arcane (MANA)
+    48 HP / 20 PW / 8 AC | 19/14/13/13/18 | draconic talons, crimson dragonscales,
+    potion of fire essence | Innate: Searing Dragon Breath
+    SPECIAL RULES: Intrinsic levitation; evolves Wyrmling -> Young -> Adult -> Ancient Wyrm.
+  • Vampire Scion (vampire_scion)   — Discipline: piety (PIETY)
+    36 HP / 22 PW / 6 AC | 16/16/14/17/15 | crimson rapier, noble dusk-mantle,
+    vial of vitae | Innate: Vampiric Life-Drain (+ Bat-Step Shadow Blink)
+    SPECIAL RULES: 25% innate melee damage leeched as HP.
+  • Iron Golem Juggernaut (iron_golem) — Discipline: martial (KI)
+    56 HP / 12 PW / 11 AC | 20/10/10/10/20 | forged iron fists, riveted dwarf-iron
+    chassis, scroll of enchanting | Innate: Seismic Ground Slam
+  • Arch-Lich Initiate (arch_lich)  — Discipline: arcane (MANA)
+    30 HP / 34 PW / 5 AC | 11/20/18/14/14 | skull-crowned scepter, phylactery
+    vestments, staff of cold bolts [6/6] | Innate: Abyssal Soul-Chill
+    SPECIAL RULES: 50% Phylactery damage absorption into Mana.
+  • Minotaur Berserker (minotaur)   — Discipline: martial (KI)
+    46 HP / 12 PW / 6 AC | 19/9/10/15/18 | double-bitted battle axe, bronze
+    labyrinth harness, potion of berserk strength | Innate: Labyrinth Gore Charge
+
+3. FIVE POWER DISCIPLINES (Selectable or Auto-Matched)
+------------------------------------------------------
+  arcane (MANA) | songs (VOICE) | piety (PIETY) | martial (KI) | blood_shadow (VITAE)`
+            },
+            {
+                name: 'RYOD_Mutators_and_Daily_Blitz.txt',
+                label: '🎲 RYOD Chapter 3: Stackable Mutators (0–3) & Daily Blitz UTC Seed',
+                type: 'text',
+                content: `==============================================================================
+  REGIONS OF YENDOR: DUNGEONS (RYOD) — MUTATORS & DAILY BLITZ
+==============================================================================
+
+1. STACKABLE WORLD MUTATORS (0 TO 3 ACTIVE PER RUN)
+---------------------------------------------------
+When customizing a RYOD run, you may stack up to 3 mutators simultaneously
+(selecting balanced clears active mutators to 0):
+
+  • balanced        Classic Balanced Rules: authentic tactical pacing & standard LOS.
+  • blood_moon      Blood-Moon Frenzy: +35% combat damage; every kill restores +4 HP & +1 PW.
+  • midas_vaults    Midas Vaults & Mimics: double floor treasure, extra enchanting scrolls,
+                    and guarded Golden Vaults.
+  • stygian_fog     Stygian Darkness: 4-tile lantern radius, +30% ambush attack damage.
+  • packmaster      Packmaster Crusade: start with 2 loyal pets; rescued Chained Allies
+                    gain +40% HP and damage.
+  • chaos_surge     Wild Chaos Surge: casting '[m]' powers or reading scrolls unleashes
+                    bonus Chaos Surges (speed boost + +6 bonus damage on even turns).
+  • cataclysm       Cataclysmic Tremors: forces abundant magma/water hazards; periodic
+                    tremors shake loose gold and scrolls.
+  • god_sandbox     Immortal God-Sandbox: 999 HP/MP, +9 gear, 0 power cost, and press
+                    'G' anytime to warp directly to the next floor.
+  • loot_pinata     Loot Pinata: slain enemies have a 35% chance to burst with bonus gold
+                    & drops, plus extra treasure caches spawned on dungeon floors.
+  • boss_rush       Boss Rush Blitz: compacts default goal depth to 8 floors and spawns
+                    elite Floor Champions with bonus relic drops on non-milestone depths.
+  • vampire_thirst  Vampire Thirst: disables passive resting HP regeneration (on '.', '5',
+                    Space, or resting), while melee attacks leech 30% of damage dealt as HP.
+  • floor_collapse  Crumbling Depths: tracks turns spent on the current floor (floorTurns).
+                    At 90 floorTurns stone groans in warning; at 120+ floorTurns, every
+                    10 turns deals -4 HP falling masonry damage (ignored in God Mode).
+
+2. DAILY BLITZ — DETERMINISTIC GLOBAL UTC CHALLENGE
+---------------------------------------------------
+Every UTC calendar day (YYYY-MM-DD) generates one shared Daily Blitz dungeon for
+all players via rollDailyBlitzBlueprint():
+  • Seed Derivation: Hashes "DAILY_BLITZ:YYYY-MM-DD" using 32-bit FNV-1a
+                     (0x811c9dc5 / prime 0x01000193) and xorshift32 PRNG.
+  • Mutator Pool:    Deterministically selects 1 or 2 mutators from all WORLD_MUTATORS
+                     except 'balanced' and 'god_sandbox'.
+  • Fixed Blitz Spec:
+      - Progression: hybrid | Difficulty: standard | Victory: boss_kill
+      - Goal Depth:  8 floors when 'boss_rush' is rolled, otherwise 10 floors
+      - Shared Biome, Map Layout, Hero Origin/Avatar, Companion Pet, and RYOD Hash.`
+            },
+            {
+                name: 'RYOD_Commands_and_Forging.txt',
+                label: '⌨️ RYOD Chapter 4: Commands, Anvil Forging (0/y), Powers (m) & Swap (x)',
+                type: 'text',
+                content: `==============================================================================
+  REGIONS OF YENDOR: DUNGEONS (RYOD) — COMMANDS & ANVIL FORGING
+==============================================================================
+
+1. ANVIL FORGING (Press '0', 'y', Enter, or 'p' next to a Mithril Anvil)
+------------------------------------------------------------------------
+Glowing Mithril Anvils ('0') spawn in Mithril Forge micro-vaults and sanctums.
+Stand ON or ADJACENT (within 1 tile) to an Anvil and press:
+  • '0'     Direct Forging hotkey (Sil-Q parity)
+  • 'y'     ActionCatalog 'smith' command binding
+  • Enter / 'p' Contextual interaction when adjacent to an Anvil ('0')
+Forging tempers your currently equipped weapon or body armor for +2 enchantment
+and permanently imbues an aspect brand ('of Flame', 'of Frost', 'of Sharpness',
+'of Protection', or 'of Speed').
+
+2. SKILLS, SONGS, STANCES & AVATAR POWERS (Press 'm')
+-----------------------------------------------------
+Press 'm' to open the Abilities & Magic prompt:
+  • [1–4] or [a–d]  Invoke Discipline Powers — or toggle Woven Songs (sharpness,
+                    silence, staying, slaying) / Martial Stances (genbu, byakko,
+                    seiryu, suzaku) when enabled!
+  • [5]             Unleash Hero / Monster Avatar Innate Power (e.g., Dragon Breath,
+                    Beholder Disintegration Ray, Lich Soul-Chill, Vampire Life-Drain,
+                    Iron Golem Ground Slam, Minotaur Gore Charge)
+  • [6]             Invoke Pantheon Deity Power (requires Piety >= 1 from Altars)
+  • [0]             Relax active Martial Stance / end Woven Song
+  • [i] / [z]       Switch to item activation prompt | [M] Open Spell Library
+
+3. WEAPON SWAP & COMPLETE RYOD KEY REFERENCE
+--------------------------------------------
+  • Movement:     Arrow Keys / Numpad / Vi-keys hjklyubn (Opt-in WASD via Alt+W)
+  • Weapon Swap:  x (or ') Cycles between wielded weapon and secondary weapons/bows
+                  (If only one weapon is carried, 'x' surveys visible monsters!)
+  • Items & Gear: i Inventory | e Equipment (/ or | toggles Inven <-> Equip)
+                  E Eat food  | q Quaff potion/fountain | r Read scroll | d Drop
+                  w / W / P   Wield weapon / Wear armor / Put on ring or amulet
+                  T / R       Take off / Remove gear | I / : Examine | { / } Inscribe
+  • Combat/Magic: a Activate item | t / f Throw or Fire (Beholder: directional Gaze!)
+                  m Powers/Songs/Stances | M / b Spell Library
+  • Dungeon:      p / Enter Interact (Altar, Fountain, adjacent Anvil/Cage, Pet)
+                  o / O Open door | c Close door | D Disarm trap | g / , Pick up
+                  s Search | . / 5 / Space Rest/Wait 1 turn | < / > Stairs | ; Survey
+  • System:       C / @ / % Character Sheet | ~ / \\ Knowledge | ? Help | G God Warp`
             }
         ]
     };
@@ -735,9 +987,13 @@ function listHelpFiles(realm) {
     }
 
     const PRIORITY_ORDER = [
-        'Guidebook.txt', 'DCSS_Survival_Manual.txt', 'Brogue_Survival_Manual.txt',
-        'Rogue_1980_Manual.txt', 'SilQ_Combat_Stealth_and_Forging.txt',
-        'Angband_Quick_Survival_Checklist.txt',
+        'Guidebook.txt', 'Commands.txt', 'Bestiary_and_Spoilers.txt',
+        'DCSS_Survival_Manual.txt', 'DCSS_Commands.txt', 'DCSS_Bestiary_and_Items.txt',
+        'Brogue_Survival_Manual.txt', 'Brogue_Commands_and_Bestiary.txt',
+        'Rogue_1980_Manual.txt', 'Rogue_AZ_Bestiary.txt',
+        'SilQ_Combat_Stealth_and_Forging.txt', 'Angband_Quick_Survival_Checklist.txt',
+        'RYOD_Overview_and_Biomes.txt', 'RYOD_Origins_and_Avatars.txt',
+        'RYOD_Mutators_and_Daily_Blitz.txt', 'RYOD_Commands_and_Forging.txt',
         'guide.rst', 'general.txt', 'command.rst', 'command.txt', 'commdesc.txt',
         'birth.rst', 'birth.txt', 'raceclas.txt', 'Classes.txt', 'MonsterRaces.txt',
         'Personalities.txt', 'dungeon.rst', 'dungeon.txt', 'town.txt', 'attack.rst',

@@ -108,7 +108,7 @@
 
       // Scale expected monster level by realm depth norms
       const r = String(realm || frame.realm || 'angband').toLowerCase();
-      const expectedDepthBase = (r === 'silq' || r === 'brogue' || r === 'rogue' || r === 'dcss' || r === 'nethack')
+      const expectedDepthBase = (r === 'silq' || r === 'brogue' || r === 'rogue' || r === 'dcss' || r === 'nethack' || r === 'ryod')
         ? Math.max(1, depth * 2)
         : Math.max(1, Math.round(depth * 0.7 + pLevel * 0.5));
 
@@ -127,7 +127,8 @@
         }
 
         awakeHostileCount++;
-        const mLevel = Number(m.level || m.depth || m.hd || expectedDepthBase);
+        const rawLevel = m.race_level || m.level || 0;
+        const mLevel = Number(rawLevel > 0 ? rawLevel : (m.depth || m.hd || expectedDepthBase));
         const dist = (px !== null && py !== null && typeof m.x === 'number' && typeof m.y === 'number')
           ? Math.max(1, Math.hypot(m.x - px, m.y - py))
           : 4;

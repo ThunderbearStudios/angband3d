@@ -6,12 +6,12 @@
 :root {
   color-scheme: dark;
   --yasd-slate-deep: #14171d;
-  --yasd-slate-canvas: #191d24;
+  --yasd-slate-canvas: #1a1f27;
   --yasd-slate-card: #212630;
   --yasd-slate-card-hover: #29303d;
-  --yasd-text-heading: #dadfe9;
-  --yasd-text-prose: #cad0dc;
-  --yasd-text-muted: #8e97a8;
+  --yasd-text-heading: #e6eaf0;
+  --yasd-text-prose: #d0d6e0;
+  --yasd-text-muted: #cbd5e1;
   --yasd-ruby-vial: #a82b35;
   --yasd-ruby-glow: rgba(168, 43, 53, 0.35);
   --yasd-sapphire-vial: #22588c;
@@ -465,7 +465,7 @@
 #queue-modal,
 #realm-selector-modal,
 #command-palette-modal {
-  background: rgba(15, 17, 21, 0.86) !important;
+  background: rgba(20, 23, 29, 0.90) !important;
 }
 
 /* # ROOT-CAUSE: Separate .splash-card.splash-billboard-mode from the #232832 grey-slate modal rule so its #0b0e13 canvas matches the C2-feathered widescreen splash hero with ΔE=0.000. */
@@ -760,7 +760,7 @@
 .load-footer,
 .guide-footer,
 .cmd-palette-footer {
-  background: rgba(21, 24, 29, 0.75) !important;
+  background: rgba(20, 23, 29, 0.90) !important;
   border-top: 1px solid var(--yasd-border-iron) !important;
   color: var(--yasd-text-muted) !important;
 }
@@ -770,7 +770,7 @@
    ========================================================================== */
 
 #chronicle-sketch-modal {
-  background: rgba(15, 17, 21, 0.88) !important;
+  background: rgba(20, 23, 29, 0.90) !important;
 }
 
 #chronicle-sketch-modal .chronicle-sketch-lightbox-card {
@@ -951,7 +951,7 @@
   flex-direction: column !important;
   align-items: stretch !important;
   gap: 8px !important;
-  background: rgba(15, 17, 21, 0.86) !important;
+  background: rgba(20, 23, 29, 0.90) !important;
   border: 1px solid var(--yasd-border-control) !important;
   border-top: 2px solid var(--yasd-gold-accent) !important;
   border-radius: 8px !important;
@@ -1110,8 +1110,7 @@
 
 #main-menu-overlay {
   background:
-    radial-gradient(circle at 50% 24%, rgba(21, 24, 29, 0.68) 0%, rgba(12, 14, 18, 0.94) 74%, rgba(8, 10, 13, 0.98) 100%),
-    url('/assets/showcase/live_town_sky_stores.webp?v=12.1.0') center center / cover no-repeat !important;
+    radial-gradient(circle at 50% 24%, rgba(28, 34, 46, 0.96) 0%, rgba(12, 14, 18, 0.98) 68%, rgba(7, 9, 12, 1.0) 100%) !important;
 }
 
 /* Remove decorative corner trim on Splash & Main Menu */
@@ -1268,8 +1267,8 @@ body:has(#command-palette-modal:not(.hidden)) #global-audio-bar {
 }
 
 /* 2. De-duplicate Classic Terminal Chrome: hide top static buttons when contextual bar is active */
-#terminal-card:has(#term-contextual-actions button) .terminal-toolbar .terminal-actions > button:not(#btn-term-grimoire-toggle),
-.terminal-card:has(#term-contextual-actions button) .terminal-toolbar .terminal-actions > button:not(#btn-term-grimoire-toggle),
+#terminal-card:has(#term-contextual-actions button) .terminal-toolbar .terminal-actions > button:not(#btn-term-grimoire-toggle):not(#btn-term-fullscreen),
+.terminal-card:has(#term-contextual-actions button) .terminal-toolbar .terminal-actions > button:not(#btn-term-grimoire-toggle):not(#btn-term-fullscreen),
 #terminal-birth-helper-bar {
   display: none !important;
 }
@@ -1449,7 +1448,7 @@ body:has(#command-palette-modal:not(.hidden)) #global-audio-bar {
 #char-panel #exp-text {
   font-size: 10px !important;
   font-weight: 800 !important;
-  color: #ffffff !important;
+  color: #e6eaf0 !important;
   text-shadow: 0 1px 2px #000, 0 0 5px #000 !important;
   font-variant-numeric: tabular-nums !important;
   line-height: 1.15 !important;
@@ -1619,7 +1618,7 @@ body:has(#command-palette-modal:not(.hidden)) #global-audio-bar {
 #top-right-bar #sound-control-group #btn-sound-config.active {
   background: rgba(212, 175, 55, 0.24) !important;
   border-color: #ffd700 !important;
-  color: #ffffff !important;
+  color: #e6eaf0 !important;
   transform: none !important;
 }
 
@@ -1672,7 +1671,7 @@ body:has(#command-palette-modal:not(.hidden)) #global-audio-bar {
   gap: 10px !important;
   width: 100% !important;
   padding: 6px 8px !important;
-  background: rgba(10, 13, 19, 0.72) !important;
+  background: rgba(20, 23, 29, 0.90) !important;
   border: 1px solid rgba(212, 175, 55, 0.28) !important;
   border-radius: 7px !important;
   box-sizing: border-box !important;
@@ -1692,7 +1691,7 @@ body:has(#command-palette-modal:not(.hidden)) #global-audio-bar {
   gap: 6px !important;
   width: 100% !important;
   padding: 8px 10px !important;
-  background: rgba(12, 15, 22, 0.78) !important;
+  background: rgba(20, 23, 29, 0.90) !important;
   border: 1px solid rgba(148, 163, 184, 0.22) !important;
   border-left: 2.5px solid rgba(212, 175, 55, 0.65) !important;
   border-radius: 7px !important;
@@ -1988,7 +1987,7 @@ body:has(#command-palette-modal:not(.hidden)) #global-audio-bar {
 .item-sheet-close:hover {
   background: rgba(239, 68, 68, 0.22);
   border-color: #f87171;
-  color: #ffffff;
+  color: #e6eaf0;
 }
 
 .item-sheet-list {
@@ -2003,11 +2002,11 @@ body:has(#command-palette-modal:not(.hidden)) #global-audio-bar {
 .item-sheet-empty {
   padding: 20px 12px;
   text-align: center;
-  color: #94a3b8;
+  color: #cbd5e1;
   font-style: italic;
   font-size: 12.5px;
-  background: rgba(15, 19, 28, 0.65);
-  border: 1px dashed rgba(148, 163, 184, 0.28);
+  background: rgba(20, 23, 29, 0.90);
+  border: 1px dashed rgba(148, 163, 184, 0.34);
   border-radius: 6px;
 }
 
@@ -2216,8 +2215,8 @@ body:has(#command-palette-modal:not(.hidden)) #global-audio-bar {
 }
 
 @media (min-width: 1200px) {
-  #hud-overlay:not(:has(#touch-controls:not(.dpad-hidden):not(.hidden))) #hud-center-column {
-    max-width: calc(100vw - 260px) !important;
+  #app-container:has(#touch-controls[style*="display: none"]) #hud-center-column {
+    max-width: calc(100vw - 300px) !important;
   }
 
   #action-bar,
@@ -2502,19 +2501,19 @@ body:has(#command-palette-modal:not(.hidden)) #global-audio-bar {
 :root {
   color-scheme: dark;
   --bg-dark: #161920;
-  --yasd-slate-deep: #14171e;
-  --yasd-slate-canvas: #161920;
+  --yasd-slate-deep: #14171d;
+  --yasd-slate-canvas: #1a1f27;
   --yasd-slate-card: #1f2430;
   --yasd-slate-card-hover: #272e3c;
-  --yasd-text-heading: #dfd9cc;
-  --yasd-text-prose: #c8c3b8;
-  --yasd-text-muted: #939ba9;
+  --yasd-text-heading: #e6eaf0;
+  --yasd-text-prose: #d0d6e0;
+  --yasd-text-muted: #cbd5e1;
   --yasd-border-iron: #4b5365;
   --yasd-border-control: #6c778c;
-  --text-primary: #c8c3b8;
-  --text-muted: #939ba9;
-  --hud-text: #dfd9cc;
-  --hud-dim: #939ba9;
+  --text-primary: #d0d6e0;
+  --text-muted: #cbd5e1;
+  --hud-text: #e6eaf0;
+  --hud-dim: #cbd5e1;
 }
 
 html, body {
@@ -2648,12 +2647,12 @@ body.hud-preset-immersive #hud-footer #footer-exp {
   line-height: 1;
   border: 1px solid rgba(108, 119, 140, 0.35);
 }
-.res-rune.tier-off { color: #7a8394; background: rgba(20, 24, 32, 0.7); }
+.res-rune.tier-off { color: #b2bccd; background: rgba(20, 23, 29, 0.90); }
 .res-rune.tier-on { color: #6ee7b7; background: rgba(16, 85, 60, 0.55); border-color: rgba(110, 231, 183, 0.55); }
 .res-rune.tier-dbl { color: #a7f3d0; background: rgba(6, 120, 82, 0.75); border-color: #34d399; }
 .res-rune.tier-imm { color: #fde68a; background: rgba(120, 84, 12, 0.78); border-color: #f5b942; }
 .res-rune.tier-vuln { color: #fca5a5; background: rgba(127, 29, 29, 0.75); border-color: #f87171; }
-.res-rune-sep { color: #5c6577; font-size: 10px; padding: 0 2px; }
+.res-rune-sep { color: #cbd5e1; font-size: 10px; padding: 0 2px; }
 @keyframes yasdResistWarnPulse {
   0%, 100% { border-color: #f59e0b; color: #fcd34d; background: rgba(120, 53, 15, 0.55); }
   50% { border-color: #fbbf24; color: #fef3c7; background: rgba(180, 83, 9, 0.82); }
@@ -2724,9 +2723,10 @@ body.hud-preset-immersive #hud-footer #footer-exp {
   border-color: #f87171;
   color: #fecaca;
 }
-#btn-menu-random.btn-primary-cta {
+#main-menu-options .menu-option-btn.btn-primary-cta {
   border-color: #e5b93c !important;
-  background: linear-gradient(180deg, rgba(58, 44, 16, 0.92) 0%, rgba(28, 22, 10, 0.96) 100%) !important;
+  border-left-color: #fef08a !important;
+  background: linear-gradient(180deg, rgba(58, 44, 16, 0.94) 0%, rgba(28, 22, 10, 0.97) 100%) !important;
   box-shadow: 0 0 18px rgba(229, 185, 60, 0.25), inset 0 1px 0 rgba(255, 232, 165, 0.28) !important;
 }
 .realm-tier-heading {
@@ -2776,7 +2776,7 @@ body.hud-preset-immersive #hud-footer #footer-exp {
 /* Mobile >= 44x44px Touch Targets & >= 16px Inputs */
 @media (pointer: coarse), (max-width: 768px) {
   input, select, textarea { font-size: 16px !important; }
-  #action-bar .action-btn, #top-right-bar .icon-btn, .dpad-btn, .menu-option-btn {
+  #action-bar .action-btn, #top-right-bar .icon-btn, .dpad-btn, .menu-option-btn, #quick-slot-bar .quick-slot-btn {
     min-width: 44px;
     min-height: 44px;
   }

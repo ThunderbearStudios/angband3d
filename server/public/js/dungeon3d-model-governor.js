@@ -81,7 +81,24 @@
         potion:   { id: 'potion',   source: 'polyhaven_photogrammetry', refUrl: 'https://polyhaven.com/models',                    glb: '/models/archival_relics/alchemical_glass_vial_lod1.glb',   resolvedGlb: '/assets/models/items/healing_potion.glb', targetHeight: 0.40, tris: 1180 }
     });
 
-    const PROTECTED_MODEL_IDS = new Set();
+    const PROTECTED_MODEL_IDS = new Set([
+        'bestiary_frost_construct',
+        'bestiary_cockatrice',
+        'bestiary_yeti',
+        'frost_construct.glb',
+        'cockatrice.glb',
+        'YetiSmall.glb'
+    ]);
+
+    const V13_DARK_BESTIARY_PRIORITY = Object.freeze({
+        maxTextureDimUhd620: 512,
+        minPbrTextures: 2,
+        preferredModels: Object.freeze({
+            bestiary_frost_construct: { glb: '/assets/models/monsters/bestiary/frost_construct.glb', priority: 100, targetHeight: 2.05 },
+            bestiary_cockatrice:      { glb: '/assets/models/monsters/bestiary/cockatrice.glb',      priority: 100, targetHeight: 0.96 },
+            bestiary_yeti:            { glb: '/assets/models/monsters/bestiary/YetiSmall.glb',       priority: 95,  targetHeight: 1.95 }
+        })
+    });
 
     function protectModel(modelId) {
         if (modelId) PROTECTED_MODEL_IDS.add(String(modelId).trim());
@@ -262,6 +279,7 @@
         REALISTIC_ASSET_SOURCES,
         ARCHIVAL_RELIC_REPLACEMENTS,
         PROTECTED_MODEL_IDS,
+        V13_DARK_BESTIARY_PRIORITY,
         protectModel,
         isModelProtected,
         classifyModelQuality,

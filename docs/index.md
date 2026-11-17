@@ -1,12 +1,12 @@
 ---
 layout: default
-title: "Angband 3D — Preserving Classic Roguelike History in Modern 3D"
-description: "Four authoritative C/C++ roguelike engines (Vanilla, Sil-Q, FrogComposBand, Hengband) running in first-person 3D with zero-turn camera look, dual-reality CRT canvas, universal movable HUD, and voiced living chronicles."
+title: "YASD 3D / Angband 3D — Nine Classic Roguelike Realms in Modern 3D (v13.0.2)"
+description: "Four authoritative C/C++ roguelike engines (Vanilla, Sil-Q, FrogComposBand, Hengband) plus five offline Yendor 3D browser cartridges (NetHack, DCSS, Brogue, Rogue, RYOD Forge) running in first-person 3D with zero-turn camera look, dual-reality CRT canvas, universal movable HUD, and voiced living chronicles."
 ---
 
-# ⚔️ Angband 3D
+# ⚔️ YASD 3D / Angband 3D (`v13.0.2`)
 
-> **Four Legendary Roguelike Engines. One Living 3D World. Over Three Decades of Tactical History Preserved Through High-Performance Engine Decoupling.**
+> **Four Authoritative C/C++ Engines + Five Offline Yendor 3D Cartridges. One Living 3D World. Over Four Decades of Tactical History Preserved Through High-Performance Engine Decoupling.**
 
 [![Play Online in Browser](https://img.shields.io/badge/⚔_Play_Online-yasd3d.com-gold?style=for-the-badge&logo=googlechrome)](https://yasd3d.com)
 [![License: GPL v2](https://img.shields.io/badge/License-GPL_v2-blue.svg)](https://github.com/ThunderbearStudios/angband3d/blob/main/LICENSE)
@@ -31,7 +31,7 @@ Classic turn-based roguelikes represent some of the most mathematically deep, ta
 
 **Angband 3D solves this problem permanently through architectural decoupling.** 
 
-Rather than rewriting the game from scratch, Angband 3D runs **four authoritative, unmodified C/C++ roguelike engines** in headless bridge mode. Every combat roll, saving throw, item generation curve, stealth check, and monster AI pathfinding decision runs bit-for-bit canonical upstream C code. Frontends—whether our responsive Three.js WebGL client, native Godot 4 C# engine, or standalone Android APK—act purely as reactive presentation layers.
+Rather than rewriting the game from scratch, YASD 3D (`v13.0.2`) runs **four authoritative, unmodified C/C++ roguelike engines** (`Vanilla Angband 4.2.6`, `Sil-Q 1.5.0`, `FrogComposBand 7.1.1`, `Hengband 3.0.1`) in headless bridge mode alongside **five zero-latency Yendor 3D offline browser cartridges** (`NetHack 3.6.7`, `DCSS 0.31`, `Brogue CE`, `Rogue 5.4`, and `RYOD Tabletop Forge`). Every combat roll, saving throw, item generation curve, stealth check, and monster AI pathfinding decision runs canonical realm rules. Frontends—our responsive Three.js WebGL/PWA client—act cleanly as reactive 60 FPS presentation layers.
 
 The result is a breathtaking first-person dungeon crawl with real-time camera look, procedural lighting, and voiced narrative sagas, built upon a foundation of absolute mathematical rigor.
 
@@ -93,12 +93,12 @@ Every adventurer plays differently. Angband 3D features a complete, zero-lag dra
 
 ---
 
-### 5. 🎨 Photogrammetry Ultra-Realism, 58-Model 3D Bestiary, Studio Foley & Next-Gen Action VFX
-Angband 3D combines 8K photogrammetry scans, a comprehensive 4-realm 3D bestiary, studio-recorded open-source foley, and the dark-fantasy art of **Raymond "Shockbolt" Gaustadnes**:
+### 5. 🎨 Photogrammetry Ultra-Realism, 59+ Model 9-Realm 3D Bestiary, Studio Foley & Next-Gen Action VFX
+YASD 3D combines 8K photogrammetry scans, a 100% 3rd-party sculpted 9-realm 3D bestiary (`5,174` mapped entries across all 9 realms), studio-recorded open-source foley, and the dark-fantasy art of **Raymond "Shockbolt" Gaustadnes**:
 
-* **Photogrammetry 3D Weapons & Viewmodels**: First-person viewmodels feature CC0 8K-scanned Poly Haven models—including medieval estocs, sabers, katanas, ornate daggers, warhammers, maces, battleaxes, and kite shields—anchored below the lower-right viewport rim in a 3D armored gauntlet (`iron_gauntlets.glb`).
-* **Comprehensive 58-Model 4-Realm 3D Bestiary**: 100% dedicated 3D models across all 4 realms—including humanoids, goblinoids, multi-headed hydras (`hydra.glb`), hooded nagas (`naga.glb`), floating beholder eyes (`floating_eye.glb`), writhing worm masses (`worm_mass.glb`), scorpions (`scorpion.glb`), centipedes (`centipede.glb`), scarab beetles (`beetle.glb`), formics (`ant.glb`), bats (`bat.glb`), bears (`bear.glb`), basilisks (`lizard.glb`), sharks (`aquatic.glb`), elemental vortices (`vortex_elemental.glb`), quylthulgs (`quylthulg.glb`), fungal colonies (`mushroom_cluster.glb`), and translucent oozes (`jelly_ooze.glb`).
-* **78-File Open-Source Studio Audio Bank & Stereo Dungeon Convolution Reverb**: Crisp, non-vocal medieval combat foley (`Kenney CC0` + `Battle for Wesnoth GPL-2.0+`) routed through a 2-channel subterranean stone-hall convolution reverb impulse (`createDungeonReverbImpulse`).
+* **Photogrammetry 3D Weapons & Viewmodels**: First-person viewmodels feature CC0 8K-scanned Poly Haven models—including medieval estocs, sabers, katanas, ornate daggers, warhammers, maces, battleaxes, braided leather whips, and kite shields—anchored below the lower-right viewport rim in a 3D armored gauntlet (`iron_gauntlets.glb`).
+* **100% 3rd-Party Sculpted 9-Realm 3D Bestiary**: Dedicated sculpted/rigged 3D models (`<=512x512` PBR albedo + normal maps) across all 9 realms—including humanoids, goblinoids, multi-headed hydras (`hydra.glb`), hooded nagas (`naga.glb`), floating beholder eyes (`floating_eye.glb`), writhing worm masses (`worm_mass.glb`), cockatrices (`cockatrice.glb`), glacial ice constructs (`frost_construct.glb`), arctic yetis (`YetiSmall.glb`), scorpions (`scorpion.glb`), centipedes (`centipede.glb`), scarab beetles (`beetle.glb`), formics (`ant.glb`), bats (`bat.glb`), bears (`bear.glb`), basilisks (`lizard.glb`), sharks (`aquatic.glb`), elemental vortices (`vortex_elemental.glb`), fleshy chaos/bloat horrors (`quylthulg.glb`), fungal colonies (`mushroom_cluster.glb`), and translucent oozes (`jelly_ooze.glb`).
+* **101-File Open-Source Studio Audio Bank, 58-Track Jukebox & Stereo Dungeon Convolution Reverb**: Crisp, non-vocal medieval combat foley (`Kenney CC0` + `Battle for Wesnoth GPL-2.0+`) routed through a 2-channel subterranean stone-hall convolution reverb impulse (`createDungeonReverbImpulse`).
 * **Zero-Leak 3D Action & Spell VFX**: Crescent blade cleaves (`slash`), blazing X-cleaves (`crit_slash`), dual seismic shockwave rings (`blunt`), piercing thrust lances (`pierce`), volumetric dragon breath cones (`breath`), multi-branch forked lightning (`lightning`), impact detonation domes (`spawnDetonationDome`), and runic ascension pillars (`aura`).
 * **Next-Gen Celestial Sky Dome & 4-Level Biome Chapters**: Custom GLSL sky dome on surface levels and 4-level biome transitions every 200 feet.
 

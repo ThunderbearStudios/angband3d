@@ -519,6 +519,20 @@
             applyHandheldMode(isHandheld());
         }
 
+        const onFsResize = () => {
+            if (!isHandheld()) return;
+            const app = getApp();
+            if (app && app.dungeon && typeof app.dungeon.resize === 'function') {
+                requestAnimationFrame(() => {
+                    if (app.dungeon && typeof app.dungeon.resize === 'function') app.dungeon.resize();
+                });
+            }
+        };
+        if (typeof document !== 'undefined' && typeof document.addEventListener === 'function') {
+            document.addEventListener('fullscreenchange', onFsResize);
+            document.addEventListener('webkitfullscreenchange', onFsResize);
+        }
+
         // Fallback to attach HUD hook after app.js finishes bootstrapping
         let tries = 0;
         const waitHud = setInterval(() => {

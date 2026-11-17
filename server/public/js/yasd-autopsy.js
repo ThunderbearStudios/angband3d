@@ -43,6 +43,78 @@
         return out.slice(-4);
     }
 
+    function getRealmCartridge() {
+        if (typeof root !== 'undefined' && root.RealmCartridge) return root.RealmCartridge;
+        if (typeof RealmCartridge !== 'undefined') return RealmCartridge;
+        return null;
+    }
+
+    function getRealmAutopsyMeta(realm) {
+        const r = String(realm || 'angband').trim().toLowerCase();
+        const rc = getRealmCartridge();
+        if (rc && typeof rc.getDefenseSchema === 'function') {
+            return {
+                rc,
+                realm: r,
+                defenseSchema: rc.getDefenseSchema(r),
+                progressionSchema: rc.getProgressionSchema(r),
+                depthSchema: rc.getDepthSchema(r)
+            };
+        }
+        const defMap = {
+            rogue: { direction: 'descending', label: 'Arm', fields: ['arm', 'ac'] },
+            nethack: { direction: 'descending', label: 'AC', fields: ['ac'] },
+            silq: { direction: 'ascending', label: 'EVN / Prot', fields: ['evn', 'pr_min', 'pr_max'], formatBracket: true },
+            dcss: { direction: 'ascending', label: 'AC | EV | SH', fields: ['ac', 'ev', 'sh'] },
+            brogue: { direction: 'ascending', label: 'Armor', fields: ['ac'] }
+        };
+        const progMap = {
+            brogue: { hasLevels: false, hasXp: false },
+            silq: { hasLevels: false, hasXp: true, xpLabel: 'XP' },
+            dcss: { hasLevels: true, hasXp: true, levelLabel: 'XL', xpLabel: 'XP' }
+        };
+        return {
+            rc: null,
+            realm: r,
+            defenseSchema: defMap[r] || { direction: 'ascending', label: 'AC', fields: ['ac', 'ac_base', 'ac_to_a'] },
+            progressionSchema: progMap[r] || { hasLevels: true, hasXp: true, levelLabel: 'Lv', xpLabel: 'EXP' },
+            depthSchema: null
+        };
+    }
+
+    function formatAutopsyDepth(playerOrDepth, realm) {
+        const r = String(realm || 'angband').trim().toLowerCase();
+        const rc = getRealmCartridge();
+        if (rc && typeof rc.formatDepth === 'function') return rc.formatDepth(playerOrDepth, r);
+        const p = (playerOrDepth && typeof playerOrDepth === 'object') ? playerOrDepth : { depth: playerOrDepth };
+        const d = Number(p.depth !== undefined ? p.depth : 0) || 0;
+        if (r === 'nethack') return `Dlvl ${d}`;
+        if (r === 'dcss') return `${(/^dungeon$/i.test(p.branch_name || p.branch || '') ? 'D' : (p.branch_name || p.branch || 'D'))}:${d}`;
+        if (r === 'rogue') return `Level ${d}`;
+        if (r === 'brogue') return `Depth ${d}`;
+        if (r === 'ryod') return `${p.branch_name || p.branch || 'Branch'} ${d}`;
+        if (d === 0) return r === 'silq' ? 'Gates of Angband' : ((r === 'frogcomposband' || r === 'hengband') ? 'Outpost' : 'Town');
+        return `${d * 50} ft`;
+    }
+
+    function formatAutopsyDefense(player, realm) {
+        const p = player || {};
+        const r = String(realm || 'angband').trim().toLowerCase();
+        const rc = getRealmCartridge();
+        if (rc && typeof rc.formatDefenseValue === 'function') return rc.formatDefenseValue(p, r);
+        if (r === 'silq') {
+            const evn = p.evn !== undefined ? Number(p.evn) : Number(p.ac || 0);
+            return `[${evn >= 0 ? `+${evn}` : evn}, ${Number(p.pr_min || 0)}-${Number(p.pr_max || 0)}]`;
+        }
+        if (r === 'dcss') return `${p.ac ?? 0} | ${p.ev ?? 10} | ${p.sh ?? 0}`;
+        if (r === 'rogue') return `${p.arm !== undefined ? p.arm : (p.ac ?? 10)}`;
+        if (r === 'nethack') return `${p.ac ?? 10}`;
+        if (r === 'brogue') return `${p.ac ?? 0}`;
+        const acTot = p.ac ?? 0;
+        const toA = Number(p.ac_to_a || 0);
+        return toA !== 0 ? `${acTot} (${toA > 0 ? '+' : ''}${toA})` : `${acTot}`;
+    }
+
     function recordFrame(frame, realm) {
         if (!frame || !frame.player) return;
         const p = frame.player;
@@ -67,6 +139,13 @@
             hpMax,
             depth: typeof p.depth === 'number' ? p.depth : 0,
             dead: Boolean(p.dead),
+            ac: p.ac,
+            arm: p.arm,
+            evn: p.evn,
+            pr_min: p.pr_min,
+            pr_max: p.pr_max,
+            ev: p.ev,
+            sh: p.sh,
             messages: msgs,
             resists: p.resists && typeof p.resists === 'object' ? Object.assign({}, p.resists) : null,
             flags: p.flags && typeof p.flags === 'object' ? Object.assign({}, p.flags) : null
@@ -111,7 +190,7 @@
         return found;
     }
 
-    function diagnoseMissingDefense(causeText, recentText, resists, flags) {
+    function diagnoseMissingDefense(causeText, recentText, resists, flags, opts) {
         const corpus = `${causeText || ''} ${recentText || ''}`.toLowerCase();
         const r = resists || {};
         const f = flags || {};
@@ -148,28 +227,102 @@
             gaps.push('Ambushed by Unseen Foe (See Invisible OFF)');
         }
 
+        const optObj = (opts && typeof opts === 'object') ? opts : {};
+        const realm = String(optObj.realm || '').trim().toLowerCase();
+        const p = (optObj.player && typeof optObj.player === 'object') ? optObj.player : optObj;
+        const latestSnap = _turnRing.length > 0 ? _turnRing[_turnRing.length - 1] : null;
+        const meta = realm ? getRealmAutopsyMeta(realm) : null;
+        const depth = Number(p.depth !== undefined ? p.depth : (latestSnap ? latestSnap.depth : 0)) || 0;
+
+        let defSummary = 'Armor Class';
+        if (meta) {
+            const ds = meta.defenseSchema;
+            if (realm === 'silq') {
+                const evnRaw = p.evn !== undefined ? p.evn : (p.ac !== undefined ? p.ac : (latestSnap && latestSnap.evn));
+                const evn = evnRaw !== undefined && evnRaw !== null ? Number(evnRaw) : null;
+                const prMin = Number(p.pr_min !== undefined ? p.pr_min : ((latestSnap && latestSnap.pr_min) || 0));
+                const prMax = Number(p.pr_max !== undefined ? p.pr_max : ((latestSnap && latestSnap.pr_max) || 0));
+                if (evn !== null && Number.isFinite(evn)) {
+                    const evnStr = evn >= 0 ? `+${evn}` : `${evn}`;
+                    defSummary = `EVN/Prot [${evnStr}, ${prMin}-${prMax}]`;
+                    if (evn <= 2) gaps.push(`Low Evasion (EVN ${evnStr})`);
+                    if ((p.pr_max !== undefined || (latestSnap && latestSnap.pr_max !== undefined)) && prMax <= 1 && depth >= 3) {
+                        gaps.push(`Minimal Armor Protection ([${prMin}-${prMax}])`);
+                    }
+                } else {
+                    defSummary = 'EVN/Prot';
+                }
+            } else if (realm === 'dcss') {
+                const ac = p.ac !== undefined ? Number(p.ac) : (latestSnap && latestSnap.ac !== undefined ? Number(latestSnap.ac) : null);
+                const ev = p.ev !== undefined ? Number(p.ev) : (latestSnap && latestSnap.ev !== undefined ? Number(latestSnap.ev) : null);
+                const sh = p.sh !== undefined ? Number(p.sh) : (latestSnap && latestSnap.sh !== undefined ? Number(latestSnap.sh) : 0);
+                if (ac !== null && ev !== null) {
+                    defSummary = `AC ${ac} | EV ${ev} | SH ${sh}`;
+                    if (ac <= 3 && ev <= 8) gaps.push(`Exposed Defenses (AC ${ac} | EV ${ev} | SH ${sh})`);
+                } else {
+                    defSummary = 'AC | EV | SH';
+                }
+            } else if (ds.direction === 'descending') {
+                const rawAc = (realm === 'rogue' && p.arm !== undefined) ? p.arm
+                    : (p.ac !== undefined ? p.ac : (latestSnap ? (realm === 'rogue' ? (latestSnap.arm ?? latestSnap.ac) : latestSnap.ac) : undefined));
+                const acNum = (rawAc !== undefined && rawAc !== null && Number.isFinite(Number(rawAc))) ? Number(rawAc) : null;
+                const lbl = ds.label || (realm === 'rogue' ? 'Arm' : 'AC');
+                if (acNum !== null) {
+                    defSummary = acNum <= 0 ? `strong descending ${lbl} (${acNum})` : `descending ${lbl} ${acNum}`;
+                    if (acNum >= 9) {
+                        gaps.push(`Unarmored/Poor Descending ${lbl} (${lbl} ${acNum}; lower is stronger)`);
+                    } else if (acNum >= 7 && depth >= 5) {
+                        gaps.push(`Light Descending ${lbl} (${lbl} ${acNum} at ${formatAutopsyDepth(depth, realm)}; aim <= 0)`);
+                    }
+                } else {
+                    defSummary = `descending ${lbl}`;
+                }
+            } else if (realm === 'brogue') {
+                // Brogue CE has 0 XP / 0 character levels by design — evaluate ascending Armor only
+                const rawAc = p.ac !== undefined ? p.ac : (latestSnap ? latestSnap.ac : undefined);
+                const armor = (rawAc !== undefined && rawAc !== null && Number.isFinite(Number(rawAc))) ? Number(rawAc) : null;
+                if (armor !== null) {
+                    defSummary = `Armor ${armor}`;
+                    if (armor <= 2 && depth >= 3) {
+                        gaps.push(`Low Armor (${armor}; seek enchanted armor or Protection)`);
+                    }
+                } else {
+                    defSummary = 'Armor';
+                }
+            } else {
+                const rawAc = p.ac !== undefined ? p.ac : (latestSnap ? latestSnap.ac : undefined);
+                const ac = (rawAc !== undefined && rawAc !== null && Number.isFinite(Number(rawAc))) ? Number(rawAc) : null;
+                if (ac !== null) {
+                    defSummary = `Armor Class (${ac})`;
+                    if (ac < 10 && depth >= 10) gaps.push(`Low Armor Class (AC ${ac} at ${formatAutopsyDepth(depth, realm)})`);
+                }
+            }
+        }
+
         if (gaps.length > 0) return gaps.join(' • ');
 
         const preDeath = _turnRing.length >= 2 ? _turnRing[_turnRing.length - 2] : null;
         if (preDeath && preDeath.hpMax > 0 && (preDeath.hp / preDeath.hpMax) <= 0.35) {
             return `Fought inside Critical Redline (${preDeath.hp}/${preDeath.hpMax} HP, ${Math.round((preDeath.hp / preDeath.hpMax) * 100)}%) instead of resetting.`;
         }
-        return 'Direct physical/tactical burst exceeded active Armor Class and HP buffer.';
+        return `Direct physical/tactical burst exceeded active ${defSummary} and HP buffer.`;
     }
 
-    function composeEnceladusRoast(heroName, cause, bagOfRegret, depth, winner) {
+    function composeEnceladusRoast(heroName, cause, bagOfRegret, depth, winner, realm, depthLabel) {
         if (winner) {
             return `Master Bard Enceladus dips his quill in gold: "${heroName} actually survived the abyss without becoming a cautionary footnote."`;
         }
+        const dLabel = depthLabel || formatAutopsyDepth(depth, realm);
         if (bagOfRegret.length >= 2) {
             const firstItem = bagOfRegret[0].name.replace(/^[a-zA-Z]\)\s*/, '');
             return `Master Bard Enceladus notes dryly that "${firstItem}" works markedly better inside one's bloodstream than preserved in a corpse's knapsack.`;
         }
         if (bagOfRegret.length === 1) {
-            return `Master Bard Enceladus observes that saving "${bagOfRegret[0].name}" for a rainier day proved optimistic at Depth ${depth}.`;
+            return `Master Bard Enceladus observes that saving "${bagOfRegret[0].name}" for a rainier day proved optimistic at ${dLabel}.`;
         }
         if (depth === 0) {
-            return `Master Bard Enceladus sighs: perishing in the Town before finding the stairs is an efficiency record of sorts.`;
+            const place = realm === 'silq' ? 'at the Gates of Angband' : ((realm === 'frogcomposband' || realm === 'hengband') ? 'in the Outpost' : 'in the Town');
+            return `Master Bard Enceladus sighs: perishing ${place} before finding the stairs is an efficiency record of sorts.`;
         }
         return `Master Bard Enceladus records another instructive lesson in corridor geometry: "${cause || 'hubris'}."`;
     }
@@ -192,10 +345,18 @@
         const flags = p.flags || latestSnap.flags || null;
         const cause = (summary && summary.cause) || p.died_from || 'Killed in the dungeon.';
         const bagOfRegret = auditBagOfRegret(summary, p);
+        const meta = getRealmAutopsyMeta(r);
+        const prog = meta.progressionSchema || {};
+        const hasLevels = prog.hasLevels !== false;
+        const hasXp = prog.hasXp !== undefined ? prog.hasXp !== false : hasLevels;
+        const depth = typeof p.depth === 'number' ? p.depth : 0;
+        const depthLabel = formatAutopsyDepth(p, r);
+        const defenseLabel = (meta.defenseSchema && meta.defenseSchema.label) || 'AC';
+        const defenseValue = formatAutopsyDefense(p, r);
         const defenseGap = p.winner
             ? 'Ascended victorious — all mortal perils overcome.'
-            : diagnoseMissingDefense(cause, recentMessages.join(' '), resists, flags);
-        const roast = composeEnceladusRoast(p.name || 'Hero', cause, bagOfRegret, p.depth || 0, Boolean(p.winner));
+            : diagnoseMissingDefense(cause, recentMessages.join(' '), resists, flags, { realm: r, player: p });
+        const roast = composeEnceladusRoast(p.name || 'Hero', cause, bagOfRegret, depth, Boolean(p.winner), r, depthLabel);
 
         const ht = (typeof root !== 'undefined' && root.HudTelemetry) ? root.HudTelemetry : null;
         const stakes = (p.ironman || (ht && typeof ht.getPermadeathMode === 'function' && ht.getPermadeathMode() === 'ironman'))
@@ -207,8 +368,17 @@
             stakes,
             winner: Boolean(p.winner),
             heroName: p.name || 'Hero',
-            level: p.level || 1,
-            depth: typeof p.depth === 'number' ? p.depth : 0,
+            hasLevels,
+            hasXp,
+            levelLabel: prog.levelLabel || 'Lv',
+            level: hasLevels ? (p.level || p.lev || 1) : null,
+            depth,
+            depthLabel,
+            defenseLabel,
+            defenseValue,
+            exp: p.exp || 0,
+            enchantments: p.enchantments || 0,
+            lumenstones: p.lumenstones || 0,
             turn: typeof p.turn === 'number' ? p.turn : (latestSnap.turn || 1),
             cause,
             sequence,
@@ -340,7 +510,7 @@
                 const li = el('li', 'yasd-crypt-row');
                 li.appendChild(el('span', `yasd-crypt-badge ${badgeCls}`, e.stakes === 'ironman' ? '☠ Ironman' : '🕯 Adventure'));
                 li.appendChild(el('strong', 'yasd-crypt-hero', e.epitaph || e.heroName || 'Hero'));
-                li.appendChild(el('span', 'yasd-crypt-realm', `${String(e.realm || 'angband').toUpperCase()} • D:${Number(e.depth || 0)}`));
+                li.appendChild(el('span', 'yasd-crypt-realm', `${String(e.realm || 'angband').toUpperCase()} • ${e.depthLabel || `D:${Number(e.depth || 0)}`}`));
                 li.appendChild(el('span', 'yasd-crypt-cause', e.cause || ''));
                 ul.appendChild(li);
             });
@@ -357,12 +527,18 @@
         const lines = [];
         const hr = '='.repeat(78);
         lines.push(hr);
-        lines.push(`  YASD 3D v12.0 — OFFICIAL CHARACTER MORGUE DUMP (https://yasd3d.com)`);
+        lines.push(`  YASD 3D v13.0 — OFFICIAL CHARACTER MORGUE DUMP (https://yasd3d.com)`);
         lines.push(hr);
         lines.push(`  Hero      : ${(summary && summary.epitaph) || diag.heroName}`);
         lines.push(`  Realm     : ${String(diag.realm).toUpperCase()} (${diag.stakes === 'ironman' ? 'Ironman Permadeath' : 'Adventure Checkpoints'})`);
         lines.push(`  Outcome   : ${diag.cause}`);
-        lines.push(`  Score/Gold: ${(summary && summary.score) || `Gold: ${p.gold || 0} AU • Turn: ${diag.turn}`}`);
+        const progFallback = (!diag.hasLevels && !diag.hasXp)
+            ? `Enchantments: +${diag.enchantments || 0} • Lumenstones: ${diag.lumenstones || 0} • Gold: ${p.gold || 0} • Turn: ${diag.turn}`
+            : `Gold: ${p.gold || 0} AU • Turn: ${diag.turn}`;
+        lines.push(`  Score/Gold: ${(summary && summary.score) || progFallback}`);
+        if (diag.defenseLabel && diag.defenseValue !== undefined) {
+            lines.push(`  Defense   : ${diag.defenseLabel} ${diag.defenseValue} • Location: ${diag.depthLabel || formatAutopsyDepth(p, diag.realm)}`);
+        }
         lines.push('');
         lines.push('[1. YASD FORENSIC AUTOPSY]');
         lines.push(`  Missing Defense : ${diag.defenseGap}`);
@@ -444,7 +620,9 @@
             ? `&bp=${encodeURIComponent(root.__activeRyodBlueprint.code)}`
             : '';
         const url = `https://yasd3d.com/?realm=${encodeURIComponent(d.realm)}&seed=${encodeURIComponent(seed)}${bpParam}`;
-        const shareText = `☠ Avenge ${d.heroName} (Lv.${d.level}, Depth ${d.depth}) in ${d.realm.toUpperCase()} — ${d.cause} Dare Seed: ${url}`;
+        const dPlace = d.depthLabel || formatAutopsyDepth(d.depth, d.realm);
+        const rankPart = d.hasLevels === false ? dPlace : `${d.levelLabel || 'Lv'}.${d.level}, ${dPlace}`;
+        const shareText = `☠ Avenge ${d.heroName} (${rankPart}) in ${d.realm.toUpperCase()} — ${d.cause} Dare Seed: ${url}`;
         try {
             if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
                 await navigator.share({ title: 'YASD 3D — Avenge My Hero', text: shareText, url });
@@ -516,18 +694,20 @@
             panel.appendChild(el('blockquote', 'autopsy-bard-roast', diag.roast));
         }
 
-        const sig = `${diag.realm}:${diag.heroName}:${diag.level}:${diag.depth}:${diag.turn}:${diag.cause}`;
+        const sig = `${diag.realm}:${diag.heroName}:${diag.level ?? 0}:${diag.depth}:${diag.turn}:${diag.cause}`;
         const onCryptLoaded = (entries) => mountCryptDom(document.getElementById('yasd-crypt-container'), entries);
         if (sig !== _lastRecordedDeathSig) {
             _lastRecordedDeathSig = sig;
+            const fallbackEpitaph = diag.hasLevels ? `${diag.heroName} (${diag.levelLabel}.${diag.level})` : `${diag.heroName} (${diag.depthLabel})`;
             saveCryptEntry({
                 sig,
                 ts: Date.now(),
                 realm: diag.realm,
                 stakes: diag.stakes,
                 heroName: diag.heroName,
-                epitaph: (summary && summary.epitaph) || `${diag.heroName} (Lv.${diag.level})`,
+                epitaph: (summary && summary.epitaph) || fallbackEpitaph,
                 depth: diag.depth,
+                depthLabel: diag.depthLabel,
                 turn: diag.turn,
                 cause: diag.cause,
                 regrets: diag.bagOfRegret.length

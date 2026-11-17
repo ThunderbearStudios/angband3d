@@ -93,10 +93,10 @@ check(MenuRouter.determineSuggestedVerb({ label: 'a ring of slow digestion', gly
 check(MenuRouter.determineSuggestedVerb({ label: 'a spellbook of healing', glyph: '+' }, 'nethack') === 'r', 'NetHack spellbook + must suggest Read [r]');
 check(MenuRouter.determineSuggestedVerb({ label: 'a book of Conjurations', glyph: '+' }, 'dcss') === 'z', 'DCSS spellbook + must suggest Cast [z]');
 
-// Food ',', '%', ':' across realms
+// Food ',', '%', ':' across realms (Brogue reserves 'e' for Auto-Explore and 'a'/'E' for Eat)
 check(MenuRouter.determineSuggestedVerb({ label: 'a food ration', glyph: '%' }, 'nethack') === 'e', 'NetHack food % must suggest Eat [e]');
 check(MenuRouter.determineSuggestedVerb({ label: 'a ration', glyph: '%' }, 'dcss') === 'e', 'DCSS food % must suggest Eat [e]');
-check(MenuRouter.determineSuggestedVerb({ label: 'a ration of food', glyph: '%' }, 'brogue') === 'e', 'Brogue food % must suggest Eat [e]');
+check(MenuRouter.determineSuggestedVerb({ label: 'a ration of food', glyph: '%' }, 'brogue') === 'E', 'Brogue food % must suggest Eat [E]');
 check(MenuRouter.determineSuggestedVerb({ label: 'some food', glyph: ':' }, 'rogue') === 'e', 'Rogue food : must suggest Eat [e]');
 check(MenuRouter.determineSuggestedVerb({ label: 'a Ration of Food', glyph: ',' }, 'angband') === 'E', 'Angband food , must suggest Eat [E]');
 

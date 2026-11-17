@@ -1,34 +1,16 @@
-/**
- * gamepad.js — Angband3D Gamepad Controller (WS42.7)
- * Implements standard Gamepad API polling, stick sector snapping, button mapping,
- * LT diagonal lock quasimode (Shiren), and input-adaptive glyph switching (Law C9).
- */
 (function (root, factory) {
-    if (typeof define === 'function' && define.amd) {
-        define([], factory);
-    } else if (typeof module === 'object' && module.exports) {
-        module.exports = factory();
-    } else {
-        root.GamepadController = factory();
-    }
+    if (typeof define === 'function' && define.amd) define([], factory);
+    else if (typeof module === 'object' && module.exports) module.exports = factory();
+    else root.GamepadController = factory();
 }(typeof self !== 'undefined' ? self : this, function () {
     'use strict';
 
-    /**
-     * Maps (x, y) stick coordinates to 8-way numpad direction '1'..'9'.
-     * Returns null inside deadzone. Snaps to diagonals '7','9','1','3' when diagonalLock is true.
-     */
+    /** Maps (x, y) stick coordinates to 8-way numpad '1'..'9'; snaps diagonals when diagonalLock is true. */
     function stickToSector(x, y, deadzone = 0.28, diagonalLock = false) {
-        const mag = Math.hypot(x, y);
-        if (mag < deadzone) return null;
-
+        if (Math.hypot(x, y) < deadzone) return null;
         let deg = (Math.atan2(y, x) * 180 / Math.PI) + 90;
         if (deg < 0) deg += 360;
-
-        if (diagonalLock) {
-            return ['9', '3', '1', '7'][Math.floor(deg / 90) % 4];
-        }
-        return ['8', '9', '6', '3', '2', '1', '4', '7'][Math.floor(((deg + 22.5) % 360) / 45)];
+        return diagonalLock ? ['9', '3', '1', '7'][Math.floor(deg / 90) % 4] : ['8', '9', '6', '3', '2', '1', '4', '7'][Math.floor(((deg + 22.5) % 360) / 45)];
     }
 
     const BUTTON_INTENT_MAP = {
@@ -93,6 +75,34 @@
             this._rafId = requestAnimationFrame(this._boundPoll);
         }
 
+        _topOverlay() {
+            if (typeof document === 'undefined') return null;
+            const ids = ['ryod-forge-modal', 'command-palette-modal', 'guide-modal', 'help-modal', 'realm-selector-modal', 'demo-modal', 'pwa-modal', 'load-modal', 'death-modal', 'pause-modal', 'main-menu-overlay', 'splash-overlay', 'splash-screen'];
+            return ids.map((id) => document.getElementById(id)).find((el) => el && !el.classList.contains('hidden') && el.style.display !== 'none' && (typeof getComputedStyle !== 'function' || getComputedStyle(el).display !== 'none')) || null;
+        }
+        _cycleFocus(ov, delta) {
+            if (!ov || typeof document === 'undefined') return;
+            const els = Array.from(ov.querySelectorAll('button:not(:disabled), select, input:not([type="hidden"]), a[href], [role="button"][tabindex="0"]'))
+                .filter((el) => el.getClientRects().length > 0 && !el.closest('.hidden, details:not([open])'));
+            if (!els.length) return;
+            const idx = els.indexOf(document.activeElement);
+            const next = els[idx === -1 ? (delta > 0 ? 0 : els.length - 1) : (idx + delta + els.length) % els.length];
+            if (next) { next.focus(); next.scrollIntoView?.({ block: 'nearest' }); }
+        }
+        _handleUiIntent(ov, intent) {
+            if (!intent || typeof window === 'undefined') return;
+            if (intent.id === 'confirm') {
+                if (!ov || ov.id === 'splash-overlay' || ov.id === 'splash-screen') {
+                    if (window.__app?.enterFromSplash) window.__app.enterFromSplash();
+                    else if (window.__app?.showMainMenu) window.__app.showMainMenu();
+                    else ov?.querySelector('#btn-splash-start')?.click();
+                } else if (document.activeElement && ov.contains(document.activeElement) && document.activeElement.click) document.activeElement.click();
+                else { const t = ov.querySelector('.menu-option-btn.selected') || ov.querySelector('button:not(:disabled), select, input:not([type="hidden"]), a[href]'); t?.focus(); t?.click(); }
+            } else if (intent.id === 'back') window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', keyCode: 27, which: 27, bubbles: true, cancelable: true }));
+            else if (intent.id === 'dpad_up' || intent.id === 'dpad_left') this._cycleFocus(ov, -1);
+            else if (intent.id === 'dpad_down' || intent.id === 'dpad_right') this._cycleFocus(ov, 1);
+        }
+
         _liveContext() {
             if (typeof window === 'undefined') return {};
             const app = window.__app || {};
@@ -100,6 +110,7 @@
             const ui = (f && f.ui) || {};
             const cmdEl = typeof document !== 'undefined' ? document.getElementById('command-palette-modal') : null;
             const inMenu = Boolean(
+                this._topOverlay() || (app.getAppState && app.getAppState() !== 'game') ||
                 (window.ItemSheet && typeof window.ItemSheet.isOpen === 'function' && window.ItemSheet.isOpen()) ||
                 (window.radialMenu && window.radialMenu.isOpen) ||
                 (cmdEl && !cmdEl.classList.contains('hidden')) ||
@@ -110,35 +121,38 @@
         }
 
         _processPad(pad) {
-            if (typeof window !== 'undefined' && window.__app && typeof window.__app.getAppState === 'function' && window.__app.getAppState() !== 'game') return;
             this.setInputDevice('gamepad');
             this.diagonalLock = Boolean(pad.buttons[6] && pad.buttons[6].pressed);
+            const ov = this._topOverlay();
+            const isUiMode = Boolean(ov || (typeof window !== 'undefined' && window.__app && typeof window.__app.getAppState === 'function' && window.__app.getAppState() !== 'game'));
             const context = this.options.getContext ? this.options.getContext() : this._liveContext();
+            if (isUiMode && !context.inMenu) context.inMenu = true;
             const rad = typeof window !== 'undefined' ? window.radialMenu : null;
 
             for (let b = 0; b < pad.buttons.length; b++) {
                 const isDown = pad.buttons[b] ? pad.buttons[b].pressed : false;
                 const wasDown = Boolean(this._lastButtons[b]);
                 this._lastButtons[b] = isDown;
-                if (!isDown && wasDown && b === 3 && rad && rad.isOpen && rad.mode === 'hold') {
+                if (!isDown && wasDown && b === 3 && !isUiMode && rad && rad.isOpen && rad.mode === 'hold') {
                     if (rad.selectedIndex !== null) rad.selectWedge(rad.selectedIndex); else rad.close();
                 } else if (isDown && !wasDown && b !== 6) {
                     const intent = mapButtonToIntent(b, context);
                     if (intent) {
                         if (typeof this.options.onIntent === 'function') this.options.onIntent(intent);
+                        else if (isUiMode) this._handleUiIntent(ov, intent);
                         else this.handleIntent(intent);
                     }
                 }
             }
 
             const rx = pad.axes ? (pad.axes[2] || 0) : 0, ry = pad.axes ? (pad.axes[3] || 0) : 0;
-            if (Math.hypot(rx, ry) > 0.18 && typeof window !== 'undefined' && window.__app && window.__app.dungeon && (!rad || !rad.isOpen)) {
+            if (!isUiMode && Math.hypot(rx, ry) > 0.18 && typeof window !== 'undefined' && window.__app && window.__app.dungeon && (!rad || !rad.isOpen)) {
                 window.__app.dungeon.rotateFreelook(-rx * 0.048, -ry * 0.032);
                 if (window.__app.input && typeof window.__app.input.syncCompass === 'function') window.__app.input.syncCompass();
             }
 
             const sx = pad.axes ? (pad.axes[0] || 0) : 0, sy = pad.axes ? (pad.axes[1] || 0) : 0;
-            if (rad && rad.isOpen && typeof rad.highlightFromStick === 'function') {
+            if (!isUiMode && rad && rad.isOpen && typeof rad.highlightFromStick === 'function') {
                 rad.setRing(this.diagonalLock ? 1 : 0);
                 rad.highlightFromStick(sx, sy);
                 return;
@@ -150,6 +164,7 @@
                     this._stickRepeatTimer = now + (sector !== this._lastStickDir ? 230 : 115);
                     this._lastStickDir = sector;
                     if (typeof this.options.onDirection === 'function') this.options.onDirection(sector);
+                    else if (isUiMode) this._cycleFocus(ov, (sector === '8' || sector === '4' || sector === '7') ? -1 : 1);
                     else this.handleDirection(sector);
                 }
             } else {
@@ -181,22 +196,20 @@
                 return;
             }
             if (intent.id === 'terminal_toggle') {
-                if (window.RealmGrimoireDeck && window.RealmGrimoireDeck._menuActive) {
+                if (window.RealmGrimoireDeck?._menuActive) {
                     window.RealmGrimoireDeck.toggleMode();
-                    if (window.__app && typeof window.__app.updateTerminalToolbar === 'function') window.__app.updateTerminalToolbar();
-                } else if (window.__app && typeof window.__app.toggleTerminalView === 'function') {
-                    window.__app.toggleTerminalView();
-                }
+                    window.__app?.updateTerminalToolbar?.();
+                } else window.__app?.toggleTerminalView?.();
                 return;
             }
             if (intent.id === 'back') {
                 const cmdModal = typeof document !== 'undefined' ? document.getElementById('command-palette-modal') : null;
                 if (cmdModal && !cmdModal.classList.contains('hidden') && window.CommandPalette) { window.CommandPalette.hide(); return; }
             }
-            if (intent.id === 'smart_action' && window.__app && window.__app.input && typeof window.__app.input.executeSmartAction === 'function') {
+            if (intent.id === 'smart_action' && window.__app?.input?.executeSmartAction) {
                 window.__app.input.executeSmartAction(window.__app.input.smartAction || 'wait'); return;
             }
-            if (intent.key && window.__app && window.__app.network && typeof window.__app.network.sendKey === 'function') {
+            if (intent.key && window.__app?.network?.sendKey) {
                 const keyToSend = intent.key === 'space' ? ' ' : (intent.key === 'enter' ? 'enter' : (intent.key === 'escape' ? 'escape' : intent.key));
                 window.__app.network.sendKey(keyToSend);
             }
@@ -204,11 +217,8 @@
 
         handleDirection(sector) {
             if (!sector || typeof window === 'undefined') return;
-            if (window.__app && window.__app.input && typeof window.__app.input.handleRelativeDirection === 'function') {
-                window.__app.input.handleRelativeDirection(parseInt(sector, 10));
-            } else if (window.__app && window.__app.network && typeof window.__app.network.sendKey === 'function') {
-                window.__app.network.sendKey(sector);
-            }
+            if (window.__app?.input?.handleRelativeDirection) window.__app.input.handleRelativeDirection(parseInt(sector, 10));
+            else window.__app?.network?.sendKey?.(sector);
         }
 
         destroy() {
@@ -220,9 +230,7 @@
             }
         }
     }
-
     GamepadController.stickToSector = stickToSector;
     GamepadController.mapButtonToIntent = mapButtonToIntent;
-
     return GamepadController;
 }));

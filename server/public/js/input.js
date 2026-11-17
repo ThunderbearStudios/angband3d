@@ -1024,10 +1024,16 @@ class InputController {
     setupKeyboardEvents() {
         window.addEventListener('keydown', (e) => {
             if (this.audio && typeof this.audio.unlock === 'function') this.audio.unlock();
+            const isBareBacktick = Boolean(e.key === '`' && !e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey);
 
             // 1. Text inputs & selects -> browser default (WCAG 2.1.4)
             if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT')) {
-                if (e.key === 'Escape' || (e.key === '`' && !e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey)) {
+                if (e.key === 'Escape' || isBareBacktick) {
+                    if (e.target.id === 'command-palette-input' && window.__app && typeof window.__app.hideCommandPalette === 'function') {
+                        e.preventDefault();
+                        window.__app.hideCommandPalette();
+                        return;
+                    }
                     e.target.blur();
                     if (window.chronicleManager && typeof window.chronicleManager.preemptForGameplay === 'function') {
                         window.chronicleManager.preemptForGameplay('escape');
@@ -1053,6 +1059,12 @@ class InputController {
             }
 
             if (window.ItemSheet && typeof window.ItemSheet.isOpen === 'function' && window.ItemSheet.isOpen()) {
+                if (isBareBacktick) {
+                    e.preventDefault();
+                    if (typeof window.ItemSheet.close === 'function') window.ItemSheet.close();
+                    else if (typeof window.ItemSheet.hide === 'function') window.ItemSheet.hide();
+                    return;
+                }
                 if (typeof window.ItemSheet.handleKeyDown === 'function' && window.ItemSheet.handleKeyDown(e)) {
                     return;
                 }
@@ -1095,10 +1107,11 @@ class InputController {
                 const curRealm = (window.__app && typeof window.__app.getActiveRealm === 'function') ? window.__app.getActiveRealm() : 'angband';
                 if (curRealm === 'hengband' && !e.shiftKey) {
                     if (window.__app && typeof window.__app.toggleLanguageMode === 'function') window.__app.toggleLanguageMode();
-                } else if (this.hud && typeof this.hud.resetHudLayout === 'function') {
-                    this.hud.resetHudLayout();
-                } else if (window.__app && window.__app.hud && typeof window.__app.hud.resetHudLayout === 'function') {
-                    window.__app.hud.resetHudLayout();
+                } else {
+                    if (typeof window !== 'undefined') window.__dpadUserVisible = false;
+                    if (document.body && document.body.classList) document.body.classList.remove('force-dpad-visible');
+                    if (this.hud && typeof this.hud.resetHudLayout === 'function') this.hud.resetHudLayout();
+                    else if (window.__app && window.__app.hud && typeof window.__app.hud.resetHudLayout === 'function') window.__app.hud.resetHudLayout();
                 }
                 return;
             }
@@ -1114,12 +1127,26 @@ class InputController {
             if (e.altKey && !e.ctrlKey && !e.metaKey && (e.key === 'h' || e.key === 'H')) {
                 e.preventDefault(); if (this.hud && typeof this.hud.cycleImmersionMode === 'function') this.hud.cycleImmersionMode(); return;
             }
-            // 2. Client modal surface open -> modal handles keys; Escape closes it
+            // 2. Client modal surface open -> modal handles keys; Escape / bare backtick closes it
             const sketchModal = document.getElementById('chronicle-sketch-modal');
-            if (e.key === 'Escape' && sketchModal && !sketchModal.classList.contains('hidden') && sketchModal.style.display !== 'none') {
+            if ((e.key === 'Escape' || isBareBacktick) && sketchModal && !sketchModal.classList.contains('hidden') && sketchModal.style.display !== 'none') {
                 e.preventDefault(); if (typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();
                 if (window.chronicleManager && typeof window.chronicleManager.closeSketchLightbox === 'function') window.chronicleManager.closeSketchLightbox();
                 else sketchModal.classList.add('hidden');
+                return;
+            }
+            const ryodModalEl = document.getElementById('ryod-forge-modal');
+            const isRyodForgeOpen = Boolean(
+                (ryodModalEl && !ryodModalEl.classList.contains('hidden')) ||
+                (window.RyodForge && typeof window.RyodForge.isOpen === 'function' && window.RyodForge.isOpen())
+            );
+            if (isRyodForgeOpen) {
+                if (e.key === 'Escape' || isBareBacktick) {
+                    e.preventDefault();
+                    if (typeof e.stopPropagation === 'function') e.stopPropagation();
+                    if (window.RyodForge && typeof window.RyodForge.close === 'function') window.RyodForge.close();
+                    else if (ryodModalEl) ryodModalEl.classList.add('hidden');
+                }
                 return;
             }
             const deathModal = document.getElementById('death-modal'), isDeadModal = Boolean(deathModal && !deathModal.classList.contains('hidden'));
@@ -1127,8 +1154,16 @@ class InputController {
             const isDeadFrame = Boolean(lastFrame && lastFrame.player && (lastFrame.player.dead || (lastFrame.player.hp !== undefined && lastFrame.player.hp <= 0 && lastFrame.player.hp_max > 0)));
             if (isDeadModal || isDeadFrame) { this._handleDeathModalKey(e, lastFrame, isDeadModal); return; }
             if (appState !== 'game' && this._handleAppStateModalKey(e, appState)) return;
-            if (window.__app && window.__app.isGuideOpen && window.__app.isGuideOpen()) {
-                if (e.key === 'Escape' || e.key === 'Enter') { e.preventDefault(); if (this.audio) this.audio.playMenuNav(); window.__app.hideGuide(); return; }
+            const helpModal = document.getElementById('help-modal');
+            const isHelpOpen = Boolean(helpModal && !helpModal.classList.contains('hidden'));
+            if ((window.__app && window.__app.isGuideOpen && window.__app.isGuideOpen()) || isHelpOpen) {
+                if (e.key === 'Escape' || isBareBacktick || e.key === 'Enter') {
+                    e.preventDefault();
+                    if (this.audio) this.audio.playMenuNav();
+                    if (isHelpOpen) helpModal.classList.add('hidden');
+                    if (window.__app && window.__app.hideGuide) window.__app.hideGuide();
+                    return;
+                }
                 if (e.key >= '1' && e.key <= '7') { e.preventDefault(); window.__app.switchGuideTab(parseInt(e.key, 10) - 1); return; }
                 if (e.key === 'Tab' || e.key === 'ArrowRight') { e.preventDefault(); window.__app.cycleGuideTab(1); return; }
                 if (e.key === 'ArrowLeft') { e.preventDefault(); window.__app.cycleGuideTab(-1); return; }
@@ -1139,14 +1174,21 @@ class InputController {
             if (window.__app && window.__app.cancelQuickBirth) window.__app.cancelQuickBirth();
             if (this.isAutoNavigating && this.isAutoNavigating()) {
                 this.stopMinimapAutoNav('Manual key press');
-                if (e.key === 'Escape' || (e.key === '`' && !e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey)) { e.preventDefault(); return; }
+                if (e.key === 'Escape' || isBareBacktick) { e.preventDefault(); return; }
             }
 
             const lastFrameEarly = (this.app && this.app.lastFrame) || (window.__app && window.__app.lastFrame) || null;
             const inPlayEarly = Boolean(lastFrameEarly && lastFrameEarly.phase === 'play' && (lastFrameEarly.map || (lastFrameEarly.player && lastFrameEarly.player.name)));
+            const isAltT = Boolean(e.altKey && !e.ctrlKey && !e.metaKey && (e.code === 'KeyT' || e.key === 't' || e.key === 'T'));
+            const isShiftTab = Boolean(e.key === 'Tab' && e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey);
+            if (isAltT || isShiftTab) {
+                e.preventDefault(); if (this.audio) this.audio.playMenuNav();
+                if (this.toggleTerminalView) this.toggleTerminalView();
+                return;
+            }
             if (e.key === 'Tab' && !e.ctrlKey && !e.altKey && !e.metaKey) {
                 const realm = (window.__app && window.__app.getActiveRealm) ? window.__app.getActiveRealm() : 'angband';
-                if (realm === 'silq' || (!inPlayEarly && realm === 'frogcomposband')) {
+                if (realm === 'silq' || (inPlayEarly && realm === 'dcss') || (!inPlayEarly && realm === 'frogcomposband')) {
                     e.preventDefault(); if (this.audio) this.audio.playMenuOpen(); this.network.sendKey('tab'); return;
                 }
                 e.preventDefault(); if (this.audio) this.audio.playMenuNav();
@@ -1154,7 +1196,7 @@ class InputController {
                 return;
             }
 
-            if (e.key === 'Escape' || (!inPlayEarly && e.key === '`' && !e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey)) {
+            if (e.key === 'Escape' || (isBareBacktick && this._shouldBacktickCancel(lastFrameEarly, inPlayEarly))) {
                 this._handleEscapeKey(e, lastFrameEarly, inPlayEarly);
                 return;
             }
@@ -1246,10 +1288,11 @@ class InputController {
     _handleAppStateModalKey(e, appState) {
         const app = window.__app;
         if (!app) return false;
+        const isCancelKey = Boolean(e.key === 'Escape' || (e.key === '`' && !e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey));
 
         // # ROOT-CAUSE: Dismiss #quick-volume-popover first on Escape, support [9] ryod in #realm-selector-modal, support 2D arrow navigation in #pause-modal, and support Tab [7] in #guide-modal.
         const qvPop = document.getElementById('quick-volume-popover');
-        if (e.key === 'Escape' && qvPop && !qvPop.classList.contains('hidden')) {
+        if (isCancelKey && qvPop && !qvPop.classList.contains('hidden')) {
             e.preventDefault();
             qvPop.classList.add('hidden');
             const cfgBtn = document.getElementById('btn-sound-config');
@@ -1261,7 +1304,7 @@ class InputController {
         }
 
         if (window.RyodForge && typeof window.RyodForge.isOpen === 'function' && window.RyodForge.isOpen()) {
-            if (e.key === 'Escape') {
+            if (isCancelKey) {
                 e.preventDefault();
                 window.RyodForge.close();
                 return true;
@@ -1277,7 +1320,7 @@ class InputController {
         }
 
         if (appState === 'mainMenu') {
-            if (e.key === 'Escape' || (e.key === '`' && !e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey)) { e.preventDefault(); app.showSplash?.(); return true; }
+            if (isCancelKey) { e.preventDefault(); app.showSplash?.(); return true; }
             if (e.key === 'ArrowUp' || e.code === 'Numpad8') { e.preventDefault(); app.navigateMenu?.(-1); return true; }
             if (e.key === 'ArrowDown' || e.code === 'Numpad2') { e.preventDefault(); app.navigateMenu?.(1); return true; }
             if (e.key === 'r' || e.key === 'R') {
@@ -1295,7 +1338,7 @@ class InputController {
         }
 
         if (appState === 'demoModal') {
-            if (e.key === 'Escape' || (e.key === '`' && !e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey)) {
+            if (isCancelKey) {
                 e.preventDefault();
                 app.hideDemoModal?.();
                 return true;
@@ -1317,12 +1360,12 @@ class InputController {
         }
 
         if (appState === 'pwaModal') {
-            if (e.key === 'Escape' || e.key === 'Enter') { e.preventDefault(); app.hidePWAModal?.(); return true; }
+            if (isCancelKey || e.key === 'Enter') { e.preventDefault(); app.hidePWAModal?.(); return true; }
             return true;
         }
 
         if (appState === 'realmModal') {
-            if (e.key === 'Escape' || e.key === 'Enter') { e.preventDefault(); app.hideRealmSelector?.(); return true; }
+            if (isCancelKey || e.key === 'Enter') { e.preventDefault(); app.hideRealmSelector?.(); return true; }
             const realms = ['nethack', 'dcss', 'angband', 'brogue', 'rogue', 'silq', 'frogcomposband', 'hengband', 'ryod'];
             if (e.key >= '1' && e.key <= '9') {
                 e.preventDefault();
@@ -1336,12 +1379,12 @@ class InputController {
         }
 
         if (appState === 'cmdPaletteModal') {
-            if (e.key === 'Escape' || (e.key === '`' && !e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey)) { e.preventDefault(); app.hideCommandPalette?.(); return true; }
+            if (isCancelKey) { e.preventDefault(); app.hideCommandPalette?.(); return true; }
             return true;
         }
 
         if (appState === 'loadMenu') {
-            if (e.key === 'Escape' || (e.key === '`' && !e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey)) { e.preventDefault(); app.hideLoadMenu?.(); return true; }
+            if (isCancelKey) { e.preventDefault(); app.hideLoadMenu?.(); return true; }
             if (e.key === 'ArrowUp' || e.code === 'Numpad8') { e.preventDefault(); app.navigateLoadList?.(-1); return true; }
             if (e.key === 'ArrowDown' || e.code === 'Numpad2') { e.preventDefault(); app.navigateLoadList?.(1); return true; }
             if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); app.loadSelectedSave?.(); return true; }
@@ -1353,7 +1396,7 @@ class InputController {
         }
 
         if (appState === 'pauseMenu') {
-            if (e.key === 'Escape' || (e.key === '`' && !e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey)) { e.preventDefault(); app.resumeGame?.(); return true; }
+            if (isCancelKey) { e.preventDefault(); app.resumeGame?.(); return true; }
             const isTwoCol = typeof window !== 'undefined' && window.innerWidth >= 720;
             if (e.key === 'ArrowLeft' || e.code === 'Numpad4') { e.preventDefault(); app.navigatePauseMenu?.(-1); return true; }
             if (e.key === 'ArrowRight' || e.code === 'Numpad6') { e.preventDefault(); app.navigatePauseMenu?.(1); return true; }
@@ -1365,7 +1408,7 @@ class InputController {
         }
 
         if (appState === 'guide') {
-            if (e.key === 'Escape' || e.key === 'Enter') { e.preventDefault(); app.hideGuide?.(); return true; }
+            if (isCancelKey || e.key === 'Enter') { e.preventDefault(); app.hideGuide?.(); return true; }
             if (['1', '2', '3', '4', '5', '6', '7'].includes(e.key)) { e.preventDefault(); app.switchGuideTab?.(parseInt(e.key, 10) - 1); return true; }
             if (e.key === 'Tab' || e.key === 'ArrowRight') { e.preventDefault(); app.cycleGuideTab?.(1); return true; }
             if (e.key === 'ArrowLeft') { e.preventDefault(); app.cycleGuideTab?.(-1); return true; }
@@ -1387,6 +1430,24 @@ class InputController {
         return false;
     }
 
+    _shouldBacktickCancel(lastFrameEarly, inPlayEarly) {
+        if (!inPlayEarly) return true;
+        const realm = (window.__app && typeof window.__app.getActiveRealm === 'function')
+            ? window.__app.getActiveRealm()
+            : ((lastFrameEarly && lastFrameEarly.realm) || 'angband');
+        if (realm !== 'frogcomposband' && realm !== 'hengband' && realm !== 'dcss') return true;
+        const ui = lastFrameEarly ? lastFrameEarly.ui : null;
+        if (!ui || (ui.overlay || 0) > 0 || ui.more || !ui.awaiting_command) return true;
+        const termEl = document.getElementById('terminal-container');
+        if (this.inTerminal || (termEl && !termEl.classList.contains('hidden'))) return true;
+        if (this.isDirectionalTargeting && this.isDirectionalTargeting()) return true;
+        if (window.ItemSheet && typeof window.ItemSheet.isOpen === 'function' && window.ItemSheet.isOpen()) return true;
+        if ((window.radialMenu && window.radialMenu.isOpen) || (this.app && this.app.radialMenu && this.app.radialMenu.isOpen)) return true;
+        const hiddenModals = ['pause-modal', 'ryod-forge-modal', 'realm-selector-modal', 'help-modal', 'guide-modal', 'command-palette-modal', 'entity-inspect-popover', 'quick-volume-popover', 'chronicle-sketch-modal', 'directional-aim-rosette'];
+        if (hiddenModals.some((id) => { const el = document.getElementById(id); return Boolean(el && !el.classList.contains('hidden')); })) return true;
+        return ['quick-slot-popover', 'action-more-popover'].some((id) => { const el = document.getElementById(id); return Boolean(el && el.classList.contains('is-open')); });
+    }
+
     _handleEscapeKey(e, lastFrameEarly, inPlayEarly) {
         e.preventDefault();
         if (this.audio && typeof this.audio.playMenuNav === 'function') this.audio.playMenuNav();
@@ -1403,7 +1464,42 @@ class InputController {
             if (cfgBtn) { cfgBtn.classList.remove('active'); cfgBtn.setAttribute('aria-expanded', 'false'); }
             return;
         }
+        const rad = (this.app && this.app.radialMenu) || window.radialMenu;
+        if (rad && rad.isOpen && typeof rad.close === 'function') { rad.close(); return; }
+        const cmdModal = document.getElementById('command-palette-modal');
+        if (cmdModal && !cmdModal.classList.contains('hidden')) {
+            if (window.__app && typeof window.__app.hideCommandPalette === 'function') window.__app.hideCommandPalette();
+            else if (window.CommandPalette && typeof window.CommandPalette.hide === 'function') window.CommandPalette.hide();
+            else cmdModal.classList.add('hidden');
+            return;
+        }
         if (window.ItemSheet && typeof window.ItemSheet.isOpen === 'function' && window.ItemSheet.isOpen()) { window.ItemSheet.close(); return; }
+        const ryodModal = document.getElementById('ryod-forge-modal');
+        if ((ryodModal && !ryodModal.classList.contains('hidden')) || (window.RyodForge && typeof window.RyodForge.isOpen === 'function' && window.RyodForge.isOpen())) {
+            if (window.RyodForge && typeof window.RyodForge.close === 'function') window.RyodForge.close();
+            else if (ryodModal) ryodModal.classList.add('hidden');
+            return;
+        }
+        const realmModal = document.getElementById('realm-selector-modal');
+        if (realmModal && !realmModal.classList.contains('hidden')) {
+            if (window.__app && typeof window.__app.hideRealmSelector === 'function') window.__app.hideRealmSelector();
+            else realmModal.classList.add('hidden');
+            return;
+        }
+        const helpModal = document.getElementById('help-modal');
+        const guideModal = document.getElementById('guide-modal');
+        if ((helpModal && !helpModal.classList.contains('hidden')) || (guideModal && !guideModal.classList.contains('hidden'))) {
+            if (helpModal) helpModal.classList.add('hidden');
+            if (window.__app && typeof window.__app.hideGuide === 'function') window.__app.hideGuide();
+            else if (guideModal) guideModal.classList.add('hidden');
+            return;
+        }
+        const pauseModal = document.getElementById('pause-modal');
+        if (pauseModal && !pauseModal.classList.contains('hidden')) {
+            if (window.__app && typeof window.__app.resumeGame === 'function') window.__app.resumeGame();
+            else pauseModal.classList.add('hidden');
+            return;
+        }
         const qsPopover = document.getElementById('quick-slot-popover');
         if (qsPopover && qsPopover.classList.contains('is-open')) { qsPopover.classList.remove('is-open'); return; }
         const morePopover = document.getElementById('action-more-popover');
@@ -1414,6 +1510,8 @@ class InputController {
             else inspectPopover.classList.add('hidden');
             return;
         }
+        const rosette = document.getElementById('directional-aim-rosette');
+        if (rosette && !rosette.classList.contains('hidden')) { rosette.classList.add('hidden'); }
         if (window.__app && window.__app.cancelQuickBirth) window.__app.cancelQuickBirth();
 
         const lastFrame = (this.app && this.app.lastFrame) || (window.__app && window.__app.lastFrame) || null;
@@ -2447,8 +2545,8 @@ class InputController {
             }
         });
 
-        const fsBtn = document.getElementById('btn-fullscreen');
-        if (fsBtn) fsBtn.addEventListener('click', () => this.toggleFullscreen());
+        this._bindFullscreenButtons();
+        this._setupFullscreenSync();
     }
 
     setupTouchEvents() {
@@ -3155,25 +3253,151 @@ class InputController {
         canvas.addEventListener('touchcancel', () => { onEnd(); }, { passive: true });
     }
 
+    _bindFullscreenButtons() {
+        if (typeof document === 'undefined' || typeof document.getElementById !== 'function') return;
+        const ids = ['btn-global-fullscreen', 'btn-fullscreen', 'btn-term-fullscreen', 'btn-hh-fullscreen'];
+        for (const id of ids) {
+            const btn = document.getElementById(id);
+            if (!btn || btn._fsBound) continue;
+            btn._fsBound = true;
+            btn.addEventListener('click', (ev) => {
+                if (ev) {
+                    if (ev._fsHandled) return;
+                    ev._fsHandled = true;
+                    if (typeof ev.preventDefault === 'function') ev.preventDefault();
+                    if (typeof ev.stopPropagation === 'function') ev.stopPropagation();
+                    if (ev.currentTarget && typeof ev.currentTarget.blur === 'function') ev.currentTarget.blur();
+                }
+                if (this.audio && typeof this.audio.unlock === 'function') this.audio.unlock();
+                if (window.DeviceProfile && typeof window.DeviceProfile.triggerHaptic === 'function') window.DeviceProfile.triggerHaptic('light');
+                this.toggleFullscreen();
+            });
+        }
+    }
+
+    _setupFullscreenSync() {
+        if (this._fsSyncBound || typeof document === 'undefined' || typeof document.addEventListener !== 'function') return;
+        this._fsSyncBound = true;
+        this._wasFsActive = false;
+        const onFsChange = () => this._syncFullscreenState();
+        document.addEventListener('fullscreenchange', onFsChange);
+        document.addEventListener('webkitfullscreenchange', onFsChange);
+        document.addEventListener('click', (ev) => {
+            const target = ev && ev.target && typeof ev.target.closest === 'function'
+                ? ev.target.closest('#btn-global-fullscreen, #btn-fullscreen, #btn-term-fullscreen, #btn-hh-fullscreen')
+                : null;
+            if (!target || ev._fsHandled) return;
+            ev._fsHandled = true;
+            if (typeof ev.preventDefault === 'function') ev.preventDefault();
+            if (typeof ev.stopPropagation === 'function') ev.stopPropagation();
+            this._bindFullscreenButtons();
+            if (typeof target.blur === 'function') target.blur();
+            if (this.audio && typeof this.audio.unlock === 'function') this.audio.unlock();
+            if (window.DeviceProfile && typeof window.DeviceProfile.triggerHaptic === 'function') window.DeviceProfile.triggerHaptic('light');
+            this.toggleFullscreen();
+        });
+        this._syncFullscreenState();
+    }
+
+    _showFullscreenCoachmark() {
+        const msg = 'Fullscreen active — press ` (backtick) to cancel menus without exiting fullscreen';
+        const hud = (this.app && this.app.hud) || (window.__app && window.__app.hud);
+        if (hud && typeof hud.showToast === 'function') {
+            hud.showToast(msg);
+        } else if (window.__app && typeof window.__app.showRealmToast === 'function') {
+            window.__app.showRealmToast(msg);
+        } else if (typeof document !== 'undefined' && document.body && typeof document.createElement === 'function') {
+            let toast = document.getElementById('yasd-fs-coachmark');
+            if (!toast) {
+                toast = document.createElement('div');
+                toast.id = 'yasd-fs-coachmark';
+                toast.className = 'realm-toast';
+                toast.setAttribute('role', 'status');
+                toast.setAttribute('aria-live', 'polite');
+                document.body.appendChild(toast);
+            }
+            toast.textContent = msg;
+            toast.classList.add('show');
+            clearTimeout(this._fsToastTimer);
+            this._fsToastTimer = setTimeout(() => { if (toast) toast.classList.remove('show'); }, 3800);
+        }
+    }
+
+    _syncFullscreenState() {
+        if (typeof document === 'undefined') return;
+        this._bindFullscreenButtons();
+        const doc = document, elem = doc.documentElement;
+        const nativeFs = Boolean(doc.fullscreenElement || doc.webkitFullscreenElement || doc.mozFullScreenElement || doc.msFullscreenElement);
+        const dvhFs = Boolean(elem && elem.classList && elem.classList.contains('yasd-immersive-dvh'));
+        const isFs = nativeFs || dvhFs;
+        if (elem && elem.classList) elem.classList.toggle('yasd-fullscreen-active', isFs);
+        const ids = ['btn-global-fullscreen', 'btn-fullscreen', 'btn-term-fullscreen', 'btn-hh-fullscreen'];
+        for (const id of ids) {
+            const btn = typeof doc.getElementById === 'function' ? doc.getElementById(id) : null;
+            if (!btn) continue;
+            if (typeof btn.setAttribute === 'function') btn.setAttribute('aria-pressed', isFs ? 'true' : 'false');
+            if (btn.classList) {
+                btn.classList.toggle('is-fullscreen', isFs);
+                btn.classList.toggle('active', isFs);
+            }
+            btn.title = isFs ? 'Exit Fullscreen [F11]' : 'Enter Fullscreen [F11]';
+            const iconEl = typeof btn.querySelector === 'function' ? btn.querySelector('.fs-icon') : null;
+            const labelEl = typeof btn.querySelector === 'function' ? btn.querySelector('.fs-label') : null;
+            if (iconEl || labelEl) {
+                if (iconEl) iconEl.textContent = isFs ? '⤓' : '⛶';
+                if (labelEl) labelEl.textContent = isFs ? 'Exit Full' : 'Fullscreen';
+            } else {
+                if (!btn.dataset) btn.dataset = {};
+                if (!btn.dataset.fsOrigText) btn.dataset.fsOrigText = (btn.textContent || '⛶').trim();
+                const orig = btn.dataset.fsOrigText;
+                const hasWords = /[a-z]/i.test(orig);
+                btn.textContent = isFs ? (hasWords ? '⤓ Exit Full' : '⤓') : orig;
+            }
+        }
+        if (!this._wasFsActive && isFs) this._showFullscreenCoachmark();
+        this._wasFsActive = isFs;
+    }
+
     toggleFullscreen() {
         const doc = document, elem = doc.documentElement;
-        const isFs = Boolean(doc.fullscreenElement || doc.webkitFullscreenElement || doc.mozFullScreenElement || doc.msFullscreenElement);
+        const nativeFs = Boolean(doc.fullscreenElement || doc.webkitFullscreenElement || doc.mozFullScreenElement || doc.msFullscreenElement);
+        const dvhFs = Boolean(elem && elem.classList && elem.classList.contains('yasd-immersive-dvh'));
+        const setDvhFallback = (active) => {
+            if (elem && elem.classList) elem.classList.toggle('yasd-immersive-dvh', active);
+            this._syncFullscreenState();
+        };
         try {
-            if (!isFs) {
-                const req = elem.requestFullscreen || elem.webkitRequestFullscreen || elem.mozRequestFullScreen || elem.msRequestFullscreen;
+            if (!nativeFs && !dvhFs) {
+                const req = elem && (elem.requestFullscreen || elem.webkitRequestFullscreen || elem.mozRequestFullScreen || elem.msRequestFullscreen);
                 if (req) {
                     const p = req.call(elem);
-                    if (p && typeof p.then === 'function') p.then(() => { navigator?.keyboard?.lock?.(['Escape'])?.catch?.(() => {}); }).catch(() => {});
+                    if (p && typeof p.then === 'function') {
+                        p.then(() => {
+                            try { navigator?.keyboard?.lock?.(['Escape'])?.catch?.(() => {}); } catch (_) {}
+                            this._syncFullscreenState();
+                        }).catch(() => { setDvhFallback(true); });
+                    } else {
+                        this._syncFullscreenState();
+                    }
+                } else {
+                    setDvhFallback(!dvhFs);
                 }
-            } else {
+            } else if (nativeFs) {
                 const exit = doc.exitFullscreen || doc.webkitExitFullscreen || doc.mozCancelFullScreen || doc.msExitFullscreen;
                 if (exit) {
-                    navigator?.keyboard?.unlock?.();
+                    try { navigator?.keyboard?.unlock?.(); } catch (_) {}
                     const p = exit.call(doc);
-                    if (p && typeof p.catch === 'function') p.catch(() => {});
+                    if (p && typeof p.then === 'function') p.then(() => this._syncFullscreenState()).catch(() => this._syncFullscreenState());
+                    else this._syncFullscreenState();
                 }
+                if (dvhFs && elem && elem.classList) elem.classList.remove('yasd-immersive-dvh');
+            } else {
+                setDvhFallback(false);
             }
-        } catch (err) { console.warn('[Input] Fullscreen toggle error:', err); }
+        } catch (err) {
+            console.warn('[Input] Fullscreen toggle error:', err);
+            setDvhFallback(!dvhFs);
+        }
     }
 
 }

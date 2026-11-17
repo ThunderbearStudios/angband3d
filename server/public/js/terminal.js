@@ -34,8 +34,15 @@ class WebTerminal {
         this.selectedIndex = -1;
         this.selectedKey = null;
 
+        this._wasCardsOnly = false;
         this.resize();
         window.addEventListener('resize', () => this.resize());
+        if (typeof document !== 'undefined') {
+            document.addEventListener('fullscreenchange', () => {
+                this.resize();
+                if (typeof requestAnimationFrame === 'function') requestAnimationFrame(() => this.resize());
+            });
+        }
         this.setupMouseEvents();
         this.setupViewportGestures();
         this.setupZoomControls();
@@ -43,107 +50,49 @@ class WebTerminal {
 
     setCameraFacing(yaw) {
         if (typeof yaw !== 'number' || isNaN(yaw)) return;
-        const normYaw = (yaw % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI);
-        const sector = Math.round(normYaw / (Math.PI / 4)) % 8;
+        const sector = Math.round((((yaw % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI)) / (Math.PI / 4)) % 8;
         if (this.facingSector === sector && Math.abs((this.cameraYaw || 0) - yaw) < 0.001) return;
-        this.cameraYaw = yaw;
-        this.facingSector = sector;
-        if (this.lastTermData) {
-            this.render(this.lastTermData);
-        }
+        this.cameraYaw = yaw; this.facingSector = sector;
+        if (this.lastTermData) this.render(this.lastTermData);
     }
 
     setTargetingMode(active) {
-        const nextActive = Boolean(active);
-        if (this.isTargetingMode === nextActive) return;
-        this.isTargetingMode = nextActive;
-        if (this.lastTermData) {
-            this.render(this.lastTermData);
-        }
+        const next = Boolean(active);
+        if (this.isTargetingMode === next) return;
+        this.isTargetingMode = next;
+        if (this.lastTermData) this.render(this.lastTermData);
     }
 
     setZoom(level, anchorViewportX = null, anchorViewportY = null) {
         const target = Math.max(this.minZoom, Math.min(this.maxZoom, Math.round(level * 100) / 100));
         if (Math.abs(target - this.zoomLevel) < 0.01) return;
-
-        const viewport = document.getElementById('terminal-viewport');
-        const oldZoom = this.zoomLevel;
-        const zoomRatio = target / oldZoom;
-
-        // If an anchor point was given (pinch center), adjust scroll so anchor remains stationary
-        let scrollAdjX = 0;
-        let scrollAdjY = 0;
+        const viewport = document.getElementById('terminal-viewport'), zoomRatio = target / this.zoomLevel;
+        let scrollAdjX = 0, scrollAdjY = 0;
         if (viewport && anchorViewportX !== null && anchorViewportY !== null) {
             scrollAdjX = (viewport.scrollLeft + anchorViewportX) * (zoomRatio - 1);
             scrollAdjY = (viewport.scrollTop + anchorViewportY) * (zoomRatio - 1);
         }
-
-        this.zoomLevel = target;
-        this.updateZoomUI();
-        this.resize();
-
-        if (viewport && (scrollAdjX !== 0 || scrollAdjY !== 0)) {
-            viewport.scrollLeft += scrollAdjX;
-            viewport.scrollTop += scrollAdjY;
-        }
+        this.zoomLevel = target; this.updateZoomUI(); this.resize();
+        if (viewport && (scrollAdjX !== 0 || scrollAdjY !== 0)) { viewport.scrollLeft += scrollAdjX; viewport.scrollTop += scrollAdjY; }
     }
 
-    zoomIn() {
-        const viewport = document.getElementById('terminal-viewport');
-        const cx = viewport ? viewport.clientWidth / 2 : null;
-        const cy = viewport ? viewport.clientHeight / 2 : null;
-        this.setZoom(this.zoomLevel + this.zoomStep, cx, cy);
-    }
-
-    zoomOut() {
-        const viewport = document.getElementById('terminal-viewport');
-        const cx = viewport ? viewport.clientWidth / 2 : null;
-        const cy = viewport ? viewport.clientHeight / 2 : null;
-        this.setZoom(this.zoomLevel - this.zoomStep, cx, cy);
-    }
-
+    zoomIn() { const v = document.getElementById('terminal-viewport'); this.setZoom(this.zoomLevel + this.zoomStep, v ? v.clientWidth / 2 : null, v ? v.clientHeight / 2 : null); }
+    zoomOut() { const v = document.getElementById('terminal-viewport'); this.setZoom(this.zoomLevel - this.zoomStep, v ? v.clientWidth / 2 : null, v ? v.clientHeight / 2 : null); }
     resetZoom() {
-        this.userHasScrolled = false;
-        this.setZoom(1.0);
-        const viewport = document.getElementById('terminal-viewport');
-        if (viewport) {
-            viewport.scrollLeft = 0;
-            viewport.scrollTop = 0;
-        }
+        this.userHasScrolled = false; this.setZoom(1.0);
+        const v = document.getElementById('terminal-viewport');
+        if (v) { v.scrollLeft = 0; v.scrollTop = 0; }
     }
-
     updateZoomUI() {
-        const btnReset = document.getElementById('btn-term-zoom-reset') || document.getElementById('term-zoom-label');
-        if (btnReset) {
-            btnReset.textContent = `${Math.round(this.zoomLevel * 100)}%`;
-            btnReset.title = `Current Zoom: ${Math.round(this.zoomLevel * 100)}% (Click to reset to Fit)`;
-        }
+        const b = document.getElementById('btn-term-zoom-reset') || document.getElementById('term-zoom-label');
+        if (b) { b.textContent = `${Math.round(this.zoomLevel * 100)}%`; b.title = `Current Zoom: ${Math.round(this.zoomLevel * 100)}% (Click to reset to Fit)`; }
     }
-
     setupZoomControls() {
-        const btnZoomIn = document.getElementById('btn-term-zoom-in');
-        const btnZoomOut = document.getElementById('btn-term-zoom-out');
-        const btnZoomReset = document.getElementById('btn-term-zoom-reset') || document.getElementById('term-zoom-label');
-
-        if (btnZoomIn) {
-            btnZoomIn.addEventListener('click', (e) => {
-                e.preventDefault();
-                this.zoomIn();
-            });
-        }
-        if (btnZoomOut) {
-            btnZoomOut.addEventListener('click', (e) => {
-                e.preventDefault();
-                this.zoomOut();
-            });
-        }
-        if (btnZoomReset) {
-            btnZoomReset.style.cursor = 'pointer';
-            btnZoomReset.addEventListener('click', (e) => {
-                e.preventDefault();
-                this.resetZoom();
-            });
-        }
+        const bind = (id, fn) => { const el = document.getElementById(id); if (el) el.addEventListener('click', (e) => { e.preventDefault(); fn(); }); return el; };
+        bind('btn-term-zoom-in', () => this.zoomIn());
+        bind('btn-term-zoom-out', () => this.zoomOut());
+        const r = document.getElementById('btn-term-zoom-reset') || document.getElementById('term-zoom-label');
+        if (r) { r.style.cursor = 'pointer'; r.addEventListener('click', (e) => { e.preventDefault(); this.resetZoom(); }); }
     }
 
     setupViewportGestures() {
@@ -308,6 +257,18 @@ class WebTerminal {
         return 'classic_play';
     }
 
+    _isCardsOnlyActive(grimoireEl, termContainer) {
+        if (!this.canvas || this.canvas.id === 'death-terminal-canvas') return false;
+        if (!grimoireEl || !grimoireEl.style || grimoireEl.style.display === 'none') return false;
+        const deckMode = (typeof window !== 'undefined' && window.RealmGrimoireDeck) ? window.RealmGrimoireDeck.mode : null;
+        return Boolean(
+            deckMode === 'cards' ||
+            (grimoireEl.classList && grimoireEl.classList.contains('grimoire-cards-only')) ||
+            (termContainer && termContainer.classList && termContainer.classList.contains('grimoire-cards-only')) ||
+            (typeof document !== 'undefined' && document.body && document.body.classList && document.body.classList.contains('grimoire-cards-only'))
+        );
+    }
+
     resize() {
         // High-DPI logical font metrics maintaining standard 80x24 aspect ratio
         const baseCellWidth = 14;
@@ -337,31 +298,46 @@ class WebTerminal {
         const birthBarEl = document.getElementById('terminal-birth-helper-bar');
         const grimoireEl = document.getElementById('grimoire-deck-container');
         const touchDockEl = document.getElementById('terminal-touch-controls');
+
+        if (this._isCardsOnlyActive(grimoireEl, termContainer)) {
+            this._wasCardsOnly = true;
+            if (viewport && viewport.style && typeof viewport.style.setProperty === 'function') {
+                viewport.style.setProperty('display', 'none', 'important');
+            }
+            return;
+        }
+        if (viewport && viewport.style && viewport.style.display === 'none') {
+            viewport.style.removeProperty('display');
+        }
+
         const elH = (el) => (el && el.style.display !== 'none' && el.offsetHeight > 0) ? (el.offsetHeight + 6) : 0;
         const measuredChromeH = elH(toolbarEl) + elH(birthBarEl) + elH(grimoireEl) + elH(touchDockEl) + (isInGameModal ? 22 : 28);
-        const maxViewportW = isInGameModal
-            ? Math.min(Math.floor(window.innerWidth * 0.92), 1240) - 24
-            : Math.min(Math.floor(window.innerWidth * 0.96), 1480) - 24;
-        const maxViewportH = isInGameModal
-            ? Math.min(Math.floor(window.innerHeight * 0.88), 820) - Math.max(84, measuredChromeH)
-            : Math.floor(window.innerHeight * 0.96) - Math.max(96, measuredChromeH);
+        const cardClientW = (termWindow && termWindow.clientWidth > 32) ? (termWindow.clientWidth - 28) : Infinity;
+        const maxViewportW = Math.min(
+            cardClientW,
+            (isInGameModal ? Math.min(Math.floor(window.innerWidth * 0.94), 1240) : Math.min(Math.floor(window.innerWidth * 0.96), 1480)) - 28
+        );
+        const budgetH = isInGameModal
+            ? Math.min(Math.floor(window.innerHeight * 0.90), 840)
+            : Math.floor(window.innerHeight * 0.96);
+        const maxViewportH = budgetH - Math.max(84, measuredChromeH);
 
-        const availW = Math.max(260, maxViewportW);
-        const availH = Math.max(180, maxViewportH);
+        const availW = Math.max(200, maxViewportW);
+        const availH = Math.max(100, maxViewportH);
 
         const isMobileScreen = window.innerWidth <= 640;
         const fitScale = Math.min(availW / logicalWidth, availH / logicalHeight);
         const baseScale = isMobileScreen
-            ? Math.max(0.28, Math.min(fitScale, 1.35))
-            : Math.max(0.34, Math.min(fitScale, isInGameModal ? 1.55 : 2.25));
+            ? Math.max(0.20, Math.min(fitScale, 1.35))
+            : Math.max(0.22, Math.min(fitScale, isInGameModal ? 1.55 : 2.25));
 
         const effectiveScale = baseScale * this.zoomLevel;
         this.effectiveScale = effectiveScale;
         let cssW = Math.floor(logicalWidth * effectiveScale);
         let cssH = Math.floor(logicalHeight * effectiveScale);
         if (this.zoomLevel === 1.0 && window.innerWidth > 0 && window.innerHeight > 0) {
-            const hardMaxW = Math.max(240, window.innerWidth - 16);
-            const hardMaxH = Math.max(180, window.innerHeight - 108);
+            const hardMaxW = Math.min(availW, Math.max(200, window.innerWidth - 24));
+            const hardMaxH = Math.min(availH, Math.max(100, window.innerHeight - Math.max(84, measuredChromeH)));
             if (cssW > hardMaxW || cssH > hardMaxH) {
                 const clampRatio = Math.min(hardMaxW / Math.max(1, cssW), hardMaxH / Math.max(1, cssH));
                 cssW = Math.floor(cssW * clampRatio);
@@ -404,7 +380,9 @@ class WebTerminal {
         }
         this.canvas.style.margin = (needsScrollX || needsScrollY) ? '0' : 'auto';
 
-        if (dimChanged && this.lastTermData) {
+        const restoreFromCards = this._wasCardsOnly;
+        this._wasCardsOnly = false;
+        if ((dimChanged || restoreFromCards) && this.lastTermData) {
             this.render(this.lastTermData);
         }
     }

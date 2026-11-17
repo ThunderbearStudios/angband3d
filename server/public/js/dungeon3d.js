@@ -442,6 +442,9 @@ class Dungeon3D {
         // Combat Juice & VFX Subsystems (Exact 1:1 Parity with Godot DungeonWorld.cs)
         this.floatingTexts = [];
         this.particles = [];
+        this.activeProjectiles = [];
+        this._activeHitSparks = [];
+        this._hitSparkPool = [];
         this.trauma = 0.0;
         this.lastPlayerHp = null;
         this.lastPlayerLevel = null;
@@ -566,11 +569,28 @@ class Dungeon3D {
                 if (cCtx) cCtx.clearRect(0, 0, compassEl.width, compassEl.height);
             }
         }
+        if (typeof this.recycleHitSparks === 'function') {
+            this.recycleHitSparks();
+        }
+        if (Array.isArray(this.activeProjectiles) && this.activeProjectiles.length > 0) {
+            for (let i = 0; i < this.activeProjectiles.length; i++) {
+                const proj = this.activeProjectiles[i];
+                if (proj && proj.group && this.scene) this.scene.remove(proj.group);
+                if (proj && Array.isArray(proj.disposables)) {
+                    for (const d of proj.disposables) {
+                        if (d && !d._sharedGeometry && !d._sharedMaterial && !d._sharedTexture && typeof d.dispose === 'function') d.dispose();
+                    }
+                }
+            }
+            this.activeProjectiles.length = 0;
+        }
+        if (this.vfxFlashLight) this.vfxFlashLight.intensity = 0;
+        if (this._vfxFlashState) this._vfxFlashState.active = false;
         if (Array.isArray(this.floatingTexts) && this.floatingTexts.length > 0) {
             for (const ft of this.floatingTexts) {
                 if (ft && ft.sprite && this.scene) this.scene.remove(ft.sprite);
-                if (ft && ft.material && typeof ft.material.dispose === 'function') ft.material.dispose();
-                if (ft && ft.texture && typeof ft.texture.dispose === 'function') ft.texture.dispose();
+                if (ft && ft.material && !ft.material._sharedMaterial && typeof ft.material.dispose === 'function') ft.material.dispose();
+                if (ft && ft.texture && !ft.texture._sharedTexture && typeof ft.texture.dispose === 'function') ft.texture.dispose();
             }
             this.floatingTexts.length = 0;
         }
@@ -584,6 +604,38 @@ class Dungeon3D {
                 dmgFlashEl.classList.remove('active');
                 dmgFlashEl.style.opacity = '0';
             }
+        }
+    }
+
+    dispose() {
+        if (this._rafId != null && typeof cancelAnimationFrame === 'function') {
+            cancelAnimationFrame(this._rafId);
+            this._rafId = null;
+        }
+        this._animLoopScheduled = false;
+        this.resetSessionState({ clearMemory: true });
+        if (Array.isArray(this._hitSparkPool)) {
+            for (let i = 0; i < this._hitSparkPool.length; i++) {
+                const slot = this._hitSparkPool[i];
+                if (slot && slot.group) {
+                    slot.group.visible = false;
+                    if (this.scene && slot.group.parent === this.scene) {
+                        this.scene.remove(slot.group);
+                    }
+                }
+            }
+        }
+        if (this._floatingTextTexCache && typeof this._floatingTextTexCache.values === 'function') {
+            for (const tex of this._floatingTextTexCache.values()) {
+                if (tex && !tex._sharedTexture && typeof tex.dispose === 'function') {
+                    tex._cachedFloatingTex = false;
+                    tex.dispose();
+                }
+            }
+            this._floatingTextTexCache.clear();
+        }
+        if (this.renderer && typeof this.renderer.dispose === 'function') {
+            this.renderer.dispose();
         }
     }
 
@@ -614,11 +666,20 @@ class Dungeon3D {
     }
 
     _resolveVerticalFov(baseVFovDeg, aspect, handheld) {
-        if (!handheld) return baseVFovDeg;
-        const minHFovDeg = aspect < 1.05 ? 90.0 : 96.0;
-        const minHFovRad = (minHFovDeg * Math.PI) / 180.0;
-        const reqVFovDeg = (2.0 * Math.atan(Math.tan(minHFovRad * 0.5) / Math.max(0.35, aspect)) * 180.0) / Math.PI;
-        return Math.max(baseVFovDeg, Math.min(98.0, reqVFovDeg));
+        let vFovDeg = baseVFovDeg;
+        if (handheld) {
+            const minHFovDeg = aspect < 1.05 ? 90.0 : 96.0;
+            const minHFovRad = (minHFovDeg * Math.PI) / 180.0;
+            const reqVFovDeg = (2.0 * Math.atan(Math.tan(minHFovRad * 0.5) / Math.max(0.35, aspect)) * 180.0) / Math.PI;
+            vFovDeg = Math.max(baseVFovDeg, Math.min(98.0, reqVFovDeg));
+        }
+        // Ultrawide Hor+ clamp (aspect > 1.85 -> e.g. 21:9 / 32:9): cap HFOV <= 108 deg so edges never fish-eye past 125 deg
+        if (aspect > 1.85) {
+            const maxHFovRad = (107.999 * Math.PI) / 180.0;
+            const maxVFovDeg = (2.0 * Math.atan(Math.tan(maxHFovRad * 0.5) / aspect) * 180.0) / Math.PI;
+            vFovDeg = Math.min(vFovDeg, maxVFovDeg);
+        }
+        return vFovDeg;
     }
 
     resize() {
@@ -3507,7 +3568,7 @@ class Dungeon3D {
             lower.includes('you read') || lower.includes('you tunnel') || lower.includes('you dig') ||
             lower.includes('you pray') || lower.includes('you recite') || lower.includes('you use a staff');
 
-        const isRangedOrSpell = /\b(lightning|elec|shock|thunder|spark|breathes|fireball|frost|cold|acid|poison|venom|missile|mana bolt|mana storm|mana burst|chaos|nether|you cast|you zap|you aim|mumbles|invokes|you shoot|you fire|shoots|fires|arrow|bolt|you throw|you hurl|flask)\b/.test(lower);
+        const isRangedOrSpell = /\b(lightning|elec|shock|thunder|spark|breathes|fireball|frost|cold|ice bolt|ice storm|blizzard|acid|poison|venom|missile|mana bolt|mana storm|mana burst|chaos|nether|you cast|you zap|you aim|mumbles|invokes|you shoot|you fire|shoots|fires|arrow|bolt|you throw|you hurl|flask)\b/.test(lower);
         const ep = this._resolveCombatEndpoints(lower, isPlayerSource, isRangedOrSpell);
         const mGlyph = (ep.monsterEntity && ep.monsterEntity.monsterData && ep.monsterEntity.monsterData.char) || (ep.monsterEntity && ep.monsterEntity.glyph) || 'm';
 
@@ -3529,8 +3590,8 @@ class Dungeon3D {
             return true;
         }
 
-        // 2. Fire / Frost / Acid / Poison / Chaos / Mana Spells & Breaths
-        if (/\b(breathes|fireball|frost|cold|acid|poison|venom|missile|mana bolt|mana storm|mana burst|chaos|nether|you cast|you zap|you aim|mumbles|invokes)\b/.test(lower)) {
+        // 2. Fire / Frost / Acid / Poison / Nether / Chaos / Mana Spells & Breaths
+        if (/\b(breathes|fireball|frost|cold|ice bolt|ice storm|blizzard|acid|poison|venom|missile|mana bolt|mana storm|mana burst|chaos|nether|you cast|you zap|you aim|mumbles|invokes)\b/.test(lower)) {
             const isBreath = lower.includes('breathe') || lower.includes('breath');
             if (/\b(heal|cure|restore|satisfy|bless|sanctuary|prayer)\b/.test(lower) && !isBreath) {
                 this.spawnProjectileOrSpellVfx('aura', ep.startPos, ep.startPos, 0x33ff88);
@@ -3544,22 +3605,43 @@ class Dungeon3D {
                 }
                 return true;
             }
-            let elemColor = 0xff7722;
+            let elemColor = 0xff5500;
             let elemType = 'fire';
-            if (lower.includes('frost') || lower.includes('cold') || lower.includes('ice')) {
-                elemColor = 0x88ddff;
+            let vfxKind = 'fireball';
+            let vfxElem = 'fire';
+            let labelHex = '#ff9944';
+            if (/\b(frost|cold|ice|blizzard|freezing)\b/.test(lower)) {
+                elemColor = 0x38bdf8;
                 elemType = 'cold';
-            } else if (lower.includes('acid')) {
-                elemColor = 0x88ff33;
+                vfxKind = 'frost';
+                vfxElem = 'frost';
+                labelHex = '#7dd3fc';
+            } else if (/\b(acid|vitriol)\b/.test(lower)) {
+                elemColor = 0x84cc16;
                 elemType = 'acid';
-            } else if (lower.includes('poison') || lower.includes('venom')) {
-                elemColor = 0x33dd66;
+                vfxKind = 'acid';
+                vfxElem = 'acid';
+                labelHex = '#bef264';
+            } else if (/\b(poison|venom|miasma|toxic)\b/.test(lower)) {
+                elemColor = 0x9333ea;
                 elemType = 'poison';
-            } else if (lower.includes('chaos') || lower.includes('nether') || lower.includes('mana') || lower.includes('missile')) {
-                elemColor = 0xbb55ff;
+                vfxKind = 'poison';
+                vfxElem = 'poison';
+                labelHex = '#34d399';
+            } else if (lower.includes('nether')) {
+                elemColor = 0x7e22ce;
                 elemType = 'magic';
+                vfxKind = 'nether';
+                vfxElem = 'nether';
+                labelHex = '#d946ef';
+            } else if (/\b(chaos|mana bolt|mana storm|mana burst|missile)\b/.test(lower)) {
+                elemColor = 0xc026d3;
+                elemType = 'magic';
+                vfxKind = 'chaos';
+                vfxElem = 'chaos';
+                labelHex = '#e879f9';
             }
-            this.spawnProjectileOrSpellVfx(isBreath ? 'breath' : 'fireball', ep.startPos, ep.endPos, elemColor);
+            this.spawnProjectileOrSpellVfx(isBreath ? 'breath' : vfxKind, ep.startPos, ep.endPos, elemColor, { element: vfxElem });
             if ((isBreath || elemType === 'fire') && this.audio && typeof this.audio.playFireballDetonation === 'function') {
                 this.audio.playFireballDetonation(isBreath, ep.pan);
             } else if (this.audio && typeof this.audio.playSpell === 'function') {
@@ -3567,7 +3649,7 @@ class Dungeon3D {
             }
             if (isPlayerSource) {
                 this.triggerCastAnimation();
-                this.spawnFloatingText(isBreath ? 'BREATH' : 'CAST', ep.startPos, '#ff9944', 1.10);
+                this.spawnFloatingText(isBreath ? 'BREATH' : 'CAST', ep.startPos, labelHex, 1.10);
             } else {
                 this.addTrauma(0.30);
                 this.triggerHurtAnimation();
@@ -6225,6 +6307,7 @@ class Dungeon3D {
                     if (sprite.parent) sprite.parent.remove(sprite);
                     if (sprite._ownedSignTexture) sprite._ownedSignTexture.dispose();
                     if (sprite._ownedSignMaterial) sprite._ownedSignMaterial.dispose();
+                    if (sprite._ownedWayfinderTexture) sprite._ownedWayfinderTexture.dispose();
                     if (sprite._wayfinderMat) sprite._wayfinderMat.dispose();
                     if (sprite.material) {
                         if (sprite.material.map) sprite.material.map.dispose();
@@ -6246,7 +6329,7 @@ class Dungeon3D {
         const storePositions = new Map();
         const stairsList = [];
 
-        const labelRange = (outdoors && w <= 90) ? 45 : 32;
+        const labelRange = (outdoors && w <= 90) ? 64 : 32;
         const labelCx = outdoors ? px : (this._terrainAnchorX ?? px);
         const labelCy = outdoors ? py : (this._terrainAnchorY ?? py);
         const lMinY = Math.max(0, labelCy - labelRange);
@@ -6321,20 +6404,19 @@ class Dungeon3D {
         const createCaption = (text, pos, colorHex, isStore = false, storeIdx = 0, subOverride = '', iconOverride = '') => {
             const canvas = document.createElement('canvas');
             canvas.width = isStore ? 1024 : 512;
-            canvas.height = isStore ? 256 : 128;
+            canvas.height = 128;
             const ctx = canvas.getContext('2d');
 
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
             if (isStore) {
                 ctx.save();
-                ctx.scale(2, 2);
-                // Illuminated Medieval Carved-Oak & Brass Guild Signboard Plaque (2x Hi-DPI 1024x256)
-                const w = 492, h = 112, x0 = 10, y0 = 8;
+                // Illuminated Medieval Carved-Oak & Brass Guild Lintel Signboard (1024x128 = exact 8:1 aspect ratio)
+                const w = 1004, h = 116, x0 = 10, y0 = 6;
 
                 // Weathered dark oak plaque background
                 const woodGrad = ctx.createLinearGradient(0, y0, 0, y0 + h);
-                woodGrad.addColorStop(0, '#2a1b10');
+                woodGrad.addColorStop(0, '#2c1c11');
                 woodGrad.addColorStop(0.5, '#1d120a');
                 woodGrad.addColorStop(1, '#120b06');
                 ctx.fillStyle = woodGrad;
@@ -6346,10 +6428,10 @@ class Dungeon3D {
                 // Subtle horizontal oak grain lines
                 ctx.strokeStyle = 'rgba(255, 210, 145, 0.06)';
                 ctx.lineWidth = 1.5;
-                for (let gy = y0 + 14; gy < y0 + h - 10; gy += 12) {
+                for (let gy = y0 + 16; gy < y0 + h - 12; gy += 16) {
                     ctx.beginPath();
-                    ctx.moveTo(x0 + 12, gy);
-                    ctx.lineTo(x0 + w - 12, gy);
+                    ctx.moveTo(x0 + 14, gy);
+                    ctx.lineTo(x0 + w - 14, gy);
                     ctx.stroke();
                 }
 
@@ -6363,46 +6445,46 @@ class Dungeon3D {
 
                 // 4 corner brass rivets
                 ctx.fillStyle = '#e5b85c';
-                for (const [rx, ry] of [[x0 + 14, y0 + 14], [x0 + w - 14, y0 + 14], [x0 + 14, y0 + h - 14], [x0 + w - 14, y0 + h - 14]]) {
+                for (const [rx, ry] of [[x0 + 16, y0 + 16], [x0 + w - 16, y0 + 16], [x0 + 16, y0 + h - 16], [x0 + w - 16, y0 + h - 16]]) {
                     ctx.beginPath();
-                    ctx.arc(rx, ry, 3.5, 0, Math.PI * 2);
+                    ctx.arc(rx, ry, 4, 0, Math.PI * 2);
                     ctx.fill();
                 }
 
                 // Guild crest medallion on left
-                const cx = x0 + 46, cy = y0 + h / 2;
+                const cx = x0 + 60, cy = y0 + h / 2;
                 ctx.fillStyle = '#150d08';
                 ctx.beginPath();
-                ctx.arc(cx, cy, 30, 0, Math.PI * 2);
+                ctx.arc(cx, cy, 40, 0, Math.PI * 2);
                 ctx.fill();
                 ctx.strokeStyle = colorHex || '#e5b85c';
-                ctx.lineWidth = 2.5;
+                ctx.lineWidth = 3;
                 ctx.stroke();
 
-                ctx.font = '30px "Segoe UI Symbol", "Noto Sans Symbols", serif';
+                ctx.font = '38px "Segoe UI Symbol", "Noto Sans Symbols", serif';
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
                 ctx.fillStyle = colorHex || '#ffd866';
                 ctx.fillText(iconOverride || storeIcons[storeIdx] || '⚜', cx, cy + 2);
 
-                // Main Shop Title (bold high-contrast ivory for street-distance legibility)
-                ctx.font = '700 38px "Cinzel", "Georgia", serif';
+                // Main Shop Title (crisp single-line serif centered right of crest)
+                ctx.font = '700 44px "Cinzel", "Georgia", serif';
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
                 ctx.strokeStyle = 'rgba(0, 0, 0, 0.96)';
                 ctx.lineWidth = 6;
-                ctx.strokeText(text, 290, y0 + 42, 392);
+                ctx.strokeText(text, 558, y0 + 42, 810);
                 ctx.fillStyle = '#fff9e6';
-                ctx.fillText(text, 290, y0 + 42, 392);
+                ctx.fillText(text, 558, y0 + 42, 810);
 
                 // Guild Subtitle
                 const sub = subOverride || storeSubtitles[storeIdx] || 'MERCHANT GUILD';
-                ctx.font = '600 16px "Cinzel", "Georgia", serif';
-                ctx.strokeStyle = 'rgba(0, 0, 0, 0.85)';
-                ctx.lineWidth = 3;
-                ctx.strokeText(sub, 290, y0 + 82, 392);
+                ctx.font = '600 22px "Cinzel", "Georgia", serif';
+                ctx.strokeStyle = 'rgba(0, 0, 0, 0.88)';
+                ctx.lineWidth = 4;
+                ctx.strokeText(sub, 558, y0 + 88, 810);
                 ctx.fillStyle = colorHex || '#ffd873';
-                ctx.fillText(sub, 290, y0 + 82, 392);
+                ctx.fillText(sub, 558, y0 + 88, 810);
                 ctx.restore();
             } else {
                 // High-legibility Dungeon Landmark Pill (512x128 @ 40px bold, 3px outline)
@@ -6431,37 +6513,27 @@ class Dungeon3D {
                 const signGroup = new THREE.Group();
                 signGroup.position.set(pos.x, 0, pos.z);
                 signGroup.rotation.set(0, pos.yaw || 0, 0);
-                signGroup.maxDist = 64.0;
+                signGroup.maxDist = 90.0;
 
                 if (!this._storeSignSharedGeos) {
-                    const fasciaBackGeo = new THREE.BoxGeometry(2.36, 0.62, 0.030);
+                    const fasciaBackGeo = new THREE.BoxGeometry(2.14, 0.28, 0.028);
                     fasciaBackGeo._sharedGeometry = true;
-                    const fasciaTrimGeo = new THREE.BoxGeometry(2.42, 0.68, 0.036);
+                    const fasciaTrimGeo = new THREE.BoxGeometry(2.20, 0.32, 0.034);
                     fasciaTrimGeo._sharedGeometry = true;
-                    const fasciaFaceGeo = new THREE.PlaneGeometry(2.30, 0.58);
+                    const fasciaFaceGeo = new THREE.PlaneGeometry(2.08, 0.26);
                     fasciaFaceGeo._sharedGeometry = true;
-                    const bracketArmGeo = new THREE.BoxGeometry(0.05, 0.05, 1.18);
-                    bracketArmGeo._sharedGeometry = true;
-                    const bracketBoardGeo = new THREE.BoxGeometry(0.04, 0.44, 1.08);
-                    bracketBoardGeo._sharedGeometry = true;
-                    const bracketFaceGeo = new THREE.PlaneGeometry(1.04, 0.40);
-                    bracketFaceGeo._sharedGeometry = true;
                     const woodMat = new THREE.MeshStandardMaterial({ color: 0x26170c, roughness: 0.82, metalness: 0.12 });
                     woodMat._sharedMaterial = true;
                     const brassMat = new THREE.MeshStandardMaterial({ color: 0xc89b3c, roughness: 0.38, metalness: 0.82 });
                     brassMat._sharedMaterial = true;
-                    const ironMat = new THREE.MeshStandardMaterial({ color: 0x22262c, roughness: 0.55, metalness: 0.80 });
-                    ironMat._sharedMaterial = true;
                     this._storeSignSharedGeos = {
                         fasciaBackGeo, fasciaTrimGeo, fasciaFaceGeo,
-                        bracketArmGeo, bracketBoardGeo, bracketFaceGeo,
-                        woodMat, brassMat, ironMat
+                        woodMat, brassMat
                     };
                 }
                 const {
                     fasciaBackGeo, fasciaTrimGeo, fasciaFaceGeo,
-                    bracketArmGeo, bracketBoardGeo, bracketFaceGeo,
-                    woodMat, brassMat, ironMat
+                    woodMat, brassMat
                 } = this._storeSignSharedGeos;
                 const signFaceMat = new THREE.MeshStandardMaterial({
                     map: tex,
@@ -6477,46 +6549,76 @@ class Dungeon3D {
                 signGroup._ownedSignMaterial = signFaceMat;
                 signGroup._ownedSignTexture = tex;
 
-                // 1. Illuminated Front Lintel Guild Plaque (mounted above awning, tilted for street legibility)
+                // 1. Flush Front Lintel Guild Plaque (strictly y=2.49..2.81m below y=2.83m roof soffit & above y<=2.46m awning)
                 const fasciaMount = new THREE.Group();
-                fasciaMount.position.set(0, 2.98, 1.08);
-                fasciaMount.rotation.x = 0.06;
+                fasciaMount.name = 'StorefrontFasciaSign';
+                fasciaMount.position.set(0, 2.65, 1.045);
+                fasciaMount.rotation.x = 0.02;
                 const fasciaTrim = new THREE.Mesh(fasciaTrimGeo, brassMat);
                 const fasciaBack = new THREE.Mesh(fasciaBackGeo, woodMat);
                 fasciaBack.position.set(0, 0, 0.008);
                 const fasciaFace = new THREE.Mesh(fasciaFaceGeo, signFaceMat);
-                fasciaFace.position.set(0, 0, 0.026);
+                fasciaFace.position.set(0, 0, 0.024);
                 fasciaMount.add(fasciaTrim, fasciaBack, fasciaFace);
 
-                // 2. Wrought-Iron Projecting Tavern Bracket Sign (readable approaching down streets)
-                const bracketArm = new THREE.Mesh(bracketArmGeo, ironMat);
-                bracketArm.position.set(-1.00, 2.86, 1.48);
-                const bracketBoard = new THREE.Mesh(bracketBoardGeo, woodMat);
-                bracketBoard.position.set(-1.00, 2.58, 1.50);
-                const bracketFaceL = new THREE.Mesh(bracketFaceGeo, signFaceMat);
-                bracketFaceL.rotation.y = -Math.PI * 0.5;
-                bracketFaceL.position.set(-1.025, 2.58, 1.50);
-                const bracketFaceR = new THREE.Mesh(bracketFaceGeo, signFaceMat);
-                bracketFaceR.rotation.y = Math.PI * 0.5;
-                bracketFaceR.position.set(-0.975, 2.58, 1.50);
+                // 2. Always-Visible Box-Free Overhead Floating Store Text (above roof ridges & chimneys; scales with distance)
+                const wfCanvas = document.createElement('canvas');
+                wfCanvas.width = 1024;
+                wfCanvas.height = 192;
+                const wfCtx = wfCanvas.getContext('2d');
+                wfCtx.clearRect(0, 0, 1024, 192);
+                wfCtx.font = '800 84px "Cinzel", "Outfit", "Segoe UI", sans-serif';
+                wfCtx.textAlign = 'center';
+                wfCtx.textBaseline = 'middle';
+                wfCtx.lineJoin = 'round';
+                wfCtx.miterLimit = 2;
+                wfCtx.shadowColor = 'rgba(0, 0, 0, 0.96)';
+                wfCtx.shadowBlur = 16;
+                wfCtx.shadowOffsetY = 3;
+                wfCtx.strokeStyle = 'rgba(3, 5, 10, 0.98)';
+                wfCtx.lineWidth = 18;
+                wfCtx.strokeText(text, 512, 98, 980);
+                wfCtx.shadowBlur = 0;
+                wfCtx.shadowOffsetY = 0;
+                wfCtx.strokeStyle = '#05070d';
+                wfCtx.lineWidth = 11;
+                wfCtx.strokeText(text, 512, 98, 980);
+                wfCtx.strokeStyle = colorHex || '#f5d77f';
+                wfCtx.lineWidth = 3.5;
+                wfCtx.strokeText(text, 512, 98, 980);
+                wfCtx.fillStyle = '#fffdf5';
+                wfCtx.fillText(text, 512, 98, 980);
 
-                // 3. Overhead Distance-Fading Street Wayfinder Badge (fades in smoothly >= 6m)
+                const wfTex = new THREE.CanvasTexture(wfCanvas);
+                wfTex.generateMipmaps = true;
+                wfTex.minFilter = THREE.LinearMipmapLinearFilter;
+                wfTex.magFilter = THREE.LinearFilter;
+                if (this.renderer && this.renderer.capabilities && typeof this.renderer.capabilities.getMaxAnisotropy === 'function') {
+                    wfTex.anisotropy = Math.min(8, Math.max(1, this.renderer.capabilities.getMaxAnisotropy()));
+                }
+                if (typeof THREE.SRGBColorSpace !== 'undefined') wfTex.colorSpace = THREE.SRGBColorSpace;
+                else if (typeof THREE.sRGBEncoding !== 'undefined') wfTex.encoding = THREE.sRGBEncoding;
+
                 const wfMat = new THREE.SpriteMaterial({
-                    map: tex,
-                    color: 0xfff6e5,
+                    map: wfTex,
+                    color: 0xffffff,
                     transparent: true,
                     depthTest: true,
                     depthWrite: false,
-                    opacity: 0.0
+                    fog: false,
+                    opacity: 1.0
                 });
                 const wfSprite = new THREE.Sprite(wfMat);
-                wfSprite.position.set(0, 4.15, 0.65);
-                wfSprite.scale.set(3.1, 0.78, 1.0);
-                wfSprite.visible = false;
+                wfSprite.name = 'StorefrontFloatingLabel';
+                wfSprite.userData = { isFloatingStoreText: true };
+                wfSprite.position.set(0, 4.65, 0.55);
+                wfSprite.scale.set(3.8, 3.8 * 0.1875, 1.0);
+                wfSprite.visible = true;
                 signGroup._wayfinderSprite = wfSprite;
                 signGroup._wayfinderMat = wfMat;
+                signGroup._ownedWayfinderTexture = wfTex;
 
-                signGroup.add(fasciaMount, bracketArm, bracketBoard, bracketFaceL, bracketFaceR, wfSprite);
+                signGroup.add(fasciaMount, wfSprite);
                 return signGroup;
             }
             // depthTest = true so buildings, walls, and pillars properly occlude labels
@@ -6677,6 +6779,7 @@ class Dungeon3D {
                 this.terrainLabelsGroup.remove(sprite);
                 if (sprite._ownedSignTexture) sprite._ownedSignTexture.dispose();
                 if (sprite._ownedSignMaterial) sprite._ownedSignMaterial.dispose();
+                if (sprite._ownedWayfinderTexture) sprite._ownedWayfinderTexture.dispose();
                 if (sprite._wayfinderMat) sprite._wayfinderMat.dispose();
                 if (sprite.material) {
                     if (sprite.material.map) sprite.material.map.dispose();
@@ -8640,7 +8743,7 @@ class Dungeon3D {
         const normalizeWrapper = (content, targetHeight, isHeightOnly = true, yawOffset = 0, maxFootprint = 1.65) => {
             if (templateKey.startsWith('bestiary_') || templateKey.startsWith('obj_') || templateKey === 'ph_street_rat' || templateKey === 'env_fungi_cluster' || templateKey === 'env_ooze_mound') {
                 const bumpType = /wolf|husky|fox|shiba|lion|bear|horse|yeti|gnoll|rat|bat|bird|owl|stork|flamingo/.test(templateKey) ? 'fur'
-                    : /dragon|snake|lizard|naga|hydra|aquatic/.test(templateKey) ? 'scale'
+                    : /dragon|snake|lizard|naga|hydra|aquatic|cockatrice/.test(templateKey) ? 'scale'
                     : /spider|centipede|beetle|scorpion|ant|wasp/.test(templateKey) ? 'chitin'
                     : 'organic';
                 this._enhanceBestiaryMeshQuality(content, { smoothNormals: true, applyCreatureBump: true, bumpType, roughness: 0.45 });
@@ -8987,7 +9090,21 @@ class Dungeon3D {
             });
         } else if (templateKey === 'bestiary_yeti') {
             loadPromise = loadGltf('/assets/models/monsters/bestiary/YetiSmall.glb', () => loadGltf('/assets/models/monsters/bestiary/troll.glb', () => this._ensureMonster3DTemplate('char_male_ranger'))).then(scene => {
-                return normalizeWrapper(scene, 1.95, true, 0, 1.65);
+                return normalizeWrapper(scene, 1.95, true, 0, 1.85);
+            });
+        } else if (templateKey === 'bestiary_frost_construct') {
+            loadPromise = loadGltf(
+                '/assets/models/monsters/bestiary/frost_construct.glb',
+                () => loadGltf('/assets/models/monsters/bestiary/YetiSmall.glb', () => loadGltf('/assets/models/monsters/bestiary/stone_golem.glb'))
+            ).then(scene => {
+                return normalizeWrapper(scene, 1.95, true, 0, 1.85);
+            });
+        } else if (templateKey === 'bestiary_cockatrice') {
+            loadPromise = loadGltf(
+                '/assets/models/monsters/bestiary/cockatrice.glb',
+                () => loadGltf('/assets/models/monsters/bestiary/lizard.glb', () => loadGltf('/assets/models/monsters/bestiary/Owl.glb'))
+            ).then(scene => {
+                return normalizeWrapper(scene, 0.92, true, -Math.PI / 2, 1.35);
             });
         } else if (templateKey === 'bestiary_wolf') {
             loadPromise = loadGltf('/assets/models/monsters/bestiary/wolf.glb', () => this._ensureMonster3DTemplate('bestiary_fox')).then(scene => {
@@ -8997,12 +9114,12 @@ class Dungeon3D {
         } else if (templateKey === 'bestiary_werewolf') {
             loadPromise = loadGltf('/assets/models/monsters/bestiary/werewolf.glb', () => this._ensureMonster3DTemplate('bestiary_wolf')).then(scene => {
                 this._enhanceBestiaryMeshQuality(scene, { smoothNormals: true, applyCreatureBump: true, bumpType: 'fur', bumpScale: 0.38, roughness: 0.54 });
-                return normalizeWrapper(scene, 1.75, true, 0, 1.55);
+                return normalizeWrapper(scene, 1.75, true, -Math.PI / 2, 1.55);
             });
         } else if (templateKey === 'bestiary_hellhound') {
             loadPromise = loadGltf('/assets/models/monsters/bestiary/hellhound.glb', () => this._ensureMonster3DTemplate('bestiary_wolf')).then(scene => {
                 this._enhanceBestiaryMeshQuality(scene, { smoothNormals: true, applyCreatureBump: true, bumpType: 'fur', bumpScale: 0.36, roughness: 0.50 });
-                return normalizeWrapper(scene, 0.96, true, 0, 1.50);
+                return normalizeWrapper(scene, 0.96, true, -Math.PI / 2, 1.50);
             });
         } else if (templateKey === 'bestiary_husky') {
             loadPromise = loadGltf('/assets/models/monsters/bestiary/husky.glb', () => this._ensureMonster3DTemplate('bestiary_wolf')).then(scene => {
@@ -9095,7 +9212,7 @@ class Dungeon3D {
             });
         } else if (templateKey === 'bestiary_worm_mass') {
             loadPromise = loadGltf('/assets/models/monsters/bestiary/worm_mass.glb', () => this._ensureMonster3DTemplate('obj_snake')).then(scene => {
-                return normalizeWrapper(scene, 0.42, true, 0, 1.25);
+                return normalizeWrapper(scene, 0.42, true, -Math.PI / 2, 1.25);
             });
         } else if (templateKey === 'env_fungi_cluster' || templateKey === 'env_mushroom_patch') {
             loadPromise = loadGltf('/assets/models/monsters/bestiary/mushroom_cluster.glb', () => loadGltf('/assets/polyhaven/models/crystalline_iceplant/crystalline_iceplant.gltf', () => loadGltf('/assets/polyhaven/models/moon_rock_02/moon_rock_02.gltf'))).then(scene => {
@@ -9304,7 +9421,7 @@ class Dungeon3D {
             });
         } else if (templateKey === 'bestiary_lizard') {
             loadPromise = loadGltf('/assets/models/monsters/bestiary/lizard.glb', () => this._ensureMonster3DTemplate('obj_frog')).then(scene => {
-                return normalizeWrapper(scene, 0.54, true, 0, 1.35);
+                return normalizeWrapper(scene, 0.54, true, Math.PI / 2, 1.35);
             });
         } else if (templateKey === 'bestiary_kraken') {
             loadPromise = loadGltf('/assets/models/monsters/bestiary/kraken.glb', () => this._ensureMonster3DTemplate('bestiary_aquatic')).then(scene => {
@@ -9622,7 +9739,7 @@ class Dungeon3D {
             }
             if (/shuten|\boni\b|ooe-mountain|酒呑童子|鬼/.test(lowerName)) {
                 return {
-                    templateKey: 'bestiary_yeti',
+                    templateKey: 'bestiary_guardian',
                     scale: 1.55,
                     weaponKey: 'ph_sledgehammer',
                     tintHex: '#a82820',
@@ -9702,7 +9819,7 @@ class Dungeon3D {
                 return { templateKey: 'bestiary_scorpion', scale: 0.95, tintHex: colorHex, seed };
             }
             if (g === 'c' || /cockatrice|chickatrice|pyrolisk/i.test(lowerName)) {
-                return { templateKey: 'bestiary_flamingo', scale: 0.92, tintHex: colorHex || '#f59e0b', isFloating: false, seed };
+                return { templateKey: 'bestiary_cockatrice', scale: 0.92, tintHex: colorHex || '#f59e0b', isFloating: false, seed };
             }
             if (g === 'h') {
                 if (/mind flayer/i.test(lowerName)) {
@@ -9780,6 +9897,17 @@ class Dungeon3D {
                 weaponKey: 'ph_mace',
                 tintHex: '#4b2d73',
                 isBoss: true,
+                seed
+            };
+        }
+
+        // Frost / Ice Constructs
+        if (/\b(ice monster|frost construct|ice construct|ice golem)\b/.test(lowerName) || (realm === 'rogue' && g === 'I')) {
+            return {
+                templateKey: 'bestiary_frost_construct',
+                scale: 1.08,
+                tintHex: colorHex || '#bae6fd',
+                emissiveHex: '#38bdf8',
                 seed
             };
         }
@@ -10093,7 +10221,7 @@ class Dungeon3D {
 
         // Dragons & Drakes (d, D)
         // # ROOT-CAUSE: Gate legacy 'd' glyph fallback on active realm so NetHack canines ('d') and Brogue Dar ('d') never match dragon fallback.
-        const fallbackRealm = this._resolveActiveRealmKey();
+        const fallbackRealm = (typeof this._resolveActiveRealmKey === 'function') ? this._resolveActiveRealmKey() : realm;
         if (g === 'D' || (g === 'd' && fallbackRealm !== 'nethack' && fallbackRealm !== 'brogue') || /\b(dragon|drake|wyrm)\b/i.test(lower)) {
             const isAncient = (g === 'D' || lower.includes('ancient') || lower.includes('wyrm'));
             return {
@@ -10237,9 +10365,19 @@ class Dungeon3D {
             };
         }
 
+        if (/cockatrice|chickatrice|pyrolisk/i.test(lower)) {
+            return {
+                templateKey: 'bestiary_cockatrice',
+                scale: 0.92,
+                tintHex: colorHex,
+                isFloating: false,
+                seed
+            };
+        }
+
         // 13. Hybrids (g === 'H')
-        if (g === 'H' || /harpy|griffon|hippogriff|\broc\b|siren|garuda|cockatrice|chickatrice|pegasus|sphinx|minotaur|centaur|satyr|faun|owlbear/i.test(lower)) {
-            if (/harpy|griffon|hippogriff|\broc\b|siren|garuda|cockatrice|chickatrice|pegasus|sphinx/i.test(lower)) {
+        if (g === 'H' || /harpy|griffon|hippogriff|\broc\b|siren|garuda|pegasus|sphinx|minotaur|centaur|satyr|faun|owlbear/i.test(lower)) {
+            if (/harpy|griffon|hippogriff|\broc\b|siren|garuda|pegasus|sphinx/i.test(lower)) {
                 return {
                     templateKey: 'bestiary_owl',
                     scale: 1.18,
@@ -12470,16 +12608,17 @@ class Dungeon3D {
         if (this._animLoopScheduled) return;
         this._animLoopScheduled = true;
         if (typeof requestAnimationFrame === 'function') {
-            requestAnimationFrame(this.animate);
+            this._rafId = requestAnimationFrame(this.animate);
         }
     }
 
     animate() {
         if (!this._gpuInitialized || !this.renderer) {
             this._animLoopScheduled = false;
+            this._rafId = null;
             return;
         }
-        requestAnimationFrame(this.animate);
+        this._rafId = requestAnimationFrame(this.animate);
 
         const tNow = performance.now();
 
@@ -12533,6 +12672,9 @@ class Dungeon3D {
                 this.castAnimationTime > 0 ||
                 this.actionAnimationTime > 0 ||
                 (this.particles && this.particles.length > 0) ||
+                (this._activeHitSparks && this._activeHitSparks.length > 0) ||
+                (this.activeProjectiles && this.activeProjectiles.length > 0) ||
+                (this._vfxFlashState && this._vfxFlashState.active) ||
                 (this.floatingTexts && this.floatingTexts.length > 0) ||
                 (this._dyingMonsters && this._dyingMonsters.length > 0) ||
                 (this.camera && (Math.abs(this.camera.rotation.y - (this.targetYaw || 0)) > 0.002 || Math.abs(this.camera.rotation.x - ((this.basePitch || 0) + (this.userPitchOffset || 0))) > 0.002));
@@ -12887,7 +13029,42 @@ class Dungeon3D {
             }
         }
 
-        // Kinetic impact sparks & combat particles
+        // Pooled 60fps impact sparks (zero per-impact GPU/GC allocations)
+        if (this._activeHitSparks && this._activeHitSparks.length > 0) {
+            for (let i = this._activeHitSparks.length - 1; i >= 0; i--) {
+                const p = this._activeHitSparks[i];
+                p.elapsed += delta;
+                const grav = p.gravity !== undefined ? p.gravity : 6.0;
+                const sCount = p.activeCount || 0;
+                for (let sIdx = 0; sIdx < sCount; sIdx++) {
+                    const sp = p.sparks[sIdx];
+                    sp.mesh.position.addScaledVector(sp.vel, delta);
+                    sp.vel.y -= delta * grav;
+                    if (sp.isStreak && sp.vel.lengthSq() > 0.01) {
+                        const lookTarget = this._tmpSparkLook || (this._tmpSparkLook = new THREE.Vector3());
+                        lookTarget.copy(sp.mesh.position).add(sp.vel);
+                        sp.mesh.lookAt(lookTarget);
+                    }
+                }
+                const alpha = Math.max(0, 1.0 - (p.elapsed / p.duration));
+                p.material.opacity = alpha;
+                if (p.altMaterial) p.altMaterial.opacity = alpha;
+                if (p.hasShockRing && p.shockRingMesh) {
+                    const sFrac = Math.min(1.0, p.elapsed / p.duration);
+                    const ringScale = 1.0 + sFrac * 2.2;
+                    p.shockRingMesh.scale.set(ringScale, ringScale, ringScale);
+                    if (p.ringMat) p.ringMat.opacity = alpha * 0.85;
+                }
+                if (p.elapsed >= p.duration) {
+                    p.group.visible = false;
+                    if (this.scene) this.scene.remove(p.group);
+                    this._activeHitSparks.splice(i, 1);
+                    if (this._hitSparkPool) this._hitSparkPool.push(p);
+                }
+            }
+        }
+
+        // Legacy kinetic impact sparks & combat particles fallback
         for (let i = this.particles.length - 1; i >= 0; i--) {
             const p = this.particles[i];
             p.elapsed += delta;
@@ -12910,8 +13087,8 @@ class Dungeon3D {
             }
             if (p.elapsed >= p.duration) {
                 this.scene.remove(p.group);
-                p.material.dispose();
-                if (p.ringMat) p.ringMat.dispose();
+                if (p.material && !p.material._sharedMaterial) p.material.dispose();
+                if (p.ringMat && !p.ringMat._sharedMaterial) p.ringMat.dispose();
                 this.particles.splice(i, 1);
             }
         }
@@ -12930,8 +13107,20 @@ class Dungeon3D {
                     proj.group.position.y += 4 * 0.65 * t * (1.0 - t);
                     proj.group.rotation.x += delta * 12.0;
                     proj.group.rotation.z += delta * 8.0;
-                } else if (proj.kind === 'fireball' || proj.kind === 'bolt') {
+                } else if (proj.kind === 'fireball' || proj.kind === 'bolt' || proj.kind === 'frost' || proj.kind === 'frost_bolt' || proj.kind === 'acid' || proj.kind === 'acid_bolt' || proj.kind === 'poison' || proj.kind === 'nether' || proj.kind === 'chaos') {
                     proj.group.position.lerpVectors(proj.startPos, proj.endPos, t);
+                    if (proj.spinMeshes) {
+                        for (let sIdx = 0; sIdx < proj.spinMeshes.length; sIdx++) {
+                            const sm = proj.spinMeshes[sIdx];
+                            const dirSign = (sIdx % 2 === 0) ? 1 : -1;
+                            sm.rotation.z += delta * 7.5 * dirSign;
+                            sm.rotation.x += delta * 4.5 * dirSign;
+                        }
+                    }
+                    if (proj.kind === 'acid' || proj.kind === 'acid_bolt' || proj.kind === 'poison') {
+                        const pulse = 1.0 + Math.sin(t * Math.PI * 4.0) * 0.14;
+                        proj.group.scale.setScalar(pulse);
+                    }
                 } else if (proj.kind === 'breath') {
                     const dist = proj.dist || Math.max(1.5, proj.startPos.distanceTo(proj.endPos));
                     const zReach = dist * Math.min(1.0, t * 1.4);
@@ -12948,11 +13137,24 @@ class Dungeon3D {
                     if (proj.pLight) proj.pLight.intensity = fade * 4.5;
                 } else if (proj.kind === 'detonation') {
                     const sc = (proj.baseScale || 1.0) * (0.8 + t * 1.6);
-                    proj.group.scale.set(sc, sc, sc);
+                    proj.group.scale.set(sc, proj.squashY ? sc * proj.squashY : sc, sc);
                     const fade = Math.max(0, 1.0 - t);
-                    if (proj.domeMat) proj.domeMat.opacity = fade * 0.82;
+                    if (proj.domeMat) proj.domeMat.opacity = fade * (proj.domeOpacity || 0.82);
                     if (proj.coreMat) proj.coreMat.opacity = fade * 0.95;
+                    if (proj.altDomeMat) proj.altDomeMat.opacity = fade * 0.85;
                     if (proj.ringMat) proj.ringMat.opacity = fade * 0.88;
+                    if (proj.extraMat) proj.extraMat.opacity = fade * 0.92;
+                    if (proj.extraMeshes) {
+                        for (let eIdx = 0; eIdx < proj.extraMeshes.length; eIdx++) {
+                            const em = proj.extraMeshes[eIdx];
+                            if (em.userData && em.userData.spinRate) {
+                                em.rotation.z += delta * em.userData.spinRate;
+                                em.rotation.y += delta * em.userData.spinRate * 0.6;
+                            } else if (em.userData && em.userData.radialDir) {
+                                em.position.addScaledVector(em.userData.radialDir, delta * 2.2);
+                            }
+                        }
+                    }
                     if (proj.pLight) proj.pLight.intensity = (1.0 - t) * 4.2;
                 } else if (proj.kind === 'slash' || proj.kind === 'crit_slash' || proj.kind === 'axe_cleave') {
                     proj.group.rotation.z += delta * (proj.kind === 'axe_cleave' ? 8.2 : 6.5);
@@ -13015,11 +13217,11 @@ class Dungeon3D {
                 }
 
                 if (proj.elapsed >= proj.duration) {
-                    this.scene.remove(proj.group);
+                    if (this.scene) this.scene.remove(proj.group);
                     if (proj.onComplete) proj.onComplete();
                     if (proj.disposables) {
                         for (const d of proj.disposables) {
-                            if (d && typeof d.dispose === 'function') d.dispose();
+                            if (d && !d._sharedGeometry && !d._sharedMaterial && !d._sharedTexture && typeof d.dispose === 'function') d.dispose();
                         }
                     }
                     this.activeProjectiles.splice(i, 1);
@@ -13027,7 +13229,7 @@ class Dungeon3D {
             }
         }
 
-        // Distance culling for floating terrain labels (Godot VisibilityRangeEnd: 45m stores, 25m stairs)
+        // Distance culling for floating terrain labels (90m stores, 25m stairs/landmarks; store floating text stays visible at all distances)
         if (this.terrainLabelsGroup && this.terrainLabelsGroup.children) {
             for (let i = 0; i < this.terrainLabelsGroup.children.length; i++) {
                 const sprite = this.terrainLabelsGroup.children[i];
@@ -13036,10 +13238,13 @@ class Dungeon3D {
                 sprite.visible = (dSq <= maxDist * maxDist);
                 if (sprite._wayfinderSprite && sprite._wayfinderMat) {
                     const dist = Math.sqrt(dSq);
-                    const showWf = sprite.visible && dist >= 6.0;
-                    sprite._wayfinderSprite.visible = showWf;
-                    if (showWf) {
-                        sprite._wayfinderMat.opacity = Math.min(0.92, (dist - 6.0) / 5.0);
+                    sprite._wayfinderSprite.visible = sprite.visible;
+                    sprite._wayfinderMat.opacity = 1.0;
+                    if (sprite.visible) {
+                        const wfW = Math.min(11.5, Math.max(3.6, 2.2 + dist * 0.16));
+                        const wfY = Math.min(5.85, Math.max(4.55, 4.20 + dist * 0.055));
+                        sprite._wayfinderSprite.position.y = wfY;
+                        sprite._wayfinderSprite.scale.set(wfW, wfW * 0.1875, 1.0);
                     }
                 }
             }

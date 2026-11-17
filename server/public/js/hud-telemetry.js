@@ -147,6 +147,9 @@
         const spdDelta = normalizeSpeedDelta(entity.speed !== undefined ? entity.speed : (lore && lore.speed), r);
         const speedChip = spdDelta > 0 ? `⚡ +${spdDelta}` : (spdDelta < 0 ? `🐢 ${spdDelta}` : '');
         const acVal = (lore && lore.ac !== undefined) ? lore.ac : ((lore && lore.evn !== undefined) ? `EV ${lore.evn}${lore.pd ? ` [${lore.pd}d${lore.ps || 4}]` : ''}` : entity.ac);
+        const rc = (typeof window !== 'undefined' && window.RealmCartridge) ? window.RealmCartridge : ((typeof RealmCartridge !== 'undefined') ? RealmCartridge : null);
+        const defSchema = (rc && typeof rc.getDefenseSchema === 'function') ? rc.getDefenseSchema(r) : null;
+        const defLabel = (defSchema && defSchema.label) || (r === 'rogue' ? 'Arm' : (r === 'brogue' ? 'Armor' : 'AC'));
         const blows = (lore && Array.isArray(lore.blows) && lore.blows.length > 0) ? lore.blows.slice(0, 2).join(', ') : '';
         let spellChip = '';
         if (lore && Array.isArray(lore.spells) && lore.spells.length > 0) {
@@ -158,7 +161,7 @@
             ? lore.known_resists.slice(0, 4).join('/')
             : '';
         const alertLabel = entity.alertness_label ? String(entity.alertness_label) : '';
-        return { lore, spdDelta, speedChip, acVal, blows, spellChip, resists, alertLabel };
+        return { lore, spdDelta, speedChip, acVal, defLabel, blows, spellChip, resists, alertLabel };
     }
 
     function renderResistStrip(container, player, realm) {
@@ -224,13 +227,16 @@
         if (objFeel <= 0 && _inferredFeelingRealm === r && _inferredFeelingDepth === depth) {
             objFeel = _inferredObjFeel;
         }
-        const sig = `${r}:${depth}:${monFeel}:${objFeel}:${player.stealth_mode ? 1 : 0}:${player.song_name || player.song || ''}`;
+        const song1 = player.song_name || ((player.song && Number(player.song) !== 100) ? String(player.song) : '');
+        const hasSong2 = player.song2 != null && Number(player.song2) !== 0 && Number(player.song2) !== 100 && Boolean(player.song2_name);
+        const song2 = hasSong2 ? String(player.song2_name) : '';
+        const sig = `${r}:${depth}:${monFeel}:${objFeel}:${player.stealth_mode ? 1 : 0}:${player.stealth_score ?? ''}:${song1}:${player.song2 || 0}:${song2}`;
         if (sig === _lastFeelingSig) return;
         _lastFeelingSig = sig;
 
         if (r === 'silq') {
             const st = player.stealth_mode ? '🤫 Stealth' : '👣 Stride';
-            const sng = player.song_name || player.song || '';
+            const sng = song1 && song2 ? `${song1} + ${song2}` : (song1 || song2);
             el.textContent = sng ? `${st} • 🎵 ${sng}` : `${st}${player.stealth_score !== undefined ? ` (${player.stealth_score})` : ''}`;
             el.className = 'hud-feeling-pill feeling-silq';
             el.classList.remove('hidden');

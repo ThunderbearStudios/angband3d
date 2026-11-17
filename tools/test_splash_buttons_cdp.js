@@ -86,7 +86,7 @@ async function run() {
             activeRealm: window.__app.getActiveRealm(),
             splashVisible: !document.getElementById('splash-overlay').classList.contains('hidden'),
             menuVisible: !document.getElementById('main-menu-overlay').classList.contains('hidden'),
-            splashButtonsCount: document.querySelectorAll('#splash-overlay button').length
+            splashButtonsCount: Array.from(document.querySelectorAll('#splash-overlay button')).filter(b => b.offsetParent !== null).length
         })`,
         returnByValue: true
     })).result.value;

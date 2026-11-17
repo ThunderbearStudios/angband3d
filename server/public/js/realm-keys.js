@@ -37,26 +37,31 @@
         return null;
     }
 
-    // Canonical keymaps for all 8 supported realms in YASD 3D / Yendor Engine.
+    // Canonical keymaps for all 9 supported realms in YASD 3D / Yendor Engine.
     const TABLE = Object.freeze({
         cast: Object.freeze({ angband: 'm', silq: 's', frogcomposband: 'm', hengband: 'm', nethack: 'Z', dcss: 'z', brogue: null, rogue: null, ryod: 'm' }),
         throw: Object.freeze({ angband: 'v', silq: 't', frogcomposband: 'v', hengband: 'v', nethack: 't', dcss: 'f', brogue: 't', rogue: 't', ryod: 't' }),
         fire: Object.freeze({ angband: 'f', silq: 'f', frogcomposband: 'f', hengband: 'f', nethack: 'f', dcss: 'f', brogue: 't', rogue: 't', ryod: 'f' }),
         quaff: Object.freeze({ angband: 'q', silq: 'q', frogcomposband: 'q', hengband: 'q', nethack: 'q', dcss: 'q', brogue: 'q', rogue: 'q', ryod: 'q' }),
-        eat: Object.freeze({ angband: 'E', silq: 'E', frogcomposband: 'E', hengband: 'E', nethack: 'E', dcss: 'E', brogue: 'E', rogue: 'E', ryod: 'E' }),
+        eat: Object.freeze({ angband: 'E', silq: 'E', frogcomposband: 'E', hengband: 'E', nethack: 'e', dcss: 'e', brogue: 'E', rogue: 'e', ryod: 'E' }),
         read: Object.freeze({ angband: 'r', silq: null, frogcomposband: 'r', hengband: 'r', nethack: 'r', dcss: 'r', brogue: 'r', rogue: 'r', ryod: 'r' }),
         rest: Object.freeze({ angband: 'R', silq: '%', frogcomposband: 'R', hengband: 'R', nethack: '.', dcss: '5', brogue: 'z', rogue: '.', ryod: '.' }),
-        open: Object.freeze({ angband: 'o', silq: 'o', frogcomposband: 'o', hengband: 'o', nethack: 'o', dcss: 'o', brogue: 'o', rogue: 'o', ryod: 'o' }),
+        open: Object.freeze({ angband: 'o', silq: 'o', frogcomposband: 'o', hengband: 'o', nethack: 'o', dcss: 'O', brogue: 'o', rogue: 'o', ryod: 'o' }),
         pickup: Object.freeze({ angband: 'g', silq: 'g', frogcomposband: 'g', hengband: 'g', nethack: ',', dcss: 'g', brogue: 'g', rogue: ',', ryod: 'g' }),
         inven: Object.freeze({ angband: 'i', silq: 'i', frogcomposband: 'i', hengband: 'i', nethack: 'i', dcss: 'i', brogue: 'i', rogue: 'i', ryod: 'i' }),
-        equip: Object.freeze({ angband: 'e', silq: 'e', frogcomposband: 'e', hengband: 'e', nethack: 'e', dcss: 'e', brogue: 'e', rogue: 'e', ryod: 'e' }),
+        equip: Object.freeze({ angband: 'e', silq: 'e', frogcomposband: 'e', hengband: 'e', nethack: '[', dcss: 'E', brogue: '[', rogue: 'E', ryod: 'e' }),
         use: Object.freeze({ angband: 'U', silq: 'u', frogcomposband: null, hengband: null, nethack: 'a', dcss: 'a', brogue: 'a', rogue: 'z', ryod: 'a' }),
         activate: Object.freeze({ angband: 'A', silq: 'p', frogcomposband: 'A', hengband: 'A', nethack: 'a', dcss: 'a', brogue: 'a', rogue: 'z', ryod: 'a' }),
         pet: Object.freeze({ angband: null, silq: null, frogcomposband: 'p', hengband: 'p', nethack: 'C', dcss: null, brogue: null, rogue: null, ryod: 'p' }),
+        aim: Object.freeze({ angband: 'a', silq: null, frogcomposband: 'a', hengband: 'a', nethack: 'z', dcss: 'V', brogue: 'a', rogue: 'z', ryod: 'a' }),
         use_staff: Object.freeze({ angband: 'u', silq: 'a', frogcomposband: 'u', hengband: 'u', nethack: 'a', dcss: 'V', brogue: 'a', rogue: 'z', ryod: 'a' }),
+        zap: Object.freeze({ angband: 'z', silq: null, frogcomposband: 'z', hengband: 'z', nethack: 'z', dcss: 'V', brogue: 'a', rogue: 'z', ryod: 'a' }),
         hold: Object.freeze({ angband: ',', silq: 'z', frogcomposband: ',', hengband: ',', nethack: '.', dcss: '.', brogue: '.', rogue: '.', ryod: '.' }),
         browse: Object.freeze({ angband: 'b', silq: null, frogcomposband: 'b', hengband: 'b', nethack: 'r', dcss: 'I', brogue: null, rogue: null, ryod: 'M' }),
         study: Object.freeze({ angband: 'G', silq: null, frogcomposband: 'G', hengband: 'G', nethack: 'r', dcss: 'M', brogue: null, rogue: null, ryod: 'M' }),
+        song: Object.freeze({ angband: null, silq: 's', frogcomposband: null, hengband: null, nethack: null, dcss: null, brogue: null, rogue: null, ryod: 'm' }),
+        smith: Object.freeze({ angband: null, silq: '0', frogcomposband: null, hengband: null, nethack: null, dcss: null, brogue: null, rogue: null, ryod: '0' }),
+        exchange: Object.freeze({ angband: null, silq: 'X', frogcomposband: null, hengband: null, nethack: 'x', dcss: "'", brogue: null, rogue: null, ryod: 'x' }),
         power: Object.freeze({ angband: null, silq: null, frogcomposband: 'U', hengband: 'U', nethack: '#', dcss: 'a', brogue: null, rogue: null, ryod: 'm' }),
         skills: Object.freeze({ angband: null, silq: 'tab', frogcomposband: null, hengband: null, nethack: null, dcss: 'm', brogue: null, rogue: null, ryod: 'm' }),
         abilities: Object.freeze({ angband: null, silq: 'tab', frogcomposband: null, hengband: null, nethack: 'C', dcss: 'm', brogue: null, rogue: null, ryod: 'm' }),
@@ -65,8 +70,21 @@
         search: Object.freeze({ angband: null, silq: null, frogcomposband: 'S', hengband: 'S', nethack: 's', dcss: 's', brogue: 's', rogue: 's', ryod: 's' }),
         steal: Object.freeze({ angband: 's', silq: null, frogcomposband: null, hengband: null, nethack: null, dcss: null, brogue: null, rogue: null, ryod: null }),
         search_mode: Object.freeze({ angband: null, silq: 'S', frogcomposband: 'S', hengband: 'S', nethack: 's', dcss: 's', brogue: 's', rogue: 's', ryod: 's' }),
+        explore: Object.freeze({ angband: 'p', silq: 'Alt+E', frogcomposband: 'Alt+E', hengband: 'Alt+E', nethack: 'Alt+E', dcss: 'o', brogue: 'e', rogue: 'Alt+E', ryod: 'Alt+E' }),
         takeoff: Object.freeze({ angband: 't', silq: 'r', frogcomposband: 't', hengband: 't', nethack: 'T', dcss: 'T', brogue: 'T', rogue: 'T', ryod: 'T' }),
         examine: Object.freeze({ angband: 'I', silq: 'x', frogcomposband: 'I', hengband: 'I', nethack: ':', dcss: 'v', brogue: 'x', rogue: 'I', ryod: 'I' }),
+        pray: Object.freeze({ angband: null, silq: null, frogcomposband: null, hengband: null, nethack: '#pray', dcss: 'p', brogue: null, rogue: null, ryod: 'p' }),
+        offer: Object.freeze({ angband: null, silq: null, frogcomposband: null, hengband: null, nethack: '#offer', dcss: null, brogue: null, rogue: null, ryod: null }),
+        dip: Object.freeze({ angband: null, silq: null, frogcomposband: null, hengband: null, nethack: '#dip', dcss: null, brogue: null, rogue: null, ryod: null }),
+        chat: Object.freeze({ angband: null, silq: null, frogcomposband: null, hengband: null, nethack: '#chat', dcss: null, brogue: null, rogue: null, ryod: null }),
+        loot: Object.freeze({ angband: null, silq: null, frogcomposband: null, hengband: null, nethack: '#loot', dcss: null, brogue: null, rogue: null, ryod: null }),
+        force: Object.freeze({ angband: null, silq: null, frogcomposband: null, hengband: null, nethack: '#force', dcss: null, brogue: null, rogue: null, ryod: null }),
+        engrave: Object.freeze({ angband: null, silq: null, frogcomposband: null, hengband: null, nethack: 'E', dcss: null, brogue: null, rogue: null, ryod: null }),
+        discoveries: Object.freeze({ angband: null, silq: null, frogcomposband: null, hengband: null, nethack: null, dcss: null, brogue: 'D', rogue: 'D', ryod: null }),
+        id_trap: Object.freeze({ angband: null, silq: null, frogcomposband: null, hengband: null, nethack: null, dcss: null, brogue: null, rogue: '^', ryod: null }),
+        god: Object.freeze({ angband: null, silq: null, frogcomposband: null, hengband: null, nethack: null, dcss: '^', brogue: null, rogue: null, ryod: null }),
+        mutations: Object.freeze({ angband: null, silq: null, frogcomposband: null, hengband: null, nethack: null, dcss: 'A', brogue: null, rogue: null, ryod: null }),
+        autofight: Object.freeze({ angband: null, silq: null, frogcomposband: null, hengband: null, nethack: null, dcss: 'tab', brogue: null, rogue: null, ryod: null }),
         char_sheet: Object.freeze({ angband: 'C', silq: '@', frogcomposband: 'C', hengband: 'C', nethack: 'C', dcss: '%', brogue: 'C', rogue: 'C', ryod: 'C' }),
         options: Object.freeze({ angband: '=', silq: 'O', frogcomposband: '=', hengband: '=', nethack: 'O', dcss: '=', brogue: '=', rogue: '=', ryod: '=' })
     });
@@ -125,7 +143,7 @@
 
         // Legacy action-bar verb overrides
         if (verb === 'skills') {
-            return (r === 'silq') ? 'tab' : (r === 'dcss' ? 'm' : null);
+            return (r === 'silq') ? 'tab' : ((r === 'dcss' || r === 'ryod') ? 'm' : null);
         }
 
         const catalog = getCatalog();
@@ -139,15 +157,17 @@
             if (key !== null) return key;
             // If catalog returned null, check if TABLE explicitly defines it (e.g. legacy verbs)
             const map = REALM_KEYS[r];
-            if (map && map[verb] !== undefined) {
-                return map[verb];
+            const fbVerb = verb === 'equipment' ? 'equip' : (verb === 'inventory' ? 'inven' : verb);
+            if (map && map[fbVerb] !== undefined) {
+                return map[fbVerb];
             }
             return null;
         }
 
         const map = REALM_KEYS[r];
         if (!map) return null;
-        return map[verb] !== undefined ? map[verb] : null;
+        const fbVerb = verb === 'equipment' ? 'equip' : (verb === 'inventory' ? 'inven' : verb);
+        return map[fbVerb] !== undefined ? map[fbVerb] : null;
     }
 
     /**
@@ -292,11 +312,14 @@
         const r = realm || getActiveRealm();
         const effLang = lang || (typeof window !== 'undefined' ? (window.__langMode || 'en') : 'en');
 
+        const termToggleKey = (r === 'silq' || r === 'dcss') ? 'Alt+T' : 'Tab';
         for (const cfg of BUTTON_CONFIG) {
             const btn = doc.getElementById(cfg.id);
             if (!btn) continue;
 
-            const key = cfg.defaultKey ? cfg.defaultKey : realmKey(cfg.verb, r);
+            const key = (cfg.id === 'btn-terminal')
+                ? termToggleKey
+                : (cfg.defaultKey ? cfg.defaultKey : realmKey(cfg.verb, r));
             if (key === null) {
                 btn.hidden = true;
                 if (btn.dataset) btn.dataset.realmHidden = '1';
@@ -333,6 +356,12 @@
                 }
                 btn.title = `${cfg.defaultTitle} [${displayKey}]`;
             }
+        }
+        const crtBtn = doc.getElementById('btn-map-toggle-crt');
+        if (crtBtn) {
+            const crtKbd = crtBtn.querySelector ? crtBtn.querySelector('kbd') : null;
+            if (crtKbd) crtKbd.textContent = termToggleKey;
+            crtBtn.title = `Switch between 3D Dungeon and 1983 80x24 ASCII Terminal [${termToggleKey}]`;
         }
     }
 

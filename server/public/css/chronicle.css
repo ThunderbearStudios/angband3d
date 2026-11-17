@@ -13,14 +13,14 @@ body.is-standalone #chronicle-window {
     position: absolute;
     top: 50px;
     right: 20px;
-    z-index: 7;
+    z-index: 28;
     width: min(340px, calc(100vw - 32px));
     min-width: 260px;
     max-width: 90vw;
     height: min(340px, 52dvh);
     min-height: 160px;
     max-height: 85vh;
-    background: rgba(10, 13, 20, 0.94);
+    background: rgba(20, 23, 29, 0.94);
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
     border: 1px solid rgba(212, 175, 55, 0.45);
@@ -49,15 +49,17 @@ body.is-standalone #chronicle-window {
     display: none !important;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 768px), (max-height: 500px) and (orientation: landscape) {
     #chronicle-window {
-        top: 45px;
-        left: 10px;
-        right: 10px;
+        top: calc(38px + var(--safe-top, 0px));
+        left: max(8px, var(--safe-left, 0px));
+        right: max(8px, var(--safe-right, 0px));
         width: auto;
         min-width: 0;
         max-width: none;
-        height: 380px;
+        height: min(420px, calc(100dvh - 48px - var(--safe-top, 0px) - var(--safe-bottom, 0px)));
+        max-height: calc(100dvh - 48px - var(--safe-top, 0px) - var(--safe-bottom, 0px));
+        z-index: 85;
     }
 }
 
@@ -103,7 +105,7 @@ body.is-standalone #chronicle-window {
     align-items: center;
     justify-content: space-between;
     gap: 6px;
-    background: rgba(8, 11, 18, 0.7);
+    background: rgba(20, 23, 29, 0.90);
     border: 1px solid rgba(212, 175, 55, 0.2);
     border-radius: 5px;
     padding: 3px 6px;
@@ -197,9 +199,9 @@ body.is-standalone #chronicle-window {
 .chronicle-tradition-badge {
     font-size: 9px;
     font-family: var(--font-terminal, monospace);
-    color: #94a3b8;
-    background: rgba(148, 163, 184, 0.12);
-    border: 1px solid rgba(148, 163, 184, 0.25);
+    color: #cbd5e1;
+    background: rgba(148, 163, 184, 0.14);
+    border: 1px solid rgba(148, 163, 184, 0.28);
     border-radius: 3px;
     padding: 1px 5px;
     letter-spacing: 0.5px;
@@ -657,7 +659,7 @@ body.is-standalone #chronicle-window {
 }
 
 .chronicle-query-input::placeholder {
-    color: #64748b;
+    color: #b4bfd0;
     font-style: italic;
 }
 
@@ -722,10 +724,10 @@ body.is-standalone #chronicle-window {
 }
 
 .quick-topic-chip {
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(148, 163, 184, 0.2);
+    background: rgba(26, 31, 39, 0.88);
+    border: 1px solid rgba(148, 163, 184, 0.28);
     border-radius: 3px;
-    color: #94a3b8;
+    color: #cbd5e1;
     font-size: 9.5px;
     font-family: var(--font-terminal, monospace);
     padding: 1px 6px;
@@ -736,7 +738,7 @@ body.is-standalone #chronicle-window {
 .quick-topic-chip:hover {
     background: rgba(212, 175, 55, 0.15);
     border-color: rgba(212, 175, 55, 0.5);
-    color: #f8fafc;
+    color: #e6eaf0;
 }
 
 /* Footer / Action Bar */
@@ -744,12 +746,12 @@ body.is-standalone #chronicle-window {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background: rgba(10, 14, 22, 0.98);
-    border-top: 1px solid rgba(212, 175, 55, 0.15);
+    background: rgba(20, 23, 29, 0.96);
+    border-top: 1px solid rgba(212, 175, 55, 0.18);
     padding: 5px 10px;
     font-size: 10px;
     font-family: var(--font-terminal, monospace);
-    color: #94a3b8;
+    color: #cbd5e1;
     flex-shrink: 0;
 }
 
@@ -949,7 +951,7 @@ body.is-standalone #chronicle-window {
 }
 
 .settings-desc {
-    color: #64748b;
+    color: #cbd5e1;
     font-size: 10px;
     line-height: 1.35;
 }
@@ -1645,8 +1647,11 @@ body.is-standalone #chronicle-window {
 }
 
 /* Collapsible Ask & Archive Drawers: Closed by default to maximize story reading room */
-#chronicle-window:not(.ask-drawer-open):not(:has(#chronicle-target-pill:not(.hidden))) #chronicle-interactive-bar {
+#chronicle-window:not(.ask-drawer-open) #chronicle-interactive-bar {
     display: none !important;
+}
+#chronicle-window:has(#chronicle-target-pill:not(.hidden)) #chronicle-interactive-bar {
+    display: flex !important;
 }
 
 #chronicle-window:not(.archive-drawer-open) #chronicle-footer {
@@ -1728,7 +1733,7 @@ body.is-standalone #chronicle-window {
 .chapter-replay-btn:hover {
     background: rgba(212, 175, 55, 0.24);
     border-color: #ffd700;
-    color: #ffffff;
+    color: #e6eaf0;
 }
 
 /* Suppress redundant duplicate catchup context banner */
@@ -1739,7 +1744,7 @@ body.is-standalone #chronicle-window {
 /* Unify both .quick-topic-chip and .chronicle-topic-chip */
 .quick-topic-chip,
 .chronicle-topic-chip {
-    background: rgba(30, 41, 59, 0.72);
+    background: rgba(26, 31, 39, 0.90);
     border: 1px solid rgba(212, 175, 55, 0.28);
     border-radius: 4px;
     color: #cbd5e1;
@@ -1754,7 +1759,7 @@ body.is-standalone #chronicle-window {
 .chronicle-topic-chip:hover {
     background: rgba(212, 175, 55, 0.22);
     border-color: #ffd700;
-    color: #ffffff;
+    color: #e6eaf0;
 }
 
 /* Entity Inspect Popover: Compact 4-button Lorekeeper & Tactical Footer */

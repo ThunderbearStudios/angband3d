@@ -309,10 +309,11 @@
             realm = listKind;
             listKind = 'inven';
         }
+        const r = String(realm || 'angband').toLowerCase();
         if (listKind === 'equip') {
             const glyph = item.glyph || '';
             const label = (item.label || item.name || '').toLowerCase();
-            if ((realm === 'nethack' || realm === 'dcss') && (glyph === '=' || glyph === '"' || /ring|amulet/i.test(label))) {
+            if ((r === 'nethack' || r === 'dcss') && (glyph === '=' || glyph === '"' || /ring|amulet/i.test(label))) {
                 return 'R';
             }
             const cat = (typeof ActionCatalog !== 'undefined' ? ActionCatalog : null)
@@ -320,7 +321,7 @@
                 || (typeof global !== 'undefined' ? global.ActionCatalog : null)
                 || (typeof require === 'function' ? (() => { try { return require('./action-catalog.js'); } catch { return null; } })() : null);
             if (cat && typeof cat.keyFor === 'function') {
-                const k = cat.keyFor('takeoff', realm);
+                const k = cat.keyFor('takeoff', r);
                 if (k) return k;
             }
             const rk = (typeof RealmKeys !== 'undefined' ? RealmKeys : null)
@@ -328,66 +329,78 @@
                 || (typeof global !== 'undefined' ? global.RealmKeys : null)
                 || (typeof require === 'function' ? (() => { try { return require('./realm-keys.js'); } catch { return null; } })() : null);
             if (rk && typeof rk.realmKey === 'function') {
-                const k = rk.realmKey('takeoff', realm);
+                const k = rk.realmKey('takeoff', r);
                 if (k) return k;
             }
-            if (realm === 'silq') return 'r';
-            if (realm === 'nethack' || realm === 'dcss' || realm === 'brogue' || realm === 'rogue' || realm === 'ryod') return 'T';
+            if (r === 'silq') return 'r';
+            if (r === 'nethack' || r === 'dcss' || r === 'brogue' || r === 'rogue' || r === 'ryod') return 'T';
             return 't'; // Take off
         }
 
         const glyph = item.glyph || '';
-        const label = (item.label || '').toLowerCase();
+        const label = (item.label || item.name || item.desc || '').toLowerCase();
 
         // Books / Tomes / Prayer Books (check before Scrolls since books also use '?' in some variants)
         // Spellbooks / Tomes (must precede generic '?' scroll check)
-        if ((glyph === '+' && (realm === 'nethack' || realm === 'dcss')) ||
+        if ((glyph === '+' && (r === 'nethack' || r === 'dcss')) ||
             label.includes('book') || label.includes('handbook') || label.includes('tome') ||
             label.includes('grimoire') || label.includes('prayer') || label.includes('spellbook') ||
             label.includes('魔法書') || label.includes('教本') || label.includes('経典')) {
-            if (realm === 'silq' || realm === 'brogue' || realm === 'rogue') return null;
-            if (realm === 'nethack') return 'r';
-            if (realm === 'dcss') return 'z';
+            if (r === 'silq' || r === 'brogue' || r === 'rogue') return null;
+            if (r === 'nethack') return 'r';
+            if (r === 'dcss') return 'z';
             return 'b';
         }
 
         const mir = (typeof window !== 'undefined' && window.MASTER_ITEM_REGISTRY) || (typeof global !== 'undefined' && global.MASTER_ITEM_REGISTRY) || null;
         if (mir && typeof mir.resolvePrimaryVerb === 'function') {
-            return mir.resolvePrimaryVerb(item, realm);
+            const mirVerb = mir.resolvePrimaryVerb(item, realm);
+            if (r === 'brogue') {
+                if (mirVerb === 'e') return 'E';
+                if (mirVerb === 'z') return 'a';
+            }
+            if (r === 'ryod' && (mirVerb === 'u' || mirVerb === 'z')) return 'a';
+            return mirVerb;
         }
 
         // Wands / Rods / Staves / Tools (must precede generic wearable glyph check)
-        if ((glyph === '/' && (realm === 'nethack' || realm === 'dcss' || realm === 'brogue' || realm === 'rogue')) || glyph === '-' || label.includes('wand') || label.includes('魔法棒')) {
-            if (realm === 'silq') return null;
-            if (realm === 'dcss') return 'V';
-            if (realm === 'brogue') return 'a';
-            if (realm === 'nethack' || realm === 'rogue') return 'z';
+        if ((glyph === '/' && (r === 'nethack' || r === 'dcss' || r === 'brogue' || r === 'rogue')) || glyph === '-' || label.includes('wand') || label.includes('魔法棒')) {
+            if (r === 'silq') return null;
+            if (r === 'dcss') return 'V';
+            if (r === 'brogue' || r === 'ryod') return 'a';
+            if (r === 'nethack' || r === 'rogue') return 'z';
             return 'a';
         }
-        if (label.includes('rod') || label.includes('ロッド')) return realm === 'silq' ? null : (realm === 'dcss' ? 'V' : 'z');
-        if ((glyph === '_' && realm !== 'nethack') || label.includes('staff') || label.includes('杖')) {
-            if (realm === 'silq' || realm === 'brogue') return 'a';
-            if (realm === 'dcss') return 'V';
-            if (realm === 'nethack' || realm === 'rogue') return 'z';
+        if (label.includes('rod') || label.includes('ロッド')) {
+            if (r === 'silq') return null;
+            if (r === 'dcss') return 'V';
+            if (r === 'brogue' || r === 'ryod') return 'a';
+            return 'z';
+        }
+        if ((glyph === '_' && r !== 'nethack') || label.includes('staff') || label.includes('stave') || label.includes('杖')) {
+            if (r === 'silq' || r === 'brogue' || r === 'ryod') return 'a';
+            if (r === 'dcss') return 'V';
+            if (r === 'nethack' || r === 'rogue') return 'z';
             return 'u';
         }
-        if (realm === 'nethack' && (glyph === '(' || /\b(lock\s*pick|key|stethoscope|tinning|grease|marker|whistle|bag|sack|lamp|lantern|unicorn\s*horn|blindfold|towel|mirror|bell|candelabrum)\b/.test(label))) {
+        if (r === 'brogue' && /\bcharm\b/.test(label)) return 'a';
+        if (r === 'nethack' && (glyph === '(' || /\b(lock\s*pick|key|stethoscope|tinning|grease|marker|whistle|bag|sack|lamp|lantern|unicorn\s*horn|blindfold|towel|mirror|bell|candelabrum)\b/.test(label))) {
             return 'a';
         }
 
         // Wearables (weapons, armor, jewelry, light)
         if ('|/\\}()=["~{['.includes(glyph)) {
-            if (glyph === '[' && (realm === 'nethack' || realm === 'dcss' || realm === 'rogue')) return 'W';
-            if ((glyph === '=' || glyph === '"') && (realm === 'nethack' || realm === 'dcss' || realm === 'rogue')) return 'P';
+            if (glyph === '[' && (r === 'nethack' || r === 'dcss' || r === 'rogue')) return 'W';
+            if ((glyph === '=' || glyph === '"') && (r === 'nethack' || r === 'dcss' || r === 'rogue')) return 'P';
             return 'w';
         }
         if (label.includes('armor') || label.includes('armour') || label.includes('mail') ||
             label.includes('cloak') || label.includes('shield') || label.includes('helm') ||
             label.includes('boots') || label.includes('gloves') || label.includes('robe')) {
-            return (realm === 'nethack' || realm === 'dcss' || realm === 'rogue') ? 'W' : 'w';
+            return (r === 'nethack' || r === 'dcss' || r === 'rogue') ? 'W' : 'w';
         }
         if (label.includes('ring') || label.includes('amulet')) {
-            return (realm === 'nethack' || realm === 'dcss' || realm === 'rogue') ? 'P' : 'w';
+            return (r === 'nethack' || r === 'dcss' || r === 'rogue') ? 'P' : 'w';
         }
         if (label.includes('torch') || label.includes('lantern') || label.includes('sword') ||
             label.includes('bow') || label.includes('dagger') || label.includes('axe') ||
@@ -395,11 +408,14 @@
             return 'w';
         }
 
-        // Food
-        const eatKey = (realm === 'nethack' || realm === 'dcss' || realm === 'rogue') ? 'e' : 'E';
-        if ((glyph === ',' && realm !== 'nethack' && realm !== 'rogue') || glyph === '%' || (glyph === ':' && (realm === 'rogue' || realm === 'brogue'))) return eatKey;
+        // Food (rogue/nethack/dcss -> 'e'; brogue/angband/silq/fcb/hengband/ryod -> 'E')
+        const eatKey = (r === 'rogue' || r === 'nethack' || r === 'dcss') ? 'e' : 'E';
+        if ((glyph === ',' && r !== 'nethack' && r !== 'rogue') || glyph === '%' || (glyph === ':' && (r === 'rogue' || r === 'brogue'))) return eatKey;
         if (label.includes('food') || label.includes('ration') || label.includes('bread') ||
-            label.includes('mushroom') || label.includes('mold') || label.includes('corpse') || label.includes('食料')) {
+            label.includes('mushroom') || label.includes('mold') || label.includes('corpse') ||
+            label.includes('jerky') || label.includes('wafer') || label.includes('lembas') ||
+            label.includes('biscuit') || label.includes('tripe') || label.includes('meat') ||
+            label.includes('pancake') || label.includes('食料')) {
             return eatKey;
         }
 
@@ -407,7 +423,7 @@
         if (glyph === '!' || label.includes('potion') || label.includes('薬')) return 'q';
 
         // Scrolls
-        if (glyph === '?' || label.includes('scroll') || label.includes('巻物')) return realm === 'silq' ? null : 'r';
+        if (glyph === '?' || label.includes('scroll') || label.includes('巻物')) return r === 'silq' ? null : 'r';
 
         return null;
     }
@@ -432,7 +448,7 @@
         }
 
         const isBook = suggestedVerb === 'b';
-        const alwaysAllow = new Set(['w', 't', 'A', 'I', 'x', 'd', 'v', 'k']);
+        const alwaysAllow = new Set(['w', 't', 'T', 'R', 'A', 'I', 'x', ':', 'f', 'd', 'v', 'k']);
         if (isBook) { alwaysAllow.add('b'); alwaysAllow.add('m'); alwaysAllow.add('G'); alwaysAllow.add('r'); }
 
         for (const [v, data] of entries) {
@@ -450,7 +466,11 @@
     }
 
     function route(key, frame, realm, optsOrSendKey, maybeOpts) {
-        if (!frame || !realm) return false;
+        const isEscape = (key === 'Escape' || key === 'escape');
+        if (!frame || !realm) {
+            if (isEscape) clearPending();
+            return false;
+        }
 
         let opts = null;
         if (typeof optsOrSendKey === 'function') {
@@ -460,9 +480,10 @@
         }
 
         const classifier = getClassifier(frame, realm);
-        if (!classifier) return false;
-
-        const isEscape = (key === 'Escape' || key === 'escape');
+        if (!classifier) {
+            if (isEscape) clearPending();
+            return false;
+        }
 
         // Case A: Chooser is currently open
         if (pending && (pending.step === 'chooser' || pending.phase === 'choose-verb')) {
@@ -512,6 +533,11 @@
 
             // Swallow any other key while chooser is open to prevent accidental commands
             return true;
+        }
+
+        if (isEscape) {
+            clearPending();
+            return false;
         }
 
         // Case B: In item-list with command prompt (Sil-Q or Hengband), FCB Gear UI, or Angband item select
@@ -643,6 +669,10 @@
         if (!frame || !realm) return;
 
         if (pending && (pending.step === 'chooser' || pending.phase === 'choose-verb')) {
+            if (frame.phase !== 'play' || (frame.player && frame.player.dead)) {
+                clearPending();
+                return;
+            }
             const classifier = getClassifier(frame, realm);
             if (!classifier || classifier.mode !== 'item-list') {
                 clearPending();
@@ -720,6 +750,10 @@
                 return;
             }
             if (frame.phase !== 'play' || (frame.player && frame.player.dead)) {
+                clearPending();
+                return;
+            }
+            if (classifier && classifier.mode === 'world' && !pending.awaitingVerbPrompt) {
                 clearPending();
                 return;
             }

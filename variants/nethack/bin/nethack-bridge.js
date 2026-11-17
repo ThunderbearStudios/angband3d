@@ -11,10 +11,11 @@
  *   - 66x22 3D-compatible Map Grid (`g`, `a`, `f`, `l` with Bresenham LOS & room lighting)
  *   - 80x24 Classic Terminal (`term.rows`) + Full Sovereign Grimoire Card compatibility
  *   - 52-Slot (`a-zA-Z`) + `$` Gold Inventory with Beatitude (`blessed`, `uncursed`, `cursed`)
- *   - Equipment (`e`), Quaff (`q`), Read (`r`), Wield (`w`), Wear (`W`), Take Off (`T`),
- *     Put On (`P`), Remove (`R`), Zap Wand (`z`), Apply Tool (`a`), Eat (`e`), Cast (`Z`),
- *     Examine (`:`/`I`/`x`), Drop (`d`), Pickup (`,`/`g`), Open (`o`), Close (`c`), Search (`s`)
- *   - Extended `#` Rituals: `#pray`, `#dip`, `#offer`, `#loot`, `#untrap`, `#chat`, `#force`
+ *   - Equipment (`[` / `#equip`), Quaff (`q`), Read (`r`), Wield (`w`), Wear (`W`), Take Off (`T`),
+ *     Put On (`P`), Remove (`R`), Zap Wand (`z`), Apply Tool (`a`), Eat (`e`), Engrave (`E`),
+ *     Cast (`Z`), Examine (`:`/`I`/`x`), Drop (`d`), Pickup (`,`/`g`), Open (`o`), Close (`c`), Search (`s`)
+ *   - Extended `#` Rituals: `#pray`, `#dip`, `#offer`, `#loot`, `#untrap`, `#chat`, `#force`,
+ *     `#enhance`, `#sit`, `#rub`, `#ride`, `#equip`
  *   - Faithful Pet Companion (`d` Little Dog / `f` Kitten) AI & Monster Tactical AI
  *   - Native `.SAV` persistence with `SaveNHCK` + `description` binary header for `/api/saves`
  */
@@ -45,13 +46,19 @@ const FEAT = {
 };
 
 const ROLES = [
-    { key: 'a', id: 'Valkyrie', race: 'Human', align: 'Lawful', hp: 18, pw: 3, str: 18, int: 10, wis: 13, dex: 15, con: 17, weapon: { name: 'long sword', dmg: '1d8', bonus: 1, buc: 'blessed', tval: 23, sval: 12, weight: 40 }, armor: { name: 'hard leather armor', ac: 3, bonus: 1, buc: 'uncursed', tval: 36, sval: 6, weight: 150 }, extra: { kind: 'food', name: 'food ration', count: 2, buc: 'uncursed', weight: 20, tval: 80, sval: 1 } },
-    { key: 'b', id: 'Wizard', race: 'Elf', align: 'Neutral', hp: 12, pw: 14, str: 10, int: 18, wis: 15, dex: 14, con: 12, weapon: { name: 'quarterstaff', dmg: '1d6', bonus: 1, buc: 'blessed', tval: 21, sval: 3, weight: 40 }, armor: { name: 'cloak of magic resistance', ac: 2, bonus: 1, buc: 'blessed', tval: 35, sval: 2, weight: 10 }, extra: { kind: 'wand', name: 'wand of magic missile', charges: 7, buc: 'uncursed', weight: 7, tval: 65, sval: 2 } },
-    { key: 'c', id: 'Archeologist', race: 'Human', align: 'Lawful', hp: 15, pw: 6, str: 14, int: 15, wis: 14, dex: 16, con: 14, weapon: { name: 'bullwhip', dmg: '1d6', bonus: 2, buc: 'uncursed', tval: 21, sval: 2, weight: 20 }, armor: { name: 'leather jacket', ac: 3, bonus: 0, buc: 'uncursed', tval: 36, sval: 4, weight: 30 }, extra: { kind: 'tool', name: 'pick-axe', buc: 'uncursed', weight: 100, tval: 20, sval: 1 } },
-    { key: 'd', id: 'Samurai', race: 'Human', align: 'Lawful', hp: 17, pw: 4, str: 17, int: 11, wis: 13, dex: 17, con: 16, weapon: { name: 'katana', dmg: '1d10', bonus: 1, buc: 'blessed', tval: 23, sval: 20, weight: 40 }, armor: { name: 'splint mail', ac: 6, bonus: 0, buc: 'uncursed', tval: 37, sval: 6, weight: 400 }, extra: { kind: 'ranged', name: 'yumi bow', dmg: '1d6', bonus: 1, buc: 'uncursed', weight: 30, tval: 19, sval: 2 } },
-    { key: 'e', id: 'Knight', race: 'Human', align: 'Lawful', hp: 17, pw: 6, str: 16, int: 12, wis: 15, dex: 14, con: 16, weapon: { name: 'long sword', dmg: '1d8', bonus: 1, buc: 'uncursed', tval: 23, sval: 12, weight: 40 }, armor: { name: 'ring mail', ac: 4, bonus: 1, buc: 'blessed', tval: 37, sval: 2, weight: 250 }, extra: { kind: 'armor', name: 'helmet', ac: 1, bonus: 0, buc: 'uncursed', weight: 30, tval: 32, sval: 2 } },
-    { key: 'f', id: 'Rogue', race: 'Human', align: 'Chaotic', hp: 14, pw: 5, str: 14, int: 14, wis: 11, dex: 18, con: 14, weapon: { name: 'short sword', dmg: '1d6', bonus: 1, buc: 'uncursed', tval: 23, sval: 8, weight: 30 }, armor: { name: 'leather armor', ac: 2, bonus: 1, buc: 'uncursed', tval: 36, sval: 4, weight: 150 }, extra: { kind: 'potion', name: 'potion of sickness', count: 1, buc: 'cursed', weight: 20, tval: 71, sval: 9 } },
-    { key: 'g', id: 'Priest', race: 'Human', align: 'Lawful', hp: 14, pw: 12, str: 13, int: 13, wis: 18, dex: 12, con: 14, weapon: { name: 'mace', dmg: '2d4', bonus: 1, buc: 'blessed', tval: 21, sval: 5, weight: 30 }, armor: { name: 'robe', ac: 2, bonus: 1, buc: 'blessed', tval: 36, sval: 2, weight: 40 }, extra: { kind: 'potion', name: 'potion of holy water', count: 2, buc: 'blessed', weight: 20, tval: 71, sval: 1 } }
+    { key: 'a', id: 'Valkyrie', race: 'Human', align: 'Lawful', hp: 18, pw: 3, str: 18, int: 10, wis: 13, dex: 15, con: 17, cha: 10, weapon: { name: 'long sword', dmg: '1d8', bonus: 1, buc: 'blessed', tval: 23, sval: 12, weight: 40 }, armor: { name: 'hard leather armor', ac: 3, bonus: 1, buc: 'uncursed', tval: 36, sval: 6, weight: 150 }, extra: { kind: 'food', name: 'food ration', count: 2, buc: 'uncursed', weight: 20, tval: 80, sval: 1, nutrition: 800 } },
+    { key: 'b', id: 'Wizard', race: 'Elf', align: 'Neutral', hp: 12, pw: 14, str: 10, int: 18, wis: 15, dex: 14, con: 12, cha: 11, weapon: { name: 'quarterstaff', dmg: '1d6', bonus: 1, buc: 'blessed', tval: 21, sval: 3, weight: 40 }, armor: { name: 'cloak of magic resistance', ac: 2, bonus: 1, buc: 'blessed', tval: 35, sval: 2, weight: 10 }, extra: { kind: 'wand', name: 'wand of magic missile', charges: 7, buc: 'uncursed', weight: 7, tval: 65, sval: 2 } },
+    { key: 'c', id: 'Archeologist', race: 'Human', align: 'Lawful', hp: 15, pw: 6, str: 14, int: 15, wis: 14, dex: 16, con: 14, cha: 12, weapon: { name: 'bullwhip', dmg: '1d6', bonus: 2, buc: 'uncursed', tval: 21, sval: 2, weight: 20 }, armor: { name: 'leather jacket', ac: 3, bonus: 0, buc: 'uncursed', tval: 36, sval: 4, weight: 30 }, extra: { kind: 'tool', name: 'pick-axe', buc: 'uncursed', weight: 100, tval: 20, sval: 1 } },
+    { key: 'd', id: 'Samurai', race: 'Human', align: 'Lawful', hp: 17, pw: 4, str: 17, int: 11, wis: 13, dex: 17, con: 16, cha: 12, weapon: { name: 'katana', dmg: '1d10', bonus: 1, buc: 'blessed', tval: 23, sval: 20, weight: 40 }, armor: { name: 'splint mail', ac: 6, bonus: 0, buc: 'uncursed', tval: 37, sval: 6, weight: 400 }, extra: { kind: 'ranged', name: 'yumi bow', dmg: '1d6', bonus: 1, buc: 'uncursed', weight: 30, tval: 19, sval: 2 } },
+    { key: 'e', id: 'Knight', race: 'Human', align: 'Lawful', hp: 17, pw: 6, str: 16, int: 12, wis: 15, dex: 14, con: 16, cha: 14, weapon: { name: 'long sword', dmg: '1d8', bonus: 1, buc: 'uncursed', tval: 23, sval: 12, weight: 40 }, armor: { name: 'ring mail', ac: 4, bonus: 1, buc: 'blessed', tval: 37, sval: 2, weight: 250 }, extra: { kind: 'armor', name: 'helmet', ac: 1, bonus: 0, buc: 'uncursed', weight: 30, tval: 32, sval: 2 } },
+    { key: 'f', id: 'Rogue', race: 'Human', align: 'Chaotic', hp: 14, pw: 5, str: 14, int: 14, wis: 11, dex: 18, con: 14, cha: 9, weapon: { name: 'short sword', dmg: '1d6', bonus: 1, buc: 'uncursed', tval: 23, sval: 8, weight: 30 }, armor: { name: 'leather armor', ac: 2, bonus: 1, buc: 'uncursed', tval: 36, sval: 4, weight: 150 }, extra: { kind: 'potion', name: 'potion of sickness', count: 1, buc: 'cursed', weight: 20, tval: 71, sval: 9 } },
+    { key: 'g', id: 'Priest', race: 'Human', align: 'Lawful', hp: 14, pw: 12, str: 13, int: 13, wis: 18, dex: 12, con: 14, cha: 13, weapon: { name: 'mace', dmg: '2d4', bonus: 1, buc: 'blessed', tval: 21, sval: 5, weight: 30 }, armor: { name: 'robe', ac: 2, bonus: 1, buc: 'blessed', tval: 36, sval: 2, weight: 40 }, extra: { kind: 'potion', name: 'potion of holy water', count: 2, buc: 'blessed', weight: 20, tval: 71, sval: 1 } },
+    { key: 'h', id: 'Barbarian', race: 'Human', align: 'Chaotic', hp: 19, pw: 2, str: 18, int: 9, wis: 10, dex: 15, con: 18, cha: 8, weapon: { name: 'two-handed sword', dmg: '1d12', bonus: 0, buc: 'uncursed', tval: 23, sval: 25, weight: 150 }, armor: { name: 'ring mail', ac: 3, bonus: 0, buc: 'uncursed', tval: 37, sval: 2, weight: 250 }, extra: { kind: 'food', name: 'food ration', count: 2, buc: 'uncursed', weight: 20, tval: 80, sval: 1, nutrition: 800 } },
+    { key: 'i', id: 'Caveman', race: 'Human', align: 'Neutral', hp: 18, pw: 3, str: 18, int: 8, wis: 10, dex: 12, con: 18, cha: 7, weapon: { name: 'club', dmg: '1d6', bonus: 1, buc: 'uncursed', tval: 21, sval: 1, weight: 30 }, armor: { name: 'leather armor', ac: 2, bonus: 0, buc: 'uncursed', tval: 36, sval: 4, weight: 150 }, extra: { kind: 'ranged', name: 'sling', dmg: '1d4', bonus: 0, buc: 'uncursed', weight: 10, tval: 19, sval: 1 } },
+    { key: 'j', id: 'Healer', race: 'Human', align: 'Neutral', hp: 14, pw: 10, str: 11, int: 14, wis: 16, dex: 13, con: 14, cha: 16, weapon: { name: 'scalpel', dmg: '1d4', bonus: 0, buc: 'uncursed', tval: 23, sval: 2, weight: 5 }, armor: { name: 'leather gloves', ac: 1, bonus: 0, buc: 'uncursed', tval: 31, sval: 1, weight: 10 }, extra: { kind: 'potion', name: 'potion of extra healing', count: 4, buc: 'uncursed', weight: 20, tval: 71, sval: 39, heal: 28 } },
+    { key: 'k', id: 'Monk', race: 'Human', align: 'Lawful', hp: 15, pw: 10, str: 13, int: 13, wis: 15, dex: 17, con: 14, cha: 11, weapon: { name: 'quarterstaff', dmg: '1d6', bonus: 1, buc: 'uncursed', tval: 21, sval: 3, weight: 40 }, armor: { name: 'robe', ac: 2, bonus: 0, buc: 'uncursed', tval: 36, sval: 2, weight: 15 }, extra: { kind: 'food', name: 'lembas wafer', count: 3, buc: 'blessed', weight: 5, tval: 80, sval: 3, nutrition: 800 } },
+    { key: 'l', id: 'Ranger', race: 'Elf', align: 'Chaotic', hp: 15, pw: 7, str: 14, int: 13, wis: 14, dex: 17, con: 14, cha: 11, weapon: { name: 'dagger', dmg: '1d4', bonus: 1, buc: 'uncursed', tval: 23, sval: 4, weight: 10 }, armor: { name: 'cloak of displacement', ac: 1, bonus: 2, buc: 'uncursed', tval: 35, sval: 3, weight: 10 }, extra: { kind: 'ranged', name: 'elven bow', dmg: '1d8', bonus: 1, buc: 'uncursed', weight: 30, tval: 19, sval: 2 } },
+    { key: 'm', id: 'Tourist', race: 'Human', align: 'Neutral', hp: 12, pw: 4, str: 10, int: 12, wis: 10, dex: 14, con: 11, cha: 17, weapon: { name: 'dart', dmg: '1d3', bonus: 2, count: 25, buc: 'uncursed', tval: 23, sval: 1, weight: 1 }, armor: { name: 'Hawaiian shirt', ac: 0, bonus: 0, buc: 'uncursed', tval: 36, sval: 1, weight: 5 }, extra: { kind: 'food', name: 'lembas wafer', count: 4, buc: 'blessed', weight: 5, tval: 80, sval: 3, nutrition: 800 } }
 ];
 
 const MONSTER_TABLE = [
@@ -67,18 +74,24 @@ const MONSTER_TABLE = [
     { name: 'yellow light', glyph: 'y', attr: 14, minDepth: 2, hp: 8, ac: 0, dmg: 6, exp: 14, speed: 120 },
     { name: 'violet fungus', glyph: 'F', attr: 13, minDepth: 3, hp: 14, ac: 7, dmg: 5, exp: 18, speed: 85 },
     { name: 'gelatinous cube', glyph: 'b', attr: 11, minDepth: 3, hp: 16, ac: 8, dmg: 7, exp: 22, speed: 95 },
+    { name: 'killer bee', glyph: 'a', attr: 14, minDepth: 3, hp: 12, ac: 6, dmg: 7, exp: 20, speed: 125 },
+    { name: 'chickatrice', glyph: 'c', attr: 14, minDepth: 3, hp: 15, ac: 7, dmg: 6, exp: 28, speed: 110 },
     { name: 'hill orc', glyph: 'o', attr: 14, minDepth: 3, hp: 14, ac: 6, dmg: 8, exp: 20, speed: 110 },
     { name: 'spotted jelly', glyph: 'j', attr: 10, minDepth: 3, hp: 15, ac: 8, dmg: 6, exp: 19, speed: 90 },
+    { name: 'fire ant', glyph: 'a', attr: 4, minDepth: 4, hp: 18, ac: 3, dmg: 9, exp: 30, speed: 120 },
     { name: 'cockatrice', glyph: 'c', attr: 14, minDepth: 4, hp: 20, ac: 6, dmg: 8, exp: 36, speed: 110 },
     { name: 'raven', glyph: 'B', attr: 8, minDepth: 4, hp: 13, ac: 4, dmg: 6, exp: 20, speed: 125 },
     { name: 'rust monster', glyph: 'R', attr: 3, minDepth: 4, hp: 18, ac: 2, dmg: 6, exp: 32, speed: 120 },
     { name: 'owlbear', glyph: 'Y', attr: 3, minDepth: 5, hp: 28, ac: 5, dmg: 12, exp: 48, speed: 110 },
     { name: 'mumak', glyph: 'q', attr: 8, minDepth: 5, hp: 32, ac: 4, dmg: 13, exp: 55, speed: 105 },
+    { name: 'hill giant', glyph: 'H', attr: 3, minDepth: 6, hp: 40, ac: 6, dmg: 15, exp: 80, speed: 105 },
     { name: 'leocrotta', glyph: 'q', attr: 4, minDepth: 6, hp: 34, ac: 4, dmg: 14, exp: 65, speed: 120 },
     { name: 'winter wolf', glyph: 'd', attr: 11, minDepth: 6, hp: 30, ac: 4, dmg: 12, exp: 58, speed: 120 },
+    { name: 'wraith', glyph: 'W', attr: 8, minDepth: 7, hp: 28, ac: 4, dmg: 11, exp: 75, speed: 115 },
     { name: 'mind flayer', glyph: 'h', attr: 13, minDepth: 8, hp: 42, ac: 5, dmg: 16, exp: 110, speed: 115 },
     { name: 'umber hulk', glyph: 'X', attr: 3, minDepth: 9, hp: 48, ac: 2, dmg: 18, exp: 130, speed: 105 },
     { name: 'minotaur', glyph: 'H', attr: 3, minDepth: 10, hp: 58, ac: 6, dmg: 22, exp: 160, speed: 115 },
+    { name: 'blue dragon', glyph: 'D', attr: 9, minDepth: 11, hp: 72, ac: -1, dmg: 24, exp: 250, speed: 115 },
     { name: 'vampire lord', glyph: 'V', attr: 4, minDepth: 11, hp: 66, ac: 0, dmg: 20, exp: 210, speed: 120 },
     { name: 'red dragon', glyph: 'D', attr: 4, minDepth: 12, hp: 76, ac: -1, dmg: 26, exp: 280, speed: 115 },
     { name: 'black dragon', glyph: 'D', attr: 8, minDepth: 13, hp: 80, ac: -2, dmg: 28, exp: 310, speed: 115 },
@@ -107,6 +120,14 @@ const ITEM_POOL = [
     { kind: 'weapon', name: 'silver saber', dmg: '1d8', bonus: 2, glyph: ')', attr: 1, buc: 'blessed', weight: 40, tval: 23, sval: 15 },
     { kind: 'armor', name: 'dwarvish mithril-coat', ac: 6, bonus: 2, glyph: '[', attr: 11, buc: 'blessed', weight: 150, tval: 37, sval: 10 },
     { kind: 'armor', name: 'elven mithril-coat', ac: 5, bonus: 2, glyph: '[', attr: 10, buc: 'blessed', weight: 150, tval: 37, sval: 9 },
+    { kind: 'armor', name: 'plate mail', ac: 7, bonus: 0, glyph: '[', attr: 8, buc: 'uncursed', weight: 450, tval: 37, sval: 11 },
+    { kind: 'armor', name: 'small shield', ac: 2, bonus: 0, glyph: '[', attr: 3, buc: 'uncursed', weight: 30, tval: 34, sval: 1 },
+    { kind: 'armor', name: 'helmet', ac: 1, bonus: 0, glyph: '[', attr: 8, buc: 'uncursed', weight: 30, tval: 32, sval: 2 },
+    { kind: 'armor', name: 'cloak of protection', ac: 3, bonus: 0, glyph: '[', attr: 1, buc: 'uncursed', weight: 10, tval: 35, sval: 1 },
+    { kind: 'armor', name: 'leather gloves', ac: 1, bonus: 0, glyph: '[', attr: 3, buc: 'uncursed', weight: 10, tval: 31, sval: 1 },
+    { kind: 'armor', name: 'low boots', ac: 1, bonus: 0, glyph: '[', attr: 3, buc: 'uncursed', weight: 10, tval: 30, sval: 1 },
+    { kind: 'jewelry', name: 'ring of protection', glyph: '=', attr: 14, bonus: 2, buc: 'blessed', weight: 3, tval: 45, sval: 1 },
+    { kind: 'jewelry', name: 'ring of slow digestion', glyph: '=', attr: 11, buc: 'blessed', weight: 3, tval: 45, sval: 4 },
     { kind: 'jewelry', name: 'ring of regeneration', glyph: '=', attr: 10, buc: 'blessed', weight: 3, tval: 45, sval: 10 },
     { kind: 'jewelry', name: 'amulet of ESP', glyph: '"', attr: 11, buc: 'blessed', weight: 3, tval: 40, sval: 3, grantsTelepathy: true },
     { kind: 'jewelry', name: 'amulet of life saving', glyph: '"', attr: 1, buc: 'blessed', weight: 3, tval: 40, sval: 5 },
@@ -136,16 +157,35 @@ function parseCliArgs(argv) {
     let saveDir = path.resolve(__dirname, '../lib/save');
     let user = 'Rodney';
     let isNew = false;
+    let customBirth = false;
     let randomBirth = false;
+    let role = null;
     let seed = null;
-    for (const arg of argv.slice(2)) {
+    const args = argv.slice(2);
+    for (let i = 0; i < args.length; i++) {
+        const arg = String(args[i] || '');
         if (arg.startsWith('-dsave=')) saveDir = arg.slice(7);
         else if (arg.startsWith('-u')) user = arg.slice(2) || user;
         else if (arg === '-n') isNew = true;
         else if (arg === '-r' || arg === '--random') randomBirth = true;
-        else if (arg.startsWith('--seed=')) seed = arg.slice(7);
+        else if (arg === '-c' || arg === '--custom') {
+            customBirth = true;
+            const next = args[i + 1];
+            if (next && !String(next).startsWith('-')) {
+                role = String(next).trim();
+                i++;
+            }
+        } else if (arg.startsWith('-c=')) {
+            role = arg.slice(3).trim() || null;
+            customBirth = true;
+        } else if (arg.startsWith('-c') && arg.length > 2) {
+            role = arg.slice(2).trim() || null;
+            customBirth = true;
+        } else if (arg.startsWith('--role=')) {
+            role = arg.slice(7).trim() || null;
+        } else if (arg.startsWith('--seed=')) seed = arg.slice(7);
     }
-    return { saveDir, user, isNew, randomBirth, seed };
+    return { saveDir, user, isNew, customBirth, randomBirth, role, seed };
 }
 
 function formatItemDesc(it) {
@@ -159,7 +199,11 @@ function formatItemDesc(it) {
         stats = ` (${it.dmg || '1d6'}) (${b >= 0 ? '+' + b : b},${b >= 0 ? '+' + b : b})`;
     } else if (it.kind === 'armor') {
         const b = Number(it.bonus || 0);
-        stats = ` [${it.ac || 2},${b >= 0 ? '+' + b : b}]`;
+        const baseAc = it.ac != null ? Number(it.ac) : 2;
+        stats = ` [${baseAc},${b >= 0 ? '+' + b : b}]`;
+    } else if (it.kind === 'jewelry' && /protection/i.test(it.name || '') && it.bonus != null) {
+        const b = Number(it.bonus || 0);
+        stats = ` (${b >= 0 ? '+' + b : b})`;
     } else if (it.kind === 'wand' && it.charges != null) {
         stats = ` (0:${it.charges})`;
     }
@@ -239,20 +283,28 @@ function computeVerbMask(it) {
 
 class NetHackEngine {
     constructor(opts) {
-        this.saveDir = opts.saveDir;
-        this.user = opts.user;
+        opts = opts || {};
+        this.saveDir = opts.saveDir || path.resolve(__dirname, '../lib/save');
+        this.user = opts.user || 'Rodney';
         this.saveFile = path.join(this.saveDir, this.user);
         this.seq = 0;
-        const parsedSeed = opts && opts.seed != null ? parseSeedInput(opts.seed) : 0;
+        const parsedSeed = opts.seed != null ? parseSeedInput(opts.seed) : 0;
         this.baseSeed = parsedSeed || ((crypto.randomBytes(4).readUInt32LE(0) || ((Date.now() ^ 0x5f3759df) >>> 0)) >>> 0);
         this.seed = this.baseSeed;
         this.state = null;
         this._lastLivingSnapshot = null;
-        if (!opts.isNew && !opts.randomBirth && this.loadSave()) {
+        const directRoleIdx = this.resolveRoleIndex(opts.role);
+        if (!opts.isNew && !opts.randomBirth && !opts.customBirth && directRoleIdx < 0 && this.loadSave()) {
             // Loaded existing character
             if (this.state && this.state.player && !this.state.player.dead) {
                 this._lastLivingSnapshot = JSON.stringify(this.state);
             }
+        } else if (directRoleIdx >= 0) {
+            this.initNewState(true, directRoleIdx);
+            if (this.state && this.state.player && !this.state.player.dead) {
+                this._lastLivingSnapshot = JSON.stringify(this.state);
+            }
+            this.saveGame();
         } else if (opts.randomBirth) {
             const roleIdx = this.rand(ROLES.length);
             this.initNewState(false, roleIdx);
@@ -268,6 +320,67 @@ class NetHackEngine {
                 this._lastLivingSnapshot = JSON.stringify(this.state);
             }
         }
+    }
+
+    resolveRoleIndex(roleSpec) {
+        if (roleSpec == null || roleSpec === '') return -1;
+        const s = String(roleSpec).trim().toLowerCase();
+        if (!s) return -1;
+        let idx = ROLES.findIndex(r => r.id.toLowerCase() === s);
+        if (idx >= 0) return idx;
+        idx = ROLES.findIndex(r => r.key.toLowerCase() === s);
+        if (idx >= 0) return idx;
+        idx = ROLES.findIndex(r => r.id.toLowerCase().startsWith(s));
+        return idx;
+    }
+
+    getHungerState(hungerVal) {
+        const h = hungerVal == null ? 900 : Number(hungerVal);
+        if (h <= 0) return 'Fainting';
+        if (h <= 150) return 'Weak';
+        if (h <= 300) return 'Hungry';
+        if (h >= 1000) return 'Satiated';
+        return 'Normal';
+    }
+
+    rollDice(spec) {
+        const m = String(spec || '1d4').match(/(\d+)d(\d+)/i);
+        if (!m) return 1 + this.rand(4);
+        const count = Math.max(1, parseInt(m[1], 10));
+        const sides = Math.max(1, parseInt(m[2], 10));
+        let sum = 0;
+        for (let i = 0; i < count; i++) sum += 1 + this.rand(sides);
+        return sum;
+    }
+
+    isCockatriceCorpse(it) {
+        if (!it) return false;
+        const txt = `${it.race || ''} ${it.name || ''}`.toLowerCase();
+        return Boolean((it.isCorpse || /corpse/.test(txt)) && /(cockatrice|chickatrice)/.test(txt));
+    }
+
+    hasGlovesEquipped() {
+        const p = this.state && this.state.player;
+        if (!p || !Array.isArray(p.inventory)) return false;
+        return p.inventory.some(it => it.equipped && (it.equipped === 'hands' || resolveEquipMeta(it).slot_name === 'hands'));
+    }
+
+    triggerPetrification(reason) {
+        const p = this.state && this.state.player;
+        if (!p || p.stoneRes) return false;
+        const lifeSave = p.inventory.find(it => /life saving/i.test(it.name || ''));
+        if (lifeSave) {
+            lifeSave.count = 0;
+            this.reindexInventory();
+            p.hp = p.hpMax;
+            this.addMessage('You turn to stone... Your amulet of life saving glows incandescently and disintegrates! You live!', 14);
+            return false;
+        }
+        p.hp = 0;
+        p.dead = true;
+        p.diedFrom = reason || 'petrification';
+        this.addMessage('You slow down... Your limbs stiffen... You turn to stone! You die...', 4);
+        return true;
     }
 
     rand(max) {
@@ -360,6 +473,9 @@ class NetHackEngine {
                 wis: role.wis,
                 dex: role.dex,
                 con: role.con,
+                cha: role.cha != null ? role.cha : 12,
+                luck: 0,
+                intrinsicAc: 0,
                 hunger: 900,
                 poisoned: 0,
                 confused: 0,
@@ -367,6 +483,14 @@ class NetHackEngine {
                 telepathy: false,
                 intrinsicTelepathy: false,
                 rBlind: false,
+                fireRes: false,
+                coldRes: false,
+                elecRes: false,
+                poisonRes: false,
+                disenRes: false,
+                stoneRes: false,
+                riding: false,
+                ridingMount: '',
                 speedBoost: 0,
                 hasAmulet: false,
                 winner: false,
@@ -423,7 +547,6 @@ class NetHackEngine {
             p.pw = p.pwMax;
         } else if (statFocus === 'agile') {
             p.dex += 3;
-            p.ac -= 1;
         } else {
             if (clsLower.includes('wizard') || clsLower.includes('priest')) {
                 p.int += 2;
@@ -443,7 +566,7 @@ class NetHackEngine {
             }
         }
         const w = p.inventory.find(it => it.equipped === 'weapon');
-        const a = p.inventory.find(it => it.equipped === 'armor');
+        const a = p.inventory.find(it => it.equipped === 'body' || it.equipped === 'armor' || it.equipped === 'cloak' || it.equipped === 'hands');
         if (kitBoon === 'expedition') {
             const healPot = p.inventory.find(it => it.name && it.name.includes('potion of healing'));
             if (healPot) healPot.count = (healPot.count || 1) + 1;
@@ -451,10 +574,10 @@ class NetHackEngine {
         } else if (kitBoon === 'blessed') {
             if (w) { w.buc = 'blessed'; w.bonus = (w.bonus || 0) + 1; }
             if (a) { a.buc = 'blessed'; a.bonus = (a.bonus || 0) + 1; }
-            this.recalcPlayerAc();
         } else {
             if (w) w.bonus = (w.bonus || 0) + 1;
         }
+        this.recalcPlayerAc();
     }
 
     populateStartingKit(role) {
@@ -469,7 +592,9 @@ class NetHackEngine {
             }));
         };
         add(Object.assign({ kind: 'weapon' }, role.weapon), 'weapon');
-        add(Object.assign({ kind: 'armor' }, role.armor), 'armor');
+        const armorMeta = resolveEquipMeta(role.armor);
+        const armorSlot = (armorMeta && armorMeta.slot_name && armorMeta.slot_name !== 'weapon') ? armorMeta.slot_name : 'body';
+        add(Object.assign({ kind: 'armor' }, role.armor), armorSlot);
         if (role.extra) add(role.extra, null);
         add({ kind: 'potion', name: 'potion of healing', buc: 'blessed', count: 2, weight: 20, tval: 71, sval: 38, heal: 16 }, null);
         add({ kind: 'scroll', name: 'scroll of identify', buc: 'blessed', count: 2, weight: 5, tval: 70, sval: 12 }, null);
@@ -492,25 +617,35 @@ class NetHackEngine {
     }
 
     recalcPlayerAc() {
-        let armorSum = 0;
+        const p = this.state && this.state.player;
+        if (!p || !Array.isArray(p.inventory)) return;
+        let armorProtection = 0;
         let weapName = '';
         let shieldName = '';
         let bowName = '';
         const armorSlots = new Set(['armor', 'body', 'cloak', 'shield', 'head', 'hands', 'feet']);
-        for (const it of this.state.player.inventory) {
+        for (const it of p.inventory) {
             if (!it.equipped) continue;
             const meta = resolveEquipMeta(it);
-            if (armorSlots.has(it.equipped) || armorSlots.has(meta.slot_name)) {
-                armorSum += (it.ac != null ? Number(it.ac) : 2) + (Number(it.bonus) || 0);
+            const rawEq = String(it.equipped).toLowerCase();
+            const normSlot = rawEq === 'armor' ? 'body' : rawEq;
+            if (armorSlots.has(normSlot) || (armorSlots.has(meta.slot_name) && normSlot !== 'weapon' && normSlot !== 'bow')) {
+                const baseProt = it.ac != null ? Number(it.ac) : 2;
+                armorProtection += baseProt + (Number(it.bonus) || 0);
+            } else if (normSlot === 'ring' || meta.slot_name === 'ring') {
+                if (/protection/i.test(it.name || '')) {
+                    armorProtection += (it.ac != null ? Number(it.ac) : 0) + (Number(it.bonus) || 0);
+                }
             }
-            if (meta.slot_name === 'weapon') weapName = it.name;
-            else if (meta.slot_name === 'shield') shieldName = it.name;
-            else if (meta.slot_name === 'bow') bowName = it.name;
+            if (normSlot === 'weapon' || meta.slot_name === 'weapon') weapName = it.name;
+            else if (normSlot === 'shield' || meta.slot_name === 'shield') shieldName = it.name;
+            else if (normSlot === 'bow' || meta.slot_name === 'bow') bowName = it.name;
         }
-        this.state.player.ac = 10 - armorSum;
-        this.state.player.weaponName = weapName;
-        this.state.player.shieldName = shieldName;
-        this.state.player.bowName = bowName;
+        const divineProt = Number(p.intrinsicAc || 0);
+        p.ac = Math.max(-128, 10 - armorProtection - divineProt);
+        p.weaponName = weapName;
+        p.shieldName = shieldName;
+        p.bowName = bowName;
     }
 
     generateDungeonLevel(depth) {
@@ -961,6 +1096,7 @@ class NetHackEngine {
                 }
                 this.sanitizeDoorPlacement();
                 this.checkExperience({ silent: true });
+                this.recalcPlayerAc();
                 this.updateVisibility();
                 this.addMessage('You are restored to your last living checkpoint!', 14);
                 this.saveGame();
@@ -999,6 +1135,13 @@ class NetHackEngine {
                 if (loaded.rngSeed) this.seed = loaded.rngSeed;
                 this.state.phase = 'play';
                 this.state.menuMode = 'none';
+                const rp = this.state.player;
+                const matchRole = ROLES.find(r => r.id.toLowerCase() === String(rp.class || '').toLowerCase()) || ROLES[this.state.selectedRoleIdx || 0] || ROLES[0];
+                if (rp.cha == null) rp.cha = matchRole.cha != null ? matchRole.cha : 12;
+                if (!rp.align) rp.align = matchRole.align || 'Neutral';
+                if (rp.hunger == null) rp.hunger = 900;
+                if (rp.luck == null) rp.luck = 0;
+                if (rp.intrinsicAc == null) rp.intrinsicAc = 0;
                 // Normalize any legacy feature codes in saved maps to canonical 3D feature codes
                 for (let y = 0; y < this.state.map.length; y++) {
                     const row = this.state.map[y];
@@ -1016,6 +1159,7 @@ class NetHackEngine {
                 }
                 this.sanitizeDoorPlacement();
                 this.checkExperience({ silent: true });
+                this.recalcPlayerAc();
                 this.updateVisibility();
                 return true;
             }
@@ -1024,6 +1168,11 @@ class NetHackEngine {
     }
 
     handleKey(rawKey) {
+        if (rawKey === ' ' && this.state && this.state.menuMode === 'engrave') {
+            this.state.engraveBuffer = (this.state.engraveBuffer || '') + ' ';
+            this.state.pendingPrompt = `What do you want to engrave? "${this.state.engraveBuffer}" ([Enter] to confirm, ESC cancel)`;
+            return;
+        }
         const k = String(rawKey || '').trim();
         if (!k) return;
 
@@ -1103,10 +1252,10 @@ class NetHackEngine {
             return;
         }
 
-        // 2. Extended `#` Commands (`#pray`, `#dip`, `#offer`, `#loot`, `#untrap`, `#chat`, `#force`, `#enhance`)
+        // 2. Extended `#` Commands (`#pray`, `#dip`, `#offer`, `#loot`, `#untrap`, `#chat`, `#force`, `#enhance`, `#sit`, `#rub`, `#ride`, `#equip`)
         if (k === '#') {
             this.state.menuMode = 'extended';
-            this.state.pendingPrompt = '# Extended command: [p]ray [d]ip [o]ffer [l]oot [u]ntrap [c]hat [f]orce [e]nhance (ESC)';
+            this.state.pendingPrompt = '# Extended command: [p]ray [d]ip [o]ffer [s]it [r]ub [m]ount/ride [q]equip [l]oot [u]ntrap [c]hat [f]orce [e]nhance (ESC)';
             return;
         }
         if (k.startsWith('#')) {
@@ -1124,14 +1273,54 @@ class NetHackEngine {
                 this.state.pendingVerb = '';
                 this.state.pendingPrompt = '';
                 this.state.selectedItem = null;
+                this.state.engraveBuffer = '';
+                this.state.floorEatPromptActive = false;
+                this.state.fountainPromptActive = false;
                 return;
             }
             if (this.state.menuMode === 'extended') {
-                const extMap = { p: '#pray', d: '#dip', o: '#offer', l: '#loot', u: '#untrap', c: '#chat', f: '#force', e: '#enhance', k: '#kick' };
+                const extMap = { p: '#pray', d: '#dip', o: '#offer', s: '#sit', r: '#rub', m: '#ride', q: '#equip', l: '#loot', u: '#untrap', c: '#chat', f: '#force', e: '#enhance', k: '#kick' };
                 const mapped = extMap[k.toLowerCase()];
                 this.state.menuMode = 'none';
                 this.state.pendingPrompt = '';
                 if (mapped) this.executeExtendedCommand(mapped);
+                return;
+            }
+            if (this.state.menuMode === 'engrave') {
+                const kl = k.toLowerCase();
+                if (kl === 'enter' || kl === 'return') {
+                    const txt = (this.state.engraveBuffer || '').trim() || 'Elbereth';
+                    this.state.menuMode = 'none';
+                    this.state.pendingVerb = '';
+                    this.state.pendingPrompt = '';
+                    this.state.engraveBuffer = '';
+                    this.engraveFloor(txt);
+                    return;
+                }
+                if (kl === 'backspace') {
+                    this.state.engraveBuffer = (this.state.engraveBuffer || '').slice(0, -1);
+                    this.state.pendingPrompt = `What do you want to engrave? "${this.state.engraveBuffer}" ([Enter] to confirm, ESC cancel)`;
+                    return;
+                }
+                if (kl === 'space') {
+                    this.state.engraveBuffer = (this.state.engraveBuffer || '') + ' ';
+                    this.state.pendingPrompt = `What do you want to engrave? "${this.state.engraveBuffer}" ([Enter] to confirm, ESC cancel)`;
+                    return;
+                }
+                if (k.length > 1) {
+                    this.state.menuMode = 'none';
+                    this.state.pendingVerb = '';
+                    this.state.pendingPrompt = '';
+                    this.state.engraveBuffer = '';
+                    this.engraveFloor(k);
+                    return;
+                }
+                if (!this.state.engraveBuffer && k === '-') {
+                    this.state.pendingPrompt = 'Write in the dust with your fingers: type text + [Enter] (or [Enter] for "Elbereth")';
+                    return;
+                }
+                this.state.engraveBuffer = (this.state.engraveBuffer || '') + k;
+                this.state.pendingPrompt = `What do you want to engrave? "${this.state.engraveBuffer}" ([Enter] to confirm, ESC cancel)`;
                 return;
             }
             if (this.state.menuMode === 'item_action') {
@@ -1142,6 +1331,7 @@ class NetHackEngine {
                 if (!item) return;
                 if (k === 'd') { this.executeItemVerb('d', item.letter); return; }
                 if (k === 't' || k === 'f') {
+                    this.state.thrownItem = item;
                     this.state.menuMode = 'direction';
                     this.state.pendingVerb = 'throw';
                     this.state.pendingPrompt = 'In what direction do you want to throw/fire?';
@@ -1169,22 +1359,25 @@ class NetHackEngine {
                     return;
                 }
                 if (k === 'i') { this.state.menuMode = 'inven'; return; }
-                if (k === 'e' && this.state.menuMode === 'inven') {
-                    this.openVerbPrompt('E');
+                if (k === '[') { this.state.menuMode = 'equip'; return; }
+                if (k === 'e') {
+                    this.openVerbPrompt('e');
+                    return;
+                }
+                if (k === 'E') {
+                    this.state.menuMode = 'engrave';
+                    this.state.engraveBuffer = '';
+                    this.state.pendingVerb = 'engrave';
+                    this.state.pendingPrompt = 'What do you want to engrave on the floor? ([Enter] for "Elbereth", [-] dust, or type text)';
                     return;
                 }
                 // Uppercase, brace, or colon verbs switch directly to verb prompt
-                if (/^[WTPREZI:{}]$/.test(k)) {
+                if (/^[WTPRZI:{}]$/.test(k)) {
                     this.openVerbPrompt(k);
                     return;
                 }
                 const item = this.state.player.inventory.find(it => it.letter === k);
                 if (item) {
-                    // When 'e' opened equip/eat mode and the player selects a food item slot (e.g. Grimoire Eat ['escape','e',slotKey]), consume it immediately!
-                    if (this.state.menuMode === 'equip' && item.kind === 'food') {
-                        this.executeItemVerb('e', k);
-                        return;
-                    }
                     this.state.selectedItem = item;
                     this.state.menuMode = 'item_action';
                     this.state.pendingPrompt = `${item.letter}) ${formatItemDesc(item)} — [Enter] Use/Equip [d]rop [t]hrow [:]Examine (ESC)`;
@@ -1227,8 +1420,20 @@ class NetHackEngine {
             this.state.menuMode = 'inven';
             return;
         }
-        if (k === 'e') {
+        if (k === '[') {
             this.state.menuMode = 'equip';
+            this.state.pendingPrompt = 'Equipment (Worn/Wielded — / for Inventory, ESC)';
+            return;
+        }
+        if (k === 'e') {
+            this.openVerbPrompt('e');
+            return;
+        }
+        if (k === 'E') {
+            this.state.menuMode = 'engrave';
+            this.state.engraveBuffer = '';
+            this.state.pendingVerb = 'engrave';
+            this.state.pendingPrompt = 'What do you want to engrave on the floor? ([Enter] for "Elbereth", [-] dust, or type text)';
             return;
         }
         if (k === 'p') {
@@ -1240,7 +1445,7 @@ class NetHackEngine {
             this.state.pendingPrompt = 'Cast which spell? [a] force bolt [b] healing [c] magic mapping [d] haste self [e] cure ailment (ESC)';
             return;
         }
-        if (/^[qrwWTPRzdatIE:{}]$/.test(k)) {
+        if (/^[qrwWTPRzdatI:{}]$/.test(k)) {
             this.openVerbPrompt(k);
             return;
         }
@@ -1249,6 +1454,11 @@ class NetHackEngine {
             const weapons = p.inventory.filter(it => it.kind === 'weapon' || it.kind === 'ranged');
             if (weapons.length > 1) {
                 const curIdx = weapons.findIndex(it => it.equipped === 'weapon');
+                const curW = curIdx >= 0 ? weapons[curIdx] : null;
+                if (curW && curW.buc === 'cursed') {
+                    this.addMessage(`You cannot unwield your cursed ${curW.name}! It is welded to your hand.`, 4);
+                    return;
+                }
                 weapons.forEach(it => { it.equipped = null; });
                 const nextW = weapons[(curIdx + 1) % weapons.length];
                 nextW.equipped = 'weapon';
@@ -1402,18 +1612,20 @@ class NetHackEngine {
         return null;
     }
 
-    openVerbPrompt(verb, skipFountain = false) {
+    openVerbPrompt(verb, skipContext = false) {
         const p = this.state.player;
         const cell = this.state.map && this.state.map[p.y] && this.state.map[p.y][p.x];
-        const onFountain = !skipFountain && Boolean(cell && (cell.feat === FEAT.FOUNTAIN || cell.glyph === '{'));
+        const onFountain = !skipContext && Boolean(cell && (cell.feat === FEAT.FOUNTAIN || cell.glyph === '{'));
+        const floorFood = !skipContext ? this.state.objects.find(o => o.x === p.x && o.y === p.y && o.kind === 'food') : null;
         const prompts = {
             'q': onFountain
                 ? 'Drink from the fountain? [y/n] (or select potion [a-z])'
                 : 'What do you want to drink? [a-z or ?*]',
             'r': 'What do you want to read? [a-z or ?*]',
-            'e': 'What do you want to eat? [a-z or ?*]',
-            'E': 'What do you want to eat? [a-z or ?*]',
-            'w': 'What do you want to wield? [a-z or ?*]',
+            'e': floorFood
+                ? `There is ${formatItemDesc(floorFood)} here; eat it? [y/n] (or select item [a-z])`
+                : 'What do you want to eat? [a-z or ?*]',
+            'w': 'What do you want to wield? [a-z or -]',
             'W': 'What do you want to wear? [a-z or ?*]',
             'T': 'What do you want to take off? [a-z or ?*]',
             'P': 'What do you want to put on? [a-z or ?*]',
@@ -1433,6 +1645,7 @@ class NetHackEngine {
         this.state.pendingVerb = verb;
         this.state.pendingPrompt = prompts[verb] || 'Select an item: [a-z]';
         this.state.fountainPromptActive = Boolean(verb === 'q' && onFountain);
+        this.state.floorEatPromptActive = Boolean(verb === 'e' && floorFood);
     }
 
     executeSpellCast(spellKey) {
@@ -1499,10 +1712,32 @@ class NetHackEngine {
         const p = this.state.player;
         const item = p.inventory.find(it => it.letter === slotKey);
         const wasFountainPrompt = Boolean(this.state.fountainPromptActive);
+        const wasFloorEatPrompt = Boolean(this.state.floorEatPromptActive);
         this.state.menuMode = 'none';
         this.state.pendingVerb = '';
         this.state.pendingPrompt = '';
         this.state.fountainPromptActive = false;
+        this.state.floorEatPromptActive = false;
+
+        if (slotKey === '?' || slotKey === '*') {
+            const matchesVerb = (it) => {
+                if (verb === 'q') return it.kind === 'potion';
+                if (verb === 'r') return it.kind === 'scroll' || it.kind === 'tome';
+                if (verb === 'e') return it.kind === 'food';
+                if (verb === 'z') return it.kind === 'wand';
+                if (verb === 'w') return it.kind === 'weapon' || it.kind === 'ranged';
+                if (verb === 'W') return it.kind === 'armor';
+                if (verb === 'P') return it.kind === 'jewelry';
+                if (verb === 'T' || verb === 'R') return Boolean(it.equipped);
+                if (verb === 'a') return it.kind === 'tool';
+                return true;
+            };
+            const list = p.inventory.filter(matchesVerb).map(it => `${it.letter}) ${it.name}`).join(', ');
+            this.state.menuMode = 'verb';
+            this.state.pendingVerb = verb;
+            this.state.pendingPrompt = list ? `Choices: ${list}` : 'You have nothing appropriate for that command. (ESC)';
+            return;
+        }
 
         const cell = this.state.map && this.state.map[p.y] && this.state.map[p.y][p.x];
         const onFountain = Boolean(cell && (cell.feat === FEAT.FOUNTAIN || cell.glyph === '{'));
@@ -1533,6 +1768,49 @@ class NetHackEngine {
             }
         }
 
+        const floorFoodIdx = this.state.objects.findIndex(o => o.x === p.x && o.y === p.y && o.kind === 'food');
+        if (verb === 'e' && floorFoodIdx >= 0 && wasFloorEatPrompt) {
+            const sk = String(slotKey || '').toLowerCase();
+            if (sk === 'y' || sk === 'enter' || sk === 'return' || sk === ',') {
+                const floorFood = this.state.objects[floorFoodIdx];
+                if (this.isCockatriceCorpse(floorFood) && !this.hasGlovesEquipped() && !p.stoneRes) {
+                    this.state.objects.splice(floorFoodIdx, 1);
+                    this.consumeFoodItem(floorFood);
+                    if (!p.dead) this.advanceWorldTurn();
+                    return;
+                }
+                this.state.objects.splice(floorFoodIdx, 1);
+                this.consumeFoodItem(floorFood);
+                if (!p.dead) this.advanceWorldTurn();
+                return;
+            }
+            if (sk === 'n') {
+                if (p.inventory.some(it => it.kind === 'food')) {
+                    this.openVerbPrompt('e', true);
+                } else {
+                    this.addMessage('Never mind.', 1);
+                }
+                return;
+            }
+        }
+
+        if (verb === 'w' && slotKey === '-') {
+            const curWep = p.inventory.find(it => it.equipped === 'weapon');
+            if (!curWep) {
+                this.addMessage('You are already empty-handed.', 1);
+                return;
+            }
+            if (curWep.buc === 'cursed') {
+                this.addMessage(`You cannot unwield your cursed ${curWep.name}! It is welded to your hand.`, 4);
+                return;
+            }
+            curWep.equipped = null;
+            this.recalcPlayerAc();
+            this.addMessage('You are now empty-handed.', 1);
+            this.advanceWorldTurn();
+            return;
+        }
+
         if (!item) {
             if (verb === 't' || verb === 'f') {
                 const dir = this.parseDirection(slotKey);
@@ -1546,7 +1824,12 @@ class NetHackEngine {
         }
 
         if (verb === ':' || verb === 'I' || verb === 'x') {
-            this.addMessage(`${item.letter}) ${formatItemDesc(item)} — Weight: ${(item.weight / 10).toFixed(1)} lb, Beatitude: ${(item.buc || 'uncursed').toUpperCase()}.`, 11);
+            let corpseNote = '';
+            if (item.isCorpse) {
+                const age = this.state.turn - (item.corpseTurn != null ? item.corpseTurn : this.state.turn);
+                corpseNote = age >= 50 ? `, ROTTEN (${age}t)` : `, Fresh (${age}t)`;
+            }
+            this.addMessage(`${item.letter}) ${formatItemDesc(item)} — Weight: ${(item.weight / 10).toFixed(1)} lb, Beatitude: ${(item.buc || 'uncursed').toUpperCase()}${corpseNote}.`, 11);
             return;
         }
 
@@ -1563,6 +1846,10 @@ class NetHackEngine {
         }
 
         if (verb === 't' || verb === 'f') {
+            if (this.isCockatriceCorpse(item) && !this.hasGlovesEquipped() && !p.stoneRes) {
+                this.triggerPetrification(`touching a ${item.race || 'cockatrice'} corpse barehanded`);
+                return;
+            }
             this.state.thrownItem = item;
             this.state.menuMode = 'direction';
             this.state.pendingVerb = 'throw';
@@ -1621,7 +1908,7 @@ class NetHackEngine {
                 return;
             }
             if (item.name.includes('identify')) {
-                p.inventory.forEach(it => { if (!it.buc) it.buc = 'uncursed'; });
+                p.inventory.forEach(it => { if (!it.buc) it.buc = 'uncursed'; it.bucKnown = true; });
                 this.addMessage('Your pack glows with amber light! All carried items are identified.', 14);
             } else if (item.name.includes('enchant weapon')) {
                 const w = p.inventory.find(it => it.equipped === 'weapon');
@@ -1633,12 +1920,15 @@ class NetHackEngine {
                     this.addMessage('Your hands twitch.', 1);
                 }
             } else if (item.name.includes('enchant armor')) {
-                const a = p.inventory.find(it => it.equipped === 'armor');
+                const a = p.inventory.find(it => it.equipped === 'body' || it.equipped === 'armor')
+                    || p.inventory.find(it => ['cloak', 'shield', 'head', 'hands', 'feet'].includes(it.equipped));
                 if (a) {
                     a.bonus = (a.bonus || 0) + (item.buc === 'blessed' ? 2 : 1);
                     a.buc = 'blessed';
                     this.recalcPlayerAc();
                     this.addMessage(`Your ${a.name} glows silver for a moment!`, 11);
+                } else {
+                    this.addMessage('Your skin feels itchy.', 1);
                 }
             } else if (item.name.includes('remove curse')) {
                 p.inventory.forEach(it => { if (it.buc === 'cursed') it.buc = 'uncursed'; });
@@ -1658,18 +1948,40 @@ class NetHackEngine {
         }
 
         if (verb === 'w') {
+            if (this.isCockatriceCorpse(item) && !this.hasGlovesEquipped() && !p.stoneRes) {
+                this.triggerPetrification(`wielding a ${item.race || 'cockatrice'} corpse barehanded`);
+                return;
+            }
             const wSlot = resolveEquipMeta(item).slot_name === 'bow' ? 'bow' : 'weapon';
+            const curWep = p.inventory.find(it => it.equipped === wSlot);
+            if (curWep && curWep !== item && curWep.buc === 'cursed') {
+                this.addMessage(`You cannot unwield your cursed ${curWep.name}! It is welded to your hand.`, 4);
+                return;
+            }
             p.inventory.forEach(it => { if (it.equipped === wSlot) it.equipped = null; });
             item.equipped = wSlot;
             this.recalcPlayerAc();
-            this.addMessage(`You now wield ${formatItemDesc(item)}.`, 11);
+            if (item.buc === 'cursed') {
+                this.addMessage(`You wield ${formatItemDesc(item)}. It welds to your hand!`, 4);
+            } else {
+                this.addMessage(`You now wield ${formatItemDesc(item)}.`, 11);
+            }
             this.advanceWorldTurn();
             return;
         }
 
         if (verb === 'W' || verb === 'P') {
+            if (item.kind === 'potion' || item.kind === 'scroll' || item.kind === 'food' || item.kind === 'wand') {
+                this.addMessage('You cannot wear that!', 1);
+                return;
+            }
             const meta = resolveEquipMeta(item);
             const slot = meta.slot_name === 'weapon' ? 'body' : meta.slot_name;
+            const curEquipped = p.inventory.find(it => (it.equipped === slot || (slot === 'body' && it.equipped === 'armor')) && it !== item);
+            if (curEquipped && curEquipped.buc === 'cursed') {
+                this.addMessage(`You cannot take off your cursed ${curEquipped.name}! It is welded to you.`, 4);
+                return;
+            }
             p.inventory.forEach(it => {
                 if (it.equipped === slot || (slot === 'body' && it.equipped === 'armor')) it.equipped = null;
             });
@@ -1678,7 +1990,11 @@ class NetHackEngine {
                 p.telepathy = true;
             }
             this.recalcPlayerAc();
-            this.addMessage(`You wear ${formatItemDesc(item)}.`, 11);
+            if (item.buc === 'cursed') {
+                this.addMessage(`You wear ${formatItemDesc(item)}. Oops — it is cursed and welds to you!`, 4);
+            } else {
+                this.addMessage(`You wear ${formatItemDesc(item)}.`, 11);
+            }
             this.advanceWorldTurn();
             return;
         }
@@ -1718,24 +2034,15 @@ class NetHackEngine {
             return;
         }
 
-        if (verb === 'e' || verb === 'E') {
+        if (verb === 'e') {
             if (item.kind !== 'food') {
                 this.addMessage('That is not something you can eat!', 1);
                 return;
             }
-            p.hunger = Math.min(2000, (p.hunger || 900) + (item.nutrition || 800));
-            const heal = item.buc === 'blessed' ? 8 : 4;
-            p.hp = Math.min(p.hpMax, p.hp + heal);
-            if (item.grantsTelepathy || /floating eye/i.test(item.name || '')) {
-                p.intrinsicTelepathy = true;
-                p.telepathy = true;
-                this.addMessage('You feel a strange mental acuity! You gain intrinsic telepathy!', 11);
-            } else {
-                this.addMessage(`You finish eating the ${item.buc} ${item.name}. Delicious! (+${heal} HP)`, 10);
-            }
+            this.consumeFoodItem(item);
             item.count = (item.count || 1) - 1;
             this.reindexInventory();
-            this.advanceWorldTurn();
+            if (!p.dead) this.advanceWorldTurn();
             return;
         }
 
@@ -1766,12 +2073,138 @@ class NetHackEngine {
                 return;
             }
             item.equipped = null;
-            this.state.objects.push(Object.assign({}, item, { x: p.x, y: p.y, count: 1 }));
+            const dropped = Object.assign({}, item, { x: p.x, y: p.y, count: 1 });
+            this.state.objects.push(dropped);
             item.count = (item.count || 1) - 1;
             this.reindexInventory();
             this.addMessage(`You drop ${item.name}.`, 1);
+            if (cell && cell.feat === FEAT.ALTAR) {
+                this.revealAltarBuc(cell, dropped);
+            }
             this.advanceWorldTurn();
             return;
+        }
+    }
+
+    consumeFoodItem(item) {
+        const p = this.state.player;
+        const txt = `${item.race || ''} ${item.name || ''}`.toLowerCase();
+        const isCorpse = Boolean(item.isCorpse || /corpse/.test(txt));
+        const age = isCorpse ? (this.state.turn - (item.corpseTurn != null ? item.corpseTurn : this.state.turn)) : 0;
+        const isRotten = Boolean(isCorpse && age >= 50);
+
+        if (this.isCockatriceCorpse(item)) {
+            if (!p.stoneRes) {
+                this.triggerPetrification(`eating a ${item.race || 'cockatrice'} corpse`);
+                return;
+            }
+            p.hunger = Math.min(2000, (p.hunger || 900) + (item.nutrition || 150));
+            this.addMessage('You finish eating the cockatrice corpse safely thanks to your stone resistance.', 10);
+            return;
+        }
+
+        if (isRotten || /\bkobold\b/.test(txt)) {
+            if (isRotten) {
+                p.poisoned = Math.max(p.poisoned || 0, 12);
+                const sickDmg = Math.min(Math.max(1, p.hp - 1), 3 + this.rand(4));
+                p.hp = Math.max(1, p.hp - sickDmg);
+                this.addMessage(`Ulch! That ${item.name} is rotten — you suffer food poisoning! (-${sickDmg} HP)`, 4);
+            } else if (!p.poisonRes) {
+                p.poisoned = Math.max(p.poisoned || 0, 10);
+                this.addMessage(`Ugh! The ${item.name} is poisonous!`, 4);
+            } else {
+                this.addMessage(`You finish eating the ${item.name}. Your poison resistance protects you.`, 10);
+            }
+            p.hunger = Math.min(2000, (p.hunger || 900) + Math.floor((item.nutrition || 150) / 2));
+            return;
+        }
+
+        p.hunger = Math.min(2000, (p.hunger || 900) + (item.nutrition || 800));
+        const heal = item.buc === 'blessed' ? 8 : 4;
+        p.hp = Math.min(p.hpMax, p.hp + heal);
+
+        if (item.grantsTelepathy || /floating eye/.test(txt)) {
+            p.intrinsicTelepathy = true;
+            p.telepathy = true;
+            this.addMessage(`You finish eating the ${item.name}. You gain intrinsic telepathy!`, 11);
+        } else if (/\bwraith\b/.test(txt)) {
+            const nextReq = this.getExpNextForLevel(p.level);
+            if (nextReq > 0) {
+                p.exp = Math.max(p.exp, nextReq);
+                this.checkExperience();
+            }
+            this.addMessage(`You finish eating the ${item.name} and absorb its spectral essence! (+1 Level)`, 14);
+        } else if (/\b(giant|ettin)\b/.test(txt)) {
+            p.str = Math.min(25, (p.str || 12) + 1);
+            this.addMessage(`You finish eating the ${item.name}. You feel much stronger! (+1 STR)`, 14);
+        } else if (/\b(fire ant|red dragon|fire elemental|salamander|hell hound|fire vortex)\b/.test(txt)) {
+            p.fireRes = true;
+            this.addMessage(`You finish eating the ${item.name}. You feel warm inside! (Fire Resistance)`, 11);
+        } else if (/\b(winter wolf|white dragon|frost giant|ice vortex|yeti)\b/.test(txt)) {
+            p.coldRes = true;
+            this.addMessage(`You finish eating the ${item.name}. You feel full of hot air! (Cold Resistance)`, 11);
+        } else if (/\b(grid bug|blue dragon|energy vortex|shocking sphere|blue jelly)\b/.test(txt)) {
+            p.elecRes = true;
+            this.addMessage(`You finish eating the ${item.name}. Your skin tingles with static! (Shock Resistance)`, 11);
+        } else if (/\b(killer bee|snake|scorpion|spider|pit viper|rabid rat|green dragon|violet fungus|spotted jelly|acid blob)\b/.test(txt)) {
+            p.poisonRes = true;
+            this.addMessage(`You finish eating the ${item.name}. You feel healthy and immune to venom! (Poison Resistance)`, 11);
+        } else if (/\bblack dragon\b/.test(txt)) {
+            p.disenRes = true;
+            this.addMessage(`You finish eating the ${item.name}. You feel extraordinarily solid! (Disintegration Resistance)`, 11);
+        } else {
+            this.addMessage(`You finish eating the ${item.buc || 'uncursed'} ${item.name}. Delicious! (+${heal} HP)`, 10);
+        }
+    }
+
+    engraveFloor(rawText) {
+        const p = this.state.player;
+        const cell = this.state.map && this.state.map[p.y] && this.state.map[p.y][p.x];
+        if (!cell) return;
+        const text = String(rawText || 'Elbereth').trim() || 'Elbereth';
+        if (p.blind > 0) {
+            this.addMessage('You feel around and scratch on the floor in the dark.', 11);
+        }
+        cell.engraving = text;
+        if (/elbereth/i.test(text)) {
+            cell.elbereth = true;
+            cell.elberethTurn = this.state.turn;
+            this.addMessage('You engrave "Elbereth" in the dust on the floor.', 14);
+        } else {
+            cell.elbereth = false;
+            this.addMessage(`You engrave "${text}" on the dungeon floor.`, 11);
+        }
+        this.advanceWorldTurn();
+    }
+
+    revealAltarBuc(cell, specificItem = null) {
+        const p = this.state.player;
+        if (!cell || cell.feat !== FEAT.ALTAR) return;
+        if (specificItem) {
+            specificItem.bucKnown = true;
+            const buc = specificItem.buc || 'uncursed';
+            const flash = buc === 'blessed' ? 'amber flash' : (buc === 'cursed' ? 'black flash' : 'clear silver flash');
+            const attr = buc === 'blessed' ? 14 : (buc === 'cursed' ? 4 : 11);
+            this.addMessage(`The altar responds with a ${flash}! ${specificItem.name} is ${buc}.`, attr);
+            return;
+        }
+        const floorItems = this.state.objects.filter(o => o.x === p.x && o.y === p.y);
+        const allItems = [...p.inventory, ...floorItems];
+        const blessed = [];
+        const cursed = [];
+        for (const it of allItems) {
+            it.bucKnown = true;
+            if (it.buc === 'blessed') blessed.push(it.name);
+            else if (it.buc === 'cursed') cursed.push(it.name);
+        }
+        if (cursed.length > 0 && blessed.length > 0) {
+            this.addMessage(`The altar of ${p.deity} pulses with amber & black flashes! Blessed: ${blessed.slice(0, 3).join(', ')} | Cursed: ${cursed.slice(0, 3).join(', ')}.`, 14);
+        } else if (cursed.length > 0) {
+            this.addMessage(`A black flash pulses across the altar of ${p.deity}! Cursed gear detected: ${cursed.slice(0, 4).join(', ')}.`, 4);
+        } else if (blessed.length > 0) {
+            this.addMessage(`An amber flash illuminates the altar of ${p.deity}! Blessed gear detected: ${blessed.slice(0, 4).join(', ')}.`, 14);
+        } else {
+            this.addMessage(`The high altar of ${p.deity} hums softly — your carried items appear uncursed.`, 11);
         }
     }
 
@@ -1898,6 +2331,11 @@ class NetHackEngine {
     executeExtendedCommand(cmd) {
         const p = this.state.player;
         const cell = this.state.map[p.y][p.x];
+        if (cmd.includes('equip')) {
+            this.state.menuMode = 'equip';
+            this.state.pendingPrompt = 'Equipment (Worn/Wielded — / for Inventory, ESC)';
+            return;
+        }
         if (cmd.includes('pray')) {
             const wasBlind = p.blind > 0;
             p.hp = p.hpMax;
@@ -1908,6 +2346,9 @@ class NetHackEngine {
                 p.inventory.forEach(it => { if (it.equipped) it.buc = 'blessed'; });
                 this.addMessage(`A golden aura surrounds you on the high altar! ${p.deity} blesses your panoply and restores your strength!`, 14);
             } else {
+                if ((p.luck || 0) >= 0) {
+                    p.inventory.forEach(it => { if (it.equipped && it.buc === 'cursed') it.buc = 'uncursed'; });
+                }
                 this.addMessage(`You feel that ${p.deity} is well-pleased. A warm golden glow surrounds you and restores your health!`, 14);
             }
             this.advanceWorldTurn();
@@ -1915,6 +2356,8 @@ class NetHackEngine {
         }
         if (cmd.includes('dip')) {
             const w = p.inventory.find(it => it.equipped === 'weapon') || p.inventory[0];
+            const holyWater = p.inventory.find(it => /holy water/i.test(it.name || '') && it.buc === 'blessed')
+                || p.inventory.find(it => /holy water/i.test(it.name || ''));
             if (cell.feat === FEAT.FOUNTAIN && w) {
                 if (w.name.includes('long sword') && p.level >= 1) {
                     w.name = 'Excalibur';
@@ -1927,19 +2370,133 @@ class NetHackEngine {
                     w.buc = 'blessed';
                     this.addMessage(`You dip your ${w.name} into the sparkling fountain. It glows with a soft amber light!`, 11);
                 }
+            } else if (holyWater) {
+                const cursedItem = p.inventory.find(it => it.equipped && it.buc === 'cursed')
+                    || p.inventory.find(it => it.buc === 'cursed');
+                if (cursedItem) {
+                    cursedItem.buc = 'uncursed';
+                    holyWater.count = (holyWater.count || 1) - 1;
+                    this.reindexInventory();
+                    this.addMessage(`You dip your ${cursedItem.name} into the ${holyWater.name}. The curse is lifted!`, 14);
+                } else if (w) {
+                    w.buc = 'blessed';
+                    holyWater.count = (holyWater.count || 1) - 1;
+                    this.reindexInventory();
+                    this.addMessage(`You dip your ${w.name} into the ${holyWater.name}. It glows with a blessed amber aura!`, 14);
+                } else {
+                    this.addMessage('You have nothing to dip into your holy water.', 1);
+                }
             } else {
-                this.addMessage('There is no fountain here to dip into.', 1);
+                this.addMessage('There is no fountain or holy water here to dip into.', 1);
             }
             this.advanceWorldTurn();
             return;
         }
         if (cmd.includes('offer')) {
-            if (cell.feat === FEAT.ALTAR) {
-                p.hpMax += 4;
-                p.hp = p.hpMax;
-                this.addMessage(`Your sacrifice is consumed in a burst of divine light! ${p.deity} grants you enduring vitality!`, 14);
-            } else {
+            if (cell.feat !== FEAT.ALTAR) {
                 this.addMessage('You are not standing upon an altar.', 1);
+                this.advanceWorldTurn();
+                return;
+            }
+            const floorCorpseIdx = this.state.objects.findIndex(o => o.x === p.x && o.y === p.y && (o.isCorpse || /corpse/i.test(o.name || '')));
+            const invCorpse = floorCorpseIdx < 0 ? p.inventory.find(it => it.isCorpse || /corpse/i.test(it.name || '')) : null;
+            const corpse = floorCorpseIdx >= 0 ? this.state.objects[floorCorpseIdx] : invCorpse;
+            if (corpse) {
+                const age = this.state.turn - (corpse.corpseTurn != null ? corpse.corpseTurn : this.state.turn);
+                if (floorCorpseIdx >= 0) {
+                    this.state.objects.splice(floorCorpseIdx, 1);
+                } else if (invCorpse) {
+                    invCorpse.count = (invCorpse.count || 1) - 1;
+                    this.reindexInventory();
+                }
+                if (age >= 50) {
+                    this.addMessage(`You offer the ${corpse.name} on the altar, but nothing happens — it is too old.`, 1);
+                } else {
+                    p.luck = Math.min(10, (p.luck || 0) + 1);
+                    p.hpMax += 2;
+                    p.hp = p.hpMax;
+                    p.pw = p.pwMax;
+                    if ((p.intrinsicAc || 0) < 5) {
+                        p.intrinsicAc = (p.intrinsicAc || 0) + 1;
+                        this.recalcPlayerAc();
+                    }
+                    p.inventory.forEach(it => { if (it.equipped && it.buc === 'cursed') it.buc = 'uncursed'; });
+                    this.addMessage(`You sacrifice the ${corpse.name} to ${p.deity}! A golden flame consumes it (+1 Luck, +1 Divine AC, +2 HP)!`, 14);
+                }
+            } else {
+                p.luck = Math.min(10, (p.luck || 0) + 1);
+                p.hpMax += 2;
+                p.hp = p.hpMax;
+                p.inventory.forEach(it => { if (it.equipped && it.buc === 'cursed') it.buc = 'uncursed'; });
+                this.addMessage(`You kneel at the altar of ${p.deity} and offer devotion. Divine warmth restores your vitality (+1 Luck)!`, 14);
+            }
+            this.advanceWorldTurn();
+            return;
+        }
+        if (cmd.includes('sit')) {
+            if (cell.feat === FEAT.ALTAR) {
+                p.luck = Math.max(-5, (p.luck || 0) - 1);
+                this.addMessage(`You sit on the high altar! ${p.deity} is displeased at your irreverence.`, 4);
+            } else if (cell.feat === FEAT.FOUNTAIN) {
+                this.addMessage('You sit down in the sparkling fountain and get thoroughly soaked!', 11);
+            } else {
+                p.pw = Math.min(p.pwMax, p.pw + 1);
+                this.addMessage('You sit on the cold dungeon floor and catch your breath (+1 Pw).', 1);
+            }
+            this.advanceWorldTurn();
+            return;
+        }
+        if (cmd.includes('rub')) {
+            const lamp = p.inventory.find(it => /magic lamp/i.test(it.name || '') && !it.rubbed);
+            if (lamp) {
+                lamp.rubbed = true;
+                lamp.name = 'oil lamp (expended)';
+                p.luck = Math.min(10, (p.luck || 0) + 2);
+                p.hp = p.hpMax;
+                p.pw = p.pwMax;
+                p.inventory.forEach(it => { if (it.buc === 'cursed') it.buc = 'uncursed'; });
+                const w = p.inventory.find(it => it.equipped === 'weapon');
+                const a = p.inventory.find(it => it.equipped === 'body' || it.equipped === 'armor' || it.equipped === 'cloak');
+                if (w) { w.buc = 'blessed'; w.bonus = (w.bonus || 0) + 1; }
+                if (a) { a.buc = 'blessed'; a.bonus = (a.bonus || 0) + 1; }
+                this.recalcPlayerAc();
+                this.addMessage('You rub the magic lamp! A grateful djinni appears and blesses your panoply (+2 Luck, +1 Gear)!', 14);
+            } else {
+                const brass = p.inventory.find(it => /lamp|lantern/i.test(it.name || ''));
+                const ring = p.inventory.find(it => it.kind === 'jewelry');
+                if (brass) {
+                    this.addMessage(`You polish your ${brass.name}, but only a warm glow answers.`, 1);
+                } else if (ring) {
+                    this.addMessage(`You rub the ${ring.name}, testing its luster.`, 1);
+                } else {
+                    this.addMessage('You have nothing suitable to rub.', 1);
+                }
+            }
+            this.advanceWorldTurn();
+            return;
+        }
+        if (cmd.includes('ride')) {
+            if (p.riding) {
+                const mountName = p.ridingMount || 'steed';
+                p.riding = false;
+                p.ridingMount = '';
+                this.addMessage(`You dismount from your ${mountName}.`, 11);
+            } else {
+                const adjSteed = this.state.monsters.find(m =>
+                    (m.isPet || m.peaceful) &&
+                    Math.abs(m.x - p.x) <= 1 && Math.abs(m.y - p.y) <= 1 &&
+                    /\b(pony|horse|warhorse|steed|unicorn|ki-rin|dragon)\b/i.test(m.race || '')
+                );
+                if (adjSteed) {
+                    p.riding = true;
+                    p.ridingMount = adjSteed.race;
+                    p.speedBoost = Math.max(p.speedBoost || 0, 25);
+                    this.addMessage(`You deftly mount the ${adjSteed.race}! (+Fast riding speed)`, 14);
+                } else if (this.state.monsters.some(m => m.isPet && Math.abs(m.x - p.x) <= 1 && Math.abs(m.y - p.y) <= 1)) {
+                    this.addMessage('Your faithful companion is too small to serve as a mount! Tame a pony, horse, or unicorn.', 11);
+                } else {
+                    this.addMessage('There is no tame steed nearby to ride.', 1);
+                }
             }
             this.advanceWorldTurn();
             return;
@@ -2034,12 +2591,20 @@ class NetHackEngine {
             return;
         }
         const obj = this.state.objects.splice(idx, 1)[0];
+        if (this.isCockatriceCorpse(obj)) {
+            if (!this.hasGlovesEquipped() && !p.stoneRes) {
+                this.state.objects.push(obj);
+                this.triggerPetrification(`touching a ${obj.race || 'cockatrice'} corpse barehanded`);
+                return;
+            }
+            this.addMessage('Your gloves protect your hands from the cockatrice corpse.', 11);
+        }
         if (p.inventory.length >= 52) {
             this.state.objects.push(obj);
             this.addMessage('Your pack cannot hold any more items (52/52)!', 4);
             return;
         }
-        const existing = (obj.kind === 'potion' || obj.kind === 'scroll' || obj.kind === 'food')
+        const existing = (!obj.isCorpse && (obj.kind === 'potion' || obj.kind === 'scroll' || obj.kind === 'food'))
             ? p.inventory.find(it => it.name === obj.name && it.buc === obj.buc)
             : null;
         if (existing) {
@@ -2106,11 +2671,16 @@ class NetHackEngine {
 
         const floorObj = this.state.objects.find(o => o.x === nx && o.y === ny);
         if (floorObj) {
-            this.addMessage(`You see here ${formatItemDesc(floorObj)}. (Press [,] or [g] to pick up)`, 11);
+            if (this.isCockatriceCorpse(floorObj) && !this.hasGlovesEquipped()) {
+                this.addMessage(`Beware! There is ${formatItemDesc(floorObj)} here — NEVER touch it barehanded without gloves!`, 4);
+            } else {
+                this.addMessage(`You see here ${formatItemDesc(floorObj)}. (Press [,] or [g] to pick up)`, 11);
+            }
         } else if (cell.feat === FEAT.FOUNTAIN) {
             this.addMessage('There is a sparkling magic fountain here ({). Use #dip or [q] to interact.', 11);
         } else if (cell.feat === FEAT.ALTAR) {
             this.addMessage(`There is a high altar of ${p.deity} here (_). Use #pray or #offer.`, 14);
+            this.revealAltarBuc(cell);
         } else if (cell.feat === FEAT.DOWN_STAIR) {
             this.addMessage('There is a staircase leading down here (>).', 1);
         } else if (cell.feat === FEAT.UP_STAIR) {
@@ -2123,21 +2693,43 @@ class NetHackEngine {
     attackMonster(mon) {
         const p = this.state.player;
         const w = p.inventory.find(it => it.equipped === 'weapon');
-        let baseDmg = 4;
-        if (w) {
-            const dm = String(w.dmg || '1d6').match(/(\d+)d(\d+)/i);
-            const diceAvg = dm ? (parseInt(dm[1], 10) * (parseInt(dm[2], 10) + 1)) / 2 : 6;
-            baseDmg = Math.round(diceAvg) + (w.name === 'Excalibur' ? 8 : 3) + (w.bonus || 0);
+        const rLower = String(mon.race || '').toLowerCase();
+        if (!w && /(cockatrice|chickatrice)/.test(rLower) && !this.hasGlovesEquipped() && !p.stoneRes) {
+            this.triggerPetrification(`striking a ${mon.race} barehanded`);
+            return;
         }
-        const dmg = Math.max(2, baseDmg + this.rand(6));
+
+        // Authentic NetHack uhitm.c descending-AC d20 hit roll
+        const d20 = 1 + this.rand(20);
+        const dexVal = p.dex != null ? Number(p.dex) : 12;
+        const dexBonus = dexVal >= 18 ? 3 : (dexVal >= 16 ? 2 : (dexVal >= 14 ? 1 : (dexVal <= 5 ? -2 : (dexVal <= 7 ? -1 : 0))));
+        const toHitBonus = (w ? (Number(w.bonus) || 0) : 0) + ((this.state.weaponSkillLevel || 1) - 1);
+        const luck = Number(p.luck || 0);
+        const playerRoll = d20 + (p.level || 1) + luck + dexBonus + toHitBonus;
+        const monAc = mon.ac != null ? Number(mon.ac) : 8;
+        const targetDefense = 20 - monAc; // Lower mon.ac => higher defense (harder to hit)
+        const isHit = (d20 === 20) || (d20 !== 1 && playerRoll >= targetDefense);
+
         mon.asleep = false;
+        if (!isHit) {
+            this.addMessage(`You miss the ${mon.race}.`, 7);
+            return;
+        }
+
+        const strVal = p.str != null ? Number(p.str) : 12;
+        const strBonus = strVal >= 18 ? 3 : (strVal >= 16 ? 2 : (strVal >= 14 ? 1 : (strVal <= 6 ? -1 : 0)));
+        const rolled = w ? this.rollDice(w.dmg || '1d6') : this.rollDice('1d4');
+        const skillDmg = Math.max(0, (this.state.weaponSkillLevel || 1) - 1);
+        const excalBonus = (w && w.name === 'Excalibur') ? 5 : 0;
+        const critMult = (d20 === 20) ? 2 : 1;
+        const dmg = Math.max(1, rolled * critMult + strBonus + (w ? (Number(w.bonus) || 0) : 0) + excalBonus + skillDmg);
+
         mon.hp -= dmg;
-        this.addMessage(`You hit the ${mon.race} with your ${w ? w.name : 'fists'}! (${dmg} dmg)`, 10);
+        this.addMessage(`${d20 === 20 ? 'Critical strike! ' : ''}You hit the ${mon.race} with your ${w ? w.name : 'fists'}! (${dmg} dmg)`, 10);
         if (mon.hp <= 0) {
             this.handleMonsterDefeat(mon);
             return;
         }
-        const rLower = String(mon.race || '').toLowerCase();
         if (rLower.includes('floating eye') && !p.blind) {
             p.paralyzed = 2;
             this.addMessage("You are frozen by the floating eye's gaze!", 11);
@@ -2158,22 +2750,31 @@ class NetHackEngine {
         const goldDrop = 5 + this.rand(20);
         p.gold += goldDrop;
         this.addMessage(`You destroy the ${mon.race}! (+${xpGain} XP, +${goldDrop}$)`, 14);
-        if (/floating eye/i.test(mon.race || '')) {
+        const raceLower = String(mon.race || '').toLowerCase();
+        if (!mon.isBoss && !/yellow light/.test(raceLower)) {
+            const isCock = /(cockatrice|chickatrice)/.test(raceLower);
+            const isEye = /floating eye/.test(raceLower);
             this.state.objects.push({
                 kind: 'food',
-                name: 'floating eye corpse',
+                isCorpse: true,
+                race: mon.race,
+                name: `${mon.race} corpse`,
                 glyph: '%',
-                attr: 11,
+                attr: mon.attr || (isEye ? 11 : 3),
                 buc: 'uncursed',
-                weight: 10,
+                weight: 20,
                 tval: 80,
                 sval: 2,
-                nutrition: 100,
-                grantsTelepathy: true,
+                nutrition: isEye ? 100 : 200,
+                corpseTurn: this.state.turn,
+                grantsTelepathy: isEye,
                 x: mon.x,
                 y: mon.y,
                 count: 1
             });
+            if (isCock && !this.hasGlovesEquipped()) {
+                this.addMessage(`Beware! The ${mon.race} leaves a corpse — NEVER touch it barehanded without gloves!`, 4);
+            }
         }
         if (mon.isBoss) {
             p.hasAmulet = true;
@@ -2209,10 +2810,52 @@ class NetHackEngine {
                 this.addMessage('You feel less confused now.', 11);
             }
         }
-        if (p.poisoned > 0) p.poisoned--;
-        if (this.state.turn % 8 === 0 && p.hp < p.hpMax) p.hp++;
+        if (p.poisoned > 0) {
+            p.poisoned--;
+            if (!p.poisonRes && this.state.turn % 2 === 0 && p.hp > 1) p.hp--;
+        }
+
+        // NetHack hunger clock (slower with Ring of Slow Digestion, faster with Ring of Regeneration / extra rings)
+        const hasSlowDigestion = p.inventory.some(it => it.equipped && /slow digestion/i.test(it.name || ''));
+        const hasRegen = p.inventory.some(it => it.equipped && /regeneration/i.test(it.name || ''));
+        const equippedRings = p.inventory.filter(it => it.equipped && (it.equipped === 'ring' || resolveEquipMeta(it).slot_name === 'ring')).length;
+        let hungerCost = hasSlowDigestion ? (this.state.turn % 20 === 0 ? 1 : 0) : 1;
+        if (hasRegen) hungerCost += 1;
+        if (!hasSlowDigestion && equippedRings > (hasRegen ? 1 : 0) && (this.state.turn % 2 === 0)) {
+            hungerCost += 1;
+        }
+        const prevHungerState = this.getHungerState(p.hunger);
+        p.hunger = Math.max(-100, (p.hunger != null ? p.hunger : 900) - hungerCost);
+        const newHungerState = this.getHungerState(p.hunger);
+        if (newHungerState !== prevHungerState) {
+            if (newHungerState === 'Hungry') this.addMessage('You are beginning to feel hungry.', 6);
+            else if (newHungerState === 'Weak') this.addMessage('You are beginning to feel weak.', 6);
+            else if (newHungerState === 'Fainting') this.addMessage('You faint from lack of food!', 4);
+        }
+        if (p.hunger <= 0) {
+            if (this.state.turn % 3 === 0) p.hp = Math.max(0, p.hp - 1);
+            if (p.hunger <= -100 || p.hp <= 0) {
+                const lifeSave = p.inventory.find(it => /life saving/i.test(it.name || ''));
+                if (lifeSave) {
+                    lifeSave.count = 0;
+                    this.reindexInventory();
+                    p.hp = p.hpMax;
+                    p.hunger = 900;
+                    this.addMessage('Your amulet of life saving glows incandescently and disintegrates! You survive starvation!', 14);
+                } else {
+                    p.hp = 0;
+                    p.dead = true;
+                    p.diedFrom = 'starvation';
+                    this.addMessage(`You starve to death on Dlvl ${this.state.depth}... Press [R] or [Enter] to start anew.`, 4);
+                    return;
+                }
+            }
+        }
+
+        if (this.state.turn % 8 === 0 && p.hp < p.hpMax && p.hunger > 0) p.hp++;
 
         const isWalkableFeat = (f) => f === FEAT.FLOOR || f === FEAT.OPEN_DOOR || f === FEAT.UP_STAIR || f === FEAT.DOWN_STAIR || f === FEAT.ALTAR || f === FEAT.FOUNTAIN;
+        const playerCell = this.state.map[p.y] && this.state.map[p.y][p.x];
 
         // Move monsters & faithful pet
         for (const mon of [...this.state.monsters]) {
@@ -2291,17 +2934,40 @@ class NetHackEngine {
                     }
                     continue;
                 }
-                const wornArmor = p.inventory.find(it => it.equipped === 'armor');
-                if ((rLower.includes('rust monster') || rLower.includes('acid blob')) && wornArmor && !/leather|robe|cloak|dragon/i.test(wornArmor.name || '')) {
-                    wornArmor.bonus = Math.max(-3, (wornArmor.bonus || 0) - 1);
-                    this.recalcPlayerAc();
-                    this.addMessage(`The ${mon.race}'s touch corrodes your ${wornArmor.name}!`, 12);
+                // Elbereth deterrence: stops non-blind, non-human, non-minotaur monsters from meleeing you!
+                const isBlindMon = Boolean(mon.blind > 0 || /eyeless|gremlin/.test(rLower));
+                const isHumanMon = Boolean(mon.glyph === '@' || /\b(human|watchman|shopkeeper|priest|soldier|captain|guard|mercenary|knight|wizard of yendor)\b/.test(rLower));
+                const isMinotaurMon = /minotaur/.test(rLower);
+                if (playerCell && playerCell.elbereth && !isBlindMon && !isHumanMon && !isMinotaurMon) {
+                    this.addMessage(`The ${mon.race} recoils from the Elbereth engraving!`, 11);
+                    continue;
                 }
-                const dmg = Math.max(1, (mon.dmg || 4) - Math.max(0, Math.floor((10 - p.ac) / 2)));
+                // Authentic NetHack mhitu.c descending-AC d20 monster hit roll
+                const d20 = 1 + this.rand(20);
+                const monLv = Math.max(1, Number(mon.race_level || 1));
+                const playerAc = p.ac != null ? Number(p.ac) : 10;
+                const targetDef = 20 - playerAc; // Lower playerAc => harder for monster to hit
+                const monHits = (d20 === 20) || (d20 !== 1 && (d20 + monLv) >= targetDef);
+                if (!monHits) {
+                    this.addMessage(`The ${mon.race} misses you.`, 1);
+                    continue;
+                }
+                const wornMetalArmor = p.inventory.find(it =>
+                    ['body', 'armor', 'shield', 'head', 'hands', 'feet'].includes(it.equipped) &&
+                    !/leather|robe|cloak|dragon/i.test(it.name || '')
+                );
+                if ((rLower.includes('rust monster') || rLower.includes('acid blob')) && wornMetalArmor) {
+                    wornMetalArmor.bonus = Math.max(-3, (wornMetalArmor.bonus || 0) - 1);
+                    this.recalcPlayerAc();
+                    this.addMessage(`The ${mon.race}'s touch corrodes your ${wornMetalArmor.name}!`, 12);
+                }
+                const baseHit = Math.max(1, Math.floor((mon.dmg || 4) * 0.6) + this.rand(Math.max(2, Math.floor((mon.dmg || 4) * 0.6) + 1)));
+                const negAcDr = playerAc < 0 ? 1 + this.rand(-playerAc) : 0;
+                const dmg = Math.max(1, baseHit - Math.max(0, Math.floor((10 - playerAc) / 4)) - negAcDr);
                 p.hp -= dmg;
                 this.addMessage(`The ${mon.race} hits you! (-${dmg} HP)`, 4);
                 if (p.hp <= 0) {
-                    const lifeSave = p.inventory.find(it => it.name.includes('life saving'));
+                    const lifeSave = p.inventory.find(it => /life saving/i.test(it.name || ''));
                     if (lifeSave) {
                         p.hp = p.hpMax;
                         lifeSave.count = 0;
@@ -2441,7 +3107,7 @@ class NetHackEngine {
                 }
             }
             while (rows.length < TERM_H - 1) rows.push({ g: pad80(''), a: attr80('01') });
-            rows.push({ g: pad80(`[#pray] [#dip] [#offer] [#loot] [#untrap] [#chat] | Dlvl:${this.state.depth} HP:${p.hp}(${p.hpMax}) AC:${p.ac}`), a: attr80('0b') });
+            rows.push({ g: pad80(`[#pray] [#dip] [#offer] [#sit] [#rub] [#ride] | Dlvl:${this.state.depth} HP:${p.hp}(${p.hpMax}) AC:${p.ac}`), a: attr80('0b') });
             return rows;
         }
 
@@ -2476,11 +3142,12 @@ class NetHackEngine {
             rows.push({ g: pad80('=============================================================================='), a: attr80('02') });
             if (this.state.menuMode === 'char') {
                 const xpNextStr = p.expNext > 0 ? `${p.exp}/${p.expNext}` : `${p.exp} (MAX)`;
+                const hState = this.getHungerState(p.hunger);
                 rows.push({ g: pad80(`  Name:  ${p.name.padEnd(20, ' ')} Role:  ${p.class} (${p.race}, ${p.align})`), a: attr80('01') });
                 rows.push({ g: pad80(`  Level: ${String(p.level).padEnd(20, ' ')} XP:    ${xpNextStr}`), a: attr80('01') });
                 rows.push({ g: pad80(`  Deity: ${p.deity.padEnd(20, ' ')} Dlvl:  ${this.state.depth} (${this.state.branchName})`), a: attr80('01') });
-                rows.push({ g: pad80(`  STR: ${p.str}  INT: ${p.int}  WIS: ${p.wis}  DEX: ${p.dex}  CON: ${p.con}  AC: ${p.ac}`), a: attr80('0b') });
-                rows.push({ g: pad80(`  HP: ${p.hp}/${p.hpMax}   Pw: ${p.pw}/${p.pwMax}   Gold: ${p.gold}zm   Turns: ${this.state.turn}`), a: attr80('0a') });
+                rows.push({ g: pad80(`  STR:${p.str} INT:${p.int} WIS:${p.wis} DEX:${p.dex} CON:${p.con} CHA:${p.cha != null ? p.cha : 12}  AC:${p.ac}`), a: attr80('0b') });
+                rows.push({ g: pad80(`  HP:${p.hp}/${p.hpMax} Pw:${p.pw}/${p.pwMax} Gold:${p.gold}zm Hunger:${hState} Luck:${p.luck || 0} T:${this.state.turn}`), a: attr80('0a') });
             } else if (this.state.menuMode === 'knowledge') {
                 rows.push({ g: pad80(`  Discovered Knowledge (${p.inventory.length} items carried in ${this.state.branchName}):`), a: attr80('0b') });
                 p.inventory.slice(0, 15).forEach((it) => {
@@ -2488,16 +3155,16 @@ class NetHackEngine {
                 });
             } else {
                 rows.push({ g: pad80('  === NETHACK 3.6.7 — IN-GAME COMMAND & SURVIVAL REFERENCE ==='), a: attr80('0b') });
-                rows.push({ g: pad80('  [i] Inventory  [e] Equipment  [,] Pick Up   [e/E] Eat   [q] Quaff   [r] Read'), a: attr80('01') });
+                rows.push({ g: pad80('  [i] Inventory  [[] Equipment  [,] Pick Up   [e] Eat   [E] Engrave  [q] Quaff'), a: attr80('01') });
                 rows.push({ g: pad80('  [w] Wield      [W] Wear       [T] Take Off  [P] Put On  [R] Remove  [z] Zap'), a: attr80('01') });
                 rows.push({ g: pad80('  [Z] Cast Spell [a] Apply Tool [t/f] Throw   [o/c] Door  [s] Search  [.] Wait'), a: attr80('01') });
                 rows.push({ g: pad80('  --- EXTENDED (#) COMMANDS ---'), a: attr80('0e') });
                 rows.push({ g: pad80('  [#pray] Pray to Deity      [#offer] Sacrifice Corpse on Altar'), a: attr80('01') });
-                rows.push({ g: pad80('  [#dip]  Dip in Potion/Ftn  [#chat]  Talk to Priest/Shopkeeper/Oracle'), a: attr80('01') });
-                rows.push({ g: pad80('  [#loot] Loot Chest/Box     [#untrap] Disarm Trap   [#force] Force Lock'), a: attr80('01') });
+                rows.push({ g: pad80('  [#dip]  Dip in Potion/Ftn  [#sit]   Sit     [#rub] Rub Lamp  [#ride] Mount'), a: attr80('01') });
+                rows.push({ g: pad80('  [#loot] Loot Chest/Box     [#untrap] Disarm  [#enhance] Skill [#equip] Gear'), a: attr80('01') });
                 rows.push({ g: pad80('  --- ESSENTIAL SURVIVAL RULES ---'), a: attr80('0a') });
-                rows.push({ g: pad80('  • BUC Testing: Drop unknown items on Altars (_) or let your Pet test for curses!'), a: attr80('01') });
-                rows.push({ g: pad80('  • Corpses: Eat Floating Eye for Telepathy; NEVER touch Cockatrices barehanded!'), a: attr80('01') });
+                rows.push({ g: pad80('  • BUC Testing: Step on or drop items onto Altars (_) to reveal BUC flashes!'), a: attr80('01') });
+                rows.push({ g: pad80('  • Corpses: Eat fresh corpses for intrinsics; NEVER touch Cockatrices barehanded!'), a: attr80('01') });
                 rows.push({ g: pad80('  • Click [? HELP] on the HUD for the full NetHack 3.6.7 Guidebook & Spoilers.'), a: attr80('0b') });
             }
             while (rows.length < TERM_H) rows.push({ g: pad80(''), a: attr80('01') });
@@ -2505,7 +3172,7 @@ class NetHackEngine {
         }
 
         // Standard dungeon viewport + NetHack bottom status lines
-        const lastMsg = (this.state.menuMode === 'direction' || this.state.menuMode === 'extended')
+        const lastMsg = (this.state.menuMode === 'direction' || this.state.menuMode === 'extended' || this.state.menuMode === 'engrave')
             ? this.state.pendingPrompt
             : ((this.state.messages[this.state.messages.length - 1] && this.state.messages[this.state.messages.length - 1].text) || '');
         rows.push({ g: pad80(lastMsg), a: attr80('01') });
@@ -2520,6 +3187,7 @@ class NetHackEngine {
                 `WIS: ${String(p.wis).padStart(6, ' ')}`,
                 `DEX: ${String(p.dex).padStart(6, ' ')}`,
                 `CON: ${String(p.con).padStart(6, ' ')}`,
+                `CHA: ${String(p.cha != null ? p.cha : 12).padStart(6, ' ')}`,
                 `AC:  ${String(p.ac).padStart(6, ' ')}`,
                 `HP: ${String(p.hp + '/' + p.hpMax).padStart(7, ' ')}`,
                 `Pw: ${String(p.pw + '/' + p.pwMax).padStart(7, ' ')}`,
@@ -2539,8 +3207,9 @@ class NetHackEngine {
             rows.push({ g: pad80(side.padEnd(13, ' ') + mapChars), a: attr80('01') });
         }
 
-        rows.push({ g: pad80(`${p.name} the ${p.class}  St:${p.str} Dx:${p.dex} Co:${p.con} In:${p.int} Wi:${p.wis}  ${p.align}`), a: attr80('0e') });
-        rows.push({ g: pad80(`Dlvl:${this.state.depth} $:${p.gold} HP:${p.hp}(${p.hpMax}) Pw:${p.pw}(${p.pwMax}) AC:${p.ac} Xp:${p.level}/${p.exp} T:${this.state.turn}`), a: attr80('0b') });
+        const hungerSuffix = this.getHungerState(p.hunger) !== 'Normal' ? ` ${this.getHungerState(p.hunger)}` : '';
+        rows.push({ g: pad80(`${p.name} the ${p.class}  St:${p.str} Dx:${p.dex} Co:${p.con} In:${p.int} Wi:${p.wis} Ch:${p.cha != null ? p.cha : 12}  ${p.align}`), a: attr80('0e') });
+        rows.push({ g: pad80(`Dlvl:${this.state.depth} $:${p.gold} HP:${p.hp}(${p.hpMax}) Pw:${p.pw}(${p.pwMax}) AC:${p.ac} Xp:${p.level}/${p.exp} T:${this.state.turn}${hungerSuffix}`), a: attr80('0b') });
         return rows;
     }
 
@@ -2620,14 +3289,22 @@ class NetHackEngine {
 
         const isOverlay = this.state.phase === 'setup' || this.state.menuMode !== 'none';
         const promptObj = this.state.menuMode !== 'none'
-            ? { kind: this.state.menuMode === 'direction' ? 'direction' : 'item', text: this.state.pendingPrompt || 'Inventory' }
+            ? { kind: this.state.menuMode === 'direction' ? 'direction' : (this.state.menuMode === 'engrave' ? 'string' : 'item'), text: this.state.pendingPrompt || 'Inventory' }
             : null;
 
+        const hungerState = this.getHungerState(p.hunger);
+        const curCell = this.state.map && this.state.map[p.y] && this.state.map[p.y][p.x];
         const statuses = [];
         if (p.blind > 0) statuses.push({ name: 'Blind', attr: 6, val: p.blind });
         if (p.confused > 0) statuses.push({ name: 'Confused', attr: 6, val: p.confused });
         if (p.poisoned > 0) statuses.push({ name: 'Poisoned', attr: 4, val: p.poisoned });
         if (p.speedBoost > 0) statuses.push({ name: 'Fast', attr: 10, val: p.speedBoost });
+        if (hungerState !== 'Normal') {
+            const hAttr = hungerState === 'Fainting' ? 4 : (hungerState === 'Satiated' ? 10 : 6);
+            statuses.push({ name: hungerState, attr: hAttr, val: p.hunger });
+        }
+        if (curCell && curCell.elbereth) statuses.push({ name: 'Elbereth', attr: 14, val: 1 });
+        if (p.riding) statuses.push({ name: 'Riding', attr: 11, val: 1 });
         if (p.hasAmulet) statuses.push({ name: 'Amulet', attr: 14, val: 1 });
 
         let curWeaponItem = p.weaponName || '';
@@ -2694,15 +3371,21 @@ class NetHackEngine {
         }));
 
         const resists = {
-            acid: 0, elec: 0, fire: 0, cold: 0, pois: p.poisonRes ? 1 : 0,
-            light: 0, dark: 0, sound: 0, shards: 0, nexus: 0, nether: 0, chaos: 0, disen: 0
+            acid: 0,
+            elec: p.elecRes ? 1 : 0,
+            fire: p.fireRes ? 1 : 0,
+            cold: p.coldRes ? 1 : 0,
+            pois: p.poisonRes ? 1 : 0,
+            light: 0, dark: 0, sound: 0, shards: 0, nexus: 0, nether: 0, chaos: 0,
+            disen: p.disenRes ? 1 : 0
         };
         const flags = {
             rFear: false, rBlind: Boolean(p.rBlind), rConf: false, rStun: false,
             freeAct: false, holdLife: false, seeInvis: false,
             esp: Boolean(hasTelepathy), telepathy: Boolean(hasTelepathy || (isBlind && (p.telepathy || p.esp || p.intrinsicTelepathy))),
             regen: p.inventory.some(it => it.equipped && /regeneration/i.test(it.name || '')),
-            feather: false, slowDigest: false
+            feather: false,
+            slowDigest: p.inventory.some(it => it.equipped && /slow digestion/i.test(it.name || ''))
         };
         if (isBlind && (p.telepathy || p.esp || p.intrinsicTelepathy || hasTelepathy)) {
             flags.telepathy = true;
@@ -2776,6 +3459,10 @@ class NetHackEngine {
                 name: p.name,
                 race: p.race,
                 class: p.class,
+                align: p.align || 'Neutral',
+                hunger: p.hunger != null ? p.hunger : 900,
+                hunger_state: hungerState,
+                luck: p.luck || 0,
                 stakes_mode: p.stakesMode || 'ironman',
                 resurrection_count: p.resurrectionCount || 0,
                 history: `Chosen by ${p.deity} (${p.align}) to descend the ${this.state.branchName} and retrieve the Amulet of Yendor.`,
@@ -2816,7 +3503,8 @@ class NetHackEngine {
                     int: { use: p.int, max: p.int, top: p.int, reduced: false },
                     wis: { use: p.wis, max: p.wis, top: p.wis, reduced: false },
                     dex: { use: p.dex, max: p.dex, top: p.dex, reduced: false },
-                    con: { use: p.con, max: p.con, top: p.con, reduced: false }
+                    con: { use: p.con, max: p.con, top: p.con, reduced: false },
+                    cha: { use: p.cha != null ? p.cha : 12, max: p.cha != null ? p.cha : 12, top: p.cha != null ? p.cha : 12, reduced: false }
                 },
                 resists,
                 flags,

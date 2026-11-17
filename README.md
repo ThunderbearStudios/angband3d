@@ -7,11 +7,11 @@
 [![Engines: 9 Authoritative Realms](https://img.shields.io/badge/Engines-Angband_•_Sil--Q_•_FCB_•_Hengband_•_NetHack_•_DCSS_•_Brogue_•_Rogue_•_RYOD-darkgreen.svg)](#-nine-legendary-realms-one-unified-experience)
 [![Web Client: Three.js PBR](https://img.shields.io/badge/Web_Client-Three.js_WebGL_PBR_&_PWA-orange.svg)](server/public)
 [![Audio: 58-Track Jukebox & Foley](https://img.shields.io/badge/Audio-58--Track_Jukebox_&_101_Foley_SFX-blueviolet.svg)](server/public/assets/audio)
-[![Tests: 34/34 Fast + 11/11 Smoke + 259/259 RYOD](https://img.shields.io/badge/Automated_Gates-All_Passing-brightgreen.svg)](tools)
+[![Tests: 44/44 Fast + 11/11 Smoke + 23/23 Server](https://img.shields.io/badge/Automated_Gates-All_Passing-brightgreen.svg)](tools)
 
 ---
 
-> ### 🌟 Official Live Links & Instant Play (`v11.8.6`)
+> ### 🌟 Official Live Links & Instant Play (`v13.0.2`)
 > - ⚔ **Play Now in Browser**: **[https://yasd3d.com](https://yasd3d.com)** *(Instant 60 FPS 3D roguelike across Desktop, iOS & Android — zero install or 1-click PWA install)*
 > - 📖 **System Architecture & Wire Protocol**: **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** *(C99 & Universal Cartridge bridge specification, 60 FPS dirty-state gating & automated test matrix)*
 > - 🏛 **Official Studio & Architecture Overview**: **[https://thunderbearstudios.dev](https://thunderbearstudios.dev)** *(Thunderbear Studios frameworks & Cloud Run proving ground)*
@@ -26,7 +26,7 @@ Classic turn-based roguelikes represent some of the most mathematically deep, ta
 
 Rather than rewriting the game, YASD 3D runs **nine authoritative roguelike realms** (`Vanilla Angband 4.2.6`, `Sil-Q 1.5.0`, `FrogComposBand 7.1.1`, `Hengband 3.0.1`, `NetHack 3.6.7`, `Dungeon Crawl Stone Soup`, `Brogue CE`, `Classic Rogue 5.4`, and **Roll Your Own Dungeon (`RYOD`)**) through a unified headless JSON wire protocol (`main-bridge.c` and `UniversalCartridge`). Every combat roll, saving throw, item generation curve, hunger clock tick, stealth check, and monster AI decision runs authoritative backend rules, while our responsive Three.js WebGL / PWA client acts purely as a high-craft 60 FPS presentation layer.
 
-The result is a breathtaking first-person dungeon crawl with real-time camera look, 9-realm PBR biomes, dual-scrolling water and magma shaders, a 65+ model rigged 3D bestiary (including a 4-model canine pack with breath-element emissive veins), an interactive 58-track Multi-Realm Adaptive Jukebox & Contextual Music Director (`CC0`/`CC-BY` OpenGameArt + Hengband BGM), vertex-verified 1st-person weaponry (including coiled braided leather bullwhips & forward-facing axes/blades), flush 3D guild plaques with high floating wayfinders, a **6-Card Hybrid Roll-or-Pick RYOD Tabletop Forge**, and a **9-Realm Voiced Living Chronicle** with the *Enceladus* Dungeon Master / Lorekeeper persona.
+The result is a breathtaking first-person dungeon crawl with real-time camera look, 9-realm PBR biomes, dual-scrolling water and magma shaders, a 59+ model 100% 3rd-party sculpted & rigged 3D bestiary (`5,174` mapped entries across all 9 realms, zero procedural monsters), an interactive 58-track Multi-Realm Adaptive Jukebox & Contextual Music Director (`CC0`/`CC-BY` OpenGameArt + Hengband BGM), vertex-verified 1st-person weaponry (including coiled braided leather bullwhips & forward-facing axes/blades), flush 3D storefront fascia plaques with always-readable floating store text, a **2-Step Full-Viewport 9-Realm Main Menu**, a **6-Card Hybrid Roll-or-Pick RYOD Tabletop Forge**, and a **9-Realm Voiced Living Chronicle** with the *Enceladus* Dungeon Master / Lorekeeper persona.
 
 ---
 
@@ -91,12 +91,12 @@ Every adventurer plays differently. Angband 3D features a complete, zero-lag dra
 
 ---
 
-### 5. 🎨 Photogrammetry Ultra-Realism, 58-Model 3D Bestiary, Studio Foley & Next-Gen Action VFX
-Angband 3D combines 8K photogrammetry scans, a comprehensive 4-realm 3D bestiary, studio-recorded open-source foley, and the dark-fantasy art of **Raymond "Shockbolt" Gaustadnes**:
+### 5. 🎨 Photogrammetry Ultra-Realism, 59+ Model 9-Realm 3D Bestiary, Studio Foley & Next-Gen Action VFX
+Angband 3D combines 8K photogrammetry scans, a 100% 3rd-party sculpted 9-realm 3D bestiary, studio-recorded open-source foley, and the dark-fantasy art of **Raymond "Shockbolt" Gaustadnes**:
 
 * **3D Armored Gauntlet Viewmodels & Poly Haven Weapons**: First-person viewmodels feature CC0 8K-scanned Poly Haven models and OpenMMO weaponry anchored below the lower-right viewport rim, gripped by a fully articulated 3D armored gauntlet (`iron_gauntlets.glb`) with animated weapon strike recoil, off-hand shields, and zero HUD occlusion.
-* **Comprehensive 58-Model 4-Realm 3D Bestiary**: 100% dedicated 3D models across `Vanilla Angband`, `Sil-Q`, `FrogComposBand`, and `Hengband`—including humanoids (Rangers, Peasants, Royal Guards, Valkyries), goblinoids & giants (goblins, orcs, kobolds, trolls, ogres, cyclopes), multi-headed hydras (`hydra.glb`), hooded nagas (`naga.glb`), floating beholder eyes (`floating_eye.glb`), writhing worm masses (`worm_mass.glb`), scorpions (`scorpion.glb`), centipedes (`centipede.glb`), scarab beetles (`beetle.glb`), formics (`ant.glb`), chiropteran bats (`bat.glb`), bears & heavy quadrupeds (`bear.glb`), basilisks & reptiles (`lizard.glb`), sharks & aquatic predators (`aquatic.glb`), elemental vortices (`vortex_elemental.glb`), quylthulgs (`quylthulg.glb`), fungal colonies (`mushroom_cluster.glb`), and translucent oozes (`jelly_ooze.glb`).
-* **78-File Open-Source Studio Audio Bank & Stereo Dungeon Convolution Reverb**: Crisp, non-vocal medieval combat foley (`Kenney CC0` + `Battle for Wesnoth GPL-2.0+`) for steel blades, axes, maces, spears, plate-armor blocks, bows, footsteps, and elemental spells routed through a 2-channel subterranean stone-hall convolution reverb impulse (`createDungeonReverbImpulse`).
+* **100% 3rd-Party Sculpted 9-Realm 3D Bestiary (`5,174` Mapped Entries)**: Dedicated 3D sculpted/rigged models (`<=512x512` PBR albedo + normal maps) across all 9 realms—including humanoids (Rangers, Peasants, Royal Guards, Valkyries), goblinoids & giants (goblins, orcs, kobolds, trolls, ogres, cyclopes), multi-headed hydras (`hydra.glb`), hooded nagas (`naga.glb`), floating beholder eyes (`floating_eye.glb`), writhing worm masses (`worm_mass.glb`), cockatrices (`cockatrice.glb`), glacial ice constructs (`frost_construct.glb`), arctic yetis (`YetiSmall.glb`), scorpions (`scorpion.glb`), centipedes (`centipede.glb`), scarab beetles (`beetle.glb`), formics (`ant.glb`), chiropteran bats (`bat.glb`), bears & heavy quadrupeds (`bear.glb`), basilisks & reptiles (`lizard.glb`), sharks & aquatic predators (`aquatic.glb`), elemental vortices (`vortex_elemental.glb`), fleshy chaos/bloat horrors (`quylthulg.glb`), fungal colonies (`mushroom_cluster.glb`), and translucent oozes (`jelly_ooze.glb`).
+* **101-File Open-Source Studio Audio Bank, 58-Track Jukebox & Stereo Dungeon Convolution Reverb**: Crisp, non-vocal medieval combat foley (`Kenney CC0` + `Battle for Wesnoth GPL-2.0+`) for steel blades, axes, maces, spears, plate-armor blocks, bows, footsteps, and elemental spells routed through a 2-channel subterranean stone-hall convolution reverb impulse (`createDungeonReverbImpulse`).
 * **Zero-Leak 3D Action & Spell VFX**: Weapon-specific crescent blade cleaves (`slash`), blazing X-cleaves (`crit_slash`), dual seismic shockwave rings (`blunt`), piercing thrust lances (`pierce`), volumetric dragon breath cones (`breath`), multi-branch forked lightning (`lightning`), impact detonation domes (`spawnDetonationDome`), and runic ascension pillars (`aura`) powered by shared singleton GPU geometries.
 * **Next-Gen Celestial Sky Dome & 4-Level Biome Chapters**: Custom GLSL sky dome (Milky Way, boreal aurora, crescent moon) on surface levels, transitioning every 200 feet through Upper Ashlar Crypts, Damp Flooded Undercrofts, Ancient Sandstone Sepulchres, Fungal Catacombs, and Deep Magma Pits.
 
@@ -105,7 +105,7 @@ Angband 3D combines 8K photogrammetry scans, a comprehensive 4-realm 3D bestiary
 ### 6. 💾 Universal Save Game Portability
 Your character lives wherever you want to play:
 
-* **Universal Binary Saves (`SaveVNLA`, `SaveSILQ`, `SaveFROX`, `SaveHENG`)**:
+* **Universal Realm Saves (`SaveVNLA`, `SaveSILQ`, `SaveFROX`, `SaveHENG`, `SaveRYOD` + `.realm.json`)**:
   * Savegames use authentic upstream binary formats.
   * Export your save from your desktop browser with 1 click (`Esc` -> `Export Save`).
   * Drop it into your offline Windows Desktop client or continue your dungeon crawl on your Android phone during your commute.
@@ -189,10 +189,10 @@ Capture your legend in living ink:
 |---|---|---|---|
 | **Direct Access** | **[Play in Browser](https://yasd3d.com)** | **[Open on iOS / Android](https://yasd3d.com)** | **`http://localhost:8080`** |
 | **Target Platform** | Chrome, Edge, Firefox, Safari (PC, Mac, Linux) | iOS Safari & Android Chrome (Full-Screen PWA) | Windows, macOS, Linux, Docker / Cloud Run |
-| **Graphics Pipeline** | Three.js WebGL / 8-Realm PBR Biomes | Three.js WebGL / Adaptive DPR | Three.js WebGL / 8-Realm PBR Biomes |
+| **Graphics Pipeline** | Three.js WebGL / 9-Realm PBR Biomes | Three.js WebGL / Adaptive DPR | Three.js WebGL / 9-Realm PBR Biomes |
 | **Target Framerate** | 60 FPS VSync (`_lastSig` Dirty-Gated) | 60 FPS Battery-Optimized | 60 FPS VSync |
-| **Authoritative Realms**| All 8 Realms (Angband, Sil-Q, FCB, Heng, NetHack, DCSS, Brogue, Rogue) | All 8 Realms | All 8 Realms |
-| **Audio & Music** | 48-Track Jukebox + Contextual Director + 101 Foley SFX | 48-Track Jukebox + Touch-Unlocked WebAudio | 48-Track Jukebox + 101 Foley SFX |
+| **Authoritative Realms**| All 9 Realms (Angband, Sil-Q, FCB, Heng, NetHack, DCSS, Brogue, Rogue, RYOD) | All 9 Realms | All 9 Realms |
+| **Audio & Music** | 58-Track Jukebox + Contextual Director + 101 Foley SFX | 58-Track Jukebox + Touch-Unlocked WebAudio | 58-Track Jukebox + 101 Foley SFX |
 | **Savegame Portability** | ✅ Cloud Sync + 1-Click `.sav` Export/Import | ✅ Cloud Sync + 1-Click `.sav` Export/Import | ✅ Local Disk + `.sav` Export/Import |
 | **Voiced Living Chronicle**| ✅ **Full Gemini Neural Suite & Sketches** | ✅ **Full Gemini Neural Suite & Sketches** | ✅ **Full Gemini Neural Suite & Sketches** |
 
@@ -319,7 +319,7 @@ dotnet build client/angband3d.csproj
 ### 3. Run Automated Validation & Quality Gates
 Angband 3D maintains strict automated test suites across all layers:
 ```bash
-# Fast Contract & Invariant Gate (29/29 test suites in < 15 seconds)
+# Fast Contract & Invariant Gate (44/44 test suites in < 15 seconds)
 node tools/run_tests.js --tier fast
 
 # C Engine Bridge Smoke Test (11/11 handshake, save/load & birth tests)

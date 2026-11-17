@@ -128,8 +128,10 @@ const DCSS_SPEC = {
         },
         {
             key: 'e', id: 'Transmuter', race: 'Octopode', deity: 'Ashenzari', piety: 3, align: 'Neutral', hp: 17, pw: 12, ac: 4, str: 14, int: 16, wis: 14, dex: 18, con: 15,
+            ringSlots: 8, allowBodyArmor: false,
             weapon: { name: 'trident of freezing', dmg: '1d11', bonus: 2, weight: 35, tval: 22, sval: 5 },
-            armor: { name: 'ring of protection +4', ac: 4, bonus: 4, weight: 5, tval: 45, sval: 2 },
+            armor: null,
+            ring: { kind: 'ring', name: 'ring of protection', glyph: '=', attr: 14, acBonus: 4, bonus: 4, equipped: 'ring_1', count: 1, weight: 5, tval: 45, sval: 2 },
             extra: { kind: 'scroll', name: 'scroll of enchant weapon', glyph: '?', enchantGain: 1, count: 2, weight: 5, tval: 70, sval: 15 },
             innatePower: { name: 'Octopode Constriction Crush', cost: 2, dmg: 19, desc: 'Eight-tentacle constriction crush.' },
             disciplinePowers: [
@@ -141,20 +143,20 @@ const DCSS_SPEC = {
         }
     ],
     monsters: [
-        { name: 'goblin', glyph: 'g', attr: 3, minDepth: 1, hp: 6, ac: 9, dmg: 3, exp: 5, lore: 'Small, cruel dungeon scavenger.' },
-        { name: 'kobold', glyph: 'K', attr: 3, minDepth: 1, hp: 8, ac: 8, dmg: 4, exp: 7, lore: 'Cunning subterranean tunnel-dweller armed with a short blade.' },
-        { name: 'adder', glyph: 'S', attr: 10, minDepth: 1, hp: 10, ac: 7, dmg: 5, exp: 11, lore: 'Fast, venomous serpent of the early Dungeon.' },
-        { name: 'Sigmund', glyph: '@', attr: 14, minDepth: 2, hp: 24, ac: 6, dmg: 10, exp: 45, lore: 'Notorious early-dungeon Unique armed with a deadly scythe and confusion magic.' },
-        { name: 'orc priest', glyph: 'o', attr: 10, minDepth: 3, hp: 18, ac: 6, dmg: 8, exp: 25, lore: 'Zealous servant of Beogh who smites heretics from afar.' },
-        { name: 'gnoll sergeant', glyph: 'g', attr: 14, minDepth: 3, hp: 26, ac: 5, dmg: 10, exp: 32, lore: 'Veteran pack-leader wielding a halberd and buckler.' },
-        { name: 'ogre', glyph: 'O', attr: 3, minDepth: 4, hp: 36, ac: 6, dmg: 14, exp: 40, lore: 'Towering brute swinging a giant spiked club.' },
-        { name: 'spiny frog', glyph: 'F', attr: 10, minDepth: 5, hp: 42, ac: 4, dmg: 15, exp: 58, lore: 'Venomous predator native to the Lair of Beasts.' },
-        { name: 'five-headed hydra', glyph: 'H', attr: 10, minDepth: 6, hp: 58, ac: 3, dmg: 18, exp: 95, lore: 'Regenerating Lair monstrosity whose heads multiply when severed by edged blades.' },
-        { name: 'orc warlord', glyph: 'o', attr: 4, minDepth: 8, hp: 72, ac: 1, dmg: 21, exp: 150, lore: 'Supreme commander of the Orcish Mines clad in heavy plate.' },
-        { name: 'vault guard', glyph: '@', attr: 11, minDepth: 10, hp: 80, ac: 0, dmg: 22, exp: 180, lore: 'Disciplined sentinel patrolling the sealed Vaults.' },
-        { name: 'ancient lich', glyph: 'L', attr: 13, minDepth: 12, hp: 98, ac: -3, dmg: 28, exp: 320, lore: 'Undead archmage commanding crystal spears and necromantic torment.' },
-        { name: 'orb guardian', glyph: 'X', attr: 13, minDepth: 13, hp: 115, ac: -4, dmg: 30, exp: 420, lore: 'Metallic multi-limbed sentinel forged to defend the Realm of Zot.' },
-        { name: 'orb of fire', glyph: '*', attr: 4, minDepth: 14, hp: 140, ac: -6, dmg: 36, exp: 650, lore: 'Blazing sphere of primordial destruction haunting Zot:5.' }
+        { name: 'goblin', glyph: 'g', attr: 3, minDepth: 1, hp: 6, ac: 1, ev: 12, dmg: 3, exp: 5, lore: 'Small, cruel dungeon scavenger.' },
+        { name: 'kobold', glyph: 'K', attr: 3, minDepth: 1, hp: 8, ac: 1, ev: 12, dmg: 4, exp: 7, lore: 'Cunning subterranean tunnel-dweller armed with a short blade.' },
+        { name: 'adder', glyph: 'S', attr: 10, minDepth: 1, hp: 10, ac: 2, ev: 15, dmg: 5, exp: 11, lore: 'Fast, venomous serpent of the early Dungeon.' },
+        { name: 'Sigmund', glyph: '@', attr: 14, minDepth: 2, hp: 24, ac: 2, ev: 12, dmg: 10, exp: 45, lore: 'Notorious early-dungeon Unique armed with a deadly scythe and confusion magic.' },
+        { name: 'orc priest', glyph: 'o', attr: 10, minDepth: 3, hp: 18, ac: 4, ev: 10, dmg: 8, exp: 25, lore: 'Zealous servant of Beogh who smites heretics from afar.' },
+        { name: 'gnoll sergeant', glyph: 'g', attr: 14, minDepth: 3, hp: 26, ac: 5, ev: 11, dmg: 10, exp: 32, lore: 'Veteran pack-leader wielding a halberd and buckler.' },
+        { name: 'ogre', glyph: 'O', attr: 3, minDepth: 4, hp: 36, ac: 3, ev: 8, dmg: 14, exp: 40, lore: 'Towering brute swinging a giant spiked club.' },
+        { name: 'spiny frog', glyph: 'F', attr: 10, minDepth: 5, hp: 42, ac: 5, ev: 13, dmg: 15, exp: 58, lore: 'Venomous predator native to the Lair of Beasts.' },
+        { name: 'five-headed hydra', glyph: 'H', attr: 10, minDepth: 6, hp: 58, ac: 6, ev: 9, dmg: 18, exp: 95, lore: 'Regenerating Lair monstrosity whose heads multiply when severed by edged blades.' },
+        { name: 'orc warlord', glyph: 'o', attr: 4, minDepth: 8, hp: 72, ac: 14, ev: 9, dmg: 21, exp: 150, lore: 'Supreme commander of the Orcish Mines clad in heavy plate.' },
+        { name: 'vault guard', glyph: '@', attr: 11, minDepth: 10, hp: 80, ac: 12, ev: 11, dmg: 22, exp: 180, lore: 'Disciplined sentinel patrolling the sealed Vaults.' },
+        { name: 'ancient lich', glyph: 'L', attr: 13, minDepth: 12, hp: 98, ac: 12, ev: 11, dmg: 28, exp: 320, lore: 'Undead archmage commanding crystal spears and necromantic torment.' },
+        { name: 'orb guardian', glyph: 'X', attr: 13, minDepth: 13, hp: 115, ac: 18, ev: 12, dmg: 30, exp: 420, lore: 'Metallic multi-limbed sentinel forged to defend the Realm of Zot.' },
+        { name: 'orb of fire', glyph: '*', attr: 4, minDepth: 14, hp: 140, ac: 20, ev: 22, dmg: 36, exp: 650, lore: 'Blazing sphere of primordial destruction haunting Zot:5.' }
     ],
     items: [
         { kind: 'gold', name: 'pile of gold pieces', glyph: '$', attr: 14, amount: 40, weight: 2 },
@@ -189,6 +191,7 @@ class DCSSEngine extends UniversalCartridgeEngine {
     initNewState(roleIdx = 0) {
         super.initNewState(roleIdx);
         const p = this.state.player;
+        const role = (DCSS_SPEC.roles && DCSS_SPEC.roles[roleIdx % DCSS_SPEC.roles.length]) || DCSS_SPEC.roles[0];
         p.blind = 0;
         p.telepathy = false;
         p.esp = false;
@@ -196,6 +199,18 @@ class DCSSEngine extends UniversalCartridgeEngine {
         p.rBlind = false;
         p.runeList = [];
         p.runes = 0;
+        p.ringSlots = (role && role.ringSlots) || 2;
+        p.allowBodyArmor = role ? (role.allowBodyArmor !== false) : true;
+        if (role && role.ring && !p.inventory.some(it => it.kind === 'ring' && it.name === role.ring.name)) {
+            p.inventory.push({
+                ...role.ring,
+                kind: 'ring',
+                glyph: role.ring.glyph || '=',
+                equipped: role.ring.equipped || 'ring_1',
+                count: role.ring.count || 1
+            });
+        }
+        this.reindexInventory();
     }
 
     loadSave() {
@@ -207,6 +222,10 @@ class DCSSEngine extends UniversalCartridgeEngine {
             p.esp = Boolean(p.esp || p.telepathy);
             if (!Array.isArray(p.runeList)) p.runeList = [];
             p.runes = p.runeList.length;
+            if (p.race === 'Octopode') {
+                if (!p.ringSlots) p.ringSlots = 8;
+                p.allowBodyArmor = false;
+            }
         }
         return ok;
     }
@@ -360,6 +379,31 @@ class DCSSEngine extends UniversalCartridgeEngine {
             p.telepathy = true;
             p.esp = true;
             p.telepathyTurns = Math.max(p.telepathyTurns || 0, (item.telepathyTurns || 35) + 1);
+        } else if (item && verb === 'wield') {
+            const lowerItem = String(item.name || '').toLowerCase();
+            const k = String(item.kind || '').toLowerCase();
+            if (p.allowBodyArmor === false && (k === 'armor' || k === 'body' || /\b(armor|armour|mail|plate|robe|leather|scales|tunic|vestment)\b/.test(lowerItem))) {
+                this.addMessage('An Octopode cannot wear body armour!', 12);
+                return;
+            }
+            const ringSlots = Number(p.ringSlots || 2);
+            if (ringSlots > 2 && (k === 'ring' || /\b(ring|band)\b/.test(lowerItem))) {
+                const used = new Set(p.inventory.filter(i => i.equipped && /^ring/i.test(i.equipped)).map(i => i.equipped));
+                let freeSlot = null;
+                for (let idx = 1; idx <= ringSlots; idx++) {
+                    const cand = `ring_${idx}`;
+                    if (!used.has(cand)) { freeSlot = cand; break; }
+                }
+                if (!freeSlot) {
+                    this.addMessage(`All ${ringSlots} of your ring slots are occupied! (Remove one first with [R]).`, 12);
+                    return;
+                }
+                item.equipped = freeSlot;
+                this.reindexInventory();
+                this.addMessage(`You put on the ${item.name} (${freeSlot}).`, 11);
+                this.advanceTurn();
+                return;
+            }
         }
         super.applyVerbToItem(verb, item);
     }
@@ -441,7 +485,8 @@ class DCSSEngine extends UniversalCartridgeEngine {
             hp: m.hp,
             hp_max: m.hp_max,
             ac: m.ac != null ? m.ac : 8,
-            dmg: m.dmg || 4,
+            ev: m.ev != null ? m.ev : 10,
+            dmg: m.dmg != null ? m.dmg : 4,
             speed: (m.speed != null ? m.speed : 110) - 110,
             unique: Boolean(m.isBoss || m.isNemesis || m.unique),
             attitude: m.isPet ? 'pet' : ((m.peaceful || m.friendly) ? 'friendly' : 'hostile'),
@@ -511,30 +556,7 @@ class DCSSEngine extends UniversalCartridgeEngine {
 }
 
 if (require.main === module) {
-    const readline = require('readline');
-    const defaultSaveDir = path.resolve(__dirname, '../lib/save');
-    let user = 'Adventurer', saveDir = defaultSaveDir, isNew = false, customBirth = false, randomBirth = false;
-    for (let i = 2; i < process.argv.length; i++) {
-        const arg = String(process.argv[i] || '');
-        if (arg === '-n') isNew = true;
-        else if (arg === '-c' || arg === '--custom') customBirth = true;
-        else if (arg === '-r' || arg === '--random') randomBirth = true;
-        else if (arg.startsWith('-u')) user = arg.slice(2) || user;
-        else if (arg.startsWith('-dsave=')) saveDir = arg.slice(7) || saveDir;
-    }
-    const engine = new DCSSEngine({ user: user.replace(/[^a-zA-Z0-9_.-]/g, '_') || 'Adventurer', saveDir, isNew, customBirth, randomBirth });
-    const writeJson = (obj) => process.stdout.write(JSON.stringify(obj) + '\n');
-    writeJson({ t: 'hello', protocol: 1, protocol_minor: 2, version: DCSS_SPEC.version, realm: DCSS_SPEC.realm, savefile: engine.saveFile });
-    writeJson({ t: 'commands', realm: DCSS_SPEC.realm, verbBits: ['quaff', 'read', 'eat', 'aim', 'use_staff', 'zap', 'activate', 'fire', 'throw', 'wield', 'takeoff', 'drop', 'inscribe', 'uninscribe', 'refill', 'browse', 'study', 'cast', 'ignore', 'examine'] });
-    writeJson(engine.buildFrame());
-    readline.createInterface({ input: process.stdin, terminal: false }).on('line', (rawLine) => {
-        const line = String(rawLine || '').trim();
-        if (!line) return;
-        if (line === 'save') { writeJson({ t: 'saved', ok: engine.saveGame() }); return; }
-        if (line === 'frame') { writeJson(engine.buildFrame()); return; }
-        if (line === 'quit' || line === 'exit') { engine.saveGame(); process.exit(0); return; }
-        if (line.startsWith('key ') || line.startsWith('keys ')) { engine.handleKey(line.replace(/^keys?\s+/, '')); writeJson(engine.buildFrame()); }
-    });
+    runCartridgeMain(DCSSEngine, DCSS_SPEC, path.resolve(__dirname, '../lib/save'));
 }
 
 module.exports = { DCSS_SPEC, DCSSEngine };

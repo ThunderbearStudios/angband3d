@@ -141,7 +141,7 @@ test('2. Vi-key movement realms (nethack, dcss, brogue, rogue, ryod) NEVER expos
 });
 
 // ---------------------------------------------------------------------------
-// 2. Brian's Exact Bug: DCSS Pack Inspect ('v') Must NEVER Throw or Consume!
+// 2. Regression Guard: DCSS Pack Inspect ('v') Must NEVER Throw or Consume!
 // ---------------------------------------------------------------------------
 test('3. DCSS Pack Inspect [v] via ItemSheet + CommandDispatcher inspects item and NEVER throws/consumes/advances turn', () => {
     const h = createHarness('dcss');
@@ -203,13 +203,14 @@ test('4. DCSS Classic Terminal [i] -> <letter> -> [v] AND [i] -> [v] -> <letter>
 // 3. All 5 JS Engines: Examine, Gear ('e') vs Eat ('E'), Equip/Unequip, Inscribe, Throw
 // ---------------------------------------------------------------------------
 for (const realm of ['dcss', 'brogue', 'rogue', 'ryod', 'nethack']) {
-    test(`5.${realm}: [Gear 'e'] opens Equipment while [Eat] consumes food without collision`, () => {
+    test(`5.${realm}: Authentic [Equip] opens Equipment while [Eat] consumes food without collision`, () => {
         const h = createHarness(realm);
         const p = h.eng.state.player;
+        const equipKey = realm === 'ryod' ? 'e' : ((realm === 'nethack' || realm === 'brogue') ? '[' : 'E');
 
-        // 1. Pressing 'e' MUST open Equipment in every realm (including Rogue!)
-        h.sendKey('e');
-        assert.strictEqual(h.eng.state.menuMode, 'equip', `${realm}: 'e' must open equip screen`);
+        // 1. Pressing authentic realm equipKey MUST open Equipment without colliding with eat/explore
+        h.sendKey(equipKey);
+        assert.strictEqual(h.eng.state.menuMode, 'equip', `${realm}: '${equipKey}' must open equip screen`);
         h.sendKey('escape');
         assert.strictEqual(h.eng.state.menuMode, 'none');
 
