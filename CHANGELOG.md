@@ -4,6 +4,20 @@ All notable changes to `angband3d` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v13.1.0] — 2026-11-17
+
+### 🎨 Photogrammetry 3D Mineral Veins, Rigged 3rd-Party Bestiary Overhaul, Grid-Free Floors, Broad-Face Steel Blades & Zero Floor Clutter
+
+- **Photogrammetry 3D Mineral Veins & Zero Decorative Floor Clutter**:
+  - Replaced protruding procedural wall vein clusters with watertight `14×18` subdivided craggy rock wall geometry (`createCraggyVeinWallGeometry` in `dungeon3d-tactical.js`) using edge-pinned 3D heightmap vertex displacement (`sin(πu)·sin(πv)`) and crevice-locked `MAGMA`, `QUARTZ`, `GOLD SEAM` (`metalness = 0.96` strictly in seams), and `GEM SEAM` shaders bound to CC0 Poly Haven photogrammetry sets `marble_cliff_01` and `marble_cliff_02` (`emissiveMap = null`, Fog-of-War gated).
+  - Enforced zero walkable-floor decorative clutter (`initDungeonSetDressing` / `emitDungeonSetDressing`, `_setDressingMeshes = []`) so no fake barrels, crates, cages, or non-item objects ever appear on empty floor tiles.
+- **Dark-Fantasy 3rd-Party Rigged Bestiary Overhaul & Post-Yaw Skinned Centering**:
+  - Upgraded `29` bestiary GLBs and `2` item GLBs (`staff.glb`, `rod.glb`) with curated CC-BY 4.0 / CC0 1.0 sculpted & rigged 3D models (`<= 512×512` embedded PNGs via `tools/upgrade_v13_1_visual_overhaul.js` and `tools/test_bestiary_no_aislop.js`), paired with volumetric translucent Green Ooze (`env_ooze_mound`), animated Storm Vortex (`bestiary_vortex`), and craggy `rock_07` rubble boulders.
+  - Fixed `normalizeWrapper` (`dungeon3d.js`) to parent content inside `pivot` and apply `yawOffset` prior to `_computeTrueSkinnedBoundingBox(pivot)` so off-origin skinned rigs (`Grizzly Bear`, `Hydra`) center cleanly at `(0, y, 0)`.
+- **Grid-Free Seamless Floors, Raised Stairwell Parapets & Broad-Face First-Person Blades**:
+  - Switched floor tiles to exact `cellSize` abutment with uniform vertex AO (`colors.fill(1.0)`), restricted range-grid overlays strictly to active directional targeting cursors (`showRangeGrid = isCursorActive`), removed passive mouse-hover breadcrumb circles (`navBreadcrumbsMesh.count = 0`), raised descending stairwell stone parapets (`+0.15m`), and aligned broad-face first-person blade presentation (`+0.68` yaw) with brushed tamahagane steel tuning on `ph_katana` (`antique_katana_01`, preserving canonical `rotY = π/2` for world drops).
+- **Verification & GPU Performance**: `45/45` fast suites (`node tools/run_tests.js --tier fast`), `23/23` server unit tests, `11/11` C bridge smoke tests, clean-checkout CI gate (`node tools/pre_push_ci_gate.js`), and `1.11ms..2.47ms` dungeon P50 GPU draw frame time (`Intel UHD Graphics 620`, `1920×1080`).
+
 ## [v13.0.2] — 2026-11-17
 
 ### ⚔️ 9-Realm Source-Code Parity, 100% 3rd-Party Sculpted Bestiary, Always-Readable Storefront Text & 2-Step Full-Viewport Main Menu (`v13.0.0` – `v13.0.2`)

@@ -290,7 +290,7 @@ function testRealisticBeastsAndRouting() {
         const j = parseGlb(b1);
         assert((j.textures || []).length >= 2, `${file} must have >= 2 embedded PBR textures`);
         const gen = String((j.asset && j.asset.generator) || '');
-        assert(!/Bestiary Generator|Dark Bestiary Sculptor|WS79-Builder/i.test(gen), `${file} must use a genuine 3rd-party sculpted/rigged GLB, not procedural generator "${gen}"`);
+        assert(!/Bestiary Generator|Dark Bestiary Sculptor|WS79-Builder|libmeshy/i.test(gen), `${file} must use a genuine 3rd-party sculpted/rigged GLB, not procedural/AI-slop generator "${gen}"`);
         let vertCount = 0;
         for (const m of (j.meshes || [])) {
             for (const p of (m.primitives || [])) {
@@ -301,7 +301,7 @@ function testRealisticBeastsAndRouting() {
             }
         }
         if (['wolf.glb', 'husky.glb', 'werewolf.glb'].includes(file)) {
-            assert(vertCount >= 10000, `${file} must use restored high-poly 3rd-party sculpt (>=10000 verts, got ${vertCount})`);
+            assert(vertCount >= 1500 && vertCount <= 35000, `${file} must use rigged 3rd-party sculpt (1500..35000 verts, got ${vertCount})`);
         }
         if (file === 'Fox.glb') {
             const animNames = (j.animations || []).map(a => a.name);

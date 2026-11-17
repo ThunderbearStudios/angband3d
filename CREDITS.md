@@ -62,11 +62,22 @@ We gratefully credit the original authors, maintainers, and contributors of the 
 
 - **Shockbolt 64×64 Fantasy Tileset**: Artwork by Raymond "Shockbolt" Gaustadnes (`GPL-2.0` / Angband distribution license).
 - **3D Dungeon, High Altar, Weapon & Bestiary PBR Meshes**:
-  - **Poly Haven (`https://polyhaven.com`)**: Photogrammetry 3D props, weapons, statues, and architectural assets (`CC0 1.0 Universal` Public Domain).
-  - **Meshy 800 Categorised & Labelled 3D PBR Dataset (`tfnn/MESHY.AI_800_GLB_3D-Assets_Categorised_and_Labelled`)**: High-polygon (`13,000–24,200` vertex) PBR-textured creatures, canines (`wolf.glb`, `werewolf.glb`, `husky.glb`, `hellhound.glb`, `Fox.glb`, `shiba.glb`), bears, felines, raptors, reptiles, hydras, nagas, undead, insects, staves, rods, wands, and foliage (`MIT License`).
-  - **OpenMMO 2K PBR Asset Collection (`jake-song-openmmo/onlinerpg-assets`)**: Sculpted `2K` PBR High Altars (`high_altar_pbr.glb`), wraiths (`GhostArmature.glb`), archfiend guardians (`GodAnubis_Art.glb`), character rigs (`thief_king.glb`), crystals, and weapons (`MIT` / Open-Source RPG Asset Release).
-  - **Khronos glTF Sample Assets & Substance 3D Community**: High-resolution PBR Dragon (`Dragon.glb`) and Skull (`Skull.glb`) (`CC-BY 4.0` / `CC0`).
-  - **Quaternius & KayKit (Kay Lousberg)**: Modular dungeon & animated rig templates (`CC0 1.0 Universal` Public Domain).
+  - **Poly Haven (`https://polyhaven.com`)**: Photogrammetry 3D props, signature weapons (`antique_katana_01`, `wooden_handle_saber`), craggy stone (`rock_07`), marble cliff mineral-vein photogrammetry sets (`marble_cliff_01`, `marble_cliff_02`), statues (`gothic_statue`), and architectural assets (`CC0 1.0 Universal` Public Domain).
+  - **Objaverse / Sketchfab Creative Commons Artist Bestiary (`codepawl/objaverse-clean-glb`)**: Rigged, animated, and sculpted dark-fantasy creatures (`CC-BY 4.0` / `CC0 1.0`):
+    - **Fubbi**: *Hell Wolf* (`wolf.glb`, `husky.glb`, `hellhound.glb`) — `CC-BY 4.0`.
+    - **InaweofGod**: *Doberman* (`shiba.glb`) — `CC-BY 4.0`.
+    - **Spinnee**: *AWIL Werewolf* (`werewolf.glb`) and *Cheshire Manticore* (`hydra.glb`) — `CC-BY 4.0`.
+    - **Nyilonelycompany**: *Bear* (`bear.glb`, `bear_armored.glb`) — `CC-BY 4.0`.
+    - **Ear.Rodriguez**: *Jaguar* (`MountainLion.glb`) — `CC-BY 4.0`.
+    - **NORBERTO-3D**: *Dragon Flying* (`Dragon.glb`) and **savounited**: *Alduin Dragon* (`cockatrice.glb`) — `CC-BY 4.0`.
+    - **bakuwo**: *Snake* (`naga.glb`) and **denys4624**: *Komodo* (`lizard.glb`) — `CC-BY 4.0`.
+    - **Lilly!**: *Snowy Owl* (`Owl.glb`), **Asim3d**: *Animated Eagle* (`Parrot.glb`, `Flamingo.glb`), **warrenblyth**: *American Crow* (`Stork.glb`) — `CC-BY 4.0`.
+    - **Anthony Yanez (Yanez Designs)**: *Animated Beholder* (`floating_eye.glb`) — `CC-BY 4.0`.
+    - **pxltiger**: *Zombie* (`zombie_model.glb`) — `CC-BY 4.0`.
+    - **Mateus Schwaab**: *Great White Shark* (`aquatic.glb`), **lawtrigg**: *Kraken v2* (`kraken.glb`), **artikora**: *Glowing Mushroom* (`mushroom_cluster.glb`), **rubaun**: *Skull* (`Skull.glb`) — `CC-BY 4.0`.
+  - **OpenMMO 2K PBR Asset Collection (`jake-song-openmmo/onlinerpg-assets`)**: Sculpted `2K` PBR wraiths (`GhostArmature.glb`), archfiend guardians (`GodAnubis_Art.glb`), character rigs (`thief_king.glb`), and weapons (`MIT` / Open-Source RPG Asset Release).
+  - **Quaternius & Fantasy Props MegaKit & KayKit (Kay Lousberg)**: Rigged bestiary creatures (`Fox.glb`, `frog.glb`, `snake.glb`, `giant_spider.glb`, `wasp.glb`, `beetle.glb`, `centipede.glb`, `worm_mass.glb`), arcane staves/rods (`staff.glb`, `rod.glb`, `wand.glb`), and Medieval Fantasy MegaKit dungeon props (`Barrel`, `Crate_Wooden`, `Cage_Small`, `CandleStick_Triple`, `WeaponStand`, `BookStand`, `Cauldron`, `bone_A`) (`CC0 1.0 Universal` Public Domain).
+  - **Poly by Google & Community Rigged Beasts (`obj2gltf` / Khronos glTF)**: `ant.glb`, `scorpion.glb`, `goblin.glb`, `orc.glb`, `orc_female.glb`, `kobold.glb`, `hobgoblin.glb`, `gnoll.glb`, `ogre.glb`, `troll.glb`, `cyclop.glb`, `lizardfolk.glb`, `skeleton_knight.glb`, `skeleton_warrior.glb`, `stone_golem.glb`, `frost_construct.glb`, `treeman.glb`, `YetiSmall.glb`, `horse_mount.glb`, `scp939.glb` (`CC-BY 3.0 / 4.0` & `CC0 1.0`).
 - **Three.js 3D WebGL Renderer**: Mr.doob & Three.js Contributors (`MIT License`).
 - **Yendor Engine™ 3D Harness, Universal Cartridge Bridge, Living Chronicle & YASD 3D Emblem**: © 2026 **Thunderbear Studios™** (`https://thunderbearstudios.dev`).
 

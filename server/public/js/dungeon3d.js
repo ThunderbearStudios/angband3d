@@ -296,21 +296,9 @@ function applyWallVertexAO(geo, wallHeight) {
 
 function applyFloorVertexAO(geo, cellSize) {
     if (!geo || !geo.attributes || !geo.attributes.position) return;
-    const pos = geo.attributes.position;
-    const count = pos.count;
+    const count = geo.attributes.position.count;
     const colors = new Float32Array(count * 3);
-    const maxDist = Math.hypot(cellSize / 2, cellSize / 2);
-    for (let i = 0; i < count; i++) {
-        const x = pos.getX(i);
-        const z = pos.getZ(i);
-        const dist = Math.hypot(x, z);
-        const d = Math.min(1.0, dist / maxDist);
-        // Perimeter and corners softly darkened by up to 20% to ground wall contact
-        const factor = 1.0 - d * 0.20;
-        colors[i * 3 + 0] = factor;
-        colors[i * 3 + 1] = factor;
-        colors[i * 3 + 2] = factor;
-    }
+    colors.fill(1.0);
     geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
 }
 
@@ -325,7 +313,7 @@ function applyCeilingVertexAO(geo, cellSize) {
         const z = pos.getZ(i);
         const dist = Math.hypot(x, z);
         const d = Math.min(1.0, dist / maxDist);
-        const factor = 1.0 - d * 0.16;
+        const factor = 1.0 - d * 0.03;
         colors[i * 3 + 0] = factor;
         colors[i * 3 + 1] = factor;
         colors[i * 3 + 2] = factor;
@@ -820,15 +808,19 @@ class Dungeon3D {
         if (this.ambientLight.layers) this.ambientLight.layers.enable(1);
         this.scene.add(this.ambientLight);
 
+        this.hemiLight = new THREE.HemisphereLight(0x687da6, 0x18120e, 0.28);
+        if (this.hemiLight.layers) this.hemiLight.layers.enable(1);
+        this.scene.add(this.hemiLight);
+
         // Directional Sunlight for outdoors (Town) matching Godot _sunLight
         this.sunLight = new THREE.DirectionalLight(0xb3ccfa, 0.95);
         this.sunLight.position.set(-20, 35, 15);
         if (this.sunLight.layers) this.sunLight.layers.enable(1);
         this.scene.add(this.sunLight);
 
-        // Player Torch PointLight - ATTACHED TO CAMERA (Matches Godot OmniAttenuation = 0.70f)
+        // Player Torch PointLight - ATTACHED TO CAMERA (Off-axis key sculpt)
         this.torchLight = new THREE.PointLight(0xffdc99, this._enableDynamicShadows ? 1.48 : 1.8, 16.0, 0.7);
-        this.torchLight.position.set(-0.25, -0.05, -0.28);
+        this.torchLight.position.set(-0.46, 0.28, -0.18);
         if (this.torchLight.layers) this.torchLight.layers.enable(1);
         this.camera.add(this.torchLight);
 
@@ -1012,11 +1004,11 @@ class Dungeon3D {
         this._cloneBevelGeo = cloneBevelGeo;
         this._safeWallAttrs = safeWallAttrs;
 
-        // Watertight 2.06m x 2.06m floor & ceiling with 0.03m skirt overlap
+        // Seamless 2.00m x 2.00m exact-abutment floor (zero coplanar Z-fighting seams) & vaulted skirt ceiling
         const skirtSpan = this.cellSize + 0.06;
-        const floorGeo = new THREE.PlaneGeometry(skirtSpan, skirtSpan, 2, 2);
+        const floorGeo = new THREE.PlaneGeometry(this.cellSize, this.cellSize, 2, 2);
         floorGeo.rotateX(-Math.PI / 2);
-        applyFloorVertexAO(floorGeo, skirtSpan);
+        applyFloorVertexAO(floorGeo, this.cellSize);
 
         // Subdivided ceiling with subtle vaulted subterranean stone arch & perimeter shadow
         const ceilingGeo = new THREE.PlaneGeometry(skirtSpan, skirtSpan, 2, 2);
@@ -1187,10 +1179,14 @@ class Dungeon3D {
 
         // 5a. Watertight Sunken Descending Stone Stairwell (feat 6 '>': entrance mouth at +Z descending to -1.92m at -Z)
         const downBoxes = [
-            { pos: [-0.87, -0.04, 0], size: [0.28, 0.12, 2.02], color: [0.84, 0.82, 0.78] },    // Left stone floor collar rim
-            { pos: [0.87, -0.04, 0], size: [0.28, 0.12, 2.02], color: [0.84, 0.82, 0.78] },     // Right stone floor collar rim
+            { pos: [-0.87, 0.04, 0], size: [0.28, 0.22, 2.02], color: [0.84, 0.82, 0.78] },    // Left stone parapet curb (+0.15m)
+            { pos: [0.87, 0.04, 0], size: [0.28, 0.22, 2.02], color: [0.84, 0.82, 0.78] },     // Right stone parapet curb (+0.15m)
             { pos: [0, -0.08, 0.90], size: [1.48, 0.08, 0.22], color: [0.88, 0.86, 0.82] },     // Front entrance threshold rim (+Z)
-            { pos: [0, -0.04, -0.92], size: [1.48, 0.12, 0.18], color: [0.74, 0.72, 0.68] },    // Back stairwell coping rim (-Z)
+            { pos: [0, 0.05, -0.91], size: [1.48, 0.24, 0.20], color: [0.76, 0.74, 0.70] },    // Back stairwell parapet coping (-Z)
+            { pos: [-0.87, 0.12, -0.90], size: [0.30, 0.28, 0.24], color: [0.86, 0.84, 0.80] }, // NW corner stone bollard
+            { pos: [0.87, 0.12, -0.90], size: [0.30, 0.28, 0.24], color: [0.86, 0.84, 0.80] },  // NE corner stone bollard
+            { pos: [-0.87, 0.09, 0.90], size: [0.30, 0.22, 0.24], color: [0.88, 0.86, 0.82] },  // SW entry pier bollard
+            { pos: [0.87, 0.09, 0.90], size: [0.30, 0.22, 0.24], color: [0.88, 0.86, 0.82] },   // SE entry pier bollard
             { pos: [-0.86, -0.98, 0], size: [0.26, 1.96, 1.98], color: [0.56, 0.54, 0.52] },    // Left enclosed pit wall (0..-1.96m)
             { pos: [0.86, -0.98, 0], size: [0.26, 1.96, 1.98], color: [0.56, 0.54, 0.52] },     // Right enclosed pit wall (0..-1.96m)
             { pos: [0, -0.98, -0.91], size: [1.50, 1.96, 0.18], color: [0.16, 0.16, 0.20] },    // Back deep portal shadow wall (-Z)
@@ -1406,35 +1402,28 @@ class Dungeon3D {
             this.shopMeshes.push(mesh);
         }
 
-        if (this.magmaMaterial) {
-            this.magmaMaterial.roughness = 0.72;
-            this.magmaMaterial.metalness = 0.06;
-            this.magmaMaterial.emissive = new THREE.Color(0xff4400);
-            this.magmaMaterial.emissiveIntensity = 1.85;
-        }
-        this.magmaMesh = new THREE.InstancedMesh(cloneBevelGeo(wallGeo, 1024), this.magmaMaterial, 1024);
+        const veinBaseGeo = (tac && typeof tac.createCraggyVeinWallGeometry === 'function')
+            ? tac.createCraggyVeinWallGeometry(this.cellSize, 3.05)
+            : wallGeo;
+
+        this.magmaMesh = new THREE.InstancedMesh(cloneBevelGeo(veinBaseGeo, 1024), this.magmaMaterial, 1024);
         this.magmaMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
         this.scene.add(this.magmaMesh);
 
-        if (this.quartzMaterial) {
-            this.quartzMaterial.roughness = 0.48;
-            this.quartzMaterial.metalness = 0.12;
-            this.quartzMaterial.emissive = new THREE.Color(0x38bdf8);
-            this.quartzMaterial.emissiveIntensity = 0.55;
-        }
-        this.quartzMesh = new THREE.InstancedMesh(cloneBevelGeo(wallGeo, 1024), this.quartzMaterial, 1024);
+        this.quartzMesh = new THREE.InstancedMesh(cloneBevelGeo(veinBaseGeo, 1024), this.quartzMaterial, 1024);
         this.quartzMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
         this.scene.add(this.quartzMesh);
 
         // Magma Vein with Gold Treasure (feat 19: MAGMA_K)
-        this.goldVeinMesh = new THREE.InstancedMesh(cloneBevelGeo(wallGeo, 1024), this.goldVeinMaterial, 1024);
+        this.goldVeinMesh = new THREE.InstancedMesh(cloneBevelGeo(veinBaseGeo, 1024), this.goldVeinMaterial, 1024);
         this.goldVeinMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
         this.scene.add(this.goldVeinMesh);
 
         // Quartz Vein with Gemstones (feat 20: QUARTZ_K)
-        this.gemVeinMesh = new THREE.InstancedMesh(cloneBevelGeo(wallGeo, 1024), this.gemVeinMaterial, 1024);
+        this.gemVeinMesh = new THREE.InstancedMesh(cloneBevelGeo(veinBaseGeo, 1024), this.gemVeinMaterial, 1024);
         this.gemVeinMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
         this.scene.add(this.gemVeinMesh);
+        if (veinBaseGeo !== wallGeo && typeof veinBaseGeo.dispose === 'function') veinBaseGeo.dispose();
 
         // Forest Trees (feat 25: TREE)
         const addWhiteVertexColors = (geo) => {
@@ -2044,10 +2033,10 @@ class Dungeon3D {
             tac.applyWorldPbrShader(this, this.chasmSideMaterial, 'wall');
             tac.applyWorldPbrShader(this, this.floorMaterial, 'floor');
             tac.applyWorldPbrShader(this, this.ceilingMaterial, 'ceiling');
-            tac.applyWorldPbrShader(this, this.magmaMaterial, 'vein');
-            tac.applyWorldPbrShader(this, this.quartzMaterial, 'vein');
-            tac.applyWorldPbrShader(this, this.goldVeinMaterial, 'vein');
-            tac.applyWorldPbrShader(this, this.gemVeinMaterial, 'vein');
+            tac.applyWorldPbrShader(this, this.magmaMaterial, 'vein', 0);
+            tac.applyWorldPbrShader(this, this.quartzMaterial, 'vein', 1);
+            tac.applyWorldPbrShader(this, this.goldVeinMaterial, 'vein', 2);
+            tac.applyWorldPbrShader(this, this.gemVeinMaterial, 'vein', 3);
             if (this._syncWorldPbrUniforms && this._lastContextualTexSet) {
                 this._syncWorldPbrUniforms(this._lastContextualTexSet);
             }
@@ -2095,15 +2084,15 @@ class Dungeon3D {
         this.itemPlinthGeo.rotateX(-Math.PI / 2);
         this.itemPlinthGeo._sharedGeometry = true;
 
-        // Soft contact shadow quad for 3D item pickups & treasures (zero download cost)
-        this.shadowGeo = new THREE.PlaneGeometry(0.36, 0.36);
+        // Soft contact shadow quad for 3D monsters & item pickups (zero download cost)
+        this.shadowGeo = new THREE.PlaneGeometry(1.0, 1.0);
         this.shadowGeo.rotateX(-Math.PI / 2);
         this.shadowGeo._sharedGeometry = true;
         if (this.shadowTex) this.shadowTex._sharedTexture = true;
         this.shadowMat = new THREE.MeshBasicMaterial({
             map: this.shadowTex,
             transparent: true,
-            opacity: 0.65,
+            opacity: 0.78,
             depthWrite: false
         });
         this.shadowMat._sharedMaterial = true;
@@ -3055,8 +3044,8 @@ class Dungeon3D {
             if (mesh) {
                 const isBladeOrSword = Boolean(key && /sword|saber|blade|katana|dagger|scimitar|rapier|broadsword/i.test(key));
                 if (isBladeOrSword) {
-                    mesh.rotation.y = (mesh.rotation.y || 0) - 0.10;
-                    mesh.rotation.z = (mesh.rotation.z || 0) + 0.12;
+                    mesh.rotation.y = (mesh.rotation.y || 0) + 0.68;
+                    mesh.rotation.z = (mesh.rotation.z || 0) + 0.08;
                 }
                 this._tagViewmodelLayer(mesh);
                 this.rightItemSlot.add(mesh);
@@ -4445,7 +4434,7 @@ class Dungeon3D {
             }
         }
         if (!cfg.torchInertia && this.torchLight) {
-            this.torchLight.position.set(-0.25, -0.05, -0.28);
+            this.torchLight.position.set(-0.46, 0.28, -0.18);
         }
         if (this.starGroup) {
             const isOutdoors = this.lastDepth === 0;
@@ -4909,10 +4898,7 @@ class Dungeon3D {
         let forgeCount = 0;
         let fountainCount = 0;
         let fountainOccCount = 0;
-        let magmaCount = 0;
-        let quartzCount = 0;
-        let goldVeinCount = 0;
-        let gemVeinCount = 0;
+        const veinCounts = { magma: 0, quartz: 0, gold: 0, gem: 0 };
         let treeTrunkCount = 0;
         let treeLeavesCount = 0;
         let bushCount = 0;
@@ -5228,7 +5214,7 @@ class Dungeon3D {
                     }
                 };
 
-                // Coursed Stone Mineral & Magma Veins (feat 17=MAGMA, 18=QUARTZ, 19=MAGMA_K, 20=QUARTZ_K)
+                // Natural Photogrammetry Craggy Mineral & Magma Veins (feat 17=MAGMA, 18=QUARTZ, 19=MAGMA_K, 20=QUARTZ_K)
                 if (feat >= 17 && feat <= 20) {
                     const vBev = tac ? tac.computeWallCornerBevels(this, map, w, h, x, y, outdoors, this._tmpWallBev || (this._tmpWallBev = [0, 0, 0, 0])) : [0, 0, 0, 0];
                     if ((outdoors || (vBev[0] + vBev[1] + vBev[2] + vBev[3] > 0)) && floorCount < floorCap) {
@@ -5239,11 +5225,12 @@ class Dungeon3D {
                         setCol(this.floorMesh, floorCount, floorShade);
                         floorCount++;
                     }
+                    const yBot = -0.05;
+                    const yTop = outdoors ? (this.wallHeight + 0.05) : Math.max(this.wallHeight + 0.05, maxNeighborCeil + 0.03);
+                    const vKey = feat === 17 ? 'magma' : feat === 18 ? 'quartz' : feat === 19 ? 'gold' : 'gem';
                     const vMesh = feat === 17 ? this.magmaMesh : feat === 18 ? this.quartzMesh : feat === 19 ? this.goldVeinMesh : this.gemVeinMesh;
-                    const idx = feat === 17 ? magmaCount : feat === 18 ? quartzCount : feat === 19 ? goldVeinCount : gemVeinCount;
-                    if (idx < veinCap) {
-                        const yBot = -0.05;
-                        const yTop = outdoors ? (this.wallHeight + 0.05) : Math.max(this.wallHeight + 0.05, maxNeighborCeil + 0.03);
+                    const idx = veinCounts[vKey];
+                    if (vMesh && idx < veinCap) {
                         this.dummy.position.set(wx, (yBot + yTop) * 0.5, wz);
                         this.dummy.rotation.set(0, 0, 0);
                         this.dummy.scale.set(1.0, (yTop - yBot) / wallGeoH, 1.0);
@@ -5251,10 +5238,7 @@ class Dungeon3D {
                         vMesh.setMatrixAt(idx, this.dummy.matrix);
                         if (tac) tac.setCornerBevelAt(vMesh, idx, vBev[0], vBev[1], vBev[2], vBev[3]);
                         setCol(vMesh, idx, wallShade);
-                        if (feat === 17) magmaCount++;
-                        else if (feat === 18) quartzCount++;
-                        else if (feat === 19) goldVeinCount++;
-                        else gemVeinCount++;
+                        veinCounts[vKey] = idx + 1;
                         this.dummy.scale.set(1, 1, 1);
                     }
                     if (!outdoors && ceilingCount < ceilCap) {
@@ -6182,10 +6166,10 @@ class Dungeon3D {
         updateMesh(this.doorOpenMesh, doorOpenCount);
         updateMesh(this.doorBrokenMesh, doorBrokenCount);
         for (let i = 0; i < 8; i++) updateMesh(this.shopMeshes[i], shopCounts[i]);
-        updateMesh(this.magmaMesh, magmaCount);
-        updateMesh(this.quartzMesh, quartzCount);
-        updateMesh(this.goldVeinMesh, goldVeinCount);
-        updateMesh(this.gemVeinMesh, gemVeinCount);
+        updateMesh(this.magmaMesh, veinCounts.magma);
+        updateMesh(this.quartzMesh, veinCounts.quartz);
+        updateMesh(this.goldVeinMesh, veinCounts.gold);
+        updateMesh(this.gemVeinMesh, veinCounts.gem);
         updateMesh(this.treeTrunkMesh, treeTrunkCount);
         updateMesh(this.treeLeavesMesh, treeLeavesCount);
         updateMesh(this.bushMesh, bushCount);
@@ -7738,8 +7722,9 @@ class Dungeon3D {
                     entity._heldAttachments = upgraded3D._heldAttachments;
                     upgraded3D.monsterData = m;
                     if (entity.contactShadow) {
-                        const footprint = (upgraded3D.baseWidth || 1.25) * 0.75;
+                        const footprint = Math.max(0.82, (upgraded3D.baseWidth || 1.05) * 1.18);
                         entity.contactShadow.scale.set(footprint, footprint, footprint);
+                        entity.contactShadow.position.y = -entity.position.y - 0.042;
                     }
                     if (entity.nameplate) {
                         entity.nameplate.position.set(0, Math.min(2.55, Math.max(0.58, entity.modelHeight + 0.24)), 0);
@@ -7764,8 +7749,9 @@ class Dungeon3D {
                         entity.isFlat = !!atlasEntry.isFlat;
                         entity.isItemBillboardFallback = false;
                         if (entity.shadowMesh) {
-                            const fp = atlasEntry.footprint || 0.35;
+                            const fp = (atlasEntry.footprint || 0.35) * 0.38;
                             entity.shadowMesh.scale.set(fp, fp, fp);
+                            entity.shadowMesh.position.y = -0.042;
                         }
                     }
                 }
@@ -8682,7 +8668,7 @@ class Dungeon3D {
                         `#include <dithering_fragment>
                         vec3 nUp = normalize(geometryNormal);
                         float dorsal = clamp(nUp.y * 0.5 + 0.5, 0.0, 1.0);
-                        float counterShade = mix(0.76, 1.12, dorsal);
+                        float counterShade = mix(0.58, 1.06, dorsal);
                         vec3 vDir = normalize(vViewPosition);
                         float sssRim = pow(1.0 - max(0.0, dot(nUp, vDir)), 2.6) * 0.16;
                         gl_FragColor.rgb = gl_FragColor.rgb * counterShade + gl_FragColor.rgb * sssRim;`
@@ -8748,7 +8734,15 @@ class Dungeon3D {
                     : 'organic';
                 this._enhanceBestiaryMeshQuality(content, { smoothNormals: true, applyCreatureBump: true, bumpType, roughness: 0.45 });
             }
-            const bbox = this._computeTrueSkinnedBoundingBox(content);
+            const wrapper = new THREE.Group();
+            const pivot = new THREE.Group();
+            if (yawOffset !== 0) {
+                content.rotation.y = (content.rotation.y || 0) + yawOffset;
+            }
+            pivot.add(content);
+            if (content._animations) pivot._animations = content._animations;
+            const bbox = this._computeTrueSkinnedBoundingBox(pivot);
+            delete pivot._animations;
             const size = new THREE.Vector3();
             bbox.getSize(size);
             const center = new THREE.Vector3();
@@ -8765,12 +8759,6 @@ class Dungeon3D {
             }
             const scaleXZ = scaleY;
 
-            const wrapper = new THREE.Group();
-            const pivot = new THREE.Group();
-            pivot.add(content);
-            if (yawOffset !== 0) {
-                content.rotation.y = (content.rotation.y || 0) + yawOffset;
-            }
             pivot.scale.set(scaleXZ, scaleY, scaleXZ);
             pivot.position.set(-center.x * scaleXZ, -bbox.min.y * scaleY, -center.z * scaleXZ);
             wrapper.add(pivot);
@@ -9109,7 +9097,7 @@ class Dungeon3D {
         } else if (templateKey === 'bestiary_wolf') {
             loadPromise = loadGltf('/assets/models/monsters/bestiary/wolf.glb', () => this._ensureMonster3DTemplate('bestiary_fox')).then(scene => {
                 this._enhanceBestiaryMeshQuality(scene, { smoothNormals: true, applyCreatureBump: true, bumpType: 'fur', bumpScale: 0.36, roughness: 0.56 });
-                return normalizeWrapper(scene, 0.88, true, 0, 1.45);
+                return normalizeWrapper(scene, 0.92, true, 0, 2.55);
             });
         } else if (templateKey === 'bestiary_werewolf') {
             loadPromise = loadGltf('/assets/models/monsters/bestiary/werewolf.glb', () => this._ensureMonster3DTemplate('bestiary_wolf')).then(scene => {
@@ -9119,7 +9107,7 @@ class Dungeon3D {
         } else if (templateKey === 'bestiary_hellhound') {
             loadPromise = loadGltf('/assets/models/monsters/bestiary/hellhound.glb', () => this._ensureMonster3DTemplate('bestiary_wolf')).then(scene => {
                 this._enhanceBestiaryMeshQuality(scene, { smoothNormals: true, applyCreatureBump: true, bumpType: 'fur', bumpScale: 0.36, roughness: 0.50 });
-                return normalizeWrapper(scene, 0.96, true, -Math.PI / 2, 1.50);
+                return normalizeWrapper(scene, 1.00, true, -Math.PI / 2, 2.65);
             });
         } else if (templateKey === 'bestiary_husky') {
             loadPromise = loadGltf('/assets/models/monsters/bestiary/husky.glb', () => this._ensureMonster3DTemplate('bestiary_wolf')).then(scene => {
@@ -9220,7 +9208,8 @@ class Dungeon3D {
             });
         } else if (templateKey === 'env_ooze_mound') {
             loadPromise = loadGltf('/assets/models/monsters/bestiary/jelly_ooze.glb', () => loadGltf('/assets/polyhaven/models/moon_rock_02/moon_rock_02.gltf')).then(scene => {
-                return normalizeWrapper(scene, 0.58, true, 0, 1.05);
+                const wrap = normalizeWrapper(scene, 0.58, true, 0, 1.05);
+                return (window.Dungeon3DTactical && window.Dungeon3DTactical.augmentOozeTemplate) ? window.Dungeon3DTactical.augmentOozeTemplate(this, wrap) : wrap;
             });
         } else if (templateKey === 'bestiary_balrog') {
             loadPromise = loadGltf('/assets/models/monsters/bestiary/GodAnubis_Art.glb', () => this._ensureMonster3DTemplate('bestiary_golem')).then(scene => {
@@ -9390,7 +9379,8 @@ class Dungeon3D {
             });
         } else if (templateKey === 'bestiary_vortex') {
             loadPromise = loadGltf('/assets/models/monsters/bestiary/vortex_elemental.glb', () => loadGltf('/assets/models/monsters/bestiary/GhostArmature.glb', () => this._ensureMonster3DTemplate('bestiary_wraith'))).then(scene => {
-                return normalizeWrapper(scene, 1.15, true, 0, 1.05);
+                const wrap = normalizeWrapper(scene, 1.15, true, 0, 1.05);
+                return (window.Dungeon3DTactical && window.Dungeon3DTactical.augmentVortexTemplate) ? window.Dungeon3DTactical.augmentVortexTemplate(this, wrap) : wrap;
             });
         } else if (templateKey === 'bestiary_quylthulg') {
             loadPromise = loadGltf('/assets/models/monsters/bestiary/quylthulg.glb', () => loadGltf('/assets/models/monsters/bestiary/jelly_ooze.glb', () => loadGltf('/assets/polyhaven/models/moon_rock_02/moon_rock_02.gltf'))).then(scene => {
@@ -11372,8 +11362,8 @@ class Dungeon3D {
         // Soft ground contact shadow disc anchoring creature to floor
         if ((!window.GRAPHICS_CONFIG || window.GRAPHICS_CONFIG.contactShadows) && this.shadowGeo && this.shadowMat) {
             const shadowDisc = new THREE.Mesh(this.shadowGeo, this.shadowMat);
-            shadowDisc.position.set(0, 0.005, 0);
-            const footprint = (mesh.baseWidth || 1.25) * 0.75;
+            shadowDisc.position.set(0, -0.042, 0);
+            const footprint = Math.max(0.82, (mesh.baseWidth || 1.05) * 1.18);
             shadowDisc.scale.set(footprint, footprint, footprint);
             root.add(shadowDisc);
             root.contactShadow = shadowDisc;
@@ -11814,7 +11804,7 @@ class Dungeon3D {
             if (/rune|vorpal|morgul|ringil|anduril|glamdring|sting/.test(lower)) return 'item_rune_blade';
             if (/orc|goblin|scimitar|cutlass|falchion/.test(lower)) return 'item_goblin_sword';
             if (/estoc|rapier|foil|epee|small sword/.test(lower)) return 'ph_estoc';
-            if (/saber|sabre|tulwar/.test(lower)) return 'ph_saber';
+            if (/saber|sabre|tulwar|curved sword|curved blade|elven blade|kilij|yatagan/.test(lower)) return 'ph_saber';
             if (/dagger|knife|main gauche|stiletto|dirk|misericorde/.test(lower)) return 'ph_dagger';
             if (/hatchet/.test(lower)) return 'ph_hatchet';
             if (/axe|cleaver|battle-axe/.test(lower)) return 'ph_axe';
@@ -12033,6 +12023,12 @@ class Dungeon3D {
                                 c.material.color = new THREE.Color(0x9aa4b2);
                                 c.material.metalness = 0.78;
                                 c.material.roughness = 0.32;
+                                c.material._sharedMaterial = true;
+                            } else if (key === 'ph_katana') {
+                                c.material = c.material.clone();
+                                c.material.color = new THREE.Color(0xe2e8f0);
+                                c.material.metalness = 0.68;
+                                c.material.roughness = 2.8;
                                 c.material._sharedMaterial = true;
                             }
                             const mats = Array.isArray(c.material) ? c.material : [c.material];
@@ -12351,8 +12347,9 @@ class Dungeon3D {
 
         if ((!window.GRAPHICS_CONFIG || window.GRAPHICS_CONFIG.contactShadows) && this.shadowGeo && this.shadowMat) {
             const shadow = new THREE.Mesh(this.shadowGeo, this.shadowMat);
-            shadow.position.set(0, 0.005, 0);
-            shadow.scale.set(footprint, footprint, footprint);
+            shadow.position.set(0, -0.042, 0);
+            const itemShadow = footprint * 0.38;
+            shadow.scale.set(itemShadow, itemShadow, itemShadow);
             group.add(shadow);
             group.shadowMesh = shadow;
         }
@@ -12760,7 +12757,7 @@ class Dungeon3D {
             this.torchLight.intensity = currentTargetEnergy * livingFlicker;
         }
         const allowFill = !(this.renderBudget && this.renderBudget.enableFillLight === false);
-        this.torchFillLight.intensity = allowFill ? (currentTargetEnergy * 0.22) * livingFlicker : 0.0;
+        this.torchFillLight.intensity = allowFill ? (currentTargetEnergy * 0.06) * livingFlicker : 0.0;
 
         // Stable, warm lantern gold (no distracting color shifts)
         if (this.torchBaseColor) {
@@ -12794,10 +12791,10 @@ class Dungeon3D {
         if (window.GRAPHICS_CONFIG && window.GRAPHICS_CONFIG.torchInertia) {
             const yawInertia = Math.max(-0.14, Math.min(0.14, -wrappedDiff * 0.22));
             const bobInertia = (this.camera.position.y - this.eyeHeight) * 0.35;
-            this.torchLight.position.x = -0.25 + yawInertia;
-            this.torchLight.position.y = -0.05 - bobInertia;
+            this.torchLight.position.x = -0.46 + yawInertia;
+            this.torchLight.position.y = 0.28 - bobInertia;
         } else {
-            this.torchLight.position.set(-0.25, -0.05, -0.28);
+            this.torchLight.position.set(-0.46, 0.28, -0.18);
         }
 
         // Frame-rate-independent exponential pitch damping: 1 - Math.exp(-12 * dt)
@@ -13332,21 +13329,9 @@ class Dungeon3D {
                                 this.navCursorMesh.position.set(hitTileX * this.cellSize, 0.035, hitTileY * this.cellSize);
                                 if (path && path.length > 0 && path.length <= 64) {
                                     const isDoor = hit.kind === 'door';
-                                    this.navCursorMesh.material.color.setHex(isDoor ? 0xff9f1c : 0xffd700);
-                                    this.navCursorMesh.material.opacity = 0.82;
-                                    if (this.navBreadcrumbsMesh) {
-                                        if (!this._scratchNavMatrix) this._scratchNavMatrix = new THREE.Matrix4();
-                                        if (!this._scratchNavPos) this._scratchNavPos = new THREE.Vector3();
-                                        const count = Math.min(path.length, 64);
-                                        for (let pIdx = 0; pIdx < count; pIdx++) {
-                                            const step = path[pIdx];
-                                            this._scratchNavPos.set(step.x * this.cellSize, 0.028, step.y * this.cellSize);
-                                            this._scratchNavMatrix.makeTranslation(this._scratchNavPos.x, this._scratchNavPos.y, this._scratchNavPos.z);
-                                            this.navBreadcrumbsMesh.setMatrixAt(pIdx, this._scratchNavMatrix);
-                                        }
-                                        this.navBreadcrumbsMesh.count = count;
-                                        this.navBreadcrumbsMesh.instanceMatrix.needsUpdate = true;
-                                    }
+                                    this.navCursorMesh.material.color.setHex(isDoor ? 0xff9f1c : 0xd4af37);
+                                    this.navCursorMesh.material.opacity = isDoor ? 0.48 : 0.24;
+                                    if (this.navBreadcrumbsMesh) this.navBreadcrumbsMesh.count = 0;
                                 } else {
                                     if (this.navBreadcrumbsMesh) this.navBreadcrumbsMesh.count = 0;
                                     this.navCursorMesh.material.color.setHex(0xef4444);
@@ -13465,6 +13450,23 @@ class Dungeon3D {
             // Vertical hover for floating creatures only (grounded beasts stay firmly planted to avoid movement Y-jitter)
             const baseY = entity.isFloating ? 0.45 : 0.0;
             entity.position.y = entity.isFloating ? (baseY + Math.sin(monTime + (entity._bobPhase || 0)) * 0.07) : baseY;
+            if (entity.contactShadow) {
+                entity.contactShadow.position.y = -entity.position.y - 0.042;
+            }
+            if (entity.creatureMesh && !entity._vortexChecked) {
+                entity._vortexChecked = true;
+                const vRings = [];
+                entity.creatureMesh.traverse((vc) => {
+                    if (vc.userData && vc.userData._vortexSpin) vRings.push(vc);
+                });
+                entity._vortexRings = vRings.length > 0 ? vRings : null;
+            }
+            if (entity._vortexRings) {
+                for (let vi = 0; vi < entity._vortexRings.length; vi++) {
+                    const vr = entity._vortexRings[vi];
+                    vr.rotation.y += delta * (vr.userData._vortexSpin || 3.5);
+                }
+            }
 
             // Apply Attack Lunge & Hit Flinch as clean local offsets on creatureMesh (never drifting entity.position off its tile)
             let localOffsetX = 0;

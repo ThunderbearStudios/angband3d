@@ -250,54 +250,7 @@ Dungeon3DProto._loadPolyHavenEnvironmentModels = function _loadPolyHavenEnvironm
         geo.attributes.color.needsUpdate = true;
     };
 
-    // 1. Moon Rock 02 (Photogrammetry Rubble Boulders — reuse GLTF-parsed textures directly, zero duplicate downloads)
-    addGltfTask('/assets/polyhaven/models/moon_rock_02/moon_rock_02.gltf', (gltf) => {
-        const scene = gltf.scene || (gltf.scenes && gltf.scenes[0]);
-        if (!scene) return;
-        const parts = [];
-        let diff = null, nor = null;
-        scene.traverse((c) => {
-            if (c.isMesh && c.geometry) {
-                c.updateMatrixWorld(true);
-                if (c.material) {
-                    if (!diff && c.material.map) diff = c.material.map;
-                    if (!nor && c.material.normalMap) nor = c.material.normalMap;
-                }
-                const g = c.geometry.clone();
-                g.applyMatrix4(c.matrixWorld);
-                if (g.attributes.color) g.deleteAttribute('color');
-                const colArr = new Float32Array(g.attributes.position.count * 3);
-                colArr.fill(1.0);
-                g.setAttribute('color', new THREE.BufferAttribute(colArr, 3));
-                parts.push(g);
-            }
-        });
-        if (parts.length > 0) {
-            const geo = this._mergeBufferGeometries(parts);
-            geo.computeBoundingBox();
-            const bbox = geo.boundingBox;
-            const cx = (bbox.min.x + bbox.max.x) * 0.5;
-            const cz = (bbox.min.z + bbox.max.z) * 0.5;
-            const spanXZ = Math.max(bbox.max.x - bbox.min.x, bbox.max.z - bbox.min.z) || 1.0;
-            const spanY = (bbox.max.y - bbox.min.y) || 1.0;
-            geo.translate(-cx, -bbox.min.y, -cz);
-            geo.scale(1.42 / spanXZ, 1.08 / spanY, 1.42 / spanXZ);
-            applyRockAo(geo, 1.08);
-            geo.computeVertexNormals();
-
-            if (this.rubbleMesh && this.rubbleMesh.geometry) this.rubbleMesh.geometry.dispose();
-            if (this.rubbleMesh) this.rubbleMesh.geometry = geo;
-            if (this.rubbleMaterial && (diff || nor)) {
-                if (diff) { diff.encoding = THREE.sRGBEncoding; diff._sharedTexture = true; this.rubbleMaterial.map = diff; }
-                if (nor) { nor._sharedTexture = true; this.rubbleMaterial.normalMap = nor; }
-                this.rubbleMaterial.needsUpdate = true;
-                this._hasPolyHavenRubbleTex = true;
-            }
-            this._lastTerrainSig = null;
-        }
-    });
-
-    // 2. Rock 07 (Photogrammetry Mountain Crag — reuse GLTF-parsed textures directly, zero duplicate downloads)
+    // 1. Rock 07 Photogrammetry Granite Crags -> Both Mountain Peaks AND Multi-Slab Collapsed Rubble Talus
     addGltfTask('/assets/polyhaven/models/rock_07/rock_07.gltf', (gltf) => {
         const scene = gltf.scene || (gltf.scenes && gltf.scenes[0]);
         if (!scene) return;
@@ -320,20 +273,51 @@ Dungeon3DProto._loadPolyHavenEnvironmentModels = function _loadPolyHavenEnvironm
             }
         });
         if (parts.length > 0) {
-            const geo = this._mergeBufferGeometries(parts);
-            geo.computeBoundingBox();
-            const bbox = geo.boundingBox;
+            const baseGeo = this._mergeBufferGeometries(parts);
+            baseGeo.computeBoundingBox();
+            const bbox = baseGeo.boundingBox;
             const cx = (bbox.min.x + bbox.max.x) * 0.5;
             const cz = (bbox.min.z + bbox.max.z) * 0.5;
             const spanXZ = Math.max(bbox.max.x - bbox.min.x, bbox.max.z - bbox.min.z) || 1.0;
             const spanY = (bbox.max.y - bbox.min.y) || 1.0;
-            geo.translate(-cx, -bbox.min.y, -cz);
-            geo.scale(2.15 / spanXZ, 3.80 / spanY, 2.15 / spanXZ);
-            applyRockAo(geo, 3.80);
-            geo.computeVertexNormals();
+
+            // 1a. Multi-slab jagged collapsed masonry rubble talus (feat 16 ':')
+            const slabSpecs = [
+                { s: [1.05 / spanXZ, 0.96 / spanY, 0.92 / spanXZ], rot: [0.34, 0.42, 0.18], off: [-0.14, 0.0, 0.08] },
+                { s: [0.82 / spanXZ, 0.72 / spanY, 0.78 / spanXZ], rot: [-0.28, -0.75, 0.25], off: [0.32, -0.02, -0.22] },
+                { s: [0.74 / spanXZ, 0.58 / spanY, 0.68 / spanXZ], rot: [0.18, 1.45, -0.32], off: [-0.36, -0.03, -0.26] }
+            ];
+            const rubbleSlabs = slabSpecs.map(sp => {
+                const sg = baseGeo.clone();
+                sg.translate(-cx, -bbox.min.y, -cz);
+                sg.scale(sp.s[0], sp.s[1], sp.s[2]);
+                sg.rotateX(sp.rot[0]); sg.rotateY(sp.rot[1]); sg.rotateZ(sp.rot[2]);
+                sg.computeBoundingBox();
+                sg.translate(sp.off[0], -sg.boundingBox.min.y + sp.off[1], sp.off[2]);
+                return sg;
+            });
+            const rubbleGeo = this._mergeBufferGeometries(rubbleSlabs);
+            for (const sg of rubbleSlabs) sg.dispose();
+            applyRockAo(rubbleGeo, 1.15);
+            rubbleGeo.computeVertexNormals();
+            if (this.rubbleMesh && this.rubbleMesh.geometry) this.rubbleMesh.geometry.dispose();
+            if (this.rubbleMesh) this.rubbleMesh.geometry = rubbleGeo;
+            if (this.rubbleMaterial && (diff || nor)) {
+                if (diff) { diff.encoding = THREE.sRGBEncoding; diff._sharedTexture = true; this.rubbleMaterial.map = diff; }
+                if (nor) { nor._sharedTexture = true; this.rubbleMaterial.normalMap = nor; }
+                this.rubbleMaterial.needsUpdate = true;
+                this._hasPolyHavenRubbleTex = true;
+            }
+
+            // 1b. Alpine Mountain Peaks (feat 30)
+            const mountainGeo = baseGeo;
+            mountainGeo.translate(-cx, -bbox.min.y, -cz);
+            mountainGeo.scale(2.15 / spanXZ, 3.80 / spanY, 2.15 / spanXZ);
+            applyRockAo(mountainGeo, 3.80);
+            mountainGeo.computeVertexNormals();
 
             if (this.mountainMesh && this.mountainMesh.geometry) this.mountainMesh.geometry.dispose();
-            if (this.mountainMesh) this.mountainMesh.geometry = geo;
+            if (this.mountainMesh) this.mountainMesh.geometry = mountainGeo;
             if (this.mountainMaterial && (diff || nor)) {
                 if (diff) { diff.encoding = THREE.sRGBEncoding; diff._sharedTexture = true; this.mountainMaterial.map = diff; }
                 if (nor) { nor._sharedTexture = true; this.mountainMaterial.normalMap = nor; }

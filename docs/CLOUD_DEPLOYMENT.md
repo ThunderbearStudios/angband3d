@@ -5,8 +5,8 @@ Angband3D implements a **decoupled, cloud-native architecture**:
 - **WebSocket Gateway (`/ws`)**: A lightweight Node.js daemon manages client sessions, spawns isolated child engine processes per player session, and pipes stdin/stdout streams to/from WebSocket JSON frames in real-time.
 - **Save Game Storage (`/data/save`)**: Persistent volume or cloud storage mount preserving binary character save files (`SaveVNLA` format). Fully cross-compatible between Web and Desktop clients.
 - **Three.js WebGL 3D Client (`server/public/`)**: Delivers an immersive, zero-install 3D dungeon crawler directly in modern desktop, tablet, and mobile browsers (iOS Safari, Android Chrome, Desktop Edge/Chrome/Firefox/Safari). Features PBR materials, dynamic character scaling, curated 3D bestiary models, first-person viewmodel, Living Chronicle & Voiced Lorekeeper, and collision-free mobile touch controls.
-- **Canonical Live Production Deployment (`v13.0.2`)**:
-  - Custom Domain: [https://yasd3d.com](https://yasd3d.com) (routed via Cloudflare Worker `yasd3d-edge`; canonical Cloud Run origin `angband3d-cloud` `us-central1`)
+- **Canonical Live Production Deployment (`v13.1.0`)**:
+  - Custom Domain: [https://yasd3d.com](https://yasd3d.com) (routed via Cloudflare Worker `yasd3d-edge`; canonical Cloud Run origin `angband3d-cloud` `us-central1`, scaled with `minScale: 1`, `maxScale: 40`, `containerConcurrency: 24`, `2 vCPU / 2 GiB`, session affinity, and startup CPU boost)
   - Cloud Run Services (`angband3d-cloud` `us-central1` canonical origin + mirrors):
     - `angband3d` (`us-central1`): `https://angband3d-564958309282.us-central1.run.app`
     - `angband3d-cloud` (`us-central1`): `https://angband3d-cloud-564958309282.us-central1.run.app`
@@ -48,7 +48,7 @@ Expected response:
   "status": "ok",
   "uptime": 12.4,
   "engine": true,
-  "version": "13.0.2"
+  "version": "13.1.0"
 }
 ```
 
@@ -170,22 +170,20 @@ Navigate to `https://angband.example.com/` — the client runs directly in your 
 
 ---
 
-## High-Traffic & Viral Scaling Specification (`v13.0.2` — `2 vCPU / 2GiB RAM`)
+## High-Traffic & Viral Scaling Specification (`v13.1.0` — `2 vCPU / 2GiB RAM`)
 
 To support viral spikes across all 9 realms (`angband`, `silq`, `frogcomposband`, `hengband`, `nethack`, `dcss`, `brogue`, `rogue`, `ryod`):
 
-- **Edge & Browser Cache Offload (`server/src/server.js`)**:
+- **Edge & Browser Cache Offload (`server/src/server.js` + `edge/worker.js`)**:
   - `.mp3`, `.wav`, `.ogg` (`58` music tracks + `101` foley SFX): `Cache-Control: public, max-age=604800, no-transform` (`7 days`) on both HTTP `200` and HTTP `206 Partial Content` Range responses.
-  - `?v=` cache-busted `.js` & `.css` bundles: `Cache-Control: public, max-age=604800` (`7 days`).
-  - `.glb`, `.gltf`, `.bin`, `.obj`, `.png`, `.woff2`: `Cache-Control: public, max-age=604800` (`7 days`) with in-memory Gzip LRU cache (`MAX_STATIC_CACHE_ITEMS = 250`).
+  - `?v=` cache-busted `.js`, `.css`, `/wasm/`, & `/assets/` bundles: `1-year immutable` at Cloudflare Edge (`yasd3d-edge`).
+  - `.glb`, `.gltf`, `.bin`, `.obj`, `.png`, `.woff2`: origin `Cache-Control: public, max-age=604800` (`7 days`) with in-memory Gzip/Brotli static serving (`MAX_STATIC_CACHE_ITEMS = 250`).
 - **Session Lifecycle & Zombie Reaping**:
   - Disconnected character-setup or dead sessions (`phase === 'setup'` or `isDead`): reaped after **`45 seconds`**.
   - Disconnected active saved play sessions: reaped after **`5 minutes`** (`DISCONNECT_GRACE_PERIOD_MS`).
-  - Idle connected sessions: reaped after **`20 minutes`** (`IDLE_TIMEOUT_MS`).
-  - Per-instance concurrency cap: `MAX_CONCURRENT_GAMES = 36` C/C++ engine subprocesses per `2 vCPU / 2GiB` instance (`~900` concurrent active players across `25` max instances).
+  - Idle connected sessions: reaped after **`15 minutes`** (`IDLE_TIMEOUT_MS`).
+  - Per-instance capacity & fleet scaling: `containerConcurrency = 24` (`MAX_CONCURRENT_GAMES = 36` C/C++ engine subprocesses per `2 vCPU / 2GiB` instance) across `minScale = 1`, `maxScale = 40` instances (`~960` concurrent native C/C++ engine players, zero cold start on initial entry, plus unbounded client-side Web Worker execution for `nethack`/`dcss`/`brogue`/`rogue`/`ryod`).
 - **Cloud Run Production Upgrade Command**:
   ```powershell
-  gcloud.cmd run services update angband3d-web --region us-central1 --cpu 2 --memory 2Gi --concurrency 40 --max-instances 25 --min-instances 0
-  gcloud.cmd run services update angband3d --region us-central1 --cpu 2 --memory 2Gi --concurrency 40 --max-instances 25 --min-instances 0
-  gcloud.cmd run services update angband3d-cloud --region us-central1 --cpu 2 --memory 2Gi --concurrency 40 --max-instances 25 --min-instances 0
+  gcloud.cmd run services update angband3d-cloud --region us-central1 --cpu 2 --memory 2Gi --concurrency 24 --min-instances 1 --max-instances 40 --timeout 3600 --session-affinity --cpu-boost
   ```

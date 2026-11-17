@@ -425,7 +425,7 @@
         }
 
         // 3. Western Curved Blades (ph_saber / item_goblin_sword)
-        if (/\b(saber|sabre|scimitar|cutlass|falchion|tulwar|khopesh|shamshir|messer)\b/i.test(lower)) {
+        if (/\b(saber|sabre|scimitar|cutlass|falchion|tulwar|khopesh|shamshir|messer|curved sword|curved blade|elven blade|kilij|yatagan)\b/i.test(lower)) {
             if (/\b(orc|goblin|orcish|uruk)\b/i.test(lower)) {
                 return { floorKey: 'item_goblin_sword', heldKey: 'item_goblin_sword', category: 'weapon', subType: 'goblin_sword' };
             }

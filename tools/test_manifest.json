@@ -42,6 +42,7 @@
     "test_v12_3_0_overhaul.js",
     "test_v12_3_1_hengband_town_perf.js",
     "test_v12_3_3_playtest_fixes.js",
+    "test_bestiary_no_aislop.js",
     "test_9realm_parity_matrix.js",
     "audit_9realm_bestiary_exhaustive.js"
   ],

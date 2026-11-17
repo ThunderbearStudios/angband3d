@@ -1,10 +1,10 @@
 ---
 layout: default
-title: "YASD 3D / Angband 3D — Nine Classic Roguelike Realms in Modern 3D (v13.0.2)"
+title: "YASD 3D / Angband 3D — Nine Classic Roguelike Realms in Modern 3D (v13.1.0)"
 description: "Four authoritative C/C++ roguelike engines (Vanilla, Sil-Q, FrogComposBand, Hengband) plus five offline Yendor 3D browser cartridges (NetHack, DCSS, Brogue, Rogue, RYOD Forge) running in first-person 3D with zero-turn camera look, dual-reality CRT canvas, universal movable HUD, and voiced living chronicles."
 ---
 
-# ⚔️ YASD 3D / Angband 3D (`v13.0.2`)
+# ⚔️ YASD 3D / Angband 3D (`v13.1.0`)
 
 > **Four Authoritative C/C++ Engines + Five Offline Yendor 3D Cartridges. One Living 3D World. Over Four Decades of Tactical History Preserved Through High-Performance Engine Decoupling.**
 
@@ -31,7 +31,7 @@ Classic turn-based roguelikes represent some of the most mathematically deep, ta
 
 **Angband 3D solves this problem permanently through architectural decoupling.** 
 
-Rather than rewriting the game from scratch, YASD 3D (`v13.0.2`) runs **four authoritative, unmodified C/C++ roguelike engines** (`Vanilla Angband 4.2.6`, `Sil-Q 1.5.0`, `FrogComposBand 7.1.1`, `Hengband 3.0.1`) in headless bridge mode alongside **five zero-latency Yendor 3D offline browser cartridges** (`NetHack 3.6.7`, `DCSS 0.31`, `Brogue CE`, `Rogue 5.4`, and `RYOD Tabletop Forge`). Every combat roll, saving throw, item generation curve, stealth check, and monster AI pathfinding decision runs canonical realm rules. Frontends—our responsive Three.js WebGL/PWA client—act cleanly as reactive 60 FPS presentation layers.
+Rather than rewriting the game from scratch, YASD 3D (`v13.1.0`) runs **four authoritative, unmodified C/C++ roguelike engines** (`Vanilla Angband 4.2.6`, `Sil-Q 1.5.0`, `FrogComposBand 7.1.1`, `Hengband 3.0.1`) in headless bridge mode alongside **five zero-latency Yendor 3D offline browser cartridges** (`NetHack 3.6.7`, `DCSS 0.31`, `Brogue CE`, `Rogue 5.4`, and `RYOD Tabletop Forge`). Every combat roll, saving throw, item generation curve, stealth check, and monster AI pathfinding decision runs canonical realm rules. Frontends—our responsive Three.js WebGL/PWA client—act cleanly as reactive 60 FPS presentation layers.
 
 The result is a breathtaking first-person dungeon crawl with real-time camera look, procedural lighting, and voiced narrative sagas, built upon a foundation of absolute mathematical rigor.
 

@@ -2280,20 +2280,6 @@ Dungeon3DProto.initTextures = function initTextures() {
                 }
             }
         }
-        if (e.diff && e.arm) {
-            const veinSpecs = [
-                [this.magmaMaterial, this.magmaEmission, 0xff4400, 0.65],
-                [this.goldVeinMaterial, this.goldVeinEmission, 0xffaa22, 0.52]
-            ];
-            for (const [vm, emMap, emHex, emInt] of veinSpecs) {
-                if (vm) {
-                    applyMatMaps(vm, e, true);
-                    if (emMap) vm.emissiveMap = emMap;
-                    vm.emissive.setHex(emHex);
-                    vm.emissiveIntensity = emInt;
-                }
-            }
-        }
     });
     this.loadPolyHavenSet('monastery_stone_floor', 2, 2);
     this.loadPolyHavenSet('rock_wall_10', 2, 3);
@@ -2308,21 +2294,26 @@ Dungeon3DProto.initTextures = function initTextures() {
             applyMatMaps(this.chasmSideMaterial, { diff: this.townMountainDiff, nor: this.townMountainNormal, arm: this.townMountainRoughness }, true);
             if (this.chasmSideMaterial.normalScale) this.chasmSideMaterial.normalScale.set(1.80, 1.80);
         }
-        if (e.diff && e.arm) {
-            const veinSpecs = [
-                [this.quartzMaterial, this.quartzEmission, 0x38bdf8, 0.38],
-                [this.gemVeinMaterial, this.gemVeinEmission, 0x33eebb, 0.55]
-            ];
-            for (const [vm, emMap, emHex, emInt] of veinSpecs) {
-                if (vm) {
-                    applyMatMaps(vm, e, true);
-                    if (emMap) vm.emissiveMap = emMap;
-                    vm.emissive.setHex(emHex);
-                    vm.emissiveIntensity = emInt;
-                }
-            }
-        }
     });
+    const bindVeinCliffSet = (phId, mats) => {
+        this.loadPolyHavenSet(phId, 1, 1, (e) => {
+            if (!e.diff || !e.arm) return;
+            for (const vm of mats()) {
+                if (!vm) continue;
+                applyMatMaps(vm, e, true);
+                vm.emissiveMap = null;
+                vm.emissive.setHex(0x000000);
+                vm.emissiveIntensity = 0.0;
+                if (vm.normalScale) vm.normalScale.set(1.90, 1.90);
+                vm.needsUpdate = true;
+            }
+            if (window.Dungeon3DTactical && typeof window.Dungeon3DTactical.syncWorldPbrUniforms === 'function') {
+                window.Dungeon3DTactical.syncWorldPbrUniforms(this, this._lastContextualTexSet || null);
+            }
+        });
+    };
+    bindVeinCliffSet('marble_cliff_02', () => [this.magmaMaterial, this.goldVeinMaterial]);
+    bindVeinCliffSet('marble_cliff_01', () => [this.quartzMaterial, this.gemVeinMaterial]);
     this.loadPolyHavenSet('japanese_stone_wall', 2, 3, (e) => applyMatMaps(this.shopStoneMaterial, e, true));
     this.loadPolyHavenSet('aerial_grass_rock', 2, 2, (e) => applyMatMaps(this.grassMaterial, e, false));
     this.loadPolyHavenSet('brown_mud_rocks_01', 2, 2, (e) => {
@@ -2468,11 +2459,15 @@ function resolveContextualPbrIds(realm, depth, outdoors, branch = '', ryodBiome 
     }
 
     const tier1Set = new Set([wallPhId, floorPhId, permPhId, ceilPhId]);
+    if (!isOut) {
+        tier1Set.add('marble_cliff_01');
+        tier1Set.add('marble_cliff_02');
+    }
     const fullSet = new Set(tier1Set);
     fullSet.add('bark_willow_02');
     const extraIds = isOut
         ? ['japanese_stone_wall', 'plastered_stone_wall', 'aerial_grass_rock', 'brown_mud_rocks_01', 'local_wood_trim']
-        : (hasShops ? ['cliff_side', 'rock_boulder_cracked', 'brown_mud_rocks_01', 'local_wood_trim'] : ['cliff_side', 'rock_boulder_cracked', 'brown_mud_rocks_01']);
+        : (hasShops ? ['cliff_side', 'rock_boulder_cracked', 'marble_cliff_01', 'marble_cliff_02', 'brown_mud_rocks_01', 'local_wood_trim'] : ['cliff_side', 'rock_boulder_cracked', 'marble_cliff_01', 'marble_cliff_02', 'brown_mud_rocks_01']);
     for (const eid of extraIds) fullSet.add(eid);
 
     const tier1Ids = Array.from(tier1Set);
@@ -2514,10 +2509,11 @@ Dungeon3DProto.getContextualTextureSet = function getContextualTextureSet(theme,
 
     const wSet = ph.get(wallPhId), fSet = ph.get(floorPhId), pSet = ph.get(permPhId), cSet = ph.get(ceilPhId);
     const boulderSet = ph.get('rock_boulder_cracked'), cliffSet = ph.get('cliff_side');
+    const mc1Set = ph.get('marble_cliff_01'), mc2Set = ph.get('marble_cliff_02');
     const fallbackRough = this._neutralRoughnessTex || null;
 
     if (wSet && wSet.diff && fSet && fSet.diff) {
-        return {
+        const outSet = {
             wallTex: wSet.diff, wallNormal: wSet.nor || this.wallNormal, wallRoughness: wSet.arm || fallbackRough, wallDisp: (wSet && wSet.disp) || null,
             floorTex: fSet.diff, floorNormal: fSet.nor || this.floorNormal, floorRoughness: fSet.arm || fallbackRough, floorDisp: (fSet && fSet.disp) || null,
             permWallTex: (pSet && pSet.diff) ? pSet.diff : (this.townPermWallTex || this.permWallTex),
@@ -2525,8 +2521,12 @@ Dungeon3DProto.getContextualTextureSet = function getContextualTextureSet(theme,
             permWallRoughness: (pSet && pSet.arm) ? pSet.arm : (this.townPermWallRoughness || fallbackRough), permWallDisp: (pSet && pSet.disp) || null,
             ceilingTex: (cSet && cSet.diff) ? cSet.diff : this.ceilingTex, ceilingNormal: (cSet && cSet.nor) ? cSet.nor : this.wallNormal,
             ceilingRoughness: (cSet && cSet.arm) ? cSet.arm : fallbackRough, ceilingDisp: (cSet && cSet.disp) || null,
-            magmaDisp: (boulderSet && boulderSet.disp) || null, quartzDisp: (cliffSet && cliffSet.disp) || null, geoProfile
+            magmaDisp: (mc2Set && mc2Set.disp) || (boulderSet && boulderSet.disp) || null,
+            quartzDisp: (mc1Set && mc1Set.disp) || (cliffSet && cliffSet.disp) || null,
+            geoProfile
         };
+        this._lastContextualTexSet = outSet;
+        return outSet;
     }
 
     const safeTheme = theme || CONTEXTUAL_THEMES[outdoors ? 'angband_town' : 'angband_crypts'];
@@ -2549,7 +2549,14 @@ Dungeon3DProto.getContextualTextureSet = function getContextualTextureSet(theme,
         this.contextualTextureCache.set(cacheKey, baseSet);
     }
 
-    return Object.assign({}, baseSet, { wallDisp: (wSet && wSet.disp) || null, floorDisp: (fSet && fSet.disp) || null, permWallDisp: (pSet && pSet.disp) || null, geoProfile });
+    const fbSet = Object.assign({}, baseSet, {
+        wallDisp: (wSet && wSet.disp) || null, floorDisp: (fSet && fSet.disp) || null, permWallDisp: (pSet && pSet.disp) || null,
+        magmaDisp: (mc2Set && mc2Set.disp) || (boulderSet && boulderSet.disp) || null,
+        quartzDisp: (mc1Set && mc1Set.disp) || (cliffSet && cliffSet.disp) || null,
+        geoProfile
+    });
+    this._lastContextualTexSet = fbSet;
+    return fbSet;
 };
 
     }

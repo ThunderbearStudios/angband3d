@@ -21,12 +21,23 @@
     let _altKeyHeld = false;
     if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
         window.addEventListener('keydown', (e) => {
-            if (e.key === 'Alt') _altKeyHeld = true;
+            _altKeyHeld = (e.key === 'Alt') ? true : Boolean(e.altKey);
         }, { passive: true });
         window.addEventListener('keyup', (e) => {
-            if (e.key === 'Alt') _altKeyHeld = false;
+            _altKeyHeld = (e.key === 'Alt') ? false : Boolean(e.altKey);
+        }, { passive: true });
+        window.addEventListener('pointermove', (e) => {
+            if (_altKeyHeld && !e.altKey) _altKeyHeld = false;
+        }, { passive: true });
+        window.addEventListener('mousedown', (e) => {
+            if (_altKeyHeld && !e.altKey) _altKeyHeld = false;
         }, { passive: true });
         window.addEventListener('blur', () => {
+            _altKeyHeld = false;
+        }, { passive: true });
+    }
+    if (typeof document !== 'undefined' && typeof document.addEventListener === 'function') {
+        document.addEventListener('visibilitychange', () => {
             _altKeyHeld = false;
         }, { passive: true });
     }
@@ -690,14 +701,14 @@
             const rayLine = new THREE.LineSegments(rayGeo, rayMat);
             group.add(rayLine);
 
-            // Chebyshev 1-tile Range Grid overlay
+            // Chebyshev 1-tile Range Grid overlay (strictly active-cursor only, tile-clipped to walkable floors)
             const gridGeo = new THREE.BufferGeometry();
-            const gridPositions = new Float32Array(32 * 32 * 8 * 3); // subtle grid lines
+            const gridPositions = new Float32Array(24 * 24 * 8 * 3);
             gridGeo.setAttribute('position', new THREE.BufferAttribute(gridPositions, 3));
             const gridMat = new THREE.LineBasicMaterial({
-                color: 0x38bdf8,
+                color: 0xd4af37,
                 transparent: true,
-                opacity: 0.28,
+                opacity: 0.14,
                 depthWrite: false
             });
             const gridLines = new THREE.LineSegments(gridGeo, gridMat);
@@ -736,39 +747,53 @@
             const py = (frame && frame.player && frame.player.y !== undefined) ? frame.player.y : 0;
             const cellSize = d3d.cellSize || 2.0;
 
-            const isAlt = _altKeyHeld;
             const isCursorActive = Boolean(cursor && cursor.active);
 
-            // Range grid visibility: visible when cursor is active OR Alt key held
-            const showRangeGrid = isCursorActive || isAlt;
+            // Range grid visibility: visible ONLY when targeting/look cursor is active (never Alt latch on floor)
+            const showRangeGrid = isCursorActive;
             tc.gridLines.visible = showRangeGrid;
 
             if (showRangeGrid) {
-                const gridSig = `${px}_${py}_${showRangeGrid}`;
+                const map = d3d.lastMap || (frame && frame.map) || null;
+                const mW = map ? (map.w || (map.rows && map.rows[0] && map.rows[0].f ? (map.rows[0].f.length >> 1) : 0)) : 0;
+                const mH = map ? (map.h || (map.rows ? map.rows.length : 0)) : 0;
+                const mDepth = (map && map.depth !== undefined) ? map.depth : (d3d.lastDepth || 0);
+                const gridSig = `${px}_${py}_${mDepth}_${mW}x${mH}`;
                 if (tc._lastGridSig !== gridSig) {
                     tc._lastGridSig = gridSig;
-                    const r = 10; // 10-tile Chebyshev range
+                    const r = 8;
+                    const half = cellSize * 0.5;
+                    const yLine = -0.038;
                     const posArr = tc.gridGeo.attributes.position.array;
                     let vIdx = 0;
-                    for (let dx = -r; dx <= r; dx++) {
-                        const gx = (px + dx) * cellSize;
-                        // North-south line segment
-                        posArr[vIdx++] = gx - cellSize * 0.5;
-                        posArr[vIdx++] = 0.022;
-                        posArr[vIdx++] = (py - r) * cellSize - cellSize * 0.5;
-                        posArr[vIdx++] = gx - cellSize * 0.5;
-                        posArr[vIdx++] = 0.022;
-                        posArr[vIdx++] = (py + r) * cellSize + cellSize * 0.5;
-                    }
+                    const isFlatWalkable = (tx, ty) => {
+                        if (!map || !map.rows || tx < 0 || tx >= mW || ty < 0 || ty >= mH) return false;
+                        if (this.isSolidWallJoin(d3d, map, mW, mH, tx, ty, false)) return false;
+                        const tf = d3d.getFeatAt ? d3d.getFeatAt(map, tx, ty) : 0;
+                        if (tf === 0 || tf === 5 || tf === 6 || tf === 41) return false;
+                        return d3d.isWalkableOrPortal ? d3d.isWalkableOrPortal(tf) : true;
+                    };
+                    const pushSeg = (x0, z0, x1, z1) => {
+                        if (vIdx + 6 > posArr.length) return;
+                        posArr[vIdx++] = x0; posArr[vIdx++] = yLine; posArr[vIdx++] = z0;
+                        posArr[vIdx++] = x1; posArr[vIdx++] = yLine; posArr[vIdx++] = z1;
+                    };
                     for (let dy = -r; dy <= r; dy++) {
-                        const gz = (py + dy) * cellSize;
-                        // East-west line segment
-                        posArr[vIdx++] = (px - r) * cellSize - cellSize * 0.5;
-                        posArr[vIdx++] = 0.022;
-                        posArr[vIdx++] = gz - cellSize * 0.5;
-                        posArr[vIdx++] = (px + r) * cellSize + cellSize * 0.5;
-                        posArr[vIdx++] = 0.022;
-                        posArr[vIdx++] = gz - cellSize * 0.5;
+                        const ty = py + dy;
+                        for (let dx = -r; dx <= r; dx++) {
+                            const tx = px + dx;
+                            if (!isFlatWalkable(tx, ty)) continue;
+                            const cx = tx * cellSize;
+                            const cz = ty * cellSize;
+                            pushSeg(cx - half, cz - half, cx + half, cz - half);
+                            pushSeg(cx - half, cz - half, cx - half, cz + half);
+                            if (!isFlatWalkable(tx + 1, ty) || dx === r) {
+                                pushSeg(cx + half, cz - half, cx + half, cz + half);
+                            }
+                            if (!isFlatWalkable(tx, ty + 1) || dy === r) {
+                                pushSeg(cx - half, cz + half, cx + half, cz + half);
+                            }
+                        }
                     }
                     tc.gridGeo.attributes.position.needsUpdate = true;
                     tc.gridGeo.setDrawRange(0, vIdx / 3);
@@ -1739,13 +1764,14 @@
         // 7B. WORLD-CLASS PBR SHADER (RELIEF POM + SPECULAR AA + MICRO-AO + NOISE)
         // =========================================================================
 
-        applyWorldPbrShader(d3d, mat, kind = 'wall') {
+        applyWorldPbrShader(d3d, mat, kind = 'wall', veinMode = 0) {
             if (!mat || mat._ws81PbrApplied) return;
             mat._ws81PbrApplied = true;
             mat.extensions = Object.assign({}, mat.extensions || {}, { derivatives: true });
 
             const isWall = (kind === 'wall' || kind === 'vein');
             const isVein = (kind === 'vein');
+            const hasCornerBevel = isWall;
             const uniforms = {
                 uHeightMap: { value: null },
                 uHasHeightMap: { value: 0.0 },
@@ -1762,16 +1788,18 @@
                 uVeinStrength: { value: 0.0 },
                 uVeinColor: { value: new THREE.Color(0.65, 0.55, 0.35) },
                 uVeinEmissive: { value: new THREE.Color(0.0, 0.0, 0.0) },
-                uRoughnessScale: { value: 1.0 }
+                uRoughnessScale: { value: 1.0 },
+                uVeinMode: { value: Number(veinMode) || 0 }
             };
             mat.userData.ws81Uniforms = uniforms;
             mat.userData.ws81Kind = kind;
+            mat.userData.ws81VeinMode = Number(veinMode) || 0;
             if (d3d) {
                 if (!d3d._ws81PbrMaterials) d3d._ws81PbrMaterials = [];
                 if (!d3d._ws81PbrMaterials.includes(mat)) d3d._ws81PbrMaterials.push(mat);
             }
 
-            const cacheTag = `yasd_ws81_pbr_${kind}_${mat.id}`;
+            const cacheTag = `yasd_ws81_pbr_${kind}_${Number(veinMode) || 0}_${mat.id}`;
             mat.customProgramCacheKey = () => cacheTag;
 
             mat.onBeforeCompile = (shader) => {
@@ -1784,12 +1812,13 @@
                     'varying vec2 vFaceUv;',
                     'varying float vHalfSpanY;',
                     'varying float vFaceWidthM;',
-                    isWall ? 'attribute float aCornerIdx;\nattribute vec2 aCornerAxis;\nattribute float aFaceWidth;\nattribute vec4 aCornerBevel;' : ''
+                    hasCornerBevel ? 'attribute float aCornerIdx;\nattribute vec2 aCornerAxis;\nattribute float aFaceWidth;\nattribute vec4 aCornerBevel;' : '',
+                    isVein ? 'uniform sampler2D uHeightMap;\nuniform float uHasHeightMap;' : ''
                 ].join('\n');
 
                 shader.vertexShader = shader.vertexShader.replace('#include <common>', vertHeader);
 
-                const beginVertBlock = isWall ? [
+                const beginVertBlock = hasCornerBevel ? [
                     '#include <begin_vertex>',
                     'float yasdBevel = 0.0;',
                     'if (aCornerIdx >= -0.5) {',
@@ -1799,11 +1828,36 @@
                     '    else yasdBevel = aCornerBevel.w;',
                     '}',
                     'transformed.xz += aCornerAxis * yasdBevel;',
-                    'vFaceUv = uv;',
-                    'vFaceWidthM = max(0.25, aFaceWidth);'
+                    '#ifdef USE_UV',
+                    '    vFaceUv = uv;',
+                    '#else',
+                    '    vFaceUv = vec2(0.5);',
+                    '#endif',
+                    'vFaceWidthM = max(0.25, aFaceWidth);',
+                    isVein ? [
+                        'if (uHasHeightMap > 0.5 && aFaceWidth > 1.0 && abs(objectNormal.y) < 0.5) {',
+                        '    vec4 wsDispP = vec4(transformed, 1.0);',
+                        '    vec3 wsDispN = objectNormal;',
+                        '    #ifdef USE_INSTANCING',
+                        '        wsDispP = instanceMatrix * wsDispP;',
+                        '        wsDispN = mat3(instanceMatrix) * wsDispN;',
+                        '    #endif',
+                        '    wsDispP = modelMatrix * wsDispP;',
+                        '    wsDispN = normalize(mat3(modelMatrix) * wsDispN);',
+                        '    vec2 dispUv = (abs(wsDispN.x) > abs(wsDispN.z)) ? vec2(wsDispP.z, wsDispP.y) * 0.45 : vec2(wsDispP.x, wsDispP.y) * 0.45;',
+                        '    float hDisp = texture2D(uHeightMap, dispUv).r;',
+                        '    float edgePin = sin(clamp(vFaceUv.x, 0.0, 1.0) * 3.14159265) * sin(clamp(vFaceUv.y, 0.0, 1.0) * 3.14159265);',
+                        '    edgePin = pow(max(0.0, edgePin), 0.55);',
+                        '    transformed += objectNormal * ((hDisp - 0.46) * 0.17 * edgePin);',
+                        '}'
+                    ].join('\n') : ''
                 ].join('\n') : [
                     '#include <begin_vertex>',
-                    'vFaceUv = uv;',
+                    '#ifdef USE_UV',
+                    '    vFaceUv = uv;',
+                    '#else',
+                    '    vFaceUv = vec2(0.5);',
+                    '#endif',
                     'vFaceWidthM = 2.0;'
                 ].join('\n');
 
@@ -1856,11 +1910,25 @@
                     'uniform vec3 uVeinColor;',
                     'uniform vec3 uVeinEmissive;',
                     'uniform float uRoughnessScale;',
+                    'uniform float uVeinMode;',
                     'vec2 yasdUv;',
                     'float yasdPomShadow;',
                     'float yasdNoiseMacro;',
                     'float yasdNoiseDetail;',
-                    '#define vUv yasdUv'
+                    'vec3 yasdRawTexel;',
+                    'vec3 yasdInstShade;',
+                    'float yasdSavedSeam;',
+                    '#define vUv yasdUv',
+                    isVein ? [
+                        'float yasdHash21(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }',
+                        'float yasdVnoise(vec2 p) {',
+                        '    vec2 i = floor(p); vec2 f = fract(p); f = f * f * (3.0 - 2.0 * f);',
+                        '    return mix(mix(yasdHash21(i), yasdHash21(i + vec2(1.0, 0.0)), f.x), mix(yasdHash21(i + vec2(0.0, 1.0)), yasdHash21(i + vec2(1.0, 1.0)), f.x), f.y);',
+                        '}',
+                        'float yasdFbm3(vec2 p) {',
+                        '    return yasdVnoise(p) * 0.55 + yasdVnoise(p * 2.13 + vec2(3.1, 7.4)) * 0.30 + yasdVnoise(p * 4.41 + vec2(8.2, 1.9)) * 0.15;',
+                        '}'
+                    ].join('\n') : ''
                 ].join('\n');
 
                 shader.fragmentShader = shader.fragmentShader.replace('#include <uv_pars_fragment>', fragHeader);
@@ -1940,61 +2008,133 @@
 
                 shader.fragmentShader = shader.fragmentShader.replace('#include <logdepthbuf_fragment>', pomAndUvMain);
 
-                // Anti-tiling macro modulation (crevice-gated moss/veins applied after arm.r unpack so 0 Perlin rings ever form!)
+                // Anti-tiling macro modulation + capture pre-tint photogrammetry texel & instance/vertex AO shade
                 const colorAndGeoFrag = [
+                    'yasdRawTexel = diffuseColor.rgb;',
                     '#include <color_fragment>',
+                    'yasdInstShade = vec3(1.0);',
+                    '#if defined(USE_COLOR) || defined(USE_INSTANCING_COLOR)',
+                    '    yasdInstShade = vColor.rgb;',
+                    '#endif',
                     'float antiTileTone = mix(0.92, 1.08, yasdNoiseMacro * 0.65 + yasdNoiseDetail * 0.35);',
                     'diffuseColor.rgb *= antiTileTone * yasdPomShadow;'
                 ].join('\n');
 
                 shader.fragmentShader = shader.fragmentShader.replace('#include <color_fragment>', colorAndGeoFrag);
 
-                // arm.r crevice Micro-AO + real-photogrammetry crevice-gated moss/mineral seams + wetness waterline gloss
+                // arm.r crevice Micro-AO + real-photogrammetry crevice-gated mineral seams & moss + wetness waterline gloss
                 const armAndRoughFrag = [
                     '#include <roughnessmap_fragment>',
                     'float aoSample = 1.0;',
                     '#ifdef USE_ROUGHNESSMAP',
                     '    if (uHasArmMap > 0.5) {',
-                    '        aoSample = clamp(texelRoughness.r, 0.15, 1.0);',
+                    '        aoSample = clamp(texelRoughness.r, 0.08, 1.0);',
                     '        diffuseColor.rgb *= mix(1.0, aoSample, 0.68);',
                     '    }',
                     '#endif',
                     'float yasdMacroField = yasdNoiseMacro * 0.66 + yasdNoiseDetail * 0.34;',
                     'float yasdCrevice = (uHasArmMap > 0.5) ? smoothstep(0.60, 0.18, aoSample) : smoothstep(0.68, 0.88, yasdNoiseDetail);',
                     'float yasdVeinCreviceMask = 0.0;',
+                    'yasdSavedSeam = 0.0;',
                     'roughnessFactor = clamp(roughnessFactor * uRoughnessScale * mix(0.92, 1.08, yasdNoiseDetail), 0.08, 1.0);',
-                    'if (uMossStrength > 0.005) {',
-                    '    float dampBias = clamp(1.0 - max(0.0, vWorldPos.y) * 0.28, 0.22, 1.0);',
-                    '    float mossPatch = smoothstep(0.42, 0.78, yasdMacroField * dampBias);',
-                    '    float mossMask = clamp(mossPatch * (0.24 + 0.76 * yasdCrevice) * uMossStrength * 1.35, 0.0, 0.76);',
-                    '    diffuseColor.rgb = mix(diffuseColor.rgb, uMossColor * (0.72 + 0.42 * aoSample), mossMask);',
-                    '    roughnessFactor = mix(roughnessFactor, 0.92, mossMask * 0.65);',
-                    '}',
-                    'if (uVeinStrength > 0.005) {',
-                    '    float veinCrevice = (uHasArmMap > 0.5) ? smoothstep(0.54, 0.16, aoSample) : smoothstep(0.72, 0.92, yasdNoiseDetail);',
-                    '    float veinPatch = smoothstep(0.28, 0.70, yasdMacroField);',
-                    '    #ifdef YASD_IS_VEIN',
-                    '        veinPatch = mix(0.55, 1.0, veinPatch);',
-                    '    #endif',
-                    '    yasdVeinCreviceMask = clamp(veinCrevice * veinPatch * uVeinStrength, 0.0, 1.0);',
-                    '    diffuseColor.rgb = mix(diffuseColor.rgb, uVeinColor, clamp(yasdVeinCreviceMask, 0.0, 0.88));',
-                    '    #ifdef YASD_IS_VEIN',
-                    '        roughnessFactor = mix(roughnessFactor, 0.16, clamp(yasdVeinCreviceMask * 0.82, 0.0, 0.82));',
-                    '    #endif',
-                    '}',
-                    'if (uWetness > 0.005) {',
-                    '    float wlJitter = (yasdNoiseMacro - 0.5) * 0.32;',
-                    '    float subLine = 1.0 - smoothstep(uWaterlineH - 0.18, uWaterlineH + 0.22, vWorldPos.y + wlJitter);',
-                    '    #ifndef YASD_IS_WALL',
-                    '        subLine = smoothstep(0.38, 0.76, yasdNoiseMacro * 0.7 + yasdNoiseDetail * 0.3);',
-                    '    #endif',
-                    '    float wetMask = clamp(uWetness * (0.35 + 0.65 * subLine), 0.0, 1.0);',
-                    '    diffuseColor.rgb *= mix(1.0, 0.64, wetMask);',
-                    '    roughnessFactor = mix(roughnessFactor, 0.16, wetMask * 0.82);',
-                    '}'
+                    '#ifdef YASD_IS_VEIN',
+                    '    if (uHasArmMap > 0.5 && uHasHeightMap > 0.5) {',
+                    '        float baseRough = 0.78;',
+                    '        #ifdef USE_ROUGHNESSMAP',
+                    '            baseRough = clamp(texelRoughness.g, 0.18, 0.98);',
+                    '        #endif',
+                    '        float hVal = texture2D(uHeightMap, yasdUv).r;',
+                    '        vec2 pc = yasdUv / 0.45;',
+                    '        float warp = yasdFbm3(pc * 1.45) * 0.68;',
+                    '        float dA = abs(fract(pc.x * 0.32 + pc.y * 0.24 + warp) - 0.5);',
+                    '        float dB = abs(fract(pc.x * -0.26 + pc.y * 0.36 + warp * 1.15 + 0.27) - 0.5);',
+                    '        float lodeHalo = max(1.0 - smoothstep(0.03, 0.21, dA), (1.0 - smoothstep(0.025, 0.17, dB)) * 0.90);',
+                    '        float rockCrack = smoothstep(0.66, 0.20, aoSample);',
+                    '        float wideCrack = smoothstep(0.76, 0.28, aoSample) * smoothstep(0.68, 0.24, hVal);',
+                    '        float rockLum = dot(yasdRawTexel, vec3(0.299, 0.587, 0.114));',
+                    '        float microGrain = yasdFbm3(pc * 18.0);',
+                    '        vec3 veinAlbedo = yasdRawTexel;',
+                    '        float seamMask = 0.0;',
+                    '        if (uVeinMode < 0.5) {',
+                    '            veinAlbedo = vec3(rockLum * 0.25, rockLum * 0.23, rockLum * 0.24) * mix(1.0, aoSample, 0.78);',
+                    '            seamMask = clamp(rockCrack * (0.35 + 1.25 * lodeHalo), 0.0, 1.0);',
+                    '            float hotCore = smoothstep(0.55, 0.96, seamMask);',
+                    '            vec3 molten = mix(vec3(0.88, 0.16, 0.01), vec3(1.0, 0.76, 0.16), hotCore);',
+                    '            veinAlbedo = mix(veinAlbedo, molten, smoothstep(0.16, 0.72, seamMask));',
+                    '            roughnessFactor = mix(clamp(baseRough * 1.06, 0.74, 0.97), 0.26, seamMask);',
+                    '        } else if (uVeinMode < 1.5) {',
+                    '            veinAlbedo = mix(vec3(rockLum * 0.92, rockLum * 0.96, rockLum * 1.04), yasdRawTexel * vec3(0.86, 0.92, 1.02), 0.22) * mix(1.0, aoSample, 0.66);',
+                    '            seamMask = clamp(rockCrack * (0.40 + 0.85 * lodeHalo), 0.0, 1.0);',
+                    '            veinAlbedo = mix(veinAlbedo, vec3(0.95, 0.98, 1.0), seamMask * 0.75);',
+                    '            roughnessFactor = mix(clamp(baseRough * 0.66, 0.26, 0.62), 0.10, seamMask);',
+                    '        } else if (uVeinMode < 2.5) {',
+                    '            veinAlbedo = vec3(rockLum * 0.30, rockLum * 0.31, rockLum * 0.34) * mix(1.0, aoSample, 0.78);',
+                    '            float qRim = clamp(wideCrack * lodeHalo * 1.35, 0.0, 1.0);',
+                    '            veinAlbedo = mix(veinAlbedo, vec3(0.68, 0.69, 0.72) * (0.6 + 0.5 * rockLum), qRim * 0.55);',
+                    '            seamMask = smoothstep(0.18, 0.72, rockCrack * (0.42 + 1.30 * lodeHalo) * (0.55 + 0.65 * microGrain));',
+                    '            vec3 goldAlbedo = mix(vec3(0.46, 0.28, 0.04), vec3(1.0, 0.82, 0.26), clamp(0.35 + 0.65 * microGrain * (0.6 + 0.6 * rockLum), 0.0, 1.0));',
+                    '            veinAlbedo = mix(veinAlbedo, goldAlbedo, seamMask);',
+                    '            roughnessFactor = mix(clamp(baseRough * 1.05, 0.74, 0.96), 0.16 + 0.12 * (1.0 - microGrain), seamMask);',
+                    '        } else {',
+                    '            veinAlbedo = mix(vec3(rockLum * 0.88, rockLum * 0.92, rockLum * 1.02), yasdRawTexel * vec3(0.84, 0.90, 1.02), 0.20) * mix(1.0, aoSample, 0.68);',
+                    '            seamMask = smoothstep(0.18, 0.70, rockCrack * (0.40 + 1.35 * lodeHalo) * (0.52 + 0.68 * microGrain));',
+                    '            float huePick = yasdVnoise(pc * 1.6 + vec2(4.2, 8.7));',
+                    '            vec3 gemDark = (huePick < 0.55) ? vec3(0.24, 0.05, 0.45) : ((huePick < 0.80) ? vec3(0.02, 0.34, 0.18) : vec3(0.04, 0.20, 0.52));',
+                    '            vec3 gemBright = (huePick < 0.55) ? vec3(0.76, 0.36, 1.0) : ((huePick < 0.80) ? vec3(0.16, 0.92, 0.56) : vec3(0.24, 0.68, 1.0));',
+                    '            vec3 gemCol = mix(gemDark, gemBright, clamp(microGrain * 1.25, 0.0, 1.0));',
+                    '            veinAlbedo = mix(veinAlbedo, gemCol, seamMask);',
+                    '            roughnessFactor = mix(clamp(baseRough * 0.68, 0.26, 0.64), 0.08, seamMask);',
+                    '        }',
+                    '        float borderM = smoothstep(0.0, 0.055, min(min(vFaceUv.x, 1.0 - vFaceUv.x), min(vFaceUv.y, 1.0 - vFaceUv.y)));',
+                    '        diffuseColor.rgb = veinAlbedo * mix(0.62, 1.0, borderM) * yasdInstShade * antiTileTone * yasdPomShadow;',
+                    '        yasdSavedSeam = seamMask;',
+                    '    }',
+                    '#else',
+                    '    if (uMossStrength > 0.005) {',
+                    '        float dampBias = clamp(1.0 - max(0.0, vWorldPos.y) * 0.28, 0.22, 1.0);',
+                    '        float mossPatch = smoothstep(0.42, 0.78, yasdMacroField * dampBias);',
+                    '        float mossMask = clamp(mossPatch * (0.24 + 0.76 * yasdCrevice) * uMossStrength * 1.35, 0.0, 0.76);',
+                    '        diffuseColor.rgb = mix(diffuseColor.rgb, uMossColor * (0.72 + 0.42 * aoSample), mossMask);',
+                    '        roughnessFactor = mix(roughnessFactor, 0.92, mossMask * 0.65);',
+                    '    }',
+                    '    if (uVeinStrength > 0.005) {',
+                    '        float veinCrevice = (uHasArmMap > 0.5) ? smoothstep(0.54, 0.16, aoSample) : smoothstep(0.72, 0.92, yasdNoiseDetail);',
+                    '        float veinPatch = smoothstep(0.28, 0.70, yasdMacroField);',
+                    '        yasdVeinCreviceMask = clamp(veinCrevice * veinPatch * uVeinStrength, 0.0, 1.0);',
+                    '        diffuseColor.rgb = mix(diffuseColor.rgb, uVeinColor, clamp(yasdVeinCreviceMask, 0.0, 0.88));',
+                    '    }',
+                    '    if (uWetness > 0.005) {',
+                    '        float wlJitter = (yasdNoiseMacro - 0.5) * 0.32;',
+                    '        float subLine = 1.0 - smoothstep(uWaterlineH - 0.18, uWaterlineH + 0.22, vWorldPos.y + wlJitter);',
+                    '        #ifndef YASD_IS_WALL',
+                    '            subLine = smoothstep(0.38, 0.76, yasdNoiseMacro * 0.7 + yasdNoiseDetail * 0.3);',
+                    '        #endif',
+                    '        float wetMask = clamp(uWetness * (0.35 + 0.65 * subLine), 0.0, 1.0);',
+                    '        diffuseColor.rgb *= mix(1.0, 0.64, wetMask);',
+                    '        roughnessFactor = mix(roughnessFactor, 0.16, wetMask * 0.82);',
+                    '    }',
+                    '#endif'
                 ].join('\n');
 
                 shader.fragmentShader = shader.fragmentShader.replace('#include <roughnessmap_fragment>', armAndRoughFrag);
+
+                if (isVein) {
+                    const metalVeinFrag = [
+                        '#include <metalnessmap_fragment>',
+                        'if (uHasArmMap > 0.5 && uHasHeightMap > 0.5) {',
+                        '    if (uVeinMode > 1.5 && uVeinMode < 2.5) {',
+                        '        metalnessFactor = mix(0.03, 0.96, yasdSavedSeam);',
+                        '    } else if (uVeinMode > 2.5) {',
+                        '        metalnessFactor = mix(0.05, 0.42, yasdSavedSeam);',
+                        '    } else {',
+                        '        metalnessFactor = 0.04;',
+                        '    }',
+                        '} else {',
+                        '    metalnessFactor = (uVeinMode > 1.5 && uVeinMode < 2.5) ? 0.45 : 0.06;',
+                        '}'
+                    ].join('\n');
+                    shader.fragmentShader = shader.fragmentShader.replace('#include <metalnessmap_fragment>', metalVeinFrag);
+                }
 
                 // Derivative Normal-Map Specular Anti-Aliasing (All GPU Tiers)
                 const specAaFrag = [
@@ -2009,16 +2149,24 @@
                 // Geological emissive veins + FoW emissive attenuation on mineral veins (strictly crevice-gated!)
                 const emissiveGeoFrag = [
                     '#include <emissivemap_fragment>',
-                    'float yasdFowVis = 1.0;',
-                    '#if defined(USE_COLOR) || defined(USE_INSTANCING_COLOR)',
-                    '    yasdFowVis = clamp(dot(vColor.rgb, vec3(0.3333)) * 1.65, 0.0, 1.0);',
-                    '#endif',
+                    'float yasdFowVis = smoothstep(0.18, 0.56, max(yasdInstShade.r, max(yasdInstShade.g, yasdInstShade.b)));',
                     '#ifdef YASD_IS_VEIN',
-                    '    totalEmissiveRadiance *= yasdFowVis;',
-                    '#endif',
-                    'if (yasdVeinCreviceMask > 0.005) {',
-                    '    totalEmissiveRadiance += uVeinEmissive * (yasdVeinCreviceMask * yasdFowVis);',
-                    '}'
+                    '    if (uHasArmMap > 0.5 && uHasHeightMap > 0.5) {',
+                    '        if (uVeinMode < 0.5) {',
+                    '            totalEmissiveRadiance += mix(vec3(0.65, 0.08, 0.0), vec3(1.55, 0.58, 0.08), smoothstep(0.45, 0.98, yasdSavedSeam)) * smoothstep(0.18, 0.85, yasdSavedSeam) * yasdFowVis;',
+                    '        } else if (uVeinMode > 1.5 && uVeinMode < 2.5) {',
+                    '            totalEmissiveRadiance += vec3(0.08, 0.05, 0.005) * yasdSavedSeam * yasdFowVis;',
+                    '        } else if (uVeinMode > 2.5) {',
+                    '            totalEmissiveRadiance += vec3(0.09, 0.04, 0.16) * yasdSavedSeam * yasdFowVis;',
+                    '        }',
+                    '    } else {',
+                    '        totalEmissiveRadiance *= yasdFowVis;',
+                    '    }',
+                    '#else',
+                    '    if (yasdVeinCreviceMask > 0.005) {',
+                    '        totalEmissiveRadiance += uVeinEmissive * (yasdVeinCreviceMask * yasdFowVis);',
+                    '    }',
+                    '#endif'
                 ].join('\n');
 
                 shader.fragmentShader = shader.fragmentShader.replace('#include <emissivemap_fragment>', emissiveGeoFrag);
@@ -2049,14 +2197,18 @@
                 const u = mat && mat.userData && mat.userData.ws81Uniforms;
                 if (!u) continue;
                 const isVein = mat.userData.ws81Kind === 'vein';
+                const mc1 = d3d.polyHavenSets && d3d.polyHavenSets.get('marble_cliff_01');
+                const mc2 = d3d.polyHavenSets && d3d.polyHavenSets.get('marble_cliff_02');
                 let dispTex = null;
-                if (texSet) {
+                if (mat === d3d.magmaMaterial || mat === d3d.goldVeinMaterial) {
+                    dispTex = (texSet && texSet.magmaDisp) || (mc2 && mc2.disp) || null;
+                } else if (mat === d3d.quartzMaterial || mat === d3d.gemVeinMaterial) {
+                    dispTex = (texSet && texSet.quartzDisp) || (mc1 && mc1.disp) || null;
+                } else if (texSet) {
                     if (mat === d3d.wallMaterial) dispTex = texSet.wallDisp || null;
                     else if (mat === d3d.permWallMaterial) dispTex = texSet.permWallDisp || texSet.wallDisp || null;
                     else if (mat === d3d.floorMaterial) dispTex = texSet.floorDisp || null;
                     else if (mat === d3d.ceilingMaterial) dispTex = texSet.ceilingDisp || null;
-                    else if (mat === d3d.magmaMaterial || mat === d3d.goldVeinMaterial) dispTex = texSet.magmaDisp || null;
-                    else if (mat === d3d.quartzMaterial || mat === d3d.gemVeinMaterial) dispTex = texSet.quartzDisp || null;
                 }
                 if (dispTex) {
                     dispTex.wrapS = THREE.RepeatWrapping;
@@ -2065,7 +2217,7 @@
                 u.uHeightMap.value = dispTex;
                 u.uHasHeightMap.value = dispTex ? 1.0 : 0.0;
                 u.uEnablePom.value = (highGpu && dispTex) ? 1.0 : 0.0;
-                u.uPomScale.value = isVein ? 0.032 : gp.pomScale;
+                u.uPomScale.value = isVein ? 0.015 : gp.pomScale;
                 const rm = mat.roughnessMap;
                 const hasRealArm = Boolean(rm && !rm.isCanvasTexture && !rm.isDataTexture && !rm._isNeutralPlaceholder && !(rm.image && rm.image.tagName === 'CANVAS'));
                 u.uHasArmMap.value = hasRealArm ? 1.0 : 0.0;
@@ -2074,34 +2226,14 @@
 
                 u.uWetness.value = gp.wetness;
                 u.uWaterlineH.value = gp.waterlineH;
-                u.uMossStrength.value = isVein ? gp.mossStrength * 0.25 : gp.mossStrength;
+                u.uMossStrength.value = isVein ? 0.0 : gp.mossStrength;
                 u.uMossColor.value.set(gp.mossColor);
                 if (isVein && hasRealArm) {
-                    if (mat === d3d.magmaMaterial) {
-                        mat.color.setRGB(0.62, 0.56, 0.54);
-                        u.uVeinStrength.value = 1.25;
-                        u.uVeinColor.value.setHex(0xff6218);
-                        u.uVeinEmissive.value.setHex(0xff3b00);
-                        u.uRoughnessScale.value = 0.92;
-                    } else if (mat === d3d.quartzMaterial) {
-                        mat.color.setRGB(0.74, 0.78, 0.85);
-                        u.uVeinStrength.value = 1.20;
-                        u.uVeinColor.value.setHex(0xeaf4ff);
-                        u.uVeinEmissive.value.setHex(0x1e4d6b);
-                        u.uRoughnessScale.value = 0.84;
-                    } else if (mat === d3d.goldVeinMaterial) {
-                        mat.color.setRGB(0.68, 0.63, 0.56);
-                        u.uVeinStrength.value = 1.30;
-                        u.uVeinColor.value.setHex(0xffcf48);
-                        u.uVeinEmissive.value.setHex(0x7c4a03);
-                        u.uRoughnessScale.value = 0.78;
-                    } else {
-                        mat.color.setRGB(0.70, 0.78, 0.82);
-                        u.uVeinStrength.value = 1.30;
-                        u.uVeinColor.value.setHex(0x5eead4);
-                        u.uVeinEmissive.value.setHex(0x0f766e);
-                        u.uRoughnessScale.value = 0.78;
-                    }
+                    mat.color.setRGB(1.0, 1.0, 1.0);
+                    mat.roughness = 1.0;
+                    mat.metalness = 1.0;
+                    u.uVeinStrength.value = 0.0;
+                    u.uRoughnessScale.value = 1.0;
                 } else {
                     u.uVeinStrength.value = isVein ? 0.0 : gp.veinStrength;
                     u.uVeinColor.value.set(gp.veinColor);
@@ -2745,7 +2877,7 @@
                 targetColor.b *= baseShadow * 1.08;
 
                 if ((surfaceKind === 'floor' || surfaceKind === 'ceiling') && adjWalls > 0) {
-                    targetColor.multiplyScalar(1.0 - Math.min(4, adjWalls) * 0.042);
+                    targetColor.multiplyScalar(1.0 - Math.min(4, adjWalls) * 0.068);
                 }
 
                 const sconces = d3d._activeWallSconces;
@@ -3069,6 +3201,277 @@
         },
 
         // =========================================================================
+        // 6B. SUBDIVIDED PHOTOGRAMMETRY VEIN WALLS & ZERO FAKE FLOOR CLUTTER
+        // =========================================================================
+
+        createCraggyVeinWallGeometry(cellSize = 2.0, wallHeight = 3.05) {
+            const half = cellSize * 0.5;
+            const halfH = wallHeight * 0.5;
+            const faces = [
+                { ax: -half, az: -half, ac: 0, aax: 1, aaz: 0, bx: half, bz: -half, bc: 1, bax: -1, baz: 0, nx: 0, nz: -1, fw: cellSize },
+                { ax: half, az: -half, ac: 1, aax: -1, aaz: 0, bx: half, bz: -half, bc: 1, bax: 0, baz: 1, nx: 0.7072, nz: -0.7070, fw: 0.40 },
+                { ax: half, az: -half, ac: 1, aax: 0, aaz: 1, bx: half, bz: half, bc: 2, bax: 0, baz: -1, nx: 1, nz: 0, fw: cellSize },
+                { ax: half, az: half, ac: 2, aax: 0, aaz: -1, bx: half, bz: half, bc: 2, bax: -1, baz: 0, nx: 0.7072, nz: 0.7070, fw: 0.40 },
+                { ax: half, az: half, ac: 2, aax: -1, aaz: 0, bx: -half, bz: half, bc: 3, bax: 1, baz: 0, nx: 0, nz: 1, fw: cellSize },
+                { ax: -half, az: half, ac: 3, aax: 1, aaz: 0, bx: -half, bz: half, bc: 3, bax: 0, baz: -1, nx: -0.7072, nz: 0.7070, fw: 0.40 },
+                { ax: -half, az: half, ac: 3, aax: 0, aaz: -1, bx: -half, bz: -half, bc: 0, bax: 0, baz: 1, nx: -1, nz: 0, fw: cellSize },
+                { ax: -half, az: -half, ac: 0, aax: 0, aaz: 1, bx: -half, bz: -half, bc: 0, bax: 1, baz: 0, nx: -0.7072, nz: -0.7070, fw: 0.40 }
+            ];
+            const evalAo = (t) => {
+                if (t < 0.28) return 0.48 + Math.pow(t / 0.28, 0.85) * 0.52;
+                if (t > 0.80) return 0.60 + Math.pow((1.0 - t) / 0.20, 0.85) * 0.40;
+                return 1.0;
+            };
+            const pos = [], norm = [], uvs = [], cols = [], cIdx = [], cAxis = [], fWid = [], indices = [];
+            let vCount = 0;
+            const pushVert = (px, py, pz, nx, ny, nz, u, v, ao, ci, ax, az, fw) => {
+                pos.push(px, py, pz);
+                norm.push(nx, ny, nz);
+                uvs.push(u, v);
+                cols.push(ao, ao, ao);
+                cIdx.push(ci);
+                cAxis.push(ax, az);
+                fWid.push(fw);
+                return vCount++;
+            };
+            const segV = 18;
+            for (let fi = 0; fi < 8; fi++) {
+                const f = faces[fi];
+                const isCard = (f.fw >= cellSize * 0.9);
+                const segU = isCard ? 14 : 1;
+                const baseV = vCount;
+                for (let iv = 0; iv <= segV; iv++) {
+                    const tv = iv / segV;
+                    const vy = -halfH + tv * wallHeight;
+                    const ao = evalAo(tv);
+                    for (let iu = 0; iu <= segU; iu++) {
+                        const tu = iu / segU;
+                        const px = f.ax + (f.bx - f.ax) * tu;
+                        const pz = f.az + (f.bz - f.az) * tu;
+                        let ci = f.ac, ax = f.aax, az = f.aaz;
+                        if (isCard) {
+                            if (tu <= 0.5) {
+                                const w = 1.0 - tu * 2.0;
+                                ci = f.ac; ax = f.aax * w; az = f.aaz * w;
+                            } else {
+                                const w = tu * 2.0 - 1.0;
+                                ci = f.bc; ax = f.bax * w; az = f.baz * w;
+                            }
+                        } else if (iu > 0) {
+                            ci = f.bc; ax = f.bax; az = f.baz;
+                        }
+                        pushVert(px, vy, pz, f.nx, 0, f.nz, tu, tv, ao, ci, ax, az, f.fw);
+                    }
+                }
+                const row = segU + 1;
+                for (let iv = 0; iv < segV; iv++) {
+                    for (let iu = 0; iu < segU; iu++) {
+                        const a0 = baseV + iv * row + iu;
+                        const b0 = a0 + 1;
+                        const a1 = a0 + row;
+                        const b1 = a1 + 1;
+                        indices.push(a0, a1, b1, a0, b1, b0);
+                    }
+                }
+            }
+            const ringPts = [
+                { x: -half, z: -half, c: 0, ax: 1, az: 0 },
+                { x: half, z: -half, c: 1, ax: -1, az: 0 },
+                { x: half, z: -half, c: 1, ax: 0, az: 1 },
+                { x: half, z: half, c: 2, ax: 0, az: -1 },
+                { x: half, z: half, c: 2, ax: -1, az: 0 },
+                { x: -half, z: half, c: 3, ax: 1, az: 0 },
+                { x: -half, z: half, c: 3, ax: 0, az: -1 },
+                { x: -half, z: -half, c: 0, ax: 0, az: 1 }
+            ];
+            const topBase = vCount, topAo = evalAo(1.0);
+            for (let ri = 0; ri < 8; ri++) {
+                const p = ringPts[ri];
+                pushVert(p.x, halfH, p.z, 0, 1, 0, (p.x + half) / cellSize, (p.z + half) / cellSize, topAo, p.c, p.ax, p.az, cellSize);
+            }
+            for (let ri = 1; ri < 7; ri++) indices.push(topBase, topBase + ri + 1, topBase + ri);
+            const botBase = vCount, botAo = evalAo(0.0);
+            for (let ri = 0; ri < 8; ri++) {
+                const p = ringPts[ri];
+                pushVert(p.x, -halfH, p.z, 0, -1, 0, (p.x + half) / cellSize, (p.z + half) / cellSize, botAo, p.c, p.ax, p.az, cellSize);
+            }
+            for (let ri = 1; ri < 7; ri++) indices.push(botBase, botBase + ri, botBase + ri + 1);
+
+            const geo = new THREE.BufferGeometry();
+            geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+            geo.setAttribute('normal', new THREE.Float32BufferAttribute(norm, 3));
+            geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+            geo.setAttribute('color', new THREE.Float32BufferAttribute(cols, 3));
+            geo.setAttribute('aCornerIdx', new THREE.Float32BufferAttribute(cIdx, 1));
+            geo.setAttribute('aCornerAxis', new THREE.Float32BufferAttribute(cAxis, 2));
+            geo.setAttribute('aFaceWidth', new THREE.Float32BufferAttribute(fWid, 1));
+            geo.setIndex(indices);
+            geo.computeBoundingBox();
+            geo.computeBoundingSphere();
+            return geo;
+        },
+
+        initDungeonSetDressing(d3d) {
+            if (d3d) d3d._setDressingMeshes = [];
+        },
+
+        emitDungeonSetDressing(d3d) {
+            if (d3d && d3d._setDressingMeshes) {
+                for (const m of d3d._setDressingMeshes) {
+                    if (m) m.count = 0;
+                }
+            }
+        },
+
+        augmentOozeTemplate(d3d, wrapper) {
+            if (!wrapper) return wrapper;
+            while (wrapper.children.length > 0) {
+                wrapper.remove(wrapper.children[0]);
+            }
+            const bellGeo = new THREE.SphereGeometry(0.46, 20, 14);
+            const pos = bellGeo.attributes.position;
+            let minY = Infinity;
+            for (let i = 0; i < pos.count; i++) {
+                let vx = pos.getX(i), vy = pos.getY(i), vz = pos.getZ(i);
+                const ang = Math.atan2(vz, vx);
+                const tLow = Math.max(0, 0.2 - vy);
+                const lobe = 1.0 + 0.16 * Math.sin(ang * 5.0 + 0.6) * (0.4 + tLow * 1.4);
+                vx *= lobe;
+                vz *= lobe;
+                vy = vy > 0 ? vy * 1.15 : Math.max(-0.18, vy * 0.36);
+                pos.setXYZ(i, vx, vy, vz);
+                if (vy < minY) minY = vy;
+            }
+            bellGeo.translate(0, -minY, 0);
+            bellGeo.computeVertexNormals();
+            bellGeo._sharedGeometry = true;
+
+            const outerMat = new THREE.MeshStandardMaterial({
+                color: 0x34d399,
+                emissive: new THREE.Color(0x065f46),
+                emissiveIntensity: 0.24,
+                transparent: true,
+                opacity: 0.66,
+                roughness: 0.08,
+                metalness: 0.06,
+                depthWrite: false,
+                side: THREE.DoubleSide
+            });
+            outerMat._sharedMaterial = true;
+            wrapper.add(new THREE.Mesh(bellGeo, outerMat));
+
+            const coreGeo = new THREE.DodecahedronGeometry(0.18, 1);
+            coreGeo._sharedGeometry = true;
+            const coreMat = new THREE.MeshStandardMaterial({
+                color: 0x064e3b,
+                emissive: new THREE.Color(0x10b981),
+                emissiveIntensity: 0.55,
+                roughness: 0.28
+            });
+            coreMat._sharedMaterial = true;
+            const coreMesh = new THREE.Mesh(coreGeo, coreMat);
+            coreMesh.position.set(0.04, 0.24, -0.02);
+            wrapper.add(coreMesh);
+
+            const boneMat = new THREE.MeshStandardMaterial({ color: 0xe7e5e4, roughness: 0.62 });
+            boneMat._sharedMaterial = true;
+            const skullGeo = new THREE.DodecahedronGeometry(0.105, 1);
+            skullGeo._sharedGeometry = true;
+            const skull = new THREE.Mesh(skullGeo, boneMat);
+            skull.position.set(-0.12, 0.30, 0.11);
+            wrapper.add(skull);
+
+            const femurGeo = new THREE.CylinderGeometry(0.026, 0.028, 0.34, 7);
+            femurGeo._sharedGeometry = true;
+            const femur = new THREE.Mesh(femurGeo, boneMat);
+            femur.position.set(0.14, 0.20, 0.10);
+            femur.rotation.set(0.75, 0.40, 1.10);
+            wrapper.add(femur);
+
+            wrapper.actualHeight = 0.62;
+            wrapper.baseHeight = 0.62;
+            wrapper.baseWidth = 0.96;
+            wrapper._sharedMaterialsTagged = true;
+            return wrapper;
+        },
+
+        augmentVortexTemplate(d3d, wrapper) {
+            if (!wrapper) return wrapper;
+            while (wrapper.children.length > 0) {
+                wrapper.remove(wrapper.children[0]);
+            }
+            const funnelGeo = new THREE.ConeGeometry(0.46, 0.98, 18, 4, true);
+            funnelGeo.rotateX(Math.PI);
+            funnelGeo.translate(0, 0.64, 0);
+            funnelGeo._sharedGeometry = true;
+            const funnelMat = new THREE.MeshStandardMaterial({
+                color: 0x38bdf8,
+                emissive: new THREE.Color(0x0284c7),
+                emissiveIntensity: 0.65,
+                transparent: true,
+                opacity: 0.24,
+                roughness: 0.14,
+                depthWrite: false,
+                side: THREE.DoubleSide
+            });
+            funnelMat._sharedMaterial = true;
+            const funnel = new THREE.Mesh(funnelGeo, funnelMat);
+            funnel.userData._vortexSpin = 2.4;
+            wrapper.add(funnel);
+
+            const ringSpecs = [
+                { y: 0.28, r: 0.20, tube: 0.022, arc: Math.PI * 1.45, tiltX: 0.20, tiltZ: -0.14, spin: 4.4, hex: 0x0ea5e9 },
+                { y: 0.54, r: 0.30, tube: 0.026, arc: Math.PI * 1.60, tiltX: -0.22, tiltZ: 0.18, spin: -5.4, hex: 0x38bdf8 },
+                { y: 0.80, r: 0.40, tube: 0.026, arc: Math.PI * 1.50, tiltX: 0.16, tiltZ: 0.20, spin: 6.4, hex: 0x7dd3fc },
+                { y: 1.06, r: 0.48, tube: 0.022, arc: Math.PI * 1.35, tiltX: -0.18, tiltZ: -0.16, spin: -7.2, hex: 0xbae6fd }
+            ];
+            for (let i = 0; i < ringSpecs.length; i++) {
+                const sp = ringSpecs[i];
+                const torusGeo = new THREE.TorusGeometry(sp.r, sp.tube, 7, 24, sp.arc);
+                torusGeo.rotateX(Math.PI * 0.5);
+                torusGeo._sharedGeometry = true;
+                const rMat = new THREE.MeshStandardMaterial({
+                    color: sp.hex,
+                    emissive: new THREE.Color(sp.hex),
+                    emissiveIntensity: 1.15,
+                    transparent: true,
+                    opacity: 0.82 - i * 0.08,
+                    roughness: 0.16,
+                    metalness: 0.20,
+                    depthWrite: false
+                });
+                rMat._sharedMaterial = true;
+                const pivot = new THREE.Group();
+                pivot.position.y = sp.y;
+                pivot.rotation.set(sp.tiltX, i * 1.4, sp.tiltZ);
+                const ring = new THREE.Mesh(torusGeo, rMat);
+                ring.scale.set(1.0, 1.0, 0.86);
+                ring.userData._vortexSpin = sp.spin;
+                pivot.add(ring);
+                wrapper.add(pivot);
+            }
+            const coreGeo = new THREE.OctahedronGeometry(0.14, 1);
+            coreGeo._sharedGeometry = true;
+            const coreMat = new THREE.MeshStandardMaterial({
+                color: 0xe0f2fe,
+                emissive: new THREE.Color(0x38bdf8),
+                emissiveIntensity: 1.55,
+                roughness: 0.12
+            });
+            coreMat._sharedMaterial = true;
+            const core = new THREE.Mesh(coreGeo, coreMat);
+            core.position.y = 0.64;
+            core.userData._vortexSpin = 6.5;
+            wrapper.add(core);
+
+            wrapper.actualHeight = 1.24;
+            wrapper.baseHeight = 1.24;
+            wrapper.baseWidth = 0.96;
+            wrapper._hasCustomVortex = true;
+            return wrapper;
+        },
+
+        // =========================================================================
         // 7. ATTACH TO DUNGEON3D PROTOTYPE
         // =========================================================================
 
@@ -3190,6 +3593,18 @@
 
             proto._collectActiveWallSconces = function (map, w, h, minX, maxX, minY, maxY, px, py, depth, outdoors, biome) {
                 return Dungeon3DTactical.collectActiveWallSconces(this, map, w, h, minX, maxX, minY, maxY, px, py, depth, outdoors, biome);
+            };
+
+            proto._createCraggyVeinWallGeometry = function (cellSize, wallHeight) {
+                return Dungeon3DTactical.createCraggyVeinWallGeometry(cellSize, wallHeight);
+            };
+
+            proto._initDungeonSetDressing = function () {
+                return Dungeon3DTactical.initDungeonSetDressing(this);
+            };
+
+            proto._emitDungeonSetDressing = function (map, w, h, minX, maxX, minY, maxY, px, py, depth, outdoors, biome) {
+                return Dungeon3DTactical.emitDungeonSetDressing(this, map, w, h, minX, maxX, minY, maxY, px, py, depth, outdoors, biome);
             };
         }
     };

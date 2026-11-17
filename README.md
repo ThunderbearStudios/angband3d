@@ -7,11 +7,11 @@
 [![Engines: 9 Authoritative Realms](https://img.shields.io/badge/Engines-Angband_•_Sil--Q_•_FCB_•_Hengband_•_NetHack_•_DCSS_•_Brogue_•_Rogue_•_RYOD-darkgreen.svg)](#-nine-legendary-realms-one-unified-experience)
 [![Web Client: Three.js PBR](https://img.shields.io/badge/Web_Client-Three.js_WebGL_PBR_&_PWA-orange.svg)](server/public)
 [![Audio: 58-Track Jukebox & Foley](https://img.shields.io/badge/Audio-58--Track_Jukebox_&_101_Foley_SFX-blueviolet.svg)](server/public/assets/audio)
-[![Tests: 44/44 Fast + 11/11 Smoke + 23/23 Server](https://img.shields.io/badge/Automated_Gates-All_Passing-brightgreen.svg)](tools)
+[![Tests: 45/45 Fast + 11/11 Smoke + 23/23 Server](https://img.shields.io/badge/Automated_Gates-All_Passing-brightgreen.svg)](tools)
 
 ---
 
-> ### 🌟 Official Live Links & Instant Play (`v13.0.2`)
+> ### 🌟 Official Live Links & Instant Play (`v13.1.0`)
 > - ⚔ **Play Now in Browser**: **[https://yasd3d.com](https://yasd3d.com)** *(Instant 60 FPS 3D roguelike across Desktop, iOS & Android — zero install or 1-click PWA install)*
 > - 📖 **System Architecture & Wire Protocol**: **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** *(C99 & Universal Cartridge bridge specification, 60 FPS dirty-state gating & automated test matrix)*
 > - 🏛 **Official Studio & Architecture Overview**: **[https://thunderbearstudios.dev](https://thunderbearstudios.dev)** *(Thunderbear Studios frameworks & Cloud Run proving ground)*
@@ -26,7 +26,7 @@ Classic turn-based roguelikes represent some of the most mathematically deep, ta
 
 Rather than rewriting the game, YASD 3D runs **nine authoritative roguelike realms** (`Vanilla Angband 4.2.6`, `Sil-Q 1.5.0`, `FrogComposBand 7.1.1`, `Hengband 3.0.1`, `NetHack 3.6.7`, `Dungeon Crawl Stone Soup`, `Brogue CE`, `Classic Rogue 5.4`, and **Roll Your Own Dungeon (`RYOD`)**) through a unified headless JSON wire protocol (`main-bridge.c` and `UniversalCartridge`). Every combat roll, saving throw, item generation curve, hunger clock tick, stealth check, and monster AI decision runs authoritative backend rules, while our responsive Three.js WebGL / PWA client acts purely as a high-craft 60 FPS presentation layer.
 
-The result is a breathtaking first-person dungeon crawl with real-time camera look, 9-realm PBR biomes, dual-scrolling water and magma shaders, a 59+ model 100% 3rd-party sculpted & rigged 3D bestiary (`5,174` mapped entries across all 9 realms, zero procedural monsters), an interactive 58-track Multi-Realm Adaptive Jukebox & Contextual Music Director (`CC0`/`CC-BY` OpenGameArt + Hengband BGM), vertex-verified 1st-person weaponry (including coiled braided leather bullwhips & forward-facing axes/blades), flush 3D storefront fascia plaques with always-readable floating store text, a **2-Step Full-Viewport 9-Realm Main Menu**, a **6-Card Hybrid Roll-or-Pick RYOD Tabletop Forge**, and a **9-Realm Voiced Living Chronicle** with the *Enceladus* Dungeon Master / Lorekeeper persona.
+The result is a breathtaking first-person dungeon crawl with real-time camera look, 9-realm PBR biomes, seamless grid-free stone floors, photogrammetry 3D mineral veins (`marble_cliff_01/02`), clutter-free walkable dungeon tiles, dual-scrolling water and magma shaders, a 59+ model 100% 3rd-party sculpted & rigged 3D bestiary (`5,174` mapped entries across all 9 realms, zero procedural monsters), an interactive 58-track Multi-Realm Adaptive Jukebox & Contextual Music Director (`CC0`/`CC-BY` OpenGameArt + Hengband BGM), vertex-verified broad-face 1st-person steel weaponry (`wooden_handle_saber`, `antique_katana_01`, coiled braided leather bullwhips & forward-facing axes), flush 3D storefront fascia plaques with always-readable floating store text, a **2-Step Full-Viewport 9-Realm Main Menu**, a **6-Card Hybrid Roll-or-Pick RYOD Tabletop Forge**, and a **9-Realm Voiced Living Chronicle** with the *Enceladus* Dungeon Master / Lorekeeper persona.
 
 ---
 
@@ -319,7 +319,7 @@ dotnet build client/angband3d.csproj
 ### 3. Run Automated Validation & Quality Gates
 Angband 3D maintains strict automated test suites across all layers:
 ```bash
-# Fast Contract & Invariant Gate (44/44 test suites in < 15 seconds)
+# Fast Contract & Invariant Gate (45/45 test suites in < 20 seconds)
 node tools/run_tests.js --tier fast
 
 # C Engine Bridge Smoke Test (11/11 handshake, save/load & birth tests)
