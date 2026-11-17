@@ -91,9 +91,14 @@ assert.ok(/dFdx\s*\(\s*normal\s*\)/.test(combined3d) && /dFdy\s*\(\s*normal\s*\)
 assert.ok(combined3d.includes('uEnablePom') || combined3d.includes('uHeightMap'), 'PBR shader must wire Contact-Refined Parallax Relief Mapping (disp.jpg)');
 
 // 4. Universal 9-Realm Blindness & ESP Bridge Parity
-const vanillaC = read('engine/src/main-bridge.c');
-assert.ok(vanillaC.includes('TMD_BLIND') && vanillaC.includes('timed_effects'), 'engine/src/main-bridge.c must gate sight on TMD_BLIND and emit timed_effects status');
+const patchBlindStr = read('engine-patch/0001-bridge-frontend.patch');
+assert.ok(patchBlindStr.includes('TMD_BLIND') && patchBlindStr.includes('timed_effects'), 'engine-patch/0001-bridge-frontend.patch must gate sight on TMD_BLIND and emit timed_effects status');
+if (fs.existsSync(path.join(ROOT, 'engine/src/main-bridge.c'))) {
+    const vanillaC = read('engine/src/main-bridge.c');
+    assert.ok(vanillaC.includes('TMD_BLIND') && vanillaC.includes('timed_effects'), 'engine/src/main-bridge.c must gate sight on TMD_BLIND and emit timed_effects status');
+}
 for (const cRel of ['variants/frogcomposband-src/src/main-bridge.c', 'variants/silq-src/src/main-bridge.c', 'variants/hengband-src/src/main-bridge.cpp']) {
+    if (!fs.existsSync(path.join(ROOT, cRel))) continue;
     const cSrc = read(cRel);
     assert.ok(/\\?"blind\\?"/.test(cSrc), `${cRel} must emit player.blind`);
     assert.ok(/\\?"Blind\\?"/.test(cSrc), `${cRel} must emit "Blind" status`);

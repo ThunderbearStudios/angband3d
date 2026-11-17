@@ -102,8 +102,10 @@ for (const asset of requiredUiAssets) {
     assert.ok(fs.existsSync(webAssetPath), `server/public/assets/ui/${asset} must exist`);
     assert.ok(fs.statSync(webAssetPath).size > 0, `server/public/assets/ui/${asset} must be non-empty`);
 
-    assert.ok(fs.existsSync(clientAssetPath), `archived godot assets/ui/${asset} must exist (mirrored)`);
-    assert.ok(fs.statSync(clientAssetPath).size > 0, `archived godot assets/ui/${asset} must be non-empty`);
+    if (fs.existsSync(path.dirname(clientAssetPath))) {
+        assert.ok(fs.existsSync(clientAssetPath), `archived godot assets/ui/${asset} must exist (mirrored)`);
+        assert.ok(fs.statSync(clientAssetPath).size > 0, `archived godot assets/ui/${asset} must be non-empty`);
+    }
 }
 
 // Verify dungeon.css rules

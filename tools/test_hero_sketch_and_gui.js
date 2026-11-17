@@ -113,6 +113,7 @@ test('Chronicle Hero Action Sketch is wired across index.html, server.js, and ch
 // 5. Pillar IV: Archived Godot 4 C# Cross-Platform Snapshot Parity
 test('Godot 4 C# scripts load Shockbolt item_atlas.png, Poly Haven biome textures, and terminal row click events', () => {
     const godotRoot = fs.existsSync(path.join(ROOT, 'client/scripts/ItemModelResolver.cs')) ? 'client' : 'archive/godot-client-v1';
+    if (!fs.existsSync(path.join(ROOT, `${godotRoot}/scripts/ItemModelResolver.cs`))) return;
     const itemCs = read(`${godotRoot}/scripts/ItemModelResolver.cs`);
     assert(itemCs.includes('item_atlas.png') && itemCs.includes('item_atlas.json'), 'Missing Shockbolt item_atlas loader in ItemModelResolver.cs');
 

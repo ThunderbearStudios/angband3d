@@ -49,6 +49,7 @@ jobs:
       - name: Install Server Dependencies & Run Fast Gate
         run: |
           npm --prefix server ci
+          node tools/precompress_assets.js
           node tools/run_tests.js --tier fast
           node tools/test_server_boot.js
 

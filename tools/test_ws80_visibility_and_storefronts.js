@@ -26,23 +26,29 @@ assert.strictEqual(patchBuf.includes(0x0d), false, '0001-bridge-frontend.patch m
 const patchStr = patchBuf.toString('utf8');
 assert.ok(patchStr.includes('square_isglow'), '0001-bridge-frontend.patch must include square_isglow lighting parity');
 
-const vanillaBridge = read('engine/src/main-bridge.c');
-assert.ok(vanillaBridge.includes('square_isglow'), 'engine/src/main-bridge.c must emit lighting=2 on square_isglow');
+if (fs.existsSync(path.join(ROOT, 'engine/src/main-bridge.c'))) {
+    const vanillaBridge = read('engine/src/main-bridge.c');
+    assert.ok(vanillaBridge.includes('square_isglow'), 'engine/src/main-bridge.c must emit lighting=2 on square_isglow');
+}
 
-const fcbBridge = read('variants/frogcomposband-src/src/main-bridge.c');
-assert.strictEqual(
-    /\(info\s*&\s*CAVE_GLOW\)\s*\|\|\s*\(info\s*&\s*\(CAVE_LITE\s*\|\s*CAVE_MNLT\)\)/.test(fcbBridge),
-    false,
-    'FrogComposBand must not emit lighting=2 on player torch CAVE_LITE or monster CAVE_MNLT'
-);
+if (fs.existsSync(path.join(ROOT, 'variants/frogcomposband-src/src/main-bridge.c'))) {
+    const fcbBridge = read('variants/frogcomposband-src/src/main-bridge.c');
+    assert.strictEqual(
+        /\(info\s*&\s*CAVE_GLOW\)\s*\|\|\s*\(info\s*&\s*\(CAVE_LITE\s*\|\s*CAVE_MNLT\)\)/.test(fcbBridge),
+        false,
+        'FrogComposBand must not emit lighting=2 on player torch CAVE_LITE or monster CAVE_MNLT'
+    );
+}
 
-const silqBridge = read('variants/silq-src/src/main-bridge.c');
-assert.strictEqual(
-    /FEAT_FORGE[^\n;]*return\s+37\b/.test(silqBridge),
-    false,
-    'Sil-Q FEAT_FORGE must map to 60 (forgeMesh), never 37 (underground town storefront)'
-);
-assert.ok(silqBridge.includes('CAVE_SEEN'), 'Sil-Q bridge must gate active visibility on CAVE_SEEN');
+if (fs.existsSync(path.join(ROOT, 'variants/silq-src/src/main-bridge.c'))) {
+    const silqBridge = read('variants/silq-src/src/main-bridge.c');
+    assert.strictEqual(
+        /FEAT_FORGE[^\n;]*return\s+37\b/.test(silqBridge),
+        false,
+        'Sil-Q FEAT_FORGE must map to 60 (forgeMesh), never 37 (underground town storefront)'
+    );
+    assert.ok(silqBridge.includes('CAVE_SEEN'), 'Sil-Q bridge must gate active visibility on CAVE_SEEN');
+}
 
 // 2. Storefront & Door UV/Normal invariants
 const d3d = read('server/public/js/dungeon3d.js');

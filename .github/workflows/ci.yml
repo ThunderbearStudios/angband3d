@@ -55,7 +55,9 @@ jobs:
         run: npm --prefix server ci
 
       - name: Fast static and contract tests
-        run: node tools/run_tests.js --tier fast
+        run: |
+          node tools/precompress_assets.js
+          node tools/run_tests.js --tier fast
 
       - name: Server boot test
         run: node tools/test_server_boot.js

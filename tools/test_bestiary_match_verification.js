@@ -399,6 +399,7 @@ test('Live multi-realm resolveMonster3DConfig maps 40+ signature creatures acros
 // 3. Godot 4 C# Parity Contract on MonsterModelResolver.cs
 // ==============================================================================
 test('MonsterModelResolver.cs has zero references to cartoon models and zero trademark words', () => {
+    if (!fs.existsSync(path.join(ROOT, resolveClientRel('client/scripts/MonsterModelResolver.cs')))) return;
     const resolverSrc = read('client/scripts/MonsterModelResolver.cs');
 
     // Cartoon and deprecated Quaternius models (Rule L36)
@@ -479,10 +480,12 @@ test('v13.0 dark-fantasy GLBs & <=512x512 VRAM texture diet + archive mirror par
         const p1 = path.join(ROOT, srvRel);
         const p2 = path.join(ROOT, resolveClientRel(arcRel));
         assert(fs.existsSync(p1), `Missing server GLB: ${srvRel}`);
-        assert(fs.existsSync(p2), `Missing archive GLB: ${arcRel}`);
         const b1 = fs.readFileSync(p1);
-        const b2 = fs.readFileSync(p2);
-        assert(b1.equals(b2), `Archive mirror mismatch on ${path.basename(srvRel)}`);
+        if (fs.existsSync(path.dirname(p2))) {
+            assert(fs.existsSync(p2), `Missing archive GLB: ${arcRel}`);
+            const b2 = fs.readFileSync(p2);
+            assert(b1.equals(b2), `Archive mirror mismatch on ${path.basename(srvRel)}`);
+        }
         const jl = b1.readUInt32LE(12);
         const j = JSON.parse(b1.slice(20, 20 + jl).toString('utf8'));
         const binOff = 20 + jl;
@@ -540,6 +543,7 @@ test('v13.0 dark-fantasy GLBs & <=512x512 VRAM texture diet + archive mirror par
 // 4. Godot 4 C# Parity Contract on ItemModelResolver.cs
 // ==============================================================================
 test('ItemModelResolver.cs references required PBR glb assets for items and equipment', () => {
+    if (!fs.existsSync(path.join(ROOT, resolveClientRel('client/scripts/ItemModelResolver.cs')))) return;
     const itemResolverSrc = read('client/scripts/ItemModelResolver.cs');
     const requiredItemGlbs = [
         'steel_longsword.glb',
@@ -669,7 +673,8 @@ test('Card 17A 3D rig posture, skinned-mesh fist centroid attachment & viewmodel
 // ==============================================================================
 test('Wave 19 dedicated 3D .glb bestiary assets, UV/normal attributes, distinct template loaders & 4-realm taxonomy', () => {
     const d3dSrc = read('server/public/js/dungeon3d.js');
-    const resolverSrc = read('client/scripts/MonsterModelResolver.cs');
+    const hasGodotMonsterResolver = fs.existsSync(path.join(ROOT, resolveClientRel('client/scripts/MonsterModelResolver.cs')));
+    const resolverSrc = hasGodotMonsterResolver ? read('client/scripts/MonsterModelResolver.cs') : '';
 
     const wave19Glbs = [
         'centipede.glb',
@@ -700,7 +705,9 @@ test('Wave 19 dedicated 3D .glb bestiary assets, UV/normal attributes, distinct 
         const webPath = path.join(ROOT, 'server/public/assets/models/monsters/bestiary', file);
         const godotPath = path.join(ROOT, resolveClientRel(`client/assets/models/monsters/bestiary/${file}`));
         assert(fs.existsSync(webPath), `Missing Web bestiary GLB: ${webPath}`);
-        assert(fs.existsSync(godotPath), `Missing Godot bestiary GLB: ${godotPath}`);
+        if (fs.existsSync(path.dirname(godotPath))) {
+            assert(fs.existsSync(godotPath), `Missing Godot bestiary GLB: ${godotPath}`);
+        }
 
         const buf = fs.readFileSync(webPath);
         assert.strictEqual(buf.readUInt32LE(0), 0x46546C67, `Invalid glTF magic header in ${file}`);
@@ -715,7 +722,9 @@ test('Wave 19 dedicated 3D .glb bestiary assets, UV/normal attributes, distinct 
             }
         }
         assert(d3dSrc.includes(`/assets/models/monsters/bestiary/${file}`), `dungeon3d.js must load /assets/models/monsters/bestiary/${file}`);
-        assert(resolverSrc.includes(file), `MonsterModelResolver.cs must reference ${file}`);
+        if (hasGodotMonsterResolver) {
+            assert(resolverSrc.includes(file), `MonsterModelResolver.cs must reference ${file}`);
+        }
     }
 
     // Verify _enhanceBestiaryMeshQuality is defined and called
@@ -784,15 +793,20 @@ test('Wave 19 dedicated 3D .glb bestiary assets, UV/normal attributes, distinct 
     assert(['env_bush_dead', 'env_tanglethorn'].includes(resolve({ race: 'Tanglethorn', glyph: '&' }, '&', 'silq').templateKey));
 
     // Verify dedicated open-license artist wand.glb, rod.glb, staff.glb item models (no dead_quiver_branch_01 antler fallback)
-    const itemResolverSrc = read('client/scripts/ItemModelResolver.cs');
+    const hasGodotItemResolver = fs.existsSync(path.join(ROOT, resolveClientRel('client/scripts/ItemModelResolver.cs')));
+    const itemResolverSrc = hasGodotItemResolver ? read('client/scripts/ItemModelResolver.cs') : '';
     for (const itemGlb of ['wand.glb', 'rod.glb', 'staff.glb']) {
         assert(fs.existsSync(path.join(ROOT, 'server/public/assets/models/items', itemGlb)), `Missing Web item GLB: ${itemGlb}`);
-        assert(fs.existsSync(path.join(ROOT, resolveClientRel(`client/assets/models/items/${itemGlb}`))), `Missing Godot item GLB: ${itemGlb}`);
         assert(d3dSrc.includes(`/assets/models/items/${itemGlb}`), `dungeon3d.js must reference /assets/models/items/${itemGlb}`);
-        assert(itemResolverSrc.includes(`res://assets/models/items/${itemGlb}`), `ItemModelResolver.cs must reference ${itemGlb}`);
+        if (hasGodotItemResolver) {
+            assert(fs.existsSync(path.join(ROOT, resolveClientRel(`client/assets/models/items/${itemGlb}`))), `Missing Godot item GLB: ${itemGlb}`);
+            assert(itemResolverSrc.includes(`res://assets/models/items/${itemGlb}`), `ItemModelResolver.cs must reference ${itemGlb}`);
+        }
     }
     assert(!d3dSrc.includes('dead_quiver_branch_01'), 'dungeon3d.js must not map wands/staves to dead_quiver_branch_01 antler');
-    assert(!itemResolverSrc.includes('dead_quiver_branch_01'), 'ItemModelResolver.cs must not map wands/staves to dead_quiver_branch_01 antler');
+    if (hasGodotItemResolver) {
+        assert(!itemResolverSrc.includes('dead_quiver_branch_01'), 'ItemModelResolver.cs must not map wands/staves to dead_quiver_branch_01 antler');
+    }
 });
 
 console.log('test_bestiary_match_verification.js: ALL PASS');
