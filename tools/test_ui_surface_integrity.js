@@ -168,5 +168,27 @@ if (!fs.existsSync(guideJsPath) || !html.includes('js/adventurer-guide.js')) {
     }
 }
 
+// Audit v13.1.2 Pre-Embark Character Review, Native Progress Bar & Mobile Main Menu Scroll
+const birthReviewPath = path.join(__dirname, '..', 'server', 'public', 'js', 'birth-review.js');
+const hudSkinPath = path.join(__dirname, '..', 'server', 'public', 'css', 'hud-skin.css');
+const hudSkinCss = fs.existsSync(hudSkinPath) ? fs.readFileSync(hudSkinPath, 'utf8') : '';
+const requiredReviewIds = [
+    'birth-review-banner',
+    'btn-review-embark',
+    'btn-review-reroll',
+    'birth-review-realm-select',
+    'btn-review-main-menu',
+    'loading-native-progress',
+    'js/birth-review.js'
+];
+const missingReview = requiredReviewIds.filter((id) => !html.includes(id));
+const hasMobileMenuScroll = hudSkinCss.includes('#main-menu-overlay:not(.hidden)') && hudSkinCss.includes('touch-action: manipulation !important;') && hudSkinCss.includes('::-moz-progress-bar');
+if (!fs.existsSync(birthReviewPath) || missingReview.length > 0 || !hasMobileMenuScroll) {
+    console.error(`FAIL  v13.1.2 Pre-Embark Review / Progress / Mobile Scroll check failed (exists=${fs.existsSync(birthReviewPath)}, missing=${missingReview.join(',')}, mobileMenuCss=${hasMobileMenuScroll})`);
+    failed++;
+} else {
+    console.log('ok    Pre-Embark Review Banner, Native <progress>, and Mobile Main Menu Scroll CSS verified');
+}
+
 console.log('\nAudit Summary: ' + (failed === 0 ? 'ALL PASSED (Zero Omissions)' : `${failed} FAILURES`));
 process.exit(failed === 0 ? 0 : 1);

@@ -3121,10 +3121,21 @@ function startQuickBirth(session) {
     }
 }
 
+function cleanupUnstartedSaveArtifacts(session) {
+    if (!session || !session.isNew || session.hasSavedInitialPlay || session.hadSaveBeforeLaunch || !session.savePath) return;
+    if (session.phase === 'play') return;
+    const base = session.savePath;
+    const candidates = [base, `${base}.sav`, `${base}.tok`, `${base}.realm.json`, `${base}.ironman`, `${base}.living.sav`, `${base}.ryod.json`];
+    for (const p of candidates) {
+        fs.promises.unlink(p).catch(() => {});
+    }
+    invalidateSavesCache(session.realm, session.save);
+}
+
 function gracefulSessionSaveAndExit(sessionId, byeMessage = null, packetType = 'bye', opts = null) {
     const session = activeSessions.get(sessionId);
     if (!session) return;
-    const skipSave = Boolean(opts && opts.skipSave);
+    const skipSave = Boolean((opts && opts.skipSave) || (session.isNew && !session.hasSavedInitialPlay && session.phase !== 'play'));
 
     if (session.disconnectTimer) {
         clearTimeout(session.disconnectTimer);
@@ -3164,6 +3175,7 @@ function gracefulSessionSaveAndExit(sessionId, byeMessage = null, packetType = '
                 if (child.stdin) { try { child.stdin.destroy(); } catch (_) {} }
                 child.kill();
                 setTimeout(() => { try { if (session.child && session.child.exitCode === null) session.child.kill('SIGKILL'); } catch (_) {} }, 1000).unref();
+                cleanupUnstartedSaveArtifacts(session);
                 invalidateSavesCache(session.realm, session.save);
             } else if (!session.isDead && session.phase === 'play' && child.stdin && child.stdin.writable) {
                 console.log(`[Session] Saving authoritative state for session ${sessionId}...`);
@@ -3417,7 +3429,8 @@ function attachWebSocketToSession(session, ws) {
                 }
                 if (msgType === 'quit' || msgType === 'cancel') {
                     console.log(`[WebSocket] Client explicitly ended session ${session.sessionId}`);
-                    gracefulSessionSaveAndExit(session.sessionId, 'Client requested exit.');
+                    const discardUnstarted = Boolean(parsed.discard || (session.isNew && !session.hasSavedInitialPlay && session.phase !== 'play'));
+                    gracefulSessionSaveAndExit(session.sessionId, 'Client requested exit.', 'bye', { skipSave: discardUnstarted });
                     return;
                 }
             } catch (_) {}
@@ -3524,6 +3537,8 @@ async function spawnGameSession(ws, request) {
 
     const isNew = urlObj.searchParams.get('new') === '1' || urlObj.searchParams.get('reroll') === '1';
     const isCustomBirth = urlObj.searchParams.get('custom') === '1';
+    const isRandomBirth = urlObj.searchParams.get('random') === '1';
+    const isReviewBirth = urlObj.searchParams.get('review') === '1';
     const wantQuickBirth = urlObj.searchParams.get('quickbirth') === '1';
     const persistentSaveDir = engineInfo.saveDir || SAVE_DIR;
     const allRealmSaveDirs = getSaveDirsForRealm(realm);
@@ -3612,10 +3627,14 @@ async function spawnGameSession(ws, request) {
     }
     if (isNew) {
         args.push(engineInfo.cli?.new_char_switch || '-n');
-        if (isCustomBirth && (realm === 'dcss' || realm === 'brogue' || realm === 'rogue' || realm === 'nethack' || realm === 'ryod')) {
+        const isCartridgeRealm = realm === 'dcss' || realm === 'brogue' || realm === 'rogue' || realm === 'nethack' || realm === 'ryod';
+        if (isCustomBirth && isCartridgeRealm) {
             args.push('-c');
-        } else if (!isCustomBirth && realm === 'nethack') {
+        } else if (!isCustomBirth && (realm === 'nethack' || (isRandomBirth && isCartridgeRealm))) {
             args.push('-r');
+        }
+        if (isReviewBirth && !isCustomBirth && isCartridgeRealm) {
+            args.push('--review-birth');
         }
         const seedParam = String(urlObj.searchParams.get('seed') || '').trim();
         if (seedParam && /^[a-zA-Z0-9_-]{1,32}$/.test(seedParam) && (realm === 'dcss' || realm === 'brogue' || realm === 'rogue' || realm === 'nethack' || realm === 'ryod')) {
@@ -3765,6 +3784,8 @@ async function spawnGameSession(ws, request) {
         realm,
         engineInfo,
         phase: 'setup',
+        isNew: Boolean(isNew),
+        hadSaveBeforeLaunch: Boolean(saveExists),
         hasSavedInitialPlay: false,
         commandsSinceSave: 0,
         currentTurn: 0,
@@ -3933,8 +3954,13 @@ async function spawnGameSession(ws, request) {
         }
         activeSessions.delete(sessionId);
         if (session.stageDir) {
-            mirrorStagedSavesToPersistent(session, { cleanup: true });
+            if (session.isNew && !session.hasSavedInitialPlay && session.phase !== 'play') {
+                fs.promises.rm(session.stageDir, { recursive: true, force: true }).catch(() => {});
+            } else {
+                mirrorStagedSavesToPersistent(session, { cleanup: true });
+            }
         }
+        cleanupUnstartedSaveArtifacts(session);
         if (session.ws && session.ws.readyState === 1) {
             session.ws.send(JSON.stringify({ t: 'bye', detail: err.message }));
             session.ws.close();
@@ -3954,8 +3980,13 @@ async function spawnGameSession(ws, request) {
         }
         activeSessions.delete(sessionId);
         if (session.stageDir) {
-            mirrorStagedSavesToPersistent(session, { cleanup: true });
+            if (session.isNew && !session.hasSavedInitialPlay && session.phase !== 'play') {
+                fs.promises.rm(session.stageDir, { recursive: true, force: true }).catch(() => {});
+            } else {
+                mirrorStagedSavesToPersistent(session, { cleanup: true });
+            }
         }
+        cleanupUnstartedSaveArtifacts(session);
         invalidateSavesCache(session.realm, session.save);
         if (session.ws && session.ws.readyState === 1) {
             session.ws.send(JSON.stringify({ t: 'bye', detail: `process exited with code ${code}` }));

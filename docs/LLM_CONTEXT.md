@@ -1,4 +1,4 @@
-# angband3d / YASD 3D — AI Context & Onboarding Guide (`v13.1.1`)
+# angband3d / YASD 3D — AI Context & Onboarding Guide (`v13.1.2`)
 
 ## Mission & Architecture
 `angband3d` (`https://yasd3d.com`) is a 9-realm first-person 3D dungeon crawler platform powered by **4 authoritative C/C++ roguelike engines** (`Vanilla Angband 4.2.6`, `Sil-Q 1.5.0`, `FrogComposBand 7.1.1`, and `Hengband 3.0.1`) plus **5 UniversalCartridge offline browser-worker realms** (`NetHack 3.6.7`, `DCSS`, `Brogue CE`, `Rogue 5.4`, and `RYOD Forge`) paired with a **Web Three.js / Illuminated Vellum Canvas / Living Chronicle PWA client**.

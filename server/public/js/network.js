@@ -133,7 +133,13 @@ class GameNetwork {
         }
     }
 
-    connect(charName = 'Adventurer', isNew = false, saveFile = null, realm = 'angband', isCustomBirth = false) {
+    connect(charName = 'Adventurer', isNew = false, saveFile = null, realm = 'angband', isCustomBirth = false, extraOpts = null) {
+        const birthOpts = (isCustomBirth && typeof isCustomBirth === 'object')
+            ? { ...isCustomBirth, ...(extraOpts && typeof extraOpts === 'object' ? extraOpts : {}) }
+            : { customBirth: Boolean(isCustomBirth), ...(extraOpts && typeof extraOpts === 'object' ? extraOpts : {}) };
+        const customFlag = Boolean(birthOpts.customBirth);
+        const randomFlag = Boolean(birthOpts.randomBirth);
+        const reviewFlag = Boolean(birthOpts.reviewBirth);
         this.disposed = false;
         if (this.reconnectTimer) {
             clearTimeout(this.reconnectTimer);
@@ -195,7 +201,9 @@ class GameNetwork {
         const host = window.location.host;
         let wsUrl = `${protocol}//${host}/ws?user=${encodeURIComponent(this.currentChar)}`;
         if (isNew) {
-            wsUrl += isCustomBirth ? '&new=1&custom=1' : '&new=1';
+            wsUrl += customFlag ? '&new=1&custom=1' : '&new=1';
+            if (randomFlag) wsUrl += '&random=1';
+            if (reviewFlag) wsUrl += '&review=1';
         }
         if (effectiveSave) {
             wsUrl += `&save=${encodeURIComponent(effectiveSave)}`;
@@ -250,7 +258,7 @@ class GameNetwork {
                     this._fastHandshakeRetries = (this._fastHandshakeRetries || 0) + 1;
                     console.warn(`[Network] Handshake still CONNECTING after 5.5s — fast retry #${this._fastHandshakeRetries}`);
                     try { this.ws.close(); } catch (_) {}
-                    this.connect(this.currentChar, this.currentIsNew, this.currentSave, this.currentRealm, isCustomBirth);
+                    this.connect(this.currentChar, this.currentIsNew, this.currentSave, this.currentRealm, isCustomBirth, extraOpts);
                 }
             }, 5500);
         }
@@ -319,6 +327,9 @@ class GameNetwork {
                             localStorage.setItem(`angband3d_owner_${targetSlot}`, msg.ownerToken);
                             if (this.currentChar) {
                                 localStorage.setItem(`angband3d_owner_${this.currentChar}`, msg.ownerToken);
+                            }
+                            if (typeof window !== 'undefined' && window.SaveVaultClient && typeof window.SaveVaultClient.setOwnerToken === 'function') {
+                                window.SaveVaultClient.setOwnerToken(this.currentRealm || 'angband', targetSlot, msg.ownerToken);
                             }
                         } catch (_) {}
                     }
@@ -571,13 +582,14 @@ class GameNetwork {
         }
     }
 
-    leaveSession() {
+    leaveSession(opts = null) {
         this.manualDisconnect = true;
         this.hasActiveGameSession = false;
         this.isInQueue = false;
         this.isDead = false;
         if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-            try { this.ws.send(JSON.stringify({ t: 'quit' })); } catch (_) {}
+            const payload = opts && opts.discard ? { t: 'quit', discard: true } : { t: 'quit' };
+            try { this.ws.send(JSON.stringify(payload)); } catch (_) {}
         }
         this.sessionId = null;
         try {

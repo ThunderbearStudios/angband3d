@@ -3173,16 +3173,19 @@ class Dungeon3D {
         return keys;
     }
 
-    getRequiredPbrSetIds(theme, outdoors, realm, tier1Only = false) {
-        // # ROOT-CAUSE: Delegate to unified resolveContextualPbrIds so retired T_* local PBR IDs are never requested and local_wood_trim/local_plaster are gated to town/shops.
+    getRequiredPbrSetIds(theme, outdoors, realm, tier1Only = false, explicitDepth = null, frameHint = null) {
+        // # ROOT-CAUSE: Delegate to unified resolveContextualPbrIds using explicitDepth/frameHint first so stale this.lastDepth (e.g. 0 from Menu/Town) never preloads Town PBR sets when entering Dungeon L1+.
         const tid = String((theme && theme.id) ? theme.id : (theme || '')).toLowerCase();
         const r = String(realm || this.realm || 'angband').toLowerCase();
-        const depth = typeof this.lastDepth === 'number'
-            ? this.lastDepth
-            : ((this.lastFrame && this.lastFrame.player && typeof this.lastFrame.player.depth === 'number') ? this.lastFrame.player.depth : (outdoors ? 0 : 1));
-        const branch = String((this.lastFrame && (this.lastFrame.branch || this.lastFrame.branch_name || (this.lastFrame.player && (this.lastFrame.player.branch || this.lastFrame.player.branch_name)))) || '').toLowerCase();
+        const srcFrame = frameHint || this.lastFrame;
+        const depth = typeof explicitDepth === 'number'
+            ? explicitDepth
+            : ((srcFrame && srcFrame.player && typeof srcFrame.player.depth === 'number')
+                ? srcFrame.player.depth
+                : (typeof this.lastDepth === 'number' ? this.lastDepth : (outdoors ? 0 : 1)));
+        const branch = String((srcFrame && (srcFrame.branch || srcFrame.branch_name || (srcFrame.player && (srcFrame.player.branch || srcFrame.player.branch_name)))) || '').toLowerCase();
         const ryodBiome = String(
-            (this.lastFrame && (this.lastFrame.biomeTheme || (this.lastFrame.map && this.lastFrame.map.biomeTheme)))
+            (srcFrame && (srcFrame.biomeTheme || (srcFrame.map && srcFrame.map.biomeTheme)))
             || (theme && theme.ryodBiome)
             || (typeof window !== 'undefined' && window.__activeRyodBlueprint && window.__activeRyodBlueprint.biome)
             || ''
@@ -3190,13 +3193,13 @@ class Dungeon3D {
         if (typeof this.resolveContextualPbrIds === 'function') {
             return this.resolveContextualPbrIds(r, depth, Boolean(outdoors), branch, ryodBiome, {
                 themeId: tid,
-                hasShops: Boolean(outdoors || depth === 0 || this._levelHasShops),
+                hasShops: Boolean(outdoors || depth === 0 || (srcFrame && srcFrame._levelHasShops) || this._levelHasShops),
                 tier1Only: Boolean(tier1Only)
             });
         }
         return outdoors
-            ? ['plastered_stone_wall', 'cobblestone_floor_08', 'castle_brick_broken_06', 'local_wood_trim']
-            : ['japanese_stone_wall', 'monastery_stone_floor', 'rock_wall_10'];
+            ? ['plastered_stone_wall', 'cobblestone_floor_08', 'castle_brick_broken_06', 'bark_willow_02']
+            : ['japanese_stone_wall', 'monastery_stone_floor', 'rock_wall_10', 'bark_willow_02'];
     }
 
     hasPendingSceneAssets(frame) {
@@ -3206,7 +3209,7 @@ class Dungeon3D {
         const depth = Number(player.depth || 0);
         const outdoors = Boolean(frame.outdoors) || depth === 0;
         const theme = frame.theme || this.currentBiome || (depth === 0 ? 'TOWN' : 'GRANITE');
-        const pbrIds = this.getRequiredPbrSetIds(theme, outdoors, frame.realm || this.realm, true);
+        const pbrIds = this.getRequiredPbrSetIds(theme, outdoors, frame.realm || this.realm, true, depth, frame);
         const ph = this.polyHavenSets;
         for (const id of pbrIds) {
             const entry = ph && ph.get(id);
@@ -3326,6 +3329,8 @@ class Dungeon3D {
     async awaitSceneAssetsReady(frame, onProgress) {
         if (!frame) return true;
         window.gameSceneAssetsLoading = true;
+        this._suppressMenuPbrLoads = false;
+        this._pbrPrewarmSeq = (this._pbrPrewarmSeq || 0) + 1;
         const yieldFrame = () => new Promise((r) => setTimeout(r, 20));
         try {
             await yieldFrame();
@@ -3335,36 +3340,115 @@ class Dungeon3D {
             const outdoors = Boolean(frame.outdoors) || depth === 0;
             const theme = frame.theme || this.currentBiome || (depth === 0 ? 'TOWN' : 'GRANITE');
             const tier1Tasks = [];
-            const bgTasks = [];
             const addTier1 = (p) => { if (p && typeof p.then === 'function') tier1Tasks.push(p.catch(() => null)); };
-            const addBg = (p) => { if (p && typeof p.then === 'function') bgTasks.push(p.catch(() => null)); };
 
-            const tier1Ids = this.getRequiredPbrSetIds(theme, outdoors, frame.realm || this.realm, true);
+            const mapRows = frame.map && Array.isArray(frame.map.rows) ? frame.map.rows : [];
+            let mapHasTrees = outdoors;
+            let mapHasDoors = outdoors;
+            let mapHasQuartz = false;
+            let mapHasMagma = false;
+            if (mapRows.length > 0) {
+                for (let r = 0; r < mapRows.length; r++) {
+                    const fRow = mapRows[r] && mapRows[r].f;
+                    if (!fRow) continue;
+                    if (!mapHasTrees && (fRow.includes('29') || fRow.includes('2a'))) mapHasTrees = true;
+                    if (!mapHasDoors && (fRow.includes('06') || fRow.includes('07') || fRow.includes('08') || fRow.includes('09'))) mapHasDoors = true;
+                    if (!mapHasQuartz && (fRow.includes('0e') || fRow.includes('32'))) mapHasQuartz = true;
+                    if (!mapHasMagma && (fRow.includes('0f') || fRow.includes('33'))) mapHasMagma = true;
+                }
+            }
+
+            const tier1AllIds = this.getRequiredPbrSetIds(theme, outdoors, frame.realm || this.realm, true, depth, frame);
+            const coreSet = new Set(
+                tier1AllIds.wallPhId
+                    ? [tier1AllIds.wallPhId, tier1AllIds.floorPhId, tier1AllIds.permPhId, tier1AllIds.ceilPhId].filter(Boolean)
+                    : tier1AllIds
+            );
+            if (mapHasDoors && tier1AllIds.includes('bark_willow_02')) coreSet.add('bark_willow_02');
+            if (mapHasQuartz && tier1AllIds.includes('marble_cliff_01')) coreSet.add('marble_cliff_01');
+            if (mapHasMagma && tier1AllIds.includes('marble_cliff_02')) coreSet.add('marble_cliff_02');
+            const tier1Ids = Array.from(coreSet);
             const tier1Set = new Set(tier1Ids);
+            const pbrFileProgress = new Map();
+            let gateDone = false;
+            let completed = 0;
+            let nonPbrTotal = 0;
+            let nonPbrDone = 0;
+
+            const reportDetailedProgress = (prefix) => {
+                if (gateDone || typeof onProgress !== 'function') return;
+                let pbrLoaded = 0;
+                let pbrTotal = 0;
+                for (const st of pbrFileProgress.values()) {
+                    pbrLoaded += st.loaded;
+                    pbrTotal += st.total;
+                }
+                const totalUnits = Math.max(1, pbrTotal + nonPbrTotal);
+                const doneUnits = Math.min(totalUnits, pbrLoaded + nonPbrDone);
+                const msg = prefix || (pbrLoaded < pbrTotal
+                    ? `Loading High-Res Stone & Dungeon Textures (${pbrLoaded}/${pbrTotal} maps)...`
+                    : `Loading 3D Dungeon Models & Props (${doneUnits}/${totalUnits})...`);
+                onProgress(doneUnits, totalUnits, msg);
+            };
+
             for (const id of tier1Ids) {
-                addTier1(this.ensurePbrSetReady(id));
+                const existing = this.polyHavenSets && this.polyHavenSets.get(id);
+                pbrFileProgress.set(id, {
+                    loaded: existing && existing._loaded ? (existing._totalCount || 4) : ((existing && existing._loadedCount) || 0),
+                    total: (existing && existing._totalCount) || 4
+                });
+                addTier1(this.ensurePbrSetReady(id, (loadedCount, totalCount) => {
+                    pbrFileProgress.set(id, { loaded: loadedCount, total: totalCount });
+                    reportDetailedProgress();
+                }));
             }
             addTier1(this.ensureSharedDetailTexturesReady());
             for (const vKey of this.resolveDesiredViewmodelKeys(player)) {
                 addTier1(this._ensureViewmodelWeapon(vKey));
             }
+            if (typeof this._loadPolyHavenEnvironmentModels === 'function') addTier1(this._loadPolyHavenEnvironmentModels({ outdoors: mapHasTrees }));
 
-            // Tier-2 non-blocking background stream: secondary PBR sets, 12MB item atlas, env props & bestiary GLBs
-            const allPbrIds = this.getRequiredPbrSetIds(theme, outdoors, frame.realm || this.realm, false);
+            const visibleMonsterKeys = new Set();
+            const visibleItemKeys = new Set();
+            for (const m of (frame.monsters || [])) {
+                const cfg = typeof this.resolveMonster3DConfig === 'function' ? this.resolveMonster3DConfig(m, m.glyph) : null;
+                if (cfg && cfg.templateKey) {
+                    visibleMonsterKeys.add(cfg.templateKey);
+                    if (cfg.weaponKey) visibleItemKeys.add(cfg.weaponKey);
+                    if (cfg.shieldKey) visibleItemKeys.add(cfg.shieldKey);
+                }
+            }
+            for (const it of (frame.items || [])) {
+                const phKey = typeof this.getItemObjKey === 'function' ? this.getItemObjKey(it.name || '', it.glyph || '') : null;
+                if (phKey) visibleItemKeys.add(phKey);
+            }
+            for (const tKey of visibleMonsterKeys) addTier1(this._ensureMonster3DTemplate(tKey));
+            for (const hKey of visibleItemKeys) addTier1(this._ensurePolyHavenFloorItem(hKey));
+
+            const total = tier1Tasks.length;
+            nonPbrTotal = Math.max(0, total - tier1Ids.length);
+            if (total > 0) {
+                if (typeof onProgress === 'function') onProgress(0, total, 'Loading High-Res Stone & Dungeon Textures...');
+                const gateAll = Promise.all(tier1Tasks.map((p, idx) => p.then((res) => {
+                    completed++;
+                    if (idx >= tier1Ids.length) nonPbrDone++;
+                    if (!gateDone && typeof onProgress === 'function') {
+                        reportDetailedProgress();
+                    }
+                    return res;
+                })));
+                await Promise.race([gateAll, new Promise((r) => setTimeout(r, 22000))]);
+                gateDone = true;
+            }
+
+            // Tier-2 deferred background stream: ONLY start after Tier-1 core PBR sets & room models finish so bandwidth is never starved
+            const bgTasks = [];
+            const addBg = (p) => { if (p && typeof p.then === 'function') bgTasks.push(p.catch(() => null)); };
+            const allPbrIds = this.getRequiredPbrSetIds(theme, outdoors, frame.realm || this.realm, false, depth, frame);
             for (const id of allPbrIds) {
                 if (!tier1Set.has(id)) addBg(this.ensurePbrSetReady(id));
             }
             if (typeof this.ensureItemAtlasReady === 'function') addBg(this.ensureItemAtlasReady());
-            const mapRows = frame.map && Array.isArray(frame.map.rows) ? frame.map.rows : [];
-            let mapHasTrees = outdoors;
-            if (!mapHasTrees && mapRows.length > 0) {
-                for (let r = 0; r < mapRows.length; r++) {
-                    const fRow = mapRows[r] && mapRows[r].f;
-                    if (fRow && (fRow.includes('29') || fRow.includes('2a'))) { mapHasTrees = true; break; }
-                }
-            }
-            if (typeof this._loadPolyHavenEnvironmentModels === 'function') addBg(this._loadPolyHavenEnvironmentModels({ outdoors: mapHasTrees }));
-
             const prewarm = this.getLevelPrewarmManifest(depth, outdoors);
             const monsterTemplateKeys = new Set(prewarm.monsters || []);
             if (String((frame && frame.realm) || this.realm || '').toLowerCase() === 'nethack') {
@@ -3372,21 +3456,12 @@ class Dungeon3D {
                 monsterTemplateKeys.add('bestiary_wolf');
             }
             const heldItemPhKeys = new Set(prewarm.items || []);
-            for (const m of (frame.monsters || [])) {
-                const cfg = typeof this.resolveMonster3DConfig === 'function' ? this.resolveMonster3DConfig(m, m.glyph) : null;
-                if (cfg && cfg.templateKey) {
-                    monsterTemplateKeys.add(cfg.templateKey);
-                    if (cfg.weaponKey) heldItemPhKeys.add(cfg.weaponKey);
-                    if (cfg.shieldKey) heldItemPhKeys.add(cfg.shieldKey);
-                }
+            for (const tKey of monsterTemplateKeys) {
+                if (!visibleMonsterKeys.has(tKey)) addBg(this._ensureMonster3DTemplate(tKey));
             }
-            for (const tKey of monsterTemplateKeys) addBg(this._ensureMonster3DTemplate(tKey));
-            for (const hKey of heldItemPhKeys) addBg(this._ensurePolyHavenFloorItem(hKey));
-            for (const it of (frame.items || [])) {
-                const phKey = typeof this.getItemObjKey === 'function' ? this.getItemObjKey(it.name || '', it.glyph || '') : null;
-                if (phKey) addBg(this._ensurePolyHavenFloorItem(phKey));
+            for (const hKey of heldItemPhKeys) {
+                if (!visibleItemKeys.has(hKey)) addBg(this._ensurePolyHavenFloorItem(hKey));
             }
-
             if (bgTasks.length > 0) {
                 Promise.all(bgTasks).then(() => {
                     if (typeof this.upgradeAllMonsterEntities === 'function') this.upgradeAllMonsterEntities();
@@ -3395,26 +3470,12 @@ class Dungeon3D {
                 }).catch(() => null);
             }
 
-            const total = tier1Tasks.length;
-            if (total > 0) {
-                let completed = 0;
-                let gateDone = false;
-                if (typeof onProgress === 'function') onProgress(0, total, 'Loading critical 2K PBR surfaces...');
-                const gateAll = Promise.all(tier1Tasks.map((p) => p.then((res) => {
-                    completed++;
-                    if (!gateDone && typeof onProgress === 'function') {
-                        onProgress(completed, total, `Loading 3D scene surfaces (${completed}/${total})...`);
-                    }
-                    return res;
-                })));
-                await Promise.race([gateAll, new Promise((r) => setTimeout(r, 3200))]);
-                gateDone = true;
-            }
-
             await yieldFrame();
             this._currentThemeId = null;
             this._currentTexturesAreOutdoors = null;
             const activeRealm = frame.realm || this.realm || 'angband';
+            this.realm = activeRealm;
+            this.lastDepth = depth;
             const resolvedBiome = this.currentBiome || (typeof this.getBiomeProfile === 'function' ? this.getBiomeProfile(depth, this.levelSeed || 0, activeRealm) : null);
             this.applyEnvironmentTextures(outdoors, resolvedBiome, activeRealm, depth, this.levelSeed || 0);
             if (typeof this.updateDungeon === 'function') {
@@ -3424,6 +3485,24 @@ class Dungeon3D {
                     console.error('[Dungeon3D updateDungeon in awaitSceneAssetsReady]', err);
                 }
             }
+            if (typeof onProgress === 'function') onProgress(1, 1, 'Uploading High-Res Textures to GPU...');
+            if (this.renderer && typeof this.renderer.initTexture === 'function') {
+                const worldMats = [
+                    this.wallMaterial, this.floorMaterial, this.permWallMaterial, this.ceilingMaterial,
+                    this.stairsMaterial, this.mountainMaterial, this.rubbleMaterial, this.chasmSideMaterial,
+                    this.doorMaterial, this.quartzMaterial, this.magmaMaterial, this.waterMaterial
+                ];
+                for (const mat of worldMats) {
+                    if (!mat) continue;
+                    for (const slot of ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap', 'bumpMap']) {
+                        const tex = mat[slot];
+                        if (tex) {
+                            try { this.renderer.initTexture(tex); } catch (_) {}
+                        }
+                    }
+                }
+            }
+            await yieldFrame();
             if (typeof this.upgradeAllMonsterEntities === 'function') this.upgradeAllMonsterEntities();
             if (typeof this.upgradeAllItemEntities === 'function') this.upgradeAllItemEntities();
             if (frame.player) {
@@ -3436,6 +3515,64 @@ class Dungeon3D {
         } finally {
             window.gameSceneAssetsLoading = false;
         }
+    }
+
+    prewarmRealmPbr(realmKey, onProgress = null) {
+        const r = String(realmKey || this.realm || 'angband').toLowerCase();
+        const isTownStart = r === 'angband' || r === 'frogcomposband' || r === 'hengband'
+            || (r === 'ryod' && (!window.__activeRyodBlueprint || window.__activeRyodBlueprint.startMode !== 'dungeon'));
+        const warmToken = (this._pbrPrewarmSeq = (this._pbrPrewarmSeq || 0) + 1);
+        const startDepth = isTownStart ? 0 : 1;
+
+        if (!this._gpuInitialized || !this.polyHavenSets || this.polyHavenSets.size === 0) {
+            Dungeon3D.prefetchRealmTextureHttp(r);
+            return Promise.resolve({ loaded: 0, total: 0, warm: false });
+        }
+
+        const rawWarmIds = this.getRequiredPbrSetIds(isTownStart ? 'TOWN' : 'GRANITE', isTownStart, r, true, startDepth, null);
+        const coreWarm = rawWarmIds.wallPhId
+            ? [rawWarmIds.wallPhId, rawWarmIds.floorPhId, rawWarmIds.permPhId, rawWarmIds.ceilPhId].filter(Boolean)
+            : rawWarmIds;
+        const primaryIds = [...new Set(coreWarm)];
+        const allWarmIds = primaryIds;
+        const stats = new Map();
+        for (const id of allWarmIds) {
+            const e = this.polyHavenSets.get(id);
+            stats.set(id, {
+                loaded: e && e._loaded ? (e._totalCount || 4) : (e && e._loadedCount ? e._loadedCount : 0),
+                total: (e && e._totalCount) || 4
+            });
+        }
+        const emitProgress = () => {
+            if (warmToken !== this._pbrPrewarmSeq || typeof onProgress !== 'function') return;
+            let loaded = 0;
+            let total = 0;
+            for (const st of stats.values()) {
+                loaded += st.loaded;
+                total += st.total;
+            }
+            try { onProgress(loaded, total, loaded >= total); } catch (_) {}
+        };
+        emitProgress();
+
+        const warmGroup = (ids) => Promise.all(ids.map((id) => this.ensurePbrSetReady(id, (loadedCount, totalCount) => {
+            stats.set(id, { loaded: loadedCount, total: totalCount });
+            emitProgress();
+        }).catch(() => null)));
+
+        return warmGroup(primaryIds).then(() => {
+            if (warmToken !== this._pbrPrewarmSeq) return { loaded: 0, total: 0, aborted: true };
+            if (typeof this.ensureSharedDetailTexturesReady === 'function') {
+                this.ensureSharedDetailTexturesReady().catch(() => null);
+            }
+            return null;
+        }).then(() => {
+            emitProgress();
+            let loaded = 0;
+            let total = 0;
+            for (const st of stats.values()) { loaded += st.loaded; total += st.total; }
+            return { loaded, total, warm: loaded >= total };
+        });
     }
 
     triggerAttackAnimation(fromMessage = false) {
@@ -4522,13 +4659,17 @@ class Dungeon3D {
         if (realmChanged || turnReset) {
             this.resetSessionState({ clearMemory: realmChanged });
         }
-        this._lastSessionRealm = resolvedRealm;
-        if (frameTurn !== null && !Number.isNaN(frameTurn)) {
-            this._prevTurn = frameTurn;
+        const isMenuDiorama = Boolean(frame && frame._isMenuDiorama);
+        this._suppressMenuPbrLoads = isMenuDiorama;
+        if (!isMenuDiorama) {
+            this._lastSessionRealm = resolvedRealm;
+            if (frameTurn !== null && !Number.isNaN(frameTurn)) {
+                this._prevTurn = frameTurn;
+            }
+            this.realm = resolvedRealm;
+            this.lastFrame = frame;
         }
-        this.realm = resolvedRealm;
         this.lastMap = map;
-        this.lastFrame = frame;
 
         // Environmental Adaptive Vignette (updates based on depth, room lighting, and health)
         this.updateAdaptiveVignette(frame);
@@ -4543,22 +4684,24 @@ class Dungeon3D {
         }
         const depth = (frame.player && frame.player.depth !== undefined) ? frame.player.depth : 0;
         const outdoors = (depth === 0);
-        if (outdoors && !this._shopDoorsHydrated && typeof this.ensureShopDoorMaterials === 'function') {
+        if (outdoors && !isMenuDiorama && !this._shopDoorsHydrated && typeof this.ensureShopDoorMaterials === 'function') {
             this.ensureShopDoorMaterials();
         }
-        if (this.lastDepth !== depth) {
+        if (!isMenuDiorama && this.lastDepth !== depth) {
             this._levelHasShops = Boolean(outdoors);
         }
 
         // Detect stairs / depth transitions
-        if (this.lastDepth !== null && this.lastDepth !== undefined && this.lastDepth !== depth) {
+        if (!isMenuDiorama && this.lastDepth !== null && this.lastDepth !== undefined && this.lastDepth !== depth) {
             if (this.audio) {
                 this.audio.playStairs(depth > this.lastDepth);
                 this.audio.playLevelEnter();
             }
         }
-        this.lastDepth = depth;
-        this._prevDepth = depth;
+        if (!isMenuDiorama) {
+            this.lastDepth = depth;
+            this._prevDepth = depth;
+        }
 
         // Update Viewmodel Equipment rules & Dynamic character height
         this.updateViewmodel(frame.player);
@@ -14156,6 +14299,36 @@ class Dungeon3D {
         }
 
         return lastOpenTile;
+    }
+
+    static prefetchRealmTextureHttp(realmKey) {
+        if (typeof fetch !== 'function') return;
+        const r = String(realmKey || 'angband').toLowerCase();
+        const isTownStart = r === 'angband' || r === 'frogcomposband' || r === 'hengband' || r === 'ryod';
+        const resolver = (typeof window !== 'undefined' && window.Dungeon3DProcTextures && typeof window.Dungeon3DProcTextures.resolveContextualPbrIds === 'function')
+            ? window.Dungeon3DProcTextures.resolveContextualPbrIds
+            : null;
+        const ids = new Set();
+        if (resolver) {
+            const res = resolver(r, isTownStart ? 0 : 1, isTownStart, '', '', { hasShops: isTownStart, tier1Only: true });
+            if (res.wallPhId) ids.add(res.wallPhId);
+            if (res.floorPhId) ids.add(res.floorPhId);
+        } else {
+            ['plastered_stone_wall', 'cobblestone_floor_08', 'japanese_stone_wall', 'monastery_stone_floor'].forEach((id) => ids.add(id));
+        }
+        if (!Dungeon3D._httpPrefetchedIds) Dungeon3D._httpPrefetchedIds = new Set();
+        for (const id of ids) {
+            if (!id || id.startsWith('local_') || Dungeon3D._httpPrefetchedIds.has(id)) continue;
+            Dungeon3D._httpPrefetchedIds.add(id);
+            const base = `/assets/polyhaven/textures/${id}`;
+            for (const file of ['diff.jpg', 'nor_gl.jpg']) {
+                try {
+                    const rawUrl = `${base}/${file}`;
+                    const resolvedUrl = (typeof window !== 'undefined' && typeof window.__assetUrl === 'function') ? window.__assetUrl(rawUrl) : rawUrl;
+                    fetch(resolvedUrl, { priority: 'low', credentials: 'same-origin' }).catch(() => null);
+                } catch (_) {}
+            }
+        }
     }
 
 }

@@ -159,6 +159,7 @@ function parseCliArgs(argv) {
     let isNew = false;
     let customBirth = false;
     let randomBirth = false;
+    let reviewBirth = false;
     let role = null;
     let seed = null;
     const args = argv.slice(2);
@@ -168,6 +169,7 @@ function parseCliArgs(argv) {
         else if (arg.startsWith('-u')) user = arg.slice(2) || user;
         else if (arg === '-n') isNew = true;
         else if (arg === '-r' || arg === '--random') randomBirth = true;
+        else if (arg === '--review-birth') reviewBirth = true;
         else if (arg === '-c' || arg === '--custom') {
             customBirth = true;
             const next = args[i + 1];
@@ -185,7 +187,7 @@ function parseCliArgs(argv) {
             role = arg.slice(7).trim() || null;
         } else if (arg.startsWith('--seed=')) seed = arg.slice(7);
     }
-    return { saveDir, user, isNew, customBirth, randomBirth, role, seed };
+    return { saveDir, user, isNew, customBirth, randomBirth, reviewBirth, role, seed };
 }
 
 function formatItemDesc(it) {
@@ -309,11 +311,16 @@ class NetHackEngine {
             const roleIdx = this.rand(ROLES.length);
             this.initNewState(false, roleIdx);
             this.applyStartingOptimization('optimal', 'signature');
-            this.state.phase = 'play';
-            if (this.state && this.state.player && !this.state.player.dead) {
-                this._lastLivingSnapshot = JSON.stringify(this.state);
+            if (opts.reviewBirth && !opts.customBirth) {
+                this.state.phase = 'setup';
+                this.state.setupStage = 'review';
+            } else {
+                this.state.phase = 'play';
+                if (this.state && this.state.player && !this.state.player.dead) {
+                    this._lastLivingSnapshot = JSON.stringify(this.state);
+                }
+                this.saveGame();
             }
-            this.saveGame();
         } else {
             this.initNewState(false, 0);
             if (this.state && this.state.player && !this.state.player.dead) {
@@ -1180,11 +1187,33 @@ class NetHackEngine {
         // # ROOT-CAUSE: NetHack setup needed post-randomization stat focus & kit boon controls and #enhance weapon/spell skill advancement
         if (this.state.phase === 'setup') {
             const lower = k.toLowerCase();
+            const inReview = this.state.setupStage === 'review';
             if (lower === '*') {
                 const randIdx = this.rand(ROLES.length);
                 this.initNewState(true, randIdx);
                 this.applyStartingOptimization('optimal', 'signature');
+                this.state.setupStage = null;
+                this.state.phase = 'play';
+                this._lastLivingSnapshot = JSON.stringify(this.state);
                 this.saveGame();
+                return;
+            }
+            if (inReview && lower === 'r') {
+                const curIdx = this.state.selectedRoleIdx || 0;
+                let randIdx = this.rand(ROLES.length);
+                if (ROLES.length > 1 && randIdx === curIdx) {
+                    randIdx = (curIdx + 1 + this.rand(ROLES.length - 1)) % ROLES.length;
+                }
+                const sf = this.state.statFocus || 'optimal';
+                const kb = this.state.kitBoon || 'signature';
+                this.initNewState(false, randIdx);
+                this.applyStartingOptimization(sf, kb);
+                this.state.phase = 'setup';
+                this.state.setupStage = 'review';
+                return;
+            }
+            if (inReview && lower === 'c') {
+                this.state.setupStage = 'custom';
                 return;
             }
             if (lower === '1' || lower === 'f') {
@@ -1194,6 +1223,7 @@ class NetHackEngine {
                 const nextFocus = focuses[(focuses.indexOf(cur) + 1) % focuses.length];
                 this.initNewState(false, this.state.selectedRoleIdx || 0);
                 this.applyStartingOptimization(nextFocus, kb);
+                if (inReview) this.state.setupStage = 'review';
                 return;
             }
             if (lower === '2' || lower === 'b') {
@@ -1203,22 +1233,30 @@ class NetHackEngine {
                 const nextBoon = boons[(boons.indexOf(cur) + 1) % boons.length];
                 this.initNewState(false, this.state.selectedRoleIdx || 0);
                 this.applyStartingOptimization(sf, nextBoon);
+                if (inReview) this.state.setupStage = 'review';
                 return;
             }
             if (lower === 'enter' || lower === 'return' || lower === 'space' || lower === 'y') {
                 this.applyStartingOptimization(this.state.statFocus || 'optimal', this.state.kitBoon || 'signature');
+                this.state.setupStage = null;
                 this.state.phase = 'play';
+                this._lastLivingSnapshot = JSON.stringify(this.state);
                 this.saveGame();
                 return;
             }
-            const roleIdx = ROLES.findIndex(r => r.key === lower);
-            if (roleIdx >= 0) {
-                const sf = this.state.statFocus || 'optimal';
-                const kb = this.state.kitBoon || 'signature';
-                this.initNewState(true, roleIdx);
-                this.applyStartingOptimization(sf, kb);
-                this.saveGame();
-                return;
+            if (!inReview) {
+                const roleIdx = ROLES.findIndex(r => r.key === lower);
+                if (roleIdx >= 0) {
+                    const sf = this.state.statFocus || 'optimal';
+                    const kb = this.state.kitBoon || 'signature';
+                    this.initNewState(true, roleIdx);
+                    this.applyStartingOptimization(sf, kb);
+                    this.state.setupStage = null;
+                    this.state.phase = 'play';
+                    this._lastLivingSnapshot = JSON.stringify(this.state);
+                    this.saveGame();
+                    return;
+                }
             }
             if (lower === 'down' || lower === 'arrowdown' || lower === 'j') {
                 const next = (this.state.selectedRoleIdx + 1) % ROLES.length;
@@ -1226,6 +1264,7 @@ class NetHackEngine {
                 const kb = this.state.kitBoon || 'signature';
                 this.initNewState(false, next);
                 this.applyStartingOptimization(sf, kb);
+                if (inReview) this.state.setupStage = 'review';
                 return;
             }
             if (lower === 'up' || lower === 'arrowup' || lower === 'k') {
@@ -1234,10 +1273,14 @@ class NetHackEngine {
                 const kb = this.state.kitBoon || 'signature';
                 this.initNewState(false, prev);
                 this.applyStartingOptimization(sf, kb);
+                if (inReview) this.state.setupStage = 'review';
                 return;
             }
+            if (inReview) return;
             this.applyStartingOptimization(this.state.statFocus || 'optimal', this.state.kitBoon || 'signature');
+            this.state.setupStage = null;
             this.state.phase = 'play';
+            this._lastLivingSnapshot = JSON.stringify(this.state);
             this.saveGame();
             return;
         }
@@ -3071,6 +3114,27 @@ class NetHackEngine {
         }
 
         if (this.state.phase === 'setup') {
+            if (this.state.setupStage === 'review') {
+                const role = ROLES[this.state.selectedRoleIdx || 0] || ROLES[0] || {};
+                rows.push({ g: pad80('NetHack 3.6.7 — Pre-Embark Character Review'), a: attr80('0e') });
+                rows.push({ g: pad80('=============================================================================='), a: attr80('02') });
+                rows.push({ g: pad80(`  Name: ${String(p.name || this.user).padEnd(18, ' ')} Role: ${String(p.class || role.id).padEnd(14, ' ')} Race: ${String(p.race || role.race)} (${p.align || role.align})`), a: attr80('01') });
+                rows.push({ g: pad80(`  Deity: ${String(p.deity || 'Tyr').padEnd(16, ' ')} HP: ${p.hp}/${p.hpMax}   Pw: ${p.pw}/${p.pwMax}   AC: ${p.ac}   Gold: ${p.gold || 0}`), a: attr80('0a') });
+                rows.push({ g: pad80(`  STR: ${p.str}  DEX: ${p.dex}  CON: ${p.con}  INT: ${p.int}  WIS: ${p.wis}  CHA: ${p.cha != null ? p.cha : 12}`), a: attr80('0b') });
+                rows.push({ g: pad80(`  [1/f] Stat Focus: ${(this.state.statFocus || 'optimal').toUpperCase().padEnd(10, ' ')} [2/b] Kit Boon: ${(this.state.kitBoon || 'signature').toUpperCase()}`), a: attr80('0a') });
+                rows.push({ g: pad80('  Starting Equipment & Pack:'), a: attr80('0e') });
+                const inv = Array.isArray(p.inventory) ? p.inventory : [];
+                const maxItems = Math.min(inv.length, Math.max(0, TERM_H - rows.length - 3));
+                for (let i = 0; i < maxItems; i++) {
+                    const it = inv[i];
+                    const eqTag = it.equipped ? `[${String(it.equipped).toUpperCase()}] ` : '';
+                    rows.push({ g: pad80(`   ${it.letter || String.fromCharCode(97 + i)}) ${eqTag}${formatItemDesc(it)}`), a: attr80('01') });
+                }
+                while (rows.length < TERM_H - 2) rows.push({ g: pad80(''), a: attr80('01') });
+                rows.push({ g: pad80('------------------------------------------------------------------------------'), a: attr80('02') });
+                rows.push({ g: pad80("  Press [Enter] to Embark, r to reroll, [c] Customize Role, or Enter to accept"), a: attr80('0b') });
+                return rows;
+            }
             rows.push({ g: pad80('NetHack 3.6.7 — Choose Your Role in the Mazes of Menace (Enter/* = Quick Start)'), a: attr80('0e') });
             rows.push({ g: pad80('=============================================================================='), a: attr80('02') });
             ROLES.forEach((r, idx) => {

@@ -4,6 +4,20 @@ All notable changes to `angband3d` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v13.1.2] — 2026-11-18
+
+### 🛡️ 9-Realm Pre-Embark Character Review, Cold-Cache 2K PBR Buffer Gate & Mobile Menu Scroll
+
+- **9-Realm Pre-Embark Character Review & Clean Realm Switcher (`birth-review.js`, `app.js`, `input.js`, `cartridge-core.js`, `nethack-bridge.js`, `engine-worker.js`, `local_bridge.js`, `network.js`, `save-vault-client.js`, `server.js`)**:
+  - Quick-Play / Random Hero now pauses on the complete hero stats & equipment review sheet (`phase === 'setup'`, `isBirthReviewActive() === true`) across all 9 realms (`angband`, `silq`, `frogcomposband`, `hengband`, `nethack`, `dcss`, `brogue`, `rogue`, `ryod`), presenting **Start Adventure `[Enter]`**, **Reroll `[R]`**, **Realm Switcher dropdown**, **Custom `[C]`**, and **Main Menu `[Esc]`**.
+  - Switching realms inside the pre-embark sheet rerolls cleanly in the chosen realm with zero state cross-contamination (`__activeRyodBlueprint` cleared when leaving `ryod`) and purges unstarted setup saves via `cleanupUnstartedSaveArtifacts`.
+  - Fixed `LocalGameBridge.sendKey` tracking (`lastSentKey`/`sentKeyCount`), synced `SaveVaultClient` TOFU owner tokens to eliminate `HTTP 403` on Sil-Q initial snapshots, and aligned Sil-Q `generateHeroName` to the C 8-char limit.
+- **Cold-Cache 2K PBR Pre-Buffering, GPU Upload Gate & Native `<progress>` (`dungeon3d-proc-textures.js`, `dungeon3d.js`, `index.html`, `hud-skin.css`)**:
+  - Added per-file texture load progress tracking (`_loadedCount`/`_totalCount`), `<progress id="loading-native-progress" class="yasd-progress-bar">` with explicit texture-buffering `role="status"` announcements, and `_suppressMenuPbrLoads` so background menu dioramas never starve dungeon textures.
+  - Staged core room >=1024px PBR surfaces (`tier1Tasks`) and `renderer.initTexture(tex)` GPU uploads inside `awaitSceneAssetsReady` before dropping `#loading-overlay` on frame 1 (deferring non-critical background prewarm until after `gateDone`), and removed the inline `oncontextmenu` CSP violation in `index.html`.
+- **Mobile Main Menu Touch-Scroll Restoration (`hud-skin.css`)**:
+  - Restored vertical touch-panning scroll on `#main-menu-overlay:not(.hidden)` in mobile portrait (`390×844`) and landscape (`844×390`) via `touch-action: manipulation !important`, flex scroll column layout (`align-items: safe center`), `overflow: visible` on `.main-menu-card`, and multi-line wrapping on `.menu-daily-wide-btn`.
+
 ## [v13.1.1] — 2026-11-17
 
 ### 📖 2-Pane Adventurer's Codex, Novice Roguelike Primer, Corrected 3D Controls & Live Global Search

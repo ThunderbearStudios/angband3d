@@ -2121,11 +2121,17 @@ Dungeon3DProto.initTextures = function initTextures() {
 
     this.scheduleEnvironmentTextureApply = () => {
         if (this._envTexApplyRaf) return;
+        if (this._suppressMenuPbrLoads) return;
+        if (typeof window !== 'undefined' && window.gameSceneAssetsLoading) return;
+        if (this.lastDepth === null || this.lastDepth === undefined) return;
         const runApply = () => {
             this._envTexApplyRaf = null;
+            if (this._suppressMenuPbrLoads) return;
+            if (typeof window !== 'undefined' && window.gameSceneAssetsLoading) return;
+            if (this.lastDepth === null || this.lastDepth === undefined) return;
             this._currentThemeId = null;
             this._currentTexturesAreOutdoors = null;
-            const isOut = (this.lastDepth === 0 || this.lastDepth === null || this.lastDepth === undefined);
+            const isOut = this.lastDepth === 0;
             if (typeof this.applyEnvironmentTextures === 'function') {
                 this.applyEnvironmentTextures(isOut, this.currentBiome, this.realm || 'angband', this.lastDepth || 0, this.levelSeed || 0);
             }
@@ -2146,12 +2152,27 @@ Dungeon3DProto.initTextures = function initTextures() {
         });
     };
 
-    this.ensurePbrSetReady = (id) => {
+    this.ensurePbrSetReady = (id, onFileProgress = null) => {
         if (!id) return Promise.resolve(null);
         const entry = this.polyHavenSets.get(id);
         if (!entry) return Promise.resolve(null);
-        if (entry._loaded) return Promise.resolve(entry);
-        if (entry._promise) return entry._promise;
+        if (entry._loaded) {
+            if (typeof onFileProgress === 'function') {
+                const total = entry._totalCount || 1;
+                try { onFileProgress(total, total, id); } catch (_) {}
+            }
+            return Promise.resolve(entry);
+        }
+        if (typeof onFileProgress === 'function') {
+            if (!Array.isArray(entry._progressListeners)) entry._progressListeners = [];
+            if (!entry._progressListeners.includes(onFileProgress)) entry._progressListeners.push(onFileProgress);
+        }
+        if (entry._promise) {
+            if (typeof onFileProgress === 'function') {
+                try { onFileProgress(entry._loadedCount || 0, entry._totalCount || 1, id); } catch (_) {}
+            }
+            return entry._promise;
+        }
         const spec = this._pbrSetSpecs.get(id);
         if (!spec) return Promise.resolve(entry);
 
@@ -2172,16 +2193,42 @@ Dungeon3DProto.initTextures = function initTextures() {
             }
             this.scheduleEnvironmentTextureApply();
         };
+        const notifyProgress = () => {
+            if (!Array.isArray(entry._progressListeners)) return;
+            for (const listener of entry._progressListeners) {
+                if (typeof listener === 'function') {
+                    try { listener(entry._loadedCount || 0, entry._totalCount || 1, id); } catch (_) {}
+                }
+            }
+        };
+        const trackFileTask = (promise) => promise.then(
+            (res) => {
+                entry._loadedCount = (entry._loadedCount || 0) + 1;
+                notifyProgress();
+                return res;
+            },
+            (err) => {
+                entry._loadedCount = (entry._loadedCount || 0) + 1;
+                notifyProgress();
+                throw err;
+            }
+        );
 
+        entry._loadedCount = 0;
         if (spec.kind === 'polyhaven') {
             const base = `/assets/polyhaven/textures/${id}`;
-            entry._promise = Promise.all([
+            const tasks = [
                 loadTexPromise(`${base}/diff.jpg`, (tex) => { cfgTex(tex, true); entry.diff = tex; notifyCallbacks(); }),
                 loadTexPromise(`${base}/nor_gl.jpg`, (tex) => { cfgTex(tex, false); entry.nor = tex; notifyCallbacks(); }),
                 loadTexPromise(`${base}/arm.jpg`, (tex) => { cfgTex(tex, false); entry.arm = tex; notifyCallbacks(); }),
                 loadTexPromise(`${base}/disp.jpg`, (tex) => { cfgTex(tex, false); entry.disp = tex; notifyCallbacks(); })
-            ]).then(() => {
+            ];
+            entry._totalCount = tasks.length;
+            notifyProgress();
+            entry._promise = Promise.all(tasks.map(trackFileTask)).then(() => {
                 entry._loaded = true;
+                entry._loadedCount = entry._totalCount;
+                notifyProgress();
                 notifyCallbacks();
                 return entry;
             });
@@ -2198,8 +2245,12 @@ Dungeon3DProto.initTextures = function initTextures() {
                     loadTexPromise(roughUrl, (tex) => { cfgTex(tex, false); entry.arm = tex; notifyCallbacks(); })
                 );
             }
-            entry._promise = Promise.all(tasks).then(() => {
+            entry._totalCount = tasks.length;
+            notifyProgress();
+            entry._promise = Promise.all(tasks.map(trackFileTask)).then(() => {
                 entry._loaded = true;
+                entry._loadedCount = entry._totalCount;
+                notifyProgress();
                 notifyCallbacks();
                 return entry;
             });
@@ -2215,7 +2266,12 @@ Dungeon3DProto.initTextures = function initTextures() {
             if (onReady && existing.diff) onReady(existing);
             return existing;
         }
-        const entry = { id, diff: null, nor: null, arm: null, disp: null, _loaded: false, _promise: null };
+        const totalCount = kind === 'polyhaven' ? 4 : (prefix === 'T_WindowGradient' ? 1 : 3);
+        const entry = {
+            id, diff: null, nor: null, arm: null, disp: null,
+            _loaded: false, _promise: null,
+            _loadedCount: 0, _totalCount: totalCount, _progressListeners: []
+        };
         this.polyHavenSets.set(id, entry);
         this._pbrSetSpecs.set(id, { kind, id, prefix, repX, repY, callbacks: onReady ? [onReady] : [] });
         return entry;
@@ -2458,7 +2514,7 @@ function resolveContextualPbrIds(realm, depth, outdoors, branch = '', ryodBiome 
         else [wallPhId, floorPhId, ceilPhId, permPhId] = ['japanese_stone_wall', 'monastery_stone_floor', 'rock_boulder_cracked', 'japanese_stone_wall'];
     }
 
-    const tier1Set = new Set([wallPhId, floorPhId, permPhId, ceilPhId]);
+    const tier1Set = new Set([wallPhId, floorPhId, permPhId, ceilPhId, 'bark_willow_02']);
     if (!isOut) {
         tier1Set.add('marble_cliff_01');
         tier1Set.add('marble_cliff_02');
@@ -2503,8 +2559,9 @@ Dungeon3DProto.getContextualTextureSet = function getContextualTextureSet(theme,
         themeId: tid, hasShops: Boolean(outdoors || curDepth === 0 || this._levelHasShops), polyHavenSets: ph, currentBiomeId: (this.currentBiome && this.currentBiome.id) || ''
     });
     const { wallPhId, floorPhId, ceilPhId, permPhId } = resolved;
-    if (typeof this.ensurePbrSetReady === 'function') {
-        for (const id of resolved) this.ensurePbrSetReady(id);
+    if (!this._suppressMenuPbrLoads && typeof this.ensurePbrSetReady === 'function') {
+        const coreIds = [wallPhId, floorPhId, permPhId, ceilPhId].filter(Boolean);
+        for (const id of coreIds) this.ensurePbrSetReady(id);
     }
 
     const wSet = ph.get(wallPhId), fSet = ph.get(floorPhId), pSet = ph.get(permPhId), cSet = ph.get(ceilPhId);
@@ -2533,7 +2590,7 @@ Dungeon3DProto.getContextualTextureSet = function getContextualTextureSet(theme,
     const cacheKey = safeTheme.id || 'angband_town';
     let baseSet = this.contextualTextureCache.get(cacheKey);
     if (!baseSet) {
-        const texSz = 128;
+        const texSz = 256;
         const wallTex = procCreateContextualWallTexture(safeTheme, texSz), wallNormal = procCreateContextualWallNormal(safeTheme, texSz), wallRoughness = procCreateContextualWallRoughness(safeTheme, texSz);
         const floorTex = procCreateContextualFloorTexture(safeTheme, texSz), floorNormal = procCreateContextualFloorNormal(safeTheme, texSz), floorRoughness = procCreateContextualFloorRoughness(safeTheme, texSz);
         const permWallTex = procCreateContextualPermWallTexture(safeTheme, texSz), permWallNormal = procCreateContextualPermWallNormal(safeTheme, texSz);

@@ -73,9 +73,16 @@
   }
 
   function getOwnerToken(realm, saveName) {
-    const key = `${String(realm || 'angband').toLowerCase()}:${String(saveName || '').trim()}`;
+    const cleanName = String(saveName || '').trim();
+    const key = `${String(realm || 'angband').toLowerCase()}:${cleanName}`;
     const map = _readOwnerMap();
-    return map[key] || '';
+    if (map[key]) return map[key];
+    try {
+      if (cleanName && typeof localStorage !== 'undefined') {
+        return localStorage.getItem(`angband3d_owner_${cleanName}`) || '';
+      }
+    } catch (_) {}
+    return '';
   }
 
   function setOwnerToken(realm, saveName, token) {

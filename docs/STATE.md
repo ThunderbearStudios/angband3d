@@ -1,12 +1,12 @@
 # Execution State (Read First, Update Last)
 
 ## Active Task
-**WS93 — `v13.1.1` 2-Pane Adventurer's Codex, Novice Roguelike Primer, Corrected Controls & Live Search — COMPLETE (`main` @ `v13.1.1`)**
+**WS94 — `v13.1.2` 9-Realm Pre-Embark Character Review, Cold-Cache 2K PBR Buffer Gate & Mobile Main Menu Scroll — COMPLETE (`main` @ `v13.1.2`)**
 
-- **Checklist** (`v13.1.1`):
-  - [x] **2-Pane `1440px` Adventurer's Codex & Component Redesign**: Modularized guide engine into `server/public/js/adventurer-guide.js` (~660 LOC trimmed from `app.js`), upgraded `#guide-modal` to `focusgroup="tablist nomemory"` single-row tabs + `268px` 9-realm switcher rail + `hidden="until-found"` panels, resolved `.guide-card` collision, and verified `WEB-VISUAL-GATE-05` (`0px` overflow, `0` halation) across `1920x1080`, `1440x900`, `1366x768`, and `390x844`.
-  - [x] **Novice "What Is a Classic Roguelike?" Onboarding**: Tab 1 primer comparing classic roguelikes vs roguelites, 4 Pillars of Fun (`0`-Turn Look, Emergent Sim, YASD vs Checkpoints, `Alt+T` Dual-Reality CRT), 4-archetype Starter Picker, and clickable 1980–2026 History Lineage.
-  - [x] **Corrected `v13.1.1` 3D Controls & Live Cross-Guide Search**: Documented accurate arrow look/strafe/diagonal/pitch, opt-in `Alt+W` WASD, `Alt+T` CRT switch, and `Tab` Grimoire controls; added `#guide-global-search` and fixed `input.js` field focus guard (`closest('input, select, textarea')`).
+- **Checklist** (`v13.1.2`):
+  - [x] **9-Realm Pre-Embark Character Review & Clean Realm Switcher**: Paused Quick-Play / Random Hero on complete stats & equipment review sheets (`phase === 'setup'`, `isBirthReviewActive() === true`) across all 9 realms (`birth-review.js`, `app.js`, `input.js`, `cartridge-core.js`, `nethack-bridge.js`, `engine-worker.js`, `local_bridge.js`, `network.js`, `save-vault-client.js`, `server.js`) with Start `[Enter]`, Reroll `[R]`, clean Realm Switcher without orphan saves, Custom `[C]`, and Main Menu `[Esc]`.
+  - [x] **Cold-Cache 2K PBR Pre-Buffering, GPU Upload Gate & Native `<progress>`**: Added per-file texture load progress tracking, `<progress id="loading-native-progress">` status announcements, `_suppressMenuPbrLoads` title diorama gate, core >=1024px `tier1Tasks` + `renderer.initTexture(tex)` upload before dropping `#loading-overlay`, and removed inline `oncontextmenu` CSP warning.
+  - [x] **Mobile Main Menu Touch-Scroll Restoration**: Restored vertical touch-panning scroll in portrait (`390×844`) and landscape (`844×390`) (`hud-skin.css`) with flex scroll column (`align-items: safe center`), `overflow: visible`, and button wrapping.
 
 ## Completed Workstreams
 | WS | Scope | Status |
@@ -16,6 +16,7 @@
 | WS91 | `v13.0.0-v13.0.2` 9-Realm Parity, 3rd-Party Bestiary, Storefront Text & 2-Step Main Menu | `[x]` |
 | WS92 | `v13.1.0` Photogrammetry Veins, Rigged Bestiary Overhaul, Clean Floors & Broad Blades | `[x]` |
 | WS93 | `v13.1.1` 2-Pane Adventurer's Codex, Novice Roguelike Primer, Controls & Live Search | `[x]` |
+| WS94 | `v13.1.2` 9-Realm Pre-Embark Character Review, Cold-Cache 2K PBR Buffer Gate & Mobile Scroll | `[x]` |
 
 ## Mandatory Verification Gate
-1. `node tools/run_tests.js --tier fast` (`45/45`) 2. `node server/test/server_test.js` (`23/23`) 3. `python tools/smoke_test.py` (`11/11`) 4. `node tools/check_loc_budget.js && node tools/check_version_sync.js` (`v13.1.1`).
+1. `node tools/run_tests.js --tier fast` (`45/45`) 2. `node server/test/server_test.js` (`23/23`) 3. `python tools/smoke_test.py` (`11/11`) 4. `node tools/check_loc_budget.js && node tools/check_version_sync.js` (`v13.1.2`).

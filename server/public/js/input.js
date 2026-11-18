@@ -1556,8 +1556,13 @@ class InputController {
 
         if (!inPlay) {
             if (isReviewScreen) {
-                if (window.__app && window.__app.rerollHero) window.__app.rerollHero();
-                else this.network.sendKey('s');
+                if (isReviewActive && window.__app && typeof window.__app.returnToMainMenu === 'function') {
+                    window.__app.returnToMainMenu();
+                } else if (window.__app && window.__app.rerollHero) {
+                    window.__app.rerollHero();
+                } else {
+                    this.network.sendKey('s');
+                }
             } else {
                 this.network.sendKey('escape');
             }

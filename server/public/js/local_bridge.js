@@ -323,8 +323,9 @@ class LocalGameBridge {
         return LocalGameBridge.SUPPORTED_REALMS.has(String(realm || 'angband').toLowerCase());
     }
 
-    connect(charName = 'Adventurer', isNew = false, saveFile = null, realm = 'angband', customBirthOrOpts = false) {
-        const opts = (customBirthOrOpts && typeof customBirthOrOpts === 'object') ? customBirthOrOpts : { customBirth: Boolean(customBirthOrOpts) };
+    connect(charName = 'Adventurer', isNew = false, saveFile = null, realm = 'angband', customBirthOrOpts = false, extraOpts = null) {
+        const baseOpts = (customBirthOrOpts && typeof customBirthOrOpts === 'object') ? customBirthOrOpts : { customBirth: Boolean(customBirthOrOpts) };
+        const opts = (extraOpts && typeof extraOpts === 'object') ? { ...baseOpts, ...extraOpts } : baseOpts;
         this.currentChar = charName;
         this.currentIsNew = isNew;
         this.currentSave = saveFile;
@@ -495,6 +496,7 @@ class LocalGameBridge {
             saveFile: saveFile,
             customBirth: Boolean(opts && opts.customBirth),
             randomBirth: Boolean(opts && opts.randomBirth),
+            reviewBirth: Boolean(opts && opts.reviewBirth),
             seed: (opts && opts.seed) || (isNew && typeof window !== 'undefined' && window.__bootSeed ? window.__bootSeed : undefined),
             ryodBlueprint: effectiveRyod
         });
@@ -567,11 +569,16 @@ class LocalGameBridge {
 
     sendKey(spec) {
         if (!this.worker) return;
-        const cmd = `key ${spec}`;
+        const normalized = (typeof KeySpec !== 'undefined' && KeySpec && typeof KeySpec.normalize === 'function')
+            ? (KeySpec.normalize(spec) || spec)
+            : spec;
+        const cmd = `key ${normalized}`;
         if (!this._validateCommand(cmd)) {
             console.warn('[LocalBridge] Disallowed command blocked:', cmd);
             return;
         }
+        this.lastSentKey = normalized;
+        this.sentKeyCount = (this.sentKeyCount || 0) + 1;
         this.worker.postMessage({
             type: 'command',
             cmd: cmd

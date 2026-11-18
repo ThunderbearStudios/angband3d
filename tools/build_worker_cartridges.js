@@ -414,7 +414,8 @@ ${moduleEntries.join(',\n')}
             isNew: Boolean(opts.isNew),
             customBirth: Boolean(opts.customBirth),
             randomBirth: Boolean(opts.randomBirth),
-            args: opts.randomBirth ? ['-r'] : [],
+            reviewBirth: Boolean(opts.reviewBirth),
+            args: [...(opts.randomBirth ? ['-r'] : []), ...(opts.reviewBirth ? ['--review-birth'] : [])],
             seed: opts.seed !== undefined ? opts.seed : undefined,
             ryodBlueprint: opts.ryodBlueprint || null
         };
@@ -481,8 +482,10 @@ ${moduleEntries.join(',\n')}
                     return [engine.buildFrame()];
                 }
                 if (line === 'quit' || line === 'exit') {
-                    engine.saveGame();
-                    return [{ t: 'bye', detail: 'Game session saved and closed' }];
+                    if (engine.state && engine.state.phase !== 'setup') {
+                        engine.saveGame();
+                    }
+                    return [{ t: 'bye', detail: engine.state && engine.state.phase === 'setup' ? 'Setup session discarded' : 'Game session saved and closed' }];
                 }
                 if (line.startsWith('keys ')) {
                     const rawSeq = raw.replace(/^\\s*keys\\s+/, '').replace(/\\r?\\n$/, '');

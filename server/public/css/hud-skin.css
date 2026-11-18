@@ -3988,3 +3988,209 @@ body.hud-preset-immersive #hud-footer #footer-exp {
     width: 100%;
   }
 }
+
+/* ============================================================================
+   v13.1.2: Pre-Embark Character Review Banner, Native <progress>, & Mobile Menu Scroll
+   ============================================================================ */
+.yasd-progress-bar {
+  appearance: none;
+  -webkit-appearance: none;
+  width: min(300px, 76vw);
+  height: 8px;
+  border-radius: 999px;
+  background: #0f1016;
+  border: 1px solid rgba(212, 175, 55, 0.42);
+  overflow: hidden;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.85);
+}
+.yasd-progress-bar::-webkit-progress-bar {
+  background: #0f1016;
+  border-radius: 999px;
+}
+.yasd-progress-bar::-webkit-progress-value {
+  background: linear-gradient(90deg, #b45309 0%, #eab308 55%, #fef08a 100%);
+  border-radius: 999px;
+  box-shadow: 0 0 10px rgba(234, 179, 8, 0.65);
+  transition: width 0.14s ease-out;
+}
+.yasd-progress-bar::-moz-progress-bar {
+  background: linear-gradient(90deg, #b45309 0%, #eab308 55%, #fef08a 100%);
+  border-radius: 999px;
+}
+.yasd-progress-bar.yasd-progress-compact {
+  width: 112px;
+  height: 6px;
+}
+#loading-native-progress + .loading-progress-track {
+  display: none;
+}
+
+.birth-review-banner {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 14px;
+  background: linear-gradient(180deg, rgba(24, 30, 42, 0.96) 0%, rgba(13, 17, 24, 0.98) 100%);
+  border-bottom: 1px solid rgba(212, 175, 55, 0.42);
+  color: #e2e8f0;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+}
+.birth-review-banner.hidden {
+  display: none !important;
+}
+.birth-review-info {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+}
+.birth-review-summary {
+  font-family: var(--font-title, 'Cinzel', Georgia, serif);
+  font-size: 0.84rem;
+  font-weight: 700;
+  color: #f5d77f;
+  line-height: 1.35;
+}
+.birth-review-tex-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.birth-review-tex-status {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #bae6fd;
+}
+.birth-review-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.birth-review-btn {
+  min-height: 36px;
+  padding: 6px 12px;
+  border-radius: 7px;
+  background: #1b2333;
+  border: 1px solid rgba(212, 175, 55, 0.48);
+  color: #f8fafc;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color 0.14s ease, background 0.14s ease, transform 0.12s ease;
+}
+.birth-review-btn:hover {
+  border-color: #fde68a;
+  background: #273248;
+  transform: translateY(-1px);
+}
+.birth-review-btn-primary {
+  background: linear-gradient(135deg, #4b3311 0%, #2b1d08 100%);
+  border-color: #f5d77f;
+  color: #fef08a;
+}
+.birth-review-btn-primary:hover {
+  background: linear-gradient(135deg, #624317 0%, #38260c 100%);
+  color: #ffffff;
+}
+.birth-review-btn-muted {
+  background: #161b24;
+  border-color: rgba(148, 163, 184, 0.45);
+  color: #cbd5e1;
+}
+.birth-review-realm-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.birth-review-realm-label {
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: #cbd5e1;
+}
+.birth-review-realm-select {
+  min-height: 36px;
+  padding: 5px 10px;
+  border-radius: 7px;
+  background: #0f141e;
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  color: #f8fafc;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  max-width: 100%;
+}
+
+@media (max-width: 768px), (pointer: coarse) {
+  .birth-review-banner {
+    padding: 8px 10px;
+  }
+  .birth-review-btn,
+  .birth-review-realm-select {
+    min-height: 44px;
+    font-size: 0.82rem;
+  }
+  .birth-review-actions {
+    gap: 6px;
+  }
+}
+
+/* Desktop center-alignment with safe overflow prevention */
+#main-menu-overlay {
+  align-items: safe center;
+}
+
+/* Mobile & Landscape Main Menu Touch-Scroll Restoration */
+@media (max-width: 960px), (pointer: coarse), (max-height: 560px) and (orientation: landscape) {
+  #main-menu-overlay:not(.hidden) {
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: flex-start !important;
+    align-items: center !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    -webkit-overflow-scrolling: touch !important;
+    overscroll-behavior-y: contain !important;
+    touch-action: manipulation !important;
+    padding: max(10px, var(--safe-top, 0px)) max(8px, var(--safe-right, 0px)) max(28px, calc(16px + var(--safe-bottom, 0px))) max(8px, var(--safe-left, 0px)) !important;
+  }
+  #main-menu-overlay .main-menu-card {
+    flex: 0 0 auto !important;
+    width: min(96dvw, 920px) !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
+    overscroll-behavior: auto !important;
+    margin: 0 auto !important;
+    touch-action: manipulation !important;
+  }
+  #main-menu-overlay .main-menu-grid {
+    flex: 0 0 auto !important;
+    height: auto !important;
+    min-block-size: auto !important;
+  }
+  #main-menu-overlay .main-menu-realm-atlas,
+  #main-menu-overlay .main-menu-launch-deck {
+    height: auto !important;
+    flex: 0 0 auto !important;
+  }
+  #main-menu-overlay *,
+  #splash-overlay:not(.hidden),
+  #splash-overlay:not(.hidden) * {
+    touch-action: manipulation !important;
+  }
+  .menu-realm-badge-btn,
+  .menu-daily-wide-btn {
+    white-space: normal !important;
+    line-height: 1.25 !important;
+    min-block-size: 44px !important;
+    height: auto !important;
+  }
+}

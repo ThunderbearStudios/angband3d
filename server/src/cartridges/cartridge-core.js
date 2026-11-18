@@ -51,12 +51,13 @@ const FEAT = Object.freeze({
 });
 
 function parseCliArgs(argv, defaultSaveDir) {
-    let user = 'Adventurer', saveDir = defaultSaveDir, isNew = false, customBirth = false, randomBirth = false, seed;
+    let user = 'Adventurer', saveDir = defaultSaveDir, isNew = false, customBirth = false, randomBirth = false, reviewBirth = false, seed;
     for (let i = 2; i < argv.length; i++) {
         const arg = String(argv[i] || '');
         if (arg === '-n') isNew = true;
         else if (arg === '-c' || arg === '--custom') customBirth = true;
         else if (arg === '-r' || arg === '--random') randomBirth = true;
+        else if (arg === '--review-birth') reviewBirth = true;
         else if (arg.startsWith('--seed=')) seed = arg.slice(7) || undefined;
         else if ((arg === '-s' || arg === '--seed') && argv[i + 1]) seed = String(argv[++i]) || undefined;
         else if (arg.startsWith('-u')) user = arg.slice(2) || (argv[i + 1] ? String(argv[++i]) : user);
@@ -66,7 +67,7 @@ function parseCliArgs(argv, defaultSaveDir) {
         else if (arg.startsWith('-d') && arg.length > 2) saveDir = arg.slice(2) || saveDir;
     }
     const cleanUser = user.replace(/[^a-zA-Z0-9_.-]/g, '_') || 'Adventurer';
-    return { user: cleanUser, saveDir, isNew, customBirth, randomBirth, seed };
+    return { user: cleanUser, saveDir, isNew, customBirth, randomBirth, reviewBirth, seed };
 }
 
 function isWalkableFeat(feat) {
@@ -159,7 +160,11 @@ class UniversalCartridgeEngine {
         } else {
             const startRoleIdx = cliOpts.randomBirth ? this.rand(spec.roles.length) : 0;
             this.initNewState(startRoleIdx);
-            if (cliOpts.isNew && !cliOpts.customBirth && (this.realm !== 'dcss' || cliOpts.randomBirth)) {
+            if (cliOpts.reviewBirth && cliOpts.isNew && !cliOpts.customBirth) {
+                this.applyStartingOptimization(this.state.statFocus || 'optimal', this.state.kitBoon || 'signature');
+                this.state.phase = 'setup';
+                this.state.setupStage = 'review';
+            } else if (cliOpts.isNew && !cliOpts.customBirth && (this.realm !== 'dcss' || cliOpts.randomBirth)) {
                 this.state.phase = 'play';
                 this.saveGame();
             }
@@ -1578,12 +1583,32 @@ class UniversalCartridgeEngine {
         const p = this.state.player;
 
         if (this.state.phase === 'setup') {
+            const inReview = this.state.setupStage === 'review';
             if (lower === '*') {
                 const randIdx = this.rand(this.spec.roles.length);
                 this.initNewState(randIdx);
                 this.applyStartingOptimization('optimal', 'signature');
+                this.state.setupStage = null;
                 this.state.phase = 'play';
                 this.saveGame();
+                return;
+            }
+            if (inReview && lower === 'r') {
+                const curIdx = this.state.selectedRoleIdx || 0;
+                let randIdx = this.rand(this.spec.roles.length);
+                if (this.spec.roles.length > 1 && randIdx === curIdx) {
+                    randIdx = (curIdx + 1 + this.rand(this.spec.roles.length - 1)) % this.spec.roles.length;
+                }
+                const sf = this.state.statFocus || 'optimal';
+                const kb = this.state.kitBoon || 'signature';
+                this.initNewState(randIdx);
+                this.applyStartingOptimization(sf, kb);
+                this.state.phase = 'setup';
+                this.state.setupStage = 'review';
+                return;
+            }
+            if (inReview && lower === 'c') {
+                this.state.setupStage = 'custom';
                 return;
             }
             // # ROOT-CAUSE: Read current statFocus & kitBoon before initNewState resets state
@@ -1594,6 +1619,7 @@ class UniversalCartridgeEngine {
                 const nextFocus = focuses[(focuses.indexOf(cur) + 1) % focuses.length];
                 this.initNewState(this.state.selectedRoleIdx || 0);
                 this.applyStartingOptimization(nextFocus, kb);
+                if (inReview) this.state.setupStage = 'review';
                 return;
             }
             if (lower === '2' || lower === 'b') {
@@ -1603,10 +1629,12 @@ class UniversalCartridgeEngine {
                 const nextBoon = boons[(boons.indexOf(cur) + 1) % boons.length];
                 this.initNewState(this.state.selectedRoleIdx || 0);
                 this.applyStartingOptimization(sf, nextBoon);
+                if (inReview) this.state.setupStage = 'review';
                 return;
             }
             if (lower === 'enter' || lower === 'return' || lower === 'space' || lower === 'y') {
                 this.applyStartingOptimization(this.state.statFocus || 'optimal', this.state.kitBoon || 'signature');
+                this.state.setupStage = null;
                 this.state.phase = 'play';
                 this.saveGame();
                 return;
@@ -1617,6 +1645,7 @@ class UniversalCartridgeEngine {
                 const kb = this.state.kitBoon || 'signature';
                 this.initNewState(next);
                 this.applyStartingOptimization(sf, kb);
+                if (inReview) this.state.setupStage = 'review';
                 return;
             }
             if (lower === 'up' || lower === 'arrowup' || lower === 'k') {
@@ -1625,16 +1654,20 @@ class UniversalCartridgeEngine {
                 const kb = this.state.kitBoon || 'signature';
                 this.initNewState(prev);
                 this.applyStartingOptimization(sf, kb);
+                if (inReview) this.state.setupStage = 'review';
                 return;
             }
-            const idx = this.spec.roles.findIndex(r => r.key === lower);
-            if (idx >= 0) {
-                const sf = this.state.statFocus || 'optimal';
-                const kb = this.state.kitBoon || 'signature';
-                this.initNewState(idx);
-                this.applyStartingOptimization(sf, kb);
-                this.state.phase = 'play';
-                this.saveGame();
+            if (!inReview) {
+                const idx = this.spec.roles.findIndex(r => r.key === lower);
+                if (idx >= 0) {
+                    const sf = this.state.statFocus || 'optimal';
+                    const kb = this.state.kitBoon || 'signature';
+                    this.initNewState(idx);
+                    this.applyStartingOptimization(sf, kb);
+                    this.state.setupStage = null;
+                    this.state.phase = 'play';
+                    this.saveGame();
+                }
             }
             return;
         }
@@ -4236,6 +4269,37 @@ class UniversalCartridgeEngine {
 
         if (this.state.phase === 'setup') {
             const rows = [];
+            if (this.state.setupStage === 'review') {
+                const role = this.spec.roles[this.state.selectedRoleIdx || 0] || this.spec.roles[0] || {};
+                const ringCount = p.inventory.filter(it => isRingSlot(it.equipped)).length;
+                rows.push({ g: pad80(`${this.spec.title} — Pre-Embark Character Review`), a: attr80('0e') });
+                rows.push({ g: pad80('=============================================================================='), a: attr80('02') });
+                rows.push({ g: pad80(`  Name: ${String(p.name || this.user).padEnd(20, ' ')} Race: ${String(p.race || role.race || 'Human').padEnd(16, ' ')} Class: ${String(p.class || role.id || 'Adventurer')}`), a: attr80('01') });
+                const vitLine = this.realm === 'dcss'
+                    ? `  HP: ${p.hp}/${p.hpMax}   MP: ${p.pw}/${p.pwMax}   AC: ${p.ac}   EV: ${p.ev || 0}   SH: ${p.sh || 0}   Gold: ${p.gold || 0}`
+                    : `  HP: ${p.hp}/${p.hpMax}   MP/PW: ${p.pw}/${p.pwMax}   AC: ${p.ac}   Gold: ${p.gold || 0}   Rings: ${ringCount}/${this.getRingCapacity()}`;
+                rows.push({ g: pad80(vitLine), a: attr80('0a') });
+                rows.push({ g: pad80(`  STR: ${p.str}   DEX: ${p.dex}   INT: ${p.int}   WIS: ${p.wis}   CON: ${p.con}   Depth: ${this.state.depth || 0}`), a: attr80('0b') });
+                if (this.realm === 'dcss') {
+                    rows.push({ g: pad80(`  Deity: ${p.god || p.deity || 'No God'}   Branch Target: ${this.state.branchName || 'Dungeon'}`), a: attr80('0e') });
+                } else if (this.realm === 'ryod') {
+                    rows.push({ g: pad80(`  World: ${this.spec.ryodHash || 'RYOD'}  Mutator: ${this.spec.mutatorId || 'balanced'}  Goal: ${this.spec.goalItemName || 'Relic'} (D:${this.spec.goalDepth || 15})`), a: attr80('0e') });
+                } else {
+                    rows.push({ g: pad80(`  Origin: ${role.id || p.class}   Start Location: ${this.state.branchName || (this.spec.hasTown ? 'Town' : 'Dungeon Level 1')}`), a: attr80('0e') });
+                }
+                rows.push({ g: pad80(`  [1/f] Stat Focus: ${(this.state.statFocus || 'optimal').toUpperCase().padEnd(10, ' ')} [2/b] Kit Boon: ${(this.state.kitBoon || 'signature').toUpperCase()}`), a: attr80('0a') });
+                rows.push({ g: pad80('  Starting Equipment & Inventory:'), a: attr80('0e') });
+                const maxItems = Math.min(p.inventory.length, Math.max(0, TERM_H - rows.length - 3));
+                for (let i = 0; i < maxItems; i++) {
+                    const it = p.inventory[i];
+                    const eqTag = it.equipped ? `[${String(it.equipped).toUpperCase()}] ` : '';
+                    rows.push({ g: pad80(`   ${it.letter || String.fromCharCode(97 + i)}) ${eqTag}${formatItemDesc(it)}`), a: attr80('01') });
+                }
+                while (rows.length < TERM_H - 2) rows.push({ g: pad80(''), a: attr80('01') });
+                rows.push({ g: pad80('------------------------------------------------------------------------------'), a: attr80('02') });
+                rows.push({ g: pad80("  Press [Enter] to Embark, r to reroll, [c] Customize Role, or Enter to accept"), a: attr80('0b') });
+                return rows;
+            }
             rows.push({ g: pad80(`${this.spec.title} — Choose Your Adventurer (Enter/* = Quick Start)`), a: attr80('0e') });
             rows.push({ g: pad80('=============================================================================='), a: attr80('02') });
             this.spec.roles.forEach((r, idx) => {

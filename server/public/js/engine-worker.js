@@ -77,6 +77,7 @@ async function startCartridgeEngine(realm, data) {
         saveFile: data.saveFile || null,
         customBirth: !!data.customBirth,
         randomBirth: !!data.randomBirth,
+        reviewBirth: !!data.reviewBirth,
         seed: data.seed !== undefined ? data.seed : undefined,
         ryodBlueprint: data.ryodBlueprint || null
     });

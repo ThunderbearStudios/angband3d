@@ -427,6 +427,7 @@ window.addEventListener('DOMContentLoaded', () => {
     };
 
     let birthReviewActive = false;
+    let wantBirthReview = false;
 
     const toggleTerminalView = () => {
         forceTerminal = !forceTerminal;
@@ -472,17 +473,26 @@ window.addEventListener('DOMContentLoaded', () => {
 
     const confirmHeroBirth = () => {
         cancelQuickBirth();
+        wantBirthReview = false;
         birthReviewActive = false;
+        if (window.BirthReview && typeof window.BirthReview.resetBanner === 'function') {
+            window.BirthReview.resetBanner();
+        }
         birthConfirming = true;
         lastBirthConfirmSig = (lastFrame && lastFrame.term && lastFrame.term.rows)
             ? lastFrame.term.rows.map(r => r.g || '').join('\n').trim()
             : '';
+        setLoadingCurtain(true, 'Loading High-Res Stone & Dungeon Textures...', 34);
         network.sendKey('enter');
     };
 
     const finalizeHeroBirth = () => {
         cancelQuickBirth();
+        wantBirthReview = false;
         birthReviewActive = false;
+        if (window.BirthReview && typeof window.BirthReview.resetBanner === 'function') {
+            window.BirthReview.resetBanner();
+        }
         birthConfirming = false;
         lastBirthConfirmSig = '';
         forceTerminal = false;
@@ -541,6 +551,32 @@ window.addEventListener('DOMContentLoaded', () => {
         return res;
     }
 
+    const enterBirthReview = (frame) => {
+        cancelQuickBirth();
+        birthConfirming = false;
+        birthReviewActive = true;
+        wantBirthReview = true;
+        forceTerminal = true;
+        setLoadingCurtain(false);
+        updateViewMode(frame);
+        if (frame && frame.term && terminal && typeof terminal.render === 'function') {
+            terminal.render(frame.term);
+        }
+        if (typeof updateTerminalToolbar === 'function') {
+            updateTerminalToolbar(frame);
+        }
+        if (window.BirthReview && typeof window.BirthReview.syncBanner === 'function') {
+            window.BirthReview.syncBanner(true, frame, activeRealm, {
+                onEmbark: confirmHeroBirth,
+                onReroll: rerollHero,
+                onCustom: startCustomHeroCreation,
+                onMainMenu: returnToMainMenu,
+                onSwitchRealm: switchRealmAndReroll
+            });
+            window.BirthReview.startReviewTexturePrewarm(activeRealm, dungeon);
+        }
+    };
+
     function stepQuickBirth(frame) {
         if (!quickBirthActive || !frame) return;
         const rawText = (frame.term && frame.term.rows ? frame.term.rows.map(r => r.g || '').join('\n') : '');
@@ -560,6 +596,24 @@ window.addEventListener('DOMContentLoaded', () => {
             quickBirthIgnoreUntilSeq = 0;
             quickBirthIgnoreExpiresAt = 0;
         }
+        const isSilqReviewFrame = activeRealm === 'silq' && (screenText.includes('accept character') || (silqNameSent && screenText.includes('step back')));
+        const isFinalEmbarkFrame = screenText.includes('pre-embark character review')
+            || screenText.includes('start over, or enter to continue')
+            || screenText.includes("['q'uit, 's'tart over, or enter to continue]")
+            || screenText.includes('ゲーム開始')
+            || screenText.includes('冒険に出ますか')
+            || isSilqReviewFrame
+            || (activeRealm !== 'hengband'
+                && !screenText.includes('choose ')
+                && !screenText.includes('allocate points')
+                && !screenText.includes('set minimum stats')
+                && !screenText.includes('previous roll')
+                && !screenText.includes("hit 'r' to reroll")
+                && (screenText.includes('accept character') || screenText.includes('or enter to accept') || screenText.includes("['r'eroll") || screenText.includes("'r' to reroll")));
+        if (wantBirthReview && isFinalEmbarkFrame) {
+            enterBirthReview(frame);
+            return;
+        }
         if (++quickBirthStep > 120) {
             quickBirthActive = false;
             lastQuickBirthSig = '';
@@ -570,7 +624,7 @@ window.addEventListener('DOMContentLoaded', () => {
             console.warn('[QuickStart] Exceeded maximum auto-birth steps; switching to interactive terminal.');
             return;
         }
-        const birthSig = `${frame.phase || ''}:${(frame.term && frame.term.cursor) ? `${frame.term.cursor.x},${frame.term.cursor.y}` : ''}:${rawText.slice(0, 600)}`;
+        const birthSig = `${frame.phase || ''}:${(frame.term && frame.term.cursor) ? `${frame.term.cursor.x},${frame.term.cursor.y}` : ''}:${rawText.slice(0, 600)}|${rawText.slice(-320)}`;
         if (birthSig === lastQuickBirthSig) {
             quickBirthStallCount++;
         } else {
@@ -598,6 +652,10 @@ window.addEventListener('DOMContentLoaded', () => {
             const ptsLeft = ptsMatch ? parseInt(ptsMatch[1], 10) : 0;
             if (ptsLeft < 0) {
                 network.sendKey('r');
+                return;
+            }
+            if (wantBirthReview) {
+                enterBirthReview(frame);
                 return;
             }
             network.sendKey('enter');
@@ -709,7 +767,7 @@ window.addEventListener('DOMContentLoaded', () => {
             network.sendKey('enter');
             if (typeof frame.seq === 'number') {
                 quickBirthIgnoreUntilSeq = frame.seq + pKeys.length + 1;
-                quickBirthIgnoreExpiresAt = Date.now() + 900;
+                quickBirthIgnoreExpiresAt = Date.now() + Math.max(3500, (pKeys.length + 1) * 350);
             }
             return;
         }
@@ -725,7 +783,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 skillKeys.forEach(k => network.sendKey(k));
                 if (typeof frame.seq === 'number' && skillKeys.length > 1) {
                     quickBirthIgnoreUntilSeq = frame.seq + skillKeys.length;
-                    quickBirthIgnoreExpiresAt = Date.now() + 1400;
+                    quickBirthIgnoreExpiresAt = Date.now() + Math.max(4500, skillKeys.length * 350);
                 }
             } else if (expLeft < 0) {
                 network.sendKey('r');
@@ -748,7 +806,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 seq.forEach(k => network.sendKey(k));
                 if (typeof frame.seq === 'number' && sentCount > 1) {
                     quickBirthIgnoreUntilSeq = frame.seq + sentCount;
-                    quickBirthIgnoreExpiresAt = Date.now() + 900;
+                    quickBirthIgnoreExpiresAt = Date.now() + Math.max(4500, sentCount * 350);
                 }
             } else if (ptsLeft < 0) {
                 network.sendKey('r');
@@ -766,8 +824,16 @@ window.addEventListener('DOMContentLoaded', () => {
         if (screenText.includes('enter accept name') || screenText.includes('accept name') || screenText.includes('tab random name')) {
             if (!silqNameSent) {
                 silqNameSent = true;
+                if (typeof frame.seq === 'number') {
+                    quickBirthIgnoreUntilSeq = frame.seq + 1;
+                    quickBirthIgnoreExpiresAt = Date.now() + 2500;
+                }
                 network.sendKey('tab');
                 return;
+            }
+            if (typeof frame.seq === 'number') {
+                quickBirthIgnoreUntilSeq = frame.seq + 1;
+                quickBirthIgnoreExpiresAt = Date.now() + 2500;
             }
             network.sendKey('enter');
             return;
@@ -785,8 +851,17 @@ window.addEventListener('DOMContentLoaded', () => {
         }
         if (screenText.includes("start over, or enter to continue") || screenText.includes("['q'uit, 's'tart over, or enter to continue]") ||
             screenText.includes('ゲーム開始') || screenText.includes('冒険に出ますか') ||
-            (screenText.includes('step back') && screenText.includes('continue'))) {
+            (screenText.includes('step back') && screenText.includes('continue')) ||
+            (activeRealm === 'silq' && silqNameSent && screenText.includes('step back'))) {
+            if (wantBirthReview) {
+                enterBirthReview(frame);
+                return;
+            }
             network.sendKey('enter');
+            return;
+        }
+        if (wantBirthReview && (screenText.includes("'r' to reroll") || screenText.includes('or enter to accept') || screenText.includes("['r'eroll") || screenText.includes('accept character'))) {
+            enterBirthReview(frame);
             return;
         }
         // 12. More prompts or splash screens (EN + JP)
@@ -811,20 +886,39 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 
     const rerollHero = () => {
+        const curSeq = (lastFrame && typeof lastFrame.seq === 'number') ? lastFrame.seq : 0;
         cancelQuickBirth();
+        wantBirthReview = true;
         birthReviewActive = false;
         forceTerminal = true;
         if (audio && typeof audio.playMenuNav === 'function') audio.playMenuNav();
         const currentRealm = (typeof getActiveRealm === 'function') ? getActiveRealm() : activeRealm;
-        if (currentRealm === 'silq') {
-            network.sendKey('r');
-        } else if (currentRealm === 'frogcomposband') {
-            network.sendKey('escape');
-        } else if (currentRealm === 'hengband') {
+        const isCartridge = currentRealm === 'nethack' || currentRealm === 'dcss' || currentRealm === 'brogue' || currentRealm === 'rogue' || currentRealm === 'ryod';
+        if (currentRealm === 'silq' || currentRealm === 'frogcomposband' || currentRealm === 'hengband') {
+            if (window.BirthReview && typeof window.BirthReview.resetBanner === 'function') {
+                window.BirthReview.resetBanner();
+            }
+            try {
+                if (network && typeof network.leaveSession === 'function') network.leaveSession({ discard: true });
+                else if (network && typeof network.disconnect === 'function') network.disconnect();
+            } catch (_) {}
+            hasEnteredPlay = false;
+            currentPhase = 'setup';
+            appState = 'mainMenu';
+            lastFrame = null;
+            window.__lastFrame = null;
+            startNewRandomHero();
+            return;
+        }
+        if (isCartridge) {
+            quickBirthIgnoreUntilSeq = curSeq + 1;
+            quickBirthIgnoreExpiresAt = Date.now() + 600;
             network.sendKey('r');
         } else {
             // Vanilla Angband
             const rawText = (lastFrame && lastFrame.term && lastFrame.term.rows ? lastFrame.term.rows.map(r => r.g || '').join('\n') : '').toLowerCase();
+            quickBirthIgnoreUntilSeq = curSeq + 1;
+            quickBirthIgnoreExpiresAt = Date.now() + 600;
             if (rawText.includes("'r' to reroll") || rawText.includes("['r'eroll") || rawText.includes("r to reroll")) {
                 network.sendKey('r');
             } else if (rawText.includes('use as is') || rawText.includes("'y': use")) {
@@ -852,11 +946,18 @@ window.addEventListener('DOMContentLoaded', () => {
 
     const startCustomHeroCreation = () => {
         cancelQuickBirth();
+        wantBirthReview = false;
         birthReviewActive = false;
+        if (window.BirthReview && typeof window.BirthReview.resetBanner === 'function') {
+            window.BirthReview.resetBanner();
+        }
         forceTerminal = true;
         if (audio && typeof audio.playMenuNav === 'function') audio.playMenuNav();
         const currentRealm = (typeof getActiveRealm === 'function') ? getActiveRealm() : activeRealm;
-        if (currentRealm === 'silq' || currentRealm === 'frogcomposband') {
+        const isCartridge = currentRealm === 'nethack' || currentRealm === 'dcss' || currentRealm === 'brogue' || currentRealm === 'rogue' || currentRealm === 'ryod';
+        if (isCartridge) {
+            network.sendKey('c');
+        } else if (currentRealm === 'silq' || currentRealm === 'frogcomposband') {
             network.sendKey('escape');
         } else if (currentRealm === 'hengband') {
             network.sendKey('S');
@@ -865,6 +966,57 @@ window.addEventListener('DOMContentLoaded', () => {
         }
         quickBirthActive = false;
         quickBirthStep = 0;
+    };
+
+    const switchRealmAndReroll = (targetRealm) => {
+        const cleanRealm = String(targetRealm || '').toLowerCase();
+        if (!REALM_DATA[cleanRealm]) return;
+        if (hasEnteredPlay && appState === 'game') {
+            const current = REALM_DATA[activeRealm] || REALM_DATA.angband;
+            showRealmToast(`Active Realm: ${current.name} • Return to Main Menu before switching realms.`);
+            return;
+        }
+        if (cleanRealm === activeRealm) {
+            rerollHero();
+            return;
+        }
+        cancelQuickBirth();
+        wantBirthReview = true;
+        birthReviewActive = false;
+        if (window.BirthReview && typeof window.BirthReview.resetBanner === 'function') {
+            window.BirthReview.resetBanner();
+        }
+        try {
+            if (network && typeof network.leaveSession === 'function') {
+                network.leaveSession({ discard: true });
+            } else if (network && typeof network.disconnect === 'function') {
+                network.disconnect();
+            }
+        } catch (_) {}
+        if (dungeon && typeof dungeon.resetSessionState === 'function') dungeon.resetSessionState();
+        if (hud && typeof hud.resetMessages === 'function') hud.resetMessages();
+        lastFrame = null;
+        window.__lastFrame = null;
+        if (window.__app) window.__app.lastFrame = null;
+        hasEnteredPlay = false;
+        currentPhase = 'setup';
+        appState = 'mainMenu';
+        if (cleanRealm !== 'ryod') {
+            window.__activeRyodBlueprint = null;
+        }
+        selectRealm(cleanRealm, false);
+        if (cleanRealm === 'ryod') {
+            const heroName = generateHeroName('ryod');
+            startGame({
+                realm: 'ryod',
+                charName: heroName,
+                saveFile: heroName,
+                isNew: true,
+                autoBirth: true
+            });
+            return;
+        }
+        startNewRandomHero();
     };
 
     // Terminal Toolbar action buttons
@@ -972,7 +1124,9 @@ window.addEventListener('DOMContentLoaded', () => {
                 return;
             }
             if (!inPlay) {
-                if (isReviewScreen) {
+                if (birthReviewActive) {
+                    returnToMainMenu();
+                } else if (isReviewScreen) {
                     network.sendKey('s');
                 } else {
                     // Send Escape to step back one question in character birth wizard
@@ -1700,6 +1854,7 @@ window.addEventListener('DOMContentLoaded', () => {
         rerollHero,
         startCustomHeroCreation,
         startNewRandomHero,
+        switchRealmAndReroll,
         returnToMainMenu: () => returnToMainMenu(),
         reloadLastSave: () => reloadLastSave(),
         get inPlay() { return currentPhase === 'play'; },
@@ -1724,6 +1879,8 @@ window.addEventListener('DOMContentLoaded', () => {
                 try {
                     if (network && typeof network.saveAndDisconnect === 'function' && currentPhase === 'play') {
                         await network.saveAndDisconnect();
+                    } else if (network && typeof network.leaveSession === 'function') {
+                        network.leaveSession({ discard: true });
                     } else if (network && typeof network.disconnect === 'function') {
                         network.disconnect();
                     }
@@ -2069,6 +2226,18 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 
     function scheduleLocalPrewarm() {
+        if (window.Dungeon3D && typeof window.Dungeon3D.prefetchRealmTextureHttp === 'function') {
+            const warmTex = () => {
+                if (appState === 'mainMenu' || appState === 'splash') {
+                    window.Dungeon3D.prefetchRealmTextureHttp(activeRealm);
+                }
+            };
+            if (typeof requestIdleCallback === 'function') {
+                requestIdleCallback(warmTex, { timeout: 2000 });
+            } else {
+                setTimeout(warmTex, 700);
+            }
+        }
         if (window.LocalGameBridge && typeof window.LocalGameBridge.prewarm === 'function') {
             const runWarm = () => {
                 if (appState === 'mainMenu' || appState === 'splash') {
@@ -2969,11 +3138,16 @@ window.addEventListener('DOMContentLoaded', () => {
                 ? loadedSaves.map(s => String(s.filename || s.characterName || '').toLowerCase())
                 : []
         );
-        // Sil-Q enforces a 12-byte C buffer (<= 11 chars) for -u save slot names
+        // Sil-Q truncates op_ptr->base_name / savefile names to 8 chars in C; keep -u slot names <= 8 chars so save & .owner.json match 1:1
         if (r === 'silq') {
-            const primarySilq = `SLQ_${base.slice(0, 3)}${hhmm}`;
+            const pfx = base.slice(0, 2);
+            const primarySilq = `SLQ_${pfx}${hhmm.slice(2)}`;
             if (!existingSet.has(primarySilq.toLowerCase())) return primarySilq;
-            return `SLQ_${base.slice(0, 3)}${pad2(now.getMinutes())}${pad2(now.getSeconds())}`;
+            for (let attempt = 0; attempt < 25; attempt++) {
+                const cand = `SLQ_${pfx}${String(Math.floor(10 + Math.random() * 90))}`;
+                if (!existingSet.has(cand.toLowerCase())) return cand;
+            }
+            return `SLQ_${pfx}${pad2(now.getSeconds())}`;
         }
         const primaryCandidate = `${base.slice(0, 9)}_${tag}_${mmdd}_${hhmm}`;
         if (!existingSet.has(primaryCandidate.toLowerCase())) {
@@ -3165,6 +3339,7 @@ window.addEventListener('DOMContentLoaded', () => {
         // # ROOT-CAUSE: Animate SVG rune rings via stroke-dashoffset and comet orb via exact (cx, cy) trig coordinates on r=92 so all rings stay 100% concentric around (110, 110) regardless of CSS transform-origin rules.
         const clamped = Math.max(4, Math.min(100, pct));
         const fillEl = document.getElementById('loading-progress-fill');
+        const nativeProg = document.getElementById('loading-native-progress');
         const arcEl = document.getElementById('loading-wheel-arc');
         const cometEl = document.getElementById('loading-wheel-comet');
         const pctEl = document.getElementById('loading-wheel-pct');
@@ -3173,6 +3348,7 @@ window.addEventListener('DOMContentLoaded', () => {
         const circumference = 578.05; // 2 * Math.PI * 92
         const rad = (clamped / 100) * Math.PI * 2;
         if (fillEl) fillEl.style.width = `${Math.round(clamped)}%`;
+        if (nativeProg) nativeProg.value = Math.round(clamped);
         if (arcEl) arcEl.setAttribute('stroke-dashoffset', (circumference * (1 - clamped / 100)).toFixed(2));
         if (cometEl) {
             cometEl.setAttribute('cx', (110 + 92 * Math.sin(rad)).toFixed(2));
@@ -3296,6 +3472,11 @@ window.addEventListener('DOMContentLoaded', () => {
             window.__localBootFallbackTimer = null;
         }
         cancelQuickBirth();
+        wantBirthReview = Boolean(options && options.isNew && options.autoBirth && !options.skipReview);
+        birthReviewActive = false;
+        if (window.BirthReview && typeof window.BirthReview.resetBanner === 'function') {
+            window.BirthReview.resetBanner();
+        }
         quickBirthActive = !!options.autoBirth;
         quickBirthStep = 0;
         forceTerminal = false;
@@ -3326,6 +3507,11 @@ window.addEventListener('DOMContentLoaded', () => {
             }
         }
         const manualBirthFlag = Boolean(options.isNew && !options.autoBirth);
+        const connectBirthOpts = {
+            customBirth: manualBirthFlag,
+            randomBirth: Boolean(options.isNew && options.autoBirth),
+            reviewBirth: Boolean(wantBirthReview)
+        };
         // 3.5s Automatic Cloud Fallback if browser WASM/Worker fails to boot cleanly
         if (engineMode === 'local' && !offlineNow && !isApk && window.GameNetwork) {
             window.__localBootFallbackTimer = setTimeout(() => {
@@ -3334,7 +3520,7 @@ window.addEventListener('DOMContentLoaded', () => {
                     console.warn(`[Angband3D] Local engine boot exceeded 3.5s for "${chosenRealm}"; falling back to Cloud engine.`);
                     setLoadingCurtain(true, 'Switching to Cloud Realm Fallback...', 22);
                     setEngineMode('cloud', false);
-                    network.connect(options.charName || 'Adventurer', !!options.isNew, options.saveFile || null, chosenRealm, manualBirthFlag);
+                    network.connect(options.charName || 'Adventurer', !!options.isNew, options.saveFile || null, chosenRealm, connectBirthOpts);
                 }
             }, 3500);
         }
@@ -3348,7 +3534,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 returnToMainMenu();
             }
         }, 20000);
-        network.connect(options.charName || 'Adventurer', !!options.isNew, options.saveFile || null, chosenRealm, manualBirthFlag);
+        network.connect(options.charName || 'Adventurer', !!options.isNew, options.saveFile || null, chosenRealm, connectBirthOpts);
     }
 
     async function reloadLastSave() {
@@ -3439,6 +3625,11 @@ window.addEventListener('DOMContentLoaded', () => {
     async function returnToMainMenu() {
         if (audio) audio.playMenuOpen();
         cancelQuickBirth();
+        wantBirthReview = false;
+        birthReviewActive = false;
+        if (window.BirthReview && typeof window.BirthReview.resetBanner === 'function') {
+            window.BirthReview.resetBanner();
+        }
         if (window.__localBootFallbackTimer) {
             clearTimeout(window.__localBootFallbackTimer);
             window.__localBootFallbackTimer = null;
@@ -3498,7 +3689,7 @@ window.addEventListener('DOMContentLoaded', () => {
             } else {
                 // If exiting during character creation / setup or after death, immediately terminate and discard session without saving
                 if (network && typeof network.leaveSession === 'function') {
-                    network.leaveSession();
+                    network.leaveSession({ discard: !wasPlay });
                 } else if (network) {
                     network.disconnect();
                 }
@@ -4767,12 +4958,19 @@ window.addEventListener('DOMContentLoaded', () => {
 
     function selectRealm(realmKey, autoClose = false) {
         if (appState === 'game') {
+            if (!hasEnteredPlay) {
+                switchRealmAndReroll(realmKey);
+                return;
+            }
             const current = REALM_DATA[activeRealm] || REALM_DATA.angband;
             showRealmToast(`Active Realm: ${current.name} • Realm cannot be switched during an active dungeon crawl.`);
             return;
         }
         if (!REALM_DATA[realmKey]) return;
         setActiveRealm(realmKey);
+        if (window.Dungeon3D && typeof window.Dungeon3D.prefetchRealmTextureHttp === 'function') {
+            window.Dungeon3D.prefetchRealmTextureHttp(realmKey);
+        }
         const prefMode = resolvePreferredEngineMode(realmKey);
         if (engineMode !== prefMode) {
             setEngineMode(prefMode, false);
@@ -4806,7 +5004,7 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 
     function cycleRealm(delta = 1) {
-        if (appState === 'game') return;
+        if (appState === 'game' && hasEnteredPlay) return;
         const realms = ['nethack', 'dcss', 'angband', 'brogue', 'rogue', 'silq', 'frogcomposband', 'hengband', 'ryod'];
         const currentIdx = realms.indexOf(activeRealm);
         const nextIdx = (currentIdx + delta + realms.length) % realms.length;
@@ -4931,7 +5129,7 @@ window.addEventListener('DOMContentLoaded', () => {
         }
         const randDesc = document.querySelector('#btn-menu-random .menu-desc');
         if (randDesc) {
-            randDesc.textContent = activeRealm === 'ryod' ? 'Roll all 6 dice & drop straight into 3D play' : 'Skip setup & dive straight in';
+            randDesc.textContent = activeRealm === 'ryod' ? 'Roll all 6 dice & review build before play' : 'Roll random build & review before embarking';
         }
         const custLabel = document.querySelector('#btn-menu-custom .menu-label');
         if (custLabel) {
@@ -5432,6 +5630,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 setCtxActions(renderCtxButtons([{ key: 'enter', badge: '⏎', label: hengLabel('Continue (Enter)', 'Continue / 決定 (Enter)', '決定 (Enter)'), gold: true }, escStepBtn, mmBtn]));
             } else if (bf.isReadyPrompt) {
                 terminalTitle.textContent = isHeng ? hengTitle('🎴 HENGBAND — Begin Game / Embark', '🎴 HENGBAND — ゲーム開始 / Embark', '🎴 HENGBAND — ゲーム開始') : '⚔ READY TO EMBARK — Enter to Begin';
+                if (birthReviewActive && termRerollBtn) termRerollBtn.style.display = 'inline-flex';
                 setCtxActions(renderCtxButtons([
                     { key: 'enter', badge: '⏎', label: hengLabel('⚔ Enter Realm', '⚔ ゲーム開始 (Enter Realm)', '⚔ ゲーム開始'), gold: true },
                     { key: 'S', badge: '[S]', label: hengLabel('🔄 Start Over', '🔄 初めから (Start Over)', '🔄 初めから') },
@@ -6331,6 +6530,7 @@ window.addEventListener('DOMContentLoaded', () => {
             confirmHeroBirth,
             rerollHero,
             startCustomHeroCreation,
+            switchRealmAndReroll,
             cancelQuickBirth,
             returnToMainMenu,
             reloadLastSave,
@@ -6950,7 +7150,7 @@ window.addEventListener('DOMContentLoaded', () => {
                         snapshotIdleTimer = setTimeout(() => {
                             snapshotIdleTimer = null;
                             snapshotClientSaveToIndexedDB(slot, activeRealm);
-                        }, firstPlayTransition ? 1200 : 600);
+                        }, firstPlayTransition ? 2600 : 800);
                     }
                 } else if (nowMs - lastClientSnapshotMs > 90000) {
                     const slot = network.currentSave || network.currentChar;
@@ -7009,6 +7209,9 @@ window.addEventListener('DOMContentLoaded', () => {
                     }
                 }
             } else if (frame.phase === 'setup' && !quickBirthActive) {
+                if (birthReviewActive && window.BirthReview && typeof window.BirthReview.syncBanner === 'function') {
+                    window.BirthReview.syncBanner(true, frame, activeRealm);
+                }
                 // During manual character creation or saved character loading:
                 // NEVER auto-advance menu screens, stat rollers, birth options, name inputs, or review screens!
                 const screenText = (frame.term && frame.term.rows ? frame.term.rows.map(r => r.g || '').join('\n') : '').toLowerCase();
@@ -7103,7 +7306,7 @@ window.addEventListener('DOMContentLoaded', () => {
                         ? (newDepthNum === 0
                             ? 'Returning to Town — Loading 3D Architecture & Residents...'
                             : `Entering Level ${newDepthNum} (${newDepthNum * 50} ft) — Loading 3D Dungeon & Bestiary...`)
-                        : 'Summoning 2K Photogrammetry & 3D Bestiary...';
+                        : 'Loading High-Res Stone & Dungeon Textures...';
                     setLoadingCurtain(true, initialStageLabel, isDepthChangedTransition ? 18 : 38);
                     const finishAssetGate = () => {
                         if (gateSettled || gateToken !== sceneAssetGateSeq) return;
@@ -7125,7 +7328,7 @@ window.addEventListener('DOMContentLoaded', () => {
                             window.chronicleManager.onFrame(readyFrame);
                         }
                     };
-                    sceneAssetGateFailsafe = setTimeout(finishAssetGate, 4800);
+                    sceneAssetGateFailsafe = setTimeout(finishAssetGate, 24000);
                     dungeon.awaitSceneAssetsReady(frame, (done, total, label) => {
                         if (gateSettled || !sceneAssetGateInFlight || gateToken !== sceneAssetGateSeq) return;
                         const basePct = isDepthChangedTransition ? 18 : 38;
