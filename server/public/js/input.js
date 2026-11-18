@@ -1157,6 +1157,15 @@ class InputController {
             const helpModal = document.getElementById('help-modal');
             const isHelpOpen = Boolean(helpModal && !helpModal.classList.contains('hidden'));
             if ((window.__app && window.__app.isGuideOpen && window.__app.isGuideOpen()) || isHelpOpen) {
+                const inField = e.target && e.target.closest && e.target.closest('input, select, textarea');
+                if (inField) {
+                    if (e.key === 'Escape') {
+                        e.preventDefault();
+                        if (inField.value) { inField.value = ''; inField.dispatchEvent(new Event('input', { bubbles: true })); }
+                        else inField.blur();
+                    }
+                    return;
+                }
                 if (e.key === 'Escape' || isBareBacktick || e.key === 'Enter') {
                     e.preventDefault();
                     if (this.audio) this.audio.playMenuNav();
@@ -1164,7 +1173,7 @@ class InputController {
                     if (window.__app && window.__app.hideGuide) window.__app.hideGuide();
                     return;
                 }
-                if (e.key >= '1' && e.key <= '7') { e.preventDefault(); window.__app.switchGuideTab(parseInt(e.key, 10) - 1); return; }
+                if (e.key >= '1' && e.key <= '8') { e.preventDefault(); window.__app.switchGuideTab(parseInt(e.key, 10) - 1); return; }
                 if (e.key === 'Tab' || e.key === 'ArrowRight') { e.preventDefault(); window.__app.cycleGuideTab(1); return; }
                 if (e.key === 'ArrowLeft') { e.preventDefault(); window.__app.cycleGuideTab(-1); return; }
             }
@@ -1408,16 +1417,19 @@ class InputController {
         }
 
         if (appState === 'guide') {
-            if (isCancelKey || e.key === 'Enter') { e.preventDefault(); app.hideGuide?.(); return true; }
-            if (['1', '2', '3', '4', '5', '6', '7'].includes(e.key)) { e.preventDefault(); app.switchGuideTab?.(parseInt(e.key, 10) - 1); return true; }
-            if (e.key === 'Tab' || e.key === 'ArrowRight') { e.preventDefault(); app.cycleGuideTab?.(1); return true; }
-            if (e.key === 'ArrowLeft') { e.preventDefault(); app.cycleGuideTab?.(-1); return true; }
-            if (e.key === 'w' || e.key === 'W') {
-                e.preventDefault();
-                if (typeof window.openExternalUrl === 'function') window.openExternalUrl('https://angband.readthedocs.io/');
-                else window.open('https://angband.readthedocs.io/', '_blank');
+            const inField = e.target && e.target.closest && e.target.closest('input, select, textarea');
+            if (inField) {
+                if (e.key === 'Escape') {
+                    e.preventDefault();
+                    if (inField.value) { inField.value = ''; inField.dispatchEvent(new Event('input', { bubbles: true })); }
+                    else inField.blur();
+                }
                 return true;
             }
+            if (isCancelKey || e.key === 'Enter') { e.preventDefault(); app.hideGuide?.(); return true; }
+            if (['1', '2', '3', '4', '5', '6', '7', '8'].includes(e.key)) { e.preventDefault(); app.switchGuideTab?.(parseInt(e.key, 10) - 1); return true; }
+            if (e.key === 'Tab' || e.key === 'ArrowRight') { e.preventDefault(); app.cycleGuideTab?.(1); return true; }
+            if (e.key === 'ArrowLeft') { e.preventDefault(); app.cycleGuideTab?.(-1); return true; }
             if (['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', ' '].includes(e.key)) {
                 e.preventDefault();
                 const gb = document.getElementById('guide-body');
@@ -2506,14 +2518,14 @@ class InputController {
         if (guideHudBtn) {
             guideHudBtn.addEventListener('click', (ev) => {
                 if (ev && ev.target && typeof ev.target.blur === 'function') ev.target.blur();
-                if (window.__app && window.__app.showGuide) window.__app.showGuide(0, 'game');
+                if (window.__app && window.__app.showGuide) window.__app.showGuide(1, 'game');
             });
         }
         const quickHelpBtn = document.getElementById('btn-quick-help');
         if (quickHelpBtn) {
             quickHelpBtn.addEventListener('click', (ev) => {
                 if (ev && ev.target && typeof ev.target.blur === 'function') ev.target.blur();
-                if (window.__app && window.__app.showGuide) window.__app.showGuide(0, 'game');
+                if (window.__app && window.__app.showGuide) window.__app.showGuide(1, 'game');
             });
         }
 

@@ -3899,162 +3899,50 @@ to { opacity: 1; transform: translateY(0); }
    Game Guide & Primer Modal (Overlay.cs:352-450)
    ============================================================================== */
 #guide-modal {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
+    position: fixed;
+    inset: 0;
     display: flex;
     justify-content: center;
     align-items: center;
-    background: rgba(3, 4, 7, 0.88);
-    -webkit-backdrop-filter: blur(8px);
-    backdrop-filter: blur(8px);
-    z-index: 55;
-    transition: opacity 0.3s ease, visibility 0.3s ease;
-    padding: 20px;
+    background: rgba(14, 17, 23, 0.92);
+    z-index: 960;
+    padding: 12px;
+    box-sizing: border-box;
+    transition: opacity 0.2s ease, visibility 0.2s ease;
 }
 
 #guide-modal.hidden {
+    display: none;
     opacity: 0;
     visibility: hidden;
     pointer-events: none;
 }
 
 .guide-card {
-    max-width: 900px;
-    width: 100%;
-    max-height: 90vh;
-    background: rgba(8, 11, 18, 0.98);
-    border: 2px solid rgba(212, 175, 55, 0.5);
-    border-radius: 12px;
-    box-shadow: 0 12px 50px rgba(0, 0, 0, 0.95);
     display: flex;
     flex-direction: column;
-    overflow: hidden;
-}
-
-.guide-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 16px 24px;
-    background: rgba(14, 18, 28, 0.9);
-    border-bottom: 1px solid rgba(212, 175, 55, 0.35);
-}
-
-.guide-title {
-    font-size: 17px;
-    letter-spacing: 2px;
-    color: #ffd700;
-    font-weight: 700;
-}
-
-.btn-guide-close {
-    background: transparent;
-    border: none;
-    color: #8c9ba5;
-    font-size: 20px;
-    cursor: pointer;
-    transition: color 0.15s ease;
-    padding: 0 4px;
-}
-.btn-guide-close:hover { color: #ff5555; }
-
-.guide-tabs {
-    display: flex;
-    flex-wrap: wrap;
-    background: rgba(10, 13, 20, 0.95);
-    border-bottom: 1px solid rgba(212, 175, 55, 0.2);
-    padding: 6px 16px 0;
-    gap: 4px;
-}
-
-.guide-tab {
-    background: rgba(18, 22, 34, 0.7);
-    border: 1px solid rgba(212, 175, 55, 0.25);
-    border-bottom: none;
-    border-radius: 6px 6px 0 0;
-    padding: 8px 16px;
-    font-family: var(--font-fantasy);
-    font-size: 13px;
-    color: #94a3b8;
-    cursor: pointer;
-    transition: all 0.15s ease;
-}
-
-.guide-tab:hover { color: #ffffff; background: rgba(32, 40, 60, 0.85); }
-
-.guide-tab.active {
-    background: linear-gradient(180deg, rgba(61, 43, 14, 0.9) 0%, rgba(20, 24, 36, 0.95) 100%);
-    border-color: #ffd700;
-    color: #ffd700;
-    font-weight: 700;
-}
-
-.guide-body {
-    flex: 1;
-    overflow-y: auto;
-    padding: 24px 28px;
-    display: flex;
-    flex-direction: column;
+    overflow: clip;
 }
 
 .guide-tab-content {
-    display: none;
-    flex-direction: column;
-    gap: 12px;
-}
-.guide-tab-content.active { display: flex; }
-
-.guide-section-header {
-    font-size: 16px;
-    letter-spacing: 2px;
-    color: #ffd700;
-    font-weight: 700;
-    border-bottom: 1px solid rgba(212, 175, 55, 0.25);
-    padding-bottom: 6px;
-    margin-bottom: 6px;
-}
-
-.guide-p {
-    font-size: 14px;
-    line-height: 1.6;
-    color: #cbd5e1;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-}
-
-.guide-list {
-    list-style: none;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    font-size: 13px;
-    line-height: 1.55;
-    color: #cbd5e1;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-}
-
-.guide-list kbd {
-    font-family: var(--font-terminal);
-    font-size: 12px;
-    color: #ffd700;
-    background: rgba(0, 0, 0, 0.5);
-    padding: 1px 5px;
-    border-radius: 3px;
-    border: 1px solid rgba(212, 175, 55, 0.3);
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
 }
 
 .guide-footer {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 12px 24px;
-    background: rgba(14, 18, 28, 0.9);
-    border-top: 1px solid rgba(212, 175, 55, 0.25);
-    font-size: 12px;
-    color: #8c9ba5;
+    gap: 12px;
+    padding: 10px 18px;
+    background: #161a22;
+    border-top: 1px solid #485060;
+    font-size: 0.78rem;
+    color: #9ca3b2;
     font-family: var(--font-terminal);
+    flex-shrink: 0;
 }
 
 /* ==============================================================================
@@ -4474,7 +4362,7 @@ to { opacity: 1; transform: translateY(0); }
 }
 
 /* Guide Modal Enhancements */
-.guide-tab-content strong { color: #ffd700; }
+.guide-tab-content strong { color: #e5b93c; font-weight: 700; }
 
 .guide-list li {
     padding-left: 4px;
@@ -4482,7 +4370,7 @@ to { opacity: 1; transform: translateY(0); }
     transition: border-color 0.15s ease, transform 0.15s ease;
 }
 
-.guide-list li:hover { border-left-color: #ffd700; padding-left: 8px; }
+.guide-list li:hover { border-left-color: #e5b93c; padding-left: 8px; }
 
 /* ==============================================================================
    RESPONSIVE DESIGN SYSTEM: Tablet & Phone Adaptive Architecture
@@ -9661,7 +9549,7 @@ body[data-realm="ryod"] { --realm-surface-top: #1c1013; --realm-surface-bot: #0b
     }
 }
 /* Universal Cross-Device & Cross-Orientation Responsive Scaling (Mobile Portrait, Landscape, Tablet, Desktop) */
-.load-card, .guide-card, .pause-card, .death-card, .realm-selector-card { max-width: min(920px, calc(100vw - 16px)) !important; max-height: calc(100dvh - 16px) !important; overflow-x: hidden !important; overflow-y: auto !important; box-sizing: border-box !important; }
+.load-card, .pause-card, .death-card, .realm-selector-card { max-width: min(920px, calc(100vw - 16px)) !important; max-height: calc(100dvh - 16px) !important; overflow-x: hidden !important; overflow-y: auto !important; box-sizing: border-box !important; }
 .main-menu-card { max-width: min(1480px, calc(100dvw - 20px)) !important; max-height: calc(100dvh - 20px) !important; overflow-x: hidden !important; overflow-y: auto !important; box-sizing: border-box !important; }
 .main-menu-header, .main-menu-realm-atlas, .main-menu-launch-deck, .main-menu-realm-actions, .main-menu-options, .main-menu-secondary-dock, .save-item-card, .save-item-actions, .death-actions, .load-modal-toolbar { width: 100%; max-width: 100%; min-width: 0; box-sizing: border-box; }
 @media (max-width: 768px) {

@@ -1,4 +1,4 @@
-# YASD 3D ("Yet Another Stupid Death") — Official Press Kit (`v13.1.0`)
+# YASD 3D ("Yet Another Stupid Death") — Official Press Kit (`v13.1.1`)
 
 > **Nine classic roguelike realms reborn in 60 FPS first-person 3D.**  
 > *4 Native C/C++ Upstream Engines (`Angband 4.2.6`, `Sil-Q`, `FrogComposBand`, `Hengband`) + 5 Instant Offline Yendor 3D Browser-Worker Cartridges (`RYOD Forge`, `NetHack`, `DCSS`, `Brogue`, `Rogue`), 0-turn camera yaw, `[Tab]` CRT dual-reality, forensic YASD Autopsy cards, and fact-checked Gemini voice chronicle.*
@@ -9,7 +9,7 @@
 
 * **Developer**: Thunderbear Studios ([https://thunderbearstudios.dev](https://thunderbearstudios.dev))
 * **Website**: [https://yasd3d.com](https://yasd3d.com)
-* **Current Release**: **`v13.1.0`** (Continuous Web, Desktop & Android Release)
+* **Current Release**: **`v13.1.1`** (Continuous Web, Desktop & Android Release)
 * **Platforms**:
   * **Web & PWA**: Instant Play in any modern browser (Desktop, Tablet & Mobile; 6 realms run 100% offline in a `0ms` Web Worker)
   * **Windows PC**: Standalone 64-bit Desktop Client (WebView2)

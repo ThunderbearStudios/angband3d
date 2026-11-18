@@ -4,6 +4,19 @@ All notable changes to `angband3d` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v13.1.1] — 2026-11-17
+
+### 📖 2-Pane Adventurer's Codex, Novice Roguelike Primer, Corrected 3D Controls & Live Global Search
+
+- **2-Pane `1440px` Adventurer's Codex (`#guide-modal`, `adventurer-guide.js`, `hud-skin.css`)**:
+  - Replaced the cramped `900px` guide modal and multi-row wrapped button bar with a `1440px` Scotopic Obsidian & Warm Brass 2-Pane Codex (`z-index: 960`), featuring single-row `focusgroup="tablist nomemory"` scrollable tabs (`1..8`), a `268px` sticky 9-realm switcher rail grouped into Canonical C/C++ Engines and Instant Worker/Forge realms, and responsive breakpoints down to `390×844` mobile.
+  - Resolved the `.guide-card` CSS class collision where inner mechanic/branch cards inherited the outer tattered-scroll/920px rules (`class="guide-entry-card"`), styled every keybind table row, callout, numbered tip, starter card, and era card cleanly, and verified `WEB-VISUAL-GATE-05` (`minTextRatio: 5.24–7.15`, `maxBodyTextRatio: 10.37`, `maxHeadingRatio: 13.17`, `halationViolations: 0`, `minControlBorderRatio: 3.96`, `horizontalOverflowPx: 0`) across `1440×900`, `1366×768`, and `390×844`.
+- **Novice "What Is a Classic Roguelike?" Onboarding Tab & 1980–2026 Lineage**:
+  - Added Tab `1. New to Roguelikes?` explaining classic turn-based roguelikes vs real-time action roguelites, the 4 Pillars of Fun (`0`-Turn Look, Emergent "Everything Works" simulation, YASD vs **Adventure Checkpoints**, and `Alt+T` Dual-Reality CRT terminal), an interactive **"Where Should You Start?"** Quick-Play/Manual picker, and a clickable 9-era **1980–2026 Roguelike History Grid**.
+- **Corrected Controls, Live Cross-Guide Search & Input-Focus Fix (`input.js`, `app.js`)**:
+  - Updated Tab `4. 3D Controls` with accurate `v13.1.1` bindings (`↑/↓`, `←/→`/mouse `0`-turn look, `Shift+←/→` strafe, `Home/PgUp/End/PgDn` diagonals, `Ctrl+PgUp/PgDn/Home` camera pitch, `Alt+W` opt-in WASD mode, `Alt+T`/`Shift+Tab` 3D↔Terminal, `Tab` Skills & Grimoire Deck, `Alt+E` Auto-Explore, `F11`/`Alt+Enter` Fullscreen, `Ctrl+K`, `Alt+L`).
+  - Fixed `#guide-modal` key handlers in `input.js` (`closest('input, select, textarea')` guard) so typing into `#guide-global-search` and `#guide-helpfile-filter` never triggers guide navigation hotkeys, added live cross-guide instant search with clickable jump cards and `hidden="until-found"` find-in-page activation, and modularized ~660 LOC out of `app.js` into `server/public/js/adventurer-guide.js`.
+
 ## [v13.1.0] — 2026-11-17
 
 ### 🎨 Photogrammetry 3D Mineral Veins, Rigged 3rd-Party Bestiary Overhaul, Grid-Free Floors, Broad-Face Steel Blades & Zero Floor Clutter

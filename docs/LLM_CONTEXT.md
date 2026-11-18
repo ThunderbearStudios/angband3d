@@ -1,4 +1,4 @@
-# angband3d / YASD 3D — AI Context & Onboarding Guide (`v13.1.0`)
+# angband3d / YASD 3D — AI Context & Onboarding Guide (`v13.1.1`)
 
 ## Mission & Architecture
 `angband3d` (`https://yasd3d.com`) is a 9-realm first-person 3D dungeon crawler platform powered by **4 authoritative C/C++ roguelike engines** (`Vanilla Angband 4.2.6`, `Sil-Q 1.5.0`, `FrogComposBand 7.1.1`, and `Hengband 3.0.1`) plus **5 UniversalCartridge offline browser-worker realms** (`NetHack 3.6.7`, `DCSS`, `Brogue CE`, `Rogue 5.4`, and `RYOD Forge`) paired with a **Web Three.js / Illuminated Vellum Canvas / Living Chronicle PWA client**.
@@ -75,6 +75,7 @@ Rather than rewriting game rules, each engine runs as an isolated worker/process
 - `server/public/js/dungeon3d.js`: Web 3D exploration engine (Three.js procedural meshes, PBR textures, entity models, fog).
 - `server/public/js/hud.js`: Web HUD overlay, real-time combat message feed, top action banner, minimap, death modal.
 - `server/public/js/app.js`: Web application coordinator, view routing (`needsTerminal`), toolbar/menu isolation.
+- `server/public/js/adventurer-guide.js`: 2-Pane Adventurer's Codex, Novice "What Is a Roguelike?" primer, interactive Starter Picker, live cross-guide search, and bundled realm help reader.
 - `server/public/js/input.js`: Web input dispatcher (3D movement, vanilla Angband action keys, terminal modal hotkeys).
 - `server/public/js/chronicle/chronicle-manager.js`: UI coordinator for The Living Chronicle, story playlist, audio preemption gate, and modal settings.
 - `server/public/js/chronicle/chronicle-audio.js`: Dual-engine audio router (Edge Neural default for sub-100ms lockstep gameplay + Gemini preview fallback, Web Audio DSP, ribbon warmth).

@@ -565,9 +565,7 @@
 
 .realm-pill-btn,
 .menu-realm-badge-btn,
-.cmd-cat-pill,
-.guide-tab,
-.guide-realm-pill {
+.cmd-cat-pill {
   background: var(--yasd-slate-card) !important;
   border: 1px solid var(--yasd-border-iron) !important;
   border-radius: 6px !important;
@@ -577,9 +575,7 @@
 
 .realm-pill-btn:hover,
 .menu-realm-badge-btn:hover,
-.cmd-cat-pill:hover,
-.guide-tab:hover,
-.guide-realm-pill:hover {
+.cmd-cat-pill:hover {
   background: var(--yasd-slate-card-hover) !important;
   border-color: var(--yasd-bone-highlight) !important;
   color: var(--yasd-text-heading) !important;
@@ -587,76 +583,11 @@
 
 .realm-pill-btn.active,
 .realm-pill-btn[aria-pressed="true"],
-.cmd-cat-pill.active,
-.guide-tab.active,
-.guide-tab[aria-selected="true"],
-.guide-realm-pill.active,
-.guide-realm-pill[aria-pressed="true"] {
+.cmd-cat-pill.active {
   background: linear-gradient(180deg, #2f3542 0%, #22262e 100%) !important;
   border-color: var(--yasd-gold-accent) !important;
   color: var(--yasd-text-heading) !important;
   box-shadow: 0 0 10px rgba(241, 196, 15, 0.2), inset 0 1px 0 var(--yasd-bone-highlight) !important;
-}
-
-.guide-realm-bar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 5px;
-  padding: 8px 16px;
-  background: var(--yasd-slate-deep);
-  border-bottom: 1px solid var(--yasd-border-iron);
-}
-
-.guide-realm-bar-label {
-  font-size: 0.72rem;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  color: var(--yasd-gold-accent);
-  margin-right: 4px;
-}
-
-.guide-realm-pill {
-  padding: 4px 9px !important;
-  font-size: 0.76rem !important;
-  font-weight: 700 !important;
-  cursor: pointer;
-}
-
-.guide-ref-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
-  gap: 8px;
-  margin: 8px 0 14px;
-}
-
-.guide-ref-card {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  padding: 9px 12px;
-  background: var(--yasd-slate-card);
-  border: 1px solid var(--yasd-border-iron);
-  border-left: 3px solid var(--yasd-gold-accent);
-  border-radius: 6px;
-  text-decoration: none;
-  color: var(--yasd-text-prose);
-  transition: background 120ms ease, border-color 120ms ease;
-}
-
-.guide-ref-card:hover {
-  background: var(--yasd-slate-card-hover);
-  border-color: var(--yasd-bone-highlight);
-}
-
-.guide-ref-card strong {
-  color: var(--yasd-gold-accent);
-  font-size: 0.85rem;
-}
-
-.guide-ref-card span {
-  font-size: 0.75rem;
-  color: var(--yasd-text-muted);
 }
 
 /* --- Main Menu Primary Option Buttons ([1]-[4]) --- */
@@ -1864,10 +1795,8 @@ body:has(#command-palette-modal:not(.hidden)) #global-audio-bar {
   }
 }
 
-/* Smooth Horizontal Scroll Strips for Guide Realm Bar & Guide Tabs on Compact Screens */
+/* Smooth Horizontal Scroll Strips for Death & Command Category Tabs on Compact Screens */
 @media (max-width: 900px) {
-  .guide-realm-bar,
-  .guide-tabs,
   .death-tabs,
   .cmd-category-tabs {
     display: flex !important;
@@ -1879,8 +1808,6 @@ body:has(#command-palette-modal:not(.hidden)) #global-audio-bar {
     gap: 5px !important;
     padding-bottom: 4px !important;
   }
-  .guide-realm-pill,
-  .guide-tab,
   .death-tab,
   .cmd-cat-pill {
     flex: 0 0 auto !important;
@@ -3073,4 +3000,991 @@ body.hud-preset-immersive #hud-footer #footer-exp {
 .grimoire-birth-card:hover {
   background: #272e3c;
   border-color: #e5b93c;
+}
+
+/* ==========================================================================
+   v13.1.1 2-Pane Adventurer's Codex & Novice Roguelike Primer
+   ========================================================================== */
+
+#guide-modal {
+  background: rgba(14, 17, 23, 0.92) !important;
+  z-index: 960 !important;
+}
+
+#guide-modal.hidden {
+  display: none !important;
+}
+
+#guide-modal .guide-card.guide-codex-shell {
+  width: min(1440px, calc(100dvw - 24px)) !important;
+  max-width: min(1440px, calc(100dvw - 24px)) !important;
+  height: min(88dvh, 880px) !important;
+  max-height: calc(100dvh - 20px) !important;
+  padding: 0 !important;
+  overflow: clip !important;
+  display: flex !important;
+  flex-direction: column !important;
+  background: #1a1f27 !important;
+  background-image: none !important;
+  border: 1px solid #737f96 !important;
+  border-radius: 10px !important;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.72) !important;
+  color: #c8cdd6 !important;
+}
+
+#guide-modal .guide-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 18px !important;
+  background: #161a22 !important;
+  background-image: none !important;
+  border-bottom: 1px solid #485060 !important;
+  flex-shrink: 0;
+}
+
+.guide-header-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+#guide-modal .guide-title {
+  margin: 0;
+  font-family: var(--font-display, Georgia, serif);
+  font-size: clamp(0.95rem, 1.25vw, 1.12rem);
+  letter-spacing: 0.06em;
+  color: #dce0e8 !important;
+  text-shadow: none !important;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: nowrap;
+  text-wrap: balance;
+}
+
+#guide-modal-title-text {
+  min-width: 0;
+}
+
+#guide-modal .modal-crest-badge {
+  width: 22px;
+  height: 29px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.guide-realm-chip {
+  background: #212630;
+  color: #e5b93c;
+  border: 1px solid #737f96;
+  border-radius: 999px;
+  padding: 2px 10px;
+  font-size: 0.74rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.guide-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.guide-search-wrap {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+#guide-global-search {
+  width: clamp(190px, 22vw, 300px);
+  min-height: 36px;
+  padding: 6px 12px;
+  background: #161a22 !important;
+  color: #c8cdd6 !important;
+  border: 1px solid #737f96 !important;
+  border-radius: 6px;
+  font-size: 0.84rem;
+  box-sizing: border-box;
+}
+
+#guide-global-search::placeholder,
+#guide-helpfile-filter::placeholder {
+  color: #9ca3b2;
+  opacity: 1;
+}
+
+#guide-modal #btn-guide-close {
+  min-width: 40px;
+  min-height: 36px;
+  padding: 4px 10px;
+  background: #212630 !important;
+  color: #c8cdd6 !important;
+  border: 1px solid #737f96 !important;
+  border-radius: 6px;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+#guide-modal #btn-guide-close:hover {
+  background: #29303d !important;
+  color: #dce0e8 !important;
+  border-color: #e5b93c !important;
+}
+
+/* Single-Row Scroll-Safe Tab Strip */
+#guide-modal .guide-tabs {
+  display: flex !important;
+  flex-wrap: nowrap !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  scroll-snap-type: inline proximity;
+  scrollbar-width: none;
+  gap: 6px;
+  padding: 8px 16px 0 !important;
+  background: #161a22 !important;
+  border-bottom: 1px solid #485060 !important;
+  flex-shrink: 0;
+}
+
+#guide-modal .guide-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+#guide-modal .guide-tab {
+  flex: 0 0 auto !important;
+  scroll-snap-align: start;
+  position: relative;
+  padding: 9px 13px !important;
+  font-family: var(--font-ui) !important;
+  font-size: 0.80rem !important;
+  font-weight: 600 !important;
+  line-height: 1.25;
+  color: #b6c0cf !important;
+  background: #212630 !important;
+  background-image: none !important;
+  border: 1px solid #737f96 !important;
+  border-bottom: none !important;
+  border-radius: 6px 6px 0 0 !important;
+  box-shadow: none !important;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+#guide-modal .guide-tab:hover {
+  color: #dce0e8 !important;
+  background: #29303d !important;
+}
+
+#guide-modal .guide-tab[aria-selected="true"] {
+  color: #dce0e8 !important;
+  background: #29303d !important;
+  background-image: none !important;
+  border-color: #9aa4b8 !important;
+  box-shadow: none !important;
+}
+
+#guide-modal .guide-tab[aria-selected="true"]::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0;
+  border-block-end: 3px solid #e5b93c;
+}
+
+/* 2-Pane Split Body (Left Realm Rail + Right Scrollable Codex) */
+.guide-workspace {
+  display: grid;
+  grid-template-columns: 268px minmax(0, 1fr);
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: clip;
+}
+
+#guide-modal .guide-sidebar {
+  display: flex !important;
+  flex-direction: column !important;
+  flex-wrap: nowrap !important;
+  align-items: stretch !important;
+  gap: 5px;
+  padding: 10px 10px 12px !important;
+  background: #161a22 !important;
+  border-right: 1px solid #485060 !important;
+  border-bottom: none !important;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  min-height: 0;
+}
+
+.guide-sidebar-group-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #9ca3b2;
+  padding: 6px 6px 2px;
+  text-transform: uppercase;
+}
+
+#guide-modal .guide-realm-pill {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  width: 100%;
+  min-height: 35px;
+  padding: 6px 10px !important;
+  background: #212630 !important;
+  background-image: none !important;
+  border: 1px solid #737f96 !important;
+  border-radius: 6px !important;
+  color: #c8cdd6 !important;
+  box-shadow: none !important;
+  text-align: left;
+  cursor: pointer;
+}
+
+#guide-modal .guide-realm-pill:hover {
+  background: #29303d !important;
+  border-color: #9aa4b8 !important;
+}
+
+#guide-modal .guide-realm-pill .pill-main {
+  font-size: 0.79rem;
+  font-weight: 600;
+  color: #dce0e8;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#guide-modal .guide-realm-pill .pill-sub {
+  font-size: 0.69rem;
+  font-weight: 500;
+  color: #9ca3b2;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+#guide-modal .guide-realm-pill[aria-pressed="true"] {
+  background: #29303d !important;
+  border-color: #e5b93c !important;
+  box-shadow: inset 3px 0 0 #e5b93c !important;
+}
+
+#guide-modal .guide-sidebar-play-btn {
+  margin-top: auto;
+  width: 100%;
+  min-height: 38px;
+  padding: 8px 10px;
+}
+
+#guide-modal .guide-body {
+  flex: 1 1 auto;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  background: #1a1f27 !important;
+  min-width: 0;
+  min-height: 0;
+  padding: 0 !important;
+}
+
+#guide-modal .guide-tab-content {
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+}
+
+#guide-modal .guide-tab-content:not([hidden]) {
+  display: block;
+}
+
+#guide-modal .guide-search-results.hidden {
+  display: none;
+}
+
+.guide-panel-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px 24px 26px;
+  color: #c8cdd6;
+  font-family: var(--font-ui);
+  box-sizing: border-box;
+  min-width: 0;
+}
+
+#guide-modal .guide-panel-inner h3,
+#guide-modal .guide-panel-inner h4,
+#guide-modal .guide-hero-title,
+#guide-modal .guide-banner-title,
+#guide-modal .guide-subheading,
+#guide-modal .guide-entry-title,
+#guide-modal .guide-era-title,
+#guide-modal .guide-search-title,
+#guide-modal .guide-ref-card-title {
+  color: #dce0e8 !important;
+  text-wrap: balance;
+  margin: 0;
+}
+
+#guide-modal .guide-panel-inner h3 {
+  font-size: 1.06rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+#guide-modal .guide-panel-inner h4,
+#guide-modal .guide-subheading {
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  margin-bottom: 8px;
+}
+
+.guide-lead {
+  margin: 0;
+  font-size: 0.91rem;
+  line-height: 1.62;
+  color: #c8cdd6;
+  max-width: 82ch;
+  text-wrap: pretty;
+}
+
+#guide-modal .guide-panel-inner strong,
+#guide-modal .guide-search-results strong:not(.guide-search-title) {
+  color: #e5b93c;
+  font-weight: 700;
+}
+
+#guide-modal kbd,
+#guide-modal code {
+  font-family: var(--font-terminal, Consolas, monospace);
+  font-size: 0.80em;
+  color: #e5b93c;
+  background: #161a22;
+  border: 1px solid #737f96;
+  border-radius: 4px;
+  padding: 1px 6px;
+}
+
+#guide-modal .btn-gold {
+  background: #d4a72c !important;
+  background-image: none !important;
+  color: #14171d !important;
+  border: 1px solid #e5b93c !important;
+  border-radius: 6px;
+  padding: 7px 13px;
+  font-size: 0.81rem;
+  font-weight: 700;
+  box-shadow: none !important;
+  text-shadow: none !important;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+}
+
+#guide-modal .btn-gold:hover {
+  background: #e5b93c !important;
+}
+
+#guide-modal .btn-gold-outline {
+  background: #212630 !important;
+  background-image: none !important;
+  color: #dce0e8 !important;
+  border: 1px solid #78849b !important;
+  border-radius: 6px;
+  padding: 7px 13px;
+  font-size: 0.81rem;
+  font-weight: 600;
+  box-shadow: none !important;
+  text-shadow: none !important;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+}
+
+#guide-modal .btn-gold-outline:hover {
+  background: #29303d !important;
+  border-color: #e5b93c !important;
+}
+
+#guide-modal :is(button, a, input, select):focus-visible {
+  outline: 2px solid #e5b93c !important;
+  outline-offset: 2px;
+}
+
+/* Hero Banner & Realm Banner */
+.guide-hero-banner {
+  background: linear-gradient(135deg, #232936 0%, #1d222c 100%);
+  border: 1px solid #737f96;
+  border-left: 4px solid #e5b93c;
+  border-radius: 9px;
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.guide-hero-kicker {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #e5b93c;
+}
+
+.guide-hero-title {
+  font-size: clamp(1.06rem, 1.45vw, 1.26rem) !important;
+  font-weight: 700;
+}
+
+.guide-hero-actions,
+.guide-banner-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-top: 2px;
+}
+
+.guide-realm-banner {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  background: linear-gradient(135deg, #232936 0%, #1d222c 100%);
+  border: 1px solid #737f96;
+  border-left: 4px solid #e5b93c;
+  border-radius: 9px;
+  padding: 14px 18px;
+}
+
+.guide-realm-art {
+  width: 152px;
+  height: 96px;
+  object-fit: cover;
+  border-radius: 7px;
+  border: 1px solid #737f96;
+  flex-shrink: 0;
+}
+
+.guide-realm-banner-body {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 0;
+  flex: 1;
+}
+
+.guide-realm-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.guide-banner-title {
+  font-size: 1.05rem !important;
+  font-weight: 700;
+}
+
+.guide-banner-sub {
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.48;
+  color: #b6c0cf;
+}
+
+/* Grids & Cards */
+.guide-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px;
+}
+
+.guide-starter-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+  gap: 12px;
+}
+
+.guide-entry-card,
+.guide-starter-card {
+  background: #222733;
+  border: 1px solid #5a6478;
+  border-top: 2px solid #c99e32;
+  border-radius: 8px;
+  padding: 13px 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 0;
+}
+
+.guide-entry-icon {
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+.guide-entry-title {
+  font-size: 0.93rem;
+  font-weight: 700;
+}
+
+.guide-entry-desc {
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.56;
+  color: #c8cdd6;
+  flex: 1;
+}
+
+.guide-starter-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.guide-starter-badge {
+  background: #161a22;
+  color: #e5b93c;
+  border: 1px solid #737f96;
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 0.71rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.guide-starter-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  padding-top: 4px;
+}
+
+/* 1980-2026 Roguelike History Grid */
+.guide-era-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 10px;
+}
+
+#guide-modal .guide-era-card {
+  background: #222733 !important;
+  border: 1px solid #737f96 !important;
+  border-radius: 8px;
+  padding: 11px 13px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  text-align: left;
+  color: #c8cdd6 !important;
+  cursor: pointer;
+  min-width: 0;
+}
+
+#guide-modal .guide-era-card:hover {
+  background: #29303d !important;
+  border-color: #e5b93c !important;
+}
+
+.guide-era-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 6px;
+}
+
+.guide-era-year {
+  color: #e5b93c;
+  font-weight: 700;
+  font-size: 0.78rem;
+}
+
+.guide-era-badge {
+  background: #161a22;
+  color: #b6c0cf;
+  border: 1px solid #5a6478;
+  border-radius: 4px;
+  padding: 1px 7px;
+  font-size: 0.69rem;
+  font-weight: 600;
+}
+
+.guide-era-title {
+  font-size: 0.89rem;
+  font-weight: 700;
+}
+
+.guide-era-blurb {
+  color: #b6c0cf;
+  font-size: 0.79rem;
+  line-height: 1.46;
+}
+
+/* Controls & Keybind Tables */
+.guide-control-group {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.guide-section-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.guide-key-table {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.guide-key-row {
+  display: grid;
+  grid-template-columns: minmax(165px, 235px) minmax(0, 1fr);
+  gap: 16px;
+  align-items: center;
+  padding: 9px 14px;
+  background: #222733;
+  border: 1px solid #535d70;
+  border-radius: 7px;
+}
+
+.key-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  font-family: var(--font-terminal, Consolas, monospace);
+  font-size: 0.79rem;
+  font-weight: 600;
+  color: #e5b93c;
+  background: #161a22;
+  border: 1px solid #737f96;
+  border-radius: 5px;
+  padding: 5px 10px;
+  line-height: 1.3;
+}
+
+.key-desc {
+  color: #c8cdd6;
+  font-size: 0.87rem;
+  line-height: 1.52;
+  min-width: 0;
+}
+
+/* Pro Tips & Callouts */
+.guide-tips-list {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.guide-tip-item {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+  padding: 12px 15px;
+  background: #222733;
+  border: 1px solid #5a6478;
+  border-left: 3px solid #e5b93c;
+  border-radius: 8px;
+  color: #c8cdd6;
+  font-size: 0.88rem;
+  line-height: 1.56;
+}
+
+.tip-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #161a22;
+  border: 1px solid #e5b93c;
+  color: #e5b93c;
+  font-weight: 700;
+  font-size: 0.80rem;
+}
+
+.guide-callout {
+  background: #222733;
+  border: 1px solid #5a6478;
+  border-left: 3px solid #e5b93c;
+  border-radius: 8px;
+  padding: 12px 16px;
+  color: #c8cdd6;
+  font-size: 0.86rem;
+  line-height: 1.58;
+}
+
+/* Bundled Manuals, External Wikis & Search Results */
+.guide-helpfile-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+#guide-helpfile-select,
+#guide-helpfile-filter {
+  min-height: 36px;
+  padding: 6px 10px;
+  background: #161a22 !important;
+  color: #c8cdd6 !important;
+  border: 1px solid #737f96 !important;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  flex: 1 1 200px;
+  min-width: 0;
+}
+
+.guide-helpfile-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+#guide-modal .guide-help-pill {
+  background: #212630 !important;
+  color: #c8cdd6 !important;
+  border: 1px solid #737f96 !important;
+  border-radius: 5px;
+  padding: 5px 10px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+#guide-modal .guide-help-pill.active {
+  background: #29303d !important;
+  border-color: #e5b93c !important;
+  color: #e5b93c !important;
+}
+
+.guide-helpfile-viewer {
+  margin: 0;
+  background: #161a22;
+  color: #c8cdd6;
+  border: 1px solid #5a6478;
+  border-radius: 7px;
+  padding: 13px 15px;
+  max-height: 300px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  font-family: var(--font-terminal, Consolas, monospace);
+  font-size: 0.78rem;
+  line-height: 1.52;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.guide-ref-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 10px;
+}
+
+.guide-ref-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 11px 13px;
+  background: #222733;
+  border: 1px solid #737f96;
+  border-left: 3px solid #e5b93c;
+  border-radius: 7px;
+  text-decoration: none;
+  color: #c8cdd6;
+  min-width: 0;
+}
+
+.guide-ref-card:hover {
+  background: #29303d;
+  border-color: #e5b93c;
+}
+
+.guide-ref-card-title {
+  font-size: 0.87rem;
+  font-weight: 700;
+}
+
+.guide-ref-card-desc {
+  font-size: 0.80rem;
+  line-height: 1.48;
+  color: #c8cdd6;
+}
+
+.guide-ref-card-url {
+  font-size: 0.73rem;
+  color: #9ca3b2;
+  overflow-wrap: anywhere;
+}
+
+.guide-search-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 10px;
+}
+
+#guide-modal .guide-search-hit {
+  background: #222733 !important;
+  border: 1px solid #737f96 !important;
+  border-left: 3px solid #e5b93c !important;
+  border-radius: 7px;
+  padding: 11px 13px;
+  text-align: left;
+  color: #c8cdd6 !important;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  cursor: pointer;
+  min-width: 0;
+}
+
+#guide-modal .guide-search-hit:hover {
+  background: #29303d !important;
+  border-color: #e5b93c !important;
+}
+
+.guide-search-meta {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #e5b93c;
+}
+
+.guide-search-title {
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.guide-search-snippet {
+  font-size: 0.82rem;
+  color: #c8cdd6;
+  line-height: 1.48;
+}
+
+#guide-modal .guide-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 18px !important;
+  background: #161a22 !important;
+  border-top: 1px solid #485060 !important;
+  color: #9ca3b2 !important;
+  font-size: 0.78rem;
+  flex-shrink: 0;
+}
+
+@media (max-width: 980px) {
+  .guide-workspace {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+  #guide-modal .guide-sidebar {
+    flex-direction: row !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    scrollbar-width: none;
+    padding: 7px 12px !important;
+    border-right: none !important;
+    border-bottom: 1px solid #485060 !important;
+    gap: 6px;
+  }
+  .guide-sidebar-group-label,
+  #guide-modal .guide-realm-pill .pill-sub,
+  #guide-modal .guide-sidebar-play-btn {
+    display: none !important;
+  }
+  #guide-modal .guide-realm-pill {
+    flex: 0 0 auto;
+    width: auto !important;
+    min-height: 38px;
+    padding: 6px 12px !important;
+  }
+}
+
+@media (max-width: 768px) {
+  #guide-modal {
+    padding: 4px !important;
+  }
+  #guide-modal .guide-card.guide-codex-shell {
+    width: calc(100dvw - 8px) !important;
+    max-width: calc(100dvw - 8px) !important;
+    height: calc(100dvh - 8px) !important;
+    max-height: calc(100dvh - 8px) !important;
+    border-radius: 8px !important;
+  }
+  #guide-modal .guide-header {
+    flex-wrap: wrap;
+    padding: 8px 12px !important;
+    gap: 8px;
+  }
+  .guide-header-actions {
+    width: 100%;
+  }
+  #guide-global-search {
+    flex: 1 1 auto;
+    width: auto !important;
+    min-height: 44px;
+  }
+  #guide-modal #btn-guide-close,
+  #guide-modal .guide-tab,
+  #guide-modal .guide-realm-pill,
+  #btn-guide-back,
+  #guide-modal .guide-inline-btn {
+    min-height: 44px;
+  }
+  .guide-panel-inner {
+    padding: 14px 14px 20px;
+    gap: 12px;
+  }
+  .guide-realm-banner {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .guide-realm-art {
+    width: 100%;
+    height: 120px;
+  }
+  .guide-card-grid,
+  .guide-starter-grid,
+  .guide-era-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .guide-key-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
+  }
+  #guide-modal .guide-footer {
+    padding: 8px 12px !important;
+  }
+  #guide-modal .guide-footer > span {
+    display: none;
+  }
+  #btn-guide-back {
+    width: 100%;
+  }
 }

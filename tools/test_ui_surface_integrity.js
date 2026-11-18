@@ -144,5 +144,29 @@ if (!html.includes('main-menu-realm-actions') || !html.includes('btn-menu-ryod-f
     console.log('ok    Main Menu consolidated Realm & RYOD Command Bar present');
 }
 
+// Audit v13.1.1 2-Pane Adventurer's Codex & Novice Roguelike Primer
+const guideJsPath = path.join(__dirname, '..', 'server', 'public', 'js', 'adventurer-guide.js');
+const appJsPath = path.join(__dirname, '..', 'server', 'public', 'js', 'app.js');
+const inputJsPath = path.join(__dirname, '..', 'server', 'public', 'js', 'input.js');
+if (!fs.existsSync(guideJsPath) || !html.includes('js/adventurer-guide.js')) {
+    console.error('FAIL  server/public/js/adventurer-guide.js missing or not loaded in index.html');
+    failed++;
+} else {
+    const guideJs = fs.readFileSync(guideJsPath, 'utf8');
+    const appJs = fs.readFileSync(appJsPath, 'utf8');
+    const inputJs = fs.readFileSync(inputJsPath, 'utf8');
+    const missingRealms = ['angband', 'silq', 'frogcomposband', 'hengband', 'nethack', 'dcss', 'brogue', 'rogue', 'ryod'].filter((r) => !guideJs.includes(`${r}:`));
+    const hasPrimer = guideJs.includes('What Is a Classic Roguelike') && guideJs.includes('Alt + W') && guideJs.includes('Alt + T') && guideJs.includes('Ctrl + PgUp');
+    const hasTabs = ['0', '1', '2', '3', '4', '5', '6', '7'].every((t) => html.includes(`data-tab="${t}"`)) && html.includes('guide-codex-shell') && html.includes('id="guide-global-search"');
+    const hasCardCollision = guideJs.includes('class="guide-card"') || appJs.includes('class="guide-card"');
+    const hasInputGuard = inputJs.includes("closest('input, select, textarea')");
+    if (missingRealms.length || !hasPrimer || !hasTabs || hasCardCollision || !hasInputGuard) {
+        console.error(`FAIL  Adventurer Codex integrity check failed (missingRealms=${missingRealms.join(',')}, primer=${hasPrimer}, tabs=${hasTabs}, cardCollision=${hasCardCollision}, inputGuard=${hasInputGuard})`);
+        failed++;
+    } else {
+        console.log('ok    2-Pane Adventurer Codex, Novice Roguelike Primer, 8 Tabs, Controls, and Input Guard verified');
+    }
+}
+
 console.log('\nAudit Summary: ' + (failed === 0 ? 'ALL PASSED (Zero Omissions)' : `${failed} FAILURES`));
 process.exit(failed === 0 ? 0 : 1);
