@@ -832,6 +832,11 @@ function createSaveVaultService({
         }
 
         if (!targetPath) {
+            if (urlObj.searchParams.get('optional') === '1') {
+                res.writeHead(204, { 'Cache-Control': 'private, no-store' });
+                res.end();
+                return;
+            }
             res.writeHead(404, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ error: 'Save file not found' }));
             return;

@@ -1,4 +1,4 @@
-# YASD 3D — Contributor & Engine-Bridge Invariants (v13.1.2)
+# YASD 3D — Contributor & Engine-Bridge Invariants (v13.1.3)
 
 > **`Law U0` (Epistemic Honesty)**: Tag claims `⊢ PROVED` / `⊬ HYPOTHESIS` / `⊥ REFUTED` (cite `file:line` or exit `0`); separate external baselines from internal receipts (`HONESTY-01`). Zero personal names (`PUB-PII-01`).
 

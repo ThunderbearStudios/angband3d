@@ -3180,8 +3180,8 @@ window.addEventListener('DOMContentLoaded', () => {
             const snapHeaders = (window.SaveVaultClient && typeof window.SaveVaultClient.buildAuthHeaders === 'function')
                 ? window.SaveVaultClient.buildAuthHeaders(effRealm, cleanSlot)
                 : {};
-            const resp = await fetch(`/api/saves/${encodeURIComponent(cleanSlot)}?realm=${encodeURIComponent(effRealm)}`, { headers: snapHeaders });
-            if (!resp.ok) return;
+            const resp = await fetch(`/api/saves/${encodeURIComponent(cleanSlot)}?realm=${encodeURIComponent(effRealm)}&optional=1`, { headers: snapHeaders });
+            if (!resp.ok || resp.status === 204) return;
             const buf = await resp.arrayBuffer();
             if (buf && buf.byteLength >= 36) {
                 const bytes = new Uint8Array(buf);
