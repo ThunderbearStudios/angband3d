@@ -1371,7 +1371,7 @@ const server = http.createServer((req, res) => {
     if (saveVault.handleSaveVaultRoute(req, res, urlObj, pathname)) return;
 
     // REST: Multi-Realm Registry & Capabilities (memoized; CORS varies by Origin via res.setHeader('Vary','Origin'))
-    if (pathname === '/api/realms' && req.method === 'GET') {
+    if (pathname === '/api/realms' && (req.method === 'GET' || req.method === 'HEAD')) {
         if (!server._cachedRealmsJson) {
             const realmsStatus = {};
             if (engineManifest && engineManifest.realms) {
@@ -1400,9 +1400,9 @@ const server = http.createServer((req, res) => {
         }
         res.writeHead(200, {
             'Content-Type': 'application/json',
-            'Cache-Control': 'private, max-age=300'
+            'Cache-Control': 'public, max-age=300, s-maxage=300, stale-while-revalidate=600'
         });
-        res.end(server._cachedRealmsJson);
+        res.end(req.method === 'HEAD' ? undefined : server._cachedRealmsJson);
         return;
     }
 

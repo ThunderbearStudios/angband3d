@@ -37,29 +37,22 @@ function decodeBase64(b64) {
 }
 
 function preserveAffinitySetCookies(upstreamHeaders, outHeaders, pathname) {
-  if (pathname.startsWith("/api/") || pathname === "/ws") {
-    return Boolean(outHeaders.get("Set-Cookie"));
-  }
-  if (pathname === "/" || pathname === "/index.html") {
+  if ((pathname.startsWith("/api/") && pathname !== "/api/realms") || pathname === "/ws") {
     const rawList =
       typeof upstreamHeaders.getSetCookie === "function"
         ? upstreamHeaders.getSetCookie()
         : [upstreamHeaders.get("Set-Cookie")].filter(Boolean);
-    outHeaders.delete("Set-Cookie");
-    let kept = false;
-    for (const cookieStr of rawList) {
-      if (typeof cookieStr === "string" && /\bGAESA=/i.test(cookieStr)) {
-        outHeaders.append("Set-Cookie", cookieStr);
-        kept = true;
-      }
+    if (rawList.some((c) => typeof c === "string" && /\bGAESA=/i.test(c))) {
+      return true;
     }
-    return kept;
+    return Boolean(outHeaders.get("Set-Cookie"));
   }
   outHeaders.delete("Set-Cookie");
   return false;
 }
 
 let _anonLandingHtmlCache = { host: "", html: "", status: 200, expiresAt: 0 };
+let _realmsJsonCache = { host: "", json: "", status: 200, expiresAt: 0 };
 
 export default {
   async fetch(request, env = {}) {
@@ -124,24 +117,48 @@ export default {
         request.headers.get("X-Vault-Id")
     );
     const isRootHtmlPath = url.pathname === "/" || url.pathname === "/index.html";
-    const isAnonymousRootGet = request.method === "GET" && isRootHtmlPath && !hasAuthHeaders;
+    const isAnonymousRootReq = (request.method === "GET" || request.method === "HEAD") && isRootHtmlPath && !hasAuthHeaders;
+    const isCacheableRealmsReq =
+      (request.method === "GET" || request.method === "HEAD") && url.pathname === "/api/realms" && !request.headers.get("Origin");
 
     if (
-      isAnonymousRootGet &&
-      /\bGAESA=/i.test(reqCookie) &&
+      isAnonymousRootReq &&
       _anonLandingHtmlCache.html &&
       _anonLandingHtmlCache.host === url.hostname &&
       Date.now() < _anonLandingHtmlCache.expiresAt
     ) {
-      return new Response(_anonLandingHtmlCache.html, {
+      return new Response(request.method === "HEAD" ? null : _anonLandingHtmlCache.html, {
         status: _anonLandingHtmlCache.status,
         headers: {
           "Content-Type": "text/html; charset=utf-8",
           "Cache-Control": "public, max-age=0, s-maxage=30, stale-while-revalidate=60, no-transform",
+          "X-Edge-Cache": "HIT-ISOLATE",
           "Content-Security-Policy": CLEAN_CSP,
           "Permissions-Policy": PERMISSIONS_POLICY,
           "Cross-Origin-Opener-Policy": "same-origin",
           "Cross-Origin-Embedder-Policy": "credentialless",
+          "X-Content-Type-Options": "nosniff",
+          "Referrer-Policy": "strict-origin-when-cross-origin",
+          "Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
+        },
+      });
+    }
+
+    if (
+      isCacheableRealmsReq &&
+      _realmsJsonCache.json &&
+      _realmsJsonCache.host === url.hostname &&
+      Date.now() < _realmsJsonCache.expiresAt
+    ) {
+      return new Response(request.method === "HEAD" ? null : _realmsJsonCache.json, {
+        status: _realmsJsonCache.status,
+        headers: {
+          "Content-Type": "application/json; charset=utf-8",
+          "Cache-Control": "public, max-age=300, s-maxage=300, stale-while-revalidate=600",
+          "Vary": "Origin",
+          "Content-Security-Policy": CLEAN_CSP,
+          "Permissions-Policy": PERMISSIONS_POLICY,
+          "Cross-Origin-Opener-Policy": "same-origin",
           "X-Content-Type-Options": "nosniff",
           "Referrer-Policy": "strict-origin-when-cross-origin",
           "Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
@@ -178,8 +195,16 @@ export default {
         cacheEverything: true,
         cacheTtlByStatus: { "200-299": ttl, "404": 30, "500-599": 0 },
       };
-    } else if (isAnonymousRootGet && !reqCookie) {
+    } else if (isCacheableRealmsReq) {
+      fetchOpts.method = "GET";
       fetchOpts.cf = {
+        cacheEverything: true,
+        cacheTtlByStatus: { "200-299": 300, "404": 30, "500-599": 0 },
+      };
+    } else if (isAnonymousRootReq) {
+      fetchOpts.method = "GET";
+      fetchOpts.cf = {
+        cacheEverything: true,
         cacheTtlByStatus: { "200-299": 30, "404": 10, "500-599": 0 },
       };
     }
@@ -210,9 +235,26 @@ export default {
     outHeaders.set("Referrer-Policy", "strict-origin-when-cross-origin");
     outHeaders.set("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload");
 
+    if (isCacheableRealmsReq && upstreamResp.status === 200) {
+      const realmsJson = await upstreamResp.text();
+      _realmsJsonCache = {
+        host: url.hostname,
+        json: realmsJson,
+        status: 200,
+        expiresAt: Date.now() + 300_000,
+      };
+      outHeaders.set("Cache-Control", "public, max-age=300, s-maxage=300, stale-while-revalidate=600");
+      outHeaders.set("Vary", "Origin");
+      outHeaders.delete("Content-Length");
+      return new Response(request.method === "HEAD" ? null : realmsJson, {
+        status: 200,
+        headers: outHeaders,
+      });
+    }
+
     const ct = (outHeaders.get("Content-Type") || "").toLowerCase();
-    if (ct.includes("text/html") && request.method === "GET") {
-      if (isAnonymousRootGet && !hasSetCookie) {
+    if (ct.includes("text/html") && (request.method === "GET" || request.method === "HEAD")) {
+      if (isAnonymousRootReq && !hasSetCookie) {
         outHeaders.set("Cache-Control", "public, max-age=0, s-maxage=30, stale-while-revalidate=60, no-transform");
       } else {
         outHeaders.set("Cache-Control", "private, no-store, no-cache, must-revalidate, max-age=0, no-transform");
@@ -224,7 +266,7 @@ export default {
           .replace(/<link[^>]+fonts\.googleapis\.com[^>]*>\s*/gi, "")
           .replace(/<link[^>]+fonts\.gstatic\.com[^>]*>\s*/gi, SELF_HOSTED_FONT_STYLE + "\n    ");
       }
-      if (isAnonymousRootGet && upstreamResp.status === 200) {
+      if (isAnonymousRootReq && upstreamResp.status === 200) {
         _anonLandingHtmlCache = {
           host: url.hostname,
           html,
@@ -232,7 +274,7 @@ export default {
           expiresAt: Date.now() + 30_000,
         };
       }
-      return new Response(html, {
+      return new Response(request.method === "HEAD" ? null : html, {
         status: upstreamResp.status,
         headers: outHeaders,
       });
