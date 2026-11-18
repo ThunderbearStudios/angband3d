@@ -28,6 +28,8 @@ const {
     VALID_MAGICS,
     MAGIC_TO_REALM,
     FLOOR_SIDECAR_RE,
+    stripUnixUidPrefix,
+    hasFloorSidecarsForRealm,
     isValidRealm,
     detectRealmFromMagic,
     getRealmShortTag,
@@ -767,8 +769,8 @@ const IDLE_TIMEOUT_MS = parseInt(process.env.IDLE_TIMEOUT_MS || `${15 * 60 * 100
 const MAX_CONCURRENT_GAMES = parseInt(process.env.MAX_CONCURRENT_GAMES || '36', 10);
 const MAX_WS_PER_IP = parseInt(process.env.MAX_WS_PER_IP || String(DEFAULT_MAX_WS_PER_IP), 10);
 const MAX_QUEUE_SIZE = parseInt(process.env.MAX_QUEUE_SIZE || '100', 10);
-// Reconnect Grace Period: Keeps headless game engine alive across network drops, tab reloads, or lag spikes (5 minutes; active play sessions save immediately on disconnect)
-const DISCONNECT_GRACE_PERIOD_MS = parseInt(process.env.DISCONNECT_GRACE_PERIOD_MS || `${5 * 60 * 1000}`, 10); // 5 minutes
+// Reconnect Grace Period: Keeps headless game engine alive across network drops or reloads (90s default for play; 20s setup)
+const DISCONNECT_GRACE_PERIOD_MS = parseInt(process.env.DISCONNECT_GRACE_PERIOD_MS || `${90 * 1000}`, 10); // 90 seconds
 
 // Waiting queue for connections when activeSessions.size >= MAX_CONCURRENT_GAMES
 // Each item: { id, ws, request, enqueueTime, user, save }
@@ -829,7 +831,13 @@ const CSP_DIRECTIVES = [
     "frame-ancestors 'self'"
 ].join('; ');
 
+const _primarySaveDirCache = new Map();
+const _resolvedEngineCache = new Map();
+const _realmSaveDirsCache = new Map();
+let _baseSaveDirsCache = null;
+
 function getSaveDirs() {
+    if (_baseSaveDirsCache) return _baseSaveDirsCache;
     const dirs = new Set();
     if (SAVE_DIR) dirs.add(path.resolve(SAVE_DIR));
     const engineDir = path.dirname(ENGINE_EXE);
@@ -846,7 +854,8 @@ function getSaveDirs() {
     for (const c of candidates) {
         if (c && fs.existsSync(c)) dirs.add(path.resolve(c));
     }
-    return Array.from(dirs);
+    _baseSaveDirsCache = Array.from(dirs);
+    return _baseSaveDirsCache;
 }
 
 console.log(`[Angband3D Cloud] Engine executable: ${ENGINE_EXE}`);
@@ -868,14 +877,19 @@ try {
 
 function getPrimaryRealmSaveDir(realmId = 'angband') {
     const cleanRealm = isValidRealm(realmId) ? realmId : 'angband';
+    const cached = _primarySaveDirCache.get(cleanRealm);
+    if (cached) return cached;
     const primaryDir = path.resolve(SAVE_DIR, cleanRealm);
     if (!fs.existsSync(primaryDir)) {
         try { fs.mkdirSync(primaryDir, { recursive: true }); } catch (_) {}
     }
+    _primarySaveDirCache.set(cleanRealm, primaryDir);
     return primaryDir;
 }
 
 function resolveRealmEngine(realmId = 'angband', lang = 'en') {
+    const cacheKey = `${realmId}:${lang}`;
+    if (_resolvedEngineCache.has(cacheKey)) return _resolvedEngineCache.get(cacheKey);
     const primarySaveDir = getPrimaryRealmSaveDir(realmId);
     const defaultEngine = {
         realm: 'angband',
@@ -898,8 +912,7 @@ function resolveRealmEngine(realmId = 'angband', lang = 'en') {
     };
 
     if (!engineManifest || !engineManifest.realms || !engineManifest.realms[realmId]) {
-        if (realmId === 'angband') return defaultEngine;
-        return {
+        const resObj = (realmId === 'angband') ? defaultEngine : {
             realm: realmId,
             name: realmId,
             exe: null,
@@ -911,19 +924,18 @@ function resolveRealmEngine(realmId = 'angband', lang = 'en') {
             isFallback: false,
             fallbackNotice: `Realm "${realmId}" is not defined in engine manifest.`
         };
+        _resolvedEngineCache.set(cacheKey, resObj);
+        return resObj;
     }
 
     if (realmId === 'angband') {
+        _resolvedEngineCache.set(cacheKey, defaultEngine);
         return defaultEngine;
     }
 
     const realmDef = engineManifest.realms[realmId];
     let binRelPath = IS_WIN ? realmDef.binary?.win_x64 : realmDef.binary?.linux_x64;
 
-    // Multilingual variant binary resolution:
-    // Hengband native binary (hengband.exe / hengband) provides full native Japanese strings,
-    // enabling seamless real-time client-side toggling between English, Bilingual, and Japanese across all views.
-    // We prefer the native binary if present, falling back to pure English (hengband-en) only if the native binary is absent.
     if (realmId === 'hengband') {
         const enBin = IS_WIN ? 'variants/hengband/bin/hengband-en.exe' : 'variants/hengband/bin/hengband-en';
         const jpBin = IS_WIN ? 'variants/hengband/bin/hengband.exe' : 'variants/hengband/bin/hengband';
@@ -954,7 +966,7 @@ function resolveRealmEngine(realmId = 'angband', lang = 'en') {
         const resolvedCli = isNativeAngbandVariant
             ? { ...defaultEngine.cli, ...(realmDef.cli || {}) }
             : (realmDef.cli || defaultEngine.cli);
-        return {
+        const resolved = {
             realm: realmId,
             name: realmDef.name,
             exe: variantExe,
@@ -965,9 +977,11 @@ function resolveRealmEngine(realmId = 'angband', lang = 'en') {
             installed: true,
             isFallback: false
         };
+        _resolvedEngineCache.set(cacheKey, resolved);
+        return resolved;
     }
 
-    return {
+    const missingObj = {
         realm: realmId,
         name: realmDef.name,
         exe: null,
@@ -979,10 +993,14 @@ function resolveRealmEngine(realmId = 'angband', lang = 'en') {
         isFallback: false,
         fallbackNotice: `Engine binary for realm "${realmDef.name}" is not installed on this server.`
     };
+    _resolvedEngineCache.set(cacheKey, missingObj);
+    return missingObj;
 }
 
 function getSaveDirsForRealm(realmId = 'angband') {
     const cleanRealm = isValidRealm(realmId) ? realmId : 'angband';
+    const cached = _realmSaveDirsCache.get(cleanRealm);
+    if (cached) return cached;
     const dirs = new Set();
     dirs.add(getPrimaryRealmSaveDir(cleanRealm));
 
@@ -1005,43 +1023,38 @@ function getSaveDirsForRealm(realmId = 'angband') {
             }
         }
     }
-    return Array.from(dirs);
+    const list = Array.from(dirs);
+    _realmSaveDirsCache.set(cleanRealm, list);
+    return list;
 }
 
-/**
- * Resolves a requested save name against disk files in all known save directories.
- * Preserves the exact on-disk filename (e.g. "Hero.sav" vs "Hero"), ensuring Angband's
- * start_game() engine check finds the savefile and does not drop the player into character creation!
- */
-function resolveSavefileName(requestedSave, realmId = 'angband') {
+async function resolveSavefileNameAsync(requestedSave, realmId = 'angband') {
     if (!requestedSave) return null;
-    const clean = requestedSave.replace(/[^a-zA-Z0-9_.-]/g, '');
+    const clean = stripUnixUidPrefix(requestedSave.replace(/[^a-zA-Z0-9_.-]/g, ''));
     if (!clean) return null;
     const cleanNoExt = clean.replace(/\.sav$/i, '');
     const saveDirs = getSaveDirsForRealm(realmId);
+    const cands = Array.from(new Set([clean, cleanNoExt + '.sav', cleanNoExt, '0.' + cleanNoExt, '0.' + cleanNoExt + '.sav']));
 
     for (const dir of saveDirs) {
-        if (!fs.existsSync(dir)) continue;
-        const exact = path.join(dir, clean);
-        if (fs.existsSync(exact) && fs.statSync(exact).isFile()) return path.basename(exact);
-
-        const withSav = path.join(dir, cleanNoExt + '.sav');
-        if (fs.existsSync(withSav) && fs.statSync(withSav).isFile()) return path.basename(withSav);
-
-        const withoutExt = path.join(dir, cleanNoExt);
-        if (fs.existsSync(withoutExt) && fs.statSync(withoutExt).isFile()) return path.basename(withoutExt);
+        for (const fname of cands) {
+            try {
+                const st = await fs.promises.stat(path.join(dir, fname));
+                if (st.isFile()) return stripUnixUidPrefix(fname);
+            } catch (_) {}
+        }
     }
 
     for (const dir of saveDirs) {
-        if (!fs.existsSync(dir)) continue;
         try {
-            const files = fs.readdirSync(dir);
+            const files = await fs.promises.readdir(dir);
             for (const f of files) {
-                const fNoExt = f.replace(/\.sav$/i, '');
-                if (f.toLowerCase() === clean.toLowerCase() ||
-                    f.toLowerCase() === (cleanNoExt + '.sav').toLowerCase() ||
+                const unpref = stripUnixUidPrefix(f);
+                const fNoExt = unpref.replace(/\.sav$/i, '');
+                if (unpref.toLowerCase() === clean.toLowerCase() ||
+                    unpref.toLowerCase() === (cleanNoExt + '.sav').toLowerCase() ||
                     fNoExt.toLowerCase() === cleanNoExt.toLowerCase()) {
-                    return f;
+                    return unpref;
                 }
             }
         } catch (_) {}
@@ -1357,36 +1370,39 @@ const server = http.createServer((req, res) => {
     // REST: Async Write-Through Dual-Vault Save Endpoints (/api/saves, /api/saves/sync, /api/saves/upload, /api/saves/latest, /api/saves/restore-checkpoint, /api/saves/:name)
     if (saveVault.handleSaveVaultRoute(req, res, urlObj, pathname)) return;
 
-    // REST: Multi-Realm Registry & Capabilities
+    // REST: Multi-Realm Registry & Capabilities (memoized; CORS varies by Origin via res.setHeader('Vary','Origin'))
     if (pathname === '/api/realms' && req.method === 'GET') {
-        const realmsStatus = {};
-        if (engineManifest && engineManifest.realms) {
-            for (const [rId, def] of Object.entries(engineManifest.realms)) {
-                const resolved = resolveRealmEngine(rId);
-                realmsStatus[rId] = {
-                    id: rId,
-                    name: def.name,
-                    tagline: def.tagline,
-                    version: def.version,
-                    lineage: def.lineage,
-                    installed: resolved.installed && !resolved.isFallback,
-                    isFallback: resolved.isFallback,
-                    fallbackNotice: resolved.fallbackNotice || null,
-                    capabilities: def.capabilities,
-                    theme: def.theme,
-                    lore: def.lore
-                };
+        if (!server._cachedRealmsJson) {
+            const realmsStatus = {};
+            if (engineManifest && engineManifest.realms) {
+                for (const [rId, def] of Object.entries(engineManifest.realms)) {
+                    const resolved = resolveRealmEngine(rId);
+                    realmsStatus[rId] = {
+                        id: rId,
+                        name: def.name,
+                        tagline: def.tagline,
+                        version: def.version,
+                        lineage: def.lineage,
+                        installed: resolved.installed && !resolved.isFallback,
+                        isFallback: resolved.isFallback,
+                        fallbackNotice: resolved.fallbackNotice || null,
+                        capabilities: def.capabilities,
+                        theme: def.theme,
+                        lore: def.lore
+                    };
+                }
             }
+            server._cachedRealmsJson = JSON.stringify({
+                status: 'ok',
+                defaultRealm: engineManifest?.default_realm || 'angband',
+                realms: realmsStatus
+            });
         }
         res.writeHead(200, {
             'Content-Type': 'application/json',
-            'Cache-Control': 'no-store, no-cache, must-revalidate'
+            'Cache-Control': 'private, max-age=300'
         });
-        res.end(JSON.stringify({
-            status: 'ok',
-            defaultRealm: engineManifest?.default_realm || 'angband',
-            realms: realmsStatus
-        }));
+        res.end(server._cachedRealmsJson);
         return;
     }
 
@@ -1467,7 +1483,7 @@ const server = http.createServer((req, res) => {
         const provider = (apiKey && Date.now() >= _aiStudioDepletedUntil) ? 'gemini' : (vertexReady ? 'vertex' : 'offline');
         res.writeHead(200, {
             'Content-Type': 'application/json',
-            'Cache-Control': 'no-cache, no-store, must-revalidate'
+            'Cache-Control': 'private, max-age=120'
         });
         res.end(JSON.stringify({
             hasKey,
@@ -2453,8 +2469,31 @@ const server = http.createServer((req, res) => {
         return;
     }
 
-    if (fs.existsSync(filePath)) {
-        const fileStat = fs.statSync(filePath);
+    const staticHotMap = server._staticHotMap || (server._staticHotMap = new Map());
+    const nowStatMs = Date.now();
+    let staticMeta = staticHotMap.get(filePath);
+    if (!staticMeta || (!process.env.K_SERVICE && nowStatMs - staticMeta.checkedAt > 2000)) {
+        try {
+            const fileStat = fs.statSync(filePath);
+            if (!fileStat.isFile()) {
+                staticHotMap.delete(filePath);
+                staticMeta = null;
+            } else {
+                const brFilePath = filePath + '.br';
+                const brStat = fs.existsSync(brFilePath) ? fs.statSync(brFilePath) : null;
+                const validBr = Boolean(brStat && brStat.isFile() && brStat.mtimeMs >= fileStat.mtimeMs && brStat.size > 0);
+                staticMeta = { fileStat, brFilePath, brStat: validBr ? brStat : null, checkedAt: nowStatMs };
+                if (staticHotMap.size >= 400) staticHotMap.delete(staticHotMap.keys().next().value);
+                staticHotMap.set(filePath, staticMeta);
+            }
+        } catch (_) {
+            staticHotMap.delete(filePath);
+            staticMeta = null;
+        }
+    }
+
+    if (staticMeta && staticMeta.fileStat) {
+        const fileStat = staticMeta.fileStat;
         if (fileStat.isFile()) {
             const ext = path.extname(filePath).toLowerCase();
             const mimeTypes = {
@@ -2605,10 +2644,31 @@ const server = http.createServer((req, res) => {
             headers['Content-Encoding'] = 'br';
             headers['Vary'] = 'Accept-Encoding';
             try {
-                const brFilePath = filePath + '.br';
-                const brStat = fs.existsSync(brFilePath) ? fs.statSync(brFilePath) : null;
-                if (brStat && brStat.isFile() && brStat.mtimeMs >= fileStat.mtimeMs && brStat.size > 0) {
+                const brFilePath = staticMeta.brFilePath || (filePath + '.br');
+                const brStat = staticMeta.brStat;
+                if (brStat) {
+                    const brKey = `brfile:${filePath}:${brStat.mtimeMs}`;
+                    const cachedBr = staticGzipCache.get(brKey);
+                    if (cachedBr) {
+                        headers['Content-Length'] = cachedBr.length;
+                        res.writeHead(200, headers);
+                        res.end(req.method === 'HEAD' ? undefined : cachedBr);
+                        return;
+                    }
                     headers['Content-Length'] = brStat.size;
+                    if (req.method === 'HEAD') {
+                        res.writeHead(200, headers);
+                        res.end();
+                        return;
+                    }
+                    if (brStat.size <= 512 * 1024) {
+                        fs.promises.readFile(brFilePath).then((buf) => {
+                            if (buf && buf.length > 0) putStaticCompressedCache(brKey, buf);
+                            res.writeHead(200, headers);
+                            res.end(buf);
+                        }).catch(() => { if (!res.headersSent) res.writeHead(500); res.end(); });
+                        return;
+                    }
                     res.writeHead(200, headers);
                     const brStream = fs.createReadStream(brFilePath);
                     brStream.on('error', () => { if (!res.headersSent) res.writeHead(500); res.end(); });
@@ -2865,7 +2925,7 @@ function ryodBlueprintStore(op, key, bp) {
     return m.get(key) || null;
 }
 
-const STAGED_NATIVE_REALMS = new Set(['frogcomposband', 'silq', 'hengband']);
+const STAGED_NATIVE_REALMS = new Set(['angband', 'frogcomposband', 'silq', 'hengband']);
 
 function isActiveSaveStagingEnabled(realm) {
     return STAGED_NATIVE_REALMS.has(realm) && Boolean(process.env.K_SERVICE || process.env.STAGE_ACTIVE_SAVES === '1');
@@ -2882,12 +2942,15 @@ async function copyFileIfPresentAsync(src, dest) {
     return false;
 }
 
-async function hydrateSlotToDirAsync(slotName, sourceDirs, destDir) {
+async function hydrateSlotToDirAsync(slotName, sourceDirs, destDir, opts = null) {
     if (!slotName || !destDir || !Array.isArray(sourceDirs)) return;
     await fs.promises.mkdir(destDir, { recursive: true }).catch(() => {});
+    const realm = opts && opts.realm ? String(opts.realm).toLowerCase() : '';
+    const ensureUidCopy = Boolean(opts && opts.ensureUidCopy && !IS_WIN && (realm === 'frogcomposband' || realm === 'silq'));
+    const uidPrefix = ensureUidCopy ? `${typeof process.getuid === 'function' ? process.getuid() : 0}.` : '';
     const resolvedDest = path.resolve(destDir);
-    const stem = String(slotName).replace(/\.sav$/i, '');
-    const candidates = slotName.endsWith('.sav') ? [slotName, stem] : [slotName, `${stem}.sav`];
+    const stem = stripUnixUidPrefix(slotName).replace(/\.sav$/i, '');
+    const candidates = Array.from(new Set([slotName, stem, `${stem}.sav`, `0.${stem}`, `0.${stem}.sav`]));
 
     for (const sDir of sourceDirs) {
         if (!sDir) continue;
@@ -2905,29 +2968,41 @@ async function hydrateSlotToDirAsync(slotName, sourceDirs, destDir) {
         }
         if (!matchedFile) continue;
 
-        const destSlotPath = path.join(resolvedDest, matchedFile);
-        let shouldCopyMain = true;
-        try {
-            const dstStat = await fs.promises.stat(destSlotPath);
-            const srcStat = await fs.promises.stat(path.join(resolvedSrc, matchedFile));
-            if (dstStat.isFile() && dstStat.size > 0 && dstStat.mtimeMs >= srcStat.mtimeMs) {
-                shouldCopyMain = false;
-            }
-        } catch (_) {}
-
-        if (shouldCopyMain) {
-            await copyFileIfPresentAsync(path.join(resolvedSrc, matchedFile), destSlotPath);
+        const cleanMatchName = stripUnixUidPrefix(matchedFile);
+        const destTargets = [cleanMatchName];
+        if (ensureUidCopy && !/^\d+\./.test(cleanMatchName)) {
+            destTargets.push(`${uidPrefix}${cleanMatchName}`);
         }
+        for (const targetName of destTargets) {
+            const destSlotPath = path.join(resolvedDest, targetName);
+            let shouldCopyMain = true;
+            try {
+                const dstStat = await fs.promises.stat(destSlotPath);
+                const srcStat = await fs.promises.stat(path.join(resolvedSrc, matchedFile));
+                if (dstStat.isFile() && dstStat.size > 0 && dstStat.mtimeMs >= srcStat.mtimeMs) {
+                    shouldCopyMain = false;
+                }
+            } catch (_) {}
+            if (shouldCopyMain) {
+                await copyFileIfPresentAsync(path.join(resolvedSrc, matchedFile), destSlotPath);
+            }
+        }
+        const sidecarSrcBase = path.join(resolvedSrc, matchedFile);
+        const altSidecarBase = path.join(resolvedSrc, cleanMatchName);
+        const sidecarDstBase = path.join(resolvedDest, cleanMatchName);
         const sidecarSuffixes = ['.owner.json', '.realm.json', '.living.sav', '.living.sav.realm.json', '.ironman', '.ryod.json'];
         for (const sfx of sidecarSuffixes) {
-            const dstSidecar = destSlotPath + sfx;
+            const dstSidecar = sidecarDstBase + sfx;
             try {
                 await fs.promises.access(dstSidecar);
             } catch (_) {
-                await copyFileIfPresentAsync(path.join(resolvedSrc, matchedFile + sfx), dstSidecar);
+                const ok = await copyFileIfPresentAsync(sidecarSrcBase + sfx, dstSidecar);
+                if (!ok && altSidecarBase !== sidecarSrcBase) {
+                    await copyFileIfPresentAsync(altSidecarBase + sfx, dstSidecar);
+                }
             }
         }
-        if (matchedFile !== stem) {
+        if (cleanMatchName !== stem) {
             const stemRyodDst = path.join(resolvedDest, `${stem}.ryod.json`);
             try {
                 await fs.promises.access(stemRyodDst);
@@ -2935,13 +3010,20 @@ async function hydrateSlotToDirAsync(slotName, sourceDirs, destDir) {
                 await copyFileIfPresentAsync(path.join(resolvedSrc, `${stem}.ryod.json`), stemRyodDst);
             }
         }
-        const floorFiles = await listFloorSidecarsAsync(resolvedSrc, matchedFile);
-        for (const f of floorFiles) {
-            await copyFileIfPresentAsync(path.join(resolvedSrc, f), path.join(resolvedDest, f));
-        }
-        const livingFloorFiles = await listFloorSidecarsAsync(resolvedSrc, matchedFile + '.living.sav');
-        for (const f of livingFloorFiles) {
-            await copyFileIfPresentAsync(path.join(resolvedSrc, f), path.join(resolvedDest, f));
+        if (hasFloorSidecarsForRealm(realm)) {
+            const floorFiles = await listFloorSidecarsAsync(resolvedSrc, matchedFile);
+            for (const f of floorFiles) {
+                const cleanFloor = stripUnixUidPrefix(f);
+                await copyFileIfPresentAsync(path.join(resolvedSrc, f), path.join(resolvedDest, cleanFloor));
+                if (ensureUidCopy) {
+                    await copyFileIfPresentAsync(path.join(resolvedSrc, f), path.join(resolvedDest, `${uidPrefix}${cleanFloor}`));
+                }
+            }
+            const livingFloorFiles = await listFloorSidecarsAsync(resolvedSrc, matchedFile + '.living.sav');
+            for (const f of livingFloorFiles) {
+                const cleanFloor = stripUnixUidPrefix(f);
+                await copyFileIfPresentAsync(path.join(resolvedSrc, f), path.join(resolvedDest, cleanFloor));
+            }
         }
         break;
     }
@@ -2991,22 +3073,28 @@ function mirrorStagedSavesToPersistent(session, opts = null) {
                     continue;
                 }
                 if (!st.isFile() || st.size <= 0) continue;
-                const isFloor = FLOOR_SIDECAR_RE.test(f);
-                const isMainSlot = slotCandidates.has(f) || Array.from(slotCandidates).some(s => f === `${s}.sav` || f.startsWith(`${s}.`));
+                const unpref = stripUnixUidPrefix(f);
+                const isFloor = FLOOR_SIDECAR_RE.test(unpref);
+                const isMainSlot = slotCandidates.has(f) || slotCandidates.has(unpref) ||
+                    Array.from(slotCandidates).some(s => {
+                        const cs = stripUnixUidPrefix(s);
+                        return f === `${s}.sav` || f.startsWith(`${s}.`) || unpref === `${cs}.sav` || unpref.startsWith(`${cs}.`);
+                    });
                 if (!isFloor && !isMainSlot) continue;
-                const dstFile = path.join(session.persistentSaveDir, f);
+                const dstFile = path.join(session.persistentSaveDir, unpref);
                 await fs.promises.copyFile(srcFile, dstFile);
-                if (!isFloor && !f.endsWith('.json') && !f.endsWith('.sav.living') && !f.endsWith('.living.sav') && !mirroredPrimaryPath) {
+                if (!isFloor && !unpref.endsWith('.json') && !unpref.endsWith('.sav.living') && !unpref.endsWith('.living.sav') && !mirroredPrimaryPath) {
                     mirroredPrimaryPath = dstFile;
                 }
             }
 
+            session.lastMirrorAt = Date.now();
             const canonicalSavePath = mirroredPrimaryPath || session.persistentSavePath || session.savePath;
             if (mirroredPrimaryPath) {
                 await ensureRealmSidecarAsync(canonicalSavePath, session.realm, session.ironman);
                 invalidateSavesCache(session.realm, path.basename(canonicalSavePath));
                 if (!session.isDead && !session.ironman) {
-                    await snapshotLivingSaveAsync(canonicalSavePath);
+                    await snapshotLivingSaveAsync(canonicalSavePath, { realm: session.realm });
                 }
             }
             return Boolean(mirroredPrimaryPath);
@@ -3023,15 +3111,22 @@ function mirrorStagedSavesToPersistent(session, opts = null) {
     return session._mirrorChain;
 }
 
-function scheduleStagedMirror(session, delayMs = 2000) {
+function scheduleStagedMirror(session, delayMs = 2000, force = false) {
     if (!session || !session.stageDir || session.isDead) return;
     if (session.stageMirrorTimer) clearTimeout(session.stageMirrorTimer);
+    let effectiveDelay = delayMs;
+    if (!force && session.lastMirrorAt) {
+        const elapsed = Date.now() - session.lastMirrorAt;
+        if (elapsed < 15000) {
+            effectiveDelay = Math.max(delayMs, 15000 - elapsed);
+        }
+    }
     session.stageMirrorTimer = setTimeout(() => {
         session.stageMirrorTimer = null;
         if (!session.isDead) {
             mirrorStagedSavesToPersistent(session);
         }
-    }, delayMs);
+    }, effectiveDelay);
     if (session.stageMirrorTimer.unref) session.stageMirrorTimer.unref();
 }
 
@@ -3125,7 +3220,11 @@ function cleanupUnstartedSaveArtifacts(session) {
     if (!session || !session.isNew || session.hasSavedInitialPlay || session.hadSaveBeforeLaunch || !session.savePath) return;
     if (session.phase === 'play') return;
     const base = session.savePath;
-    const candidates = [base, `${base}.sav`, `${base}.tok`, `${base}.realm.json`, `${base}.ironman`, `${base}.living.sav`, `${base}.ryod.json`];
+    const baseUid = path.join(path.dirname(base), '0.' + path.basename(base));
+    const candidates = [
+        base, `${base}.sav`, `${base}.owner.json`, `${base}.tok`, `${base}.realm.json`, `${base}.ironman`, `${base}.living.sav`, `${base}.ryod.json`,
+        baseUid, `${baseUid}.sav`, `${baseUid}.owner.json`, `${baseUid}.realm.json`
+    ];
     for (const p of candidates) {
         fs.promises.unlink(p).catch(() => {});
     }
@@ -3180,7 +3279,7 @@ function gracefulSessionSaveAndExit(sessionId, byeMessage = null, packetType = '
             } else if (!session.isDead && session.phase === 'play' && child.stdin && child.stdin.writable) {
                 console.log(`[Session] Saving authoritative state for session ${sessionId}...`);
                 child.stdin.write('save\n');
-                scheduleStagedMirror(session, 900);
+                scheduleStagedMirror(session, 900, true);
                 // Allow ample time (1200ms) for engine to flush savegame to disk without truncation
                 setTimeout(() => {
                     try {
@@ -3244,14 +3343,14 @@ function handleSessionDisconnect(sessionId, socket = null) {
 
     // Check if the engine process is still running
     if (session.child && !session.child.killed && session.child.exitCode === null) {
-        const graceMs = (session.phase === 'setup' || session.isDead) ? Math.min(DISCONNECT_GRACE_PERIOD_MS, 45000) : DISCONNECT_GRACE_PERIOD_MS;
+        const graceMs = (session.phase === 'setup' || session.isDead) ? Math.min(DISCONNECT_GRACE_PERIOD_MS, 20000) : DISCONNECT_GRACE_PERIOD_MS;
         console.log(`[WebSocket] Client disconnected from session ${sessionId} (Phase: ${session.phase || 'unknown'}, isDead: ${session.isDead || false}). Keeping engine alive for ${Math.round(graceMs / 1000)}s grace period...`);
 
         // Only issue non-blocking save command if actively in gameplay and player is NOT dead
         if (!session.isDead && session.phase === 'play' && session.child.stdin && session.child.stdin.writable) {
             try {
                 session.child.stdin.write('save\n');
-                scheduleStagedMirror(session, 2000);
+                scheduleStagedMirror(session, 400, true);
             } catch (err) {
                 console.warn(`[Session] Failed to issue disconnect save for ${sessionId}: ${err.message}`);
             }
@@ -3412,8 +3511,8 @@ function attachWebSocketToSession(session, ws) {
                             session.child.stdin.write('save\n');
                             session.lastSavedTurn = session.currentTurn || 0;
                             session.lastSavedInputSeq = session.inputSeq || 0;
-                            invalidateSavesCache(session.realm, session.save);
-                            scheduleStagedMirror(session, 2000);
+                            if (!session.stageDir) invalidateSavesCache(session.realm, session.save);
+                            scheduleStagedMirror(session, 2000, true);
                         }
                         session.child.stdin.write('frame\n');
                         if (ws.readyState === ws.OPEN) {
@@ -3466,14 +3565,14 @@ function attachWebSocketToSession(session, ws) {
             if (safe === 'save') {
                 session.lastSavedTurn = session.currentTurn || 0;
                 session.lastSavedInputSeq = session.inputSeq || 0;
-                invalidateSavesCache(session.realm, session.save);
-                scheduleStagedMirror(session, 2000);
+                if (!session.stageDir) invalidateSavesCache(session.realm, session.save);
+                scheduleStagedMirror(session, 1500, true);
             }
             if (!session.isDead && session.phase === 'play' && (safe.startsWith('key ') || safe.startsWith('keys '))) {
                 session.inputSeq = (session.inputSeq || 0) + 1;
                 session.commandsSinceSave = (session.commandsSinceSave || 0) + 1;
                 if (session.autoSaveTimer) clearTimeout(session.autoSaveTimer);
-                if (session.commandsSinceSave >= 8) {
+                if (session.commandsSinceSave >= 12) {
                     session.autoSaveTimer = setTimeout(() => {
                         session.autoSaveTimer = null;
                         if (!session.isDead && session.phase === 'play' && session.child && !session.child.killed && session.child.exitCode === null && session.child.stdin && session.child.stdin.writable) {
@@ -3482,8 +3581,8 @@ function attachWebSocketToSession(session, ws) {
                                 session.child.stdin.write('save\n');
                                 session.lastSavedTurn = session.currentTurn || 0;
                                 session.lastSavedInputSeq = session.inputSeq || 0;
-                                invalidateSavesCache(session.realm, session.save);
-                                scheduleStagedMirror(session, 2000);
+                                if (!session.stageDir) invalidateSavesCache(session.realm, session.save);
+                                scheduleStagedMirror(session, 2000, false);
                             } catch (_) {}
                         }
                     }, 3500).unref();
@@ -3508,7 +3607,7 @@ async function spawnGameSession(ws, request) {
     const realm = rawRealm.replace(/[^a-zA-Z0-9_-]/g, '') || 'angband';
     const rawUser = urlObj.searchParams.get('user') || urlObj.searchParams.get('char') || null;
     const rawSave = urlObj.searchParams.get('save') || null;
-    let user = rawUser ? rawUser.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 28) : null;
+    let user = rawUser ? stripUnixUidPrefix(rawUser.replace(/[^a-zA-Z0-9_-]/g, '')).slice(0, 28) : null;
     if (!user && !rawSave) {
         user = buildDefaultSaveSlotName(realm, 'Hero');
     }
@@ -3516,7 +3615,7 @@ async function spawnGameSession(ws, request) {
     const lang = rawLang.toLowerCase();
     const engineInfo = resolveRealmEngine(realm, lang);
 
-    if (!engineInfo.installed || !engineInfo.exe || !fs.existsSync(engineInfo.exe)) {
+    if (!engineInfo.installed || !engineInfo.exe) {
         console.error(`[Session Rejected] Realm "${realm}" (${engineInfo.name || realm}) binary is not installed on this host.`);
         try {
             ws.send(JSON.stringify({
@@ -3532,8 +3631,8 @@ async function spawnGameSession(ws, request) {
         return;
     }
 
-    const resolvedSave = rawSave ? resolveSavefileName(rawSave, realm) : null;
-    const save = resolvedSave || (rawSave ? rawSave.replace(/[^a-zA-Z0-9_.-]/g, '') : null);
+    const resolvedSave = rawSave ? await resolveSavefileNameAsync(rawSave, realm) : null;
+    const save = resolvedSave || (rawSave ? stripUnixUidPrefix(rawSave.replace(/[^a-zA-Z0-9_.-]/g, '')) : null);
 
     const isNew = urlObj.searchParams.get('new') === '1' || urlObj.searchParams.get('reroll') === '1';
     const isCustomBirth = urlObj.searchParams.get('custom') === '1';
@@ -3542,31 +3641,37 @@ async function spawnGameSession(ws, request) {
     const wantQuickBirth = urlObj.searchParams.get('quickbirth') === '1';
     const persistentSaveDir = engineInfo.saveDir || SAVE_DIR;
     const allRealmSaveDirs = getSaveDirsForRealm(realm);
-    let targetSlot = save || user || 'Adventurer';
+    let targetSlot = stripUnixUidPrefix(save || user || 'Adventurer');
 
     // Hydrate existing save slot + sidecars from fallback directories into primary persistentSaveDir if needed
-    await hydrateSlotToDirAsync(targetSlot, allRealmSaveDirs, persistentSaveDir);
+    await hydrateSlotToDirAsync(targetSlot, allRealmSaveDirs, persistentSaveDir, { realm });
     let savePath = path.join(persistentSaveDir, targetSlot);
 
     let ownerToken = undefined;
     const reqToken = extractWsOwnerToken(request, urlObj);
 
-    // Check ownership whenever loading OR overwriting an existing save file on disk.
-    // If creating a new character with no explicit save target (e.g. random hero name collision),
-    // allocate a fresh non-colliding slot instead of failing with an Engine Error.
     let saveExists = false;
-    try {
-        saveExists = (await fs.promises.stat(savePath)).isFile();
-    } catch (_) {}
+    let existingDiskPath = savePath;
+    for (const candPath of [savePath, path.join(persistentSaveDir, '0.' + targetSlot)]) {
+        try {
+            if ((await fs.promises.stat(candPath)).isFile()) {
+                saveExists = true;
+                existingDiskPath = candPath;
+                break;
+            }
+        } catch (_) {}
+    }
     if (saveExists) {
-        if (!(await verifyOwnerTokenAsync(savePath, reqToken))) {
+        if (!(await verifyOwnerTokenAsync(existingDiskPath, reqToken))) {
             if (isNew && !rawSave) {
                 const maxBase = realm === 'hengband' ? 10 : 20;
                 const baseUser = (user || 'Adventurer').replace(/_[0-9a-z]+$/i, '').slice(0, maxBase) || 'Hero';
                 for (let i = 0; i < 20; i++) {
                     const candidate = `${baseUser}_${crypto.randomInt(100, 1000)}`;
                     const candPath = path.join(persistentSaveDir, candidate);
-                    if (!fs.existsSync(candPath)) {
+                    try {
+                        await fs.promises.access(candPath);
+                    } catch (_) {
                         user = candidate;
                         targetSlot = candidate;
                         savePath = candPath;
@@ -3582,8 +3687,9 @@ async function spawnGameSession(ws, request) {
         }
     }
 
-    // Generate token if it's a new character, or if it's a legacy save we are claiming (TOFU)
-    if (isNew || !fs.existsSync(getOwnerTokenPath(savePath))) {
+    let hasOwnerOnDisk = false;
+    try { await fs.promises.access(getOwnerTokenPath(savePath)); hasOwnerOnDisk = true; } catch (_) {}
+    if (isNew || !hasOwnerOnDisk) {
         ownerToken = await createOwnerTokenAsync(savePath, reqToken);
     }
 
@@ -3606,7 +3712,7 @@ async function spawnGameSession(ws, request) {
         stageDir = path.join(os.tmpdir(), 'angband3d-active', sessionId);
         await fs.promises.mkdir(path.join(stageDir, 'panic'), { recursive: true }).catch(() => {});
         if (!isNew) {
-            await hydrateSlotToDirAsync(targetSlot, [persistentSaveDir, ...allRealmSaveDirs], stageDir);
+            await hydrateSlotToDirAsync(targetSlot, [persistentSaveDir, ...allRealmSaveDirs], stageDir, { realm, ensureUidCopy: true });
         }
         activeEngineSaveDir = stageDir;
     }
@@ -3884,12 +3990,12 @@ async function spawnGameSession(ws, request) {
                                         session.lastSavedInputSeq = session.inputSeq || 0;
                                         invalidateSavesCache(session.realm, session.save);
                                         if (session.stageDir) {
-                                            scheduleStagedMirror(session, 900);
+                                            scheduleStagedMirror(session, 900, true);
                                         } else {
                                             setTimeout(() => {
                                                 if (!session.isDead && !session.ironman && session.savePath) {
                                                     ensureRealmSidecarAsync(session.savePath, session.realm, session.ironman)
-                                                        .then(() => snapshotLivingSaveAsync(session.savePath))
+                                                        .then(() => snapshotLivingSaveAsync(session.savePath, { realm: session.realm }))
                                                         .catch(() => {});
                                                 }
                                             }, 250).unref();
@@ -4000,10 +4106,10 @@ async function spawnGameSession(ws, request) {
 
 function normalizeSessionKey(str) {
     if (!str) return '';
-    return str.toLowerCase().replace(/\.sav$/i, '').trim();
+    return stripUnixUidPrefix(str).toLowerCase().replace(/\.sav$/i, '').trim();
 }
 
-wss.on('connection', (ws, request) => {
+wss.on('connection', async (ws, request) => {
     ws.isAlive = true;
     ws.on('pong', function wsHeartbeat() {
         this.isAlive = true;
@@ -4037,9 +4143,9 @@ wss.on('connection', (ws, request) => {
     const rawRealm = urlObj.searchParams.get('realm') || 'angband';
     const realm = rawRealm.replace(/[^a-zA-Z0-9_-]/g, '') || 'angband';
 
-    const user = rawUser ? rawUser.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 28) : null;
-    const resolvedSave = rawSave ? resolveSavefileName(rawSave, realm) : null;
-    const save = resolvedSave || (rawSave ? rawSave.replace(/[^a-zA-Z0-9_.-]/g, '') : null);
+    const user = rawUser ? stripUnixUidPrefix(rawUser.replace(/[^a-zA-Z0-9_-]/g, '')).slice(0, 28) : null;
+    const resolvedSave = rawSave ? await resolveSavefileNameAsync(rawSave, realm) : null;
+    const save = resolvedSave || (rawSave ? stripUnixUidPrefix(rawSave.replace(/[^a-zA-Z0-9_.-]/g, '')) : null);
     const clientSessionId = rawSession ? rawSession.replace(/[^a-zA-Z0-9_-]/g, '') : null;
 
     console.log(`[WebSocket] Client connection attempt. Realm: ${realm}, Session: ${clientSessionId || 'none'}, User: ${user || 'default'}, Save: ${save || 'none'}, isNew: ${isNew}. (Active: ${activeSessions.size}/${MAX_CONCURRENT_GAMES}, Queue: ${waitingQueue.length})`);
@@ -4051,7 +4157,7 @@ wss.on('connection', (ws, request) => {
     // STRICT INVARIANT: Never load or fall back to the wrong realm.
     // If the requested realm binary is missing, uninstalled, or invalid, reject immediately.
     const engineInfo = resolveRealmEngine(reqRealm, lang);
-    if (!engineInfo.installed || !engineInfo.exe || !fs.existsSync(engineInfo.exe)) {
+    if (!engineInfo.installed || !engineInfo.exe) {
         console.error(`[WebSocket] Connection rejected: realm "${reqRealm}" (${engineInfo.name || reqRealm}) binary is not installed on this server. Fallbacks are strictly disabled.`);
         try {
             ws.send(JSON.stringify({
@@ -4105,10 +4211,8 @@ wss.on('connection', (ws, request) => {
                     const candUser = normalizeSessionKey(candidate.user);
                     const candEngineSave = candidate.engineSavefile ? normalizeSessionKey(path.basename(candidate.engineSavefile)) : '';
                     if (candSave === targetKey || candUser === targetKey || candEngineSave === targetKey) {
-                        if (candidate.savePath && fs.existsSync(getOwnerTokenPath(candidate.savePath))) {
-                            if (!verifyOwnerToken(candidate.savePath, reqToken)) {
-                                continue;
-                            }
+                        if (candidate.savePath && !(await verifyOwnerTokenAsync(candidate.savePath, reqToken))) {
+                            continue;
                         }
                         existingSession = candidate;
                         break;
@@ -4134,12 +4238,10 @@ wss.on('connection', (ws, request) => {
                     resumed: true
                 }));
 
-                // Immediately emit cached last frame for 0ms visual reconnection
                 if (existingSession.lastFrame) {
                     ws.send(existingSession.lastFrame);
                 }
 
-                // Request an immediate fresh frame from the engine
                 if (existingSession.child && existingSession.child.stdin && existingSession.child.stdin.writable) {
                     existingSession.child.stdin.write('frame\n');
                 }
@@ -4149,8 +4251,6 @@ wss.on('connection', (ws, request) => {
             return;
         }
     } else {
-        // If player explicitly requested a brand new hero (-n / isNew=true),
-        // terminate any lingering session for this character within the SAME realm
         const isGenericUser = !user || normalizeSessionKey(user) === 'adventurer';
         const targetKey = normalizeSessionKey(save || (!isGenericUser ? user : null));
         if (targetKey) {
@@ -4160,7 +4260,7 @@ wss.on('connection', (ws, request) => {
                     const candKey = normalizeSessionKey(cand.save || cand.user || (cand.engineSavefile ? path.basename(cand.engineSavefile) : null));
                     if (candKey === targetKey) {
                         const candSavePath = cand.savePath || path.join(engineInfo.saveDir || SAVE_DIR, cand.save || cand.user || '');
-                        if (candSavePath && fs.existsSync(getOwnerTokenPath(candSavePath)) && !verifyOwnerToken(candSavePath, reqToken)) {
+                        if (candSavePath && !(await verifyOwnerTokenAsync(candSavePath, reqToken))) {
                             continue;
                         }
                         console.log(`[WebSocket] Terminating existing session ${sId} in realm ${candRealm} to begin fresh hero for ${targetKey}`);
@@ -4300,11 +4400,11 @@ setInterval(() => {
                 session.lastSavedInputSeq = session.inputSeq || 0;
                 invalidateSavesCache(session.realm, session.save);
                 if (session.stageDir) {
-                    scheduleStagedMirror(session, 2000);
+                    scheduleStagedMirror(session, 2000, false);
                 } else if (session.savePath && !session.ironman) {
                     setTimeout(() => {
                         if (!session.isDead && !session.ironman && session.savePath) {
-                            snapshotLivingSaveAsync(session.savePath);
+                            snapshotLivingSaveAsync(session.savePath, { realm: session.realm });
                         }
                     }, 300).unref();
                 }

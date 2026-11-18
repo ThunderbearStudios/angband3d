@@ -7,6 +7,8 @@ const {
     VALID_MAGICS,
     MAGIC_TO_REALM,
     FLOOR_SIDECAR_RE,
+    stripUnixUidPrefix,
+    hasFloorSidecarsForRealm,
     isValidRealm,
     detectRealmFromMagic,
     enrichSaveMetadata,
@@ -19,7 +21,7 @@ const {
 const CARTRIDGE_REALMS = new Set(['nethack', 'rogue', 'brogue', 'dcss', 'ryod']);
 const MAX_SAVES_META_INDEX = 20000;
 const MAX_OWNER_HASH_CACHE = 20000;
-const SAVES_CACHE_TTL_MS = 2500;
+const SAVES_CACHE_TTL_MS = 30000;
 const MAX_OWNER_TOKENS = 128;
 
 const sha = t => crypto.createHash('sha256').update(String(t)).digest('hex');
@@ -61,6 +63,19 @@ function isSidecarOrHiddenSaveFile(file) {
 
 function getOwnerTokenPath(savePath) {
     return savePath + '.owner.json';
+}
+
+function getOwnerCandidatePaths(savePath) {
+    const resolved = path.resolve(savePath);
+    const out = [getOwnerTokenPath(resolved)];
+    const dir = path.dirname(resolved);
+    const base = path.basename(resolved);
+    if (/^\d+\./.test(base)) {
+        out.push(getOwnerTokenPath(path.join(dir, stripUnixUidPrefix(base))));
+    } else {
+        out.push(getOwnerTokenPath(path.join(dir, '0.' + base)));
+    }
+    return out;
 }
 
 function parseOwnerTokens(requestToken) {
@@ -115,6 +130,7 @@ function createSaveVaultService({
     normalizeSessionKey
 }) {
     const savesCacheMap = new Map(); // realm -> { entries, time }
+    const savesListInFlight = new Map(); // realm -> Promise<entries>
     const savesMetaIndex = new Map(); // fullPath -> { mtimeMs, size, meta }
     const ownerHashCache = new Map(); // savePath -> { mtimeMs, hasOwnerFile, hashBuf, vaultHashBuf, checkedAt }
     const deadSavePaths = new Set();
@@ -130,13 +146,13 @@ function createSaveVaultService({
             savesCacheMap.clear();
         }
         if (slotName && typeof slotName === 'string') {
-            const cleanBase = path.basename(slotName).replace(/\.sav$/i, '').toLowerCase();
+            const cleanBase = stripUnixUidPrefix(path.basename(slotName)).replace(/\.sav$/i, '').toLowerCase();
             for (const fullPath of Array.from(savesMetaIndex.keys())) {
-                const b = path.basename(fullPath).replace(/\.sav$/i, '').toLowerCase();
+                const b = stripUnixUidPrefix(path.basename(fullPath)).replace(/\.sav$/i, '').toLowerCase();
                 if (b === cleanBase) savesMetaIndex.delete(fullPath);
             }
             for (const fullPath of Array.from(ownerHashCache.keys())) {
-                const b = path.basename(fullPath).replace(/\.sav$/i, '').toLowerCase();
+                const b = stripUnixUidPrefix(path.basename(fullPath)).replace(/\.sav$/i, '').toLowerCase();
                 if (b === cleanBase) ownerHashCache.delete(fullPath);
             }
         }
@@ -157,35 +173,36 @@ function createSaveVaultService({
 
     async function getOwnerRecordAsync(savePath) {
         const resolved = path.resolve(savePath);
-        const ownerPath = getOwnerTokenPath(resolved);
         const now = Date.now();
         const cached = ownerHashCache.get(resolved);
-        try {
-            const stat = await fs.promises.stat(ownerPath);
-            if (cached && cached.hasOwnerFile && cached.mtimeMs === stat.mtimeMs) {
-                cached.checkedAt = now;
-                return cached;
+        const candidates = getOwnerCandidatePaths(resolved);
+        for (const ownerPath of candidates) {
+            try {
+                const stat = await fs.promises.stat(ownerPath);
+                if (cached && cached.hasOwnerFile && cached.ownerPath === ownerPath && cached.mtimeMs === stat.mtimeMs) {
+                    cached.checkedAt = now;
+                    return cached;
+                }
+                const raw = await fs.promises.readFile(ownerPath, 'utf8');
+                const parsed = JSON.parse(raw);
+                const rec = { ...buildOwnerRecordFromJson(parsed, stat.mtimeMs), ownerPath };
+                setBoundedMap(ownerHashCache, MAX_OWNER_HASH_CACHE, resolved, rec);
+                return rec;
+            } catch (err) {
+                if (err && err.code === 'ENOENT') continue;
+                return { mtimeMs: 0, hasOwnerFile: true, valid: false, hashBuf: null, vaultHashBuf: null, checkedAt: now };
             }
-            const raw = await fs.promises.readFile(ownerPath, 'utf8');
-            const parsed = JSON.parse(raw);
-            const rec = buildOwnerRecordFromJson(parsed, stat.mtimeMs);
-            setBoundedMap(ownerHashCache, MAX_OWNER_HASH_CACHE, resolved, rec);
-            return rec;
-        } catch (err) {
-            if (err && err.code === 'ENOENT') {
-                const missingRec = {
-                    mtimeMs: 0,
-                    hasOwnerFile: false,
-                    valid: false,
-                    hashBuf: null,
-                    vaultHashBuf: null,
-                    checkedAt: now
-                };
-                setBoundedMap(ownerHashCache, MAX_OWNER_HASH_CACHE, resolved, missingRec);
-                return missingRec;
-            }
-            return { mtimeMs: 0, hasOwnerFile: true, valid: false, hashBuf: null, vaultHashBuf: null, checkedAt: now };
         }
+        const missingRec = {
+            mtimeMs: 0,
+            hasOwnerFile: false,
+            valid: false,
+            hashBuf: null,
+            vaultHashBuf: null,
+            checkedAt: now
+        };
+        setBoundedMap(ownerHashCache, MAX_OWNER_HASH_CACHE, resolved, missingRec);
+        return missingRec;
     }
 
     function buildCandidateHashBuffers(requestToken) {
@@ -219,23 +236,24 @@ function createSaveVaultService({
 
     function verifyOwnerToken(savePath, requestToken) {
         const resolved = path.resolve(savePath);
-        const ownerPath = getOwnerTokenPath(resolved);
-        if (!fs.existsSync(ownerPath)) {
-            ownerHashCache.delete(resolved);
-            return !isProdEnv();
-        }
-        try {
-            const stat = fs.statSync(ownerPath);
-            let rec = ownerHashCache.get(resolved);
-            if (!rec || !rec.hasOwnerFile || rec.mtimeMs !== stat.mtimeMs) {
-                const data = JSON.parse(fs.readFileSync(ownerPath, 'utf8'));
-                rec = buildOwnerRecordFromJson(data, stat.mtimeMs);
-                setBoundedMap(ownerHashCache, MAX_OWNER_HASH_CACHE, resolved, rec);
+        const candidates = getOwnerCandidatePaths(resolved);
+        for (const ownerPath of candidates) {
+            if (!fs.existsSync(ownerPath)) continue;
+            try {
+                const stat = fs.statSync(ownerPath);
+                let rec = ownerHashCache.get(resolved);
+                if (!rec || !rec.hasOwnerFile || rec.ownerPath !== ownerPath || rec.mtimeMs !== stat.mtimeMs) {
+                    const data = JSON.parse(fs.readFileSync(ownerPath, 'utf8'));
+                    rec = { ...buildOwnerRecordFromJson(data, stat.mtimeMs), ownerPath };
+                    setBoundedMap(ownerHashCache, MAX_OWNER_HASH_CACHE, resolved, rec);
+                }
+                return verifyOwnerRecordWithBuffers(rec, buildCandidateHashBuffers(requestToken));
+            } catch (_) {
+                return false;
             }
-            return verifyOwnerRecordWithBuffers(rec, buildCandidateHashBuffers(requestToken));
-        } catch (_) {
-            return false;
         }
+        ownerHashCache.delete(resolved);
+        return !isProdEnv();
     }
 
     function createOwnerToken(savePath, vaultId = '') {
@@ -337,19 +355,30 @@ function createSaveVaultService({
                 const headBuf = Buffer.alloc(headCap);
                 await fh.read(headBuf, 0, headCap, 0);
 
+                const baseName = stripUnixUidPrefix(path.basename(resolved));
                 let sidecarObj = null;
-                try {
-                    sidecarObj = JSON.parse(await fs.promises.readFile(resolved + '.realm.json', 'utf8'));
-                } catch (_) {}
+                for (const scPath of [resolved + '.realm.json', path.join(path.dirname(resolved), baseName + '.realm.json')]) {
+                    try {
+                        sidecarObj = JSON.parse(await fs.promises.readFile(scPath, 'utf8'));
+                        break;
+                    } catch (_) {}
+                }
                 let hasIronman = false;
                 try {
                     await fs.promises.access(resolved + '.ironman');
                     hasIronman = true;
-                } catch (_) {}
+                } catch (_) {
+                    if (baseName !== path.basename(resolved)) {
+                        try {
+                            await fs.promises.access(path.join(path.dirname(resolved), baseName + '.ironman'));
+                            hasIronman = true;
+                        } catch (__) {}
+                    }
+                }
 
                 const baseMeta = parseSaveBufferMetadata(
                     headBuf,
-                    path.basename(resolved),
+                    baseName,
                     sidecarObj,
                     hasIronman,
                     stat.size,
@@ -546,6 +575,72 @@ function createSaveVaultService({
         }
     }
 
+    async function scanRealmSaveEntriesAsync(queryRealm) {
+        const saveDirs = getSaveDirsForRealm(queryRealm);
+        const bySlotKey = new Map();
+        const primarySaveDir = saveDirs[0] || path.join(SAVE_DIR, queryRealm);
+
+        for (const sDir of saveDirs) {
+            let files = [];
+            try {
+                files = await fs.promises.readdir(sDir);
+            } catch (_) {
+                continue;
+            }
+            for (const file of files) {
+                if (isSidecarOrHiddenSaveFile(file)) continue;
+                const cleanFile = stripUnixUidPrefix(file);
+                const slotKey = cleanFile.replace(/\.sav$/i, '').toLowerCase();
+                const fullPath = path.join(sDir, file);
+                try {
+                    const stat = await fs.promises.stat(fullPath);
+                    if (!stat.isFile() || stat.size <= 0) continue;
+                    const existing = bySlotKey.get(slotKey);
+                    if (existing && existing.mtimeMs >= stat.mtimeMs) continue;
+
+                    let meta = await readSaveMetadataAsync(fullPath, stat);
+                    if (!meta && stat.size >= 4) {
+                        let sidecarObj = null;
+                        for (const scCand of [fullPath + '.realm.json', path.join(sDir, cleanFile + '.realm.json')]) {
+                            try {
+                                sidecarObj = JSON.parse(await fs.promises.readFile(scCand, 'utf8'));
+                                break;
+                            } catch (_) {}
+                        }
+                        const sidecarRealm = sidecarObj && sidecarObj.realm ? sidecarObj.realm : null;
+                        if (!sidecarRealm || sidecarRealm === queryRealm) {
+                            const charStem = cleanFile.replace(/\.sav$/i, '');
+                            meta = enrichSaveMetadata({
+                                filename: cleanFile,
+                                characterName: charStem,
+                                description: charStem,
+                                realm: sidecarRealm || queryRealm,
+                                stakes: (sidecarObj && sidecarObj.stakes === 'ironman') ? 'ironman' : 'standard',
+                                sizeBytes: stat.size,
+                                lastModified: stat.mtime.toISOString(),
+                            }, sidecarRealm || queryRealm);
+                        }
+                    }
+                    if (meta && (!meta.realm || meta.realm === queryRealm)) {
+                        const canonicalMeta = (meta.filename !== cleanFile) ? { ...meta, filename: cleanFile } : meta;
+                        const canonicalPath = await migrateFallbackSlotToPrimaryAsync(fullPath, sDir, primarySaveDir, file);
+                        const ownerRec = await getOwnerRecordAsync(canonicalPath);
+                        bySlotKey.set(slotKey, {
+                            fullPath: canonicalPath,
+                            meta: canonicalMeta,
+                            ownerRec,
+                            mtimeMs: stat.mtimeMs
+                        });
+                    }
+                } catch (_) {}
+            }
+        }
+        const discovered = Array.from(bySlotKey.values());
+        discovered.sort((a, b) => b.mtimeMs - a.mtimeMs);
+        savesCacheMap.set(queryRealm, { entries: discovered, time: Date.now() });
+        return discovered;
+    }
+
     async function handleListSaves(req, res, urlObj) {
         const queryRealm = urlObj.searchParams.get('realm') || 'angband';
         if (!isValidRealm(queryRealm)) {
@@ -562,55 +657,16 @@ function createSaveVaultService({
             if (cached && Array.isArray(cached.entries) && (now - cached.time < SAVES_CACHE_TTL_MS)) {
                 allEntries = cached.entries;
             } else {
-                const saveDirs = getSaveDirsForRealm(queryRealm);
-                const discovered = [];
-                const seenFiles = new Set();
-                const primarySaveDir = saveDirs[0] || path.join(SAVE_DIR, queryRealm);
-
-                for (const sDir of saveDirs) {
-                    let files = [];
-                    try {
-                        files = await fs.promises.readdir(sDir);
-                    } catch (_) {
-                        continue;
-                    }
-                    for (const file of files) {
-                        if (isSidecarOrHiddenSaveFile(file) || seenFiles.has(file)) continue;
-                        const fullPath = path.join(sDir, file);
-                        try {
-                            const stat = await fs.promises.stat(fullPath);
-                            if (!stat.isFile() || stat.size <= 0) continue;
-                            let meta = await readSaveMetadataAsync(fullPath, stat);
-                            if (!meta && stat.size >= 4) {
-                                let sidecarObj = null;
-                                try {
-                                    sidecarObj = JSON.parse(await fs.promises.readFile(fullPath + '.realm.json', 'utf8'));
-                                } catch (_) {}
-                                const sidecarRealm = sidecarObj && sidecarObj.realm ? sidecarObj.realm : null;
-                                if (!sidecarRealm || sidecarRealm === queryRealm) {
-                                    meta = enrichSaveMetadata({
-                                        filename: file,
-                                        characterName: file.replace(/\.sav$/i, ''),
-                                        description: file.replace(/\.sav$/i, ''),
-                                        realm: sidecarRealm || queryRealm,
-                                        stakes: (sidecarObj && sidecarObj.stakes === 'ironman') ? 'ironman' : 'standard',
-                                        sizeBytes: stat.size,
-                                        lastModified: stat.mtime.toISOString(),
-                                    }, sidecarRealm || queryRealm);
-                                }
-                            }
-                            if (meta && (!meta.realm || meta.realm === queryRealm)) {
-                                seenFiles.add(file);
-                                const canonicalPath = await migrateFallbackSlotToPrimaryAsync(fullPath, sDir, primarySaveDir, file);
-                                const ownerRec = await getOwnerRecordAsync(canonicalPath);
-                                discovered.push({ fullPath: canonicalPath, meta, ownerRec });
-                            }
-                        } catch (_) {}
-                    }
+                let inFlight = savesListInFlight.get(queryRealm);
+                if (!inFlight) {
+                    inFlight = scanRealmSaveEntriesAsync(queryRealm).finally(() => {
+                        if (savesListInFlight.get(queryRealm) === inFlight) {
+                            savesListInFlight.delete(queryRealm);
+                        }
+                    });
+                    savesListInFlight.set(queryRealm, inFlight);
                 }
-                discovered.sort((a, b) => new Date(b.meta.lastModified) - new Date(a.meta.lastModified));
-                allEntries = discovered;
-                savesCacheMap.set(queryRealm, { entries: allEntries, time: Date.now() });
+                allEntries = await inFlight;
             }
 
             const saves = [];
@@ -649,11 +705,11 @@ function createSaveVaultService({
             return;
         }
         const saveDirs = getSaveDirsForRealm(queryRealm);
-        const cleanChar = String(charName).replace(/[^a-zA-Z0-9_.-]/g, '').replace(/\.sav$/i, '');
+        const cleanChar = stripUnixUidPrefix(String(charName)).replace(/[^a-zA-Z0-9_.-]/g, '').replace(/\.sav$/i, '');
         const reqToken = extractRequestOwnerTokens(req, urlObj);
 
         for (const sDir of saveDirs) {
-            for (const cand of [path.join(sDir, cleanChar), path.join(sDir, cleanChar + '.sav')]) {
+            for (const cand of [path.join(sDir, cleanChar), path.join(sDir, cleanChar + '.sav'), path.join(sDir, '0.' + cleanChar), path.join(sDir, '0.' + cleanChar + '.sav')]) {
                 try {
                     await fs.promises.access(cand + '.ironman');
                     res.writeHead(403, { 'Content-Type': 'application/json' });
@@ -746,12 +802,13 @@ function createSaveVaultService({
                     if (!meta) continue;
                     const isOwned = await verifyOwnerTokenAsync(fullPath, reqToken);
                     if (!isOwned) {
-                        if (!charName || (meta.characterName && meta.characterName.toLowerCase() === charName.toLowerCase()) || file.toLowerCase().startsWith(charName.toLowerCase())) {
+                        const unprefixedFile = stripUnixUidPrefix(file);
+                        if (!charName || (meta.characterName && stripUnixUidPrefix(meta.characterName).toLowerCase() === stripUnixUidPrefix(charName).toLowerCase()) || unprefixedFile.toLowerCase().startsWith(stripUnixUidPrefix(charName).toLowerCase())) {
                             sawUnownedCandidate = true;
                         }
                         continue;
                     }
-                    ownedSaves.push({ ...meta, fullPath });
+                    ownedSaves.push({ ...meta, filename: stripUnixUidPrefix(meta.filename || file), fullPath });
                 } catch (_) {}
             }
         }
@@ -759,11 +816,11 @@ function createSaveVaultService({
         ownedSaves.sort((a, b) => new Date(b.lastModified) - new Date(a.lastModified));
         let match = null;
         if (charName) {
-            const lowerChar = charName.toLowerCase();
+            const lowerChar = stripUnixUidPrefix(charName).toLowerCase();
             match = ownedSaves.find(s =>
-                (s.characterName && s.characterName.toLowerCase() === lowerChar) ||
-                (s.filename && s.filename.toLowerCase() === lowerChar) ||
-                (s.filename && s.filename.toLowerCase().startsWith(lowerChar))
+                (s.characterName && stripUnixUidPrefix(s.characterName).toLowerCase() === lowerChar) ||
+                (s.filename && stripUnixUidPrefix(s.filename).toLowerCase() === lowerChar) ||
+                (s.filename && stripUnixUidPrefix(s.filename).toLowerCase().startsWith(lowerChar))
             );
         }
         if (!charName && ownedSaves.length > 0) {
@@ -816,19 +873,53 @@ function createSaveVaultService({
         }
         const saveDirs = getSaveDirsForRealm(queryRealm);
         let targetPath = null;
-        const cleanNoExt = saveName.replace(/\.sav$/i, '');
+        let ownerCheckPath = null;
+        const cleanNoExt = stripUnixUidPrefix(saveName).replace(/\.sav$/i, '');
+        const candFileNames = Array.from(new Set([
+            saveName,
+            cleanNoExt + '.sav',
+            cleanNoExt,
+            '0.' + cleanNoExt,
+            '0.' + cleanNoExt + '.sav'
+        ]));
 
-        for (const sDir of saveDirs) {
-            for (const cand of [path.join(sDir, saveName), path.join(sDir, cleanNoExt + '.sav'), path.join(sDir, cleanNoExt)]) {
-                try {
-                    const st = await fs.promises.stat(cand);
-                    if (st.isFile()) {
-                        targetPath = cand;
-                        break;
-                    }
-                } catch (_) {}
+        // Check active tmpfs stageDir first so staged live sessions serve IndexedDB snapshots at RAM speed with 0 GCS FUSE reads
+        if (activeSessions && typeof activeSessions.values === 'function') {
+            const targetNorm = normalizeSessionKey(cleanNoExt);
+            for (const sess of activeSessions.values()) {
+                if ((sess.realm || 'angband') !== queryRealm || !sess.stageDir) continue;
+                const sessNorm = normalizeSessionKey(stripUnixUidPrefix(sess.save || sess.user || ''));
+                if (sessNorm !== targetNorm) continue;
+                for (const fname of candFileNames) {
+                    const cand = path.join(sess.stageDir, fname);
+                    try {
+                        const st = await fs.promises.stat(cand);
+                        if (st.isFile() && st.size > 0) {
+                            targetPath = cand;
+                            ownerCheckPath = sess.persistentSavePath || sess.savePath || cand;
+                            break;
+                        }
+                    } catch (_) {}
+                }
+                if (targetPath) break;
             }
-            if (targetPath) break;
+        }
+
+        if (!targetPath) {
+            for (const sDir of saveDirs) {
+                for (const fname of candFileNames) {
+                    const cand = path.join(sDir, fname);
+                    try {
+                        const st = await fs.promises.stat(cand);
+                        if (st.isFile() && st.size > 0) {
+                            targetPath = cand;
+                            ownerCheckPath = cand;
+                            break;
+                        }
+                    } catch (_) {}
+                }
+                if (targetPath) break;
+            }
         }
 
         if (!targetPath) {
@@ -843,7 +934,7 @@ function createSaveVaultService({
         }
 
         const reqToken = extractRequestOwnerTokens(req, urlObj);
-        if (!(await verifyOwnerTokenAsync(targetPath, reqToken))) {
+        if (!(await verifyOwnerTokenAsync(ownerCheckPath || targetPath, reqToken))) {
             res.writeHead(403, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ error: 'Forbidden: invalid owner token for existing character' }));
             return;
@@ -1101,11 +1192,36 @@ function createSaveVaultService({
                     }
 
                     if (!isDeadUpload && stakesFinal !== 'ironman') {
-                        await snapshotLivingSaveAsync(destPath);
+                        await snapshotLivingSaveAsync(destPath, {
+                            realm: detectedRealm,
+                            buffer: saveBuf,
+                            sidecarObj: sidecarOut
+                        });
                     }
 
-                    savesMetaIndex.delete(path.resolve(destPath));
-                    const metadata = await readSaveMetadataAsync(destPath);
+                    const nowIso = new Date().toISOString();
+                    const baseSyncMeta = parsedBufMeta || {
+                        filename: finalName,
+                        characterName: finalName.replace(/\.sav$/i, ''),
+                        description: finalName.replace(/\.sav$/i, ''),
+                        realm: detectedRealm,
+                        stakes: stakesFinal,
+                        sizeBytes: saveBuf.length,
+                        lastModified: nowIso
+                    };
+                    const metadata = enrichSaveMetadata({
+                        ...baseSyncMeta,
+                        filename: finalName,
+                        realm: detectedRealm,
+                        stakes: stakesFinal,
+                        sizeBytes: saveBuf.length,
+                        lastModified: nowIso
+                    }, detectedRealm);
+                    setBoundedMap(savesMetaIndex, MAX_SAVES_META_INDEX, path.resolve(destPath), {
+                        mtimeMs: sidecarOut.updatedAt,
+                        size: saveBuf.length,
+                        meta: metadata
+                    });
                     invalidateSavesCache(detectedRealm, finalName);
 
                     res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -1146,11 +1262,19 @@ function createSaveVaultService({
         }
 
         const saveDirs = getSaveDirsForRealm(queryRealm);
-        const cleanNoExt = saveName.replace(/\.sav$/i, '');
+        const cleanNoExt = stripUnixUidPrefix(saveName).replace(/\.sav$/i, '');
         const matchedPaths = [];
+        const deleteCands = Array.from(new Set([
+            saveName,
+            cleanNoExt + '.sav',
+            cleanNoExt,
+            '0.' + cleanNoExt,
+            '0.' + cleanNoExt + '.sav'
+        ]));
 
         for (const sDir of saveDirs) {
-            for (const cand of [path.join(sDir, saveName), path.join(sDir, cleanNoExt + '.sav'), path.join(sDir, cleanNoExt)]) {
+            for (const fname of deleteCands) {
+                const cand = path.join(sDir, fname);
                 try {
                     const st = await fs.promises.stat(cand);
                     if (st.isFile() && !matchedPaths.includes(cand)) {
@@ -1178,6 +1302,7 @@ function createSaveVaultService({
                 const dir = path.dirname(savePath);
                 const slotBase = path.basename(savePath);
                 const slotStem = slotBase.replace(/\.sav$/i, '');
+                const cleanStem = stripUnixUidPrefix(slotStem);
                 const targets = [
                     savePath,
                     savePath + '.living.sav',
@@ -1186,26 +1311,30 @@ function createSaveVaultService({
                     getOwnerTokenPath(savePath),
                     savePath + '.ironman',
                     savePath + '.ryod.json',
-                    path.join(dir, slotStem + '.ryod.json')
+                    path.join(dir, slotStem + '.ryod.json'),
+                    path.join(dir, cleanStem + '.owner.json'),
+                    path.join(dir, cleanStem + '.realm.json')
                 ];
                 for (const t of targets) {
                     await fs.promises.unlink(t).catch(() => {});
                 }
-                // Remove Hengband .F00..F99 floor sidecars and .living.sav.F00..F99 sidecars
-                try {
-                    const dirFiles = await fs.promises.readdir(dir);
-                    for (const f of dirFiles) {
-                        if (!FLOOR_SIDECAR_RE.test(f)) continue;
-                        if (
-                            f.startsWith(slotBase + '.') ||
-                            f.startsWith(slotStem + '.') ||
-                            f.startsWith(slotBase + '.living.sav.') ||
-                            f.startsWith(slotStem + '.living.sav.')
-                        ) {
-                            await fs.promises.unlink(path.join(dir, f)).catch(() => {});
+                if (hasFloorSidecarsForRealm(queryRealm)) {
+                    try {
+                        const dirFiles = await fs.promises.readdir(dir);
+                        for (const f of dirFiles) {
+                            if (!FLOOR_SIDECAR_RE.test(f)) continue;
+                            if (
+                                f.startsWith(slotBase + '.') ||
+                                f.startsWith(slotStem + '.') ||
+                                f.startsWith(cleanStem + '.') ||
+                                f.startsWith(slotBase + '.living.sav.') ||
+                                f.startsWith(slotStem + '.living.sav.')
+                            ) {
+                                await fs.promises.unlink(path.join(dir, f)).catch(() => {});
+                            }
                         }
-                    }
-                } catch (_) {}
+                    } catch (_) {}
+                }
                 clearSaveDead(savePath);
                 savesMetaIndex.delete(path.resolve(savePath));
                 ownerHashCache.delete(path.resolve(savePath));

@@ -1,12 +1,12 @@
 # Execution State (Read First, Update Last)
 
 ## Active Task
-**WS94 — `v13.1.3` 9-Realm Pre-Embark Character Review, Cold-Cache 2K PBR Buffer Gate & Mobile Main Menu Scroll — COMPLETE (`main` @ `v13.1.3`)**
+**WS95 — `v13.1.4` Reddit Traffic, Linux `0.<slot>` Save Parity, `tmpfs` Staging & Cloudflare Edge Hardening — COMPLETE (`main` @ `v13.1.4`)**
 
-- **Checklist** (`v13.1.3`):
-  - [x] **9-Realm Pre-Embark Character Review & Clean Realm Switcher**: Paused Quick-Play / Random Hero on complete stats & equipment review sheets (`phase === 'setup'`, `isBirthReviewActive() === true`) across all 9 realms (`birth-review.js`, `app.js`, `input.js`, `cartridge-core.js`, `nethack-bridge.js`, `engine-worker.js`, `local_bridge.js`, `network.js`, `save-vault-client.js`, `save-vault-routes.js`, `server.js`) with Start `[Enter]`, Reroll `[R]`, clean Realm Switcher without orphan saves, `&optional=1` Turn-0 snapshot `204` guard, Custom `[C]`, and Main Menu `[Esc]`.
-  - [x] **Cold-Cache 2K PBR Pre-Buffering, GPU Upload Gate & Native `<progress>`**: Added per-file texture load progress tracking, `<progress id="loading-native-progress">` status announcements, `_suppressMenuPbrLoads` title diorama gate, core >=1024px `tier1Tasks` + `renderer.initTexture(tex)` upload before dropping `#loading-overlay`, and removed inline `oncontextmenu` CSP warning.
-  - [x] **Mobile Main Menu Touch-Scroll Restoration**: Restored vertical touch-panning scroll in portrait (`390×844`) and landscape (`844×390`) (`hud-skin.css`) with flex scroll column (`align-items: safe center`), `overflow: visible`, and button wrapping.
+- **Checklist** (`v13.1.4`):
+  - [x] **Linux `0.<slot>` Save Parity (`domain-config.js`, `save-vault-routes.js`, `server.js`)**: Unified `stripUnixUidPrefix` and `0.<slot>` resolution across `/api/saves`, `/api/saves/:name`, `restoreLivingCheckpoint*`, delete, `hydrateSlotToDirAsync`, and `mirrorStagedSavesToPersistent` (`frogcomposband` & `silq` UID saves now visible, downloadable, and restorable).
+  - [x] **Zero-Stall Server & GCS FUSE Offload**: Staged all 4 C/C++ engines (`angband`, `frogcomposband`, `silq`, `hengband`) in `/tmp` (`15s` non-forced mirror throttle, `12`-cmd autosave), added singleflight `30s` `/api/saves` caching, RAM-backed `/api/saves/sync` snapshots, `hasFloorSidecarsForRealm` guards, memoized `/api/realms` & engine metadata, async WS connect/save checks, `staticHotMap` + RAM `.br` serving, `90s`/`20s` zombie grace reaping, and `25s` client `visibilitychange` snapshot throttle.
+  - [x] **Cloudflare Edge `Cache-Control` & `24/24` Server Tests (`edge/worker.js`, `server_test.js`)**: Restored `public, max-age=31536000, immutable` on `?v=` bundles & static metadata paths in `edge/worker.js`, and added Test 24 (`0.<slot>` parity, `20x` singleflight burst, in-memory `/api/saves/sync`).
 
 ## Completed Workstreams
 | WS | Scope | Status |
@@ -17,6 +17,7 @@
 | WS92 | `v13.1.0` Photogrammetry Veins, Rigged Bestiary Overhaul, Clean Floors & Broad Blades | `[x]` |
 | WS93 | `v13.1.1` 2-Pane Adventurer's Codex, Novice Roguelike Primer, Controls & Live Search | `[x]` |
 | WS94 | `v13.1.3` 9-Realm Pre-Embark Character Review, Cold-Cache 2K PBR Buffer Gate & Mobile Scroll | `[x]` |
+| WS95 | `v13.1.4` Reddit Traffic, Linux `0.<slot>` Save Parity, `tmpfs` Staging & Edge Hardening | `[x]` |
 
 ## Mandatory Verification Gate
-1. `node tools/run_tests.js --tier fast` (`45/45`) 2. `node server/test/server_test.js` (`23/23`) 3. `python tools/smoke_test.py` (`11/11`) 4. `node tools/check_loc_budget.js && node tools/check_version_sync.js` (`v13.1.3`).
+1. `node tools/run_tests.js --tier fast` (`45/45`) 2. `node server/test/server_test.js` (`24/24`) 3. `python tools/smoke_test.py` (`11/11`) 4. `node tools/check_loc_budget.js && node tools/check_version_sync.js` (`v13.1.4`).

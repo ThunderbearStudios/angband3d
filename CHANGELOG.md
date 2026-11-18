@@ -4,6 +4,19 @@ All notable changes to `angband3d` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v13.1.4] — 2026-11-18
+
+### ⚡ Reddit Launch Traffic, Linux `0.<slot>` Save Parity, `tmpfs` Staging & Cloudflare Edge Hardening
+
+- **Linux `SET_UID` (`0.<slot>`) Save Split-Brain Fixed (`domain-config.js`, `save-vault-routes.js`, `server.js`)**:
+  - Unified `stripUnixUidPrefix` and `0.<slot>` fallback across `getOwnerRecordAsync`, `verifyOwnerToken`, `scanRealmSaveEntriesAsync` (`GET /api/saves`), `handleDownloadSingleSave`, `handleRestoreCheckpoint`, `handleDeleteSave`, `resolveSavefileNameAsync`, `hydrateSlotToDirAsync` (hydrating both `<slot>` and `0.<slot>` into `stageDir`), and `mirrorStagedSavesToPersistent` (canonicalizing mirrored paths back to `<slot>`).
+  - Restores immediate visibility, download, and Lazarus Checkpoint `[R]` recovery for `frogcomposband` and `silq` saves created on Linux containers.
+- **Zero-Stall Server & GCS FUSE Offload (`server.js`, `save-vault-routes.js`, `domain-config.js`, `app.js`)**:
+  - Added `'angband'` to `STAGED_NATIVE_REALMS` (`angband`, `frogcomposband`, `silq`, `hengband` all run against local `/tmp` staging with `15s` non-forced mirror throttling and `12`-command autosave cadence), added `stageDir` short-circuiting on `GET /api/saves/:name`, restricted `.F00..F99` floor-sidecar scans via `hasFloorSidecarsForRealm`, and switched `/api/saves/sync` living snapshots + metadata indexing to zero-reread in-memory `saveBuf` paths.
+  - Raised `/api/saves` cache TTL from `2.5s` to `30s` with singleflight `savesListInFlight` deduplication, memoized `resolveRealmEngine`/`getSaveDirsForRealm`/`/api/realms`, converted WS reconnect/save checks (`wss.on('connection')`, `spawnGameSession`) from `fs.*Sync` to `async`/`fs.promises`, added a bounded `staticHotMap` + RAM `.br` cache, tightened idle disconnect reaping to `90s` (`20s` in `setup`/dead), and throttled client `snapshotClientSaveToIndexedDB` background polling to `25s`.
+- **Cloudflare Edge Static Cache Hardening (`edge/worker.js`)**:
+  - Expanded `isCacheableStatic` (`/manifest.json`, `/robots.txt`, `/favicon.ico`, `?v=` JS/CSS, `/wasm/`, `/assets/`) and restored `Cache-Control: public, max-age=31536000, immutable` on versioned `?v=` assets after `GAESA` sticky-cookie stripping.
+
 ## [v13.1.3] — 2026-11-18
 
 ### 🛡️ 9-Realm Pre-Embark Character Review, Cold-Cache 2K PBR Buffer Gate & Mobile Menu Scroll

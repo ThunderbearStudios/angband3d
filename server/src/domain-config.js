@@ -9,6 +9,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 
 const PRIMARY_DOMAIN = process.env.PRIMARY_DOMAIN || 'yasd3d.com';
 const LEGACY_DOMAINS = ['angband3d.com', 'www.angband3d.com'];
@@ -162,6 +163,16 @@ function handleLegacyDomainRedirect(req, res, hostHeader) {
 }
 
 const FLOOR_SIDECAR_RE = /\.F\d{2,3}$/i;
+const FLOOR_SIDECAR_REALMS = new Set(['hengband', 'frogcomposband']);
+
+function stripUnixUidPrefix(name) {
+    return String(name || '').replace(/^\d+\.(?!sav$)/i, '');
+}
+
+function hasFloorSidecarsForRealm(realm) {
+    if (!realm) return true;
+    return FLOOR_SIDECAR_REALMS.has(String(realm).toLowerCase().trim());
+}
 
 function parseJsonDeathFlag(parsed) {
     if (!parsed || typeof parsed !== 'object') return false;
@@ -336,49 +347,68 @@ function snapshotLivingSave(savePath) {
     }
 }
 
-async function snapshotLivingSaveAsync(savePath) {
+async function snapshotLivingSaveAsync(savePath, opts = null) {
     try {
         if (!savePath) return false;
-        try {
-            await fs.promises.access(savePath + '.ironman');
-            return false;
-        } catch (_) {}
-        const stat = await fs.promises.stat(savePath);
-        if (!stat.isFile() || stat.size < 36) return false;
+        const realmHint = opts && opts.realm ? opts.realm : '';
+        const memBuf = (opts && Buffer.isBuffer(opts.buffer) && opts.buffer.length >= 36) ? opts.buffer : null;
         const metaSidecar = savePath + '.realm.json';
-        let isIronman = false;
-        try {
-            const rawSidecar = await fs.promises.readFile(metaSidecar, 'utf8');
-            const parsedSidecar = JSON.parse(rawSidecar);
-            if (parsedSidecar && parsedSidecar.stakes === 'ironman') isIronman = true;
-            if (parsedSidecar && (parsedSidecar.isDead === true || parsedSidecar.dead === true)) return false;
-        } catch (_) {}
-        if (isIronman) return false;
-        if (await isSaveDeadAsync(savePath)) return false;
-        const nonce = `${process.pid}.${Date.now()}`;
+        const nonce = `${process.pid}.${Date.now()}.${crypto.randomBytes(4).toString('hex')}`;
         const livingDst = savePath + '.living.sav';
-        await fs.promises.copyFile(savePath, `${livingDst}.tmp.${nonce}`);
-        await fs.promises.rename(`${livingDst}.tmp.${nonce}`, livingDst);
-        try {
-            const scDst = savePath + '.living.sav.realm.json';
-            await fs.promises.copyFile(metaSidecar, `${scDst}.tmp.${nonce}`);
-            await fs.promises.rename(`${scDst}.tmp.${nonce}`, scDst);
-        } catch (_) {}
-        const dir = path.dirname(savePath);
-        const slotBase = path.basename(savePath);
-        const livingPrefix = slotBase + '.living.sav.';
-        try {
-            const allFiles = await fs.promises.readdir(dir);
-            for (const f of allFiles) {
-                if (f.startsWith(livingPrefix) && FLOOR_SIDECAR_RE.test(f)) {
-                    await fs.promises.unlink(path.join(dir, f)).catch(() => {});
+
+        if (memBuf) {
+            await fs.promises.writeFile(`${livingDst}.tmp.${nonce}`, memBuf);
+            await fs.promises.rename(`${livingDst}.tmp.${nonce}`, livingDst);
+            if (opts && opts.sidecarObj && typeof opts.sidecarObj === 'object') {
+                const scDst = livingDst + '.realm.json';
+                await fs.promises.writeFile(`${scDst}.tmp.${nonce}`, JSON.stringify(opts.sidecarObj), 'utf8').catch(() => {});
+                await fs.promises.rename(`${scDst}.tmp.${nonce}`, scDst).catch(() => {});
+            } else {
+                await fs.promises.copyFile(metaSidecar, livingDst + '.realm.json').catch(() => {});
+            }
+        } else {
+            try {
+                await fs.promises.access(savePath + '.ironman');
+                return false;
+            } catch (_) {}
+            const stat = await fs.promises.stat(savePath);
+            if (!stat.isFile() || stat.size < 36) return false;
+            let isIronman = false;
+            try {
+                const rawSidecar = await fs.promises.readFile(metaSidecar, 'utf8');
+                const parsedSidecar = JSON.parse(rawSidecar);
+                if (parsedSidecar && parsedSidecar.stakes === 'ironman') isIronman = true;
+                if (parsedSidecar && (parsedSidecar.isDead === true || parsedSidecar.dead === true)) return false;
+            } catch (_) {}
+            if (isIronman) return false;
+            if (await isSaveDeadAsync(savePath)) return false;
+            await fs.promises.copyFile(savePath, `${livingDst}.tmp.${nonce}`);
+            await fs.promises.rename(`${livingDst}.tmp.${nonce}`, livingDst);
+            try {
+                const scDst = livingDst + '.realm.json';
+                await fs.promises.copyFile(metaSidecar, `${scDst}.tmp.${nonce}`);
+                await fs.promises.rename(`${scDst}.tmp.${nonce}`, scDst);
+            } catch (_) {}
+        }
+
+        if (hasFloorSidecarsForRealm(realmHint)) {
+            const dir = path.dirname(savePath);
+            const slotBase = path.basename(savePath);
+            const baseNoExt = slotBase.replace(/\.sav$/i, '');
+            const livingPrefix = slotBase + '.living.sav.';
+            try {
+                const allFiles = await fs.promises.readdir(dir);
+                for (const f of allFiles) {
+                    if (!FLOOR_SIDECAR_RE.test(f)) continue;
+                    if (f.startsWith(livingPrefix)) {
+                        await fs.promises.unlink(path.join(dir, f)).catch(() => {});
+                    } else if (!f.includes('.living.sav') && (f.startsWith(slotBase + '.') || f.startsWith(baseNoExt + '.'))) {
+                        const suffix = f.slice(f.lastIndexOf('.'));
+                        await fs.promises.copyFile(path.join(dir, f), savePath + '.living.sav' + suffix).catch(() => {});
+                    }
                 }
-            }
-            const sidecars = await listFloorSidecarsAsync(dir, slotBase);
-            for (const sc of sidecars) {
-                await fs.promises.copyFile(path.join(dir, sc.file), savePath + '.living.sav' + sc.suffix).catch(() => {});
-            }
-        } catch (_) {}
+            } catch (_) {}
+        }
         return true;
     } catch (_) {
         return false;
@@ -416,14 +446,16 @@ function restoreFloorSidecarsForSlotSync(dir, targetBase) {
 function restoreLivingCheckpoint(saveDirs, charName) {
     const dirs = Array.isArray(saveDirs) ? saveDirs : (typeof saveDirs === 'string' && saveDirs ? [saveDirs] : []);
     if (dirs.length === 0 || !charName) return null;
-    const clean = String(charName).replace(/[^a-zA-Z0-9_.-]/g, '').replace(/\.sav$/i, '');
+    const clean = stripUnixUidPrefix(charName).replace(/[^a-zA-Z0-9_.-]/g, '').replace(/\.sav$/i, '');
     if (!clean) return null;
 
     for (const dir of dirs) {
         if (!fs.existsSync(dir)) continue;
         const candidates = [
             path.join(dir, clean),
-            path.join(dir, clean + '.sav')
+            path.join(dir, clean + '.sav'),
+            path.join(dir, '0.' + clean),
+            path.join(dir, '0.' + clean + '.sav')
         ];
         for (const base of candidates) {
             const livingPath = base + '.living.sav';
@@ -441,7 +473,7 @@ function restoreLivingCheckpoint(saveDirs, charName) {
             for (const f of files) {
                 if (!f.endsWith('.living.sav')) continue;
                 const targetBase = f.slice(0, -'.living.sav'.length);
-                const targetNoExt = targetBase.replace(/\.sav$/i, '');
+                const targetNoExt = stripUnixUidPrefix(targetBase).replace(/\.sav$/i, '');
                 if (targetNoExt.toLowerCase() === clean.toLowerCase()) {
                     const src = path.join(dir, f);
                     const dst = path.join(dir, targetBase);
@@ -458,7 +490,7 @@ function restoreLivingCheckpoint(saveDirs, charName) {
 async function restoreLivingCheckpointAsync(saveDirs, charName) {
     const dirs = Array.isArray(saveDirs) ? saveDirs : (typeof saveDirs === 'string' && saveDirs ? [saveDirs] : []);
     if (dirs.length === 0 || !charName) return null;
-    const clean = String(charName).replace(/[^a-zA-Z0-9_.-]/g, '').replace(/\.sav$/i, '');
+    const clean = stripUnixUidPrefix(charName).replace(/[^a-zA-Z0-9_.-]/g, '').replace(/\.sav$/i, '');
     if (!clean) return null;
 
     async function restoreFloorSidecarsAsync(dir, targetBase) {
@@ -491,7 +523,7 @@ async function restoreLivingCheckpointAsync(saveDirs, charName) {
             continue;
         }
         const fileSet = new Set(files);
-        for (const candName of [clean, clean + '.sav']) {
+        for (const candName of [clean, clean + '.sav', '0.' + clean, '0.' + clean + '.sav']) {
             if (fileSet.has(candName + '.living.sav')) {
                 const dst = path.join(dir, candName);
                 try {
@@ -504,7 +536,7 @@ async function restoreLivingCheckpointAsync(saveDirs, charName) {
         for (const f of files) {
             if (!f.endsWith('.living.sav')) continue;
             const targetBase = f.slice(0, -'.living.sav'.length);
-            const targetNoExt = targetBase.replace(/\.sav$/i, '');
+            const targetNoExt = stripUnixUidPrefix(targetBase).replace(/\.sav$/i, '');
             if (targetNoExt.toLowerCase() === clean.toLowerCase()) {
                 const dst = path.join(dir, targetBase);
                 try {
@@ -528,6 +560,9 @@ module.exports = {
     REALM_SHORT_TAG,
     VALID_MAGICS,
     FLOOR_SIDECAR_RE,
+    FLOOR_SIDECAR_REALMS,
+    stripUnixUidPrefix,
+    hasFloorSidecarsForRealm,
     isValidRealm,
     getRealmShortTag,
     formatSaveTimestamps,

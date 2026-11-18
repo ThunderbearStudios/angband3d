@@ -371,6 +371,8 @@ async function checkAsync(label, fn) {
         const edgeSrc = read('edge/worker.js');
         assert.ok(edgeSrc.includes('GAESA'), 'edge/worker.js must preserve Cloud Run sticky affinity cookies');
         assert.ok(/\/wasm\//.test(edgeSrc), 'edge/worker.js must edge-cache /wasm/ bundles');
+        assert.ok(/isCacheableStatic[\s\S]{0,400}max-age=31536000,\s*immutable/.test(edgeSrc), 'edge/worker.js must restore immutable Cache-Control on versioned static bundles');
+        assert.ok(/'angband'/.test(serverSrc.match(/STAGED_NATIVE_REALMS\s*=\s*new\s*Set\([^\)]+\)/)?.[0] || ''), 'server.js must stage Vanilla Angband alongside C/C++ variants in tmpfs');
 
         const { DCSSEngine } = require(path.join(ROOT, 'variants/dcss/bin/dcss-bridge.js'));
         const dcss = new DCSSEngine({ isNew: true, randomBirth: true });

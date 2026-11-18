@@ -160,6 +160,9 @@ export default {
     const isCacheableStatic =
       (request.method === "GET" || request.method === "HEAD") &&
       (isWasmOrAssets ||
+        url.pathname === "/manifest.json" ||
+        url.pathname === "/robots.txt" ||
+        url.pathname === "/favicon.ico" ||
         url.pathname.startsWith("/js/vendor/") ||
         ((url.pathname.startsWith("/js/") || url.pathname.startsWith("/css/")) && url.search.includes("v=")));
 
@@ -192,11 +195,16 @@ export default {
     if (url.pathname === "/" || url.pathname === "/index.html" || url.pathname.startsWith("/wasm/") || /\.(js|wasm|pck|data)$/i.test(url.pathname)) {
       outHeaders.set("Cross-Origin-Embedder-Policy", "credentialless");
     }
-    if (isWasmOrAssets && upstreamResp.status >= 200 && upstreamResp.status < 300) {
-      outHeaders.set(
-        "Cache-Control",
-        url.searchParams.has("v") ? "public, max-age=31536000, immutable" : "public, max-age=86400"
-      );
+    if (isCacheableStatic && upstreamResp.status >= 200 && upstreamResp.status < 300) {
+      if (/\.(mp3|wav|ogg)$/i.test(url.pathname)) {
+        outHeaders.set("Cache-Control", "public, max-age=604800, no-transform");
+      } else if (url.searchParams.has("v")) {
+        outHeaders.set("Cache-Control", "public, max-age=31536000, immutable");
+      } else if (isWasmOrAssets) {
+        outHeaders.set("Cache-Control", "public, max-age=86400");
+      } else {
+        outHeaders.set("Cache-Control", "public, max-age=3600");
+      }
     }
     outHeaders.set("X-Content-Type-Options", "nosniff");
     outHeaders.set("Referrer-Policy", "strict-origin-when-cross-origin");

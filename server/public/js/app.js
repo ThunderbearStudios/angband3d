@@ -3170,11 +3170,17 @@ window.addEventListener('DOMContentLoaded', () => {
 
     let snapshotInFlight = false;
     let snapshotIdleTimer = null;
-    async function snapshotClientSaveToIndexedDB(slotName, realmKey) {
+    const snapshotLastAttemptBySlot = new Map();
+    async function snapshotClientSaveToIndexedDB(slotName, realmKey, opts = null) {
         if (snapshotInFlight || !slotName || engineMode === 'local' || typeof window === 'undefined' || !window.LocalSaveManager) return;
         const cleanSlot = String(slotName).replace(/\.sav$/i, '').trim();
         if (!cleanSlot) return;
         const effRealm = realmKey || activeRealm || 'angband';
+        const forceSnap = Boolean(opts && opts.force);
+        const snapKey = `${effRealm}:${cleanSlot}`;
+        const nowMs = Date.now();
+        if (!forceSnap && (nowMs - (snapshotLastAttemptBySlot.get(snapKey) || 0) < 25000)) return;
+        snapshotLastAttemptBySlot.set(snapKey, nowMs);
         snapshotInFlight = true;
         try {
             const snapHeaders = (window.SaveVaultClient && typeof window.SaveVaultClient.buildAuthHeaders === 'function')
@@ -7035,7 +7041,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 snapshotIdleTimer = setTimeout(() => {
                     snapshotIdleTimer = null;
                     lastClientSnapshotMs = Date.now();
-                    snapshotClientSaveToIndexedDB(slot, activeRealm);
+                    snapshotClientSaveToIndexedDB(slot, activeRealm, { force: true });
                 }, 4000);
             }
         };
@@ -7149,7 +7155,7 @@ window.addEventListener('DOMContentLoaded', () => {
                         if (snapshotIdleTimer) clearTimeout(snapshotIdleTimer);
                         snapshotIdleTimer = setTimeout(() => {
                             snapshotIdleTimer = null;
-                            snapshotClientSaveToIndexedDB(slot, activeRealm);
+                            snapshotClientSaveToIndexedDB(slot, activeRealm, depthChanged ? { force: true } : null);
                         }, firstPlayTransition ? 2600 : 800);
                     }
                 } else if (nowMs - lastClientSnapshotMs > 90000) {

@@ -532,6 +532,65 @@ async function runTests() {
     }
     console.log('  -> AQ. key routing guard and Vertex 401 token-refresh retry verified');
 
+    console.log('Test 24: Linux 0.<slot> UID Save Parity, Singleflight /api/saves Burst & Fast /api/saves/sync');
+    {
+        const crypto = require('crypto');
+        const frogDir = path.join(SAVE_DIR, 'frogcomposband');
+        fs.mkdirSync(frogDir, { recursive: true });
+        const rawTok = 'frog-uid-test-token-1234';
+        const tokHash = crypto.createHash('sha256').update(rawTok).digest('hex');
+        const frogPayload = Buffer.alloc(64);
+        frogPayload.write('SaveFROX', 0, 8, 'ascii');
+        fs.writeFileSync(path.join(frogDir, '0.Belgarath_FROG_test'), frogPayload);
+        fs.writeFileSync(path.join(frogDir, 'Belgarath_FROG_test.owner.json'), JSON.stringify({ hash: tokHash, createdAt: Date.now() }));
+        fs.writeFileSync(path.join(frogDir, '0.Belgarath_FROG_test.realm.json'), JSON.stringify({ realm: 'frogcomposband', stakes: 'standard' }));
+
+        const listRes = await new Promise((resolve, reject) => {
+            http.get(`http://localhost:${PORT}/api/saves?realm=frogcomposband`, {
+                headers: { 'X-Owner-Token': rawTok }
+            }, res => {
+                let data = '';
+                res.on('data', c => data += c);
+                res.on('end', () => resolve({ status: res.statusCode, body: data }));
+            }).on('error', reject);
+        });
+        assert.strictEqual(listRes.status, 200, '0.<slot> listing must return 200');
+        const listJson = JSON.parse(listRes.body);
+        const foundUid = (listJson.saves || []).find(s => s.filename === 'Belgarath_FROG_test');
+        assert(foundUid, 'Unprefixed owner token must resolve Linux 0.<slot> save without 0. prefix in filename');
+
+        const dlUidRes = await new Promise((resolve, reject) => {
+            http.get(`http://localhost:${PORT}/api/saves/Belgarath_FROG_test?realm=frogcomposband`, {
+                headers: { 'X-Owner-Token': rawTok }
+            }, res => {
+                const chunks = [];
+                res.on('data', c => chunks.push(c));
+                res.on('end', () => resolve({ status: res.statusCode, buf: Buffer.concat(chunks) }));
+            }).on('error', reject);
+        });
+        assert.strictEqual(dlUidRes.status, 200, 'Direct GET /api/saves/<slot> must find 0.<slot> save');
+        assert.strictEqual(dlUidRes.buf.length, frogPayload.length);
+
+        const burst = await Promise.all(Array.from({ length: 20 }, () => get('/api/saves?realm=angband')));
+        assert(burst.every(r => r.status === 200), '20x concurrent /api/saves burst must all return 200');
+
+        const syncBuf = Buffer.alloc(64);
+        syncBuf.write('SaveVNLA', 0, 8, 'ascii');
+        const syncEnv = Buffer.from(JSON.stringify({
+            slot: 'BurstSyncHero',
+            realm: 'angband',
+            dataBase64: syncBuf.toString('base64')
+        }), 'utf8');
+        const syncRes = await post('/api/saves/sync', syncEnv, {
+            'Content-Type': 'application/json',
+            'X-Owner-Token': rawTok
+        });
+        assert.strictEqual(syncRes.status, 200, '/api/saves/sync JSON envelope must succeed');
+        assert(fs.existsSync(path.join(SAVE_DIR, 'angband', 'BurstSyncHero')), 'Synced save must exist');
+        assert(fs.existsSync(path.join(SAVE_DIR, 'angband', 'BurstSyncHero.living.sav')), 'Synced .living.sav checkpoint must exist');
+    }
+    console.log('  -> Linux 0.<slot> parity, singleflight /api/saves burst (20x), and in-memory /api/saves/sync verified');
+
     console.log('\nAll server unit tests passed successfully!');
     try { fs.rmSync(SAVE_DIR, { recursive: true, force: true }); } catch (_) {}
     process.exit(0);
