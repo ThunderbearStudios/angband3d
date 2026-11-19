@@ -462,8 +462,9 @@ class ChronicleManager {
         if (this.btnExpand) {
             this.btnExpand.addEventListener('click', () => {
                 if (this.windowEl) {
-                    this.windowEl.classList.toggle('minimized');
-                    this.btnExpand.textContent = this.windowEl.classList.contains('minimized') ? '▼ Show' : '▲ Min';
+                    const min = this.windowEl.classList.toggle('minimized');
+                    this.btnExpand.textContent = min ? '+' : '−';
+                    this.btnExpand.title = min ? 'Restore Tome' : 'Minimize / Shade Tome';
                 }
             });
         }
@@ -976,7 +977,7 @@ class ChronicleManager {
                 : `Ask ${this.getLorekeeperName()} of survival, gear, or lore...`;
         }
         if (this.btnStoryPromptTome) {
-            this.btnStoryPromptTome.textContent = isJp ? '📜 物語を紡ぐ' : '📜 Spin Tale';
+            this.btnStoryPromptTome.textContent = isJp ? '🔮 物語' : '🔮 Tale';
         }
         if (this.quickChips && this.quickChips.length > 0) {
             const activeRealm = this.getActiveRealm();
@@ -1027,7 +1028,7 @@ class ChronicleManager {
         if (this.windowEl) {
             this.windowEl.classList.add('active');
             this.windowEl.classList.remove('minimized');
-            if (this.btnExpand) this.btnExpand.textContent = '▲ Min';
+            if (this.btnExpand) { this.btnExpand.textContent = '−'; this.btnExpand.title = 'Minimize / Shade Tome'; }
             this.visible = true;
             if (this.navBtn) {
                 this.navBtn.classList.add('active', 'is-panel-open');
@@ -1062,7 +1063,7 @@ class ChronicleManager {
         this._openedTransiently = false;
         if (this.visible && this.windowEl && this.windowEl.classList.contains('minimized')) {
             this.windowEl.classList.remove('minimized');
-            if (this.btnExpand) this.btnExpand.textContent = '▲ Min';
+            if (this.btnExpand) { this.btnExpand.textContent = '−'; this.btnExpand.title = 'Minimize / Shade Tome'; }
             return;
         }
         if (this.visible) this.hideWindow();
@@ -4556,7 +4557,7 @@ class ChronicleManager {
             this._openedTransiently = false;
             if (this.windowEl && this.windowEl.classList.contains('minimized')) {
                 this.windowEl.classList.remove('minimized');
-                if (this.btnExpand) this.btnExpand.textContent = '▲ Min';
+                if (this.btnExpand) { this.btnExpand.textContent = '−'; this.btnExpand.title = 'Minimize / Shade Tome'; }
             }
         }
         this.updatePinUI();
@@ -5209,7 +5210,7 @@ class ChronicleManager {
             this.showWindow();
             if (this.windowEl && this.windowEl.classList.contains('minimized')) {
                 this.windowEl.classList.remove('minimized');
-                if (this.btnExpand) this.btnExpand.textContent = '▲ Min';
+                if (this.btnExpand) { this.btnExpand.textContent = '−'; this.btnExpand.title = 'Minimize / Shade Tome'; }
             }
         }
 
@@ -5416,7 +5417,7 @@ class ChronicleManager {
             this.showWindow();
             if (this.windowEl && this.windowEl.classList.contains('minimized')) {
                 this.windowEl.classList.remove('minimized');
-                if (this.btnExpand) this.btnExpand.textContent = '▲ Min';
+                if (this.btnExpand) { this.btnExpand.textContent = '−'; this.btnExpand.title = 'Minimize / Shade Tome'; }
             }
         }
 

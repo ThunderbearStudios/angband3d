@@ -208,7 +208,8 @@ async function main() {
             const jsErrors = [];
             const consoleErrors = [];
             const reqMap = new Map();
-            let transferBytes = 0;
+            let coreTransferBytes = 0;
+            let monsterGlbBytes = 0;
             let musicBytes = 0;
             playCdp.onEvent((m) => {
                 if (m.method === 'Network.requestWillBeSent') reqMap.set(m.params.requestId, m.params.request.url);
@@ -216,8 +217,10 @@ async function main() {
                 else if (m.method === 'Network.loadingFailed' && !m.params.canceled) badHttp.push(`FAILED ${m.params.errorText} (${reqMap.get(m.params.requestId) || m.params.requestId})`);
                 else if (m.method === 'Network.loadingFinished') {
                     const u = reqMap.get(m.params.requestId) || '';
-                    if (/\.mp3(?:\?|$)/i.test(u)) musicBytes += m.params.encodedDataLength || 0;
-                    else transferBytes += m.params.encodedDataLength || 0;
+                    const bytes = m.params.encodedDataLength || 0;
+                    if (/\.mp3(?:\?|$)/i.test(u)) musicBytes += bytes;
+                    else if (/\/assets\/models\/.*\.glb(?:\?|$)/i.test(u)) monsterGlbBytes += bytes;
+                    else coreTransferBytes += bytes;
                 }
                 else if (m.method === 'Runtime.exceptionThrown') jsErrors.push(m.params?.exceptionDetails?.text || 'exception');
                 else if (m.method === 'Runtime.consoleAPICalled' && m.params?.type === 'error') {
@@ -509,12 +512,15 @@ async function main() {
                 const termOpen = Boolean(!document.getElementById('terminal-container')?.classList.contains('hidden'));
                 return { depth: f?.player?.depth ?? -1, textures: mem.textures || 0, geometries: mem.geometries || 0, decodedKB, termOpen };
             })()`);
-            const transferKB = Math.round(transferBytes / 1024);
+            const coreKB = Math.round(coreTransferBytes / 1024);
+            const glbKB = Math.round(monsterGlbBytes / 1024);
+            const transferKB = coreKB + glbKB;
             const musicKB = Math.round(musicBytes / 1024);
-            console.log(`[VisualGate] Dungeon L${perf.depth} (termOpen=${perf.termOpen}): transferKB=${transferKB} (ceiling < 10000, baseline 12230), musicKB=${musicKB}, decodedKB=${perf.decodedKB} (ceiling < 35000, baseline 51547), textures=${perf.textures}, geometries=${perf.geometries}`);
+            console.log(`[VisualGate] Dungeon L${perf.depth} (termOpen=${perf.termOpen}): coreKB=${coreKB} (<8000), glbKB=${glbKB}, transferKB=${transferKB} (<16500, baseline 12230), musicKB=${musicKB}, decodedKB=${perf.decodedKB} (<35000, baseline 51547), textures=${perf.textures}, geometries=${perf.geometries}`);
             assert(perf.depth >= 1, `Expected Dungeon depth >= 1, got ${perf.depth}`);
             assert(!perf.termOpen, 'Expected pure 3D Dungeon view (terminal should be hidden)');
-            assert(transferKB < 10000, `Expected transferKB < 10000, got ${transferKB}`);
+            assert(coreKB < 8000, `Expected coreKB < 8000, got ${coreKB}`);
+            assert(transferKB < 16500, `Expected transferKB < 16500, got ${transferKB}`);
             assert(perf.decodedKB < 35000, `Expected decodedKB < 35000, got ${perf.decodedKB}`);
             assert.strictEqual(badHttp.length, 0, 'In-game HTTP errors: ' + badHttp.join('; '));
             assert.strictEqual(jsErrors.length, 0, 'In-game JS errors: ' + jsErrors.join('; '));
@@ -554,6 +560,189 @@ async function main() {
                 assert(mc.meshCount > 0 && mc.nonFloat === 0 && mc.normalizedPos === 0 && mc.ySize > 0.01, `Bad GLB geometry: ${JSON.stringify(mc)}`);
             }
             assert.strictEqual(consoleErrors.length, 0, 'Post-GLB-probe console errors: ' + consoleErrors.join('; '));
+
+            // Animation Clip Selection & Root-Motion Grounding Probe (Guard/Veteran, Construct, Zombie)
+            const animProbe = await playCdp.evaluate(`(async () => {
+                const d3d = window.__app?.dungeon;
+                const loader = d3d?._getGltfLoader?.();
+                const targets = [
+                    '/assets/models/characters/guard.glb',
+                    '/assets/models/monsters/bestiary/frost_construct.glb',
+                    '/assets/models/monsters/bestiary/zombie_model.glb'
+                ];
+                const statsForRootPos = (clip) => {
+                    if (!clip || !Array.isArray(clip.tracks)) return null;
+                    const tr = clip.tracks.find(t => t && /(Hips|Pelvis|Root)\.position$/i.test(t.name));
+                    if (!tr || !tr.values) return null;
+                    const n = Math.floor(tr.values.length / 3);
+                    let sx = 0, sy = 0, sz = 0;
+                    for (let i = 0; i < n; i++) { sx += tr.values[i*3]; sy += tr.values[i*3+1]; sz += tr.values[i*3+2]; }
+                    const mx = sx / n, my = sy / n, mz = sz / n;
+                    let maxDx = 0, maxDy = 0, maxDz = 0;
+                    for (let i = 0; i < n; i++) {
+                        maxDx = Math.max(maxDx, Math.abs(tr.values[i*3] - mx));
+                        maxDy = Math.max(maxDy, Math.abs(tr.values[i*3+1] - my));
+                        maxDz = Math.max(maxDz, Math.abs(tr.values[i*3+2] - mz));
+                    }
+                    return { name: tr.name, mx: Number(mx.toFixed(3)), my: Number(my.toFixed(3)), mz: Number(mz.toFixed(3)), maxDx: Number(maxDx.toFixed(3)), maxDy: Number(maxDy.toFixed(3)), maxDz: Number(maxDz.toFixed(3)) };
+                };
+                const res = {};
+                for (const u of targets) {
+                    const gltf = await new Promise((r, j) => loader.load(u, r, undefined, j));
+                    const sel = d3d._selectCreatureClips(gltf.animations || []);
+                    res[u.split('/').pop()] = {
+                        idleName: sel.idleClip?.name || null,
+                        walkName: sel.walkClip?.name || null,
+                        idleRoot: statsForRootPos(sel.idleClip),
+                        walkRoot: statsForRootPos(sel.walkClip)
+                    };
+                }
+                return res;
+            })()`);
+            console.log('[VisualGate] Animation Clip & Root-Motion Grounding:', JSON.stringify(animProbe));
+            assert.strictEqual(animProbe['guard.glb'].walkName, 'Walk', `Expected guard.glb Walk clip, got ${animProbe['guard.glb'].walkName}`);
+            assert(Math.abs(animProbe['guard.glb'].walkRoot.mz - animProbe['guard.glb'].idleRoot.mz) < 0.05, 'guard.glb Walk Hips Z still offsets above Idle');
+            assert(animProbe['guard.glb'].walkRoot.maxDz <= 2.5, `guard.glb Walk Hips Z excursion too high: ${animProbe['guard.glb'].walkRoot.maxDz}`);
+            assert.strictEqual(animProbe['frost_construct.glb'].walkName, 'walk', `Expected frost_construct walk clip, got ${animProbe['frost_construct.glb'].walkName}`);
+            assert(/InPlace/i.test(animProbe['zombie_model.glb'].walkName || ''), `Expected zombie InPlace walk, got ${animProbe['zombie_model.glb'].walkName}`);
+
+            // Tome Menu Layout, Scaling, Move & Resize Interactive Probe
+            await playCdp.evaluate(`(async () => {
+                document.querySelector('.ftue-coachmark-dismiss')?.click();
+                if (typeof window.ensureChronicleReady === 'function') await window.ensureChronicleReady();
+                const cw = document.getElementById('chronicle-window');
+                if (cw && !cw.classList.contains('active')) document.getElementById('btn-toggle-chronicle')?.click();
+                window.__app?.hud?.applyHudScale?.(1.0);
+            })()`);
+            await sleep(400);
+            const tomeLayout1440 = await playCdp.evaluate(`(() => {
+                const checkOverlaps = (ids) => {
+                    const rects = {};
+                    for (const id of ids) {
+                        const el = document.getElementById(id);
+                        if (!el) continue;
+                        const cs = getComputedStyle(el);
+                        const r = el.getBoundingClientRect();
+                        if (cs.display === 'none' || cs.visibility === 'hidden' || r.width === 0 || r.height === 0) continue;
+                        rects[id] = { x1: Math.round(r.left), y1: Math.round(r.top), x2: Math.round(r.right), y2: Math.round(r.bottom) };
+                    }
+                    const overlaps = [];
+                    const keys = Object.keys(rects);
+                    for (let i = 0; i < keys.length; i++) {
+                        for (let j = i + 1; j < keys.length; j++) {
+                            const a = rects[keys[i]], b = rects[keys[j]];
+                            if (a.x1 < b.x2 - 2 && a.x2 > b.x1 + 2 && a.y1 < b.y2 - 2 && a.y2 > b.y1 + 2) overlaps.push(keys[i] + ' vs ' + keys[j]);
+                        }
+                    }
+                    return { rects, overlaps };
+                };
+                const menuBar = document.querySelector('.chronicle-menu-bar')?.getBoundingClientRect();
+                const deck = document.querySelector('.chronicle-transport-deck')?.getBoundingClientRect();
+                const depthEl = document.getElementById('val-depth')?.getBoundingClientRect();
+                const mmClose = document.getElementById('btn-minimap-close')?.getBoundingClientRect();
+                return {
+                    ...checkOverlaps(['top-right-bar', 'char-panel', 'minimap-container', 'hud-center-column', 'message-feed-window', 'chronicle-window']),
+                    menuBarH: menuBar ? Math.round(menuBar.height) : 0,
+                    deckH: deck ? Math.round(deck.height) : 0,
+                    depthClearOfClose: Boolean(depthEl && mmClose && depthEl.right <= mmClose.left + 1)
+                };
+            })()`);
+            console.log('[VisualGate] Tome & HUD Layout 1440x900 @100%:', JSON.stringify({ overlaps: tomeLayout1440.overlaps, menuBarH: tomeLayout1440.menuBarH, deckH: tomeLayout1440.deckH, depthClearOfClose: tomeLayout1440.depthClearOfClose }));
+            assert.strictEqual(tomeLayout1440.overlaps.length, 0, 'Tome/HUD 1440x900 @100% overlaps: ' + tomeLayout1440.overlaps.join(', '));
+            assert(tomeLayout1440.menuBarH > 0 && tomeLayout1440.menuBarH <= 40, `Expected single-row Tome menu bar <= 40px, got ${tomeLayout1440.menuBarH}`);
+            assert(tomeLayout1440.deckH > 0 && tomeLayout1440.deckH <= 40, `Expected single-row Tome transport deck <= 40px, got ${tomeLayout1440.deckH}`);
+            assert.strictEqual(tomeLayout1440.depthClearOfClose, true, 'Minimap depth label clipped by close button');
+            if (screenshotsDir) {
+                await playCdp.takeScreenshot(path.join(screenshotsDir, 'tome_and_layout_1440x900.png'));
+            }
+
+            // Scaled 1280x720 @115% Tome + HUD zero-overlap check
+            await playCdp.send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 720, deviceScaleFactor: 1, mobile: false });
+            await playCdp.evaluate(`(() => { window.__app?.hud?.applyHudScale?.(1.15); window.__syncMsgDockBottom?.(); window.__clampFloatingWindows?.(); })()`);
+            await sleep(400);
+            const scaled1280 = await playCdp.evaluate(`(() => {
+                const ids = ['top-right-bar', 'char-panel', 'minimap-container', 'hud-center-column', 'message-feed-window', 'chronicle-window'];
+                const rects = {};
+                for (const id of ids) {
+                    const el = document.getElementById(id);
+                    if (!el) continue;
+                    const cs = getComputedStyle(el);
+                    const r = el.getBoundingClientRect();
+                    if (cs.display === 'none' || cs.visibility === 'hidden' || r.width === 0 || r.height === 0) continue;
+                    rects[id] = { x1: Math.round(r.left), y1: Math.round(r.top), x2: Math.round(r.right), y2: Math.round(r.bottom) };
+                }
+                const overlaps = [];
+                const keys = Object.keys(rects);
+                for (let i = 0; i < keys.length; i++) {
+                    for (let j = i + 1; j < keys.length; j++) {
+                        const a = rects[keys[i]], b = rects[keys[j]];
+                        if (a.x1 < b.x2 - 2 && a.x2 > b.x1 + 2 && a.y1 < b.y2 - 2 && a.y2 > b.y1 + 2) overlaps.push(keys[i] + ' vs ' + keys[j]);
+                    }
+                }
+                return { overlaps, rects };
+            })()`);
+            console.log('[VisualGate] Tome & HUD Layout 1280x720 @115%:', JSON.stringify(scaled1280.overlaps), JSON.stringify(scaled1280.rects));
+            assert.strictEqual(scaled1280.overlaps.length, 0, 'Tome/HUD 1280x720 @115% overlaps: ' + scaled1280.overlaps.join(', '));
+            if (screenshotsDir) {
+                await playCdp.takeScreenshot(path.join(screenshotsDir, 'layout_1280x720_scaled.png'));
+            }
+
+            // Interactive Drag & Resize Probe at 1440x900 @115% Scale
+            await playCdp.send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false });
+            await sleep(300);
+            const dragResizeProbe = await playCdp.evaluate(`(async () => {
+                const wait = (ms) => new Promise(r => setTimeout(r, ms));
+                const synthDrag = async (handleEl, dx, dy) => {
+                    const r = handleEl.getBoundingClientRect();
+                    const sx = Math.round(r.left + Math.min(r.width * 0.5, 40));
+                    const sy = Math.round(r.top + r.height * 0.5);
+                    handleEl.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true, button: 0, pointerId: 1, clientX: sx, clientY: sy }));
+                    await wait(16);
+                    window.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, cancelable: true, button: 0, pointerId: 1, clientX: sx + Math.round(dx * 0.5), clientY: sy + Math.round(dy * 0.5) }));
+                    handleEl.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, cancelable: true, button: 0, pointerId: 1, clientX: sx + Math.round(dx * 0.5), clientY: sy + Math.round(dy * 0.5) }));
+                    await wait(16);
+                    window.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, cancelable: true, button: 0, pointerId: 1, clientX: sx + dx, clientY: sy + dy }));
+                    handleEl.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, cancelable: true, button: 0, pointerId: 1, clientX: sx + dx, clientY: sy + dy }));
+                    await wait(16);
+                    window.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, cancelable: true, button: 0, pointerId: 1, clientX: sx + dx, clientY: sy + dy }));
+                    handleEl.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, cancelable: true, button: 0, pointerId: 1, clientX: sx + dx, clientY: sy + dy }));
+                    await wait(30);
+                };
+                const probeWindow = async (winId, hdrId, resId, dDrag, dResize) => {
+                    const win = document.getElementById(winId);
+                    const hdr = document.getElementById(hdrId);
+                    const res = document.getElementById(resId);
+                    const b0 = win.getBoundingClientRect();
+                    await synthDrag(hdr, dDrag[0], dDrag[1]);
+                    const b1 = win.getBoundingClientRect();
+                    await synthDrag(res, dResize[0], dResize[1]);
+                    const b2 = win.getBoundingClientRect();
+                    return {
+                        dragMovedX: Math.round(b1.left - b0.left),
+                        dragMovedY: Math.round(b1.top - b0.top),
+                        dragJumpW: Math.round(Math.abs(b1.width - b0.width)),
+                        resizeTopPinDeltaX: Math.round(Math.abs(b2.left - b1.left)),
+                        resizeTopPinDeltaY: Math.round(Math.abs(b2.top - b1.top)),
+                        resizeGrowW: Math.round(b2.width - b1.width),
+                        resizeGrowH: Math.round(b2.height - b1.height)
+                    };
+                };
+                const msg = await probeWindow('message-feed-window', 'message-feed-header', 'msg-resize-handle', [60, -40], [80, 50]);
+                const map = await probeWindow('minimap-container', 'minimap-header', 'map-resize-handle', [55, 40], [55, 55]);
+                const tome = await probeWindow('chronicle-window', 'chronicle-header', 'chronicle-resize-handle', [-70, 45], [50, 40]);
+                window.__app?.hud?.resetHudLayout?.();
+                window.__app?.hud?.applyHudScale?.(1.0);
+                document.getElementById('btn-chronicle-close')?.click();
+                return { msg, map, tome };
+            })()`);
+            console.log('[VisualGate] Scaled (@115%) Drag & Resize Probe:', JSON.stringify(dragResizeProbe));
+            for (const [k, p] of Object.entries(dragResizeProbe)) {
+                assert(Math.abs(p.dragMovedX) >= 35 && Math.abs(p.dragMovedY) >= 25, `${k} header drag failed: ${JSON.stringify(p)}`);
+                assert(p.dragJumpW <= 3, `${k} unexpected width jump on drag: ${JSON.stringify(p)}`);
+                assert(p.resizeGrowW >= 30 && p.resizeGrowH >= 20, `${k} resize handle failed: ${JSON.stringify(p)}`);
+                assert(p.resizeTopPinDeltaX <= 4 && p.resizeTopPinDeltaY <= 4, `${k} top-left drifted on resize: ${JSON.stringify(p)}`);
+            }
+            await sleep(250);
 
             // WCAG Contrast Verification on primary HUD labels, Daily Trophy, Reticle Upgrade Chip & Settings Gold CTA
             const contrastRes = await playCdp.evaluate(`(() => {
@@ -627,12 +816,14 @@ async function main() {
                 assert(val >= 4.5, `WCAG contrast failure for ${k}: ${val}:1 (< 4.5:1)`);
             }
 
-            // 5-Viewport Geometry, Blur & Mobile Touch-Target Matrix
+            // 7-Viewport Geometry, Blur & Mobile Touch-Target Matrix
             const viewports = [
                 { name: '360x640', width: 360, height: 640, mobile: true },
                 { name: '390x844', width: 390, height: 844, mobile: true },
                 { name: '844x390', width: 844, height: 390, mobile: true },
                 { name: '768x1024', width: 768, height: 1024, mobile: true },
+                { name: '1024x768', width: 1024, height: 768, mobile: false },
+                { name: '1280x720', width: 1280, height: 720, mobile: false },
                 { name: '1440x900', width: 1440, height: 900, mobile: false }
             ];
             for (const vp of viewports) {

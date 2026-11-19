@@ -1522,175 +1522,289 @@ window.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Draggable and Resizable Windows Coordinator (Minimap and Message Log)
+    // Draggable and Resizable Windows Coordinator (Minimap, Message Log, and Living Chronicle)
     function setupDraggableAndResizableWindows() {
         try {
-            if (localStorage.getItem('angband3d_hud_v1301_clean') !== '1') {
-                ['angband_map_pos', 'angband_map_size', 'angband_msg_pos', 'angband_char_size', 'angband_deck_size', 'angband3d_hud_layout_v2'].forEach(k => localStorage.removeItem(k));
+            if (localStorage.getItem('angband3d_hud_v1321_clean') !== '1') {
+                ['angband_map_pos', 'angband_map_size', 'angband_msg_pos', 'angband_msg_size', 'angband_chronicle_pos', 'angband_chronicle_size', 'angband_char_size', 'angband_deck_size', 'angband3d_hud_layout_v2'].forEach(k => localStorage.removeItem(k));
                 localStorage.setItem('angband3d_hud_v1301_clean', '1');
+                localStorage.setItem('angband3d_hud_v1321_clean', '1');
             }
         } catch (_) {}
-        const makeWindowDraggableAndResizable = (winEl, headerEl, resizeHandleEl, storageKey, onResize) => {
+
+        const isDesktopFloatingEnv = () => {
+            if (typeof window === 'undefined') return true;
+            if (document.documentElement && document.documentElement.classList.contains('yasd-handheld')) return false;
+            return (window.innerWidth || 1280) > 900 && (window.innerHeight || 720) > 500;
+        };
+
+        const getEffectiveScale = (el) => {
+            if (!el) return 1;
+            const ow = el.offsetWidth;
+            if (!ow || ow < 1) {
+                const raw = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--hud-scale'));
+                return (Number.isFinite(raw) && raw > 0.25 && raw < 3.0) ? raw : 1;
+            }
+            const rw = el.getBoundingClientRect().width;
+            if (!rw || rw < 1) return 1;
+            const ratio = rw / ow;
+            return (Number.isFinite(ratio) && ratio > 0.25 && ratio < 3.0) ? ratio : 1;
+        };
+
+        const mapWin = document.getElementById('minimap-container');
+        const msgWin = document.getElementById('message-feed-window');
+        const chronicleWin = document.getElementById('chronicle-window');
+        const charWin = document.getElementById('char-panel');
+        const deckWin = document.getElementById('hud-center-column');
+        const floatingControllers = [];
+        let topFloatingZ = 28;
+
+        const bringFloatingWindowToFront = (winEl) => {
             if (!winEl) return;
-            // Restore saved position with safe screen bounds
-            try {
-                const savedPos = localStorage.getItem(storageKey + '_pos');
-                if (savedPos) {
-                    const pos = JSON.parse(savedPos);
-                    if (typeof pos.left === 'number' && typeof pos.top === 'number') {
-                        const maxLeft = Math.max(10, window.innerWidth - 60);
-                        const maxTop = Math.max(10, window.innerHeight - 40);
-                        winEl.style.left = `${Math.max(10, Math.min(pos.left, maxLeft))}px`;
-                        winEl.style.top = `${Math.max(10, Math.min(pos.top, maxTop))}px`;
-                        winEl.style.transform = 'none';
-                        winEl.style.right = 'auto';
-                        winEl.style.bottom = 'auto';
+            topFloatingZ += 1;
+            if (topFloatingZ > 38) {
+                const peers = [mapWin, msgWin, chronicleWin].filter(el => el && el !== winEl);
+                peers.sort((a, b) => (parseInt(a.style.zIndex || '24', 10) || 24) - (parseInt(b.style.zIndex || '24', 10) || 24));
+                peers.forEach((el, idx) => { el.style.zIndex = String(24 + idx); });
+                topFloatingZ = 27;
+            }
+            winEl.style.zIndex = String(topFloatingZ);
+        };
+
+        const pinWindowTopLeft = (winEl) => {
+            if (!winEl) return;
+            const rect = winEl.getBoundingClientRect();
+            winEl.dataset.customPos = '1';
+            winEl.style.position = 'fixed';
+            winEl.style.right = 'auto';
+            winEl.style.bottom = 'auto';
+            winEl.style.margin = '0';
+            winEl.style.left = `${Math.round(rect.left)}px`;
+            winEl.style.top = `${Math.round(rect.top)}px`;
+        };
+
+        const makeWindowDraggableAndResizable = (winEl, headerEl, resizeHandleEl, storageKey, onResize, limits = {}) => {
+            if (!winEl) return;
+            const minW = limits.minW || 180;
+            const minH = limits.minH || 100;
+            const maxCapW = limits.maxW || 1600;
+            const maxCapH = limits.maxH || 1200;
+
+            const applySavedState = () => {
+                if (!isDesktopFloatingEnv()) return;
+                const vw = window.innerWidth || 1280;
+                const vh = window.innerHeight || 720;
+                const scale = getEffectiveScale(winEl);
+                try {
+                    const savedSize = localStorage.getItem(storageKey + '_size');
+                    if (savedSize) {
+                        const sz = JSON.parse(savedSize);
+                        if (typeof sz.width === 'number' && typeof sz.height === 'number') {
+                            const maxAvailW = Math.min(maxCapW, Math.max(minW, Math.floor((vw - 16) / scale)));
+                            const maxAvailH = Math.min(maxCapH, Math.max(minH, Math.floor((vh - 56) / scale)));
+                            const w = Math.max(minW, Math.min(maxAvailW, Math.round(sz.width)));
+                            const h = Math.max(minH, Math.min(maxAvailH, Math.round(sz.height)));
+                            winEl.dataset.customSize = '1';
+                            winEl.style.maxWidth = 'none';
+                            winEl.style.maxHeight = 'none';
+                            if (onResize) {
+                                onResize(w, h);
+                            } else {
+                                winEl.style.width = `${w}px`;
+                                winEl.style.height = `${h}px`;
+                            }
+                        }
                     }
-                }
-            } catch (_) {}
-            // Restore saved size with safe minimums
-            try {
-                const savedSize = localStorage.getItem(storageKey + '_size');
-                if (savedSize) {
-                    const sz = JSON.parse(savedSize);
-                    if (typeof sz.width === 'number' && typeof sz.height === 'number') {
-                        const minW = storageKey === 'angband_msg' ? 260 : 140;
-                        const minH = storageKey === 'angband_msg' ? 90 : 80;
-                        const maxW = storageKey === 'angband_map' ? Math.min(640, window.innerWidth - 20) : (window.innerWidth - 20);
-                        const w = Math.max(minW, Math.min(maxW, sz.width));
-                        const maxH = storageKey === 'angband_map' ? Math.min(640, window.innerHeight - 20) : (window.innerHeight - 20);
-                        const h = Math.max(minH, Math.min(maxH, sz.height));
-                        winEl.style.width = `${w}px`;
-                        winEl.style.height = `${h}px`;
-                        if (onResize) onResize(w, h);
+                } catch (_) {}
+                try {
+                    const savedPos = localStorage.getItem(storageKey + '_pos');
+                    if (savedPos) {
+                        const pos = JSON.parse(savedPos);
+                        if (typeof pos.left === 'number' && typeof pos.top === 'number') {
+                            const visW = Math.max(80, Math.round((winEl.offsetWidth || minW) * scale));
+                            const visH = Math.max(60, Math.round((winEl.offsetHeight || minH) * scale));
+                            const maxLeft = Math.max(6, vw - Math.min(visW, vw - 12) - 6);
+                            const maxTop = Math.max(44, vh - Math.min(visH, vh - 50) - 6);
+                            winEl.dataset.customPos = '1';
+                            winEl.style.position = 'fixed';
+                            winEl.style.right = 'auto';
+                            winEl.style.bottom = 'auto';
+                            winEl.style.margin = '0';
+                            winEl.style.left = `${Math.round(Math.max(6, Math.min(pos.left, maxLeft)))}px`;
+                            winEl.style.top = `${Math.round(Math.max(44, Math.min(pos.top, maxTop)))}px`;
+                        }
                     }
+                } catch (_) {}
+            };
+
+            const resetSingleWindow = () => {
+                delete winEl.dataset.customPos;
+                delete winEl.dataset.customSize;
+                ['position', 'left', 'top', 'right', 'bottom', 'width', 'height', 'maxWidth', 'maxHeight', 'margin', 'zIndex'].forEach((prop) => {
+                    winEl.style[prop] = '';
+                });
+                winEl.classList.remove('window-minimized', 'minimized', 'minimap-narrow');
+                try {
+                    localStorage.removeItem(storageKey + '_pos');
+                    localStorage.removeItem(storageKey + '_size');
+                } catch (_) {}
+                if (storageKey === 'angband_map' && hud && typeof hud.applyMinimapSize === 'function') {
+                    hud.applyMinimapSize();
+                } else if (storageKey === 'angband_msg') {
+                    const minBtn = document.getElementById('btn-msg-minimize');
+                    if (minBtn) minBtn.textContent = '−';
+                    if (window.__syncMsgDockBottom) window.__syncMsgDockBottom();
+                } else if (storageKey === 'angband_chronicle') {
+                    const expBtn = document.getElementById('btn-chronicle-expand');
+                    if (expBtn) { expBtn.textContent = '−'; expBtn.title = 'Minimize / Shade Tome'; }
                 }
-            } catch (_) {}
-            // Dragging via window header (strictly repositions window, never alters dimensions)
+            };
+
+            applySavedState();
+            floatingControllers.push({ el: winEl, applySavedState });
+
+            winEl.addEventListener('pointerdown', () => {
+                if (isDesktopFloatingEnv()) bringFloatingWindowToFront(winEl);
+            }, { passive: true });
+
             if (headerEl) {
+                headerEl.style.touchAction = 'none';
+                let isPending = false;
                 let isDragging = false;
                 let startX = 0, startY = 0;
                 let initialLeft = 0, initialTop = 0;
-                let fixedW = 0, fixedH = 0;
-                // # ROOT-CAUSE: Exempt .minimap-hint from header drag start so clicking the header size badge cycles minimap presets without initiating a drag.
-                const startDrag = (clientX, clientY, e) => {
-                    if (e && e.target && e.target.closest('button, input, select, a, kbd, .minimap-hint')) return;
-                    if (e && e.preventDefault) e.preventDefault();
-                    isDragging = true;
-                    startX = clientX;
-                    startY = clientY;
-                    const rect = winEl.getBoundingClientRect();
-                    initialLeft = rect.left;
-                    initialTop = rect.top;
-                    fixedW = rect.width;
-                    fixedH = rect.height;
-                    winEl.style.left = `${initialLeft}px`;
-                    winEl.style.top = `${initialTop}px`;
-                    winEl.style.transform = 'none';
-                    winEl.style.right = 'auto';
-                    winEl.style.bottom = 'auto';
-                    headerEl.style.cursor = 'grabbing';
-                };
-                const moveDrag = (clientX, clientY) => {
-                    if (!isDragging) return;
-                    const dx = clientX - startX;
-                    const dy = clientY - startY;
-                    const newLeft = Math.max(0, Math.min(window.innerWidth - 60, initialLeft + dx));
-                    const newTop = Math.max(0, Math.min(window.innerHeight - 40, initialTop + dy));
-                    winEl.style.left = `${newLeft}px`;
-                    winEl.style.top = `${newTop}px`;
-                };
-                const endDrag = () => {
-                    if (isDragging) {
-                        isDragging = false;
-                        headerEl.style.cursor = 'grab';
-                        const rect = winEl.getBoundingClientRect();
-                        try {
-                            localStorage.setItem(storageKey + '_pos', JSON.stringify({ left: rect.left, top: rect.top }));
-                        } catch (_) {}
-                    }
-                };
-                headerEl.addEventListener('mousedown', (e) => {
-                    startDrag(e.clientX, e.clientY, e);
-                    const onMouseMove = (ev) => moveDrag(ev.clientX, ev.clientY);
-                    const onMouseUp = () => {
-                        endDrag();
-                        window.removeEventListener('mousemove', onMouseMove);
-                        window.removeEventListener('mouseup', onMouseUp);
-                    };
-                    window.addEventListener('mousemove', onMouseMove);
-                    window.addEventListener('mouseup', onMouseUp);
-                });
-                headerEl.addEventListener('touchstart', (e) => {
-                    if (e.touches.length === 1) {
-                        startDrag(e.touches[0].clientX, e.touches[0].clientY, e);
-                    }
-                }, { passive: false });
-                headerEl.addEventListener('touchmove', (e) => {
-                    if (isDragging && e.touches.length === 1) {
-                        e.preventDefault();
-                        moveDrag(e.touches[0].clientX, e.touches[0].clientY);
-                    }
-                }, { passive: false });
-                const onTouchEnd = () => endDrag();
-                headerEl.addEventListener('touchend', onTouchEnd, { passive: true });
-                headerEl.addEventListener('touchcancel', onTouchEnd, { passive: true });
-                headerEl.addEventListener('dblclick', (e) => {
-                    e.stopPropagation();
-                    winEl.style.position = '';
-                    winEl.style.left = '';
-                    winEl.style.top = '';
-                    winEl.style.transform = '';
-                    winEl.style.right = '';
-                    winEl.style.bottom = '';
-                    winEl.style.margin = '';
-                    try {
-                        localStorage.removeItem(storageKey + '_pos');
-                    } catch (_) {}
-                    if (storageKey === 'angband_msg' && window.__syncMsgDockBottom) window.__syncMsgDockBottom();
-                });
-            }
-            // Resizing via bottom-right handle (supports both mouse and touch via Pointer Events)
-            if (resizeHandleEl) {
-                let isResizing = false;
-                let startX = 0, startY = 0;
-                let initialW = 0, initialH = 0;
-                resizeHandleEl.addEventListener('pointerdown', (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    isResizing = true;
+                let visW = 0, visH = 0;
+                let activePointerId = null;
+
+                headerEl.addEventListener('pointerdown', (e) => {
+                    if (e.button !== undefined && e.button !== 0) return;
+                    if (!isDesktopFloatingEnv()) return;
+                    if (e.target && e.target.closest('button, input, select, a, kbd, .minimap-hint')) return;
+                    bringFloatingWindowToFront(winEl);
+                    isPending = true;
+                    isDragging = false;
+                    activePointerId = e.pointerId;
                     startX = e.clientX;
                     startY = e.clientY;
                     const rect = winEl.getBoundingClientRect();
-                    initialW = rect.width;
-                    initialH = rect.height;
-                    try { resizeHandleEl.setPointerCapture(e.pointerId); } catch (_) {}
+                    initialLeft = rect.left;
+                    initialTop = rect.top;
+                    visW = rect.width || winEl.offsetWidth || minW;
+                    visH = rect.height || winEl.offsetHeight || minH;
+                    try { headerEl.setPointerCapture(e.pointerId); } catch (_) {}
+                });
+
+                headerEl.addEventListener('pointermove', (e) => {
+                    if ((!isPending && !isDragging) || (activePointerId !== null && e.pointerId !== activePointerId)) return;
+                    const dx = e.clientX - startX;
+                    const dy = e.clientY - startY;
+                    if (isPending) {
+                        if (Math.hypot(dx, dy) < 3) return;
+                        isPending = false;
+                        isDragging = true;
+                        winEl.classList.add('hud-window-interacting');
+                        pinWindowTopLeft(winEl);
+                        const rect = winEl.getBoundingClientRect();
+                        visW = rect.width || visW;
+                        visH = rect.height || visH;
+                        headerEl.style.cursor = 'grabbing';
+                    }
+                    if (!isDragging) return;
+                    e.preventDefault();
+                    const vw = window.innerWidth || 1280;
+                    const vh = window.innerHeight || 720;
+                    const maxLeft = Math.max(6, vw - Math.min(visW, vw - 12) - 6);
+                    const maxTop = Math.max(44, vh - Math.min(visH, vh - 50) - 6);
+                    const newLeft = Math.max(6, Math.min(maxLeft, initialLeft + dx));
+                    const newTop = Math.max(44, Math.min(maxTop, initialTop + dy));
+                    winEl.style.left = `${Math.round(newLeft)}px`;
+                    winEl.style.top = `${Math.round(newTop)}px`;
+                });
+
+                const finishDrag = (e) => {
+                    if (activePointerId !== null && e && e.pointerId !== undefined && e.pointerId !== activePointerId) return;
+                    if (isDragging) {
+                        isDragging = false;
+                        winEl.classList.remove('hud-window-interacting');
+                        headerEl.style.cursor = 'grab';
+                        const rect = winEl.getBoundingClientRect();
+                        try {
+                            localStorage.setItem(storageKey + '_pos', JSON.stringify({ left: Math.round(rect.left), top: Math.round(rect.top) }));
+                        } catch (_) {}
+                    }
+                    isPending = false;
+                    activePointerId = null;
+                };
+                headerEl.addEventListener('pointerup', finishDrag);
+                headerEl.addEventListener('pointercancel', finishDrag);
+
+                headerEl.addEventListener('dblclick', (e) => {
+                    if (e.target && e.target.closest('button, input, select, a, kbd, .minimap-hint')) return;
+                    if (!isDesktopFloatingEnv()) return;
+                    e.stopPropagation();
+                    resetSingleWindow();
+                });
+            }
+
+            if (resizeHandleEl) {
+                resizeHandleEl.style.touchAction = 'none';
+                resizeHandleEl.addEventListener('pointerdown', (e) => {
+                    if (e.button !== undefined && e.button !== 0) return;
+                    if (!isDesktopFloatingEnv()) return;
+                    e.preventDefault();
+                    e.stopPropagation();
+                    winEl.classList.add('hud-window-interacting');
+                    bringFloatingWindowToFront(winEl);
+                    pinWindowTopLeft(winEl);
+
+                    const scale = getEffectiveScale(winEl);
+                    const startX = e.clientX;
+                    const startY = e.clientY;
+                    const initialCssW = winEl.offsetWidth || Math.round(winEl.getBoundingClientRect().width / scale);
+                    const initialCssH = winEl.offsetHeight || Math.round(winEl.getBoundingClientRect().height / scale);
+                    const pinnedLeft = parseFloat(winEl.style.left) || winEl.getBoundingClientRect().left;
+                    const pinnedTop = parseFloat(winEl.style.top) || winEl.getBoundingClientRect().top;
+
+                    winEl.dataset.customSize = '1';
+                    winEl.style.maxWidth = 'none';
+                    winEl.style.maxHeight = 'none';
+                    let isResizing = true;
+                    const pid = e.pointerId;
+                    try { resizeHandleEl.setPointerCapture(pid); } catch (_) {}
+
                     const onPointerMove = (ev) => {
-                        if (!isResizing) return;
-                        const dx = ev.clientX - startX;
-                        const dy = ev.clientY - startY;
-                        const minW = storageKey === 'angband_map' ? 168 : 180;
-                        const minH = storageKey === 'angband_map' ? 190 : 80;
-                        const newW = Math.max(minW, Math.min(window.innerWidth - 20, initialW + dx));
-                        const newH = Math.max(minH, Math.min(window.innerHeight - 20, initialH + dy));
+                        if (!isResizing || (ev.pointerId !== undefined && ev.pointerId !== pid)) return;
+                        ev.preventDefault();
+                        const vw = window.innerWidth || 1280;
+                        const vh = window.innerHeight || 720;
+                        const maxAvailW = Math.min(maxCapW, Math.max(minW, Math.floor((vw - pinnedLeft - 8) / scale)));
+                        const maxAvailH = Math.min(maxCapH, Math.max(minH, Math.floor((vh - pinnedTop - 8) / scale)));
+                        const rawW = initialCssW + (ev.clientX - startX) / scale;
+                        const rawH = initialCssH + (ev.clientY - startY) / scale;
+                        const newCssW = Math.round(Math.max(minW, Math.min(maxAvailW, rawW)));
+                        const newCssH = Math.round(Math.max(minH, Math.min(maxAvailH, rawH)));
                         if (onResize) {
-                            onResize(newW, newH);
+                            onResize(newCssW, newCssH);
                         } else {
-                            winEl.style.width = `${newW}px`;
-                            winEl.style.height = `${newH}px`;
+                            winEl.style.width = `${newCssW}px`;
+                            winEl.style.height = `${newCssH}px`;
                         }
                     };
-                    const onPointerUp = () => {
-                        if (isResizing) {
-                            isResizing = false;
-                            window.removeEventListener('pointermove', onPointerMove);
-                            window.removeEventListener('pointerup', onPointerUp);
-                            window.removeEventListener('pointercancel', onPointerUp);
-                            const rect = winEl.getBoundingClientRect();
-                            try {
-                                localStorage.setItem(storageKey + '_size', JSON.stringify({ width: rect.width, height: rect.height }));
-                            } catch (_) {}
-                        }
+
+                    const onPointerUp = (ev) => {
+                        if (!isResizing || (ev && ev.pointerId !== undefined && ev.pointerId !== pid)) return;
+                        isResizing = false;
+                        winEl.classList.remove('hud-window-interacting');
+                        window.removeEventListener('pointermove', onPointerMove);
+                        window.removeEventListener('pointerup', onPointerUp);
+                        window.removeEventListener('pointercancel', onPointerUp);
+                        const rect = winEl.getBoundingClientRect();
+                        const finalW = Math.round(parseFloat(winEl.style.width) || winEl.offsetWidth || (rect.width / scale));
+                        const finalH = Math.round(parseFloat(winEl.style.height) || winEl.offsetHeight || (rect.height / scale));
+                        try {
+                            localStorage.setItem(storageKey + '_pos', JSON.stringify({ left: Math.round(rect.left), top: Math.round(rect.top) }));
+                            localStorage.setItem(storageKey + '_size', JSON.stringify({ width: finalW, height: finalH }));
+                        } catch (_) {}
                     };
                     window.addEventListener('pointermove', onPointerMove);
                     window.addEventListener('pointerup', onPointerUp);
@@ -1698,25 +1812,36 @@ window.addEventListener('DOMContentLoaded', () => {
                 });
             }
         };
-        // Initialize Minimap Container Drag & Resize
-        const mapWin = document.getElementById('minimap-container');
-        const mapHeader = document.getElementById('minimap-header');
-        const mapResize = document.getElementById('map-resize-handle');
-        makeWindowDraggableAndResizable(mapWin, mapHeader, mapResize, 'angband_map', (w, h) => {
-            if (hud && typeof hud.setCustomMinimapSize === 'function') {
-                hud.setCustomMinimapSize(w, h);
-            }
-        });
-        // Initialize Message Feed Window Drag & Resize
-        const msgWin = document.getElementById('message-feed-window');
-        const msgHeader = document.getElementById('message-feed-header');
-        const msgResize = document.getElementById('msg-resize-handle');
-        makeWindowDraggableAndResizable(msgWin, msgHeader, msgResize, 'angband_msg', null);
-        // Initialize Living Chronicle Window Drag & Resize
-        const chronicleWin = document.getElementById('chronicle-window');
-        const chronicleHeader = document.getElementById('chronicle-header');
-        const chronicleResize = document.getElementById('chronicle-resize-handle');
-        makeWindowDraggableAndResizable(chronicleWin, chronicleHeader, chronicleResize, 'angband_chronicle', null);
+
+        // Initialize Minimap, Message Feed, and Living Chronicle Drag & Resize
+        makeWindowDraggableAndResizable(
+            mapWin,
+            document.getElementById('minimap-header'),
+            document.getElementById('map-resize-handle'),
+            'angband_map',
+            (w, h) => {
+                if (hud && typeof hud.setCustomMinimapSize === 'function') {
+                    hud.setCustomMinimapSize(w, h);
+                }
+            },
+            { minW: 180, minH: 196, maxW: 640, maxH: 640 }
+        );
+        makeWindowDraggableAndResizable(
+            msgWin,
+            document.getElementById('message-feed-header'),
+            document.getElementById('msg-resize-handle'),
+            'angband_msg',
+            null,
+            { minW: 248, minH: 92, maxW: 1200, maxH: 900 }
+        );
+        makeWindowDraggableAndResizable(
+            chronicleWin,
+            document.getElementById('chronicle-header'),
+            document.getElementById('chronicle-resize-handle'),
+            'angband_chronicle',
+            null,
+            { minW: 300, minH: 220, maxW: 1100, maxH: 1100 }
+        );
 
         // Universal Minimize / Shade, Hide & Resize for HUD Components
         const wireShadeToggle = (btnId, winEl) => {
@@ -1730,15 +1855,14 @@ window.addEventListener('DOMContentLoaded', () => {
             });
         };
         wireShadeToggle('btn-msg-minimize', msgWin);
-        const charWin = document.getElementById('char-panel');
-        const deckWin = document.getElementById('hud-center-column');
         wireShadeToggle('btn-char-minimize', charWin);
         const syncMsgDockBottom = () => {
             if (!msgWin || !deckWin) return;
-            if (window.innerWidth <= 960) {
+            if (!isDesktopFloatingEnv()) {
                 msgWin.style.removeProperty('bottom');
                 return;
             }
+            if (msgWin.dataset.customPos === '1' || msgWin.style.top) return;
             let hasCustomPos = false;
             try { hasCustomPos = Boolean(localStorage.getItem('angband_msg_pos')); } catch (_) {}
             if (hasCustomPos) return;
@@ -1752,13 +1876,12 @@ window.addEventListener('DOMContentLoaded', () => {
         if (typeof ResizeObserver !== 'undefined' && deckWin) {
             new ResizeObserver(syncMsgDockBottom).observe(deckWin);
         }
-        window.addEventListener('resize', syncMsgDockBottom);
+        window.addEventListener('resize', syncMsgDockBottom, { passive: true });
         syncMsgDockBottom();
 
         const wireTopToggle = (topBtnId, winEl) => {
             const topBtn = document.getElementById(topBtnId);
             if (!topBtn || !winEl) return;
-            // # ROOT-CAUSE: Synchronize .is-panel-open on top-bar toggles, un-minimize shaded panels on top-bar click, and clamp floating windows inside the viewport on resize/orientationchange.
             const syncTopBtn = () => {
                 const hidden = winEl.classList.contains('hud-panel-hidden');
                 topBtn.classList.toggle('panel-off', hidden);
@@ -1783,23 +1906,61 @@ window.addEventListener('DOMContentLoaded', () => {
         wireTopToggle('btn-toggle-hero', charWin);
         wireTopToggle('btn-toggle-actions', deckWin);
 
+        let wasNarrowFloating = !isDesktopFloatingEnv();
         const clampFloatingWindowsToViewport = () => {
             const vw = window.innerWidth || 1280;
             const vh = window.innerHeight || 720;
+            if (!isDesktopFloatingEnv()) {
+                wasNarrowFloating = true;
+                [mapWin, msgWin, chronicleWin].forEach((el) => {
+                    if (!el || !el.style) return;
+                    ['position', 'left', 'top', 'right', 'bottom', 'width', 'height', 'maxWidth', 'maxHeight', 'margin', 'zIndex'].forEach((prop) => {
+                        el.style[prop] = '';
+                    });
+                    if (el === mapWin && el.classList) el.classList.remove('minimap-narrow');
+                });
+                return;
+            }
+            if (wasNarrowFloating) {
+                wasNarrowFloating = false;
+                floatingControllers.forEach(c => c.applySavedState());
+                syncMsgDockBottom();
+            }
             [mapWin, msgWin, chronicleWin].forEach((el) => {
-                if (!el || !el.style || !el.style.left) return;
+                if (!el || !el.style) return;
+                const scale = getEffectiveScale(el);
+                if (el.dataset.customSize === '1') {
+                    const maxCssW = Math.max(180, Math.floor((vw - 16) / scale));
+                    const maxCssH = Math.max(92, Math.floor((vh - 56) / scale));
+                    if (el === mapWin && hud && typeof hud.setCustomMinimapSize === 'function') {
+                        const curW = parseFloat(el.style.width) || el.offsetWidth;
+                        const curH = el.offsetHeight;
+                        if (curW > maxCssW || curH > maxCssH) {
+                            hud.setCustomMinimapSize(Math.min(curW, maxCssW), Math.min(curH, maxCssH));
+                        }
+                    } else {
+                        const curW = parseFloat(el.style.width);
+                        const curH = parseFloat(el.style.height);
+                        if (Number.isFinite(curW) && curW > maxCssW) el.style.width = `${maxCssW}px`;
+                        if (Number.isFinite(curH) && curH > maxCssH) el.style.height = `${maxCssH}px`;
+                    }
+                }
+                if (!el.style.left) return;
                 const rect = el.getBoundingClientRect();
                 if (!rect.width || !rect.height) return;
                 const curLeft = parseFloat(el.style.left) || rect.left;
                 const curTop = parseFloat(el.style.top) || rect.top;
-                const clampedLeft = Math.max(6, Math.min(vw - rect.width - 6, curLeft));
-                const clampedTop = Math.max(46, Math.min(vh - rect.height - 6, curTop));
+                const maxLeft = Math.max(6, vw - rect.width - 6);
+                const maxTop = Math.max(44, vh - rect.height - 6);
+                const clampedLeft = Math.max(6, Math.min(maxLeft, curLeft));
+                const clampedTop = Math.max(44, Math.min(maxTop, curTop));
                 el.style.left = `${Math.round(clampedLeft)}px`;
                 el.style.top = `${Math.round(clampedTop)}px`;
             });
         };
+        window.__clampFloatingWindows = clampFloatingWindowsToViewport;
         window.addEventListener('resize', clampFloatingWindowsToViewport, { passive: true });
-        window.addEventListener('orientationchange', clampFloatingWindowsToViewport, { passive: true });
+        window.addEventListener('orientationchange', () => setTimeout(clampFloatingWindowsToViewport, 60), { passive: true });
 
         // Wire Width Resize Handle for Hero Status Panel (keeps height auto so drawer never clips)
         const charResize = document.getElementById('char-resize-handle');
@@ -1817,12 +1978,13 @@ window.addEventListener('DOMContentLoaded', () => {
                 e.preventDefault();
                 active = true;
                 startX = e.clientX;
-                startW = charWin.getBoundingClientRect().width;
+                startW = charWin.offsetWidth || charWin.getBoundingClientRect().width;
                 try { charResize.setPointerCapture(e.pointerId); } catch (_) {}
             });
             charResize.addEventListener('pointermove', (e) => {
                 if (!active) return;
-                const nw = Math.round(Math.max(232, Math.min(380, startW + (e.clientX - startX))));
+                const scale = getEffectiveScale(charWin);
+                const nw = Math.round(Math.max(232, Math.min(380, startW + (e.clientX - startX) / scale)));
                 charWin.style.setProperty('--char-panel-w', `${nw}px`);
                 try { localStorage.setItem('angband_char_size', JSON.stringify({ w: nw })); } catch (_) {}
             });
@@ -6875,7 +7037,7 @@ window.addEventListener('DOMContentLoaded', () => {
             if (cw && cw.classList.contains('active') && !cw.classList.contains('is-pinned')) {
                 cw.classList.add('minimized');
                 const expBtn = document.getElementById('btn-chronicle-expand');
-                if (expBtn) expBtn.textContent = '▼ Show';
+                if (expBtn) { expBtn.textContent = '+'; expBtn.title = 'Restore Tome'; }
             }
             const topRightBar = document.getElementById('top-right-bar');
             if (hudOverlay) hudOverlay.style.display = isInGameModal ? 'flex' : 'none';
@@ -7060,6 +7222,12 @@ window.addEventListener('DOMContentLoaded', () => {
                 localStorage.setItem('yasd_hud_scale', String(clamped));
                 localStorage.setItem('angband3d_hud_scale', String(clamped));
             } catch (_) {}
+        }
+        if (typeof requestAnimationFrame === 'function') {
+            requestAnimationFrame(() => {
+                if (typeof window.__syncMsgDockBottom === 'function') window.__syncMsgDockBottom();
+                if (typeof window.__clampFloatingWindows === 'function') window.__clampFloatingWindows();
+            });
         }
         return clamped;
     }

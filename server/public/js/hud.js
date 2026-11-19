@@ -16,7 +16,7 @@ class WebHUD {
             { cls: 'standard', name: 'Standard', w: 260, h: 260 },
             { cls: 'expanded', name: 'Expanded', w: 360, h: 360 },
             { cls: 'tactical', name: 'Tactical', w: 460, h: 460 },
-            { cls: 'compact', name: 'Compact', w: 168, h: 168 }
+            { cls: 'compact', name: 'Compact', w: 228, h: 204 }
         ];
         this.minimapSizeIndex = 3;
         this.minimapZoom = 1.0;
@@ -84,11 +84,14 @@ class WebHUD {
         this.minimapCanvas.style.height = `${size.h}px`;
 
         if (this.minimapContainer) {
-            this.minimapContainer.classList.remove('compact', 'standard', 'expanded', 'tactical', 'command', 'minimap-size-compact');
+            this.minimapContainer.classList.remove('compact', 'standard', 'expanded', 'tactical', 'command', 'minimap-size-compact', 'minimap-narrow');
+            if (this.minimapContainer.dataset) delete this.minimapContainer.dataset.customSize;
             if (size.cls === 'compact') this.minimapContainer.classList.add('minimap-size-compact');
             this.minimapContainer.classList.add(size.cls);
             this.minimapContainer.style.width = `${size.w}px`;
             this.minimapContainer.style.height = 'auto';
+            this.minimapContainer.style.maxWidth = '';
+            this.minimapContainer.style.maxHeight = '';
         }
 
         this.updateMinimapHeader();
@@ -169,7 +172,10 @@ class WebHUD {
             btnToggleSize.addEventListener('click', (e) => {
                 e.stopPropagation();
                 if (this.messageFeedWindow) {
+                    if (this.messageFeedWindow.dataset) delete this.messageFeedWindow.dataset.customSize;
                     this.messageFeedWindow.style.height = '';
+                    this.messageFeedWindow.style.maxHeight = '';
+                    try { localStorage.removeItem('angband_msg_size'); } catch (_) {}
                     this.messageFeedWindow.classList.toggle('expanded');
                     const isExpanded = this.messageFeedWindow.classList.contains('expanded');
                     btnToggleSize.textContent = isExpanded ? '▼ Compact' : '▲ Expand';
@@ -181,6 +187,9 @@ class WebHUD {
                     }
                     if (this.messageFeedScroll) {
                         this.messageFeedScroll.scrollTop = this.messageFeedScroll.scrollHeight;
+                    }
+                    if (typeof window !== 'undefined' && typeof window.__clampFloatingWindows === 'function') {
+                        window.__clampFloatingWindows();
                     }
                 }
             });
@@ -576,16 +585,18 @@ class WebHUD {
         const size = this.minimapSizes[this.minimapSizeIndex];
         const hintEl = document.getElementById('minimap-hint-text');
         if (hintEl && size) {
-            hintEl.textContent = `[⛶] ${size.name} • ${this.minimapZoom.toFixed(1)}x`;
+            const isNarrow = Boolean(this.minimapContainer && (this.minimapContainer.classList.contains('compact') || this.minimapContainer.classList.contains('minimap-narrow')));
+            hintEl.textContent = isNarrow ? `[⛶] ${this.minimapZoom.toFixed(1)}x` : `[⛶] ${size.name} • ${this.minimapZoom.toFixed(1)}x`;
         }
     }
 
     setCustomMinimapSize(w, h) {
         if (!this.minimapCanvas) return;
-        const validW = Math.max(168, Math.min(680, Math.round(w)));
-        const validH = Math.max(168, Math.min(680, Math.round(h)));
+        const validW = Math.max(180, Math.min(640, Math.round(w)));
+        const validH = Math.max(180, Math.min(640, Math.round(h)));
         if (this.minimapContainer) {
             this.minimapContainer.classList.remove('compact', 'standard', 'expanded', 'tactical', 'command', 'minimap-size-compact');
+            this.minimapContainer.classList.toggle('minimap-narrow', validW < 252);
             this.minimapContainer.style.width = `${validW}px`;
             this.minimapContainer.style.height = 'auto';
         }
@@ -594,7 +605,7 @@ class WebHUD {
         const chromeH = (this.minimapHeader && this.minimapHeader.offsetParent !== null ? this.minimapHeader.offsetHeight : 24)
             + (ctrlBar && ctrlBar.offsetParent !== null ? ctrlBar.offsetHeight : 0)
             + (tiltBar && tiltBar.offsetParent !== null ? tiltBar.offsetHeight : 0);
-        const canvasH = Math.max(108, validH - chromeH);
+        const canvasH = Math.max(116, validH - chromeH);
         this.minimapCanvas.width = validW;
         this.minimapCanvas.height = canvasH;
         this.minimapCanvas.style.width = `${validW}px`;
@@ -898,10 +909,19 @@ class WebHUD {
      * Universal 60 FPS Moveable HUD & Cross-Platform Persistence (Wave 10 Track B)
      * ------------------------------------------------------------- */
     applyHudScale(scale) {
-        const clamped = Math.max(0.85, Math.min(1.3, Number(scale) || 1));
+        const clamped = Math.max(0.85, Math.min(1.25, Number(scale) || 1));
         this._hudScale = clamped;
         if (typeof document !== 'undefined' && document.documentElement) document.documentElement.style.setProperty('--hud-scale', String(clamped));
-        try { localStorage.setItem('angband3d_hud_scale', String(clamped)); } catch (_) {}
+        try {
+            localStorage.setItem('yasd_hud_scale', String(clamped));
+            localStorage.setItem('angband3d_hud_scale', String(clamped));
+        } catch (_) {}
+        if (typeof requestAnimationFrame === 'function') {
+            requestAnimationFrame(() => {
+                if (typeof window.__syncMsgDockBottom === 'function') window.__syncMsgDockBottom();
+                if (typeof window.__clampFloatingWindows === 'function') window.__clampFloatingWindows();
+            });
+        }
         return clamped;
     }
 
@@ -1492,7 +1512,7 @@ class WebHUD {
         if (minimapHint) {
             if (isHeng && lang === 'jp') minimapHint.textContent = '[ ] 画面  +/- 縮小';
             else if (isHeng && lang === 'bilingual') minimapHint.textContent = '[ ] Size (画面)  +/- Zoom';
-            else minimapHint.textContent = '[ ] Size  +/- Zoom';
+            else this.updateMinimapHeader();
         }
 
         // 8. D-Pad Turning Wings
@@ -1549,12 +1569,15 @@ class WebHUD {
         if (isPlayPhase && !this._wasPhasePlay) {
             const feedWin = this.messageFeedWindow || (typeof document !== 'undefined' && (this.messageFeedWindow = document.getElementById('message-feed-window')));
             if (feedWin && feedWin.classList) {
-                feedWin.classList.remove('expanded');
-                if (feedWin.style) feedWin.style.height = '';
-                const btnToggleSize = typeof document !== 'undefined' ? document.getElementById('btn-msg-size-toggle') : null;
-                if (btnToggleSize) {
-                    btnToggleSize.textContent = '▲ Expand';
-                    btnToggleSize.title = 'Expand Message Log to show full history';
+                const hasCustomSize = Boolean(feedWin.dataset && feedWin.dataset.customSize === '1');
+                if (!hasCustomSize) {
+                    feedWin.classList.remove('expanded');
+                    if (feedWin.style) feedWin.style.height = '';
+                    const btnToggleSize = typeof document !== 'undefined' ? document.getElementById('btn-msg-size-toggle') : null;
+                    if (btnToggleSize) {
+                        btnToggleSize.textContent = '▲ Expand';
+                        btnToggleSize.title = 'Expand Message Log to show full history';
+                    }
                 }
                 this.resetMessageFeedIdleTimer();
             }

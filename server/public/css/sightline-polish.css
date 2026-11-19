@@ -171,24 +171,33 @@ dialog.yasd-modal-dialog,
 
 /* 6. Desktop Sightline-First HUD Layout (>= 901px) */
 @media (min-width: 901px) {
-    /* Relocate Message Log to Bottom-Left Lane Clear of Center 3D Reticle & Action Bar */
-    #app-container #message-feed-window:not([style*="left"]),
-    #app-container #message-feed-window:not(.expanded):not([style*="left"]) {
-        position: fixed !important;
-        top: auto !important;
-        bottom: calc(146px + var(--safe-bottom, 0px)) !important;
-        left: calc(294px + var(--safe-left, 0px)) !important;
-        right: auto !important;
-        transform: none !important;
-        width: min(410px, calc(100vw - 620px)) !important;
-        min-width: 340px !important;
-        max-width: 420px !important;
-        z-index: 7 !important;
+    /* Dock Message Log to Bottom-Left Lane Clear of Center 3D Reticle & Action Bar (specificity >= 0,4,0 beats dungeon.css:8814 without !important size locks) */
+    #app-container #message-feed-window:not(.mobile-expanded):not(.window-minimized),
+    #app-container #message-feed-window:not(.expanded):not(.mobile-expanded) {
+        position: fixed;
+        top: auto;
+        bottom: calc(146px + var(--safe-bottom, 0px));
+        left: calc(236px + var(--safe-left, 0px));
+        right: auto;
+        transform: none;
+        width: clamp(248px, calc(100vw - 580px), 380px);
+        min-width: 248px;
+        max-width: calc(100vw - 24px);
+        height: 112px;
+        max-height: 75dvh;
+        z-index: 24;
     }
 
-    #app-container #message-feed-window.expanded:not([style*="left"]) {
-        height: 152px !important;
-        max-height: 36dvh !important;
+    #app-container #message-feed-window.expanded:not(.mobile-expanded):not(.window-minimized) {
+        height: 176px;
+    }
+
+    #app-container #message-feed-window.is-idle:not(:hover):not(.expanded) {
+        opacity: 0.88;
+    }
+
+    #app-container #message-feed-scroll {
+        padding-bottom: 18px;
     }
 
     /* Non-Overlapping Notification Toasts Clear of #reticle-target-card & #minimap */
@@ -213,6 +222,70 @@ dialog.yasd-modal-dialog,
 
     #ftue-coachmark-pill.ftue-coachmark-pill {
         top: calc(108px + var(--safe-top, 0px)) !important;
+    }
+}
+
+@media (min-width: 1024px) {
+    html:not(.yasd-handheld) #app-container #char-panel {
+        margin-right: max(12px, calc((var(--hud-scale, 1) - 1) * 340px + 12px)) !important;
+    }
+
+    html:not(.yasd-handheld) #app-container #hud-center-column {
+        width: auto !important;
+        flex: 0 1 auto !important;
+        max-width: calc((100vw - 360px * var(--hud-scale, 1) - 56px) / var(--hud-scale, 1)) !important;
+        margin-left: max(0px, calc((var(--hud-scale, 1) - 1) * 140px)) !important;
+    }
+
+    #app-container #message-feed-window:not(.mobile-expanded):not(.window-minimized),
+    #app-container #message-feed-window:not(.expanded):not(.mobile-expanded) {
+        left: calc(28px + clamp(236px, 19.5vw, 268px) * var(--hud-scale, 1) + var(--safe-left, 0px));
+        width: clamp(240px, calc((100vw - 320px * var(--hud-scale, 1) - 436px) / var(--hud-scale, 1)), 390px);
+    }
+
+    html:not(.yasd-handheld) #app-container #message-feed-window:not(.mobile-expanded) {
+        transform: scale(var(--hud-scale, 1));
+        transform-origin: bottom left;
+    }
+
+    html:not(.yasd-handheld) #app-container #message-feed-window[data-custom-pos="1"] {
+        transform-origin: top left;
+    }
+
+    html:not(.yasd-handheld) #app-container #chronicle-window {
+        transform: scale(var(--hud-scale, 1));
+        transform-origin: top right;
+    }
+
+    html:not(.yasd-handheld) #app-container #chronicle-window[data-custom-pos="1"] {
+        transform-origin: top left;
+    }
+
+    html:not(.yasd-handheld) #app-container #minimap-container {
+        transform: scale(var(--hud-scale, 1));
+        transform-origin: top left;
+    }
+}
+
+@media (min-width: 901px) and (max-height: 820px) {
+    html:not(.yasd-handheld) #app-container #minimap-container:not([data-custom-size="1"]) #minimap-canvas {
+        max-height: max(120px, calc((100dvh - 510px) / var(--hud-scale, 1))) !important;
+        object-fit: contain;
+    }
+    html:not(.yasd-handheld) #app-container #char-panel {
+        gap: 3px !important;
+        padding: 5px 8px !important;
+    }
+    html:not(.yasd-handheld) #app-container #char-panel .vitals-vials-row {
+        margin: 1px 0 3px 0 !important;
+        padding: 3px 5px !important;
+    }
+    html:not(.yasd-handheld) #app-container #char-panel .gauge-hp,
+    html:not(.yasd-handheld) #app-container #char-panel .gauge-sp {
+        height: 15px !important;
+    }
+    html:not(.yasd-handheld) #app-container #char-panel .gauge-exp {
+        height: 11px !important;
     }
 }
 
@@ -501,13 +574,21 @@ dialog.yasd-modal-dialog,
         flex-shrink: 0 !important;
     }
 
-    #app-container #chronicle-hud-toast,
-    #app-container .realm-toast {
-        top: calc(122px + var(--safe-top, 0px)) !important;
+    #app-container #chronicle-hud-toast {
+        top: calc(144px + var(--safe-top, 0px)) !important;
         left: calc(8px + var(--safe-left, 0px)) !important;
         right: auto !important;
         max-width: calc(100vw - 150px) !important;
         transform: none !important;
+    }
+
+    body .realm-toast,
+    .realm-toast {
+        top: calc(146px + var(--safe-top, 0px)) !important;
+        left: 50% !important;
+        right: auto !important;
+        max-width: calc(100vw - 24px) !important;
+        transform: translateX(-50%) !important;
     }
 }
 
@@ -873,4 +954,42 @@ html.yasd-handheld #cursor-action-pill {
 
 .entity-inspect-popover.is-feature .inspect-popover-actions {
     display: none !important;
+}
+
+/* 11. Instant Drag/Resize Response (Never Transition Geometry Properties) & Tactile 20x20px Gold Resize Grips */
+#minimap-container,
+#message-feed-window,
+#chronicle-window {
+    transition-property: border-color, box-shadow, opacity !important;
+}
+
+.hud-window-interacting {
+    transition: none !important;
+}
+
+.window-resize-handle {
+    width: 20px !important;
+    height: 20px !important;
+    touch-action: none !important;
+    background:
+        repeating-linear-gradient(
+            -45deg,
+            transparent 0 4px,
+            rgba(229, 185, 60, 0.72) 4px 5.5px,
+            transparent 5.5px 8px
+        ),
+        linear-gradient(135deg, transparent 48%, rgba(20, 24, 32, 0.75) 48%) !important;
+    border-bottom-right-radius: 5px !important;
+    z-index: 45 !important;
+}
+
+.window-resize-handle:hover {
+    background:
+        repeating-linear-gradient(
+            -45deg,
+            transparent 0 4px,
+            #ffe066 4px 6px,
+            transparent 6px 8px
+        ),
+        linear-gradient(135deg, transparent 44%, rgba(44, 34, 14, 0.85) 44%) !important;
 }

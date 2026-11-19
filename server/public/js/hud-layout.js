@@ -144,7 +144,7 @@
                 this._wasMobileViewport = window.innerWidth <= 900 || window.innerHeight <= 500;
                 const onViewportChange = () => {
                     const isMobileViewport = window.innerWidth <= 900 || window.innerHeight <= 500;
-                    const ids = ['touch-controls', 'char-panel', 'hud-center-column', 'minimap-container'];
+                    const ids = ['touch-controls', 'char-panel', 'hud-center-column'];
                     if (isMobileViewport) {
                         this._wasMobileViewport = true;
                         for (const id of ids) {
@@ -398,15 +398,23 @@
                 const el = document.getElementById(id);
                 if (!el) continue;
                 el.style.position = ''; el.style.left = ''; el.style.top = ''; el.style.right = ''; el.style.bottom = '';
-                el.style.width = ''; el.style.height = ''; el.style.margin = '';
+                el.style.width = ''; el.style.height = ''; el.style.maxWidth = ''; el.style.maxHeight = '';
+                el.style.transform = ''; el.style.margin = ''; el.style.zIndex = '';
+                if (el.dataset) {
+                    delete el.dataset.customPos;
+                    delete el.dataset.customSize;
+                }
                 if (id === 'minimap-container' || id === 'message-feed-window' || id === 'char-panel' || id === 'action-bar') el.style.display = '';
                 el.style.removeProperty('--char-panel-w');
-                el.classList.remove('hud-widget-dragging', 'window-minimized', 'hud-panel-hidden');
+                el.classList.remove('hud-widget-dragging', 'window-minimized', 'hud-panel-hidden', 'minimized', 'minimap-narrow');
             }
             this.applyMinimapSize();
-            for (const bId of ['btn-minimap-minimize', 'btn-msg-minimize', 'btn-char-minimize', 'btn-action-bar-minimize']) {
+            for (const bId of ['btn-minimap-minimize', 'btn-msg-minimize', 'btn-char-minimize', 'btn-action-bar-minimize', 'btn-chronicle-expand']) {
                 const b = document.getElementById(bId);
                 if (b) b.textContent = '−';
+            }
+            if (typeof window !== 'undefined' && typeof window.__syncMsgDockBottom === 'function') {
+                window.__syncMsgDockBottom();
             }
             for (const tId of ['btn-toggle-hero', 'btn-toggle-actions', 'btn-toggle-minimap', 'btn-toggle-msg-feed']) {
                 const t = document.getElementById(tId);

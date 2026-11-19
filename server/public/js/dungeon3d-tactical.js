@@ -17,6 +17,7 @@
     const _scratchVecB = (typeof THREE !== 'undefined' && THREE.Vector3) ? new THREE.Vector3() : null;
     const _scratchVecCam = (typeof THREE !== 'undefined' && THREE.Vector3) ? new THREE.Vector3() : null;
     const _scratchEuler = (typeof THREE !== 'undefined' && THREE.Euler) ? new THREE.Euler() : null;
+    const _rootStabilizeCache = (typeof WeakMap === 'function') ? new WeakMap() : null;
 
     let _altKeyHeld = false;
     if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
@@ -1104,8 +1105,107 @@
         },
 
         // =========================================================================
-        // 6. ZERO-GC PROCEDURAL BESTIARY LOCOMOTION FOR UNRIGGED GLBs
+        // 6. ROOT-MOTION STABILIZER & ZERO-GC PROCEDURAL BESTIARY LOCOMOTION
         // =========================================================================
+
+        stabilizeClipRootMotion(clip, idleClip, mode = 'walk') {
+            if (!clip || !Array.isArray(clip.tracks) || clip.tracks.length === 0) return clip;
+            if (!idleClip || clip === idleClip) return clip;
+
+            const cacheKey = `${mode}:${idleClip.uuid || idleClip.name || ''}`;
+            let clipMap = _rootStabilizeCache ? _rootStabilizeCache.get(clip) : null;
+            if (clipMap && clipMap.has(cacheKey)) {
+                return clipMap.get(cacheKey);
+            }
+
+            const rootPosRe = /(?:^|[:|./])(?:mixamorig:?|Bip\d+_|Armature[|./])?(Hips|Pelvis|Root|HipsCtrl|Center|COM|COG)\.position$/i;
+            const normPosTail = (name) => String(name || '').replace(/^.*[:|./]/, '').toLowerCase();
+            const idleTracks = Array.isArray(idleClip.tracks) ? idleClip.tracks : [];
+
+            let matchedIndices = [];
+            for (let i = 0; i < clip.tracks.length; i++) {
+                const tr = clip.tracks[i];
+                if (tr && tr.name && rootPosRe.test(tr.name)) {
+                    matchedIndices.push(i);
+                }
+            }
+            if (matchedIndices.length === 0) {
+                for (let i = 0; i < clip.tracks.length; i++) {
+                    const tr = clip.tracks[i];
+                    if (!tr || !tr.name || !tr.name.endsWith('.position')) continue;
+                    const tail = normPosTail(tr.name);
+                    if (idleTracks.some(it => it && (it.name === tr.name || normPosTail(it.name) === tail))) {
+                        matchedIndices.push(i);
+                        break;
+                    }
+                }
+            }
+
+            if (matchedIndices.length === 0 || typeof THREE === 'undefined' || !THREE.AnimationClip) {
+                if (_rootStabilizeCache) {
+                    if (!clipMap) { clipMap = new Map(); _rootStabilizeCache.set(clip, clipMap); }
+                    clipMap.set(cacheKey, clip);
+                }
+                return clip;
+            }
+
+            const clonedTracks = clip.tracks.map(tr => (tr && typeof tr.clone === 'function') ? tr.clone() : tr);
+            const out = new THREE.AnimationClip(clip.name, clip.duration, clonedTracks, clip.blendMode);
+
+            const calcMean = (vals) => {
+                const count = Math.floor((vals && vals.length ? vals.length : 0) / 3);
+                if (count <= 0) return { x: 0, y: 0, z: 0, count: 0 };
+                let sx = 0, sy = 0, sz = 0;
+                for (let k = 0; k < count; k++) {
+                    sx += vals[k * 3];
+                    sy += vals[k * 3 + 1];
+                    sz += vals[k * 3 + 2];
+                }
+                return { x: sx / count, y: sy / count, z: sz / count, count };
+            };
+
+            for (const idx of matchedIndices) {
+                const tr = out.tracks[idx];
+                if (!tr || !tr.values) continue;
+                const vals = tr.values;
+                const mean = calcMean(vals);
+                if (mean.count <= 0) continue;
+
+                const tail = normPosTail(tr.name);
+                const idleTr = idleTracks.find(it => it && it.name === tr.name)
+                    || idleTracks.find(it => it && it.name && normPosTail(it.name) === tail);
+                const idleMean = (idleTr && idleTr.values) ? calcMean(idleTr.values) : mean;
+                const ix = idleMean.count > 0 ? idleMean.x : mean.x;
+                const iy = idleMean.count > 0 ? idleMean.y : mean.y;
+                const iz = idleMean.count > 0 ? idleMean.z : mean.z;
+                const idleMag = Math.hypot(ix, iy, iz);
+                const maxAmp = (mode === 'walk')
+                    ? Math.max(0.025, idleMag * 0.022)
+                    : Math.max(0.06, idleMag * 0.05);
+
+                let maxDx = 0, maxDy = 0, maxDz = 0;
+                for (let k = 0; k < mean.count; k++) {
+                    maxDx = Math.max(maxDx, Math.abs(vals[k * 3] - mean.x));
+                    maxDy = Math.max(maxDy, Math.abs(vals[k * 3 + 1] - mean.y));
+                    maxDz = Math.max(maxDz, Math.abs(vals[k * 3 + 2] - mean.z));
+                }
+                const sx = maxDx > maxAmp ? (maxAmp / maxDx) : 1.0;
+                const sy = maxDy > maxAmp ? (maxAmp / maxDy) : 1.0;
+                const sz = maxDz > maxAmp ? (maxAmp / maxDz) : 1.0;
+
+                for (let k = 0; k < mean.count; k++) {
+                    vals[k * 3] = ix + (vals[k * 3] - mean.x) * sx;
+                    vals[k * 3 + 1] = iy + (vals[k * 3 + 1] - mean.y) * sy;
+                    vals[k * 3 + 2] = iz + (vals[k * 3 + 2] - mean.z) * sz;
+                }
+            }
+
+            if (_rootStabilizeCache) {
+                if (!clipMap) { clipMap = new Map(); _rootStabilizeCache.set(clip, clipMap); }
+                clipMap.set(cacheKey, out);
+            }
+            return out;
+        },
 
         updateProceduralLocomotion(entity, delta, monTime) {
             if (!entity || !entity.creatureMesh) return;
@@ -1140,9 +1240,9 @@
             // 2. Quadrupeds: Gait Bob & Stride Pulse (Wolf, Hellhound, Bear, Hound)
             if (/wolf|hellhound|bear|hound|husky|fox|shiba/.test(tk) || /wolf|hellhound|bear|hound/.test(race)) {
                 const isMoving = Boolean(entity.targetPos && entity.position.distanceTo(entity.targetPos) > 0.02);
-                const strideSpeed = isMoving ? 12.0 : 2.5;
-                const strideBob = Math.abs(Math.sin(t * strideSpeed)) * (isMoving ? 0.07 : 0.018);
-                const stridePitch = Math.sin(t * strideSpeed) * (isMoving ? 0.09 : 0.02);
+                const strideSpeed = isMoving ? 8.5 : 2.0;
+                const strideBob = Math.abs(Math.sin(t * strideSpeed)) * (isMoving ? 0.035 : 0.010);
+                const stridePitch = Math.sin(t * strideSpeed) * (isMoving ? 0.05 : 0.015);
 
                 mesh.position.y += ((mesh._basePosY + strideBob) - mesh.position.y) * 0.25;
                 mesh.rotation.x = stridePitch;

@@ -91,6 +91,12 @@
                     localStorage.setItem('yasd_hud_scale', String(dec));
                     localStorage.setItem('angband3d_hud_scale', String(dec));
                 } catch (_) {}
+                if (typeof requestAnimationFrame === 'function') {
+                    requestAnimationFrame(() => {
+                        if (typeof window.__syncMsgDockBottom === 'function') window.__syncMsgDockBottom();
+                        if (typeof window.__clampFloatingWindows === 'function') window.__clampFloatingWindows();
+                    });
+                }
             }
         });
         dlg.querySelector('#yasd-set-handheld')?.addEventListener('change', (e) => {

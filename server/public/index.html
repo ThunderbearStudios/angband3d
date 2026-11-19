@@ -257,21 +257,29 @@
 
         <!-- The Living Chronicle & Voiced Lorekeeper Window -->
         <div id="chronicle-window" class="chronicle-window">
-            <div class="chronicle-header" id="chronicle-header" title="Drag header to move Living Chronicle">
-                <!-- Row 1: Title and Window Actions -->
+            <div class="chronicle-header" id="chronicle-header" title="Drag header to move • Double-click to reset position & size">
+                <!-- Row 1: Title, Crest & Window Actions -->
                 <div class="chronicle-header-top">
                     <div class="chronicle-title-wrap">
+                        <span class="chronicle-drag-grip" aria-hidden="true"><svg width="10" height="12" viewBox="0 0 10 12" fill="currentColor" focusable="false"><circle cx="2.5" cy="2" r="1.15"/><circle cx="7.5" cy="2" r="1.15"/><circle cx="2.5" cy="6" r="1.15"/><circle cx="7.5" cy="6" r="1.15"/><circle cx="2.5" cy="10" r="1.15"/><circle cx="7.5" cy="10" r="1.15"/></svg></span>
                         <span class="chronicle-title">📖 LIVING CHRONICLE</span>
                         <span id="chronicle-tradition-badge" class="chronicle-tradition-badge">Westmarch</span>
                         <span id="chronicle-vocal-pill" class="chronicle-vocal-pill idle" style="display: none;"></span>
                     </div>
                     <div class="chronicle-window-actions">
                         <button id="btn-chronicle-pin" class="chronicle-ctrl-btn" title="Pin Tome Open (Prevent auto-minimizing or closing during gameplay)" aria-pressed="false">📌 Pin</button>
-                        <button id="btn-chronicle-expand" class="chronicle-ctrl-btn" title="Toggle Window Size">▲ Min</button>
-                        <button id="btn-chronicle-close" class="chronicle-ctrl-btn" title="Close Window [Alt+C]">✕ Hide</button>
+                        <button id="btn-chronicle-expand" class="chronicle-ctrl-btn chronicle-win-btn" title="Minimize / Shade Tome">−</button>
+                        <button id="btn-chronicle-close" class="chronicle-ctrl-btn chronicle-win-btn" title="Close Tome [Alt+C]">✕</button>
                     </div>
                 </div>
-                <!-- Row 2: Audiobook Transport Deck -->
+                <!-- Row 2: Clean Segmented Tome Menu Bar -->
+                <div class="chronicle-menu-bar" role="toolbar" aria-label="Chronicle Actions">
+                    <button id="btn-chronicle-prompt-tale" class="chronicle-ctrl-btn chronicle-menu-tab" title="Weave Tale: Spin an on-demand saga tale with tactical hints [Alt+T]">🔮 Tale</button>
+                    <button id="chronicle-sketch-btn" class="chronicle-ctrl-btn chronicle-menu-tab chronicle-sketch-btn" title="Sketch Hero: Generate a lore-accurate action sketch of your character at this point in the story [Alt+K]" aria-label="Sketch Hero Action">🎨 Sketch</button>
+                    <button id="btn-chronicle-ask-toggle" class="chronicle-ctrl-btn chronicle-menu-tab" type="button" title="Ask the Lorekeeper or Consult Quick Topics" aria-expanded="false">💬 Ask</button>
+                    <button id="btn-chronicle-archive-toggle" class="chronicle-ctrl-btn chronicle-menu-tab" type="button" title="Export / Import Chronicle Story Archive" aria-expanded="false">📦 Archive</button>
+                </div>
+                <!-- Row 3: Slim Audiobook Transport Deck -->
                 <div class="chronicle-transport-deck">
                     <div class="chronicle-transport-group">
                         <button id="btn-chronicle-rewind" class="chronicle-ctrl-btn" title="Rewind to previous paragraph [Alt+[]">⏮</button>
@@ -280,10 +288,6 @@
                         <button id="btn-chronicle-forward" class="chronicle-ctrl-btn" title="Skip to next paragraph [Alt+]]">⏭</button>
                     </div>
                     <div class="chronicle-audio-toggles">
-                        <button id="btn-chronicle-prompt-tale" class="chronicle-ctrl-btn" title="Weave Tale: Spin an on-demand saga tale with tactical hints [Alt+T]">🔮 Tale</button>
-                        <button id="chronicle-sketch-btn" class="chronicle-ctrl-btn chronicle-sketch-btn" title="Sketch Hero: Generate a lore-accurate action sketch of your character at this point in the story [Alt+K]" aria-label="Sketch Hero Action">🎨 Sketch</button>
-                        <button id="btn-chronicle-ask-toggle" class="chronicle-ctrl-btn" type="button" title="Ask the Lorekeeper or Consult Quick Topics" aria-expanded="false">💬 Ask</button>
-                        <button id="btn-chronicle-archive-toggle" class="chronicle-ctrl-btn" type="button" title="Export / Import Chronicle Story Archive" aria-expanded="false">📦</button>
                         <button id="btn-chronicle-mute" class="chronicle-ctrl-btn" title="Toggle Voice Narration">🔇 Muted</button>
                         <button id="btn-chronicle-speed" class="chronicle-ctrl-btn" title="Audiobook Speed (0.75x, 0.85x, 1.0x, 1.25x, 1.5x)">⚡ 1.0x</button>
                     </div>
@@ -355,8 +359,8 @@
                 <span id="val-depth" style="color:#ffd700;">Town</span>
                 <button id="btn-minimap-close" class="map-close-btn" title="Close Minimap">✕</button>
             </div>
-            <!-- # ROOT-CAUSE: Restore classic 168x168 compact minimap canvas dimensions and classic control bar without #btn-map-tilt-toggle so #map-resize-handle never overlaps control buttons. -->
-            <canvas id="minimap-canvas" width="168" height="168"></canvas>
+            <!-- # ROOT-CAUSE: Use 228x204 compact minimap canvas dimensions so coordinates, zoom, and depth never clip while keeping #map-resize-handle clear of control buttons. -->
+            <canvas id="minimap-canvas" width="228" height="204"></canvas>
             <div id="minimap-hover-pill" class="minimap-hover-pill hidden" aria-live="polite"></div>
             <!-- Mobile Minimap Floating Quick-Zoom Bar -->
             <div id="mobile-map-zoom-group" class="mobile-map-zoom-group">

@@ -8650,12 +8650,21 @@ class Dungeon3D {
             || animClips[0];
         const badWalkRe = /crouch|dead|death|die|turn|attack|slash|punch|kick|slap|hit/i;
         const nonCrouchWalk = animClips.filter(c => c && c.name && !badWalkRe.test(c.name));
-        const walkClip = nonCrouchWalk.find(c => /^(Walk_Loop_Rig|Walk|walk|Walking|939_Walking|Jog_Fwd_Loop_Rig|Run|run|Running|fly|storkFly_B_|parrot_A_)$/i.test(c.name))
-            || nonCrouchWalk.find(c => /walk|jog|run|fly/i.test(c.name))
+        let walkClip = nonCrouchWalk.find(c => /^(Walk_?InPlace|Walk\d*_InPlace|Walking_?InPlace|Walk_Loop_Rig|939_Walking)$/i.test(c.name))
+            || nonCrouchWalk.find(c => /^(Walk|walk|Walking|walking)$/i.test(c.name))
+            || nonCrouchWalk.find(c => /walk/i.test(c.name) && !/run|sprint/i.test(c.name))
+            || nonCrouchWalk.find(c => /^(Jog_Fwd_Loop_Rig|Jog|jog|Run|run|Running|fly|storkFly_B_|parrot_A_)$/i.test(c.name))
+            || nonCrouchWalk.find(c => /jog|run|fly/i.test(c.name))
             || idleClip;
-        const attackClip = animClips.find(c => c && c.name && /attack|slash|bite|strike|punch|swing|swipe|shoot|cast|claw|smash/i.test(c.name)) || null;
-        const hitClip = animClips.find(c => c && c.name && /hit|hurt|damage|flinch|impact|react|stagger/i.test(c.name)) || null;
+        let attackClip = animClips.find(c => c && c.name && /attack|slash|bite|strike|punch|swing|swipe|shoot|cast|claw|smash/i.test(c.name)) || null;
+        let hitClip = animClips.find(c => c && c.name && /hit|hurt|damage|flinch|impact|react|stagger/i.test(c.name)) || null;
         const deathClip = animClips.find(c => c && c.name && /dead|death|die|fall|defeat/i.test(c.name)) || null;
+        const tac = (typeof window !== 'undefined') ? window.Dungeon3DTactical : null;
+        if (tac && typeof tac.stabilizeClipRootMotion === 'function') {
+            walkClip = tac.stabilizeClipRootMotion(walkClip, idleClip, 'walk');
+            if (attackClip) attackClip = tac.stabilizeClipRootMotion(attackClip, idleClip, 'attack');
+            if (hitClip) hitClip = tac.stabilizeClipRootMotion(hitClip, idleClip, 'hit');
+        }
         return { idleClip, walkClip, attackClip, hitClip, deathClip };
     }
 
@@ -13740,18 +13749,28 @@ class Dungeon3D {
                     const inOneShotCombat = (entity._attackLungeTimer > 0 && entity._activeAnimState === 'attack') ||
                                             (entity._hitFlinchTimer > 0 && entity._activeAnimState === 'hit');
                     const isMoving = Boolean(entity.targetPos && entity.position.distanceTo(entity.targetPos) > 0.02);
+                    entity._walkHoldTimer = isMoving ? 0.26 : Math.max(0, (entity._walkHoldTimer || 0) - delta);
+                    const wantWalk = Boolean(entity._walkAction && (isMoving || entity._walkHoldTimer > 0));
                     if (!inOneShotCombat) {
-                        if (isMoving && entity._walkAction) {
-                            if (entity._activeAnimState !== 'walk') {
-                                entity._activeAnimState = 'walk';
-                                if (entity._idleAction) entity._idleAction.fadeOut(0.2);
-                                entity._walkAction.reset().fadeIn(0.2).play();
+                        if (wantWalk && entity._activeAnimState !== 'walk') {
+                            entity._activeAnimState = 'walk';
+                            const wAct = entity._walkAction;
+                            if (typeof wAct.stopFading === 'function') wAct.stopFading();
+                            wAct.enabled = true;
+                            wAct.setEffectiveTimeScale(1).setEffectiveWeight(1).reset().play();
+                            if (entity._idleAction && entity._idleAction.isRunning()) {
+                                if (typeof entity._idleAction.stopFading === 'function') entity._idleAction.stopFading();
+                                entity._idleAction.crossFadeTo(wAct, 0.14, true);
                             }
-                        } else if (!isMoving && entity._idleAction) {
-                            if (entity._activeAnimState !== 'idle') {
-                                entity._activeAnimState = 'idle';
-                                if (entity._walkAction) entity._walkAction.fadeOut(0.2);
-                                entity._idleAction.reset().fadeIn(0.2).play();
+                        } else if (!wantWalk && entity._idleAction && entity._activeAnimState !== 'idle') {
+                            entity._activeAnimState = 'idle';
+                            const iAct = entity._idleAction;
+                            if (typeof iAct.stopFading === 'function') iAct.stopFading();
+                            iAct.enabled = true;
+                            iAct.setEffectiveTimeScale(1).setEffectiveWeight(1).play();
+                            if (entity._walkAction && entity._walkAction.isRunning()) {
+                                if (typeof entity._walkAction.stopFading === 'function') entity._walkAction.stopFading();
+                                entity._walkAction.crossFadeTo(iAct, 0.14, true);
                             }
                         }
                     }

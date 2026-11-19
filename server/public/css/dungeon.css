@@ -868,7 +868,7 @@ html.has-touch .grimoire-ritual-btn {
 #message-feed-window { transition: none !important; }
 }
 
-@media (max-width: 960px) {
+@media (max-width: 900px) {
     #message-feed-window {
         top: 50px;
         left: 10px;
@@ -2419,7 +2419,7 @@ to { opacity: 1; transform: translateY(0); }
     flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
-    padding: 3px 4px;
+    padding: 3px 22px 3px 5px;
     background: rgba(10, 14, 22, 0.92);
     border-top: 1px solid rgba(212, 175, 55, 0.25);
     gap: 2px;
@@ -7495,9 +7495,13 @@ to { opacity: 1; transform: translateY(0) scale(1); }
 /* Cross-Realm HUD, Minimap & Character Info Ergonomics (v9.5.1) */
 #minimap-title-text {
     white-space: nowrap;
-    flex-shrink: 0;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex-shrink: 1;
     font-variant-numeric: tabular-nums;
 }
+#val-depth { flex-shrink: 0; }
 
 .minimap-header { flex-wrap: nowrap; gap: 4px; }
 
@@ -8782,17 +8786,24 @@ html.device-desktop #btn-action-more.is-needed { display: none !important; }
 }
 
 #minimap-container.compact,
-#minimap-container.minimap-size-compact { width: 168px; }
+#minimap-container.minimap-size-compact { width: 228px; }
 #minimap-container.compact #minimap-controls-bar .map-ctrl-lbl,
 #minimap-container.minimap-size-compact #minimap-controls-bar .map-ctrl-lbl,
+#minimap-container.minimap-narrow #minimap-controls-bar .map-ctrl-lbl,
 #minimap-container.compact #minimap-controls-bar .map-btn-txt,
 #minimap-container.minimap-size-compact #minimap-controls-bar .map-btn-txt,
+#minimap-container.minimap-narrow #minimap-controls-bar .map-btn-txt,
 #minimap-container.compact #minimap-controls-bar .map-hide-txt,
-#minimap-container.minimap-size-compact #minimap-controls-bar .map-hide-txt {
+#minimap-container.minimap-size-compact #minimap-controls-bar .map-hide-txt,
+#minimap-container.minimap-narrow #minimap-controls-bar .map-hide-txt,
+#minimap-container.compact #minimap-hint-text,
+#minimap-container.minimap-size-compact #minimap-hint-text,
+#minimap-container.minimap-narrow #minimap-hint-text {
     display: none;
 }
 #minimap-container.compact #minimap-controls-bar .map-ctrl-btn,
-#minimap-container.minimap-size-compact #minimap-controls-bar .map-ctrl-btn {
+#minimap-container.minimap-size-compact #minimap-controls-bar .map-ctrl-btn,
+#minimap-container.minimap-narrow #minimap-controls-bar .map-ctrl-btn {
     padding: 1px 3px;
     font-size: 9px;
 }
@@ -8825,7 +8836,7 @@ html.device-desktop #btn-action-more.is-needed { display: none !important; }
     min-height: 84px;
 }
 
-@media (max-width: 960px) {
+@media (max-width: 900px) {
     #app-container #message-feed-window:not(.expanded):not(.mobile-expanded),
     #hud-overlay #message-feed-window:not(.expanded):not(.mobile-expanded) {
         top: 50px !important;
@@ -9443,7 +9454,10 @@ html:not(.yasd-handheld) #touch-controls .dpad-btn .dpad-sub { font-size: 7px !i
     html:not(.yasd-handheld) #char-panel[style*="top"] { transform-origin: top left; }
     html:not(.yasd-handheld) #hud-center-column { flex: 0 1 auto !important; max-width: calc((100vw - 320px * var(--hud-scale, 1) - 48px) / var(--hud-scale, 1)) !important; transform: scale(var(--hud-scale, 1)); transform-origin: bottom center; }
     html:not(.yasd-handheld) #minimap-container { transform: scale(var(--hud-scale, 1)); transform-origin: top left; }
-    html:not(.yasd-handheld) #message-feed-window:not([style*="left"]) { left: 50%; transform: translateX(-50%) scale(var(--hud-scale, 1)); transform-origin: bottom center; }
+    html:not(.yasd-handheld) #message-feed-window { transform: scale(var(--hud-scale, 1)); transform-origin: bottom left; }
+    html:not(.yasd-handheld) #message-feed-window[data-custom-pos="1"] { transform-origin: top left; }
+    html:not(.yasd-handheld) #chronicle-window { transform: scale(var(--hud-scale, 1)); transform-origin: top right; }
+    html:not(.yasd-handheld) #chronicle-window[data-custom-pos="1"] { transform-origin: top left; }
     html:not(.yasd-handheld) #top-right-bar { transform: scale(var(--hud-scale, 1)); transform-origin: top right; }
 }
 body.hud-immersion-minimal #message-feed-window:not(.expanded), body.hud-immersion-minimal #chronicle-window:not(.is-pinned), body.hud-immersion-minimal #touch-controls { display: none !important; }
