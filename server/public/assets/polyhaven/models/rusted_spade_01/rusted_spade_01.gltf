@@ -5,116 +5,71 @@
   },
   "accessors": [
     {
-      "type": "SCALAR",
-      "componentType": 5123,
-      "count": 34308,
-      "normalized": false,
-      "byteOffset": 0,
-      "bufferView": 0
-    },
-    {
       "type": "VEC3",
-      "componentType": 5120,
-      "count": 6639,
-      "normalized": true,
-      "byteOffset": 0,
-      "bufferView": 1
-    },
-    {
-      "type": "VEC3",
-      "componentType": 5122,
+      "componentType": 5126,
       "count": 6639,
       "max": [
-        5004,
-        32767,
-        1356
+        0.08405742049217224,
+        0.5977030396461487,
+        0.022568460553884506
       ],
       "min": [
-        -5004,
-        -32767,
-        -1356
+        -0.08405739068984985,
+        -0.5032017230987549,
+        -0.022995803505182266
       ],
-      "normalized": true,
-      "byteOffset": 0,
-      "bufferView": 2
+      "bufferView": 0,
+      "byteOffset": 0
+    },
+    {
+      "type": "VEC3",
+      "componentType": 5126,
+      "count": 6639,
+      "bufferView": 1,
+      "byteOffset": 0
     },
     {
       "type": "VEC2",
-      "componentType": 5123,
+      "componentType": 5126,
       "count": 6639,
-      "normalized": true,
-      "byteOffset": 0,
-      "bufferView": 3
+      "bufferView": 2,
+      "byteOffset": 0
+    },
+    {
+      "type": "SCALAR",
+      "componentType": 5123,
+      "count": 34308,
+      "bufferView": 3,
+      "byteOffset": 0
     }
   ],
   "bufferViews": [
     {
-      "buffer": 1,
+      "buffer": 0,
       "byteOffset": 0,
-      "byteLength": 68616,
-      "target": 34963,
-      "extensions": {
-        "EXT_meshopt_compression": {
-          "buffer": 0,
-          "byteOffset": 0,
-          "byteLength": 12980,
-          "mode": "TRIANGLES",
-          "byteStride": 2,
-          "count": 34308
-        }
-      }
+      "byteLength": 79668,
+      "byteStride": 12,
+      "target": 34962
     },
     {
-      "buffer": 1,
-      "byteOffset": 68616,
-      "byteLength": 26556,
-      "target": 34962,
-      "byteStride": 4,
-      "extensions": {
-        "EXT_meshopt_compression": {
-          "buffer": 0,
-          "byteOffset": 12980,
-          "byteLength": 8744,
-          "mode": "ATTRIBUTES",
-          "filter": "OCTAHEDRAL",
-          "byteStride": 4,
-          "count": 6639
-        }
-      }
+      "buffer": 0,
+      "byteOffset": 79668,
+      "byteLength": 79668,
+      "byteStride": 12,
+      "target": 34962
     },
     {
-      "buffer": 1,
-      "byteOffset": 95172,
+      "buffer": 0,
+      "byteOffset": 159336,
       "byteLength": 53112,
-      "target": 34962,
       "byteStride": 8,
-      "extensions": {
-        "EXT_meshopt_compression": {
-          "buffer": 0,
-          "byteOffset": 21724,
-          "byteLength": 24970,
-          "mode": "ATTRIBUTES",
-          "byteStride": 8,
-          "count": 6639
-        }
-      }
+      "target": 34962
     },
     {
-      "buffer": 1,
-      "byteOffset": 148284,
-      "byteLength": 26556,
-      "target": 34962,
-      "byteStride": 4,
-      "extensions": {
-        "EXT_meshopt_compression": {
-          "buffer": 0,
-          "byteOffset": 46696,
-          "byteLength": 19621,
-          "mode": "ATTRIBUTES",
-          "byteStride": 4,
-          "count": 6639
-        }
-      }
+      "buffer": 0,
+      "byteOffset": 212448,
+      "byteLength": 68616,
+      "target": 34963
     }
   ],
   "samplers": [
@@ -171,15 +126,7 @@
   "buffers": [
     {
       "uri": "rusted_spade_01.bin",
-      "byteLength": 66320
-    },
-    {
-      "byteLength": 174840,
-      "extensions": {
-        "EXT_meshopt_compression": {
-          "fallback": true
-        }
-      }
+      "byteLength": 281064
     }
   ],
   "materials": [
@@ -205,13 +152,13 @@
       "primitives": [
         {
           "attributes": {
+            "POSITION": 0,
             "NORMAL": 1,
-            "POSITION": 2,
-            "TEXCOORD_0": 3
+            "TEXCOORD_0": 2
           },
           "mode": 4,
           "material": 0,
-          "indices": 0
+          "indices": 3
         }
       ]
     }
@@ -219,16 +166,6 @@
   "nodes": [
     {
       "name": "rusted_spade_01",
-      "translation": [
-        1.4901161193847656e-8,
-        0.0472506582736969,
-        -0.00021367147564888
-      ],
-      "scale": [
-        0.5504523813724518,
-        0.5504523813724518,
-        0.5504523813724518
-      ],
       "mesh": 0
     }
   ],
@@ -242,13 +179,9 @@
   ],
   "scene": 0,
   "extensionsUsed": [
-    "EXT_meshopt_compression",
-    "EXT_texture_webp",
-    "KHR_mesh_quantization"
+    "EXT_texture_webp"
   ],
   "extensionsRequired": [
-    "EXT_meshopt_compression",
-    "EXT_texture_webp",
-    "KHR_mesh_quantization"
+    "EXT_texture_webp"
   ]
 }

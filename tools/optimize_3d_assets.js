@@ -58,25 +58,53 @@ function copyTree(srcDir, dstDir) {
     }
 }
 
-const GROUND_ZERO_NO_QUANTIZE = new Set(['frost_construct.glb', 'YetiSmall.glb', 'cockatrice.glb']);
-
-function hasMeshoptFlag(filePath) {
+function parseGltfJson(filePath) {
     try {
-        if (filePath.endsWith('.gltf')) {
-            const txt = fs.readFileSync(filePath, 'utf8');
-            return txt.includes('EXT_meshopt_compression');
+        if (filePath.toLowerCase().endsWith('.gltf')) {
+            return JSON.parse(fs.readFileSync(filePath, 'utf8'));
         }
         const buf = fs.readFileSync(filePath);
-        if (buf.length < 24 || buf.toString('utf8', 0, 4) !== 'glTF') return false;
+        if (buf.length < 24 || buf.toString('utf8', 0, 4) !== 'glTF') return null;
         const jsonLen = buf.readUInt32LE(12);
-        const jsonStr = buf.toString('utf8', 20, Math.min(buf.length, 20 + jsonLen));
-        if (GROUND_ZERO_NO_QUANTIZE.has(path.basename(filePath))) {
-            return jsonStr.includes('EXT_texture_webp');
-        }
-        return jsonStr.includes('EXT_meshopt_compression');
+        return JSON.parse(buf.toString('utf8', 20, Math.min(buf.length, 20 + jsonLen)));
     } catch (_) {
+        return null;
+    }
+}
+
+function isSafeFloat32Gltf(filePath) {
+    const j = parseGltfJson(filePath);
+    if (!j) return false;
+    const exts = new Set([...(j.extensionsUsed || []), ...(j.extensionsRequired || [])]);
+    if (exts.has('KHR_mesh_quantization') || exts.has('EXT_meshopt_compression')) {
         return false;
     }
+    const accessors = j.accessors || [];
+    for (const m of (j.meshes || [])) {
+        for (const prim of (m.primitives || [])) {
+            const posIdx = prim && prim.attributes ? prim.attributes.POSITION : undefined;
+            if (posIdx !== undefined) {
+                const acc = accessors[posIdx];
+                if (!acc || acc.componentType !== 5126) return false;
+            }
+        }
+    }
+    return true;
+}
+
+function shouldSkipModel(filePath) {
+    const j = parseGltfJson(filePath);
+    if (!j) return false;
+    const exts = new Set([...(j.extensionsUsed || []), ...(j.extensionsRequired || [])]);
+    if (exts.has('EXT_meshopt_compression')) return true;
+    if (exts.has('KHR_mesh_quantization')) return false;
+    const imgs = j.images || [];
+    if (imgs.length === 0) return false;
+    return imgs.every((img) => {
+        if (img.mimeType === 'image/webp') return true;
+        if (img.uri && /\.webp$/i.test(img.uri)) return true;
+        return false;
+    });
 }
 
 function hasMissingExternalDeps(gltfPath) {
@@ -123,18 +151,17 @@ async function main() {
         const glbWorker = async () => {
             while (glbQueue.length) {
                 const src = glbQueue.shift();
-                if (!FORCE && hasMeshoptFlag(src)) { skipped++; continue; }
+                if (!FORCE && shouldSkipModel(src)) { skipped++; continue; }
                 const rel = path.relative(ASSETS_ROOT, src).replace(/[^a-zA-Z0-9_.-]/g, '_');
                 const dst = path.join(tmpRoot, 'glb', rel);
                 fs.mkdirSync(path.dirname(dst), { recursive: true });
                 const isCharOrMonster = src.includes(`${path.sep}monsters${path.sep}`) || src.includes(`${path.sep}characters${path.sep}`);
-                const baseName = path.basename(src);
-                const noQuantize = GROUND_ZERO_NO_QUANTIZE.has(baseName);
-                const texSize = noQuantize ? '512' : (isCharOrMonster ? '1024' : '512');
+                const texSize = isCharOrMonster ? '1024' : '512';
                 try {
                     await runCli(cliBin, [
                         'optimize', src, dst,
-                        '--compress', noQuantize ? 'false' : 'meshopt',
+                        '--compress', 'false',
+                        '--vertex-layout', 'separate',
                         '--sparse', 'false',
                         '--flatten', 'false',
                         '--join', 'false',
@@ -143,12 +170,14 @@ async function main() {
                         '--prune-attributes', 'false',
                         '--prune-solid-textures', 'false',
                         '--simplify', 'false',
+                        '--weld', 'false',
+                        '--resample', 'false',
                         '--texture-compress', 'webp',
                         '--texture-size', texSize
                     ]);
                     const oldSz = fs.statSync(src).size;
                     const newSz = fs.existsSync(dst) ? fs.statSync(dst).size : Infinity;
-                    if (newSz > 128 && newSz < oldSz) {
+                    if (newSz > 128 && newSz < oldSz && isSafeFloat32Gltf(dst)) {
                         fs.copyFileSync(dst, src);
                         converted++;
                     } else {
@@ -174,7 +203,8 @@ async function main() {
             while (dirQueue.length) {
                 const [modelDir, files] = dirQueue.shift();
                 for (const src of files) {
-                    if (!FORCE && (hasMeshoptFlag(src) || hasMissingExternalDeps(src))) { skipped++; continue; }
+                    if (!FORCE && (shouldSkipModel(src) || hasMissingExternalDeps(src))) { skipped++; continue; }
+                    if (FORCE && hasMissingExternalDeps(src)) { skipped++; continue; }
                     const base = path.basename(src, '.gltf');
                     const outDir = path.join(tmpRoot, 'gltf', path.relative(ASSETS_ROOT, modelDir).replace(/[^a-zA-Z0-9_.-]/g, '_'), base);
                     fs.mkdirSync(outDir, { recursive: true });
@@ -184,7 +214,8 @@ async function main() {
                     try {
                         await runCli(cliBin, [
                             'optimize', src, dst,
-                            '--compress', 'meshopt',
+                            '--compress', 'false',
+                            '--vertex-layout', 'separate',
                             '--sparse', 'false',
                             '--flatten', 'false',
                             '--join', 'false',
@@ -193,10 +224,12 @@ async function main() {
                             '--prune-attributes', 'false',
                             '--prune-solid-textures', 'false',
                             '--simplify', 'false',
+                            '--weld', 'false',
+                            '--resample', 'false',
                             '--texture-compress', 'webp',
                             '--texture-size', texSize
                         ]);
-                        if (fs.existsSync(dst) && fs.statSync(dst).size > 64) {
+                        if (fs.existsSync(dst) && fs.statSync(dst).size > 64 && isSafeFloat32Gltf(dst)) {
                             copyTree(outDir, modelDir);
                             converted++;
                         } else {

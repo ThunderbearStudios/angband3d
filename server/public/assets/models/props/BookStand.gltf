@@ -5,116 +5,71 @@
   },
   "accessors": [
     {
-      "type": "SCALAR",
-      "componentType": 5123,
-      "count": 4578,
-      "normalized": false,
-      "byteOffset": 0,
-      "bufferView": 0
-    },
-    {
       "type": "VEC3",
-      "componentType": 5120,
-      "count": 1652,
-      "normalized": true,
-      "byteOffset": 0,
-      "bufferView": 1
-    },
-    {
-      "type": "VEC3",
-      "componentType": 5122,
+      "componentType": 5126,
       "count": 1652,
       "max": [
-        11485,
-        32767,
-        11577
+        0.25363287329673767,
+        1.444292664527893,
+        0.2556697130203247
       ],
       "min": [
-        -11485,
-        -32767,
-        -11577
+        -0.2534816861152649,
+        -0.00249952613376081,
+        -0.2555173337459564
       ],
-      "normalized": true,
-      "byteOffset": 0,
-      "bufferView": 2
+      "bufferView": 0,
+      "byteOffset": 0
+    },
+    {
+      "type": "VEC3",
+      "componentType": 5126,
+      "count": 1652,
+      "bufferView": 1,
+      "byteOffset": 0
     },
     {
       "type": "VEC2",
-      "componentType": 5123,
+      "componentType": 5126,
       "count": 1652,
-      "normalized": true,
-      "byteOffset": 0,
-      "bufferView": 3
+      "bufferView": 2,
+      "byteOffset": 0
+    },
+    {
+      "type": "SCALAR",
+      "componentType": 5123,
+      "count": 4578,
+      "bufferView": 3,
+      "byteOffset": 0
     }
   ],
   "bufferViews": [
     {
-      "buffer": 1,
+      "buffer": 0,
       "byteOffset": 0,
-      "byteLength": 9156,
-      "target": 34963,
-      "extensions": {
-        "EXT_meshopt_compression": {
-          "buffer": 0,
-          "byteOffset": 0,
-          "byteLength": 1603,
-          "mode": "TRIANGLES",
-          "byteStride": 2,
-          "count": 4578
-        }
-      }
+      "byteLength": 19824,
+      "byteStride": 12,
+      "target": 34962
     },
     {
-      "buffer": 1,
-      "byteOffset": 9156,
-      "byteLength": 6608,
-      "target": 34962,
-      "byteStride": 4,
-      "extensions": {
-        "EXT_meshopt_compression": {
-          "buffer": 0,
-          "byteOffset": 1604,
-          "byteLength": 2120,
-          "mode": "ATTRIBUTES",
-          "filter": "OCTAHEDRAL",
-          "byteStride": 4,
-          "count": 1652
-        }
-      }
+      "buffer": 0,
+      "byteOffset": 19824,
+      "byteLength": 19824,
+      "byteStride": 12,
+      "target": 34962
     },
     {
-      "buffer": 1,
-      "byteOffset": 15764,
+      "buffer": 0,
+      "byteOffset": 39648,
       "byteLength": 13216,
-      "target": 34962,
       "byteStride": 8,
-      "extensions": {
-        "EXT_meshopt_compression": {
-          "buffer": 0,
-          "byteOffset": 3724,
-          "byteLength": 7037,
-          "mode": "ATTRIBUTES",
-          "byteStride": 8,
-          "count": 1652
-        }
-      }
+      "target": 34962
     },
     {
-      "buffer": 1,
-      "byteOffset": 28980,
-      "byteLength": 6608,
-      "target": 34962,
-      "byteStride": 4,
-      "extensions": {
-        "EXT_meshopt_compression": {
-          "buffer": 0,
-          "byteOffset": 10764,
-          "byteLength": 5500,
-          "mode": "ATTRIBUTES",
-          "byteStride": 4,
-          "count": 1652
-        }
-      }
+      "buffer": 0,
+      "byteOffset": 52864,
+      "byteLength": 9156,
+      "target": 34963
     }
   ],
   "samplers": [
@@ -171,15 +126,7 @@
   "buffers": [
     {
       "uri": "BookStand.bin",
-      "byteLength": 16264
-    },
-    {
-      "byteLength": 35588,
-      "extensions": {
-        "EXT_meshopt_compression": {
-          "fallback": true
-        }
-      }
+      "byteLength": 62020
     }
   ],
   "materials": [
@@ -205,13 +152,13 @@
       "primitives": [
         {
           "attributes": {
+            "POSITION": 0,
             "NORMAL": 1,
-            "POSITION": 2,
-            "TEXCOORD_0": 3
+            "TEXCOORD_0": 2
           },
           "mode": 4,
           "material": 0,
-          "indices": 0
+          "indices": 3
         }
       ]
     }
@@ -219,16 +166,6 @@
   "nodes": [
     {
       "name": "BookStand",
-      "translation": [
-        0.00007559359073638916,
-        0.7208965691970661,
-        0.00007618963718414307
-      ],
-      "scale": [
-        0.7233960953308269,
-        0.7233960953308269,
-        0.7233960953308269
-      ],
       "mesh": 0
     }
   ],
@@ -242,13 +179,9 @@
   ],
   "scene": 0,
   "extensionsUsed": [
-    "EXT_meshopt_compression",
-    "EXT_texture_webp",
-    "KHR_mesh_quantization"
+    "EXT_texture_webp"
   ],
   "extensionsRequired": [
-    "EXT_meshopt_compression",
-    "EXT_texture_webp",
-    "KHR_mesh_quantization"
+    "EXT_texture_webp"
   ]
 }

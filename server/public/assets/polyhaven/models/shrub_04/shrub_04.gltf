@@ -5,116 +5,71 @@
   },
   "accessors": [
     {
-      "type": "SCALAR",
-      "componentType": 5123,
-      "count": 81981,
-      "normalized": false,
-      "byteOffset": 0,
-      "bufferView": 0
-    },
-    {
       "type": "VEC3",
-      "componentType": 5120,
-      "count": 18285,
-      "normalized": true,
-      "byteOffset": 0,
-      "bufferView": 1
-    },
-    {
-      "type": "VEC3",
-      "componentType": 5122,
+      "componentType": 5126,
       "count": 18285,
       "max": [
-        32767,
-        12305,
-        8201
+        0.048936210572719574,
+        0.2132624387741089,
+        0.07108771800994873
       ],
       "min": [
-        -32767,
-        -12305,
-        -8201
+        -0.5347539782524109,
+        -0.005937241483479738,
+        -0.07500956952571869
       ],
-      "normalized": true,
-      "byteOffset": 0,
-      "bufferView": 2
+      "bufferView": 0,
+      "byteOffset": 0
     },
     {
       "type": "VEC2",
-      "componentType": 5123,
+      "componentType": 5126,
       "count": 18285,
-      "normalized": true,
-      "byteOffset": 0,
-      "bufferView": 3
+      "bufferView": 1,
+      "byteOffset": 0
+    },
+    {
+      "type": "VEC3",
+      "componentType": 5126,
+      "count": 18285,
+      "bufferView": 2,
+      "byteOffset": 0
+    },
+    {
+      "type": "SCALAR",
+      "componentType": 5123,
+      "count": 81981,
+      "bufferView": 3,
+      "byteOffset": 0
     }
   ],
   "bufferViews": [
     {
-      "buffer": 1,
+      "buffer": 0,
       "byteOffset": 0,
-      "byteLength": 163962,
-      "target": 34963,
-      "extensions": {
-        "EXT_meshopt_compression": {
-          "buffer": 0,
-          "byteOffset": 0,
-          "byteLength": 28556,
-          "mode": "TRIANGLES",
-          "byteStride": 2,
-          "count": 81981
-        }
-      }
+      "byteLength": 219420,
+      "byteStride": 12,
+      "target": 34962
     },
     {
-      "buffer": 1,
-      "byteOffset": 163964,
-      "byteLength": 73140,
-      "target": 34962,
-      "byteStride": 4,
-      "extensions": {
-        "EXT_meshopt_compression": {
-          "buffer": 0,
-          "byteOffset": 28556,
-          "byteLength": 37017,
-          "mode": "ATTRIBUTES",
-          "filter": "OCTAHEDRAL",
-          "byteStride": 4,
-          "count": 18285
-        }
-      }
-    },
-    {
-      "buffer": 1,
-      "byteOffset": 237104,
+      "buffer": 0,
+      "byteOffset": 219420,
       "byteLength": 146280,
-      "target": 34962,
       "byteStride": 8,
-      "extensions": {
-        "EXT_meshopt_compression": {
-          "buffer": 0,
-          "byteOffset": 65576,
-          "byteLength": 76609,
-          "mode": "ATTRIBUTES",
-          "byteStride": 8,
-          "count": 18285
-        }
-      }
+      "target": 34962
     },
     {
-      "buffer": 1,
-      "byteOffset": 383384,
-      "byteLength": 73140,
-      "target": 34962,
-      "byteStride": 4,
-      "extensions": {
-        "EXT_meshopt_compression": {
-          "buffer": 0,
-          "byteOffset": 142188,
-          "byteLength": 61663,
-          "mode": "ATTRIBUTES",
-          "byteStride": 4,
-          "count": 18285
-        }
-      }
+      "buffer": 0,
+      "byteOffset": 365700,
+      "byteLength": 219420,
+      "byteStride": 12,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 585120,
+      "byteLength": 163964,
+      "target": 34963
     }
   ],
   "samplers": [
@@ -171,15 +126,7 @@
   "buffers": [
     {
       "uri": "shrub_04.bin",
-      "byteLength": 203852
-    },
-    {
-      "byteLength": 456524,
-      "extensions": {
-        "EXT_meshopt_compression": {
-          "fallback": true
-        }
-      }
+      "byteLength": 749084
     }
   ],
   "materials": [
@@ -208,13 +155,13 @@
       "primitives": [
         {
           "attributes": {
-            "NORMAL": 1,
-            "POSITION": 2,
-            "TEXCOORD_0": 3
+            "POSITION": 0,
+            "TEXCOORD_0": 1,
+            "NORMAL": 2
           },
           "mode": 4,
           "material": 0,
-          "indices": 0
+          "indices": 3
         }
       ]
     }
@@ -223,14 +170,9 @@
     {
       "name": "shrub_04",
       "translation": [
-        0.2673984281718731,
-        0.10366259864531457,
-        -0.0019609257578849792
-      ],
-      "scale": [
-        0.29184509441256523,
-        0.29184509441256523,
-        0.29184509441256523
+        0.5103073120117188,
+        0,
+        0
       ],
       "mesh": 0
     }
@@ -245,13 +187,9 @@
   ],
   "scene": 0,
   "extensionsUsed": [
-    "EXT_meshopt_compression",
-    "EXT_texture_webp",
-    "KHR_mesh_quantization"
+    "EXT_texture_webp"
   ],
   "extensionsRequired": [
-    "EXT_meshopt_compression",
-    "EXT_texture_webp",
-    "KHR_mesh_quantization"
+    "EXT_texture_webp"
   ]
 }

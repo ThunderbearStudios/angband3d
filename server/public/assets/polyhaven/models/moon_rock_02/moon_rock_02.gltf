@@ -5,116 +5,71 @@
   },
   "accessors": [
     {
-      "type": "SCALAR",
-      "componentType": 5123,
-      "count": 9912,
-      "normalized": false,
-      "byteOffset": 0,
-      "bufferView": 0
-    },
-    {
       "type": "VEC3",
-      "componentType": 5120,
-      "count": 1847,
-      "normalized": true,
-      "byteOffset": 0,
-      "bufferView": 1
-    },
-    {
-      "type": "VEC3",
-      "componentType": 5122,
+      "componentType": 5126,
       "count": 1847,
       "max": [
-        32143,
-        26331,
-        32767
+        0.12181732803583145,
+        0.1958579421043396,
+        0.12623243033885956
       ],
       "min": [
-        -32143,
-        -26331,
-        -32767
+        -0.12468242645263672,
+        -0.006055276375263929,
+        -0.1250573843717575
       ],
-      "normalized": true,
-      "byteOffset": 0,
-      "bufferView": 2
+      "bufferView": 0,
+      "byteOffset": 0
+    },
+    {
+      "type": "VEC3",
+      "componentType": 5126,
+      "count": 1847,
+      "bufferView": 1,
+      "byteOffset": 0
     },
     {
       "type": "VEC2",
-      "componentType": 5123,
+      "componentType": 5126,
       "count": 1847,
-      "normalized": true,
-      "byteOffset": 0,
-      "bufferView": 3
+      "bufferView": 2,
+      "byteOffset": 0
+    },
+    {
+      "type": "SCALAR",
+      "componentType": 5123,
+      "count": 9912,
+      "bufferView": 3,
+      "byteOffset": 0
     }
   ],
   "bufferViews": [
     {
-      "buffer": 1,
+      "buffer": 0,
       "byteOffset": 0,
-      "byteLength": 19824,
-      "target": 34963,
-      "extensions": {
-        "EXT_meshopt_compression": {
-          "buffer": 0,
-          "byteOffset": 0,
-          "byteLength": 3827,
-          "mode": "TRIANGLES",
-          "byteStride": 2,
-          "count": 9912
-        }
-      }
+      "byteLength": 22164,
+      "byteStride": 12,
+      "target": 34962
     },
     {
-      "buffer": 1,
-      "byteOffset": 19824,
-      "byteLength": 7388,
-      "target": 34962,
-      "byteStride": 4,
-      "extensions": {
-        "EXT_meshopt_compression": {
-          "buffer": 0,
-          "byteOffset": 3828,
-          "byteLength": 3600,
-          "mode": "ATTRIBUTES",
-          "filter": "OCTAHEDRAL",
-          "byteStride": 4,
-          "count": 1847
-        }
-      }
+      "buffer": 0,
+      "byteOffset": 22164,
+      "byteLength": 22164,
+      "byteStride": 12,
+      "target": 34962
     },
     {
-      "buffer": 1,
-      "byteOffset": 27212,
+      "buffer": 0,
+      "byteOffset": 44328,
       "byteLength": 14776,
-      "target": 34962,
       "byteStride": 8,
-      "extensions": {
-        "EXT_meshopt_compression": {
-          "buffer": 0,
-          "byteOffset": 7428,
-          "byteLength": 10273,
-          "mode": "ATTRIBUTES",
-          "byteStride": 8,
-          "count": 1847
-        }
-      }
+      "target": 34962
     },
     {
-      "buffer": 1,
-      "byteOffset": 41988,
-      "byteLength": 7388,
-      "target": 34962,
-      "byteStride": 4,
-      "extensions": {
-        "EXT_meshopt_compression": {
-          "buffer": 0,
-          "byteOffset": 17704,
-          "byteLength": 5942,
-          "mode": "ATTRIBUTES",
-          "byteStride": 4,
-          "count": 1847
-        }
-      }
+      "buffer": 0,
+      "byteOffset": 59104,
+      "byteLength": 19824,
+      "target": 34963
     }
   ],
   "samplers": [
@@ -171,15 +126,7 @@
   "buffers": [
     {
       "uri": "moon_rock_02.bin",
-      "byteLength": 23648
-    },
-    {
-      "byteLength": 49376,
-      "extensions": {
-        "EXT_meshopt_compression": {
-          "fallback": true
-        }
-      }
+      "byteLength": 78928
     }
   ],
   "materials": [
@@ -206,13 +153,13 @@
       "primitives": [
         {
           "attributes": {
+            "POSITION": 0,
             "NORMAL": 1,
-            "POSITION": 2,
-            "TEXCOORD_0": 3
+            "TEXCOORD_0": 2
           },
           "mode": 4,
           "material": 0,
-          "indices": 0
+          "indices": 3
         }
       ]
     }
@@ -220,16 +167,6 @@
   "nodes": [
     {
       "name": "moon_rock_02_LOD0",
-      "translation": [
-        -0.0014325492084026337,
-        0.09490133286453784,
-        0.0005875229835510254
-      ],
-      "scale": [
-        0.12564490735530853,
-        0.12564490735530853,
-        0.12564490735530853
-      ],
       "mesh": 0
     }
   ],
@@ -243,13 +180,9 @@
   ],
   "scene": 0,
   "extensionsUsed": [
-    "EXT_meshopt_compression",
-    "EXT_texture_webp",
-    "KHR_mesh_quantization"
+    "EXT_texture_webp"
   ],
   "extensionsRequired": [
-    "EXT_meshopt_compression",
-    "EXT_texture_webp",
-    "KHR_mesh_quantization"
+    "EXT_texture_webp"
   ]
 }

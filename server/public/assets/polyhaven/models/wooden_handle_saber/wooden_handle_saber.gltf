@@ -5,116 +5,71 @@
   },
   "accessors": [
     {
-      "type": "SCALAR",
-      "componentType": 5123,
-      "count": 12093,
-      "normalized": false,
-      "byteOffset": 0,
-      "bufferView": 0
-    },
-    {
       "type": "VEC3",
-      "componentType": 5120,
-      "count": 2675,
-      "normalized": true,
-      "byteOffset": 0,
-      "bufferView": 1
-    },
-    {
-      "type": "VEC3",
-      "componentType": 5122,
+      "componentType": 5126,
       "count": 2675,
       "max": [
-        900,
-        32767,
-        4300
+        0.012846441939473152,
+        0.839275062084198,
+        0.057083677500486374
       ],
       "min": [
-        -900,
-        -32767,
-        -4300
+        -0.012846197001636028,
+        -0.09618058800697327,
+        -0.06570485979318619
       ],
-      "normalized": true,
-      "byteOffset": 0,
-      "bufferView": 2
+      "bufferView": 0,
+      "byteOffset": 0
+    },
+    {
+      "type": "VEC3",
+      "componentType": 5126,
+      "count": 2675,
+      "bufferView": 1,
+      "byteOffset": 0
     },
     {
       "type": "VEC2",
-      "componentType": 5123,
+      "componentType": 5126,
       "count": 2675,
-      "normalized": true,
-      "byteOffset": 0,
-      "bufferView": 3
+      "bufferView": 2,
+      "byteOffset": 0
+    },
+    {
+      "type": "SCALAR",
+      "componentType": 5123,
+      "count": 12093,
+      "bufferView": 3,
+      "byteOffset": 0
     }
   ],
   "bufferViews": [
     {
-      "buffer": 1,
+      "buffer": 0,
       "byteOffset": 0,
-      "byteLength": 24186,
-      "target": 34963,
-      "extensions": {
-        "EXT_meshopt_compression": {
-          "buffer": 0,
-          "byteOffset": 0,
-          "byteLength": 4575,
-          "mode": "TRIANGLES",
-          "byteStride": 2,
-          "count": 12093
-        }
-      }
+      "byteLength": 32100,
+      "byteStride": 12,
+      "target": 34962
     },
     {
-      "buffer": 1,
-      "byteOffset": 24188,
-      "byteLength": 10700,
-      "target": 34962,
-      "byteStride": 4,
-      "extensions": {
-        "EXT_meshopt_compression": {
-          "buffer": 0,
-          "byteOffset": 4576,
-          "byteLength": 4620,
-          "mode": "ATTRIBUTES",
-          "filter": "OCTAHEDRAL",
-          "byteStride": 4,
-          "count": 2675
-        }
-      }
+      "buffer": 0,
+      "byteOffset": 32100,
+      "byteLength": 32100,
+      "byteStride": 12,
+      "target": 34962
     },
     {
-      "buffer": 1,
-      "byteOffset": 34888,
+      "buffer": 0,
+      "byteOffset": 64200,
       "byteLength": 21400,
-      "target": 34962,
       "byteStride": 8,
-      "extensions": {
-        "EXT_meshopt_compression": {
-          "buffer": 0,
-          "byteOffset": 9196,
-          "byteLength": 10644,
-          "mode": "ATTRIBUTES",
-          "byteStride": 8,
-          "count": 2675
-        }
-      }
+      "target": 34962
     },
     {
-      "buffer": 1,
-      "byteOffset": 56288,
-      "byteLength": 10700,
-      "target": 34962,
-      "byteStride": 4,
-      "extensions": {
-        "EXT_meshopt_compression": {
-          "buffer": 0,
-          "byteOffset": 19840,
-          "byteLength": 8284,
-          "mode": "ATTRIBUTES",
-          "byteStride": 4,
-          "count": 2675
-        }
-      }
+      "buffer": 0,
+      "byteOffset": 85600,
+      "byteLength": 24188,
+      "target": 34963
     }
   ],
   "samplers": [
@@ -171,15 +126,7 @@
   "buffers": [
     {
       "uri": "wooden_handle_saber.bin",
-      "byteLength": 28124
-    },
-    {
-      "byteLength": 66988,
-      "extensions": {
-        "EXT_meshopt_compression": {
-          "fallback": true
-        }
-      }
+      "byteLength": 109788
     }
   ],
   "materials": [
@@ -205,13 +152,13 @@
       "primitives": [
         {
           "attributes": {
+            "POSITION": 0,
             "NORMAL": 1,
-            "POSITION": 2,
-            "TEXCOORD_0": 3
+            "TEXCOORD_0": 2
           },
           "mode": 4,
           "material": 0,
-          "indices": 0
+          "indices": 3
         }
       ]
     }
@@ -219,16 +166,6 @@
   "nodes": [
     {
       "name": "wooden_handle_saber",
-      "translation": [
-        1.2246891856193542e-7,
-        0.37154723703861237,
-        -0.004310591146349907
-      ],
-      "scale": [
-        0.46772782504558563,
-        0.46772782504558563,
-        0.46772782504558563
-      ],
       "mesh": 0
     }
   ],
@@ -242,13 +179,9 @@
   ],
   "scene": 0,
   "extensionsUsed": [
-    "EXT_meshopt_compression",
-    "EXT_texture_webp",
-    "KHR_mesh_quantization"
+    "EXT_texture_webp"
   ],
   "extensionsRequired": [
-    "EXT_meshopt_compression",
-    "EXT_texture_webp",
-    "KHR_mesh_quantization"
+    "EXT_texture_webp"
   ]
 }

@@ -179,9 +179,9 @@ dialog.yasd-modal-dialog,
         left: calc(294px + var(--safe-left, 0px)) !important;
         right: auto !important;
         transform: none !important;
-        width: min(360px, calc(100vw - 640px)) !important;
-        min-width: 240px !important;
-        max-width: 370px !important;
+        width: min(410px, calc(100vw - 620px)) !important;
+        min-width: 340px !important;
+        max-width: 420px !important;
         z-index: 7 !important;
     }
 
@@ -770,4 +770,49 @@ html.yasd-reduced-motion *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+}
+
+/* 9. D-Pad Monochrome Glyph Discipline, Clean Header Containment & Footer Toggle */
+#touch-controls .dpad-btn {
+    font-family: "Segoe UI Symbol", "Apple Symbols", "DejaVu Sans", var(--font-ui, 'Outfit', sans-serif) !important;
+    font-variant-emoji: text !important;
+}
+
+#touch-controls .dpad-close-btn {
+    padding: 0 !important;
+    width: 20px !important;
+    height: 20px !important;
+    font-size: 11px !important;
+}
+
+#touch-controls .dpad-turn-btn,
+#touch-controls .dpad-run-toggle {
+    flex-direction: row !important;
+    white-space: nowrap !important;
+    gap: 3px !important;
+    padding: 0 4px !important;
+}
+
+#touch-controls .dpad-diag {
+    flex-direction: row !important;
+    gap: 2px !important;
+}
+
+#hud-footer .pill-dpad-toggle {
+    cursor: pointer;
+    background: rgba(24, 30, 42, 0.9);
+    border: 1px solid rgba(212, 175, 55, 0.35);
+    border-radius: 4px;
+    color: #e2e8f0;
+    padding: 1px 7px;
+    font-size: 10.5px;
+    font-weight: 600;
+    font-variant-emoji: text;
+}
+
+#hud-footer .pill-dpad-toggle:hover,
+#hud-footer .pill-dpad-toggle.active {
+    background: rgba(58, 44, 16, 0.92);
+    border-color: #f3d678;
+    color: #fff6cc;
 }

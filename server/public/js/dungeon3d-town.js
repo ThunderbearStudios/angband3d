@@ -467,6 +467,29 @@
             d3d._townRoofTexCache[styleKey] = createTownRoofTileTextures(THREE, isEastern);
         }
         const roofSet = d3d._townRoofTexCache[styleKey];
+        if (!mats._roofPaletteCache) mats._roofPaletteCache = {};
+        if (!mats._roofPaletteCache[styleKey]) {
+            const palettes = isEastern
+                ? [[0.36, 0.42, 0.50], [0.58, 0.30, 0.24], [0.35, 0.38, 0.45]]
+                : [[0.40, 0.44, 0.52], [0.64, 0.32, 0.22], [0.36, 0.44, 0.40]];
+            mats._roofPaletteCache[styleKey] = palettes.map((rgb) => {
+                const hex = ((Math.round(rgb[0] * 255) << 16) | (Math.round(rgb[1] * 255) << 8) | Math.round(rgb[2] * 255));
+                const pm = new THREE.MeshStandardMaterial({
+                    color: hex,
+                    map: roofSet ? roofSet.diff : null,
+                    normalMap: roofSet ? roofSet.nor : null,
+                    roughness: isEastern ? 0.78 : 0.86,
+                    metalness: 0.06,
+                    vertexColors: true
+                });
+                if (typeof THREE.Vector2 === 'function') {
+                    pm.normalScale = new THREE.Vector2(1.15, 1.15);
+                }
+                pm._sharedMaterial = true;
+                return pm;
+            });
+        }
+        mats.roofPaletteMats = mats._roofPaletteCache[styleKey];
         if (roofSet) {
             if (mats.roofMat && mats.roofMat._roofStyle !== styleKey) {
                 mats.roofMat.map = roofSet.diff;
@@ -677,13 +700,12 @@
             const cxWorld = ((cl.minX + cl.maxX) * 0.5) * cs;
             const czWorld = ((cl.minY + cl.maxY) * 0.5) * cs;
             const paletteSlot = cl.roofPaletteIdx % palettes.length;
-            const roofRGB = palettes[paletteSlot];
-            const rKey = `${cl.ridgeAlongX ? 1 : 0}:${paletteSlot}:${isEastern ? 1 : 0}`;
+            const rKey = `${cl.ridgeAlongX ? 1 : 0}:${isEastern ? 1 : 0}`;
             const gKey = `${cl.ridgeAlongX ? 1 : 0}`;
             let cachedRoof = roofCache.get(rKey);
             if (!cachedRoof) {
                 const created = createGableRoofGeometry(
-                    THREE, 6.0, 6.0, 1.2, 0.0, cl.ridgeAlongX, roofRGB, gableCol, isEastern
+                    THREE, 6.0, 6.0, 1.2, 0.0, cl.ridgeAlongX, [1, 1, 1], gableCol, isEastern
                 );
                 let sharedGable = gableCache.get(gKey);
                 if (sharedGable) {
@@ -699,7 +721,8 @@
             }
             const { roofGeo, gableGeo } = cachedRoof;
 
-            const roofMesh = new THREE.Mesh(roofGeo, mats.roofMat);
+            const roofMat = (mats.roofPaletteMats && mats.roofPaletteMats[paletteSlot]) || mats.roofMat;
+            const roofMesh = new THREE.Mesh(roofGeo, roofMat);
             roofMesh.position.set(cxWorld, eaveY, czWorld);
             roofMesh.scale.set((spanW + 0.56) / 6.0, ridgeH / 1.2, (spanD + 0.56) / 6.0);
             roofMesh.castShadow = true;

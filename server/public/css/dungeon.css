@@ -2588,15 +2588,15 @@ to { opacity: 1; transform: translateY(0); }
     position: absolute;
     bottom: 92px;
     right: 28px;
-    width: 186px;
+    width: 222px;
     display: flex;
     flex-direction: column;
     gap: 6px;
     padding: 6px;
-    background: rgba(8, 12, 20, 0.85);
-    border: 1px solid rgba(212, 175, 55, 0.4);
+    background: rgba(8, 12, 20, 0.92);
+    border: 1px solid rgba(212, 175, 55, 0.45);
     border-radius: 12px;
-    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.65);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.72);
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
     z-index: 25;
@@ -2604,29 +2604,33 @@ to { opacity: 1; transform: translateY(0); }
     user-select: none;
     -webkit-user-select: none;
     box-sizing: border-box;
+    overflow: hidden;
 }
 
 .dpad-turn-wings {
     display: flex;
     justify-content: space-between;
-    gap: 6px;
+    gap: 5px;
     width: 100%;
 }
 
 .dpad-turn-btn {
     flex: 1;
-    height: 34px;
+    height: 32px;
     background: rgba(14, 20, 32, 0.92);
     border: 1px solid rgba(212, 175, 55, 0.45);
     border-radius: 8px;
     color: var(--gold-bright);
-    font-size: 13px;
+    font-size: 11px;
     font-family: var(--font-ui);
     font-weight: 600;
     display: flex;
+    flex-direction: row;
     align-items: center;
     justify-content: center;
-    gap: 4px;
+    gap: 3px;
+    padding: 0 4px;
+    white-space: nowrap;
     cursor: pointer;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
     transition: all 0.15s ease;
@@ -2638,24 +2642,27 @@ to { opacity: 1; transform: translateY(0); }
     transform: scale(0.96);
 }
 
-.dpad-turn-symbol { font-size: 16px; }
+.dpad-turn-symbol { font-size: 13px; line-height: 1; }
 
-.dpad-turn-text { font-size: 11px; letter-spacing: 0.5px; }
+.dpad-turn-text { font-size: 10.5px; letter-spacing: 0.3px; }
 
 .dpad-run-toggle {
     flex: 1;
-    height: 34px;
+    height: 32px;
     background: rgba(14, 20, 32, 0.92);
     border: 1px solid rgba(212, 175, 55, 0.45);
     border-radius: 8px;
     color: #e2e8f0;
-    font-size: 13px;
+    font-size: 11px;
     font-family: var(--font-ui);
     font-weight: 600;
     display: flex;
+    flex-direction: row;
     align-items: center;
     justify-content: center;
-    gap: 4px;
+    gap: 3px;
+    padding: 0 4px;
+    white-space: nowrap;
     cursor: pointer;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
     transition: all 0.15s ease;
@@ -2705,7 +2712,9 @@ to { opacity: 1; transform: translateY(0); }
     border-radius: 8px;
     background: rgba(18, 22, 34, 0.88);
     color: var(--gold-bright);
-    font-size: 17px;
+    font-family: "Segoe UI Symbol", "Apple Symbols", "DejaVu Sans", var(--font-ui), sans-serif;
+    font-variant-emoji: text;
+    font-size: 16px;
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -2744,6 +2753,8 @@ to { opacity: 1; transform: translateY(0); }
 
 .dpad-diag {
     font-size: 13px;
+    flex-direction: row;
+    gap: 2px;
     background: rgba(12, 16, 26, 0.85);
     border-style: dashed;
     border-color: rgba(212, 175, 55, 0.3);
@@ -7535,7 +7546,8 @@ to { opacity: 1; transform: translateY(0) scale(1); }
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 3px 6px;
+    gap: 4px;
+    padding: 4px 6px;
     background: linear-gradient(180deg, rgba(30, 42, 62, 0.95), rgba(16, 24, 38, 0.9));
     border: 1px solid rgba(212, 175, 55, 0.4);
     border-radius: 6px;
@@ -7544,32 +7556,38 @@ to { opacity: 1; transform: translateY(0) scale(1); }
     -webkit-user-select: none;
     touch-action: none;
     box-shadow: inset 0 1px 0 rgba(255, 230, 150, 0.15);
+    box-sizing: border-box;
+    overflow: hidden;
 }
 
 .dpad-header-bar:active { cursor: grabbing; }
 
 .dpad-grip-label {
     font-family: var(--font-fantasy, 'Cinzel', serif);
-    font-size: 10px;
+    font-size: 9.5px;
     font-weight: 700;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.04em;
     color: #e2d9b8;
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
-    display: flex;
+    display: inline-flex;
     align-items: center;
-    gap: 4px;
+    gap: 3px;
+    white-space: nowrap;
+    flex-shrink: 0;
 }
 
 .dpad-header-actions {
-    display: flex;
+    display: inline-flex;
     align-items: center;
-    gap: 4px;
+    gap: 3px;
+    flex-shrink: 0;
 }
 
 .dpad-mini-btn {
-    width: 22px;
+    width: 20px;
     height: 20px;
     padding: 0;
+    flex-shrink: 0;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -7577,7 +7595,7 @@ to { opacity: 1; transform: translateY(0) scale(1); }
     border: 1px solid rgba(212, 175, 55, 0.35);
     border-radius: 4px;
     color: #ffd700;
-    font-size: 12px;
+    font-size: 11px;
     line-height: 1;
     cursor: pointer;
     transition: all 0.15s ease;
@@ -8243,16 +8261,17 @@ body.wasd-mode-active #action-bar .act-wasd-socket,
     display: flex !important;
     align-items: center !important;
     justify-content: space-between !important;
-    gap: 6px !important;
+    gap: 4px !important;
     width: 100% !important;
 }
 
 .wasd-toggle-pill {
     font-family: 'Cinzel', serif !important;
-    font-size: 9px !important;
+    font-size: 8.5px !important;
     font-weight: 700 !important;
-    letter-spacing: 0.06em !important;
-    padding: 2px 7px !important;
+    letter-spacing: 0.04em !important;
+    padding: 2px 5px !important;
+    flex-shrink: 0 !important;
     border-radius: 4px !important;
     border: 1px solid rgba(198, 152, 74, 0.55) !important;
     background: linear-gradient(180deg, rgba(34, 25, 16, 0.95) 0%, rgba(14, 10, 7, 0.98) 100%) !important;
@@ -9179,8 +9198,8 @@ body.grimoire-primary-open .viewport-edge-turn { display: none !important; }
     #top-right-bar #btn-hud-realm,
 #top-right-bar #btn-sound-config { display: none !important; }
 
-    #touch-controls,
-    #touch-controls.dpad-collapsed {
+    html:not(.yasd-handheld) #touch-controls,
+    html:not(.yasd-handheld) #touch-controls.dpad-collapsed {
         width: 152px !important;
         height: auto !important;
         max-height: none !important;
@@ -9191,16 +9210,16 @@ body.grimoire-primary-open .viewport-edge-turn { display: none !important; }
         overflow: visible !important;
     }
 
-    #touch-controls .dpad-header-bar {
+    html:not(.yasd-handheld) #touch-controls .dpad-header-bar {
         display: flex !important;
         align-items: center !important;
         justify-content: space-between !important;
         gap: 2px !important;
         width: 100% !important;
     }
-    #touch-controls #dpad-drag-handle { display: none !important; }
+    html:not(.yasd-handheld) #touch-controls #dpad-drag-handle { display: none !important; }
 
-    #touch-controls .dpad-turn-wings {
+    html:not(.yasd-handheld) #touch-controls .dpad-turn-wings {
         display: grid !important;
         grid-template-columns: repeat(3, minmax(44px, 1fr)) !important;
         gap: 2px !important;
@@ -9208,9 +9227,9 @@ body.grimoire-primary-open .viewport-edge-turn { display: none !important; }
         margin: 0 !important;
     }
 
-    #touch-controls .dpad-turn-btn,
-    #touch-controls .dpad-run-toggle,
-    #touch-controls .dpad-mode-pill {
+    html:not(.yasd-handheld) #touch-controls .dpad-turn-btn,
+    html:not(.yasd-handheld) #touch-controls .dpad-run-toggle,
+    html:not(.yasd-handheld) #touch-controls .dpad-mode-pill {
         height: 44px !important;
         min-height: 44px !important;
         min-width: 44px !important;
@@ -9218,8 +9237,8 @@ body.grimoire-primary-open .viewport-edge-turn { display: none !important; }
         padding: 0 2px !important;
     }
 
-    #touch-controls .dpad-grid,
-    #touch-controls.dpad-collapsed .dpad-grid {
+    html:not(.yasd-handheld) #touch-controls .dpad-grid,
+    html:not(.yasd-handheld) #touch-controls.dpad-collapsed .dpad-grid {
         display: grid !important;
         grid-template-columns: repeat(3, minmax(44px, 1fr)) !important;
         grid-template-rows: repeat(3, 44px) !important;
@@ -9227,7 +9246,7 @@ body.grimoire-primary-open .viewport-edge-turn { display: none !important; }
         width: 100% !important;
     }
 
-    #touch-controls .dpad-btn {
+    html:not(.yasd-handheld) #touch-controls .dpad-btn {
         width: 100% !important;
         height: 44px !important;
         min-width: 44px !important;
@@ -9236,7 +9255,7 @@ body.grimoire-primary-open .viewport-edge-turn { display: none !important; }
         font-size: 13px !important;
     }
 
-#touch-controls .dpad-btn .dpad-sub { font-size: 7px !important; }
+html:not(.yasd-handheld) #touch-controls .dpad-btn .dpad-sub { font-size: 7px !important; }
 
     #action-bar:not(.drawer-open) {
         width: 158px !important;

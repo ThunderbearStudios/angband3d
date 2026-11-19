@@ -5,116 +5,71 @@
   },
   "accessors": [
     {
-      "type": "SCALAR",
-      "componentType": 5123,
-      "count": 83217,
-      "normalized": false,
-      "byteOffset": 0,
-      "bufferView": 0
-    },
-    {
       "type": "VEC3",
-      "componentType": 5120,
-      "count": 23314,
-      "normalized": true,
-      "byteOffset": 0,
-      "bufferView": 1
-    },
-    {
-      "type": "VEC3",
-      "componentType": 5122,
+      "componentType": 5126,
       "count": 23314,
       "max": [
-        27827,
-        32767,
-        29451
+        0.7231897115707397,
+        0.5321175456047058,
+        0.1022685244679451
       ],
       "min": [
-        -27827,
-        -32767,
-        -29451
+        -0.754274308681488,
+        -1.2077802419662476,
+        -1.4614895582199097
       ],
-      "normalized": true,
-      "byteOffset": 0,
-      "bufferView": 2
+      "bufferView": 0,
+      "byteOffset": 0
+    },
+    {
+      "type": "VEC3",
+      "componentType": 5126,
+      "count": 23314,
+      "bufferView": 1,
+      "byteOffset": 0
     },
     {
       "type": "VEC2",
-      "componentType": 5123,
+      "componentType": 5126,
       "count": 23314,
-      "normalized": true,
-      "byteOffset": 0,
-      "bufferView": 3
+      "bufferView": 2,
+      "byteOffset": 0
+    },
+    {
+      "type": "SCALAR",
+      "componentType": 5123,
+      "count": 83217,
+      "bufferView": 3,
+      "byteOffset": 0
     }
   ],
   "bufferViews": [
     {
-      "buffer": 1,
+      "buffer": 0,
       "byteOffset": 0,
-      "byteLength": 166434,
-      "target": 34963,
-      "extensions": {
-        "EXT_meshopt_compression": {
-          "buffer": 0,
-          "byteOffset": 0,
-          "byteLength": 30197,
-          "mode": "TRIANGLES",
-          "byteStride": 2,
-          "count": 83217
-        }
-      }
+      "byteLength": 279768,
+      "byteStride": 12,
+      "target": 34962
     },
     {
-      "buffer": 1,
-      "byteOffset": 166436,
-      "byteLength": 93256,
-      "target": 34962,
-      "byteStride": 4,
-      "extensions": {
-        "EXT_meshopt_compression": {
-          "buffer": 0,
-          "byteOffset": 30200,
-          "byteLength": 44163,
-          "mode": "ATTRIBUTES",
-          "filter": "OCTAHEDRAL",
-          "byteStride": 4,
-          "count": 23314
-        }
-      }
+      "buffer": 0,
+      "byteOffset": 279768,
+      "byteLength": 279768,
+      "byteStride": 12,
+      "target": 34962
     },
     {
-      "buffer": 1,
-      "byteOffset": 259692,
+      "buffer": 0,
+      "byteOffset": 559536,
       "byteLength": 186512,
-      "target": 34962,
       "byteStride": 8,
-      "extensions": {
-        "EXT_meshopt_compression": {
-          "buffer": 0,
-          "byteOffset": 74364,
-          "byteLength": 107011,
-          "mode": "ATTRIBUTES",
-          "byteStride": 8,
-          "count": 23314
-        }
-      }
+      "target": 34962
     },
     {
-      "buffer": 1,
-      "byteOffset": 446204,
-      "byteLength": 93256,
-      "target": 34962,
-      "byteStride": 4,
-      "extensions": {
-        "EXT_meshopt_compression": {
-          "buffer": 0,
-          "byteOffset": 181376,
-          "byteLength": 68900,
-          "mode": "ATTRIBUTES",
-          "byteStride": 4,
-          "count": 23314
-        }
-      }
+      "buffer": 0,
+      "byteOffset": 746048,
+      "byteLength": 166436,
+      "target": 34963
     }
   ],
   "samplers": [
@@ -171,15 +126,7 @@
   "buffers": [
     {
       "uri": "gothic_statue.bin",
-      "byteLength": 250276
-    },
-    {
-      "byteLength": 539460,
-      "extensions": {
-        "EXT_meshopt_compression": {
-          "fallback": true
-        }
-      }
+      "byteLength": 912484
     }
   ],
   "materials": [
@@ -206,13 +153,13 @@
       "primitives": [
         {
           "attributes": {
+            "POSITION": 0,
             "NORMAL": 1,
-            "POSITION": 2,
-            "TEXCOORD_0": 3
+            "TEXCOORD_0": 2
           },
           "mode": 4,
           "material": 0,
-          "indices": 0
+          "indices": 3
         }
       ]
     }
@@ -221,14 +168,9 @@
     {
       "name": "gothic_statue",
       "translation": [
-        -0.04446549341082573,
-        0.8540286123752594,
-        -0.40750953182578087
-      ],
-      "scale": [
-        0.8699488937854767,
-        0.8699488937854767,
-        0.8699488937854767
+        -0.028923194855451584,
+        1.1918599605560303,
+        0.2721009850502014
       ],
       "mesh": 0
     }
@@ -243,13 +185,9 @@
   ],
   "scene": 0,
   "extensionsUsed": [
-    "EXT_meshopt_compression",
-    "EXT_texture_webp",
-    "KHR_mesh_quantization"
+    "EXT_texture_webp"
   ],
   "extensionsRequired": [
-    "EXT_meshopt_compression",
-    "EXT_texture_webp",
-    "KHR_mesh_quantization"
+    "EXT_texture_webp"
   ]
 }

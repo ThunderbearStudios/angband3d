@@ -5,116 +5,71 @@
   },
   "accessors": [
     {
-      "type": "SCALAR",
-      "componentType": 5123,
-      "count": 6336,
-      "normalized": false,
-      "byteOffset": 0,
-      "bufferView": 0
-    },
-    {
       "type": "VEC3",
-      "componentType": 5120,
-      "count": 1234,
-      "normalized": true,
-      "byteOffset": 0,
-      "bufferView": 1
-    },
-    {
-      "type": "VEC3",
-      "componentType": 5122,
+      "componentType": 5126,
       "count": 1234,
       "max": [
-        32767,
-        4592,
-        32399
+        0.1343473345041275,
+        0.03625521436333656,
+        0.12669777870178223
       ],
       "min": [
-        -32767,
-        -4592,
-        -32399
+        -0.13748358190059662,
+        -0.0018553033005446196,
+        -0.14208173751831055
       ],
-      "normalized": true,
-      "byteOffset": 0,
-      "bufferView": 2
+      "bufferView": 0,
+      "byteOffset": 0
+    },
+    {
+      "type": "VEC3",
+      "componentType": 5126,
+      "count": 1234,
+      "bufferView": 1,
+      "byteOffset": 0
     },
     {
       "type": "VEC2",
-      "componentType": 5123,
+      "componentType": 5126,
       "count": 1234,
-      "normalized": true,
-      "byteOffset": 0,
-      "bufferView": 3
+      "bufferView": 2,
+      "byteOffset": 0
+    },
+    {
+      "type": "SCALAR",
+      "componentType": 5123,
+      "count": 6336,
+      "bufferView": 3,
+      "byteOffset": 0
     }
   ],
   "bufferViews": [
     {
-      "buffer": 1,
+      "buffer": 0,
       "byteOffset": 0,
-      "byteLength": 12672,
-      "target": 34963,
-      "extensions": {
-        "EXT_meshopt_compression": {
-          "buffer": 0,
-          "byteOffset": 0,
-          "byteLength": 2406,
-          "mode": "TRIANGLES",
-          "byteStride": 2,
-          "count": 6336
-        }
-      }
+      "byteLength": 14808,
+      "byteStride": 12,
+      "target": 34962
     },
     {
-      "buffer": 1,
-      "byteOffset": 12672,
-      "byteLength": 4936,
-      "target": 34962,
-      "byteStride": 4,
-      "extensions": {
-        "EXT_meshopt_compression": {
-          "buffer": 0,
-          "byteOffset": 2408,
-          "byteLength": 2251,
-          "mode": "ATTRIBUTES",
-          "filter": "OCTAHEDRAL",
-          "byteStride": 4,
-          "count": 1234
-        }
-      }
+      "buffer": 0,
+      "byteOffset": 14808,
+      "byteLength": 14808,
+      "byteStride": 12,
+      "target": 34962
     },
     {
-      "buffer": 1,
-      "byteOffset": 17608,
+      "buffer": 0,
+      "byteOffset": 29616,
       "byteLength": 9872,
-      "target": 34962,
       "byteStride": 8,
-      "extensions": {
-        "EXT_meshopt_compression": {
-          "buffer": 0,
-          "byteOffset": 4660,
-          "byteLength": 6546,
-          "mode": "ATTRIBUTES",
-          "byteStride": 8,
-          "count": 1234
-        }
-      }
+      "target": 34962
     },
     {
-      "buffer": 1,
-      "byteOffset": 27480,
-      "byteLength": 4936,
-      "target": 34962,
-      "byteStride": 4,
-      "extensions": {
-        "EXT_meshopt_compression": {
-          "buffer": 0,
-          "byteOffset": 11208,
-          "byteLength": 4371,
-          "mode": "ATTRIBUTES",
-          "byteStride": 4,
-          "count": 1234
-        }
-      }
+      "buffer": 0,
+      "byteOffset": 39488,
+      "byteLength": 12672,
+      "target": 34963
     }
   ],
   "samplers": [
@@ -171,15 +126,7 @@
   "buffers": [
     {
       "uri": "carved_wooden_plate.bin",
-      "byteLength": 15580
-    },
-    {
-      "byteLength": 32416,
-      "extensions": {
-        "EXT_meshopt_compression": {
-          "fallback": true
-        }
-      }
+      "byteLength": 52160
     }
   ],
   "materials": [
@@ -206,13 +153,13 @@
       "primitives": [
         {
           "attributes": {
+            "POSITION": 0,
             "NORMAL": 1,
-            "POSITION": 2,
-            "TEXCOORD_0": 3
+            "TEXCOORD_0": 2
           },
           "mode": 4,
           "material": 0,
-          "indices": 0
+          "indices": 3
         }
       ]
     }
@@ -220,16 +167,6 @@
   "nodes": [
     {
       "name": "carved_wooden_plate",
-      "translation": [
-        -0.001568123698234558,
-        0.017199955531395972,
-        -0.00769197940826416
-      ],
-      "scale": [
-        0.13591545820236206,
-        0.13591545820236206,
-        0.13591545820236206
-      ],
       "mesh": 0
     }
   ],
@@ -243,13 +180,9 @@
   ],
   "scene": 0,
   "extensionsUsed": [
-    "EXT_meshopt_compression",
-    "EXT_texture_webp",
-    "KHR_mesh_quantization"
+    "EXT_texture_webp"
   ],
   "extensionsRequired": [
-    "EXT_meshopt_compression",
-    "EXT_texture_webp",
-    "KHR_mesh_quantization"
+    "EXT_texture_webp"
   ]
 }

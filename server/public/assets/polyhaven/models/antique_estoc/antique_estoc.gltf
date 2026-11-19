@@ -5,116 +5,71 @@
   },
   "accessors": [
     {
-      "type": "SCALAR",
-      "componentType": 5123,
-      "count": 24738,
-      "normalized": false,
-      "byteOffset": 0,
-      "bufferView": 0
-    },
-    {
       "type": "VEC3",
-      "componentType": 5120,
-      "count": 5537,
-      "normalized": true,
-      "byteOffset": 0,
-      "bufferView": 1
-    },
-    {
-      "type": "VEC3",
-      "componentType": 5122,
+      "componentType": 5126,
       "count": 5537,
       "max": [
-        8156,
-        3272,
-        32767
+        0.18569593131542206,
+        0.07381919026374817,
+        0.19931820034980774
       ],
       "min": [
-        -8156,
-        -3272,
-        -32767
+        -0.18582312762737274,
+        -0.07527782022953033,
+        -1.2930612564086914
       ],
-      "normalized": true,
-      "byteOffset": 0,
-      "bufferView": 2
+      "bufferView": 0,
+      "byteOffset": 0
+    },
+    {
+      "type": "VEC3",
+      "componentType": 5126,
+      "count": 5537,
+      "bufferView": 1,
+      "byteOffset": 0
     },
     {
       "type": "VEC2",
-      "componentType": 5123,
+      "componentType": 5126,
       "count": 5537,
-      "normalized": true,
-      "byteOffset": 0,
-      "bufferView": 3
+      "bufferView": 2,
+      "byteOffset": 0
+    },
+    {
+      "type": "SCALAR",
+      "componentType": 5123,
+      "count": 24738,
+      "bufferView": 3,
+      "byteOffset": 0
     }
   ],
   "bufferViews": [
     {
-      "buffer": 1,
+      "buffer": 0,
       "byteOffset": 0,
-      "byteLength": 49476,
-      "target": 34963,
-      "extensions": {
-        "EXT_meshopt_compression": {
-          "buffer": 0,
-          "byteOffset": 0,
-          "byteLength": 9381,
-          "mode": "TRIANGLES",
-          "byteStride": 2,
-          "count": 24738
-        }
-      }
+      "byteLength": 66444,
+      "byteStride": 12,
+      "target": 34962
     },
     {
-      "buffer": 1,
-      "byteOffset": 49476,
-      "byteLength": 22148,
-      "target": 34962,
-      "byteStride": 4,
-      "extensions": {
-        "EXT_meshopt_compression": {
-          "buffer": 0,
-          "byteOffset": 9384,
-          "byteLength": 11109,
-          "mode": "ATTRIBUTES",
-          "filter": "OCTAHEDRAL",
-          "byteStride": 4,
-          "count": 5537
-        }
-      }
+      "buffer": 0,
+      "byteOffset": 66444,
+      "byteLength": 66444,
+      "byteStride": 12,
+      "target": 34962
     },
     {
-      "buffer": 1,
-      "byteOffset": 71624,
+      "buffer": 0,
+      "byteOffset": 132888,
       "byteLength": 44296,
-      "target": 34962,
       "byteStride": 8,
-      "extensions": {
-        "EXT_meshopt_compression": {
-          "buffer": 0,
-          "byteOffset": 20496,
-          "byteLength": 21552,
-          "mode": "ATTRIBUTES",
-          "byteStride": 8,
-          "count": 5537
-        }
-      }
+      "target": 34962
     },
     {
-      "buffer": 1,
-      "byteOffset": 115920,
-      "byteLength": 22148,
-      "target": 34962,
-      "byteStride": 4,
-      "extensions": {
-        "EXT_meshopt_compression": {
-          "buffer": 0,
-          "byteOffset": 42048,
-          "byteLength": 16944,
-          "mode": "ATTRIBUTES",
-          "byteStride": 4,
-          "count": 5537
-        }
-      }
+      "buffer": 0,
+      "byteOffset": 177184,
+      "byteLength": 49476,
+      "target": 34963
     }
   ],
   "samplers": [
@@ -171,15 +126,7 @@
   "buffers": [
     {
       "uri": "antique_estoc.bin",
-      "byteLength": 58992
-    },
-    {
-      "byteLength": 138068,
-      "extensions": {
-        "EXT_meshopt_compression": {
-          "fallback": true
-        }
-      }
+      "byteLength": 226660
     }
   ],
   "materials": [
@@ -205,13 +152,13 @@
       "primitives": [
         {
           "attributes": {
+            "POSITION": 0,
             "NORMAL": 1,
-            "POSITION": 2,
-            "TEXCOORD_0": 3
+            "TEXCOORD_0": 2
           },
           "mode": 4,
           "material": 0,
-          "indices": 0
+          "indices": 3
         }
       ]
     }
@@ -219,21 +166,11 @@
   "nodes": [
     {
       "name": "antique_estoc",
-      "translation": [
-        -0.0000635981559753418,
-        0.5468716016044649,
-        -0.0007292416038478597
-      ],
       "rotation": [
-        0.7071068286895688,
+        0.7071068286895752,
         0,
         0,
-        0.7071067336835231
-      ],
-      "scale": [
-        0.7461897283792496,
-        0.746189828636455,
-        0.746189828636455
+        0.7071068286895752
       ],
       "mesh": 0
     }
@@ -248,13 +185,9 @@
   ],
   "scene": 0,
   "extensionsUsed": [
-    "EXT_meshopt_compression",
-    "EXT_texture_webp",
-    "KHR_mesh_quantization"
+    "EXT_texture_webp"
   ],
   "extensionsRequired": [
-    "EXT_meshopt_compression",
-    "EXT_texture_webp",
-    "KHR_mesh_quantization"
+    "EXT_texture_webp"
   ]
 }

@@ -12181,6 +12181,27 @@ class Dungeon3D {
                     if (c.parent) c.parent.remove(c);
                 });
 
+                if ((key === 'item_gold' || key === 'item_coins') && typeof this._mergeBufferGeometries === 'function') {
+                    scene.updateMatrixWorld(true);
+                    const coinParts = [];
+                    let coinMat = null;
+                    scene.traverse((c) => {
+                        if (c.isMesh && c.geometry && c.geometry.attributes && c.geometry.attributes.position) {
+                            const g = c.geometry.clone();
+                            g.applyMatrix4(c.matrixWorld);
+                            if (!coinMat && c.material) coinMat = c.material;
+                            if (typeof c.geometry.dispose === 'function') c.geometry.dispose();
+                            coinParts.push(g);
+                        }
+                    });
+                    if (coinParts.length > 1 && coinMat) {
+                        const mergedCoins = this._mergeBufferGeometries(coinParts);
+                        for (const g of coinParts) { if (g && typeof g.dispose === 'function') g.dispose(); }
+                        while (scene.children.length > 0) scene.remove(scene.children[0]);
+                        scene.add(new THREE.Mesh(mergedCoins, coinMat));
+                    }
+                }
+
                 scene.traverse((c) => {
                     if (c.isMesh) {
                         c.castShadow = false;

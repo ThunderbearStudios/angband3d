@@ -6964,11 +6964,16 @@ window.addEventListener('DOMContentLoaded', () => {
                 btnToggleMap.classList.toggle('is-panel-open', isMapOpen);
                 btnToggleMap.setAttribute('aria-pressed', isMapOpen ? 'true' : 'false');
             }
+            const btnFooterDpad = document.getElementById('btn-footer-dpad');
             if (btnToggleDpad) {
                 btnToggleDpad.style.display = 'inline-flex';
                 btnToggleDpad.classList.toggle('active', Boolean(showTouch));
                 btnToggleDpad.classList.toggle('panel-off', !showTouch);
                 btnToggleDpad.setAttribute('aria-pressed', showTouch ? 'true' : 'false');
+            }
+            if (btnFooterDpad) {
+                btnFooterDpad.classList.toggle('active', Boolean(showTouch));
+                btnFooterDpad.setAttribute('aria-pressed', showTouch ? 'true' : 'false');
             }
             if (btnToggleChronicle && !isApk && !document.body.classList.contains('is-standalone')) {
                 btnToggleChronicle.style.display = 'inline-flex';
@@ -7073,26 +7078,37 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 
     const btnToggleDpad = document.getElementById('btn-toggle-dpad');
-    if (btnToggleDpad) {
-        btnToggleDpad.addEventListener('click', () => {
-            const nextVisible = !isDpadActiveNow();
-            window.__dpadVisible = nextVisible;
-            window.__dpadUserVisible = nextVisible;
-            if (document.body && document.body.classList) {
-                document.body.classList.toggle('force-dpad-visible', nextVisible);
-            }
+    const btnFooterDpad = document.getElementById('btn-footer-dpad');
+    const handleDpadToggle = () => {
+        const nextVisible = !isDpadActiveNow();
+        window.__dpadVisible = nextVisible;
+        window.__dpadUserVisible = nextVisible;
+        if (document.body && document.body.classList) {
+            document.body.classList.toggle('force-dpad-visible', nextVisible);
+        }
+        if (btnToggleDpad) {
             btnToggleDpad.classList.toggle('active', nextVisible);
             btnToggleDpad.classList.toggle('panel-off', !nextVisible);
             btnToggleDpad.setAttribute('aria-pressed', nextVisible ? 'true' : 'false');
-            if (window.DeviceProfile && window.DeviceProfile.triggerHaptic) window.DeviceProfile.triggerHaptic('light');
-            updateViewMode();
-        });
-    }
+        }
+        if (btnFooterDpad) {
+            btnFooterDpad.classList.toggle('active', nextVisible);
+            btnFooterDpad.setAttribute('aria-pressed', nextVisible ? 'true' : 'false');
+        }
+        if (window.DeviceProfile && window.DeviceProfile.triggerHaptic) window.DeviceProfile.triggerHaptic('light');
+        updateViewMode();
+    };
+    if (btnToggleDpad) btnToggleDpad.addEventListener('click', handleDpadToggle);
+    if (btnFooterDpad) btnFooterDpad.addEventListener('click', handleDpadToggle);
     const btnDpadCloseSync = document.getElementById('btn-dpad-close');
     if (btnDpadCloseSync) {
         btnDpadCloseSync.addEventListener('click', () => {
             window.__dpadUserVisible = false;
             if (document.body && document.body.classList) document.body.classList.remove('force-dpad-visible');
+            if (btnFooterDpad) {
+                btnFooterDpad.classList.remove('active');
+                btnFooterDpad.setAttribute('aria-pressed', 'false');
+            }
         });
     }
     const btnGraphicsPreset = document.getElementById('btn-graphics-preset');

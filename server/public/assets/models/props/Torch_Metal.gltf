@@ -5,116 +5,71 @@
   },
   "accessors": [
     {
-      "type": "SCALAR",
-      "componentType": 5123,
-      "count": 2910,
-      "normalized": false,
-      "byteOffset": 0,
-      "bufferView": 0
+      "type": "VEC3",
+      "componentType": 5126,
+      "count": 1040,
+      "max": [
+        0.11158035695552826,
+        0.37051382660865784,
+        0.3884536623954773
+      ],
+      "min": [
+        -0.11158035695552826,
+        -0.2776470482349396,
+        0.00005589520515059121
+      ],
+      "bufferView": 0,
+      "byteOffset": 0
     },
     {
       "type": "VEC3",
-      "componentType": 5120,
+      "componentType": 5126,
       "count": 1040,
-      "normalized": true,
-      "byteOffset": 0,
-      "bufferView": 1
+      "bufferView": 1,
+      "byteOffset": 0
     },
     {
       "type": "VEC2",
       "componentType": 5126,
       "count": 1040,
-      "normalized": false,
-      "byteOffset": 0,
-      "bufferView": 2
+      "bufferView": 2,
+      "byteOffset": 0
     },
     {
-      "type": "VEC3",
-      "componentType": 5122,
-      "count": 1040,
-      "max": [
-        11281,
-        32767,
-        19634
-      ],
-      "min": [
-        -11281,
-        -32767,
-        -19634
-      ],
-      "normalized": true,
-      "byteOffset": 0,
-      "bufferView": 3
+      "type": "SCALAR",
+      "componentType": 5123,
+      "count": 2910,
+      "bufferView": 3,
+      "byteOffset": 0
     }
   ],
   "bufferViews": [
     {
-      "buffer": 1,
+      "buffer": 0,
       "byteOffset": 0,
+      "byteLength": 12480,
+      "byteStride": 12,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 12480,
+      "byteLength": 12480,
+      "byteStride": 12,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 24960,
+      "byteLength": 8320,
+      "byteStride": 8,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 33280,
       "byteLength": 5820,
-      "target": 34963,
-      "extensions": {
-        "EXT_meshopt_compression": {
-          "buffer": 0,
-          "byteOffset": 0,
-          "byteLength": 1072,
-          "mode": "TRIANGLES",
-          "byteStride": 2,
-          "count": 2910
-        }
-      }
-    },
-    {
-      "buffer": 1,
-      "byteOffset": 5820,
-      "byteLength": 4160,
-      "target": 34962,
-      "byteStride": 4,
-      "extensions": {
-        "EXT_meshopt_compression": {
-          "buffer": 0,
-          "byteOffset": 1072,
-          "byteLength": 1618,
-          "mode": "ATTRIBUTES",
-          "filter": "OCTAHEDRAL",
-          "byteStride": 4,
-          "count": 1040
-        }
-      }
-    },
-    {
-      "buffer": 1,
-      "byteOffset": 9980,
-      "byteLength": 8320,
-      "target": 34962,
-      "byteStride": 8,
-      "extensions": {
-        "EXT_meshopt_compression": {
-          "buffer": 0,
-          "byteOffset": 2692,
-          "byteLength": 6174,
-          "mode": "ATTRIBUTES",
-          "byteStride": 8,
-          "count": 1040
-        }
-      }
-    },
-    {
-      "buffer": 1,
-      "byteOffset": 18300,
-      "byteLength": 8320,
-      "target": 34962,
-      "byteStride": 8,
-      "extensions": {
-        "EXT_meshopt_compression": {
-          "buffer": 0,
-          "byteOffset": 8868,
-          "byteLength": 5351,
-          "mode": "ATTRIBUTES",
-          "byteStride": 8,
-          "count": 1040
-        }
-      }
+      "target": 34963
     }
   ],
   "samplers": [
@@ -171,15 +126,7 @@
   "buffers": [
     {
       "uri": "Torch_Metal.bin",
-      "byteLength": 14220
-    },
-    {
-      "byteLength": 26620,
-      "extensions": {
-        "EXT_meshopt_compression": {
-          "fallback": true
-        }
-      }
+      "byteLength": 39100
     }
   ],
   "materials": [
@@ -205,13 +152,13 @@
       "primitives": [
         {
           "attributes": {
+            "POSITION": 0,
             "NORMAL": 1,
-            "TEXCOORD_0": 2,
-            "POSITION": 3
+            "TEXCOORD_0": 2
           },
           "mode": 4,
           "material": 0,
-          "indices": 0
+          "indices": 3
         }
       ]
     }
@@ -219,16 +166,6 @@
   "nodes": [
     {
       "name": "Torch_Metal",
-      "translation": [
-        0,
-        0.04643338918685913,
-        0.19425477880031394
-      ],
-      "scale": [
-        0.3240804374217987,
-        0.3240804374217987,
-        0.3240804374217987
-      ],
       "mesh": 0
     }
   ],
@@ -242,13 +179,9 @@
   ],
   "scene": 0,
   "extensionsUsed": [
-    "EXT_meshopt_compression",
-    "EXT_texture_webp",
-    "KHR_mesh_quantization"
+    "EXT_texture_webp"
   ],
   "extensionsRequired": [
-    "EXT_meshopt_compression",
-    "EXT_texture_webp",
-    "KHR_mesh_quantization"
+    "EXT_texture_webp"
   ]
 }

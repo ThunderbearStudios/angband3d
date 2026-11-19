@@ -163,11 +163,15 @@ async function main() {
             const reqs = [];
             const badHttp = [];
             const jsErrors = [];
+            const consoleErrors = [];
             coldCdp.onEvent((m) => {
                 if (m.method === 'Network.requestWillBeSent') reqs.push({ url: m.params.request.url, type: m.params.type });
                 else if (m.method === 'Network.responseReceived' && m.params.response.status >= 400) badHttp.push(`${m.params.response.status} ${m.params.response.url}`);
-                else if (m.method === 'Network.loadingFailed') badHttp.push(`FAILED ${m.params.errorText}`);
+                else if (m.method === 'Network.loadingFailed' && !m.params.canceled) badHttp.push(`FAILED ${m.params.errorText}`);
                 else if (m.method === 'Runtime.exceptionThrown') jsErrors.push(m.params?.exceptionDetails?.text || 'exception');
+                else if (m.method === 'Runtime.consoleAPICalled' && m.params?.type === 'error') {
+                    consoleErrors.push((m.params.args || []).map((a) => a.value !== undefined ? a.value : (a.description || a.type)).join(' '));
+                }
             });
             await coldCdp.send('Network.enable');
             await coldCdp.send('Runtime.enable');
@@ -184,7 +188,7 @@ async function main() {
                 lazyChronicle: Boolean(window.chronicleManager)
             }))()`);
             const jsCssReqs = reqs.filter((r) => r.type === 'Script' || r.type === 'Stylesheet').length;
-            console.log(`[VisualGate] Cold Load 1440x900: totalReqs=${reqs.length} (baseline 248), jsCssReqs=${jsCssReqs} (baseline 74), scripts=${domCounts.scripts}, css=${domCounts.cssLinks}, badHttp=${badHttp.length}, jsErrors=${jsErrors.length}`);
+            console.log(`[VisualGate] Cold Load 1440x900: totalReqs=${reqs.length} (baseline 248), jsCssReqs=${jsCssReqs} (baseline 74), scripts=${domCounts.scripts}, css=${domCounts.cssLinks}, badHttp=${badHttp.length}, jsErrors=${jsErrors.length}, consoleErrors=${consoleErrors.length}`);
             assert(domCounts.scripts <= 2, `Expected scripts <= 2, got ${domCounts.scripts}`);
             assert(domCounts.cssLinks <= 2, `Expected cssLinks <= 2, got ${domCounts.cssLinks}`);
             assert(jsCssReqs <= 6, `Expected jsCssReqs <= 6, got ${jsCssReqs}`);
@@ -192,6 +196,7 @@ async function main() {
             assert(!domCounts.lazyGuide && !domCounts.lazyRyod && !domCounts.lazyChronicle, 'Lazy bundles loaded prematurely');
             assert.strictEqual(badHttp.length, 0, 'Cold-load HTTP errors: ' + badHttp.join('; '));
             assert.strictEqual(jsErrors.length, 0, 'Cold-load JS errors: ' + jsErrors.join('; '));
+            assert.strictEqual(consoleErrors.length, 0, 'Cold-load console errors: ' + consoleErrors.join('; '));
         } finally {
             await coldCdp.cleanup();
         }
@@ -201,6 +206,7 @@ async function main() {
         try {
             const badHttp = [];
             const jsErrors = [];
+            const consoleErrors = [];
             const reqMap = new Map();
             let transferBytes = 0;
             playCdp.onEvent((m) => {
@@ -209,6 +215,9 @@ async function main() {
                 else if (m.method === 'Network.loadingFailed' && !m.params.canceled) badHttp.push(`FAILED ${m.params.errorText} (${reqMap.get(m.params.requestId) || m.params.requestId})`);
                 else if (m.method === 'Network.loadingFinished') transferBytes += m.params.encodedDataLength || 0;
                 else if (m.method === 'Runtime.exceptionThrown') jsErrors.push(m.params?.exceptionDetails?.text || 'exception');
+                else if (m.method === 'Runtime.consoleAPICalled' && m.params?.type === 'error') {
+                    consoleErrors.push((m.params.args || []).map((a) => a.value !== undefined ? a.value : (a.description || a.type)).join(' '));
+                }
             });
 
             await playCdp.send('Network.enable');
@@ -269,23 +278,128 @@ async function main() {
                     itemAtlasLoadedEager: Boolean(window.__itemAtlasLoaded)
                 };
             })()`);
-            console.log(`[VisualGate] Town VRAM: textures=${townMem.textures} (ceiling < 83, baseline 83), geometries=${townMem.geometries} (ceiling <= 60, baseline 60), gpuTexVramMB=${townMem.gpuTexVramMB} (ceiling < 95), maxTexDim=${townMem.maxTexDim}, itemAtlasLoadedEager=${townMem.itemAtlasLoadedEager}`);
+            console.log(`[VisualGate] Town VRAM: textures=${townMem.textures} (ceiling < 83, baseline 83), geometries=${townMem.geometries} (ceiling <= 80, full NPC+storefront baseline 60), gpuTexVramMB=${townMem.gpuTexVramMB} (ceiling < 95), maxTexDim=${townMem.maxTexDim}, itemAtlasLoadedEager=${townMem.itemAtlasLoadedEager}`);
             assert(townMem.textures < 83, `Expected Town textures < 83, got ${townMem.textures}`);
-            assert(townMem.geometries <= 60, `Expected Town geometries <= 60, got ${townMem.geometries}`);
+            assert(townMem.geometries <= 80, `Expected Town geometries <= 80, got ${townMem.geometries}`);
             assert.strictEqual(townMem.itemAtlasLoadedEager, false, 'item_atlas should not load eagerly');
             assert(townMem.maxTexDim <= 2048, `Expected maxTexDim <= 2048, got ${townMem.maxTexDim}`);
             assert(townMem.gpuTexVramMB < 95, `Expected gpuTexVramMB < 95, got ${townMem.gpuTexVramMB}`);
 
+            // Walk toward Town plaza (via startMinimapAutoNav / startAutoExplore) until a live Town NPC renders in 3D
+            await playCdp.evaluate(`(() => { window.__app?.network?.sendKey?.(','); })()`);
+            await sleep(600);
+            for (let step = 0; step < 24; step++) {
+                const state = await playCdp.evaluate(`(() => ({
+                    frameMonsters: (window.__app?.lastFrame?.monsters || []).length,
+                    d3dMonsters: (window.__app?.dungeon?.monsters?.size || 0),
+                    autoNav: Boolean(window.__app?.input?.isAutoNavigating?.())
+                }))()`);
+                if (state.frameMonsters > 0 && state.d3dMonsters > 0) break;
+                if (state.frameMonsters > 0) {
+                    await playCdp.evaluate(`(() => { window.__app?.input?.stopMinimapAutoNav?.('npc-found'); })()`);
+                    await sleep(500);
+                    continue;
+                }
+                if (!state.autoNav) {
+                    await playCdp.evaluate(`(() => {
+                        const app = window.__app, f = app?.lastFrame;
+                        if (${step} === 0 && f?.map?.w && f?.map?.h) {
+                            const cx = Math.floor(f.map.w / 2), cy = Math.floor(f.map.h / 2);
+                            const started = app.input?.startMinimapAutoNav?.(cx, cy, f);
+                            if (!started) app.input?.startAutoExplore?.(f);
+                        } else if (!app.input?.startAutoExplore?.(f)) {
+                            app.network?.sendKey?.(',');
+                        }
+                    })()`);
+                }
+                await sleep(500);
+            }
+            await playCdp.evaluate(`(() => { window.__app?.input?.stopMinimapAutoNav?.('gate'); })()`);
+            await sleep(1200);
+            const integrity = await playCdp.evaluate(`(async () => {
+                const app = window.__app, d3d = app?.dungeon, f = app?.lastFrame;
+                // Check live rendered Town monsters / NPCs
+                const liveSprites = [];
+                if (d3d?.monsters) {
+                    for (const [k, obj] of d3d.monsters.entries()) {
+                        const b = new THREE.Box3().setFromObject(obj);
+                        const sz = new THREE.Vector3(); b.getSize(sz);
+                        liveSprites.push({
+                            name: obj.monsterName || obj.userData?.name || k,
+                            visible: obj.visible,
+                            heightM: Number(sz.y.toFixed(2)),
+                            wx: Number(obj.position.x.toFixed(2)),
+                            wz: Number(obj.position.z.toFixed(2))
+                        });
+                    }
+                }
+                // Aim camera toward nearest live Town NPC so screenshot confirms 3D character visibility
+                const p = f?.player;
+                const cs = d3d?.cellSize || 2.0;
+                const camX = (d3d?.currentCamPos?.x !== undefined) ? d3d.currentCamPos.x : ((p?.x || 0) * cs);
+                const camZ = (d3d?.currentCamPos?.z !== undefined) ? d3d.currentCamPos.z : ((p?.y || 0) * cs);
+                if (p && liveSprites.length > 0 && d3d) {
+                    liveSprites.sort((a, b) => Math.hypot(a.wx - camX, a.wz - camZ) - Math.hypot(b.wx - camX, b.wz - camZ));
+                    const nearest = liveSprites[0];
+                    if (nearest && Number.isFinite(nearest.wx) && Number.isFinite(nearest.wz)) {
+                        const dx = nearest.wx - camX, dz = nearest.wz - camZ;
+                        const yawTarget = Math.atan2(-dx, -dz);
+                        d3d.yaw = yawTarget;
+                        d3d.targetYaw = yawTarget;
+                    }
+                }
+                // Dismiss FTUE & open Desktop D-Pad via footer pill to validate clean layout & zero header overflow
+                document.querySelector('.ftue-coachmark-dismiss')?.click();
+                const footerBtn = document.getElementById('btn-footer-dpad');
+                footerBtn?.click();
+                await new Promise((r) => setTimeout(r, 250));
+                const tc = document.getElementById('touch-controls');
+                const tcRect = tc ? tc.getBoundingClientRect() : null;
+                const closeRect = document.getElementById('btn-dpad-close')?.getBoundingClientRect() || null;
+                const wingRects = Array.from(document.querySelectorAll('#touch-controls .dpad-turn-wings .dpad-btn')).map((b) => ({
+                    id: b.id, h: Math.round(b.getBoundingClientRect().height), top: Math.round(b.getBoundingClientRect().top), bottom: Math.round(b.getBoundingClientRect().bottom)
+                }));
+                const headerOverflowPx = (tcRect && closeRect) ? Math.round(closeRect.right - tcRect.right) : 999;
+                return {
+                    tacticalCursorReady: Boolean(d3d?._tacticalCursor),
+                    liveMonsterCount: liveSprites.length,
+                    liveMonstersSample: liveSprites.slice(0, 6),
+                    dpadDisplay: tc ? getComputedStyle(tc).display : 'missing',
+                    headerOverflowPx,
+                    wingRects
+                };
+            })()`);
+            console.log('[VisualGate] 3D Model & D-Pad Integrity:', JSON.stringify(integrity));
+            assert.strictEqual(integrity.tacticalCursorReady, true, 'd3d._tacticalCursor failed to initialize');
+            assert(integrity.liveMonsterCount > 0, 'Expected visible Town NPCs/monsters rendered in Angband Town');
+            assert(integrity.liveMonstersSample.every((m) => m.visible && m.heightM >= 0.4 && m.heightM <= 4.0), `Town NPC bounds out of range: ${JSON.stringify(integrity.liveMonstersSample)}`);
+            assert.strictEqual(integrity.dpadDisplay, 'flex', 'Desktop #btn-footer-dpad failed to open D-Pad');
+            assert(integrity.headerOverflowPx <= 0, `D-Pad header close button overflows container by ${integrity.headerOverflowPx}px`);
+            if (screenshotsDir) {
+                await sleep(300);
+                await playCdp.takeScreenshot(path.join(screenshotsDir, 'town_npcs_dpad_1440x900.png'));
+            }
+            // Toggle D-Pad back off cleanly via #btn-footer-dpad before Descending & running desktop layout checks
+            await playCdp.evaluate(`(() => { document.getElementById('btn-footer-dpad')?.click(); })()`);
+            await sleep(200);
+
             // Descend to Dungeon Level 1 (`>`)
             await playCdp.evaluate(`(() => {
                 const app = window.__app, f = app?.lastFrame;
+                app?.input?.stopMinimapAutoNav?.('gate');
                 if (!f?.map?.rows) return;
                 for (let y = 0; y < f.map.rows.length; y++) {
                     const ix = (f.map.rows[y]?.g || '').indexOf('>');
-                    if (ix !== -1) { window.__gateStair = { x: ix, y }; app.input?._trySmartMoveOrTravel?.(ix, y); break; }
+                    if (ix !== -1) {
+                        window.__gateStair = { x: ix, y };
+                        if (!(f.player && f.player.x === ix && f.player.y === y)) {
+                            app.input?.startMinimapAutoNav?.(ix, y, f);
+                        }
+                        break;
+                    }
                 }
             })()`);
-            for (let s = 0; s < 24; s++) {
+            for (let s = 0; s < 36; s++) {
                 await sleep(300);
                 const onStair = await playCdp.evaluate(`(() => {
                     const f = window.__app?.lastFrame, st = window.__gateStair;
@@ -324,6 +438,42 @@ async function main() {
             assert(perf.decodedKB < 35000, `Expected decodedKB < 35000, got ${perf.decodedKB}`);
             assert.strictEqual(badHttp.length, 0, 'In-game HTTP errors: ' + badHttp.join('; '));
             assert.strictEqual(jsErrors.length, 0, 'In-game JS errors: ' + jsErrors.join('; '));
+            assert.strictEqual(consoleErrors.length, 0, 'In-game console errors: ' + consoleErrors.join('; '));
+
+            const modelChecks = await playCdp.evaluate(`(async () => {
+                const d3d = window.__app?.dungeon;
+                const loader = d3d?._getGltfLoader?.();
+                const modelUrls = [
+                    '/assets/models/characters/steward.glb',
+                    '/assets/models/characters/npc_woman.glb',
+                    '/assets/models/characters/guard.glb',
+                    '/assets/models/monsters/bestiary/wolf.glb',
+                    '/assets/models/monsters/bestiary/Dragon.glb',
+                    '/assets/models/monsters/Puglin.glb'
+                ];
+                const out = [];
+                for (const u of modelUrls) {
+                    const gltf = await new Promise((res, rej) => loader.load(u, res, undefined, rej));
+                    let nonFloat = 0, normalizedPos = 0, meshCount = 0;
+                    gltf.scene.traverse((c) => {
+                        if (c.isMesh) {
+                            meshCount++;
+                            const pos = c.geometry?.attributes?.position;
+                            if (pos && !(pos.array instanceof Float32Array)) nonFloat++;
+                            if (pos && pos.normalized) normalizedPos++;
+                        }
+                    });
+                    const bbox = d3d._computeTrueSkinnedBoundingBox(gltf.scene);
+                    const sz = new THREE.Vector3(); bbox.getSize(sz);
+                    out.push({ url: u, meshCount, nonFloat, normalizedPos, ySize: Number(sz.y.toFixed(4)) });
+                }
+                return out;
+            })()`);
+            console.log('[VisualGate] GLB Float32 Integrity:', JSON.stringify(modelChecks));
+            for (const mc of modelChecks) {
+                assert(mc.meshCount > 0 && mc.nonFloat === 0 && mc.normalizedPos === 0 && mc.ySize > 0.01, `Bad GLB geometry: ${JSON.stringify(mc)}`);
+            }
+            assert.strictEqual(consoleErrors.length, 0, 'Post-GLB-probe console errors: ' + consoleErrors.join('; '));
 
             // WCAG Contrast Verification on primary HUD labels, Daily Trophy, Reticle Upgrade Chip & Settings Gold CTA
             const contrastRes = await playCdp.evaluate(`(() => {

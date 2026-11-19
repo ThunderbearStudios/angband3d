@@ -686,6 +686,7 @@
             ringMesh.position.set(0, 0.038, 0);
             group.add(ringMesh);
             const crossMesh = null;
+            const crossMat = null;
 
             // Blast radius ground decal ring
             const blastGeo = new THREE.RingGeometry(0.9, 1.0, 48);

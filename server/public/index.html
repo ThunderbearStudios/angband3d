@@ -58,7 +58,7 @@
     <link rel="apple-touch-icon" sizes="180x180" href="/assets/yasd3d_icon_192.png?v=13.2.0">
     <link rel="icon" type="image/png" sizes="64x64" href="/assets/favicon.png?v=13.2.0">
     <link rel="stylesheet" href="/dist/app.min.css?v=13.2.0">
-    <link rel="stylesheet" href="/dist/mobile-console.min.css?v=13.2.0" media="(max-width: 1024px), (pointer: coarse)">
+    <link rel="stylesheet" href="/dist/mobile-console.min.css?v=13.2.0">
 </head>
 <body>
     <div id="app-container">
@@ -385,35 +385,32 @@
         <!-- On-Screen Virtual Touch D-Pad (Mobile / Tablet / Touch) -->
         <div id="touch-controls">
             <div class="dpad-header-bar panel-drag-handle" id="dpad-drag-handle" title="Drag to reposition D-Pad anywhere on screen • Double-click to reset">
-                <span class="dpad-grip-label">✥ MOVE PAD</span>
-                <button id="btn-wasd-toggle" type="button" class="wasd-toggle-pill" aria-pressed="false" title="Toggle WASD Keyboard Movement (Alt+W). Locks W/A/S/D roguelike keys and highlights HUD command buttons.">⌨ WASD</button>
+                <span class="dpad-grip-label">✥&#xFE0E; PAD</span>
+                <button id="btn-wasd-toggle" type="button" class="wasd-toggle-pill" aria-pressed="false" title="Toggle WASD Keyboard Movement (Alt+W). Locks W/A/S/D roguelike keys and highlights HUD command buttons.">⌨&#xFE0E; WASD</button>
                 <div class="dpad-header-actions">
-                    <button type="button" id="btn-dpad-scale" class="dpad-mini-btn" title="Cycle D-Pad Size (Compact / Standard / Large)">⛶</button>
+                    <button type="button" id="btn-dpad-scale" class="dpad-mini-btn" title="Cycle D-Pad Size (Compact / Standard / Large)">⛶&#xFE0E;</button>
                     <button type="button" id="btn-dpad-collapse" class="dpad-mini-btn" title="Minimize / Expand D-Pad">−</button>
-                    <button type="button" id="btn-dpad-close" class="dpad-mini-btn dpad-close-btn" title="Close On-Screen D-Pad (Re-open via Menu → D-Pad or ↺ Layout)" aria-label="Close On-Screen D-Pad">✕</button>
+                    <button type="button" id="btn-dpad-close" class="dpad-mini-btn dpad-close-btn" title="Close On-Screen D-Pad (Re-open via Menu → D-Pad, Footer D-Pad, or ↺ Layout)" aria-label="Close On-Screen D-Pad">✕</button>
                 </div>
             </div>
             <!-- Top Turning Shoulder Wings -->
             <div class="dpad-turn-wings">
-                <button type="button" id="dpad-turn-left" class="dpad-btn dpad-turn-btn" title="Turn Camera Left 90° [Left Arrow]"><span class="dpad-turn-symbol">↺</span>
- <span class="dpad-turn-text">Turn L</span></button>
-                <button type="button" id="dpad-run-toggle" class="dpad-btn dpad-run-toggle" title="Toggle Run / Sprint Mode in Selected Direction [Alt+R]"><span id="dpad-run-icon" class="dpad-run-icon">🚶</span>
- <span id="dpad-run-text" class="dpad-run-text">Walk</span></button>
-                <button type="button" id="dpad-turn-right" class="dpad-btn dpad-turn-btn" title="Turn Camera Right 90° [Right Arrow]"><span class="dpad-turn-symbol">↻</span>
- <span class="dpad-turn-text">Turn R</span></button>
+                <button type="button" id="dpad-turn-left" class="dpad-btn dpad-turn-btn" title="Turn Camera Left 90° [Left Arrow]"><span class="dpad-turn-symbol">↺&#xFE0E;</span><span class="dpad-turn-text">Turn L</span></button>
+                <button type="button" id="dpad-run-toggle" class="dpad-btn dpad-run-toggle" title="Toggle Run / Sprint Mode in Selected Direction [Alt+R]"><span id="dpad-run-icon" class="dpad-run-icon">▸&#xFE0E;</span><span id="dpad-run-text" class="dpad-run-text">Walk</span></button>
+                <button type="button" id="dpad-turn-right" class="dpad-btn dpad-turn-btn" title="Turn Camera Right 90° [Right Arrow]"><span class="dpad-turn-symbol">↻&#xFE0E;</span><span class="dpad-turn-text">Turn R</span></button>
             </div>
 
             <!-- Directional Movement & Strafe Grid -->
             <div class="dpad-grid">
-                <button type="button" id="dpad-ul" class="dpad-btn dpad-diag dpad-ul" title="Step North-West [7]">↖<span class="diag-num">7</span></button>
-                <button type="button" id="dpad-up" class="dpad-btn dpad-cardinal dpad-up" title="Move Forward [8 / Up]">▲</button>
-                <button type="button" id="dpad-ur" class="dpad-btn dpad-diag dpad-ur" title="Step North-East [9]">↗<span class="diag-num">9</span></button>
-                <button type="button" id="dpad-left" class="dpad-btn dpad-cardinal dpad-strafe dpad-left" title="Strafe Left [4]">⇦<span class="dpad-sub-lbl">Strafe</span></button>
-                <button type="button" id="dpad-center" class="dpad-btn dpad-center" title="Attack / Wait [5 / Space]">⚔</button>
-                <button type="button" id="dpad-right" class="dpad-btn dpad-cardinal dpad-strafe dpad-right" title="Strafe Right [6]">⇨<span class="dpad-sub-lbl">Strafe</span></button>
-                <button type="button" id="dpad-dl" class="dpad-btn dpad-diag dpad-dl" title="Step South-West [1]">↙<span class="diag-num">1</span></button>
-                <button type="button" id="dpad-down" class="dpad-btn dpad-cardinal dpad-down" title="Move Backward [2 / Down]">▼</button>
-                <button type="button" id="dpad-dr" class="dpad-btn dpad-diag dpad-dr" title="Step South-East [3]">↘<span class="diag-num">3</span></button>
+                <button type="button" id="dpad-ul" class="dpad-btn dpad-diag dpad-ul" title="Step North-West [7]">↖&#xFE0E;<span class="diag-num">7</span></button>
+                <button type="button" id="dpad-up" class="dpad-btn dpad-cardinal dpad-up" title="Move Forward [8 / Up]">▲&#xFE0E;</button>
+                <button type="button" id="dpad-ur" class="dpad-btn dpad-diag dpad-ur" title="Step North-East [9]">↗&#xFE0E;<span class="diag-num">9</span></button>
+                <button type="button" id="dpad-left" class="dpad-btn dpad-cardinal dpad-strafe dpad-left" title="Strafe Left [4]">⇦&#xFE0E;<span class="dpad-sub-lbl">Strafe</span></button>
+                <button type="button" id="dpad-center" class="dpad-btn dpad-center" title="Attack / Wait [5 / Space]">⚔&#xFE0E;</button>
+                <button type="button" id="dpad-right" class="dpad-btn dpad-cardinal dpad-strafe dpad-right" title="Strafe Right [6]">⇨&#xFE0E;<span class="dpad-sub-lbl">Strafe</span></button>
+                <button type="button" id="dpad-dl" class="dpad-btn dpad-diag dpad-dl" title="Step South-West [1]">↙&#xFE0E;<span class="diag-num">1</span></button>
+                <button type="button" id="dpad-down" class="dpad-btn dpad-cardinal dpad-down" title="Move Backward [2 / Down]">▼&#xFE0E;</button>
+                <button type="button" id="dpad-dr" class="dpad-btn dpad-diag dpad-dr" title="Step South-East [3]">↘&#xFE0E;<span class="diag-num">3</span></button>
             </div>
         </div>
 
@@ -565,6 +562,7 @@
                     <!-- Right: Active Status Conditions & Quick Help -->
                     <div class="status-group status-right">
                         <div id="footer-badges" class="footer-badges"></div>
+                        <button type="button" id="btn-footer-dpad" class="status-pill pill-dpad-toggle" title="Toggle On-Screen D-Pad" aria-pressed="false">🕹&#xFE0E; D-Pad</button>
                         <button type="button" id="btn-hud-reset-layout" class="status-pill pill-reset-hud" title="Reset all moved HUD panels and D-Pad to default positions">↺ Layout</button>
                     </div>
                 </div>

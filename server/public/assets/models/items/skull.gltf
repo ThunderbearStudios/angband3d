@@ -5,116 +5,71 @@
   },
   "accessors": [
     {
-      "type": "SCALAR",
-      "componentType": 5123,
-      "count": 1032,
-      "normalized": false,
-      "byteOffset": 0,
-      "bufferView": 0
-    },
-    {
       "type": "VEC3",
-      "componentType": 5120,
-      "count": 328,
-      "normalized": true,
-      "byteOffset": 0,
-      "bufferView": 1
-    },
-    {
-      "type": "VEC3",
-      "componentType": 5122,
+      "componentType": 5126,
       "count": 328,
       "max": [
-        32767,
-        32075,
-        32395
+        0.4587917625904083,
+        0.9157134890556335,
+        0.4487476348876953
       ],
       "min": [
-        -32767,
-        -32075,
-        -32395
+        -0.45877718925476074,
+        0.017469225451350212,
+        -0.45841941237449646
       ],
-      "normalized": true,
-      "byteOffset": 0,
-      "bufferView": 2
+      "bufferView": 0,
+      "byteOffset": 0
     },
     {
       "type": "VEC2",
-      "componentType": 5123,
+      "componentType": 5126,
       "count": 328,
-      "normalized": true,
-      "byteOffset": 0,
-      "bufferView": 3
+      "bufferView": 1,
+      "byteOffset": 0
+    },
+    {
+      "type": "VEC3",
+      "componentType": 5126,
+      "count": 328,
+      "bufferView": 2,
+      "byteOffset": 0
+    },
+    {
+      "type": "SCALAR",
+      "componentType": 5123,
+      "count": 1032,
+      "bufferView": 3,
+      "byteOffset": 0
     }
   ],
   "bufferViews": [
     {
-      "buffer": 1,
+      "buffer": 0,
       "byteOffset": 0,
-      "byteLength": 2064,
-      "target": 34963,
-      "extensions": {
-        "EXT_meshopt_compression": {
-          "buffer": 0,
-          "byteOffset": 0,
-          "byteLength": 397,
-          "mode": "TRIANGLES",
-          "byteStride": 2,
-          "count": 1032
-        }
-      }
+      "byteLength": 3936,
+      "byteStride": 12,
+      "target": 34962
     },
     {
-      "buffer": 1,
-      "byteOffset": 2064,
-      "byteLength": 1312,
-      "target": 34962,
-      "byteStride": 4,
-      "extensions": {
-        "EXT_meshopt_compression": {
-          "buffer": 0,
-          "byteOffset": 400,
-          "byteLength": 672,
-          "mode": "ATTRIBUTES",
-          "filter": "OCTAHEDRAL",
-          "byteStride": 4,
-          "count": 328
-        }
-      }
-    },
-    {
-      "buffer": 1,
-      "byteOffset": 3376,
+      "buffer": 0,
+      "byteOffset": 3936,
       "byteLength": 2624,
-      "target": 34962,
       "byteStride": 8,
-      "extensions": {
-        "EXT_meshopt_compression": {
-          "buffer": 0,
-          "byteOffset": 1072,
-          "byteLength": 2041,
-          "mode": "ATTRIBUTES",
-          "byteStride": 8,
-          "count": 328
-        }
-      }
+      "target": 34962
     },
     {
-      "buffer": 1,
-      "byteOffset": 6000,
-      "byteLength": 1312,
-      "target": 34962,
-      "byteStride": 4,
-      "extensions": {
-        "EXT_meshopt_compression": {
-          "buffer": 0,
-          "byteOffset": 3116,
-          "byteLength": 1127,
-          "mode": "ATTRIBUTES",
-          "byteStride": 4,
-          "count": 328
-        }
-      }
+      "buffer": 0,
+      "byteOffset": 6560,
+      "byteLength": 3936,
+      "byteStride": 12,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 10496,
+      "byteLength": 2064,
+      "target": 34963
     }
   ],
   "samplers": [
@@ -145,15 +100,7 @@
   "buffers": [
     {
       "uri": "skull.bin",
-      "byteLength": 4244
-    },
-    {
-      "byteLength": 7312,
-      "extensions": {
-        "EXT_meshopt_compression": {
-          "fallback": true
-        }
-      }
+      "byteLength": 12560
     }
   ],
   "materials": [
@@ -180,13 +127,13 @@
       "primitives": [
         {
           "attributes": {
-            "NORMAL": 1,
-            "POSITION": 2,
-            "TEXCOORD_0": 3
+            "POSITION": 0,
+            "TEXCOORD_0": 1,
+            "NORMAL": 2
           },
           "mode": 4,
           "material": 0,
-          "indices": 0
+          "indices": 3
         }
       ]
     }
@@ -194,16 +141,6 @@
   "nodes": [
     {
       "name": "skull",
-      "translation": [
-        0.000007286667823791504,
-        0.4665913572534919,
-        -0.004835888743400574
-      ],
-      "scale": [
-        0.45878447592258453,
-        0.45878447592258453,
-        0.45878447592258453
-      ],
       "mesh": 0
     }
   ],
@@ -217,13 +154,9 @@
   ],
   "scene": 0,
   "extensionsUsed": [
-    "EXT_meshopt_compression",
-    "EXT_texture_webp",
-    "KHR_mesh_quantization"
+    "EXT_texture_webp"
   ],
   "extensionsRequired": [
-    "EXT_meshopt_compression",
-    "EXT_texture_webp",
-    "KHR_mesh_quantization"
+    "EXT_texture_webp"
   ]
 }

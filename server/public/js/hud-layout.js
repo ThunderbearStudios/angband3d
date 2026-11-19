@@ -223,6 +223,11 @@
                         btnToggleDpad.classList.add('panel-off');
                         btnToggleDpad.setAttribute('aria-pressed', 'false');
                     }
+                    const btnFooterDpad = document.getElementById('btn-footer-dpad');
+                    if (btnFooterDpad) {
+                        btnFooterDpad.classList.remove('active');
+                        btnFooterDpad.setAttribute('aria-pressed', 'false');
+                    }
                     if (window.__app && typeof window.__app.showToast === 'function') {
                         window.__app.showToast('D-Pad Closed (Re-enable via Menu → D-Pad or ↺ Layout)');
                     }
@@ -412,6 +417,8 @@
             const touchControls = document.getElementById('touch-controls');
             if (touchControls) {
                 window.__dpadVisible = hasTouch;
+                window.__dpadUserVisible = false;
+                if (document.body && document.body.classList) document.body.classList.remove('force-dpad-visible');
                 touchControls.style.display = hasTouch ? 'flex' : 'none';
                 touchControls.style.removeProperty('--dpad-scale');
                 touchControls.classList.remove('dpad-collapsed');
@@ -421,6 +428,11 @@
                 btnToggleDpad.classList.toggle('active', hasTouch);
                 btnToggleDpad.classList.toggle('panel-off', !hasTouch);
                 btnToggleDpad.setAttribute('aria-pressed', hasTouch ? 'true' : 'false');
+            }
+            const btnFooterDpad = document.getElementById('btn-footer-dpad');
+            if (btnFooterDpad) {
+                btnFooterDpad.classList.toggle('active', hasTouch);
+                btnFooterDpad.setAttribute('aria-pressed', hasTouch ? 'true' : 'false');
             }
             const btnDpadCollapse = document.getElementById('btn-dpad-collapse');
             if (btnDpadCollapse) { btnDpadCollapse.textContent = '−'; btnDpadCollapse.title = 'Minimize / Expand D-Pad'; }

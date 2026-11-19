@@ -5,116 +5,71 @@
   },
   "accessors": [
     {
-      "type": "SCALAR",
-      "componentType": 5123,
-      "count": 171648,
-      "normalized": false,
-      "byteOffset": 0,
-      "bufferView": 0
-    },
-    {
       "type": "VEC3",
-      "componentType": 5120,
-      "count": 31937,
-      "normalized": true,
-      "byteOffset": 0,
-      "bufferView": 1
-    },
-    {
-      "type": "VEC3",
-      "componentType": 5122,
+      "componentType": 5126,
       "count": 31937,
       "max": [
-        7060,
-        7480,
-        32767
+        0.01598476432263851,
+        0.033862680196762085,
+        0.04095526039600372
       ],
       "min": [
-        -7060,
-        -7480,
-        -32767
+        -0.01598476432263851,
+        -0.0000026982656891050283,
+        -0.10739462822675705
       ],
-      "normalized": true,
-      "byteOffset": 0,
-      "bufferView": 2
+      "bufferView": 0,
+      "byteOffset": 0
+    },
+    {
+      "type": "VEC3",
+      "componentType": 5126,
+      "count": 31937,
+      "bufferView": 1,
+      "byteOffset": 0
     },
     {
       "type": "VEC2",
-      "componentType": 5123,
+      "componentType": 5126,
       "count": 31937,
-      "normalized": true,
-      "byteOffset": 0,
-      "bufferView": 3
+      "bufferView": 2,
+      "byteOffset": 0
+    },
+    {
+      "type": "SCALAR",
+      "componentType": 5123,
+      "count": 171648,
+      "bufferView": 3,
+      "byteOffset": 0
     }
   ],
   "bufferViews": [
     {
-      "buffer": 1,
+      "buffer": 0,
       "byteOffset": 0,
-      "byteLength": 343296,
-      "target": 34963,
-      "extensions": {
-        "EXT_meshopt_compression": {
-          "buffer": 0,
-          "byteOffset": 0,
-          "byteLength": 65068,
-          "mode": "TRIANGLES",
-          "byteStride": 2,
-          "count": 171648
-        }
-      }
+      "byteLength": 383244,
+      "byteStride": 12,
+      "target": 34962
     },
     {
-      "buffer": 1,
-      "byteOffset": 343296,
-      "byteLength": 127748,
-      "target": 34962,
-      "byteStride": 4,
-      "extensions": {
-        "EXT_meshopt_compression": {
-          "buffer": 0,
-          "byteOffset": 65068,
-          "byteLength": 56483,
-          "mode": "ATTRIBUTES",
-          "filter": "OCTAHEDRAL",
-          "byteStride": 4,
-          "count": 31937
-        }
-      }
+      "buffer": 0,
+      "byteOffset": 383244,
+      "byteLength": 383244,
+      "byteStride": 12,
+      "target": 34962
     },
     {
-      "buffer": 1,
-      "byteOffset": 471044,
+      "buffer": 0,
+      "byteOffset": 766488,
       "byteLength": 255496,
-      "target": 34962,
       "byteStride": 8,
-      "extensions": {
-        "EXT_meshopt_compression": {
-          "buffer": 0,
-          "byteOffset": 121552,
-          "byteLength": 121795,
-          "mode": "ATTRIBUTES",
-          "byteStride": 8,
-          "count": 31937
-        }
-      }
+      "target": 34962
     },
     {
-      "buffer": 1,
-      "byteOffset": 726540,
-      "byteLength": 127748,
-      "target": 34962,
-      "byteStride": 4,
-      "extensions": {
-        "EXT_meshopt_compression": {
-          "buffer": 0,
-          "byteOffset": 243348,
-          "byteLength": 83582,
-          "mode": "ATTRIBUTES",
-          "byteStride": 4,
-          "count": 31937
-        }
-      }
+      "buffer": 0,
+      "byteOffset": 1021984,
+      "byteLength": 343296,
+      "target": 34963
     }
   ],
   "samplers": [
@@ -171,15 +126,7 @@
   "buffers": [
     {
       "uri": "street_rat.bin",
-      "byteLength": 326932
-    },
-    {
-      "byteLength": 854288,
-      "extensions": {
-        "EXT_meshopt_compression": {
-          "fallback": true
-        }
-      }
+      "byteLength": 1365280
     }
   ],
   "materials": [
@@ -206,13 +153,13 @@
       "primitives": [
         {
           "attributes": {
+            "POSITION": 0,
             "NORMAL": 1,
-            "POSITION": 2,
-            "TEXCOORD_0": 3
+            "TEXCOORD_0": 2
           },
           "mode": 4,
           "material": 0,
-          "indices": 0
+          "indices": 3
         }
       ]
     }
@@ -220,16 +167,6 @@
   "nodes": [
     {
       "name": "street_rat",
-      "translation": [
-        0,
-        0.01692999096553649,
-        -0.03321968391537666
-      ],
-      "scale": [
-        0.07417494431138039,
-        0.07417494431138039,
-        0.07417494431138039
-      ],
       "mesh": 0
     }
   ],
@@ -243,13 +180,9 @@
   ],
   "scene": 0,
   "extensionsUsed": [
-    "EXT_meshopt_compression",
-    "EXT_texture_webp",
-    "KHR_mesh_quantization"
+    "EXT_texture_webp"
   ],
   "extensionsRequired": [
-    "EXT_meshopt_compression",
-    "EXT_texture_webp",
-    "KHR_mesh_quantization"
+    "EXT_texture_webp"
   ]
 }
