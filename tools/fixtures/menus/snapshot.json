@@ -196,7 +196,7 @@
   "isSilqDrop": false,
   "isSilqThrow": false,
   "isSilqFire": false,
-  "isEquipView": true,
+  "isEquipView": false,
   "isQuiverView": false
  },
  "angband/store": {

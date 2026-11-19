@@ -840,6 +840,14 @@ window.addEventListener('DOMContentLoaded', () => {
         }
         if (screenText.includes("enter a name for your character") || screenText.includes("enter your player's name") ||
             screenText.includes("enter name:") || screenText.includes('名前を入力') || screenText.includes('キャラクターの名前')) {
+            const desiredName = (network && network.currentChar && network.currentChar !== 'Adventurer' && !/_[A-Z]{3,5}_\d{4}/.test(network.currentChar))
+                ? formatDisplayHeroName(network.currentChar)
+                : '';
+            if (desiredName && (!rawText.toLowerCase().includes(desiredName.toLowerCase()) || /_[a-z]{3,5}_\d{4}/i.test(rawText))) {
+                if (activeRealm !== 'silq') network.sendKey('C-u');
+                for (let i = 0; i < 36; i++) network.sendKey('backspace');
+                for (const ch of desiredName) network.sendKey(ch);
+            }
             network.sendKey('enter');
             return;
         }
@@ -1010,7 +1018,7 @@ window.addEventListener('DOMContentLoaded', () => {
             startGame({
                 realm: 'ryod',
                 charName: heroName,
-                saveFile: heroName,
+                saveFile: generateSaveSlotName(heroName, 'ryod'),
                 isNew: true,
                 autoBirth: true
             });
@@ -1417,10 +1425,24 @@ window.addEventListener('DOMContentLoaded', () => {
                 nameInput.blur();
                 return;
             }
+            let curTermName = '';
+            if (lastFrame && lastFrame.term && Array.isArray(lastFrame.term.rows)) {
+                for (let rIdx = 0; rIdx < Math.min(6, lastFrame.term.rows.length); rIdx++) {
+                    const rowTxt = (lastFrame.term.rows[rIdx] && lastFrame.term.rows[rIdx].g) || '';
+                    const nm = rowTxt.match(/\bName\s*:\s*([A-Za-z0-9_\-']+)/i);
+                    if (nm && nm[1]) { curTermName = nm[1].trim(); break; }
+                }
+            }
+            if (curTermName && curTermName === nameVal) {
+                network.sendKey('enter');
+                nameInput.blur();
+                return;
+            }
             if (curRealm !== 'silq') {
                 network.sendKey('C-u');
             }
-            for (let i = 0; i < 20; i++) {
+            const clearCount = Math.max(24, Math.min(48, (curTermName ? curTermName.length : 31) + 6));
+            for (let i = 0; i < clearCount; i++) {
                 network.sendKey('backspace');
             }
             for (const ch of nameVal) {
@@ -2385,13 +2407,13 @@ window.addEventListener('DOMContentLoaded', () => {
             card.dataset.index = idx;
             const activeR = (window.__app && typeof window.__app.getActiveRealm === 'function') ? window.__app.getActiveRealm() : (activeRealm || 'angband');
             const realmBadge = save.realmTag || (save.realm || activeR).toUpperCase().slice(0, 4);
-            const modDate = save.timestamp || (save.lastModified ? new Date(save.lastModified).toLocaleString() : 'Unknown');
+            const modDate = formatSaveTimestamp(save, true) || 'Unknown';
             const sizeKb = save.sizeBytes ? `${Math.round(save.sizeBytes / 1024)} KB` : '';
             card.innerHTML = `
                 <div class="save-item-left">
                     <span class="save-bullet">►</span>
                     <div class="save-item-details">
-                        <div class="save-item-name"><span class="save-realm-tag">[${escapeHtml(realmBadge)}]</span> ${escapeHtml(save.characterName || save.filename)}</div>
+                        <div class="save-item-name"><span class="save-realm-tag">[${escapeHtml(realmBadge)}]</span> ${escapeHtml(formatDisplayHeroName(save.characterName || save.filename))}</div>
                         <div class="save-item-summary">${escapeHtml(save.description || 'Saved Adventurer')}</div>
                         <div class="save-item-meta">🕒 ${escapeHtml(modDate)}${sizeKb ? ' • ' + escapeHtml(sizeKb) : ''}</div>
                     </div>
@@ -2461,12 +2483,12 @@ window.addEventListener('DOMContentLoaded', () => {
             const item = document.createElement('div');
             item.className = 'main-menu-save-item';
             const realmBadge = save.realmTag || (save.realm || activeR).toUpperCase().slice(0, 4);
-            const stamp = save.timestamp || (save.lastModified ? new Date(save.lastModified).toLocaleString([], { month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : '');
+            const stamp = formatSaveTimestamp(save, false);
             item.style.cssText = 'display:flex; justify-content:space-between; align-items:center; padding:6px 10px; background:rgba(14,20,32,0.6); border:1px solid rgba(212,175,55,0.2); border-radius:6px; cursor:pointer; font-size:12px; margin-bottom:4px; transition:all 0.15s ease; gap:8px;';
             item.innerHTML = `
                 <div style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; min-width:0;">
                     <span style="color:#38bdf8; font-weight:700; font-size:10.5px; margin-right:4px;">[${escapeHtml(realmBadge)}]</span>
-                    <strong style="color:#ffd700;">${escapeHtml(save.characterName || save.filename)}</strong>
+                    <strong style="color:#ffd700;">${escapeHtml(formatDisplayHeroName(save.characterName || save.filename))}</strong>
                     <span style="color:#94a3b8; font-size:10.5px; margin-left:6px;">${escapeHtml(stamp)}</span>
                     <span style="color:#8892b0; font-size:11px; margin-left:6px;">${escapeHtml(save.description || '')}</span>
                 </div>
@@ -3040,10 +3062,10 @@ window.addEventListener('DOMContentLoaded', () => {
                 }
                 const activeR = realmParam;
                 const realmBadge = latestSave.realmTag || (latestSave.realm || activeR).toUpperCase().slice(0, 4);
-                const stampStr = latestSave.timestamp || (latestSave.lastModified ? new Date(latestSave.lastModified).toLocaleString([], { month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : '');
+                const stampStr = formatSaveTimestamp(latestSave, false);
                 const label = document.getElementById('menu-continue-label');
                 const desc = document.getElementById('menu-continue-desc');
-                if (label) label.textContent = `Continue ([${realmBadge}] ${latestSave.characterName || latestSave.filename})`;
+                if (label) label.textContent = `Continue ([${realmBadge}] ${formatDisplayHeroName(latestSave.characterName || latestSave.filename)})`;
                 if (desc) desc.textContent = `${latestSave.description || 'Saved Adventurer'}${stampStr ? ' • ' + stampStr : ''}`;
                 if (btnContinue) {
                     btnContinue.classList.add('btn-primary-cta', 'has-save');
@@ -3116,19 +3138,61 @@ window.addEventListener('DOMContentLoaded', () => {
         nethack: 'NHCK', dcss: 'DCSS', brogue: 'BROG', rogue: 'ROGU', ryod: 'RYOD'
     };
 
+    function formatDisplayHeroName(raw) {
+        if (!raw || typeof raw !== 'string') return raw || '';
+        const cleaned = raw.trim()
+            .replace(/_(?:ANGB|SILQ|FROG|HENG|NHCK|DCSS|BROG|ROGU|RYOD)_\d{4}_\d{4}(?:_\d+)?$/i, '')
+            .replace(/_[A-Z]{3,5}_\d{4}_\d{4}(?:_\d+)?$/, '');
+        return cleaned || raw.trim();
+    }
+    if (typeof window !== 'undefined') window.formatDisplayHeroName = formatDisplayHeroName;
+
+    function formatSaveTimestamp(save, includeSeconds = false) {
+        if (!save || typeof save !== 'object') return '';
+        let raw = (save.timestamp !== undefined && save.timestamp !== null && save.timestamp !== '') ? save.timestamp : save.lastModified;
+        if (raw === undefined || raw === null || raw === '') return '';
+        let ms = null;
+        if (typeof raw === 'number' && Number.isFinite(raw)) {
+            ms = raw < 1e12 ? raw * 1000 : raw;
+        } else {
+            const s = String(raw).trim();
+            if (/^\d{10,16}$/.test(s)) {
+                const n = Number(s);
+                ms = n < 1e12 ? n * 1000 : n;
+            } else {
+                const parsed = Date.parse(s);
+                if (!Number.isNaN(parsed) && /^\d{4}-\d{2}-\d{2}/.test(s)) ms = parsed;
+                else return s;
+            }
+        }
+        if (!ms || !Number.isFinite(ms)) return '';
+        const diffSec = Math.max(0, Math.floor((Date.now() - ms) / 1000));
+        if (diffSec < 90) return 'Just now';
+        if (diffSec < 3600) return `${Math.floor(diffSec / 60)}m ago`;
+        if (diffSec < 43200) return `${Math.floor(diffSec / 3600)}h ago`;
+        const opts = includeSeconds
+            ? { month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit' }
+            : { month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit' };
+        return new Date(ms).toLocaleString([], opts);
+    }
+
     function generateHeroName(realmKey = 'angband', lang = 'en') {
         const r = (realmKey || activeRealm || 'angband').toLowerCase();
-        const tag = CLIENT_REALM_TAGS[r] || r.slice(0, 4).toUpperCase();
-        let base = 'Hero';
         if (r === 'hengband') {
             const isJp = (lang === 'jp' || langMode === 'jp' || Math.random() < 0.65);
             const pool = isJp ? REALM_HERO_NAMES.hengband.japanese : REALM_HERO_NAMES.hengband.amberite;
-            base = pool[Math.floor(Math.random() * pool.length)];
-        } else if (Array.isArray(REALM_HERO_NAMES[r])) {
-            base = REALM_HERO_NAMES[r][Math.floor(Math.random() * REALM_HERO_NAMES[r].length)];
-        } else {
-            base = REALM_HERO_NAMES.angband[Math.floor(Math.random() * REALM_HERO_NAMES.angband.length)];
+            return pool[Math.floor(Math.random() * pool.length)];
         }
+        if (Array.isArray(REALM_HERO_NAMES[r]) && REALM_HERO_NAMES[r].length > 0) {
+            return REALM_HERO_NAMES[r][Math.floor(Math.random() * REALM_HERO_NAMES[r].length)];
+        }
+        return REALM_HERO_NAMES.angband[Math.floor(Math.random() * REALM_HERO_NAMES.angband.length)];
+    }
+
+    function generateSaveSlotName(baseName, realmKey = 'angband') {
+        const r = (realmKey || activeRealm || 'angband').toLowerCase();
+        const tag = CLIENT_REALM_TAGS[r] || r.slice(0, 4).toUpperCase();
+        const base = (baseName && String(baseName).trim()) ? String(baseName).trim().replace(/[^a-zA-Z0-9_-]/g, '') : generateHeroName(r);
         const now = new Date();
         const pad2 = (n) => String(n).padStart(2, '0');
         const mmdd = `${pad2(now.getMonth() + 1)}${pad2(now.getDate())}`;
@@ -3302,7 +3366,7 @@ window.addEventListener('DOMContentLoaded', () => {
         const heroName = generateHeroName(activeRealm);
         startGame({
             charName: heroName,
-            saveFile: heroName,
+            saveFile: generateSaveSlotName(heroName, activeRealm),
             isNew: true,
             autoBirth: true
         });
@@ -3316,7 +3380,7 @@ window.addEventListener('DOMContentLoaded', () => {
         const heroName = generateHeroName(activeRealm);
         startGame({
             charName: heroName,
-            saveFile: heroName,
+            saveFile: generateSaveSlotName(heroName, activeRealm),
             isNew: true,
             autoBirth: false
         });
@@ -3677,6 +3741,11 @@ window.addEventListener('DOMContentLoaded', () => {
         if (loadModal) loadModal.classList.add('hidden');
         if (demoModal) demoModal.classList.add('hidden');
         if (window.demoPlayer && typeof window.demoPlayer.close === 'function') window.demoPlayer.close();
+        ['reticle-target-card', 'entity-inspect-popover', 'prompt-mirror', 'directional-aim-rosette'].forEach((id) => {
+            const el = document.getElementById(id);
+            if (el) { el.classList.add('hidden'); el.style.display = 'none'; }
+        });
+        if (hud && typeof hud.updateTargetInspector === 'function') hud.updateTargetInspector(null);
         lastFrame = null;
         window.__lastFrame = null;
         if (window.__app) window.__app.lastFrame = null;
@@ -5498,6 +5567,7 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 
     let lastPopulatedLetters = '';
+    let lastPopulatedScreenHead = '';
     let _lastToolbarSig = null;
 
     // Japanese-to-English translation mapping for Hengband character creation & HUD
@@ -5606,10 +5676,14 @@ window.addEventListener('DOMContentLoaded', () => {
                                 if (m && m[1]) { nameMatch = m; break; }
                             }
                         }
-                        if (nameMatch) birthNameInput.value = nameMatch[1].trim();
+                        if (nameMatch) {
+                            const cleaned = formatDisplayHeroName(nameMatch[1].trim());
+                            const curCharClean = (network && network.currentChar && network.currentChar !== 'Adventurer') ? formatDisplayHeroName(network.currentChar) : '';
+                            birthNameInput.value = (curCharClean && /_[A-Z]{3,5}_\d{4}/.test(nameMatch[1])) ? curCharClean : cleaned;
+                        }
                     }
                 }
-                const nameBtns = [{ key: 'enter', badge: '⏎', label: hengLabel('✓ Accept Name', '✓ Accept / 決定', '✓ 決定'), gold: true }];
+                const nameBtns = [];
                 if (curRealm === 'silq') nameBtns.push({ key: 'tab', badge: '[Tab]', label: '🎲 Random Name', gold: true });
                 nameBtns.push(escStepBtn, mmBtn);
                 setCtxActions(renderCtxButtons(nameBtns));
@@ -5713,11 +5787,37 @@ window.addEventListener('DOMContentLoaded', () => {
         const isStore = Boolean(legacy.isStore);
         const isBuilding = Boolean(legacy.isBuilding);
         const isHome = Boolean(legacy.isHome);
-        const isItemActions = Boolean(legacy.isItemActions || promptKind === 'menu' || mirror === 'item-menu');
+        const isItemActions = Boolean(legacy.isItemActions || mirror === 'item-menu' || (promptKind === 'menu' && /command for |に対するコマンド|\(enter to select.*examine/i.test(prompt.text || screenText)));
         const isItemPrompt = Boolean(legacy.isItemPrompt || promptKind === 'item' || mirror === 'item');
         const subForMirrors = (SC && typeof SC.detectRealmSubmenu === 'function') ? SC.detectRealmSubmenu(effFrame, curRealm, decodeHengbandText) : {};
         const isSilqInPlaySkillAlloc = curRealm === 'silq' && (screenText.includes('allocate points to skills') || screenText.includes('skill increases') || screenText.includes('accept skills'));
-        if (isPressAnyKey) {
+        const isCharSheetScreen = Boolean(inPlay && (legacy.isCharacterSheet || (SC && typeof SC.isCharacterSheet === 'function' && SC.isCharacterSheet(screenText))));
+        const isFullMapScreen = Boolean(inPlay && !isCharSheetScreen && !isStore && !isBuilding && /\+\-{10,}\+/.test(rawScreenText) && /hit any key|press any key|press space|esc/i.test(screenText));
+        if (isCharSheetScreen) {
+            terminalTitle.textContent = isHeng ? hengTitle('📜 CHARACTER SHEET — Hero Status', '📜 CHARACTER SHEET / キャラクター情報', '📜 キャラクター情報') : '📜 CHARACTER SHEET — Hero Status & Attributes';
+            const charBtns = (curRealm === 'silq')
+                ? [
+                    { key: 'i', badge: '[i]', label: '📈 Increase Skills', gold: true },
+                    { key: 'tab', badge: '[Tab]', label: '🌟 Abilities', gold: true },
+                    { key: 'c', badge: '[c]', label: '✎ Change Name' },
+                    { key: 'n', badge: '[n]', label: '📝 Notes' },
+                    { key: 's', badge: '[s]', label: '💾 Save Dump' },
+                    { key: 'escape', badge: '[Esc]', label: 'Return to 3D', gold: true }
+                ]
+                : [
+                    { key: 'escape', badge: '[Esc]', label: hengLabel('Return to 3D', 'Return / 戻る', '戻る'), gold: true },
+                    { key: 'h', badge: '[h]', label: hengLabel('📖 History / Mode', '📖 History / 履歴切替', '📖 履歴 / 画面切替'), gold: true },
+                    { key: 'f', badge: '[f]', label: hengLabel('💾 Dump Char File', '💾 Dump / ファイル出力', '💾 ファイル出力') },
+                    { key: 'c', badge: '[c]', label: hengLabel('✎ Change Name', '✎ Name / 名前変更', '✎ 名前変更') }
+                ];
+            setCtxActions(renderCtxButtons(charBtns));
+        } else if (isFullMapScreen) {
+            terminalTitle.textContent = isHeng ? hengTitle('🗺 DUNGEON MAP — Overview', '🗺 DUNGEON MAP / 全体地図', '🗺 全体地図') : '🗺 DUNGEON MAP — Overview';
+            setCtxActions(renderCtxButtons([
+                { key: 'escape', badge: '[Esc]', label: hengLabel('Return to 3D', 'Return / 戻る', '戻る'), gold: true },
+                { key: 'm', badge: '[m]', label: hengLabel('🔍 Symbol Key', '🔍 Symbol / 凡例', '🔍 凡例') }
+            ]));
+        } else if (isPressAnyKey) {
             terminalTitle.textContent = isHeng ? hengTitle('📜 MESSAGE / PROMPT', '📜 MESSAGE / メッセージ', '📜 メッセージ') : '📜 MESSAGE / PROMPT';
             setCtxActions(renderCtxButtons([
                 { key: 'space', badge: '[␣]', label: hengLabel('Continue', 'Continue / 続ける', '続ける'), gold: true },
@@ -5908,23 +6008,26 @@ window.addEventListener('DOMContentLoaded', () => {
         } else if (isItemPrompt) {
             const iflags = legacy.itemFlags || (SC.itemFlags ? SC.itemFlags(screenText, activeRealm) : {});
             const isSpellPrompt = Boolean(legacy.isSpellOrAbilityMenu || promptKind === 'spell');
-            const promptLine = (effFrame.term && effFrame.term.rows && effFrame.term.rows[0]) ? (effFrame.term.rows[0].g || '') : screenText;
+            const promptLine = (effFrame.term && effFrame.term.rows && effFrame.term.rows[0]) ? (effFrame.term.rows[0].g || '') : '';
+            const promptLower = ((prompt && prompt.text) ? String(prompt.text) : (isHeng ? decodeHengbandText(promptLine) : promptLine)).toLowerCase();
             const tCases = [
                 [iflags.isSilqInvenCmd, '🎒 INVENTORY PACK (Choose action)'],
                 [iflags.isSilqEquipCmd, '🛡 EQUIPPED GEAR (Choose action)'],
-                [screenText.includes('sell which') || screenText.includes('which item to sell') || screenText.includes('どれを売') || screenText.includes('どのアイテムを売'), isHeng ? hengTitle('🏷 SELL WHICH ITEM?', '🏷 SELL / どれを売りますか？', '🏷 どれを売りますか？') : '🏷 SELL WHICH ITEM?'],
-                [screenText.includes('purchase which') || screenText.includes('buy which') || screenText.includes('which item to buy') || screenText.includes('どのアイテムを買') || screenText.includes('何を買いますか'), isHeng ? hengTitle('💰 BUY WHICH ITEM?', '💰 BUY / 何を買いますか？', '💰 何を買いますか？') : '💰 BUY WHICH ITEM?'],
-                [iflags.isSilqWear || screenText.includes('wear') || screenText.includes('wield') || screenText.includes('どれを装備'), isHeng ? hengTitle('⚔ WEAR / WIELD ITEM', '⚔ WEAR/WIELD / 装備', '⚔ アイテムを装備') : '⚔ WEAR / WIELD ITEM'],
-                [iflags.isSilqRemove || screenText.includes('take off') || screenText.includes('どれを外しますか'), isHeng ? hengTitle('🔄 TAKE OFF GEAR', '🔄 TAKE OFF / 装備を外す', '🔄 装備を外す') : (iflags.isSilq ? '🔄 REMOVE GEAR' : '🔄 TAKE OFF GEAR')],
-                [iflags.isSilqThrow || screenText.includes('throw which item?') || screenText.includes('どれを投げますか'), isHeng ? hengTitle('🎯 THROW ITEM', '🎯 THROW ITEM / 投擲', '🎯 アイテムを投げる') : '🎯 THROW ITEM'],
-                [iflags.isSilqFire || screenText.includes('fire which item?') || screenText.includes('fire') || screenText.includes('shoot') || screenText.includes('どのアイテムを発射'), isHeng ? hengTitle('🏹 FIRE / SHOOT', '🏹 FIRE / 射撃', '🏹 射撃') : '🏹 FIRE / SHOOT'],
-                [iflags.isSilqExamine || screenText.includes('examine which item') || screenText.includes('inspect which item') || screenText.includes('どれを調') || screenText.includes('どのアイテムを調'), isHeng ? hengTitle('🔍 EXAMINE ITEM', '🔍 EXAMINE / 調査', '🔍 アイテムを調べる') : '🔍 EXAMINE ITEM'],
-                [iflags.isSilqDrop || screenText.includes('drop which') || screenText.includes('どれを落としますか'), isHeng ? hengTitle('📦 DROP ITEM', '📦 DROP / アイテムを落とす', '📦 アイテムを落とす') : '📦 DROP ITEM'],
-                [screenText.includes('quaff which potion?') || screenText.includes('quaff') || screenText.includes('どの薬を飲みますか'), isHeng ? hengTitle('🧪 QUAFF POTION', '🧪 QUAFF POTION / 飲む', '🧪 薬を飲む') : '🧪 QUAFF POTION'],
-                [screenText.includes('read which scroll?') || screenText.includes('read') || screenText.includes('どの巻物を読みますか'), isHeng ? hengTitle('📜 READ SCROLL', '📜 READ SCROLL / 読む', '📜 巻物を読む') : '📜 READ SCROLL'],
-                [screenText.includes('which spell?') || screenText.includes('which prayer?') || screenText.includes('which book?') || screenText.includes('どの呪文') || screenText.includes('どの本'), isHeng ? hengTitle('✨ CAST SPELL / PRAYER', '✨ CAST SPELL / 呪文詠唱', '✨ 呪文詠唱') : '✨ CAST SPELL / PRAYER'],
-                [iflags.isQuiverView, isHeng ? hengTitle('🏹 QUIVER MISSILES', '🏹 QUIVER / 矢筒', '🏹 矢筒') : '🏹 QUIVER MISSILES'],
-                [iflags.isEquipView, isHeng ? hengTitle('🛡 EQUIPPED GEAR', '🛡 EQUIPPED GEAR / 装備品一覧', '🛡 装備品一覧') : '🛡 EQUIPPED GEAR']
+                [isSpellPrompt || /\b(?:which|cast|study|browse|memorise|sing)\s+(?:a\s+)?(?:spell|prayer|book|magic|power|song)\b|study from which|browse which|spellbook|どの呪文|どの魔法|どの本/.test(promptLower), isHeng ? hengTitle('✨ CAST SPELL / PRAYER', '✨ CAST SPELL / 呪文詠唱', '✨ 呪文詠唱') : '✨ CAST SPELL / PRAYER'],
+                [promptLower.includes('sell which') || promptLower.includes('which item to sell') || promptLower.includes('どれを売') || promptLower.includes('どのアイテムを売'), isHeng ? hengTitle('🏷 SELL WHICH ITEM?', '🏷 SELL / どれを売りますか？', '🏷 どれを売りますか？') : '🏷 SELL WHICH ITEM?'],
+                [promptLower.includes('purchase which') || promptLower.includes('buy which') || promptLower.includes('which item to buy') || promptLower.includes('どのアイテムを買') || promptLower.includes('何を買いますか'), isHeng ? hengTitle('💰 BUY WHICH ITEM?', '💰 BUY / 何を買いますか？', '💰 何を買いますか？') : '💰 BUY WHICH ITEM?'],
+                [iflags.isSilqWear || /\b(?:wear\/wield|wear|wield|put on)\b/.test(promptLower) || promptLower.includes('どれを装備'), isHeng ? hengTitle('⚔ WEAR / WIELD ITEM', '⚔ WEAR/WIELD / 装備', '⚔ アイテムを装備') : '⚔ WEAR / WIELD ITEM'],
+                [iflags.isSilqRemove || /\b(?:take off|remove)\b/.test(promptLower) || promptLower.includes('どれを外しますか'), isHeng ? hengTitle('🔄 TAKE OFF GEAR', '🔄 TAKE OFF / 装備を外す', '🔄 装備を外す') : (iflags.isSilq ? '🔄 REMOVE GEAR' : '🔄 TAKE OFF GEAR')],
+                [iflags.isSilqThrow || /\bthrow\b/.test(promptLower) || promptLower.includes('どれを投げますか'), isHeng ? hengTitle('🎯 THROW ITEM', '🎯 THROW ITEM / 投擲', '🎯 アイテムを投げる') : '🎯 THROW ITEM'],
+                [iflags.isSilqFire || /\b(?:fire|shoot)\b/.test(promptLower) || promptLower.includes('どのアイテムを発射'), isHeng ? hengTitle('🏹 FIRE / SHOOT', '🏹 FIRE / 射撃', '🏹 射撃') : '🏹 FIRE / SHOOT'],
+                [iflags.isSilqExamine || /\b(?:examine|inspect)\b/.test(promptLower) || promptLower.includes('どれを調') || promptLower.includes('どのアイテムを調'), isHeng ? hengTitle('🔍 EXAMINE ITEM', '🔍 EXAMINE / 調査', '🔍 アイテムを調べる') : '🔍 EXAMINE ITEM'],
+                [iflags.isSilqDrop || /\bdrop\b/.test(promptLower) || promptLower.includes('どれを落としますか'), isHeng ? hengTitle('📦 DROP ITEM', '📦 DROP / アイテムを落とす', '📦 アイテムを落とす') : '📦 DROP ITEM'],
+                [/\bquaff\b|\bdrink\b/.test(promptLower) || promptLower.includes('どの薬を飲みますか'), isHeng ? hengTitle('🧪 QUAFF POTION', '🧪 QUAFF POTION / 飲む', '🧪 薬を飲む') : '🧪 QUAFF POTION'],
+                [/\bread\b/.test(promptLower) || promptLower.includes('どの巻物を読みますか'), isHeng ? hengTitle('📜 READ SCROLL', '📜 READ SCROLL / 読む', '📜 巻物を読む') : '📜 READ SCROLL'],
+                [/\beat\b/.test(promptLower) || promptLower.includes('どれを食べますか'), isHeng ? hengTitle('🍖 EAT RATIONS', '🍖 EAT / 食べる', '🍖 食べる') : '🍖 EAT RATIONS'],
+                [/\b(?:aim|zap|use)\b/.test(promptLower) && /\b(?:wand|rod|staff|device)\b/.test(promptLower), '🪄 USE MAGICAL DEVICE'],
+                [iflags.isQuiverView || /\bquiver\b|矢筒/.test(promptLower), isHeng ? hengTitle('🏹 QUIVER MISSILES', '🏹 QUIVER / 矢筒', '🏹 矢筒') : '🏹 QUIVER MISSILES'],
+                [iflags.isEquipView && !/inven:|inventory|\bpack\b|持ち物/.test(promptLower), isHeng ? hengTitle('🛡 EQUIPPED GEAR', '🛡 EQUIPPED GEAR / 装備品一覧', '🛡 装備品一覧') : '🛡 EQUIPPED GEAR']
             ];
             let titleVal = isHeng ? hengTitle('🎒 INVENTORY PACK', '🎒 INVENTORY / 所持品一覧', '🎒 所持品一覧') : '🎒 INVENTORY PACK';
             for (const [cond, t] of tCases) { if (cond) { titleVal = t; break; } }
@@ -6202,50 +6305,69 @@ window.addEventListener('DOMContentLoaded', () => {
                         }
                     }
                 }
-                const regexes = [
-                    /(?:^|\s+)\(([a-zA-Z0-9*@?])\)\s+([^\n\r]{1,70})/g,
-                    /(?:^|\s+)\[([a-zA-Z0-9*@?])\]\s+([^\n\r]{1,70})/g,
-                    /(?:^|\s+)([a-zA-Z0-9*@?])[\)\.\:\-]\s+([^\n\r]{1,70})/g,
-                    /(?:^|\s+)(\*)\s*(ランダム|random|Random)/gi
-                ];
-                const suffixActionRe = /(?:^|\s{2,})(Inspect|Cast|Study|Browse|Aim|Zap|Use|Read|Quaff|Eat|Activate|Fire|Refill|Take off|Equip|Drop All|Drop|Sell|Pick up|Throw|Uninscribe|Inscribe|Unignore|Ignore)\s+\(([a-zA-Z\{\}])\)\s*$/g;
                 const isHengCur = isHeng;
+                const suffixActionRe = /(?:^|\s{2,})(Inspect|Cast|Study|Browse|Aim|Zap|Use|Read|Quaff|Eat|Activate|Fire|Refill|Take off|Equip|Drop All|Drop|Sell|Pick up|Throw|Uninscribe|Inscribe|Unignore|Ignore)\s+\(([a-zA-Z\{\}])\)\s*$/g;
+                const parsedPerRow = [];
+                const leftKeys = new Set();
+                const rightKeys = new Set();
                 for (let r = 0; r < rows.length; r++) {
                     const rawLine = rows[r].g || '';
                     const line = isHengCur ? decodeHengbandText(rawLine) : rawLine;
                     if (isHengCur && (line.includes('選んで下さい') || line.includes('初期オプション設定') || line.includes('注意：'))) continue;
-                    for (const re of regexes) {
-                        re.lastIndex = 0;
-                        let m;
-                        while ((m = re.exec(line)) !== null) {
-                            const key = m[1];
-                            let label = (m[2] || '').trim().replace(/^[^:]{1,20}:\s*/, '').replace(/\s{2,}.*$/, '').replace(/\s+\d+(\.\d+)?\s*(lb|kg|g)$/i, '').replace(/[(\[\{]+$/, '').trim();
-                            if (!label || label === '(nothing)' || label.includes('(nothing)') || label === 'なし') continue;
-                            if (key && !seenKeys.has(key)) {
-                                seenKeys.add(key);
-                                let display = `[${key}]`;
-                                if (label) {
-                                    if (isHengCur && window.HengTranslate && typeof window.HengTranslate.translateName === 'function') {
-                                        const trans = window.HengTranslate.translateName(label, 1, effLang);
-                                        display = `[${key}] ${trans || label}`;
-                                    } else {
-                                        display = `[${key}] ${label}`;
-                                    }
-                                } else if (key === '*') {
-                                    display = (!isHengCur || effLang === 'en') ? `[*] Random` : (effLang === 'jp' ? `[*] ランダム` : `[*] ランダム (Random)`);
-                                }
-                                options.push({ key, display, label });
-                            }
-                        }
+                    const regs = (SC && typeof SC.extractRowRegions === 'function') ? SC.extractRowRegions(line) : [];
+                    for (const reg of regs) {
+                        if (!reg || !reg.key) continue;
+                        if (reg.startCol >= 16) rightKeys.add(reg.key);
+                        else leftKeys.add(reg.key);
+                        parsedPerRow.push({ reg, line });
                     }
                     suffixActionRe.lastIndex = 0;
                     let sm;
                     while ((sm = suffixActionRe.exec(line)) !== null) {
                         const actionLabel = (sm[1] || '').trim();
                         const actionKey = sm[2];
-                        if (actionKey && actionLabel && !seenKeys.has(actionKey)) {
-                            seenKeys.add(actionKey);
-                            options.push({ key: actionKey, display: `[${actionKey}] ${actionLabel}`, label: null });
+                        if (actionKey && actionLabel) {
+                            parsedPerRow.push({ reg: { key: actionKey, label: actionLabel, startCol: sm.index, isSuffixAction: true }, line });
+                        }
+                    }
+                }
+                const fullLowerRibbon = rows.map(r => (isHengCur ? decodeHengbandText(r?.g || '') : (r?.g || ''))).join('\n').toLowerCase();
+                let filterLeftBirthCol = false;
+                if (!inPlay && rightKeys.size >= 2) {
+                    for (const rk of rightKeys) {
+                        if (leftKeys.has(rk)) { filterLeftBirthCol = true; break; }
+                    }
+                    if (!filterLeftBirthCol && /choose\s+(?:a|your)\s+class/.test(fullLowerRibbon)) filterLeftBirthCol = true;
+                }
+                for (const item of parsedPerRow) {
+                    const reg = item.reg;
+                    const key = reg.key;
+                    if (filterLeftBirthCol && !reg.isSuffixAction && reg.startCol < 16) continue;
+                    let label = reg.isSuffixAction ? reg.label : (reg.label || '').trim();
+                    if (!reg.isSuffixAction) {
+                        label = label.replace(/\s{2,}.*$/, '').replace(/\s+\d+(\.\d+)?\s*(lb|kg|g)$/i, '').replace(/[(\[\{]+$/, '').trim();
+                        if (/^[A-Za-z0-9_-]{1,14}:\s+\S/.test(label)) {
+                            label = label.replace(/^[A-Za-z0-9_-]{1,14}:\s+/, '').trim();
+                        }
+                    }
+                    if (!label || label === '(nothing)' || label.includes('(nothing)') || label === 'なし') continue;
+                    if (key && !seenKeys.has(key)) {
+                        seenKeys.add(key);
+                        if (reg.isSuffixAction) {
+                            options.push({ key, display: `[${key}] ${label}`, label: null });
+                        } else {
+                            let display = `[${key}]`;
+                            if (label) {
+                                if (isHengCur && window.HengTranslate && typeof window.HengTranslate.translateName === 'function') {
+                                    const trans = window.HengTranslate.translateName(label, 1, effLang);
+                                    display = `[${key}] ${trans || label}`;
+                                } else {
+                                    display = `[${key}] ${label}`;
+                                }
+                            } else if (key === '*') {
+                                display = (!isHengCur || effLang === 'en') ? `[*] Random` : (effLang === 'jp' ? `[*] ランダム` : `[*] ランダム (Random)`);
+                            }
+                            options.push({ key, display, label });
                         }
                     }
                 }
@@ -6298,6 +6420,11 @@ window.addEventListener('DOMContentLoaded', () => {
                     }
                 }
             }
+            const curHeadSig = `${rows && rows[0] ? (rows[0].g || '') : ''}|${rows && rows[1] ? (rows[1].g || '') : ''}`;
+            if (curHeadSig !== lastPopulatedScreenHead && terminal && terminal.selectedKey) {
+                terminal.selectedKey = null;
+            }
+            lastPopulatedScreenHead = curHeadSig;
             const letterKey = options.map(o => o.key + ':' + o.display + ':' + (o.label || '')).join(',');
             if (letterKey === lastPopulatedLetters) {
                 termLetterRibbon.style.display = options.length > 0 ? 'flex' : 'none';

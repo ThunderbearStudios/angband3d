@@ -341,7 +341,9 @@ class ChronicleFilter {
                     priority: 1000,
                     turn: currentTurn || 0,
                     data: {
-                        hero: player.name || 'The Hero',
+                        hero: (typeof window !== 'undefined' && typeof window.formatDisplayHeroName === 'function')
+                            ? window.formatDisplayHeroName(player.name || 'The Hero')
+                            : (player.name || 'The Hero'),
                         race: player.race || 'Hero',
                         class: player.class || 'Adventurer',
                         level: player.clev || 1,

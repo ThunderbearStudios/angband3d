@@ -94,7 +94,8 @@
             const key = (entry.keys && entry.keys[r] !== undefined && entry.keys[r] !== null) ? entry.keys[r] : entry.key;
             const keyDisplay = (key === ' ' || key === 'space') ? 'Space' : (key === 'tab' ? 'Tab' : String(key || ''));
             const name = (isJp && entry.labels && entry.labels.jp) ? entry.labels.jp : ((entry.labels && entry.labels.en) || entry.name || entry.id);
-            const desc = (isJp && entry.labels && entry.labels.jp && entry.labels.en) ? `${entry.labels.jp} (${entry.labels.en})` : (entry.desc || (entry.labels && entry.labels.en) || '');
+            const descRaw = (isJp && entry.labels && entry.labels.jp && entry.labels.en) ? `${entry.labels.jp} (${entry.labels.en})` : (entry.desc || '');
+            const desc = (descRaw && descRaw !== name) ? descRaw : '';
             let available = (catalog && typeof catalog.isAvailable === 'function') ? catalog.isAvailable(entry.id) : true;
             let suggested = false;
             let badge = (r !== 'angband' && entry.badge) ? entry.badge : '';
@@ -201,11 +202,13 @@
             if (!isAvail) row.style.opacity = '0.45';
             const badgeHtml = (cmd.badge ? `<span class="cmd-badge ${isSuggested ? 'cmd-badge-suggested' : ''}">${escapeHtml(cmd.badge)}</span>` : '') + (isWasdKey ? `<span class="cmd-badge cmd-badge-wasd">Shift+${escapeHtml(cmd.key.toUpperCase())}</span>` : '');
             let iconHtml = SVG_GLYPHS[cmd.iconKey] || escapeHtml(cmd.icon);
-            if (cmd.itemSample && app && typeof app.getShockboltSpriteStyle === 'function') {
+            const hasAtlas = Boolean(typeof window !== 'undefined' && window.__itemAtlasLoaded);
+            if (hasAtlas && cmd.itemSample && app && typeof app.getShockboltSpriteStyle === 'function') {
                 const spStyle = app.getShockboltSpriteStyle(cmd.itemSample);
                 if (spStyle) iconHtml = `<span class="shockbolt-icon" style="${spStyle}"></span>`;
             }
-            row.innerHTML = `<div class="cmd-row-left"><span class="cmd-row-icon">${iconHtml}</span><div class="cmd-row-text"><span class="cmd-row-name">${escapeHtml(cmd.name)} ${badgeHtml}</span><span class="cmd-row-desc">${escapeHtml(cmd.desc)}</span></div></div><div class="cmd-row-right"><kbd class="cmd-kbd">${escapeHtml(cmd.keyDisplay)}</kbd></div>`;
+            const descHtml = cmd.desc ? `<span class="cmd-row-desc">${escapeHtml(cmd.desc)}</span>` : '';
+            row.innerHTML = `<div class="cmd-row-left"><span class="cmd-row-icon">${iconHtml}</span><div class="cmd-row-text"><span class="cmd-row-name">${escapeHtml(cmd.name)} ${badgeHtml}</span>${descHtml}</div></div><div class="cmd-row-right"><kbd class="cmd-kbd">${escapeHtml(cmd.keyDisplay)}</kbd></div>`;
             row.addEventListener('click', () => executePaletteCommand(cmd));
             frag.appendChild(row);
         });

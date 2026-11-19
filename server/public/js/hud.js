@@ -965,7 +965,7 @@ class WebHUD {
             if (rawReticleCard) {
                 rawReticleCard.classList.remove('hidden');
                 rawReticleCard.style.display = 'block';
-                const isUniq = Boolean(t.unique || t.boss || /^the\s+/i.test(t.name || ''));
+                const isUniq = Boolean(t.unique || t.boss);
                 const isSleep = Boolean(t.asleep || t.sleep || t.alertness_label === 'asleep' || /asleep|sleeping/i.test(t.status || ''));
                 const isUnwary = Boolean(!isSleep && (t.unwary || t.alertness_label === 'unwary'));
                 const isFlee = Boolean(t.fleeing || t.afraid || t.fear || /flee|afraid|fear/i.test(t.status || ''));
@@ -1179,7 +1179,7 @@ class WebHUD {
             const colIdx = m.x - ox, rowIdx = m.y - oy;
             if (colIdx >= 0 && colIdx < cols && rowIdx >= 0 && rowIdx < lines) {
                 const sx = colIdx * cellSize, sy = rowIdx * cellSize;
-                const isUniq = Boolean(m.unique || m.boss || /^the\s+/i.test(m.name || '')), isEspPip = Boolean(isBlind && (m.esp || ((player.flags?.esp || player.flags?.telepathy) && (Math.abs(m.x - px) > 1 || Math.abs(m.y - py) > 1))));
+                const isUniq = Boolean(m.unique || m.boss), isEspPip = Boolean(isBlind && (m.esp || ((player.flags?.esp || player.flags?.telepathy) && (Math.abs(m.x - px) > 1 || Math.abs(m.y - py) > 1))));
                 ctx.fillStyle = isEspPip ? 'rgba(56, 189, 248, 0.55)' : (isUniq ? 'rgba(255, 215, 0, 0.65)' : 'rgba(230, 40, 40, 0.45)');
                 ctx.fillRect(sx - (isUniq ? 1 : 0), sy - (isUniq ? 1 : 0), cellSize + (isUniq ? 2 : 0), cellSize + (isUniq ? 2 : 0));
                 const mCol = isEspPip ? (isUniq ? '#e879f9' : '#38bdf8') : ((window.getAngbandColorString && m.attr !== undefined) ? window.getAngbandColorString(m.attr) : '#ff4444');
@@ -1679,10 +1679,11 @@ class WebHUD {
                     else if (enToJp[c]) c = `${enToJp[c]} (${c})`;
                 }
             }
+            const dispName = (typeof window !== 'undefined' && typeof window.formatDisplayHeroName === 'function') ? window.formatDisplayHeroName(player.name) : player.name;
             const fullTitle = isSilQ
-                ? `${player.name} (${r}${house ? ` - ${house}` : (c && c !== r ? ` - ${c}` : '')})`
-                : `${player.name} (${r} ${c})`;
-            this.charTitle.textContent = hasSubMeta ? player.name : fullTitle;
+                ? `${dispName} (${r}${house ? ` - ${house}` : (c && c !== r ? ` - ${c}` : '')})`
+                : `${dispName} (${r} ${c})`;
+            this.charTitle.textContent = hasSubMeta ? dispName : fullTitle;
             this.charTitle.title = fullTitle;
         } else {
             this.charTitle.textContent = isSilQ ? 'Hero of Beleriand' : 'Hero of Angband';
@@ -1901,7 +1902,7 @@ class WebHUD {
                 else this.acVal.title = `Armor Class: ${acTotal} (Base: ${player.ac_base || 0}, Bonus: ${acToA >= 0 ? '+' : ''}${acToA})`;
             }
         }
-        const yaw = (window.__app && window.__app.dungeon) ? window.__app.dungeon.yaw : (this.currentCameraYaw || 0);
+        const yaw = (window.__app && window.__app.dungeon) ? -window.__app.dungeon.yaw : (this.currentCameraYaw || 0);
         const normYaw = (yaw % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI);
         const sector = Math.round(normYaw / (Math.PI / 4)) % 8;
         const sectorNames = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
@@ -1929,7 +1930,7 @@ class WebHUD {
         if (this.footerDiagonalHint && frame.map && player.x !== undefined && player.y !== undefined) {
             const px = player.x;
             const py = player.y;
-            const yaw = window.__app && window.__app.dungeon ? window.__app.dungeon.yaw : 0;
+            const yaw = (window.__app && window.__app.dungeon) ? -window.__app.dungeon.yaw : (this.currentCameraYaw || 0);
             const normYaw = (yaw % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI);
             const sector = Math.round(normYaw / (Math.PI / 4)) % 8;
 

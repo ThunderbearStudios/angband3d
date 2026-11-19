@@ -494,6 +494,25 @@
                 this.renderMinimap(this.lastFrame.map, this.lastFrame.player, this.lastFrame.monsters || [], yaw);
                 this.updateReticleTargetCard(this.lastFrame);
             }
+            const p = this.lastFrame && this.lastFrame.player;
+            const titleEl = this._minimapTitleEl || (typeof document !== 'undefined' && (this._minimapTitleEl = document.getElementById('minimap-title-text')));
+            if (titleEl && p && p.x !== undefined && p.y !== undefined) {
+                const normYaw = (yaw % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI);
+                const sector = Math.round(normYaw / (Math.PI / 4)) % 8;
+                const sectorNames = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+                const sectorArrows = ['▲', '↗', '►', '↘', '▼', '↙', '◄', '↖'];
+                const arrowChar = sectorArrows[sector] || '▲';
+                const facingName = sectorNames[sector] || 'N';
+                const realm = (window.__app && window.__app.getActiveRealm) ? window.__app.getActiveRealm() : 'angband';
+                const lang = window.__langMode || 'en';
+                const mmTitleSig = `${realm}:${lang}:${p.x}:${p.y}:${arrowChar}:${facingName}`;
+                if (this._lastMmTitleSig !== mmTitleSig) {
+                    this._lastMmTitleSig = mmTitleSig;
+                    const prefix = (realm === 'hengband' && lang === 'jp') ? '地図' : ((realm === 'hengband' && lang === 'bilingual') ? 'MAP (地図)' : 'MAP');
+                    const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                    titleEl.innerHTML = `<span style="white-space:nowrap;">${esc(prefix)} (${p.x},${p.y})</span> <span style="color:#ffd700; white-space:nowrap;">[${esc(arrowChar)} ${esc(facingName)}]</span>`;
+                }
+            }
         };
 
         HudProto.updateFooterFacing = function updateFooterFacing(yaw) {

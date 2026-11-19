@@ -1310,14 +1310,26 @@
             return `${entry}/${entry}`;
         }
 
+        const isAngband18 = (r === 'angband' || r === 'frogcomposband' || r === 'hengband');
+        const fmtAng18 = (rawStr) => {
+            if (!isAngband18) return rawStr;
+            const s = String(rawStr).trim();
+            if (s.includes('/')) return s;
+            if (/^\d+$/.test(s)) {
+                const n = parseInt(s, 10);
+                if (n > 18) return n >= 118 ? '18/***' : `18/${String(n - 18).padStart(2, '0')}`;
+            }
+            return rawStr;
+        };
+
         if (typeof entry === 'object') {
             if (entry.disp !== undefined && entry.disp !== null && String(entry.disp).trim() !== '') {
-                return String(entry.disp).trim();
+                return fmtAng18(String(entry.disp).trim());
             }
             const val = entry.use !== undefined ? entry.use : (entry.cur !== undefined ? entry.cur : (entry.top !== undefined ? entry.top : (entry.max !== undefined ? entry.max : (entry.val !== undefined ? entry.val : entry.value))));
-            return val !== undefined && val !== null ? String(val) : '';
+            return val !== undefined && val !== null ? fmtAng18(String(val)) : '';
         }
-        return String(entry);
+        return fmtAng18(String(entry));
     }
 
     /**

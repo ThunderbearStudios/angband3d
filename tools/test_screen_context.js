@@ -638,6 +638,36 @@ test('ScreenModel.of: items intersection and memoization', () => {
     assert.notStrictEqual(m1, m3);
 });
 
+test('Phase 1 regressions: spell Fire Ball, inven / for Equip, in-play CharSheet, birth cols', () => {
+    // 1. Inventory prompt mentioning "/ for Equip" must NOT flag isEquipView
+    const invFlags = SC.itemFlags('Select Item: (Inven: a-d, / for Equip, ESC)', 'angband');
+    assert.strictEqual(invFlags.isEquipView, false);
+
+    // 2. Spell menu with "Fire Ball" in body must stay spell, never fire/shoot
+    const fSpell = mkFrame([
+        'Cast which spell? (a-d, ESC)',
+        '  a) Magic Missile   2 MP   1%',
+        '  b) Fire Ball       6 MP   5%'
+    ], { phase: 'play', player: { name: 'Hero' }, ui: { awaiting_command: false, more: false, overlay: 1, prompt: { kind: 'spell', text: 'Cast which spell?' } } });
+    const mSpell = SC.ScreenModel.of(fSpell, 'angband');
+    assert.strictEqual(mSpell.prompt.kind, 'spell');
+
+    // 3. In-play Character Sheet containing Best & Cur Exp must NOT get classified as prompt.kind === menu
+    const fSheet = mkFrame([
+        'Name        : Boromir      Age             24   Str: 18/20',
+        'Sex         : Male         Cur Exp         10   Int: 14',
+        'Race        : Human        Best             10   [Press any key to continue]'
+    ], { phase: 'play', map: { w: 20, h: 10, rows: [] }, player: { name: 'Boromir' }, ui: { awaiting_command: false, more: false, overlay: 1 } });
+    const mSheet = SC.ScreenModel.of(fSheet, 'angband');
+    assert.notStrictEqual(mSheet.prompt.kind, 'menu');
+
+    // 4. extractRowRegions on "a) Half-Elf      Str: +0" strips trailing stats BEFORE colon check
+    const regs = SC.extractRowRegions('a) Half-Elf      Str: +0');
+    assert.strictEqual(regs.length, 1);
+    assert.strictEqual(regs[0].key, 'a');
+    assert.strictEqual(regs[0].label, 'Half-Elf');
+});
+
 // ---------------------------------------------------------------------------
 console.log(`[test_screen_context] ${passed} passed, ${failures.length} failed (${fixtures.length} fixtures)`);
 if (failures.length) {

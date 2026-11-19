@@ -2480,9 +2480,21 @@ class Dungeon3D {
         }
     }
 
+    _getAssetLoadingManager() {
+        if (!this._assetLoadingManager && typeof THREE !== 'undefined' && typeof THREE.LoadingManager === 'function') {
+            const mgr = new THREE.LoadingManager();
+            mgr.setURLModifier((u) => {
+                if (!u || typeof u !== 'string' || u.startsWith('blob:') || u.startsWith('data:')) return u;
+                return (typeof window !== 'undefined' && typeof window.__assetUrl === 'function') ? window.__assetUrl(u) : u;
+            });
+            this._assetLoadingManager = mgr;
+        }
+        return this._assetLoadingManager || undefined;
+    }
+
     _getGltfLoader() {
         if (!this.gltfLoader && typeof THREE !== 'undefined' && typeof THREE.GLTFLoader !== 'undefined') {
-            this.gltfLoader = new THREE.GLTFLoader();
+            this.gltfLoader = new THREE.GLTFLoader(this._getAssetLoadingManager());
         }
         const meshopt = (typeof MeshoptDecoder !== 'undefined' && MeshoptDecoder) ||
             (typeof window !== 'undefined' && window.MeshoptDecoder) || null;
@@ -7162,7 +7174,7 @@ class Dungeon3D {
 
     ensureMonsterAtlasReady() {
         if (this.monsterAtlasReady) return this.monsterAtlasReady;
-        const texLoader = new THREE.TextureLoader();
+        const texLoader = new THREE.TextureLoader(this._getAssetLoadingManager());
         this.monsterAtlasReady = new Promise((resolve) => {
             let texDone = false;
             let jsonDone = false;
@@ -7543,7 +7555,7 @@ class Dungeon3D {
 
     ensureItemAtlasReady() {
         if (this.itemAtlasReady) return this.itemAtlasReady;
-        const texLoader = new THREE.TextureLoader();
+        const texLoader = new THREE.TextureLoader(this._getAssetLoadingManager());
         this.itemAtlasReady = new Promise((resolve) => {
             let texDone = false;
             let jsonDone = false;
@@ -7563,6 +7575,7 @@ class Dungeon3D {
                     tex.anisotropy = Math.min(16, this.renderer.capabilities.getMaxAnisotropy() || 1);
                 }
                 this.itemAtlasTex = tex;
+                if (typeof window !== 'undefined') window.__itemAtlasLoaded = true;
                 if (this.itemBillboardMat) {
                     this.itemBillboardMat.map = tex;
                     this.itemBillboardMat.needsUpdate = true;
@@ -8584,7 +8597,7 @@ class Dungeon3D {
 
     _loadTexturePbr(url, isColor = false) {
         if (!this._texLoader) {
-            this._texLoader = new THREE.TextureLoader();
+            this._texLoader = new THREE.TextureLoader(this._getAssetLoadingManager());
         }
         const resolvedUrl = (typeof window !== 'undefined' && typeof window.__assetUrl === 'function') ? window.__assetUrl(url) : url;
         return new Promise(resolve => {

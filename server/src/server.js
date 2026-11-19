@@ -2483,7 +2483,7 @@ const server = http.createServer((req, res) => {
                 const brStat = fs.existsSync(brFilePath) ? fs.statSync(brFilePath) : null;
                 const validBr = Boolean(brStat && brStat.isFile() && brStat.mtimeMs >= fileStat.mtimeMs && brStat.size > 0);
                 staticMeta = { fileStat, brFilePath, brStat: validBr ? brStat : null, checkedAt: nowStatMs };
-                if (staticHotMap.size >= 400) staticHotMap.delete(staticHotMap.keys().next().value);
+                if (staticHotMap.size >= 1500) staticHotMap.delete(staticHotMap.keys().next().value);
                 staticHotMap.set(filePath, staticMeta);
             }
         } catch (_) {
@@ -2636,8 +2636,8 @@ const server = http.createServer((req, res) => {
                 } catch (_) {}
             }
 
-        // Brotli & Gzip compression for text & 3D scene/code payloads (.html, .js, .css, .json, .obj, .mtl, .svg, .gltf, .glb, .bin, .wasm, .data)
-        const compressible = ['.html', '.js', '.css', '.json', '.obj', '.mtl', '.svg', '.gltf', '.glb', '.bin', '.wasm', '.data'].includes(ext);
+        // Brotli & Gzip compression for text & uncompressed scene/code payloads (skip binary .glb/.bin to prevent live CPU burn & cache eviction)
+        const compressible = ['.html', '.js', '.css', '.json', '.obj', '.mtl', '.svg', '.gltf', '.wasm', '.data'].includes(ext);
         const acceptEncoding = req.headers['accept-encoding'] || '';
 
         if (compressible && acceptEncoding.includes('br') && typeof zlib.brotliCompress === 'function') {

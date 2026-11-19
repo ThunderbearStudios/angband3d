@@ -5388,6 +5388,22 @@ to { transform: translateY(0); }
     transform: scale(0.95);
 }
 
+.term-ctx-btn.btn-gold,
+.birth-review-btn-primary {
+    background: linear-gradient(180deg, #e5c368, #cfa13a);
+    border-color: #f3d678;
+    color: #12151a;
+    font-weight: 700;
+}
+
+.shockbolt-icon {
+    display: inline-block;
+    width: 22px;
+    height: 22px;
+    background-repeat: no-repeat;
+    flex-shrink: 0;
+}
+
 .term-ctx-btn.btn-primary-action {
     background: linear-gradient(180deg, rgba(212, 175, 55, 0.85), rgba(153, 122, 21, 0.95));
     border-color: #ffe270;

@@ -679,14 +679,38 @@ class WebTerminal {
         }
         const seenKeys = new Set();
         let engineSelectedIdx = -1;
+        const rowExtracted = [];
+        let hasBirthRightColDup = false;
+        const leftKeys = new Set();
+        const rightKeys = new Set();
         for (let r = 0; r < termData.rows.length && r < this.rows; r++) {
             const rowObj = termData.rows[r], line = this.decodeText(rowObj?.g || '');
-            for (const reg of this.extractRowRegions(line)) {
-                if (!reg || !reg.key || seenKeys.has(reg.key)) continue;
+            const regs = this.extractRowRegions(line);
+            for (const reg of regs) {
+                if (!reg || !reg.key) continue;
+                if (reg.startCol >= 16) rightKeys.add(reg.key);
+                else leftKeys.add(reg.key);
+            }
+            rowExtracted.push({ r, rowObj, regs });
+        }
+        if (mode === 'birth' && rightKeys.size >= 2) {
+            for (const rk of rightKeys) {
+                if (leftKeys.has(rk)) { hasBirthRightColDup = true; break; }
+            }
+            if (!hasBirthRightColDup) {
+                const fullLower = termData.rows.map(row => this.decodeText(row?.g || '')).join('\n').toLowerCase();
+                if (/choose\s+(?:a|your)\s+class/.test(fullLower)) hasBirthRightColDup = true;
+            }
+        }
+        for (const entry of rowExtracted) {
+            for (const reg of entry.regs) {
+                if (!reg || !reg.key) continue;
+                if (hasBirthRightColDup && reg.startCol < 16) continue;
+                if (seenKeys.has(reg.key)) continue;
                 seenKeys.add(reg.key);
-                const isEngineSelected = (this.parseAttr(rowObj?.a || '', reg.startCol) === 14 || this.parseAttr(rowObj?.a || '', reg.startCol + 1) === 14);
+                const isEngineSelected = (this.parseAttr(entry.rowObj?.a || '', reg.startCol) === 14 || this.parseAttr(entry.rowObj?.a || '', reg.startCol + 1) === 14);
                 if (isEngineSelected && engineSelectedIdx === -1) engineSelectedIdx = this.selectableRegions.length;
-                this.selectableRegions.push({ row: rowObj.y !== undefined ? rowObj.y : r, key: reg.key, label: reg.label, glyph: reg.glyph || null, startCol: reg.startCol, endCol: reg.endCol, isEngineSelected });
+                this.selectableRegions.push({ row: entry.rowObj.y !== undefined ? entry.rowObj.y : entry.r, key: reg.key, label: reg.label, glyph: reg.glyph || null, startCol: reg.startCol, endCol: reg.endCol, isEngineSelected });
             }
         }
         if (this.selectableRegions.length === 0) {

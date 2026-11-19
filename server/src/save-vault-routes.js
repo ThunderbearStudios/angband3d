@@ -1048,8 +1048,11 @@ function createSaveVaultService({
                     const targetDir = saveDirs[0] || path.join(SAVE_DIR, detectedRealm);
                     await fs.promises.mkdir(targetDir, { recursive: true });
 
+                    const envSlot = (jsonEnvelope && jsonEnvelope.slot && !/^(living|floor|bookmark)$/i.test(String(jsonEnvelope.slot).trim()))
+                        ? jsonEnvelope.slot
+                        : '';
                     const headerName =
-                        (jsonEnvelope && (jsonEnvelope.slot || jsonEnvelope.filename || jsonEnvelope.characterName)) ||
+                        (jsonEnvelope && (jsonEnvelope.filename || jsonEnvelope.name || envSlot || jsonEnvelope.characterName)) ||
                         req.headers['x-save-slot'] ||
                         req.headers['x-character-name'] ||
                         urlObj.searchParams.get('slot') ||

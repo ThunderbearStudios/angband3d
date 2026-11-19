@@ -4090,7 +4090,8 @@ class ChronicleGrounder {
      * racial/class internal justification, moral judgment, and rotational anti-repetition.
      */
     static generateKillSaga(kills = [], player = null, depth = 0, traditionKey = 'westmarch', weapon = null, fleeingMonster = null, attackMedium = null) {
-        const pName = (player && player.name) ? player.name : 'The Wanderer';
+        const rawPName = (player && player.name) ? player.name : 'The Wanderer';
+        const pName = (typeof window !== 'undefined' && typeof window.formatDisplayHeroName === 'function') ? window.formatDisplayHeroName(rawPName) : rawPName;
         const pRace = (player && player.race) ? player.race.toLowerCase() : 'mortal';
         const pClass = (player && player.class) ? player.class.toLowerCase() : 'warrior';
         const isTown = (depth === 0);
@@ -4709,7 +4710,8 @@ class ChronicleGrounder {
         const rk = String((player && player.realm) || (typeof window !== 'undefined' && window.__activeRealm) || (typeof window !== 'undefined' && window.__app && typeof window.__app.getActiveRealm === 'function' ? window.__app.getActiveRealm() : 'angband')).toLowerCase();
         const isJpHeng = (rk === 'hengband' && typeof window !== 'undefined' && window.__langMode === 'jp');
         const tradition = this.TRADITIONS[traditionKey] || this.TRADITIONS.westmarch;
-        const name = (player && player.name) ? player.name : (isJpHeng ? '放浪の武芸者' : 'The Wanderer');
+        const rawName4712 = (player && player.name) ? player.name : (isJpHeng ? '放浪の武芸者' : 'The Wanderer');
+        const name = (typeof window !== 'undefined' && typeof window.formatDisplayHeroName === 'function' && player && player.name) ? window.formatDisplayHeroName(rawName4712) : rawName4712;
         const race = (player && player.race) ? player.race : (isJpHeng ? '武人' : 'Hero');
         const depth = (player && typeof player.depth === 'number') ? player.depth : (event.data && typeof event.data.depth === 'number' ? event.data.depth : 0);
         const depthFt = this.formatRealmDepth(depth, rk, player);
@@ -6497,7 +6499,8 @@ class ChronicleGrounder {
             return single;
         }
 
-        const name = (player && player.name) ? player.name : 'The Wanderer';
+        const rawName6500 = (player && player.name) ? player.name : 'The Wanderer';
+        const name = (typeof window !== 'undefined' && typeof window.formatDisplayHeroName === 'function' && player && player.name) ? window.formatDisplayHeroName(rawName6500) : rawName6500;
         const depth = (player && typeof player.depth === 'number') ? player.depth : 0;
         const depthFt = depth === 0 ? 'the surface frontier' : `${depth * 50}ft`;
         const rawWeap = (player && player.weapon_item) ? player.weapon_item : ((player && player.equipped && player.equipped.weapon) ? player.equipped.weapon : null);

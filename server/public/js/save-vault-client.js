@@ -400,40 +400,53 @@
     if (typeof fetch !== 'function') return { synced: false };
     try {
       const b64 = uint8ToBase64(u8);
-      const res = await fetch('/api/saves/sync', {
+      const sendSync = (targetName) => fetch('/api/saves/sync', {
         method: 'POST',
         keepalive: b64.length < 48000,
-        headers: buildAuthHeaders(rk, saveName, { 'Content-Type': 'application/json' }),
+        headers: buildAuthHeaders(rk, targetName, { 'Content-Type': 'application/json' }),
         body: JSON.stringify({
           realm: rk,
-          name: saveName,
-          slot,
+          filename: targetName,
+          name: targetName,
+          checkpointSlot: slot,
           hash,
           dataBase64: b64,
           meta: options.meta || {}
         })
       });
+      let syncSlotName = saveName;
+      let res = await sendSync(syncSlotName);
+      if (res && res.status === 403) {
+        const scopedExt = /\.sav$/i.test(saveName) ? '.sav' : '';
+        const scopedStem = saveName.replace(/\.sav$/i, '').slice(0, 18);
+        syncSlotName = `${scopedStem}_${getVaultId().slice(0, 6)}${scopedExt}`;
+        res = await sendSync(syncSlotName);
+      }
       if (res && res.ok) {
         const json = await res.json().catch(() => ({}));
-        if (json && json.ownerToken) setOwnerToken(rk, saveName, json.ownerToken);
+        const resolvedName = (json && json.filename) || syncSlotName;
+        if (json && json.ownerToken) {
+          setOwnerToken(rk, resolvedName, json.ownerToken);
+          if (resolvedName !== saveName) setOwnerToken(rk, saveName, json.ownerToken);
+        }
         _lastSyncHash = hash;
         _lastSyncAt = now;
         setHudVaultState('synced', `Backed Up • ${new Date(now).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`);
-        return { synced: true };
+        return { synced: true, filename: resolvedName };
       }
       // Fallback to existing /api/saves/upload endpoint if /api/saves/sync is unavailable
       if (res && res.status === 404) {
         const upRes = await fetch(`/api/saves/upload?realm=${encodeURIComponent(rk)}`, {
           method: 'POST',
-          headers: buildAuthHeaders(rk, saveName, {
+          headers: buildAuthHeaders(rk, syncSlotName, {
             'Content-Type': 'application/octet-stream',
-            'X-Character-Name': saveName
+            'X-Character-Name': syncSlotName
           }),
           body: u8
         });
         if (upRes && upRes.ok) {
           const upJson = await upRes.json().catch(() => ({}));
-          if (upJson && upJson.ownerToken) setOwnerToken(rk, saveName, upJson.ownerToken);
+          if (upJson && upJson.ownerToken) setOwnerToken(rk, syncSlotName, upJson.ownerToken);
           _lastSyncHash = hash;
           _lastSyncAt = now;
           setHudVaultState('synced', 'Backed Up');

@@ -1506,6 +1506,13 @@ class InputController {
             else if (guideModal) guideModal.classList.add('hidden');
             return;
         }
+        const chronicleWin = document.getElementById('chronicle-window');
+        const chronicleOpen = Boolean(window.chronicleManager && (window.chronicleManager.visible || (chronicleWin && chronicleWin.classList.contains('active'))));
+        if (chronicleOpen && (!chronicleWin || !chronicleWin.classList.contains('is-pinned')) &&
+            typeof window.chronicleManager.hideWindow === 'function') {
+            window.chronicleManager.hideWindow();
+            return;
+        }
         const pauseModal = document.getElementById('pause-modal');
         if (pauseModal && !pauseModal.classList.contains('hidden')) {
             if (window.__app && typeof window.__app.resumeGame === 'function') window.__app.resumeGame();

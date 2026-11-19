@@ -2098,7 +2098,9 @@ Dungeon3DProto.initTextures = function initTextures() {
     this.polyHavenSets = new Map();
     this.polyhavenSets = this.polyHavenSets;
     this._pbrSetSpecs = new Map();
-    const loader = new THREE.TextureLoader();
+    const mgr = (typeof THREE !== 'undefined' && typeof THREE.LoadingManager === 'function') ? new THREE.LoadingManager() : undefined;
+    if (mgr) mgr.setURLModifier((u) => (u && !u.startsWith('blob:') && !u.startsWith('data:') && typeof window !== 'undefined' && typeof window.__assetUrl === 'function') ? window.__assetUrl(u) : u);
+    const loader = new THREE.TextureLoader(mgr);
 
     const applyPbrSampling = (tex, isColor) => {
         if (!tex) return;

@@ -279,7 +279,8 @@
         const isSilqDrop = isSilq && (screenText.includes('drop which item') || screenText.includes('drop which'));
         const isSilqThrow = isSilq && (screenText.includes('throw which item') || screenText.includes('throw which'));
         const isSilqFire = isSilq && (screenText.includes('fire which item') || screenText.includes('fire which'));
-        const isEquipView = ['equip', '装備品', '装備：', '装備:'].some(s => screenText.includes(s));
+        const stNoSwitchHint = screenText.replace(/\/?\s*for\s+equip\b|\bview\s+gear\b/g, '');
+        const isEquipView = ['equip', '装備品', '装備：', '装備:'].some(s => stNoSwitchHint.includes(s));
         const isQuiverView = ['quiver:', 'quiver', '矢筒:'].some(s => screenText.includes(s));
         return { isSilq, isSilqInvenCmd, isSilqEquipCmd, isSilqWear, isSilqRemove, isSilqExamine, isSilqDrop, isSilqThrow, isSilqFire, isEquipView, isQuiverView };
     }
@@ -388,7 +389,10 @@
                     let label = (m[2] || '').trim(), glyph = null;
                     const gm = label.match(/^([)\]}>~!=?,_/\-\\])\s+(.+)$/);
                     if (gm) { glyph = gm[1]; label = gm[2]; }
-                    label = label.replace(/^[^:]{1,20}:\s*/, '').replace(/\s{2,}.*$/, '').replace(/\s+\d+(\.\d+)?\s*(lb|kg|g)$/i, '').replace(/[(\[\{]+$/, '').trim();
+                    label = label.replace(/\s{2,}.*$/, '').replace(/\s+\d+(\.\d+)?\s*(lb|kg|g)$/i, '').replace(/[(\[\{]+$/, '').trim();
+                    if (/^[A-Za-z0-9_-]{1,14}:\s+\S/.test(label)) {
+                        label = label.replace(/^[A-Za-z0-9_-]{1,14}:\s+/, '').trim();
+                    }
                     if (!label || label === '(nothing)' || label.includes('(nothing)') || label === 'なし') continue;
                     if (key && !seenKeys.has(key)) { seenKeys.add(key); items.push({ key, label, glyph, display: `[${key}]` }); }
                 }
@@ -624,7 +628,7 @@
             kind = 'count'; verb = null;
         } else if ((legacy && (legacy.isQuantityPrompt || legacy.mode === 'quantity')) || /(?:how\s+many|quantity|how\s+much|何個)/i.test(activeLower)) {
             kind = 'quantity'; verb = null;
-        } else if ((legacy && (legacy.isItemActions || legacy.isPopupCommandMenu || legacy.isChoiceMenu || legacy.isReviewScreen || legacy.isBuilding || legacy.mode === 'building' || legacy.mode === 'item-actions' || legacy.mode === 'popup-menu')) ||
+        } else if ((legacy && (legacy.isItemActions || legacy.isPopupCommandMenu || (!inPlay && (legacy.isChoiceMenu || legacy.isReviewScreen)) || legacy.isBuilding || legacy.mode === 'building' || legacy.mode === 'item-actions' || legacy.mode === 'popup-menu')) ||
                    row0Lower.includes('command for ') || row0Lower.includes('に対するコマンド')) {
             kind = 'menu'; verb = null;
         } else if (legacy && (legacy.isStore || legacy.mode === 'store')) {
@@ -784,8 +788,11 @@
             const priceMatch = rawSlice.match(/\s+(\d+)\s*(?:au|gp|gold)?\s*$/i);
             if (priceMatch && (!weightMatch || !weightMatch[0].includes(priceMatch[1]))) price = priceMatch[1];
 
-            let cleanLabel = label.replace(/^[^:]{1,20}:\s*/, '').replace(/\s+\d+(\.\d+)?\s*(lb|kg|g).*$/i, '')
+            let cleanLabel = label.replace(/\s+\d+(\.\d+)?\s*(lb|kg|g).*$/i, '')
                 .replace(/\s{3,}\d+\s*$/, '').replace(/\s{2,}.*$/, '').replace(/[(\[\{]+$/, '').trim();
+            if (/^[A-Za-z0-9_-]{1,14}:\s+\S/.test(cleanLabel)) {
+                cleanLabel = cleanLabel.replace(/^[A-Za-z0-9_-]{1,14}:\s+/, '').trim();
+            }
             if (!cleanLabel) cleanLabel = rawTrim;
 
             regions.push({

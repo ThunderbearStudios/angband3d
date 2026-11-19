@@ -513,7 +513,9 @@
         let windowTex = null;
         if (typeof THREE.TextureLoader === 'function') {
             try {
-                const loader = new THREE.TextureLoader();
+                const mgr = (typeof THREE.LoadingManager === 'function') ? new THREE.LoadingManager() : undefined;
+                if (mgr) mgr.setURLModifier((u) => (u && !u.startsWith('blob:') && !u.startsWith('data:') && typeof window !== 'undefined' && typeof window.__assetUrl === 'function') ? window.__assetUrl(u) : u);
+                const loader = new THREE.TextureLoader(mgr);
                 windowTex = loader.load('/assets/textures/T_WindowGradient.png');
                 windowTex._sharedTexture = true;
                 if (typeof THREE.SRGBColorSpace !== 'undefined') windowTex.colorSpace = THREE.SRGBColorSpace;
