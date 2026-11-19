@@ -447,11 +447,40 @@
         else bootDomControls();
     }
 
+    function findReticleFloorItem(frame, pl, fwd, realm) {
+        if (!frame || !Array.isArray(frame.items) || !pl || pl.x === undefined || pl.y === undefined) return null;
+        const eqList = Array.isArray(pl.equipment) ? pl.equipment : [];
+        const isSheet = (typeof ItemSheet !== 'undefined') ? ItemSheet : (typeof window !== 'undefined' ? window.ItemSheet : null);
+        const map = frame.map;
+        const dx = (fwd && typeof fwd.dx === 'number') ? fwd.dx : 0;
+        const dy = (fwd && typeof fwd.dy === 'number') ? fwd.dy : -1;
+        for (let d = 0; d <= 3; d++) {
+            const rx = pl.x + dx * d;
+            const ry = pl.y + dy * d;
+            if (d > 0 && map && Array.isArray(map.rows) && map.rows[ry]) {
+                const fStr = map.rows[ry].f;
+                const gStr = map.rows[ry].g;
+                const feat = fStr ? parseInt(fStr.substring(rx * 2, rx * 2 + 2), 16) : 0;
+                const ch = gStr ? gStr.charAt(rx) : ' ';
+                if (feat === 1 || (feat >= 15 && feat <= 22) || feat === 30 || feat === 2 || ch === '#' || ch === '+') break;
+            }
+            const it = frame.items.find(x => x && x.x === rx && x.y === ry && x.visible !== false && (x.name || x.dname));
+            if (it) {
+                const cmp = (isSheet && typeof isSheet.compareWithEquipped === 'function')
+                    ? isSheet.compareWithEquipped(it, eqList, realm)
+                    : null;
+                return { item: it, dist: d, cmp };
+            }
+        }
+        return null;
+    }
+
     return Object.freeze({
         ingestFrameLore,
         lookupMonsterLore,
         normalizeSpeedDelta,
         formatMonsterTacticalSummary,
+        findReticleFloorItem,
         renderResistStrip,
         renderDungeonFeelingPill,
         getHudPreset,

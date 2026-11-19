@@ -14,7 +14,8 @@
     "@capacitor/core": "^5.7.8"
   },
   "devDependencies": {
-    "@capacitor/cli": "^5.7.8"
+    "@capacitor/cli": "^5.7.8",
+    "esbuild": "^0.28.2"
   },
   "overrides": {
     "tar": "^7.5.22",

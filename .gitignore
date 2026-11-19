@@ -41,6 +41,9 @@ __pycache__/
 build/
 build-*/
 dist/
+!/server/public/dist/
+!/server/public/dist/*.js
+!/server/public/dist/*.css
 [Bb]in/
 [Oo]bj/
 *.obj
@@ -104,5 +107,6 @@ GEMINI.md
 
 /archive/
 
-# Build-time Brotli-11 precompressed static sidecars
+# Build-time Brotli-11 & Gzip-9 precompressed static sidecars
 *.br
+*.gz

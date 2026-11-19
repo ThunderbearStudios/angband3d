@@ -188,6 +188,9 @@
             this.manualTerminalMode = (this.mode === 'classic');
             if (this.mode === 'classic' || this.mode === 'cards') this._manualSplitChosen = false;
             else if (this._isSplitMode(this.mode)) this._manualSplitChosen = Boolean((opts && opts.userToggle) ? this._isShortNonMobileViewport() : !(opts && opts.auto));
+            if (opts && opts.userToggle) {
+                try { if (typeof localStorage !== 'undefined') localStorage.setItem('yasd3d_grimoire_mode', this.mode); } catch (_) {}
+            }
             this._lastSig = '';
             this._syncPrimaryOpenClass();
             return this.mode;
@@ -271,8 +274,8 @@
             const btn = document.getElementById('btn-term-grimoire-toggle');
             if (btn) {
                 if (!btn._gBound) { btn._gBound = true; btn.addEventListener('click', () => { this.toggleMode(); if (this._onActionCallback) this._onActionCallback({ type: 'toggle-mode', mode: this.mode }); }); }
-                btn.style.display = this._menuActive ? 'inline-flex' : 'none';
-                if (this._menuActive) btn.textContent = this._nextToggleLabel(false);
+                btn.style.display = (this._menuActive && this.mode === 'classic') ? 'inline-flex' : 'none';
+                if (this._menuActive && this.mode === 'classic') btn.textContent = this._nextToggleLabel(false);
             }
         }
         hide(container) {
@@ -303,9 +306,7 @@
             const isStore = Boolean(rawClassifier.isStoreScreen || rawClassifier.isStore || rawClassifier.mode === 'store');
             const isSpell = Boolean(rawClassifier.isSpellPowerChoice || /^(cast|browse|study)$/.test(rawClassifier.verbPrompt));
             const isTarget = Boolean(rawClassifier.isItemTargetPrompt || (rawClassifier.verbPrompt && !isSpell));
-            const isBirth = false;
-            const isHandheld = typeof document !== 'undefined' && document.documentElement && document.documentElement.classList.contains('yasd-handheld');
-            const isMenuActive = Boolean((isInv || isEq || isSpell || isTarget || (isStore && isHandheld && items.length > 0) || submenu.isSilqAbilityTree || submenu.isSilqSmithing || submenu.isFcbPowerMenu || submenu.isHengbandMagicMenu) && (!isStore || isHandheld));
+            const isMenuActive = Boolean(isInv || isEq || isSpell || isTarget || (isStore && items.length > 0) || submenu.isSilqAbilityTree || submenu.isSilqSmithing || submenu.isFcbPowerMenu || submenu.isHengbandMagicMenu);
             this._menuActive = isMenuActive;
             if (!isMenuActive) { this.hide(container); return false; }
             if (this._isSplitMode() && !this._manualSplitChosen && this._isShortNonMobileViewport()) {
@@ -374,7 +375,10 @@
             // Category Filter Bar & Hero Panoply Summary Strip
             const maxSlots = (RC && RC.getCapabilities) ? (RC.getCapabilities(realm).maxInventoryVisible || 24) : (realm === 'nethack' ? 52 : 24);
             let panoplyAndFilterBar = '';
-            if (enrichedItems.length > 0) {
+            if (isSpell && enrichedItems.length > 0) {
+                const spLeft = (options.vitals && typeof options.vitals.sp === 'number') ? `<span class="grimoire-panoply-weight">💧 ${options.vitals.sp} MP</span>` : '';
+                panoplyAndFilterBar = `<div class="grimoire-panoply-strip"><div class="grimoire-panoply-metrics"><span class="grimoire-panoply-slots">✨ ${enrichedItems.length} ${isJp ? '呪文' : 'Spells'}</span>${spLeft}</div></div>`;
+            } else if (enrichedItems.length > 0) {
                 const bucSummary = (realm === 'nethack' || blessedCount + uncursedCount + cursedCount > 0)
                     ? `<span class="grimoire-panoply-buc"><span class="buc-tally-b">✦ ${blessedCount}</span> · <span class="buc-tally-u">○ ${uncursedCount}</span> · <span class="buc-tally-c">☠ ${cursedCount}</span></span>`
                     : '';
@@ -391,17 +395,22 @@
 
             // Filter displayed cards according to active category (`all` shows all 52)
             const activeGroup = CATEGORY_GROUPS.find(g => g.id === this._activeCategory) || CATEGORY_GROUPS[0];
-            const visibleEntries = enrichedItems.filter(e => activeGroup.match(e.cat.category));
+            const visibleEntries = isSpell ? enrichedItems : enrichedItems.filter(e => activeGroup.match(e.cat.category));
+            const GR = (typeof GrimoireRenderers !== 'undefined') ? GrimoireRenderers : ((typeof window !== 'undefined' && window.GrimoireRenderers) ? window.GrimoireRenderers : (typeof require === 'function' ? (() => { try { return require('./grimoire-renderers.js'); } catch (_) { return null; } })() : null));
 
             const renderItemCards = (entries) => `<div class="grimoire-card-grid" role="list">${entries.map(({ it, key, desc, cat, metrics, bucInfo, delta }) => {
+                if (isSpell && GR && typeof GR.renderSpellCard === 'function') {
+                    return GR.renderSpellCard({ key, desc, row: it.row, col: it.col, isJp, vitals: options.vitals });
+                }
                 const bucBadge = bucInfo.buc !== 'unknown' ? `<span class="grimoire-buc-badge buc-${escapeHtml(bucInfo.buc)}">${escapeHtml(bucInfo.badgeLabel)}</span>` : '';
                 const deltaBadge = delta.deltaLabel ? `<span class="grimoire-stat-delta ${delta.isUpgrade ? 'is-upgrade' : (delta.isDowngrade ? 'is-downgrade' : '')}">${escapeHtml(delta.deltaLabel)}</span>` : '';
+                const priceMetaHtml = (isStore && GR && typeof GR.renderStoreCardMeta === 'function' && metrics.price) ? GR.renderStoreCardMeta(metrics, options.vitals, promptText) : (metrics.price ? `<span class="grimoire-meta-price">${escapeHtml(metrics.price)}</span>` : '');
                 const verbs = getAvailableVerbsForItem(cat.category, realm, { lang, isEquipScreen: isEq, isStoreScreen: isStore, isSpellPowerChoice: isSpell, isItemTargetPrompt: isTarget, itemDesc: desc, item: it, submenu });
                 const pv = verbs[0] || { id: 'select', label: isJp ? '選択' : 'Select', verb: '' }, sv = verbs.slice(1, 5);
                 const pBtn = `<button type="button" class="grimoire-card-verb-btn grimoire-act-btn is-primary-verb ${pv.isBind ? 'grimoire-bind-btn' : ''}" data-grimoire-cmd="item-primary" data-grimoire-key="${escapeHtml(key)}" data-grimoire-verb="${escapeHtml(pv.verb)}" data-grimoire-name="${escapeHtml(metrics.cleanName)}" data-grimoire-category="${cat.category}" data-grimoire-icon="${cat.icon}" data-grimoire-row="${Number(it.row || 0)}" data-grimoire-col="${Number(it.col || 0)}">${escapeHtml(pv.label)}</button>`;
                 const sBtns = sv.map(v => `<button type="button" class="grimoire-card-verb-btn grimoire-act-btn is-secondary-verb ${v.isBind ? 'grimoire-bind-btn' : ''}" data-grimoire-cmd="${v.isBind ? 'bind-quick-slot' : 'item-verb'}" data-grimoire-key="${escapeHtml(key)}" data-grimoire-verb="${escapeHtml(v.verb)}" data-grimoire-name="${escapeHtml(metrics.cleanName)}" data-grimoire-category="${cat.category}" data-grimoire-icon="${cat.icon}" data-grimoire-row="${Number(it.row || 0)}" data-grimoire-col="${Number(it.col || 0)}">${escapeHtml(v.label)}</button>`).join('');
                 const more = sv.length ? `<button type="button" class="grimoire-more-verbs-btn" data-grimoire-cmd="toggle-card-verbs">⋯</button>` : '';
-                return `<div class="grimoire-item-card rarity-${cat.rarity} ${bucInfo.buc !== 'unknown' ? 'buc-card-' + bucInfo.buc : ''}" data-slot-key="${escapeHtml(key)}" data-item-cat="${cat.category}"><div class="grimoire-card-main" role="button" tabindex="0" data-grimoire-cmd="item-primary" data-grimoire-key="${escapeHtml(key)}" data-grimoire-verb="${escapeHtml(pv.verb)}" data-grimoire-row="${Number(it.row || 0)}" data-grimoire-col="${Number(it.col || 0)}"><span class="grimoire-slot-medallion">${escapeHtml(key)})</span><span class="grimoire-item-icon" aria-hidden="true">${cat.icon}</span><div class="grimoire-item-copy"><div class="grimoire-item-title">${escapeHtml(metrics.cleanName)} ${bucBadge} ${deltaBadge}</div><div class="grimoire-item-meta">${metrics.stats ? `<span class="grimoire-meta-stat">${escapeHtml(metrics.stats)}</span>` : ''}${metrics.weight ? `<span class="grimoire-meta-weight">${escapeHtml(metrics.weight)}</span>` : ''}${metrics.price ? `<span class="grimoire-meta-price">${escapeHtml(metrics.price)}</span>` : ''}</div></div></div><div class="grimoire-card-actions">${pBtn}${sBtns}${more}</div></div>`;
+                return `<div class="grimoire-item-card rarity-${cat.rarity} ${bucInfo.buc !== 'unknown' ? 'buc-card-' + bucInfo.buc : ''}" data-slot-key="${escapeHtml(key)}" data-item-cat="${cat.category}"><div class="grimoire-card-main" role="button" tabindex="0" data-grimoire-cmd="item-primary" data-grimoire-key="${escapeHtml(key)}" data-grimoire-verb="${escapeHtml(pv.verb)}" data-grimoire-row="${Number(it.row || 0)}" data-grimoire-col="${Number(it.col || 0)}"><span class="grimoire-slot-medallion">${escapeHtml(key)})</span><span class="grimoire-item-icon" aria-hidden="true">${cat.icon}</span><div class="grimoire-item-copy"><div class="grimoire-item-title">${escapeHtml(metrics.cleanName)} ${bucBadge} ${deltaBadge}</div><div class="grimoire-item-meta">${metrics.stats ? `<span class="grimoire-meta-stat">${escapeHtml(metrics.stats)}</span>` : ''}${metrics.weight ? `<span class="grimoire-meta-weight">${escapeHtml(metrics.weight)}</span>` : ''}${priceMetaHtml}</div></div></div><div class="grimoire-card-actions">${pBtn}${sBtns}${more}</div></div>`;
             }).join('')}</div>`;
 
             let body = '';

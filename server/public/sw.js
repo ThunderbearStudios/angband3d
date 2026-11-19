@@ -4,8 +4,9 @@ const ASSET_CACHE = 'angband3d-assets-v4';
 const SHELL_ASSETS = [
   '/',
   '/manifest.json',
-  '/css/dungeon.css',
-  '/css/sightline-polish.css',
+  '/dist/app.min.css',
+  '/dist/boot.min.js',
+  '/dist/game.min.js',
   '/assets/favicon.png',
   '/assets/yasd3d_icon_192.png'
 ];
@@ -66,7 +67,7 @@ self.addEventListener('fetch', (event) => {
     url.pathname.startsWith('/js/vendor/') ||
     url.pathname.startsWith('/wasm/')
   );
-  const isVersionedCode = (url.pathname.startsWith('/js/') || url.pathname.startsWith('/css/')) && hasVersionParam;
+  const isVersionedCode = (url.pathname.startsWith('/js/') || url.pathname.startsWith('/css/') || url.pathname.startsWith('/dist/')) && hasVersionParam;
 
   if (isHeavyImmutableAsset || isVersionedCode) {
     const targetCacheName = isHeavyImmutableAsset ? ASSET_CACHE : CACHE_NAME;

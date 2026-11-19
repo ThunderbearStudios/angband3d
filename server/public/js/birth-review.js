@@ -33,14 +33,28 @@
         return m && m[1] ? m[1].trim().replace(/\s+/g, ' ') : '';
     }
 
+    function formatBirthStat(val, realmKey) {
+        const RC = root.RealmCartridge || (typeof require === 'function' ? (() => { try { return require('./realm-cartridge.js'); } catch (_) { return null; } })() : null);
+        if (RC && typeof RC.formatStatValue === 'function') {
+            return RC.formatStatValue(val, realmKey);
+        }
+        const n = Number(val);
+        if (!Number.isFinite(n)) return String(val || '');
+        if ((realmKey === 'angband' || realmKey === 'frogcomposband' || realmKey === 'hengband') && n > 18) {
+            return n >= 118 ? '18/***' : `18/${String(n - 18).padStart(2, '0')}`;
+        }
+        return String(n);
+    }
+
     function extractHeroSummaryFromFrame(frame, realm) {
         const realmKey = String((frame && frame.realm) || realm || 'angband').toLowerCase();
         const realmTitle = REALM_LABELS[realmKey] || realmKey.toUpperCase();
         const p = (frame && frame.player) || {};
         const text = rowsToText(frame);
 
-        let name = (p.name && p.name !== 'PLAYER') ? String(p.name).trim() : '';
-        if (!name) name = matchTermField(text, /(?:Name|Hero)\s*:\s*([^\r\n|]{1,24})/i);
+        let rawName = (p.name && p.name !== 'PLAYER') ? String(p.name).trim() : '';
+        if (!rawName) rawName = matchTermField(text, /(?:Name|Hero)\s*:\s*([^\r\n|]{1,24})/i);
+        const name = (typeof root.formatDisplayHeroName === 'function' && rawName) ? root.formatDisplayHeroName(rawName) : rawName;
 
         let race = p.race ? String(p.race).trim() : '';
         if (!race) race = matchTermField(text, /Race\s*:\s*([^\r\n|]{1,22})/i);
@@ -55,12 +69,22 @@
             parts.push(identity);
         }
         if (typeof p.str === 'number' && p.str > 0) {
-            parts.push(`STR ${p.str} DEX ${p.dex || p.str} CON ${p.con || p.str}`);
+            const sStr = formatBirthStat(p.str, realmKey);
+            const sDex = formatBirthStat(p.dex || p.str, realmKey);
+            const sCon = formatBirthStat(p.con || p.str, realmKey);
+            parts.push(`STR ${sStr} DEX ${sDex} CON ${sCon}`);
         }
-        if (hp > 0) {
-            parts.push(`HP ${hp}`);
-        }
-        parts.push('Review build & starting gear before descending');
+        if (hp > 0) parts.push(`HP ${hp}`);
+        if (typeof p.ac === 'number') parts.push(`AC ${p.ac}`);
+        if (typeof p.au === 'number' || typeof p.gold === 'number') parts.push(`${p.au !== undefined ? p.au : p.gold} au`);
+        const gearPool = []
+            .concat(Array.isArray(p.equipment) ? p.equipment : [])
+            .concat(Array.isArray(p.inventory) ? p.inventory : [])
+            .map(it => it && (it.name || it.dname || it.label || ''))
+            .filter(Boolean)
+            .slice(0, 2);
+        if (gearPool.length > 0) parts.push(`Gear: ${gearPool.join(', ')}`);
+        else parts.push('Review build & starting gear before descending');
         return parts.join(' • ');
     }
 

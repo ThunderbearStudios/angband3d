@@ -2482,7 +2482,10 @@ const server = http.createServer((req, res) => {
                 const brFilePath = filePath + '.br';
                 const brStat = fs.existsSync(brFilePath) ? fs.statSync(brFilePath) : null;
                 const validBr = Boolean(brStat && brStat.isFile() && brStat.mtimeMs >= fileStat.mtimeMs && brStat.size > 0);
-                staticMeta = { fileStat, brFilePath, brStat: validBr ? brStat : null, checkedAt: nowStatMs };
+                const gzFilePath = filePath + '.gz';
+                const gzStat = fs.existsSync(gzFilePath) ? fs.statSync(gzFilePath) : null;
+                const validGz = Boolean(gzStat && gzStat.isFile() && gzStat.mtimeMs >= fileStat.mtimeMs && gzStat.size > 0);
+                staticMeta = { fileStat, brFilePath, brStat: validBr ? brStat : null, gzFilePath, gzStat: validGz ? gzStat : null, checkedAt: nowStatMs };
                 if (staticHotMap.size >= 1500) staticHotMap.delete(staticHotMap.keys().next().value);
                 staticHotMap.set(filePath, staticMeta);
             }
@@ -2728,6 +2731,19 @@ const server = http.createServer((req, res) => {
         } else if (compressible && acceptEncoding.includes('gzip')) {
             headers['Content-Encoding'] = 'gzip';
             headers['Vary'] = 'Accept-Encoding';
+            if (staticMeta.gzStat && staticMeta.gzFilePath) {
+                headers['Content-Length'] = staticMeta.gzStat.size;
+                res.writeHead(200, headers);
+                if (req.method === 'HEAD') {
+                    res.end();
+                    return;
+                }
+                const gzStream = fs.createReadStream(staticMeta.gzFilePath);
+                res.on('close', () => { gzStream.destroy(); });
+                gzStream.on('error', () => { if (!res.destroyed) res.destroy(); });
+                gzStream.pipe(res);
+                return;
+            }
             try {
                 const stat = fileStat;
                 const cacheKey = `${filePath}:${stat.mtimeMs}`;

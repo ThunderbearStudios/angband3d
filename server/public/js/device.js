@@ -37,8 +37,12 @@ class DeviceProfile {
     }
 
     static detectGpuProfile(glOrCanvasOrString) {
+        let userOverrideTier = null;
+        try {
+            if (typeof localStorage !== 'undefined') userOverrideTier = localStorage.getItem('yasd_gpu_override') || null;
+        } catch (_) {}
         if (typeof window !== 'undefined' && window.Dungeon3DLightmap && window.Dungeon3DLightmap.HardwareGpuProfile) {
-            this._gpuProfile = window.Dungeon3DLightmap.HardwareGpuProfile.detect(glOrCanvasOrString);
+            this._gpuProfile = window.Dungeon3DLightmap.HardwareGpuProfile.detect(glOrCanvasOrString, userOverrideTier);
         } else {
             let rendererName = typeof glOrCanvasOrString === 'string' ? glOrCanvasOrString : 'Unknown WebGL Renderer';
             try {

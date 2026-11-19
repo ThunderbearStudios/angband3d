@@ -940,6 +940,7 @@ class WebHUD {
                 if (act === 'attack' && inp) inp.executeSmartAction('attack');
                 else if (act === 'shoot' && inp) inp.executeSmartAction('shoot');
                 else if (act === 'cast') document.getElementById('btn-cast')?.click();
+                else if (act === 'pickup' && inp && inp.network) inp.network.sendKey('g');
                 else if (act === 'inspect' && this._currentTargetMonster && window.chronicleManager?.interactWithCreature) {
                     window.chronicleManager.interactWithCreature(this._currentTargetMonster, { mode: 'popover' });
                 }
@@ -948,15 +949,15 @@ class WebHUD {
         const frame = frameOpt || this.lastFrame;
         const pl = player || (frame ? frame.player : null);
         let t = (pl && pl.target && pl.target.name) ? pl.target : ((frame && frame.target && frame.target.name) ? frame.target : null);
+        const inp = window.__app && window.__app.input;
+        let fwd = { dx: 0, dy: -1 };
+        const facing = window.__app && window.__app.dungeon ? window.__app.dungeon.facing : undefined;
+        if (typeof facing === 'number' && facing >= 0 && facing <= 7) {
+            fwd = [{ dx: 0, dy: -1 }, { dx: 1, dy: -1 }, { dx: 1, dy: 0 }, { dx: 1, dy: 1 }, { dx: 0, dy: 1 }, { dx: -1, dy: 1 }, { dx: -1, dy: 0 }, { dx: -1, dy: -1 }][facing] || fwd;
+        } else if (inp && typeof inp.getFacingForward === 'function') {
+            fwd = inp.getFacingForward().fwd;
+        }
         if (!t && frame && Array.isArray(frame.monsters) && pl && pl.x !== undefined && pl.y !== undefined) {
-            const inp = window.__app && window.__app.input;
-            let fwd = { dx: 0, dy: -1 };
-            const facing = window.__app && window.__app.dungeon ? window.__app.dungeon.facing : undefined;
-            if (typeof facing === 'number' && facing >= 0 && facing <= 7) {
-                fwd = [{ dx: 0, dy: -1 }, { dx: 1, dy: -1 }, { dx: 1, dy: 0 }, { dx: 1, dy: 1 }, { dx: 0, dy: 1 }, { dx: -1, dy: 1 }, { dx: -1, dy: 0 }, { dx: -1, dy: -1 }][facing] || fwd;
-            } else if (inp && typeof inp.getFacingForward === 'function') {
-                fwd = inp.getFacingForward().fwd;
-            }
             const ray = (inp && typeof inp.raycastTargetAhead === 'function') ? inp.raycastTargetAhead(frame, pl.x, pl.y, fwd) : null;
             if (ray && ray.type === 'monster' && ray.data) t = ray.data;
         }
@@ -964,6 +965,19 @@ class WebHUD {
         const hasTarget = !!(t && t.name);
         const isVisible = hasTarget && (t.visible !== false);
         const esc = typeof escapeHtml === 'function' ? escapeHtml : (s) => String(s).replace(/[&<>'"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[c]));
+        const ht = (typeof window !== 'undefined' && window.HudTelemetry) ? window.HudTelemetry : null;
+        const ensureAffChips = (affEl) => {
+            if (affEl && !affEl._distChip) {
+                affEl.textContent = '';
+                const chip = document.createElement('span'); chip.className = 'target-dist-chip';
+                const loreChip = document.createElement('span'); loreChip.className = 'target-lore-chip';
+                const mkBtn = (act, txt) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'target-act-pill'; b.dataset.targetAct = act; b.textContent = txt; return b; };
+                const pBtn = mkBtn('attack', '⚔ Attack [Space]');
+                const cBtn = mkBtn('cast', '✨ Cast'), iBtn = mkBtn('inspect', '🔍 Inspect');
+                affEl.append(chip, loreChip, pBtn, cBtn, iBtn);
+                affEl._distChip = chip; affEl._loreChip = loreChip; affEl._pBtn = pBtn; affEl._cBtn = cBtn; affEl._iBtn = iBtn;
+            }
+        };
 
         if (hasTarget && isVisible) {
             let tName = t.name;
@@ -991,12 +1005,14 @@ class WebHUD {
             if (rawReticleCard) {
                 rawReticleCard.classList.remove('hidden');
                 rawReticleCard.style.display = 'block';
+                rawReticleCard.dataset.mode = 'monster';
+                const hpBarEl = rawReticleCard.querySelector('.target-card-hp-bar');
+                if (hpBarEl) hpBarEl.style.display = '';
                 const isUniq = Boolean(t.unique || t.boss);
                 const isSleep = Boolean(t.asleep || t.sleep || t.alertness_label === 'asleep' || /asleep|sleeping/i.test(t.status || ''));
                 const isUnwary = Boolean(!isSleep && (t.unwary || t.alertness_label === 'unwary'));
                 const isFlee = Boolean(t.fleeing || t.afraid || t.fear || /flee|afraid|fear/i.test(t.status || ''));
                 const dist = (pl && pl.x !== undefined && t.x !== undefined) ? Math.max(Math.abs(t.x - pl.x), Math.abs(t.y - pl.y)) : 1;
-                const ht = (typeof window !== 'undefined' && window.HudTelemetry) ? window.HudTelemetry : null;
                 const tac = (ht && typeof ht.formatMonsterTacticalSummary === 'function') ? ht.formatMonsterTacticalSummary(t, realm) : null;
                 const nameEl = document.getElementById('target-card-name');
                 if (nameEl) nameEl.textContent = `${tName}${t.glyph ? ` ('${t.glyph}')` : ''}`;
@@ -1010,20 +1026,10 @@ class WebHUD {
                 if (hpFillEl) hpFillEl.style.width = `${pct}%`;
                 const affEl = document.getElementById('target-card-affinities');
                 if (affEl) {
-                    if (!affEl._distChip) {
-                        affEl.textContent = '';
-                        const chip = document.createElement('span'); chip.className = 'target-dist-chip';
-                        const loreChip = document.createElement('span'); loreChip.className = 'target-lore-chip';
-                        const mkBtn = (act, txt) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'target-act-pill'; b.dataset.targetAct = act; b.textContent = txt; return b; };
-                        const pBtn = mkBtn('attack', '⚔ Attack [Space]');
-                        affEl.append(chip, loreChip, pBtn, mkBtn('cast', '✨ Cast'), mkBtn('inspect', '🔍 Inspect'));
-                        affEl._distChip = chip; affEl._loreChip = loreChip; affEl._pBtn = pBtn;
-                    }
+                    ensureAffChips(affEl);
                     const schemas = this._getRealmSchemas(realm);
                     const defTag = schemas.defenseSchema.label === 'Arm' ? 'Arm' : (schemas.defenseSchema.label === 'Armor' ? 'Armor' : 'AC');
-                    const acPart = (tac && tac.acVal !== undefined && tac.acVal !== null)
-                        ? (/^EV\b/i.test(String(tac.acVal)) ? ` • ${tac.acVal}` : ` • ${defTag} ${tac.acVal}`)
-                        : '';
+                    const acPart = (tac && tac.acVal !== undefined && tac.acVal !== null) ? (/^EV\b/i.test(String(tac.acVal)) ? ` • ${tac.acVal}` : ` • ${defTag} ${tac.acVal}`) : '';
                     affEl._distChip.textContent = `📏 ${dist}sq • ${pct}% HP${acPart}`;
                     const loreBits = [];
                     if (tac && tac.blows) loreBits.push(`⚔ ${tac.blows}`);
@@ -1031,13 +1037,42 @@ class WebHUD {
                     if (tac && tac.resists) loreBits.push(`🛡 ${tac.resists}`);
                     affEl._loreChip.textContent = loreBits.join(' • ');
                     affEl._loreChip.style.display = loreBits.length > 0 ? 'inline-flex' : 'none';
+                    affEl._pBtn.style.display = ''; affEl._cBtn.style.display = ''; affEl._iBtn.style.display = '';
                     affEl._pBtn.dataset.targetAct = dist <= 1 ? 'attack' : 'shoot';
                     affEl._pBtn.textContent = dist <= 1 ? '⚔ Attack [Space]' : '🏹 Shoot [f]';
                 }
             }
         } else {
             if (this.footerTarget) { this.footerTarget.style.display = 'none'; this._lastFooterTargetSig = ''; }
-            if (rawReticleCard) { rawReticleCard.style.display = 'none'; rawReticleCard.classList.add('hidden'); }
+            const floorHit = (frame && frame.phase === 'play' && rawReticleCard && ht && typeof ht.findReticleFloorItem === 'function')
+                ? ht.findReticleFloorItem(frame, pl, fwd, realm) : null;
+            if (floorHit && rawReticleCard) {
+                const it = floorHit.item, cmp = floorHit.cmp, glyphs = it.glyph || it.g || '';
+                rawReticleCard.classList.remove('hidden'); rawReticleCard.style.display = 'block';
+                rawReticleCard.dataset.mode = 'item';
+                const hpBarEl = rawReticleCard.querySelector('.target-card-hp-bar');
+                if (hpBarEl) hpBarEl.style.display = 'none';
+                const nameEl = document.getElementById('target-card-name');
+                if (nameEl) nameEl.textContent = `${it.name || it.dname}${glyphs ? ` ('${glyphs}')` : ''}`;
+                const tierEl = document.getElementById('target-card-tier');
+                if (tierEl) {
+                    const isUp = cmp && cmp.delta > 0, isDn = cmp && cmp.delta < 0;
+                    tierEl.textContent = isUp ? `▲ UPGRADE (+${cmp.delta} ${cmp.metric})` : (isDn ? `▼ LOWER (${cmp.delta} ${cmp.metric})` : '💎 FLOOR ITEM');
+                    tierEl.className = 'target-card-tier' + (isUp ? ' reticle-upgrade-chip' : '');
+                }
+                const affEl = document.getElementById('target-card-affinities');
+                if (affEl) {
+                    ensureAffChips(affEl);
+                    affEl._distChip.textContent = floorHit.dist === 0 ? '📍 Underfoot' : `📏 ${floorHit.dist}sq ahead`;
+                    affEl._loreChip.style.display = 'none';
+                    affEl._cBtn.style.display = 'none'; affEl._iBtn.style.display = 'none';
+                    affEl._pBtn.style.display = floorHit.dist === 0 ? '' : 'none';
+                    affEl._pBtn.dataset.targetAct = 'pickup';
+                    affEl._pBtn.textContent = '💎 Pick Up [g]';
+                }
+            } else if (rawReticleCard) {
+                rawReticleCard.style.display = 'none'; rawReticleCard.classList.add('hidden');
+            }
         }
     }
 

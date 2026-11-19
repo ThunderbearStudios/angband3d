@@ -588,3 +588,186 @@ dialog.yasd-modal-dialog,
         transition: none !important;
     }
 }
+
+/* 8. Phase 4: Rich Spellbook, Desktop Merchant Affordability, Settings Dialog & Reticle Upgrade */
+.grimoire-spell-school-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 6px;
+    background: rgba(15, 23, 42, 0.85);
+    border: 1px solid rgba(196, 154, 69, 0.35);
+    flex-shrink: 0;
+}
+
+.grimoire-spell-mp {
+    color: #93c5fd;
+    font-weight: 700;
+}
+
+.grimoire-spell-mp.is-low,
+.grimoire-spell-status.status-warn {
+    color: #fca5a5;
+}
+
+.grimoire-spell-status {
+    font-size: 10px;
+    padding: 1px 6px;
+    border-radius: 999px;
+    background: rgba(30, 41, 59, 0.9);
+    border: 1px solid rgba(148, 163, 184, 0.35);
+    color: #e2e8f0;
+    margin-left: 4px;
+}
+
+.grimoire-spell-status.status-ready {
+    background: rgba(20, 83, 45, 0.82);
+    border-color: rgba(74, 222, 128, 0.5);
+    color: #bbf7d0;
+}
+
+.grimoire-spell-fail {
+    font-weight: 700;
+    padding: 0 4px;
+    border-radius: 4px;
+}
+
+.grimoire-spell-fail.fail-low {
+    color: #4ade80;
+}
+
+.grimoire-spell-fail.fail-med {
+    color: #fbbf24;
+}
+
+.grimoire-spell-fail.fail-high {
+    color: #f87171;
+}
+
+.grimoire-store-after {
+    font-size: 11px;
+    font-weight: 700;
+    margin-left: 6px;
+}
+
+.grimoire-store-after.is-affordable {
+    color: #4ade80;
+}
+
+.grimoire-store-after.is-unaffordable {
+    color: #f87171;
+}
+
+.reticle-upgrade-chip {
+    background: #4ade80 !important;
+    color: #052e16 !important;
+    border: 1px solid #86efac !important;
+    font-weight: 800 !important;
+}
+
+.daily-seed-trophy {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 8px;
+    border-radius: 999px;
+    background: linear-gradient(180deg, #e5c368, #cfa13a);
+    color: #12151a;
+    border: 1px solid #f3d678;
+    font-family: var(--font-ui, 'Outfit', sans-serif);
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.4px;
+    white-space: nowrap;
+}
+
+.daily-seed-trophy.hidden {
+    display: none !important;
+}
+
+dialog.yasd-settings-dialog {
+    margin: auto;
+    padding: 0;
+    width: min(460px, calc(100vw - 24px));
+    max-width: 96vw;
+    border-radius: 10px;
+    border: 1px solid var(--brass-border, rgba(196, 154, 69, 0.68));
+    background: #0d1018;
+    color: #e2e8f0;
+    box-shadow: 0 22px 54px rgba(0, 0, 0, 0.88), inset 0 1px 0 rgba(255, 224, 150, 0.16);
+}
+
+dialog.yasd-settings-dialog::backdrop {
+    background: rgba(6, 8, 12, 0.78);
+}
+
+.yasd-settings-shell {
+    padding: 16px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.yasd-settings-hdr {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    border-bottom: 1px solid rgba(196, 154, 69, 0.28);
+    padding-bottom: 10px;
+}
+
+.yasd-settings-hdr h3 {
+    margin: 0;
+    font-family: var(--font-display, 'Cinzel', serif);
+    font-size: 1rem;
+    color: #f4d57b;
+}
+
+.yasd-settings-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.yasd-set-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    font-family: var(--font-ui, 'Outfit', sans-serif);
+    font-size: 13px;
+    color: #d0d6e0;
+}
+
+.yasd-set-row select {
+    background: #141925;
+    color: #f1f5f9;
+    border: 1px solid rgba(196, 154, 69, 0.42);
+    border-radius: 6px;
+    padding: 5px 8px;
+    font-size: 12px;
+}
+
+.yasd-settings-ftr {
+    display: flex;
+    justify-content: flex-end;
+    padding-top: 6px;
+}
+
+.yasd-settings-ftr .btn-gold {
+    min-width: 96px;
+    min-height: 36px;
+    color: #12151a;
+    font-weight: 800;
+}
+
+html.yasd-reduced-motion *,
+html.yasd-reduced-motion *::before,
+html.yasd-reduced-motion *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+}

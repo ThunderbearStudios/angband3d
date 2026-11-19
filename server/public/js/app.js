@@ -259,6 +259,40 @@ window.addEventListener('DOMContentLoaded', () => {
         window.RyodForge.initDefaultBlueprint();
     }
 
+    function ensureGuideReady() {
+        if (window.AdventurerGuide) return Promise.resolve(window.AdventurerGuide);
+        if (typeof window.__loadLazyBundle === 'function') {
+            return window.__loadLazyBundle('adventurer-guide').then(() => window.AdventurerGuide || null).catch(() => null);
+        }
+        return Promise.resolve(null);
+    }
+
+    function ensureRyodForgeReady() {
+        if (window.RyodForge) return Promise.resolve(window.RyodForge);
+        if (typeof window.__loadLazyBundle === 'function') {
+            return window.__loadLazyBundle('ryod-forge').then(() => {
+                if (window.RyodForge && typeof window.RyodForge.initDefaultBlueprint === 'function' && !window.__activeRyodBlueprint) {
+                    window.RyodForge.initDefaultBlueprint();
+                }
+                return window.RyodForge || null;
+            }).catch(() => null);
+        }
+        return Promise.resolve(null);
+    }
+
+    function syncDailySeedBadge() {
+        const el = document.getElementById('daily-seed-trophy');
+        if (!el) return;
+        const seed = window.__bootSeed ? String(window.__bootSeed).trim() : '';
+        if (seed) {
+            el.classList.remove('hidden');
+            el.textContent = `🏆 DAILY • ${seed.slice(0, 6)}`;
+            el.title = `Daily Seeded Descent Active (Seed: ${seed})`;
+        } else {
+            el.classList.add('hidden');
+        }
+    }
+
     // WS5.1: Lazy Hengband language data loading
     let hengLangPromise = null;
     function loadHengLang() {
@@ -369,8 +403,12 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 
     if (window.RealmGrimoireDeck && typeof window.RealmGrimoireDeck.setMode === 'function') {
-        window.RealmGrimoireDeck.setMode('classic');
-        try { localStorage.removeItem('yasd3d_grimoire_mode'); } catch (_) {}
+        let savedGrimoireMode = 'classic';
+        try {
+            const m = localStorage.getItem('yasd3d_grimoire_mode');
+            if (m && window.RealmGrimoireDeck.isSupportedMode(m)) savedGrimoireMode = m;
+        } catch (_) {}
+        window.RealmGrimoireDeck.setMode(savedGrimoireMode);
     }
 
     const setEngineMode = (mode, persistPref = true) => {
@@ -1798,19 +1836,60 @@ window.addEventListener('DOMContentLoaded', () => {
     dungeon.audio = audio;
     hud.audio = audio;
 
-    // Initialize The Living Chronicle & Voiced Lorekeeper Coordinator (Web Client Only)
+    // Initialize The Living Chronicle & Voiced Lorekeeper Coordinator (Web Client Only, Lazy-Loaded)
     let chronicleManager = null;
-    if (!isApk && typeof ChronicleManager !== 'undefined') {
-        chronicleManager = new ChronicleManager();
-        chronicleManager.init(dungeon, audio);
-        window.chronicleManager = chronicleManager;
-        window.dungeon = dungeon;
-    } else {
-        // Standalone clients: Tome is strictly disabled
+    let chroniclePendingResetName = null;
+    let chronicleInitPromise = null;
+    function ensureChronicleReady() {
+        if (isApk || document.body.classList.contains('is-standalone')) return Promise.resolve(null);
+        if (window.chronicleManager) return Promise.resolve(window.chronicleManager);
+        if (!chronicleInitPromise) {
+            chronicleInitPromise = (async () => {
+                if (typeof ChronicleManager === 'undefined' && typeof window.__loadLazyBundle === 'function') {
+                    await window.__loadLazyBundle('chronicle');
+                }
+                if (typeof ChronicleManager === 'undefined') return null;
+                chronicleManager = new ChronicleManager();
+                chronicleManager.init(dungeon, audio);
+                window.chronicleManager = chronicleManager;
+                if (activeRealm && typeof ChronicleGrounder !== 'undefined' && typeof ChronicleGrounder.getTraditionForRealm === 'function') {
+                    const trad = ChronicleGrounder.getTraditionForRealm(activeRealm);
+                    chronicleManager.tradition = trad;
+                    if (chronicleManager.audio && chronicleManager.audio.setTradition) chronicleManager.audio.setTradition(trad);
+                    if (chronicleManager.audio && chronicleManager.audio.setRealm) chronicleManager.audio.setRealm(activeRealm);
+                    if (chronicleManager.updateTraditionBadge) chronicleManager.updateTraditionBadge();
+                }
+                if (chroniclePendingResetName !== null && typeof chronicleManager.resetForNewCharacter === 'function') {
+                    chronicleManager.resetForNewCharacter({ name: chroniclePendingResetName });
+                    chroniclePendingResetName = null;
+                }
+                if (lastFrame && typeof chronicleManager.onFrame === 'function') {
+                    chronicleManager.onFrame(lastFrame);
+                }
+                return chronicleManager;
+            })().catch(() => null);
+        }
+        return chronicleInitPromise;
+    }
+    window.dungeon = dungeon;
+    if (isApk) {
         const tomeBtn = document.getElementById('btn-toggle-chronicle');
         if (tomeBtn) tomeBtn.style.display = 'none';
         const tomeWin = document.getElementById('chronicle-window');
         if (tomeWin) tomeWin.style.display = 'none';
+    } else if (typeof ChronicleManager !== 'undefined') {
+        ensureChronicleReady();
+    } else {
+        ['btn-toggle-chronicle', 'btn-pause-chronicle'].forEach((id) => {
+            const btn = document.getElementById(id);
+            if (btn) {
+                btn.addEventListener('click', (e) => {
+                    if (window.chronicleManager) return;
+                    e.preventDefault();
+                    ensureChronicleReady().then((cm) => { if (cm && cm.toggleWindow) cm.toggleWindow(); });
+                });
+            }
+        });
     }
 
     let lastFrame = null;
@@ -1897,6 +1976,7 @@ window.addEventListener('DOMContentLoaded', () => {
         toggleLanguageMode,
         getLanguageMode,
         startNewRyodGame: async (slotName, bp, autoBirth = true) => {
+            await ensureRyodForgeReady();
             if (appState === 'game') {
                 try {
                     if (network && typeof network.saveAndDisconnect === 'function' && currentPhase === 'play') {
@@ -1920,7 +2000,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 autoBirth: Boolean(autoBirth)
             });
         },
-        openRyodForge: () => window.RyodForge && typeof window.RyodForge.open === 'function' ? window.RyodForge.open() : null,
+        openRyodForge: async () => { await ensureRyodForgeReady(); return window.RyodForge && typeof window.RyodForge.open === 'function' ? window.RyodForge.open() : null; },
         setLanguageMode
     };
     let appState = 'splash';
@@ -2931,12 +3011,17 @@ window.addEventListener('DOMContentLoaded', () => {
                         await returnToMainMenu();
                     }
                     if (activeRealm !== 'ryod') selectRealm('ryod', false);
+                    await ensureRyodForgeReady();
                     if (window.RyodForge && typeof window.RyodForge.open === 'function') {
                         window.RyodForge.open();
                     } else {
                         showMainMenu();
                     }
                 }
+            });
+        } else {
+            ensureGuideReady().then((ag) => {
+                if (ag && appState === 'guide') renderRealmSurvivalGuide(key);
             });
         }
     }
@@ -3360,8 +3445,16 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 
     function startNewRandomHero() {
-        if (activeRealm === 'ryod' && window.RyodForge && typeof window.RyodForge.quickRandomizeAndLaunch === 'function') {
-            return window.RyodForge.quickRandomizeAndLaunch();
+        if (activeRealm === 'ryod') {
+            ensureRyodForgeReady().then(() => {
+                if (window.RyodForge && typeof window.RyodForge.quickRandomizeAndLaunch === 'function') {
+                    window.RyodForge.quickRandomizeAndLaunch();
+                } else {
+                    const heroName = generateHeroName('ryod');
+                    startGame({ charName: heroName, saveFile: generateSaveSlotName(heroName, 'ryod'), realm: 'ryod', isNew: true, autoBirth: true });
+                }
+            });
+            return;
         }
         const heroName = generateHeroName(activeRealm);
         startGame({
@@ -3373,9 +3466,12 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 
     function startNewCustomHero() {
-        if (activeRealm === 'ryod' && window.RyodForge && typeof window.RyodForge.open === 'function') {
+        if (activeRealm === 'ryod') {
             if (appState === 'pauseMenu') returnToMainMenu();
-            return window.RyodForge.open();
+            ensureRyodForgeReady().then(() => {
+                if (window.RyodForge && typeof window.RyodForge.open === 'function') window.RyodForge.open();
+            });
+            return;
         }
         const heroName = generateHeroName(activeRealm);
         startGame({
@@ -3518,7 +3614,10 @@ window.addEventListener('DOMContentLoaded', () => {
         sceneAssetGateSeq++;
         window.gameSceneAssetsLoading = true;
         if (options && options.seed) window.__bootSeed = String(options.seed);
+        syncDailySeedBadge();
         const chosenRealm = options.realm || activeRealm || 'angband';
+        if (chosenRealm === 'ryod') await ensureRyodForgeReady();
+        ensureChronicleReady();
         const offlineNow = (typeof navigator !== 'undefined' && navigator.onLine === false);
         const preferredMode = resolvePreferredEngineMode(chosenRealm);
         if (engineMode !== preferredMode) {
@@ -3557,8 +3656,12 @@ window.addEventListener('DOMContentLoaded', () => {
         if (hud && typeof hud.resetMessages === 'function') {
             hud.resetMessages();
         }
-        if (options.isNew && window.chronicleManager && typeof window.chronicleManager.resetForNewCharacter === 'function') {
-            window.chronicleManager.resetForNewCharacter({ name: options.charName });
+        if (options.isNew) {
+            if (window.chronicleManager && typeof window.chronicleManager.resetForNewCharacter === 'function') {
+                window.chronicleManager.resetForNewCharacter({ name: options.charName });
+            } else {
+                chroniclePendingResetName = options.charName || '';
+            }
         }
         if (engineMode === 'local' && options.saveFile && !options.isNew && window.SaveVaultClient && typeof window.SaveVaultClient.ensureLocalHydrated === 'function') {
             try {
@@ -3700,6 +3803,8 @@ window.addEventListener('DOMContentLoaded', () => {
         if (window.BirthReview && typeof window.BirthReview.resetBanner === 'function') {
             window.BirthReview.resetBanner();
         }
+        window.__bootSeed = null;
+        syncDailySeedBadge();
         if (window.__localBootFallbackTimer) {
             clearTimeout(window.__localBootFallbackTimer);
             window.__localBootFallbackTimer = null;
@@ -3963,11 +4068,12 @@ window.addEventListener('DOMContentLoaded', () => {
         }
         const dailySeed = h.toString(36).toUpperCase();
         window.__bootSeed = dailySeed;
+        syncDailySeedBadge();
         showRealmToast(`📅 Daily Seeded Descent (${utcDay} • Seed ${dailySeed})`);
         startGame({ realm: effRealm, isNew: true, autoBirth: true, seed: dailySeed, charName: 'DailyHero' });
     }
 
-    [['btn-menu-guide', () => showGuide(0, 'mainMenu')], ['btn-menu-credits', () => showGuide(7, 'mainMenu')], ['btn-menu-fullscreen', () => { if (input && typeof input.toggleFullscreen === 'function') input.toggleFullscreen(); }], ['btn-menu-realms', () => { if (appState === 'realmModal' || (realmModal && !realmModal.classList.contains('hidden'))) hideRealmSelector(); else showRealmSelector('mainMenu'); }], ['btn-menu-daily-seed', () => launchDailySeededDescent()], ['btn-menu-ryod-forge', () => { if (activeRealm !== 'ryod') selectRealm('ryod', false); if (window.RyodForge && typeof window.RyodForge.open === 'function') window.RyodForge.open(); }], ['btn-menu-ryod-main', () => { if (activeRealm !== 'ryod') selectRealm('ryod', false); if (window.RyodForge && typeof window.RyodForge.open === 'function') window.RyodForge.open(); }], ['btn-menu-ryod-quick', () => { if (activeRealm !== 'ryod') selectRealm('ryod', false); if (window.RyodForge && typeof window.RyodForge.quickRandomizeAndLaunch === 'function') window.RyodForge.quickRandomizeAndLaunch(); }]].forEach(([id, fn]) => {
+    [['btn-menu-guide', () => showGuide(0, 'mainMenu')], ['btn-menu-credits', () => showGuide(7, 'mainMenu')], ['btn-menu-fullscreen', () => { if (input && typeof input.toggleFullscreen === 'function') input.toggleFullscreen(); }], ['btn-menu-realms', () => { if (appState === 'realmModal' || (realmModal && !realmModal.classList.contains('hidden'))) hideRealmSelector(); else showRealmSelector('mainMenu'); }], ['btn-menu-daily-seed', () => launchDailySeededDescent()], ['btn-menu-ryod-forge', async () => { if (activeRealm !== 'ryod') selectRealm('ryod', false); await ensureRyodForgeReady(); if (window.RyodForge && typeof window.RyodForge.open === 'function') window.RyodForge.open(); }], ['btn-menu-ryod-main', async () => { if (activeRealm !== 'ryod') selectRealm('ryod', false); await ensureRyodForgeReady(); if (window.RyodForge && typeof window.RyodForge.open === 'function') window.RyodForge.open(); }], ['btn-menu-ryod-quick', async () => { if (activeRealm !== 'ryod') selectRealm('ryod', false); await ensureRyodForgeReady(); if (window.RyodForge && typeof window.RyodForge.quickRandomizeAndLaunch === 'function') window.RyodForge.quickRandomizeAndLaunch(); }]].forEach(([id, fn]) => {
         const el = document.getElementById(id);
         if (el) bindFastTap(el, fn);
     });

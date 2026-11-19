@@ -27,7 +27,7 @@ function walk(dir, out = []) {
             walk(full, out);
         } else if (entry.isFile()) {
             const ext = path.extname(entry.name).toLowerCase();
-            if (COMPRESSIBLE_EXTS.has(ext) && !entry.name.endsWith('.br')) {
+            if (COMPRESSIBLE_EXTS.has(ext) && !entry.name.endsWith('.br') && !entry.name.endsWith('.gz')) {
                 out.push(full);
             }
         }
@@ -40,38 +40,57 @@ let written = 0;
 let skippedFresh = 0;
 let rawTotal = 0;
 let brTotal = 0;
+let gzTotal = 0;
 
 for (const filePath of files) {
     const stat = fs.statSync(filePath);
     if (stat.size < 1024) continue;
     const brPath = filePath + '.br';
-    if (fs.existsSync(brPath)) {
-        const brStat = fs.statSync(brPath);
-        if (brStat.mtimeMs >= stat.mtimeMs && brStat.size > 0) {
-            rawTotal += stat.size;
-            brTotal += brStat.size;
-            skippedFresh++;
-            continue;
-        }
+    const gzPath = filePath + '.gz';
+    const hasFreshBr = fs.existsSync(brPath) && (() => { const s = fs.statSync(brPath); return s.mtimeMs >= stat.mtimeMs && s.size > 0 ? s : null; })();
+    const hasFreshGz = fs.existsSync(gzPath) && (() => { const s = fs.statSync(gzPath); return s.mtimeMs >= stat.mtimeMs && s.size > 0 ? s : null; })();
+    if (hasFreshBr && hasFreshGz) {
+        rawTotal += stat.size;
+        brTotal += hasFreshBr.size;
+        gzTotal += hasFreshGz.size;
+        skippedFresh++;
+        continue;
     }
     const raw = fs.readFileSync(filePath);
     const isText = /\.(js|css|json|svg|gltf|html|obj|mtl)$/i.test(filePath);
-    const compressed = zlib.brotliCompressSync(raw, {
-        params: {
-            [zlib.constants.BROTLI_PARAM_QUALITY]: zlib.constants.BROTLI_MAX_QUALITY,
-            [zlib.constants.BROTLI_PARAM_MODE]: isText ? zlib.constants.BROTLI_MODE_TEXT : zlib.constants.BROTLI_MODE_GENERIC,
-            [zlib.constants.BROTLI_PARAM_SIZE_HINT]: raw.length
+    rawTotal += raw.length;
+    if (hasFreshBr) {
+        brTotal += hasFreshBr.size;
+    } else {
+        const compressed = zlib.brotliCompressSync(raw, {
+            params: {
+                [zlib.constants.BROTLI_PARAM_QUALITY]: zlib.constants.BROTLI_MAX_QUALITY,
+                [zlib.constants.BROTLI_PARAM_MODE]: isText ? zlib.constants.BROTLI_MODE_TEXT : zlib.constants.BROTLI_MODE_GENERIC,
+                [zlib.constants.BROTLI_PARAM_SIZE_HINT]: raw.length
+            }
+        });
+        if (compressed.length < raw.length * 0.92) {
+            fs.writeFileSync(brPath, compressed);
+            brTotal += compressed.length;
+            written++;
+        } else if (fs.existsSync(brPath)) {
+            fs.unlinkSync(brPath);
         }
-    });
-    if (compressed.length < raw.length * 0.92) {
-        fs.writeFileSync(brPath, compressed);
-        rawTotal += raw.length;
-        brTotal += compressed.length;
-        written++;
-    } else if (fs.existsSync(brPath)) {
-        fs.unlinkSync(brPath);
+    }
+    if (hasFreshGz) {
+        gzTotal += hasFreshGz.size;
+    } else {
+        const gzipped = zlib.gzipSync(raw, { level: 9 });
+        if (gzipped.length < raw.length * 0.92) {
+            fs.writeFileSync(gzPath, gzipped);
+            gzTotal += gzipped.length;
+            written++;
+        } else if (fs.existsSync(gzPath)) {
+            fs.unlinkSync(gzPath);
+        }
     }
 }
 
 const pct = rawTotal > 0 ? ((1 - brTotal / rawTotal) * 100).toFixed(1) : '0.0';
-console.log(`[precompress_assets] ${written} built, ${skippedFresh} fresh | ${(rawTotal / 1048576).toFixed(2)} MB -> ${(brTotal / 1048576).toFixed(2)} MB (-${pct}%)`);
+const gzPct = rawTotal > 0 ? ((1 - gzTotal / rawTotal) * 100).toFixed(1) : '0.0';
+console.log(`[precompress_assets] ${written} built, ${skippedFresh} fresh | ${(rawTotal / 1048576).toFixed(2)} MB -> br ${(brTotal / 1048576).toFixed(2)} MB (-${pct}%), gz ${(gzTotal / 1048576).toFixed(2)} MB (-${gzPct}%)`);
