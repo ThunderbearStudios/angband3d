@@ -18,8 +18,8 @@
 
 #realm-selector-modal.modal-overlay {
   background: rgba(7, 9, 14, 0.58);
-  -webkit-backdrop-filter: blur(6px);
-  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
   padding: 0;
   display: flex;
   justify-content: flex-end;

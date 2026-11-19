@@ -123,10 +123,10 @@ The 8 classic Realm Collector Cards deliberately use authentic open-source engin
 
 - **`angband.webp`**: John Martin, *Le Pandémonium* (1841, Musée du Louvre — `Public Domain` via Wikimedia Commons).
 - **`silq.webp`**: Official Sil-Q / MicroChasm documentation tile plate (`variants/silq/lib/docs/sil-gfx-tiles_120x120.png` — `GPL-2.0`).
-- **`dcss.webp`**: Official Dungeon Crawl Stone Soup Minotaur splash plate (`crawl-ref/source/dat/tiles/title_Cws_Minotauros.png` by Cws — `CC0` / `GPL-2.0+`).
-- **`nethack.webp`**: Authentic NetHack djinni wish terminal plate (`File:Nethack_releasing_a_djinni.png` — `NetHack General Public License`).
+- **`dcss.webp`**: Official Dungeon Crawl Stone Soup *Ignis, the Dying Flame* splash painting (`crawl-ref/source/dat/tiles/title_kaonedong_ignis_the_dying_flame.png` by `kaonedong` — `CC0 1.0`, cropped full-bleed 16:9).
+- **`nethack.webp`**: Authentic graphical *Vulture for NetHack* isometric dungeon view (`https://commons.wikimedia.org/wiki/File:Vultures-2.1.0_screenshot.jpg` — `GPL` / `NGPL` ecosystem, cropped full-bleed 16:9).
 - **`brogue.webp`**: Official Brogue / BrogueCE flaming-chasm title screen (`io.github.tmewett.brogue.metainfo.xml` — `AGPL-3.0-or-later`).
 - **`frogcomposband.webp`**: Gustave Doré, *The Destruction of Leviathan* (1865 — `Public Domain` via Wikimedia Commons).
-- **`hengband.webp`**: Utagawa Kuniyoshi, *Takiyasha the Witch and the Skeleton Spectre* (c. 1844 — `Public Domain` Edo ukiyo-e woodblock print via Wikimedia Commons).
-- **`rogue.webp`**: Classic 1984 PC/BSD *Rogue: Exploring the Dungeons of Doom* dungeon screen (`File:Rogue_Screen_Shot_CAR.PNG` — `Public Domain` via Wikimedia Commons).
-- **`ryod.webp`**: *The Chimera Forge* original dark-fantasy illustration — © 2026 **Thunderbear Studios™** (`https://yasd3d.com`).
+- **`hengband.webp`**: Utagawa Kuniyoshi, *Takiyasha the Witch and the Skeleton Spectre* (c. 1844 — `Public Domain` Edo ukiyo-e woodblock print via Wikimedia Commons, cropped full-bleed 16:9).
+- **`rogue.webp`**: Giovanni Battista Piranesi, *The Drawbridge (Carceri d'Invenzione, Plate VII)* (c. 1761 — `Public Domain` via Wikimedia Commons, torchlight-graded 16:9).
+- **`ryod.webp`**: *The Chimera Forge* original dark-fantasy illustration — © 2026 **Thunderbear Studios™** (`https://yasd3d.com`). See also `server/public/assets/realms/ATTRIBUTION.md`.

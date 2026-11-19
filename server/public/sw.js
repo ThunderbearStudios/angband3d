@@ -5,6 +5,7 @@ const SHELL_ASSETS = [
   '/',
   '/manifest.json',
   '/css/dungeon.css',
+  '/css/sightline-polish.css',
   '/assets/favicon.png',
   '/assets/yasd3d_icon_192.png'
 ];

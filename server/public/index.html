@@ -9,16 +9,16 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#161920">
-    <title>YASD 3D • Angband 3D — Powered by the Yendor Engine™</title>
+    <title>YASD 3D — Powered by the Yendor Engine™</title>
     <meta name="description" content="YASD 3D (Yet Another Stupid Death — yasd3d.com): Experience nine legendary roguelike realms (Angband 4.2.6, Sil-Q 1.5, FrogComposBand 7.1, Hengband 3.0, Roll Your Own Dungeon, NetHack 3.6.7, Dungeon Crawl Stone Soup, Brogue CE, and 1980 Classic Rogue) in real-time 60 FPS first-person 3D powered by the Yendor Engine™, with 0-turn camera yaw, instant [Tab] CRT terminal, Ironman or Checkpoint play, and Voiced Living Chronicle.">
-    <meta name="keywords" content="YASD 3D, yasd3d, Yendor Engine, Angband, Angband3D, NetHack, DCSS, Dungeon Crawl Stone Soup, Brogue, Classic Rogue, Sil-Q, FrogComposBand, Hengband, Roguelike, First-Person Dungeon Crawler, Thunderbear Studios">
+    <meta name="keywords" content="YASD 3D, yasd3d, Yendor Engine, Angband, NetHack, DCSS, Dungeon Crawl Stone Soup, Brogue, Classic Rogue, Sil-Q, FrogComposBand, Hengband, Roguelike, First-Person Dungeon Crawler, Thunderbear Studios">
     <meta name="author" content="Thunderbear Studios">
     <link rel="canonical" href="https://yasd3d.com/">
 
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="game">
     <meta property="og:url" content="https://yasd3d.com/">
-    <meta property="og:title" content="YASD 3D • Angband 3D — Powered by the Yendor Engine™">
+    <meta property="og:title" content="YASD 3D — Powered by the Yendor Engine™">
     <meta property="og:description" content="Nine legendary roguelike realms (Angband, Sil-Q, FrogComposBand, Hengband, Roll Your Own Dungeon, NetHack, DCSS, Brogue CE, Classic Rogue 1980) in 60 FPS first-person 3D with instant [Tab] CRT terminal, illustrated YASD death cards, and Voiced Living Chronicle.">
     <meta property="og:image" content="https://yasd3d.com/assets/showcase/live_3d_combat_showcase.png">
     <meta property="og:image:width" content="1920">
@@ -28,7 +28,7 @@
     <!-- Twitter Card -->
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:url" content="https://yasd3d.com/">
-    <meta name="twitter:title" content="YASD 3D • Angband 3D — Powered by the Yendor Engine™">
+    <meta name="twitter:title" content="YASD 3D — Powered by the Yendor Engine™">
     <meta name="twitter:description" content="Nine legendary roguelike realms reborn in 60 FPS first-person 3D over the Yendor Engine™ (yasd3d.com), with 0-turn camera yaw, instant CRT terminal toggle, and illustrated YASD death sketches.">
     <meta name="twitter:image" content="https://yasd3d.com/assets/showcase/live_3d_combat_showcase.png">
 
@@ -37,7 +37,7 @@
     {
       "@context": "https://schema.org",
       "@type": "VideoGame",
-      "name": "YASD 3D (Angband 3D — Yendor Engine)",
+      "name": "YASD 3D — Powered by the Yendor Engine",
       "description": "Real-time 60 FPS WebGL and Godot 4 C# 3D/CRT dual-reality harness for Nine legendary roguelike realms (Angband 4.2.6, Sil-Q 1.5, FrogComposBand 7.1, Hengband 3.0, Roll Your Own Dungeon, NetHack 3.6.7, Dungeon Crawl Stone Soup, Brogue CE, and Classic Rogue 5.4) powered by the Yendor Engine and Thunderbear Studios.",
       "url": "https://yasd3d.com",
       "image": "https://yasd3d.com/assets/showcase/live_3d_combat_showcase.png",
@@ -63,6 +63,7 @@
     <link rel="stylesheet" href="/css/hud-skin.css?v=13.1.4">
     <link rel="stylesheet" href="/css/chronicle.css?v=13.1.4">
     <link rel="stylesheet" href="/css/mobile-console.css?v=13.1.4">
+    <link rel="stylesheet" href="/css/sightline-polish.css?v=13.1.4">
 </head>
 <body>
     <div id="app-container">
@@ -448,7 +449,7 @@
                         </div>
                         <div class="gauge-track">
                             <div id="hp-ghost-fill" class="gauge-ghost-fill" style="width: 100%;" aria-hidden="true"></div>
-                            <div id="hp-fill" class="gauge-fill" style="width: 100%;"></div>
+                            <div id="hp-fill" class="gauge-fill" style="width: 100%; --vial-scale: 1;"></div>
                             <div class="vial-glass-gloss" aria-hidden="true"></div>
                             <div class="vial-neck-collar" aria-hidden="true"></div>
                         </div>
@@ -461,7 +462,7 @@
                         </div>
                         <div class="gauge-track">
                             <div id="sp-ghost-fill" class="gauge-ghost-fill" style="width: 0%;" aria-hidden="true"></div>
-                            <div id="sp-fill" class="gauge-fill" style="width: 0%;"></div>
+                            <div id="sp-fill" class="gauge-fill" style="width: 0%; --vial-scale: 0;"></div>
                             <div class="vial-glass-gloss" aria-hidden="true"></div>
                             <div class="vial-neck-collar" aria-hidden="true"></div>
                         </div>
@@ -472,7 +473,7 @@
                             <span id="exp-text" class="gauge-val">Lv.1 • 0</span>
                         </div>
                         <div class="gauge-track">
-                            <div id="exp-fill" class="gauge-fill" style="width: 15%;"></div>
+                            <div id="exp-fill" class="gauge-fill" style="width: 15%; --vial-scale: 0.15;"></div>
                             <div class="vial-glass-gloss" aria-hidden="true"></div>
                             <div class="vial-neck-collar" aria-hidden="true"></div>
                         </div>
@@ -553,7 +554,7 @@
                         <span id="footer-level" class="status-pill pill-level" title="Character Level">⭐ Lvl 1</span>
                         <span id="footer-exp" class="status-pill pill-exp" title="Current Experience / Next Level">✨ EXP 0</span>
                         <span id="footer-facing" class="status-pill pill-facing" title="Camera Facing Direction">🧭 N</span>
-                        <span id="footer-light" class="status-pill pill-light" title="Illumination &amp; Light Source">☀️ Daylight</span>
+                        <span id="footer-light" class="status-pill pill-light" title="Illumination &amp; Light Source">🔥 Daylight</span>
                         <span id="footer-speed" class="status-pill pill-speed" title="Player Movement Speed">⚡ Spd Normal</span>
                     </div>
 
@@ -632,7 +633,7 @@
         </div>
 
         <!-- Global Persistent Audio & Music Pill (Always accessible on Splash & Main Menu) -->
-        <div id="global-audio-bar" role="region" aria-label="Global Volume and Music Controls" style="position:fixed; top:10px; right:14px; z-index:10050; display:flex; align-items:center; gap:7px; background:rgba(16,19,24,0.94); border:1px solid rgba(196,154,69,0.6); border-radius:6px; padding:4px 10px; box-shadow:0 4px 14px rgba(0,0,0,0.8); -webkit-backdrop-filter:blur(6px); backdrop-filter:blur(6px);">
+        <div id="global-audio-bar" role="region" aria-label="Global Volume and Music Controls">
             <audio id="yasd-theme-deck-a" src="/assets/audio/yasd_theme.mp3" preload="none" playsinline></audio>
             <audio id="yasd-theme-deck-b" src="/assets/audio/yasd_theme.mp3" preload="none" playsinline></audio>
             <button type="button" id="btn-global-sound" class="btn-top-sound" title="Toggle Master Sound Mute (M)" aria-label="Toggle Sound Mute" style="background:transparent; border:none; color:#e6c67c; font-weight:700; font-size:0.76rem; cursor:pointer; display:flex; align-items:center; gap:3px; padding:2px 4px;">
@@ -755,7 +756,7 @@
                             <strong>Thunderbear Studios&trade; &bull; thunderbearstudios.dev</strong>
                             <small>&copy; 2026 Thunderbear Studios &bull; Official Yendor Engine&trade; Showcase</small>
                         </span>
-                        <img src="/assets/yasd3d_badge.png?v=13.1.4" alt="Angband 3D Official Badge" class="splash-game-badge" width="25" height="34" decoding="async" draggable="false">
+                        <img src="/assets/yasd3d_badge.png?v=13.1.4" alt="YASD 3D Official Badge" class="splash-game-badge" width="25" height="34" decoding="async" draggable="false">
                     </a>
                 </div>
             </div>
@@ -766,7 +767,7 @@
             <div class="main-menu-card">
                 <div class="main-menu-header">
                     <div class="main-menu-crest-bar">
-                        <img src="/assets/yasd3d_badge.png?v=13.1.4" alt="Angband 3D Official Game Badge" class="main-menu-logo-primary" width="34" height="45" fetchpriority="low" decoding="async" draggable="false">
+                        <img src="/assets/yasd3d_badge.png?v=13.1.4" alt="YASD 3D Official Game Badge" class="main-menu-logo-primary" width="34" height="45" fetchpriority="low" decoding="async" draggable="false">
                         <div class="main-menu-title-group">
                             <h2 class="main-menu-title" id="main-menu-title">⚔ YASD 3D • YENDOR ENGINE</h2>
                             <div class="main-menu-subtitle" id="main-menu-subtitle">Pick a realm on the left, then launch on the right</div>
@@ -1144,7 +1145,7 @@
                 </div>
 
                 <div class="load-footer" style="display: flex; justify-content: space-between; align-items: center;">
-                    <button id="btn-pwa-install-action" class="btn-gold" style="display: none; padding: 10px 18px; font-weight: 700;">📲 Install Angband3D Now</button>
+                    <button id="btn-pwa-install-action" class="btn-gold" style="display: none; padding: 10px 18px; font-weight: 700;">📲 Install YASD 3D Now</button>
                     <button id="btn-pwa-close" class="btn-gold-outline">[Esc / Enter] Close</button>
                 </div>
             </div>
@@ -1358,7 +1359,7 @@
                     </div>
                     <img id="chronicle-sketch-modal-img" class="chronicle-sketch-img" alt="Hero Action Sketch" style="display:none;" /><div id="chronicle-sketch-modal-status" class="death-sketch-status">✨ Illustrated Scene</div><div id="chronicle-sketch-modal-caption" class="chronicle-sketch-meta"></div><div id="chronicle-sketch-modal-gear" class="chronicle-sketch-gear-tags"></div>
                 </div>
-                <div class="modal-footer" style="gap: 10px;"><button type="button" id="btn-modal-regen-sketch" class="btn-gold-outline" title="Regenerate AI Illustration">🔄 Regenerate AI</button><button type="button" id="btn-share-sketch-card" class="death-btn btn-share-yasd" title="Download Shareable Scene Card (.PNG)">⚔ Share Scene Card</button><a id="btn-download-sketch-png" class="btn-primary" download="angband3d-hero-sketch.png" href="#">⬇ Download PNG</a></div>
+                <div class="modal-footer" style="gap: 10px;"><button type="button" id="btn-modal-regen-sketch" class="btn-gold-outline" title="Regenerate AI Illustration">🔄 Regenerate AI</button><button type="button" id="btn-share-sketch-card" class="death-btn btn-share-yasd" title="Download Shareable Scene Card (.PNG)">⚔ Share Scene Card</button><a id="btn-download-sketch-png" class="btn-primary" download="yasd3d-hero-sketch.png" href="#">⬇ Download PNG</a></div>
             </div>
         </div>
         <!-- Initial Connection & Between-Levels Arcane Progress Wheel Curtain -->

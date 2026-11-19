@@ -93,10 +93,11 @@
 /* Eliminate expensive live-WebGL compositor Gaussian blur across 60fps HUD panels */
 #hud-overlay > .hud-panel,
 #hud-overlay #hud-center-column > .hud-panel,
-#app-container #message-panel,
-#app-container #minimap-panel,
-#app-container #top-controls {
-    background-color: rgba(20, 23, 29, 0.92);
+#app-container #message-feed-window,
+#app-container #minimap-window,
+#app-container #minimap-container,
+#app-container #top-right-bar {
+    background-color: rgba(14, 17, 24, 0.92);
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
 }
@@ -109,8 +110,8 @@
 /* ============================================================================
  * Coarse-Pointer Tap Targets (>= 44x44 CSS px) & iOS 16px Auto-Zoom Guard
  * ============================================================================ */
-@media (pointer: coarse), (max-width: 768px) {
-    #app-container :is(#top-controls .icon-btn, .terminal-toolbar .term-btn, #pause-modal .main-menu-btn, .char-mini-btn, #action-bar .action-btn, #touch-controls .dpad-btn, #quick-slot-bar .quick-slot-btn) {
+@media (pointer: coarse), (max-width: 900px) {
+    #app-container :is(#top-right-bar .icon-btn, .terminal-toolbar .term-btn, #pause-modal .main-menu-btn, .char-mini-btn, #action-bar .action-btn, #touch-controls .dpad-btn, .message-feed-controls .msg-ctrl-btn) {
         min-width: 44px;
         min-height: 44px;
         touch-action: manipulation;

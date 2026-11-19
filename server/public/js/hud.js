@@ -202,12 +202,32 @@ class WebHUD {
             });
         }
 
-        if (this.messageFeedScroll) {
-            this.messageFeedScroll.addEventListener('scroll', () => {
-                const maxScroll = this.messageFeedScroll.scrollHeight - this.messageFeedScroll.clientHeight;
-                // If within 20px of bottom, stick to bottom on new messages
-                this.userScrolledUp = (maxScroll - this.messageFeedScroll.scrollTop) > 20;
-            });
+            if (this.messageFeedScroll) {
+                let pill = document.getElementById('msg-sticky-pill');
+                if (!pill && this.messageFeedWindow) {
+                    pill = document.createElement('button');
+                    pill.id = 'msg-sticky-pill';
+                    pill.type = 'button';
+                    pill.className = 'msg-sticky-pill hidden';
+                    pill.textContent = '↓ New messages';
+                    pill.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        this.userScrolledUp = false;
+                        this.messageFeedScroll.scrollTop = this.messageFeedScroll.scrollHeight;
+                        pill.classList.add('hidden');
+                    });
+                    this.messageFeedWindow.appendChild(pill);
+                }
+                this._showMsgStickyPill = (show) => {
+                    const p = document.getElementById('msg-sticky-pill');
+                    if (p) p.classList.toggle('hidden', !show);
+                };
+                this.messageFeedScroll.addEventListener('scroll', () => {
+                    const maxScroll = this.messageFeedScroll.scrollHeight - this.messageFeedScroll.clientHeight;
+                    // If within 24px of bottom, stick to bottom on new messages
+                    this.userScrolledUp = (maxScroll - this.messageFeedScroll.scrollTop) > 24;
+                    if (!this.userScrolledUp) this._showMsgStickyPill(false);
+                });
             // Stop wheel / key navigation from leaking to game movement when interacting with feed
             this.messageFeedScroll.addEventListener('keydown', (e) => {
                 if (['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End'].includes(e.key)) {
@@ -363,6 +383,8 @@ class WebHUD {
             }
             if (this.messageFeedScroll && !this.userScrolledUp) {
                 this.messageFeedScroll.scrollTop = this.messageFeedScroll.scrollHeight;
+            } else if (this.userScrolledUp && this._showMsgStickyPill) {
+                this._showMsgStickyPill(true);
             }
             this.resetMessageFeedIdleTimer();
             return;
@@ -406,6 +428,9 @@ class WebHUD {
         // Auto-scroll to bottom unless player explicitly scrolled up to read history
         if (this.messageFeedScroll && !this.userScrolledUp) {
             this.messageFeedScroll.scrollTop = this.messageFeedScroll.scrollHeight;
+            if (this._showMsgStickyPill) this._showMsgStickyPill(false);
+        } else if (this.userScrolledUp && this._showMsgStickyPill) {
+            this._showMsgStickyPill(true);
         }
         this.resetMessageFeedIdleTimer();
     }
@@ -956,10 +981,11 @@ class WebHUD {
                 this.footerTarget.style.overflow = 'hidden';
                 this.footerTarget.style.textOverflow = 'ellipsis';
                 this.footerTarget.style.whiteSpace = 'nowrap';
-                const targetSig = `${realm}:${tName}:${t.glyph || ''}:${pct}`;
+                const targetSig = `${realm}:${tName}:${t.glyph || ''}:${pct}:${rawReticleCard ? 1 : 0}`;
                 if (this._lastFooterTargetSig !== targetSig) {
                     this._lastFooterTargetSig = targetSig;
-                    this.footerTarget.innerHTML = portraitHtml + '⚔ ' + esc(tName) + ' (' + pct + '%)';
+                    const prefix = rawReticleCard ? '🎯 ' : `${portraitHtml}⚔ `;
+                    this.footerTarget.innerHTML = prefix + esc(tName) + ' (' + pct + '%)';
                 }
             }
             if (rawReticleCard) {
@@ -1700,7 +1726,10 @@ class WebHUD {
             this._lastHpPct = hpPct;
             if (this.hpFill) {
                 this.hpFill.style.width = `${hpPct}%`;
-                if (typeof this.hpFill.style.setProperty === 'function') this.hpFill.style.setProperty('--vial-pct', `${hpPct}%`);
+                if (typeof this.hpFill.style.setProperty === 'function') {
+                    this.hpFill.style.setProperty('--vial-pct', `${hpPct}%`);
+                    this.hpFill.style.setProperty('--vial-scale', (hpPct / 100).toFixed(4));
+                }
                 if (this.hpFill.classList) {
                     this.hpFill.classList.toggle('hp-caution', hpPct <= 50 && hpPct > 25);
                     this.hpFill.classList.toggle('hp-critical', hpPct <= 25);
@@ -1710,7 +1739,10 @@ class WebHUD {
                 if (this.hpGhostFill.classList) this.hpGhostFill.classList.toggle('is-healing', isHpHeal);
                 this.hpGhostFill.style.transitionDelay = isHpHeal ? '0s' : '';
                 this.hpGhostFill.style.width = `${hpPct}%`;
-                if (typeof this.hpGhostFill.style.setProperty === 'function') this.hpGhostFill.style.setProperty('--vial-pct', `${hpPct}%`);
+                if (typeof this.hpGhostFill.style.setProperty === 'function') {
+                    this.hpGhostFill.style.setProperty('--vial-pct', `${hpPct}%`);
+                    this.hpGhostFill.style.setProperty('--vial-scale', (hpPct / 100).toFixed(4));
+                }
             }
             // # ROOT-CAUSE: Toggle .low-hp-warning on #char-panel when HP <= 30% and populate #char-status-effects with color-coded status/hunger pills.
             const charPanelEl = this._charPanelEl || (typeof document !== 'undefined' && (this._charPanelEl = document.getElementById('char-panel')));
@@ -1782,13 +1814,19 @@ class WebHUD {
                 this._lastSpPct = spPct;
                 if (this.spFill) {
                     this.spFill.style.width = `${spPct}%`;
-                    if (typeof this.spFill.style.setProperty === 'function') this.spFill.style.setProperty('--vial-pct', `${spPct}%`);
+                    if (typeof this.spFill.style.setProperty === 'function') {
+                        this.spFill.style.setProperty('--vial-pct', `${spPct}%`);
+                        this.spFill.style.setProperty('--vial-scale', (spPct / 100).toFixed(4));
+                    }
                 }
                 if (this.spGhostFill) {
                     if (this.spGhostFill.classList) this.spGhostFill.classList.toggle('is-healing', isSpHeal);
                     this.spGhostFill.style.transitionDelay = isSpHeal ? '0s' : '';
                     this.spGhostFill.style.width = `${spPct}%`;
-                    if (typeof this.spGhostFill.style.setProperty === 'function') this.spGhostFill.style.setProperty('--vial-pct', `${spPct}%`);
+                    if (typeof this.spGhostFill.style.setProperty === 'function') {
+                        this.spGhostFill.style.setProperty('--vial-pct', `${spPct}%`);
+                        this.spGhostFill.style.setProperty('--vial-scale', (spPct / 100).toFixed(4));
+                    }
                 }
                 if (this.spText) this.spText.textContent = `${curSp} / ${maxSp}`;
             }
@@ -2108,6 +2146,7 @@ class WebHUD {
             expFillEl.style.width = `${expPct}%`;
             if (typeof expFillEl.style.setProperty === 'function') {
                 expFillEl.style.setProperty('--vial-pct', `${expPct}%`);
+                expFillEl.style.setProperty('--vial-scale', (expPct / 100).toFixed(4));
             }
         }
         if (this.footerPlace) {
@@ -2169,10 +2208,10 @@ class WebHUD {
             const hasLightItem = Boolean(lightItemName && lightItemName !== 'None');
             const isLowFuel = hasLightItem && lightFuel > 0 && lightFuel <= 500;
             const lang = window.__langMode || 'en';
-            const fuelIcon = isLowFuel ? '⚠️ ' : '🏮 ';
+            const fuelIcon = isLowFuel ? '⚠️ ' : '🔥 ';
             let lightStr = depth === 0
                 ? (hasLightItem ? `☀️ ${cleanLightName}${lightFuel > 0 ? ` (${lightFuel}t)` : ''}` : '☀️ Daylight')
-                : (hasLightItem ? `${fuelIcon}${cleanLightName} (${lightFuel > 0 ? `${lightFuel}t` : `R:${lightRadius}`})` : (lightRadius > 0 ? `🏮 Light ${lightRadius}` : '🌑 Dark'));
+                : (hasLightItem ? `${fuelIcon}${cleanLightName} (${lightFuel > 0 ? `${lightFuel}t` : `R:${lightRadius}`})` : (lightRadius > 0 ? `🔥 Light ${lightRadius}` : '🌑 Dark'));
             if (realm === 'hengband') {
                 if (lang === 'jp') {
                     if (lightStr.includes('Daylight')) lightStr = '☀️ 昼光';
@@ -2280,6 +2319,7 @@ class WebHUD {
         if (this.footerGear) {
             let rawWeap = _hudItemStr(player.weapon_item);
             let rawBow = _hudItemStr(player.bow_item);
+            if (/\b(torch|lantern|lamp|phial|star of|aril|feanor)\b/i.test(rawBow)) rawBow = '';
             let rawShield = _hudItemStr(player.shield_item);
             if (Array.isArray(player.equipment)) {
                 for (const eqIt of player.equipment) {
@@ -2287,6 +2327,7 @@ class WebHUD {
                     const eqSlot = String(eqIt.slot_name || eqIt.slot || '').toLowerCase();
                     const eqName = _hudItemStr(eqIt);
                     if (!eqName || /^(nothing|none|\(nothing\)|\(none\)|empty)$/i.test(eqName.trim())) continue;
+                    if (/\b(torch|lantern|lamp|phial|star of|aril|feanor)\b/i.test(eqName)) continue;
                     if (!rawWeap && (eqSlot === 'weapon' || eqSlot === 'wield' || eqIt.slot === 0)) rawWeap = eqName;
                     else if (!rawBow && (eqSlot === 'bow' || eqSlot === 'shooting' || eqSlot === 'launcher' || eqIt.tval === 19 || /\b(bow|crossbow|sling)\b/i.test(eqName))) rawBow = eqName;
                     else if (!rawShield && (eqSlot === 'shield' || eqSlot === 'arm' || eqSlot === 'offhand' || eqIt.slot === 2 || /\b(shield|buckler|targe)\b/i.test(eqName))) rawShield = eqName;
@@ -2426,7 +2467,7 @@ class WebHUD {
                 } else if (realm === 'rogue') {
                     pairs.push(['Nutrition', `${Math.round(((player.nutrition ?? 1300) / (player.nutrition_max || 1300)) * 100)}%`]);
                 }
-                pairs.push(['Equip Count', eqCount], ['Pack Count', pkCount], ['Weapon', weap], ['Light/Torch', light]);
+                pairs.push(['Equip Count', eqCount], ['Pack Count', pkCount], ['Weapon', weap]);
                 const sig = `std:${realm}:${pairs.map(([k, v]) => `${k}=${v}`).join('|')}`;
                 reconcileDrawerGrid(sig, pairs);
             }
