@@ -181,7 +181,7 @@ export default {
         url.pathname === "/robots.txt" ||
         url.pathname === "/favicon.ico" ||
         url.pathname.startsWith("/js/vendor/") ||
-        ((url.pathname.startsWith("/js/") || url.pathname.startsWith("/css/")) && url.search.includes("v=")));
+        ((url.pathname.startsWith("/js/") || url.pathname.startsWith("/css/") || url.pathname.startsWith("/dist/")) && url.search.includes("v=")));
 
     const fetchOpts = {
       method: request.method,
