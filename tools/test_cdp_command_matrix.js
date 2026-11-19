@@ -3,7 +3,7 @@
  * tools/test_cdp_command_matrix.js
  *
  * CDP browser test harness for the WS42 Command Matrix (Plan §9.3).
- * Drives the 7 channels x 14 scenarios across all 4 realms (Vanilla, Sil-Q, FrogComposBand, Hengband).
+ * Drives the 7 channels x 14 scenarios across all 9 realms (Vanilla, Sil-Q, FrogComposBand, Hengband, NetHack, DCSS, Brogue, Rogue, RYOD).
  *
  * 7 Channels:
  *   1. Keyboard classic key
@@ -50,7 +50,7 @@ const ActionCatalog = require('../server/public/js/action-catalog.js');
 const CommandDispatcher = require('../server/public/js/command-dispatcher.js');
 
 const BASE = process.env.BASE_URL || 'http://localhost:8080';
-const REALMS = ['angband', 'silq', 'frogcomposband', 'hengband'];
+const REALMS = ['angband', 'silq', 'frogcomposband', 'hengband', 'nethack', 'dcss', 'brogue', 'rogue', 'ryod'];
 const CHANNELS = [
     'keyboard',
     'dock_button',
@@ -128,7 +128,7 @@ function runOfflineMatrixVerification() {
         assert(!fs.existsSync(tempDir), 'Temp profile directory must be cleaned up in finally block (L15)');
     }
 
-    console.log(`Matrix verified: ${matrixCellsVerified} cells (7 channels x 14 scenarios x 4 realms).`);
+    console.log(`Matrix verified: ${matrixCellsVerified} cells (${CHANNELS.length} channels x ${SCENARIOS.length} scenarios x ${REALMS.length} realms).`);
     console.log('Temp profile hygiene verified in os.tmpdir() (L15).');
     console.log('\ntest_cdp_command_matrix.js: PASS (Offline Mode)\n');
     process.exit(0);
@@ -161,28 +161,58 @@ async function runLiveCdpMatrix(targetRealms) {
             await send('Runtime.enable');
             await send('Page.enable');
 
-            // Wait for 3D play state
-            await sleep(2500);
+            // Wait up to 15s for 3D play state across all 9 realms
+            let readyState = null;
+            for (let attempt = 0; attempt < 30; attempt++) {
+                await sleep(500);
+                readyState = await evaluate(`(() => {
+                    const app = window.__app;
+                    if (!app) return null;
+                    if (app.isBirthReviewActive && app.isBirthReviewActive()) {
+                        const btn = document.getElementById('btn-review-embark');
+                        if (btn) btn.click();
+                        else if (app.network) app.network.sendKey('enter');
+                    }
+                    const f = app.lastFrame || window.__lastFrame;
+                    const inPlay = Boolean(app.inPlay && f && f.phase === 'play' && f.map);
+                    return {
+                        ok: true,
+                        inPlay,
+                        hasCatalog: !!window.ActionCatalog,
+                        hasDispatcher: !!app.dispatcher,
+                        activeRealm: app.getActiveRealm ? app.getActiveRealm() : null
+                    };
+                })()`);
+                if (readyState && readyState.inPlay) break;
+            }
 
-            // Exercise channel dispatch in browser
-            const evalResult = await evaluate(`(() => {
-                const app = window.__app;
-                if (!app) return { ok: false, reason: 'no-app' };
-                const cat = window.ActionCatalog;
-                const disp = app.dispatcher;
-                return {
-                    ok: true,
-                    hasCatalog: !!cat,
-                    hasDispatcher: !!disp,
-                    activeRealm: app.getActiveRealm ? app.getActiveRealm() : null
-                };
-            })()`);
+            // Exercise live pack open + escape unwind dispatch
+            let dispatchCheck = { dispatched: false };
+            if (readyState && readyState.inPlay) {
+                await evaluate(`(() => {
+                    const app = window.__app;
+                    if (app && app.network) app.network.sendKey('i');
+                })()`);
+                await sleep(350);
+                await evaluate(`(() => {
+                    const app = window.__app;
+                    if (app && app.network) {
+                        app.network.sendKey('escape');
+                        app.network.sendKey('escape');
+                    }
+                })()`);
+                await sleep(300);
+                dispatchCheck = await evaluate(`(() => ({
+                    dispatched: true,
+                    stillInPlay: Boolean(window.__app && window.__app.inPlay)
+                }))()`) || { dispatched: false };
+            }
 
-            if (evalResult && evalResult.ok) {
-                console.log(`  [${realm}] Live environment initialized successfully.`);
+            if (readyState && readyState.ok && readyState.inPlay && readyState.hasCatalog && readyState.hasDispatcher && readyState.activeRealm === realm && dispatchCheck.dispatched && errors.length === 0) {
+                console.log(`  [${realm}] Live 9-realm CDP check PASS (inPlay=${readyState.inPlay}, dispatch=${dispatchCheck.dispatched}).`);
                 totalPassed++;
             } else {
-                errors.push(`Failed to initialize live client in ${realm}: ${JSON.stringify(evalResult)}`);
+                errors.push(`Failed live check in ${realm}: ready=${JSON.stringify(readyState)} dispatch=${JSON.stringify(dispatchCheck)}`);
                 totalErrors++;
             }
         });

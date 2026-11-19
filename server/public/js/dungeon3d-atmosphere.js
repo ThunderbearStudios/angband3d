@@ -222,13 +222,15 @@
     }
 
     function syncSconceHalos(d3d, sconces, outdoors) {
-        const sys = ensureSconceHaloMesh(d3d);
-        if (!sys) return;
         if (outdoors || !Array.isArray(sconces) || sconces.length === 0) {
-            sys.mesh.count = 0;
-            sys.mesh.visible = false;
+            if (d3d._sconceHaloSystem) {
+                d3d._sconceHaloSystem.mesh.count = 0;
+                d3d._sconceHaloSystem.mesh.visible = false;
+            }
             return;
         }
+        const sys = ensureSconceHaloMesh(d3d);
+        if (!sys) return;
         sys.mesh.visible = true;
         const limit = Math.min(sys.maxHalos, sconces.length);
         for (let i = 0; i < limit; i++) {
@@ -242,29 +244,32 @@
 
     function updateAtmosphere(d3d, timeSec) {
         if (!d3d || !d3d.camera) return;
-        const sys = ensureAmbientParticles(d3d);
-        if (sys && sys.mat && sys.mat.uniforms) {
-            const u = sys.mat.uniforms;
-            u.uTime.value = timeSec;
-            u.uCameraPos.value.copy(d3d.camera.position);
-            const depth = Number(d3d.lastDepth || 0);
-            const realm = String(d3d.realm || 'angband').toLowerCase();
-            if (depth <= 0) {
-                u.uColor.value.setHex(0xdfe8ff);
-                u.uOpacity.value = 0.16;
-                u.uDriftSpeed.value = 0.08;
-            } else if (depth >= 25 || realm === 'hengband' || realm === 'brogue') {
-                u.uColor.value.setHex(0xff8e42);
-                u.uOpacity.value = 0.34;
-                u.uDriftSpeed.value = 0.24;
-            } else if (realm === 'nethack' || realm === 'dcss') {
-                u.uColor.value.setHex(0x7be0b4);
-                u.uOpacity.value = 0.26;
-                u.uDriftSpeed.value = 0.12;
-            } else {
-                u.uColor.value.setHex(0xc8d2e6);
-                u.uOpacity.value = 0.28;
-                u.uDriftSpeed.value = 0.14;
+        const depth = Number(d3d.lastDepth || 0);
+        if (depth <= 0) {
+            if (d3d._ambientParticles && d3d._ambientParticles.points) {
+                d3d._ambientParticles.points.visible = false;
+            }
+        } else {
+            const sys = ensureAmbientParticles(d3d);
+            if (sys && sys.points) sys.points.visible = true;
+            if (sys && sys.mat && sys.mat.uniforms) {
+                const u = sys.mat.uniforms;
+                u.uTime.value = timeSec;
+                u.uCameraPos.value.copy(d3d.camera.position);
+                const realm = String(d3d.realm || 'angband').toLowerCase();
+                if (depth >= 25 || realm === 'hengband' || realm === 'brogue') {
+                    u.uColor.value.setHex(0xff8e42);
+                    u.uOpacity.value = 0.34;
+                    u.uDriftSpeed.value = 0.24;
+                } else if (realm === 'nethack' || realm === 'dcss') {
+                    u.uColor.value.setHex(0x7be0b4);
+                    u.uOpacity.value = 0.26;
+                    u.uDriftSpeed.value = 0.12;
+                } else {
+                    u.uColor.value.setHex(0xc8d2e6);
+                    u.uOpacity.value = 0.28;
+                    u.uDriftSpeed.value = 0.14;
+                }
             }
         }
         if (d3d._sconceHaloSystem && d3d._sconceHaloSystem.mat && d3d._sconceHaloSystem.mat.uniforms) {

@@ -2455,7 +2455,7 @@ function resolveContextualPbrIds(realm, depth, outdoors, branch = '', ryodBiome 
         wallPhId = isEastTown ? 'local_plaster' : 'plastered_stone_wall';
         floorPhId = isWild ? 'aerial_grass_rock' : 'cobblestone_floor_08';
         permPhId = isEastTown ? 'japanese_stone_wall' : 'castle_brick_broken_06';
-        ceilPhId = 'rock_wall_10';
+        ceilPhId = wallPhId;
     } else if (curRealm === 'ryod' || tid.startsWith('ryod_')) {
         const rb = normalizeRyodBiomeId(rawBiome || tid.replace(/^ryod_/, ''));
         const RYOD_SETS = {
@@ -2531,7 +2531,7 @@ function resolveContextualPbrIds(realm, depth, outdoors, branch = '', ryodBiome 
     const fullSet = new Set(tier1Set);
     fullSet.add('bark_willow_02');
     const extraIds = isOut
-        ? ['japanese_stone_wall', 'plastered_stone_wall', 'aerial_grass_rock', 'brown_mud_rocks_01', 'local_wood_trim']
+        ? ((curRealm === 'hengband' || tid === 'hengband_town') ? ['japanese_stone_wall', 'local_wood_trim'] : ((tid.includes('wild') || currentBiomeId === 'wilderness' || currentBiomeId === 'grassland') ? ['aerial_grass_rock', 'brown_mud_rocks_01'] : ['local_wood_trim']))
         : (hasShops ? ['cliff_side', 'rock_boulder_cracked', 'marble_cliff_01', 'marble_cliff_02', 'brown_mud_rocks_01', 'local_wood_trim'] : ['cliff_side', 'rock_boulder_cracked', 'marble_cliff_01', 'marble_cliff_02', 'brown_mud_rocks_01']);
     for (const eid of extraIds) fullSet.add(eid);
 

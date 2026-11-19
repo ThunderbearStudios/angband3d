@@ -3256,32 +3256,7 @@ class Dungeon3D {
     getLevelPrewarmManifest(depth, outdoors) {
         // # ROOT-CAUSE: Pre-stage level-wide monster and item GLB archetypes during initial/between-level loading and stream remaining bestiary GLBs silently in idle time so normal same-level gameplay never pops up #loading-overlay.
         if (outdoors || depth === 0) {
-            return {
-                monsters: [
-                    'char_male_peasant',
-                    'char_male_peasant_bearded',
-                    'char_female_peasant',
-                    'char_male_ranger',
-                    'char_female_ranger',
-                    'char_male_rogue',
-                    'char_male_priest',
-                    'char_male_guard',
-                    'bestiary_fox',
-                    'bestiary_shiba',
-                    'bestiary_wolf',
-                    'ph_street_rat'
-                ],
-                items: [
-                    'ph_dagger',
-                    'ph_lantern',
-                    'item_staff_branch',
-                    'item_longsword',
-                    'item_bow',
-                    'ph_shield',
-                    'item_torch',
-                    'item_coins'
-                ]
-            };
+            return { monsters: [], items: [] };
         }
         return {
             monsters: [

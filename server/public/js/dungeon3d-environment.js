@@ -265,6 +265,7 @@ Dungeon3DProto._loadPolyHavenEnvironmentModels = function _loadPolyHavenEnvironm
                 }
                 const g = c.geometry.clone();
                 g.applyMatrix4(c.matrixWorld);
+                if (typeof c.geometry.dispose === 'function') c.geometry.dispose();
                 if (g.attributes.color) g.deleteAttribute('color');
                 const colArr = new Float32Array(g.attributes.position.count * 3);
                 colArr.fill(1.0);
@@ -274,6 +275,7 @@ Dungeon3DProto._loadPolyHavenEnvironmentModels = function _loadPolyHavenEnvironm
         });
         if (parts.length > 0) {
             const baseGeo = this._mergeBufferGeometries(parts);
+            for (const p of parts) { if (p && typeof p.dispose === 'function') p.dispose(); }
             baseGeo.computeBoundingBox();
             const bbox = baseGeo.boundingBox;
             const cx = (bbox.min.x + bbox.max.x) * 0.5;
@@ -328,50 +330,55 @@ Dungeon3DProto._loadPolyHavenEnvironmentModels = function _loadPolyHavenEnvironm
         }
     });
 
-    addGltfTask('/assets/models/items/Anvil_Log.gltf', (gltf) => {
-        if (!gltf || !gltf.scene || !this.forgeMesh) return;
-        gltf.scene.updateMatrixWorld(true);
-        const geos = [];
-        let firstMap = null;
-        gltf.scene.traverse((c) => {
-            if (c.isMesh && c.geometry) {
-                const g = c.geometry.clone();
-                g.applyMatrix4(c.matrixWorld);
-                if (c.material && c.material.map && !firstMap) firstMap = c.material.map;
-                const vCount = g.attributes.position ? g.attributes.position.count : 0;
-                if (vCount > 0 && !g.attributes.color) {
-                    const colors = new Float32Array(vCount * 3);
-                    const mc = (c.material && c.material.color) ? c.material.color : { r: 0.72, g: 0.68, b: 0.64 };
-                    for (let i = 0; i < vCount; i++) {
-                        colors[i * 3] = mc.r;
-                        colors[i * 3 + 1] = mc.g;
-                        colors[i * 3 + 2] = mc.b;
+    const curEnvRealm = String(this.realm || '').toLowerCase();
+    if (!curEnvRealm || curEnvRealm === 'silq' || curEnvRealm === 'ryod') {
+        addGltfTask('/assets/models/items/Anvil_Log.gltf', (gltf) => {
+            if (!gltf || !gltf.scene || !this.forgeMesh) return;
+            gltf.scene.updateMatrixWorld(true);
+            const geos = [];
+            let firstMap = null;
+            gltf.scene.traverse((c) => {
+                if (c.isMesh && c.geometry) {
+                    const g = c.geometry.clone();
+                    g.applyMatrix4(c.matrixWorld);
+                    if (typeof c.geometry.dispose === 'function') c.geometry.dispose();
+                    if (c.material && c.material.map && !firstMap) firstMap = c.material.map;
+                    const vCount = g.attributes.position ? g.attributes.position.count : 0;
+                    if (vCount > 0 && !g.attributes.color) {
+                        const colors = new Float32Array(vCount * 3);
+                        const mc = (c.material && c.material.color) ? c.material.color : { r: 0.72, g: 0.68, b: 0.64 };
+                        for (let i = 0; i < vCount; i++) {
+                            colors[i * 3] = mc.r;
+                            colors[i * 3 + 1] = mc.g;
+                            colors[i * 3 + 2] = mc.b;
+                        }
+                        g.setAttribute('color', new THREE.BufferAttribute(colors, 3));
                     }
-                    g.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+                    geos.push(g);
                 }
-                geos.push(g);
+            });
+            if (geos.length > 0) {
+                const merged = this._mergeBufferGeometries(geos);
+                for (const g of geos) { if (g && typeof g.dispose === 'function') g.dispose(); }
+                merged.computeBoundingBox();
+                const bbox = merged.boundingBox;
+                const cx = (bbox.min.x + bbox.max.x) * 0.5;
+                const cz = (bbox.min.z + bbox.max.z) * 0.5;
+                const span = Math.max(bbox.max.x - bbox.min.x, bbox.max.y - bbox.min.y, bbox.max.z - bbox.min.z) || 1.0;
+                merged.translate(-cx, -bbox.min.y, -cz);
+                merged.scale(1.10 / span, 1.10 / span, 1.10 / span);
+                merged.computeVertexNormals();
+                if (this.forgeMesh.geometry) this.forgeMesh.geometry.dispose();
+                this.forgeMesh.geometry = merged;
+                if (firstMap && this.forgeMaterial) {
+                    if (typeof THREE.sRGBEncoding !== 'undefined') firstMap.encoding = THREE.sRGBEncoding;
+                    this.forgeMaterial.map = firstMap;
+                    this.forgeMaterial.needsUpdate = true;
+                }
+                this._lastTerrainSig = null;
             }
         });
-        if (geos.length > 0) {
-            const merged = this._mergeBufferGeometries(geos);
-            merged.computeBoundingBox();
-            const bbox = merged.boundingBox;
-            const cx = (bbox.min.x + bbox.max.x) * 0.5;
-            const cz = (bbox.min.z + bbox.max.z) * 0.5;
-            const span = Math.max(bbox.max.x - bbox.min.x, bbox.max.y - bbox.min.y, bbox.max.z - bbox.min.z) || 1.0;
-            merged.translate(-cx, -bbox.min.y, -cz);
-            merged.scale(1.10 / span, 1.10 / span, 1.10 / span);
-            merged.computeVertexNormals();
-            if (this.forgeMesh.geometry) this.forgeMesh.geometry.dispose();
-            this.forgeMesh.geometry = merged;
-            if (firstMap && this.forgeMaterial) {
-                if (typeof THREE.sRGBEncoding !== 'undefined') firstMap.encoding = THREE.sRGBEncoding;
-                this.forgeMaterial.map = firstMap;
-                this.forgeMaterial.needsUpdate = true;
-            }
-            this._lastTerrainSig = null;
-        }
-    });
+    }
 
     // # ROOT-CAUSE: Preserve the 3-layer sculpted Gothic High Altar and 3-layer Tiered Marble Fountain geometries instead of overwriting them with broken shrine_candles.gltf UV merges or low-poly cartoon building_well_blue.gltf.
     // 4 & 5. Bind 2K PBR Carved Stone Normal & Roughness Maps to Sculpted High Altars (feat 43) & Magic Fountains (feat 44)
@@ -391,7 +398,8 @@ Dungeon3DProto._loadPolyHavenEnvironmentModels = function _loadPolyHavenEnvironm
             }
         }
     });
-    if (typeof this.ensurePbrSetReady === 'function') {
+    const isSurfaceVanillaTown = Number(this.lastDepth || 0) === 0 && (this.realm === 'angband' || this.realm === 'frogcomposband' || this.realm === 'hengband');
+    if (!isSurfaceVanillaTown && typeof this.ensurePbrSetReady === 'function') {
         envTasks.push(this.ensurePbrSetReady('monastery_stone_floor'));
     }
 

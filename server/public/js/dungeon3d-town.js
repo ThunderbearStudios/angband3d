@@ -570,6 +570,8 @@
         merlonGeo._sharedGeometry = true;
         const chimneyGeo = new THREE.BoxGeometry(0.46, 0.92, 0.46);
         chimneyGeo._sharedGeometry = true;
+        const watchGeo = new THREE.BoxGeometry(DEFAULT_CELL_SIZE * 1.45, 1.55, DEFAULT_CELL_SIZE * 1.45);
+        watchGeo._sharedGeometry = true;
 
         d3d._townSharedMats = {
             roofMat,
@@ -580,7 +582,8 @@
             windowFrameGeo,
             windowPaneGeo,
             merlonGeo,
-            chimneyGeo
+            chimneyGeo,
+            watchGeo
         };
         return d3d._townSharedMats;
     }
@@ -652,6 +655,8 @@
 
         // Layer 1 & 2: Pitched Gabled Roofs + Plaster Gable Walls + Chimneys (solid buildings only)
         const chimneyTransforms = [];
+        const roofCache = new Map();
+        const gableCache = new Map();
         for (let ci = 0; ci < clusters.length; ci++) {
             const cl = clusters[ci];
             if (!withinCullRect(cl.minX, cl.maxX, cl.minY, cl.maxY)) continue;
@@ -671,21 +676,39 @@
             const ridgeH = Math.min(1.65, Math.max(0.82, (cl.ridgeAlongX ? spanD : spanW) * 0.30));
             const cxWorld = ((cl.minX + cl.maxX) * 0.5) * cs;
             const czWorld = ((cl.minY + cl.maxY) * 0.5) * cs;
-            const roofRGB = palettes[cl.roofPaletteIdx % palettes.length];
-
-            const { roofGeo, gableGeo } = createGableRoofGeometry(
-                THREE, spanW, spanD, ridgeH, 0.28, cl.ridgeAlongX, roofRGB, gableCol, isEastern
-            );
-            grp._ownedDisposables.push(roofGeo, gableGeo);
+            const paletteSlot = cl.roofPaletteIdx % palettes.length;
+            const roofRGB = palettes[paletteSlot];
+            const rKey = `${cl.ridgeAlongX ? 1 : 0}:${paletteSlot}:${isEastern ? 1 : 0}`;
+            const gKey = `${cl.ridgeAlongX ? 1 : 0}`;
+            let cachedRoof = roofCache.get(rKey);
+            if (!cachedRoof) {
+                const created = createGableRoofGeometry(
+                    THREE, 6.0, 6.0, 1.2, 0.0, cl.ridgeAlongX, roofRGB, gableCol, isEastern
+                );
+                let sharedGable = gableCache.get(gKey);
+                if (sharedGable) {
+                    if (created.gableGeo && typeof created.gableGeo.dispose === 'function') created.gableGeo.dispose();
+                } else {
+                    sharedGable = created.gableGeo;
+                    gableCache.set(gKey, sharedGable);
+                    grp._ownedDisposables.push(sharedGable);
+                }
+                cachedRoof = { roofGeo: created.roofGeo, gableGeo: sharedGable };
+                roofCache.set(rKey, cachedRoof);
+                grp._ownedDisposables.push(cachedRoof.roofGeo);
+            }
+            const { roofGeo, gableGeo } = cachedRoof;
 
             const roofMesh = new THREE.Mesh(roofGeo, mats.roofMat);
             roofMesh.position.set(cxWorld, eaveY, czWorld);
+            roofMesh.scale.set((spanW + 0.56) / 6.0, ridgeH / 1.2, (spanD + 0.56) / 6.0);
             roofMesh.castShadow = true;
             roofMesh.receiveShadow = true;
             grp.add(roofMesh);
 
             const gableMesh = new THREE.Mesh(gableGeo, mats.gableMat);
             gableMesh.position.set(cxWorld, eaveY - 0.02, czWorld);
+            gableMesh.scale.set(spanW / 6.0, ridgeH / 1.2, spanD / 6.0);
             grp.add(gableMesh);
 
             if (cl.tiles.length >= 6) {
@@ -790,11 +813,10 @@
             grp.add(merlonInst);
         }
 
-        const watchGeo = new THREE.BoxGeometry(cs * 1.45, 1.55, cs * 1.45);
-        grp._ownedDisposables.push(watchGeo);
         const corners = [[0, 0], [w - 1, 0], [0, h - 1], [w - 1, h - 1]];
-        const towerInst = new THREE.InstancedMesh(watchGeo, mats.battlementMat, 4);
+        const towerInst = new THREE.InstancedMesh(mats.watchGeo, mats.battlementMat, 4);
         let tCount = 0;
+        const watchScaleXZ = cs / DEFAULT_CELL_SIZE;
         for (let ci = 0; ci < corners.length; ci++) {
             const [cx, cy] = corners[ci];
             if (!withinCullTile(cx, cy)) continue;
@@ -802,7 +824,7 @@
             if (f !== 22 && f !== 21) continue;
             dummy.position.set(cx * cs, wallH + 0.78, cy * cs);
             dummy.rotation.set(0, 0, 0);
-            dummy.scale.set(1, 1, 1);
+            dummy.scale.set(watchScaleXZ, 1, watchScaleXZ);
             dummy.updateMatrix();
             towerInst.setMatrixAt(tCount++, dummy.matrix);
         }
