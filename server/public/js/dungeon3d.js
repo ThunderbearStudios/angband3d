@@ -13560,6 +13560,18 @@ class Dungeon3D {
                         if (this.navBreadcrumbsMesh) this.navBreadcrumbsMesh.count = 0;
                         if (this.navCursorGroup) this.navCursorGroup.visible = false;
                     }
+                    if (typeof this._updateHoverAffordance === 'function') {
+                        this._updateHoverAffordance(this._pendingHoverX, this._pendingHoverY, this._hoverInputRef, this.lastFrame, hit);
+                    }
+                }
+            } else if (this._hoverDirty && this.lastFrame && (tNow - (this._lastHoverRaycastMs || 0) > 50)) {
+                this._lastHoverRaycastMs = tNow;
+                this._hoverDirty = false;
+                const hit = (this._pendingHoverX >= 0 && this._pendingHoverY >= 0 && this._hoverInputRef?.isDirectionalTargeting?.())
+                    ? this.getTileAtScreenCoords(this._pendingHoverX, this._pendingHoverY)
+                    : null;
+                if (typeof this._updateHoverAffordance === 'function') {
+                    this._updateHoverAffordance(this._pendingHoverX, this._pendingHoverY, this._hoverInputRef, this.lastFrame, hit);
                 }
             }
         }
@@ -14144,7 +14156,7 @@ class Dungeon3D {
             this._tempVec3.y += 0.25;
             const distLow = ray.distanceToPoint(this._tempVec3);
             const distToRay = Math.min(distTop, distMid, distLow);
-            const tightRadius = Math.max(0.48, Math.min(0.95, mHeight * 0.42));
+            const tightRadius = Math.max(0.42, Math.min(0.75, mHeight * 0.36));
             const distAlongRay = ray.origin.distanceTo(entity.position);
 
             if (distToRay <= tightRadius && distAlongRay < minRayDist) {
@@ -14154,7 +14166,7 @@ class Dungeon3D {
                 if (entity.modelKey) mData.modelKey = entity.modelKey;
                 if (entity.isFemale !== undefined) mData.isFemale = entity.isFemale;
                 closestMonster = mData;
-            } else if (distToRay < 1.25 && distAlongRay < minGenerousDist) {
+            } else if (distToRay < 0.78 && distAlongRay < minGenerousDist) {
                 minGenerousDist = distAlongRay;
                 const mData = entity.monsterData;
                 if (entity.modelGender) mData.modelGender = entity.modelGender;

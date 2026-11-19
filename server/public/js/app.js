@@ -3846,7 +3846,7 @@ window.addEventListener('DOMContentLoaded', () => {
         if (loadModal) loadModal.classList.add('hidden');
         if (demoModal) demoModal.classList.add('hidden');
         if (window.demoPlayer && typeof window.demoPlayer.close === 'function') window.demoPlayer.close();
-        ['reticle-target-card', 'entity-inspect-popover', 'prompt-mirror', 'directional-aim-rosette'].forEach((id) => {
+        ['reticle-target-card', 'cursor-action-pill', 'entity-inspect-popover', 'prompt-mirror', 'directional-aim-rosette'].forEach((id) => {
             const el = document.getElementById(id);
             if (el) { el.classList.add('hidden'); el.style.display = 'none'; }
         });
@@ -6859,6 +6859,8 @@ window.addEventListener('DOMContentLoaded', () => {
             document.body.classList.add('terminal-mode-active', 'terminal-active');
             const rtc = document.getElementById('reticle-target-card');
             if (rtc) { rtc.style.display = 'none'; rtc.classList.add('hidden'); }
+            const cap = document.getElementById('cursor-action-pill');
+            if (cap) cap.classList.add('hidden');
             const eip = document.getElementById('entity-inspect-popover');
             if (eip) {
                 if (typeof eip.hidePopover === 'function') { try { eip.hidePopover(); } catch (_) {} }

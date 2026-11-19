@@ -80,6 +80,13 @@
             <div id="target-card-affinities" class="target-card-affinities"></div>
         </div>
 
+        <!-- Subtle Cursor-Anchored Hover Action Cue (Zero top-bar clutter, appears only over interactive 3D entities) -->
+        <div id="cursor-action-pill" class="cursor-action-pill hidden" aria-hidden="true">
+            <span id="cursor-pill-name" class="cursor-pill-name"></span>
+            <span id="cursor-pill-lmb" class="cursor-pill-hint cursor-pill-lmb"></span>
+            <span id="cursor-pill-rmb" class="cursor-pill-hint cursor-pill-rmb"></span>
+        </div>
+
         <!-- Non-Modal 3D Entity Inspection Popover (Popover API, zero focus stealing, instant light-dismiss) -->
         <div id="entity-inspect-popover" class="entity-inspect-popover hidden" popover="manual" role="region" aria-label="3D Entity Details">
             <div class="inspect-popover-header">

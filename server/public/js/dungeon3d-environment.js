@@ -590,6 +590,82 @@ Dungeon3DProto.setHoverScreenCoords = function setHoverScreenCoords(clientX, cli
     this._hoverDirty = true;
 };
 
+const _STORE_NAMES = ['General Store', 'Armoury', 'Weapon Smith', 'Temple', 'Alchemy Shop', 'Magic Shop', 'Black Market', 'Home', 'Hall of Records'];
+Dungeon3DProto.describeMapFeature = function describeMapFeature(frame, x, y) {
+    const row = frame?.map?.rows?.[y];
+    if (!row) return null;
+    const glyph = (row.g && x >= 0 && x < row.g.length) ? row.g[x] : ' ';
+    const fIdx = x * 2;
+    const feat = (row.f && fIdx + 1 < row.f.length) ? (parseInt(row.f.substring(fIdx, fIdx + 2), 16) || 0) : 0;
+    const depth = frame?.player?.depth || 0;
+    const fname = this.featureDefs?.[feat]?.name || '';
+    if ((feat >= 7 && feat <= 14) || (feat >= 32 && feat <= 40) || (depth === 0 && glyph >= '1' && glyph <= '9')) {
+        const idx = (glyph >= '1' && glyph <= '9') ? (Number(glyph) - 1) : ((feat >= 7 && feat <= 14) ? feat - 7 : feat - 32);
+        return { type: 'store', name: fname || _STORE_NAMES[idx] || 'Town Shop', glyph, x, y, feat };
+    }
+    if (feat === 2 || glyph === '+') return { type: 'door', name: fname || 'Closed Door', glyph: '+', x, y, feat };
+    if (glyph === '>' || glyph === '<') return { type: 'stair', dir: glyph, name: glyph === '>' ? 'Down Stairs' : 'Up Stairs', glyph, x, y, feat };
+    if (glyph === '^') return { type: 'trap', name: fname || 'Trap', glyph: '^', x, y, feat };
+    if (glyph === '_') return { type: 'altar', name: fname || 'Altar', glyph: '_', x, y, feat };
+    if (glyph === '{') return { type: 'fountain', name: fname || 'Fountain', glyph: '{', x, y, feat };
+    if (glyph === ':' && feat !== 42) return { type: 'rubble', name: fname || 'Rubble', glyph: ':', x, y, feat };
+    return null;
+};
+
+Dungeon3DProto._updateHoverAffordance = function _updateHoverAffordance(clientX, clientY, inputMgr, frame, tileHit) {
+    const refs = this._hoverPillRefs || (typeof document !== 'undefined' ? (this._hoverPillRefs = {
+        pill: document.getElementById('cursor-action-pill'),
+        name: document.getElementById('cursor-pill-name'),
+        lmb: document.getElementById('cursor-pill-lmb'),
+        rmb: document.getElementById('cursor-pill-rmb')
+    }) : null);
+    const canvas = this.canvas;
+    const hide = () => {
+        if (refs?.pill && !refs.pill.classList.contains('hidden')) refs.pill.classList.add('hidden');
+        if (canvas && canvas.style.cursor) canvas.style.cursor = '';
+        this._lastHoverCueSig = '';
+    };
+    const pop = typeof document !== 'undefined' ? document.getElementById('entity-inspect-popover') : null;
+    if (!refs?.pill || clientX < 0 || clientY < 0 || !frame?.player || inputMgr?.inTerminal || (pop && !pop.classList.contains('hidden'))) return hide();
+    const px = frame.player.x, py = frame.player.y;
+    const mon = this.getMonsterAtScreenCoords?.(clientX, clientY) ||
+        (tileHit && Array.isArray(frame.monsters) ? frame.monsters.find(m => m && m.visible !== false && m.x === tileHit.x && m.y === tileHit.y) : null);
+    const items = Array.isArray(frame.items) ? frame.items : (Array.isArray(frame.objects) ? frame.objects : []);
+    const item = !mon ? (this.getItemAtScreenCoords?.(clientX, clientY) || (tileHit ? items.find(it => it && it.x === tileHit.x && it.y === tileHit.y) : null)) : null;
+    const feat = (!mon && !item && tileHit) ? this.describeMapFeature(frame, tileHit.x, tileHit.y) : null;
+    let cue = null;
+    if (inputMgr?.isDirectionalTargeting?.() && (mon || tileHit)) {
+        cue = { cur: 'crosshair', name: mon ? (mon.name || 'Target') : (feat ? feat.name : 'Aim Tile'), lmb: 'LMB Fire / Confirm', rmb: 'RMB Cancel' };
+    } else if (mon) {
+        const hostile = inputMgr?.isHostileMonster ? inputMgr.isHostileMonster(mon, frame) : true;
+        const dist = Math.max(Math.abs((mon.x ?? px) - px), Math.abs((mon.y ?? py) - py));
+        const mName = (typeof window !== 'undefined' && this.realm === 'hengband' && window.getLocalizedMonsterName) ? window.getLocalizedMonsterName(mon.name || 'Creature', 'hengband', window.__langMode || 'en') : (mon.name || 'Creature');
+        cue = hostile
+            ? { cur: 'crosshair', name: dist > 1 ? `${mName} (${dist}sq)` : mName, lmb: dist <= 1 ? 'LMB Attack' : 'LMB Move', rmb: 'RMB Actions' }
+            : { cur: 'pointer', name: mName, lmb: dist <= 2 ? 'LMB Talk' : 'LMB Approach', rmb: 'RMB Actions' };
+    } else if (item) {
+        cue = { cur: 'pointer', name: item.name || item.dname || 'Item', lmb: (item.x === px && item.y === py) ? 'LMB Pick Up' : 'LMB Walk', rmb: 'RMB Inspect' };
+    } else if (feat) {
+        const lmb = feat.type === 'store' ? 'LMB Enter' : (feat.type === 'door' ? 'LMB Open' : (feat.type === 'stair' && feat.x === px && feat.y === py ? (feat.dir === '>' ? 'LMB Descend' : 'LMB Ascend') : 'LMB Walk'));
+        cue = { cur: 'pointer', name: feat.name, lmb, rmb: 'RMB Actions' };
+    }
+    if (!cue) return hide();
+    if (canvas && canvas.style.cursor !== cue.cur) canvas.style.cursor = cue.cur;
+    const sig = `${cue.name}|${cue.lmb}|${cue.rmb}`;
+    if (sig !== this._lastHoverCueSig) {
+        this._lastHoverCueSig = sig;
+        if (refs.name) refs.name.textContent = cue.name;
+        if (refs.lmb) refs.lmb.textContent = cue.lmb;
+        if (refs.rmb) refs.rmb.textContent = cue.rmb;
+    }
+    refs.pill.classList.remove('hidden');
+    const vw = typeof window !== 'undefined' ? window.innerWidth : 1280, vh = typeof window !== 'undefined' ? window.innerHeight : 720;
+    const w = refs.pill.offsetWidth || 260, h = refs.pill.offsetHeight || 26;
+    const tx = Math.max(8, Math.min(vw - w - 8, clientX + 16 + w > vw - 8 ? clientX - w - 12 : clientX + 16));
+    const ty = Math.max(44, Math.min(vh - h - 8, clientY + 18 + h > vh - 8 ? clientY - h - 12 : clientY + 18));
+    refs.pill.style.transform = `translate3d(${Math.round(tx)}px, ${Math.round(ty)}px, 0)`;
+};
+
 Dungeon3DProto.createAshlarCorniceGeometry = function createAshlarCorniceGeometry(cellSize = 2.0) {
     return this._mergeBufferGeometries([
         new THREE.BoxGeometry(cellSize, 0.20, 0.16).translate(0, 4.10, cellSize * 0.5 - 0.08),

@@ -4999,6 +4999,35 @@ class ChronicleManager {
             this.targetedObject = null;
             this.targetedCreature = entity;
             details = this._buildCoreMonsterInspection(entity, depth, realm);
+        } else if (type === 'feature') {
+            this.targetedCreature = null;
+            this.targetedObject = null;
+            const pl = this.currentHero;
+            const dist = (pl && typeof pl.x === 'number' && typeof entity.x === 'number')
+                ? Math.max(Math.abs(entity.x - pl.x), Math.abs(entity.y - pl.y))
+                : null;
+            const distText = dist === 0 ? 'Underfoot' : (dist !== null ? `${dist} tile${dist === 1 ? '' : 's'} away` : 'Dungeon Feature');
+            const descMap = {
+                store: 'Merchant storefront in Town. Left-click or walk onto the threshold to enter and browse wares.',
+                door: 'Closed dungeon doorway. Open to pass, close behind you to hold chokepoints, or bash if jammed.',
+                stair: entity.dir === '>' ? 'Stone staircase descending deeper into the dungeon.' : 'Stone staircase ascending toward safety.',
+                trap: 'Detected dungeon hazard. Step around or disarm carefully before crossing.',
+                altar: 'Sacred dungeon shrine. Pray or inspect offerings according to your realm.',
+                fountain: 'Ancient spring. Quaff or dip items with caution.',
+                rubble: 'Collapsed stone pile. Tunnel through or alter terrain to clear a path.'
+            };
+            details = {
+                badge: entity.glyph || '?',
+                name: entity.name || 'Dungeon Feature',
+                pillClass: 'inspect-popover-pill',
+                pillText: distText,
+                showHp: false,
+                hpPct: 100,
+                hpText: '',
+                prose: descMap[entity.type] || 'Interactive dungeon feature.',
+                tactics: '',
+                chatBtnLabel: ''
+            };
         } else {
             this.targetedCreature = null;
             this.targetedObject = entity;
@@ -5109,6 +5138,19 @@ class ChronicleManager {
             };
         }
 
+        this.inspectPopover.classList.toggle('is-feature', type === 'feature');
+        if (this.inspectTactics && type === 'feature') {
+            this.inspectTactics.classList.add('hidden');
+            this.inspectTactics.classList.remove('is-expanded');
+        }
+        if (detailBtn) detailBtn.style.display = type === 'feature' ? 'none' : '';
+        if (typeof window !== 'undefined' && window.EntityMenu && typeof window.EntityMenu.render === 'function') {
+            const menuEntity = Object.assign({ type: type === 'feature' ? (entity.type || 'feature') : type }, entity);
+            const liveFrame = (window.__app && window.__app.lastFrame) || (this.dungeon && this.dungeon.lastFrame) || null;
+            window.EntityMenu.render(menuEntity, realm, liveFrame, { dispatcher: window.__app && window.__app.dispatcher });
+        }
+        const hoverPill = typeof document !== 'undefined' ? document.getElementById('cursor-action-pill') : null;
+        if (hoverPill) hoverPill.classList.add('hidden');
         this.inspectPopover.style.display = 'flex';
         this.inspectPopover.classList.remove('hidden');
         try {

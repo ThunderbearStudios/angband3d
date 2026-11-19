@@ -109,6 +109,9 @@
             if (r !== 'nethack') return [{ id: 'quaff', label: 'Drink Fountain', key: keyFor('quaff', 'q') }];
             return [{ id: 'dip', label: 'Dip Item', key: '#dip' }, { id: 'quaff', label: 'Drink Fountain', key: keyFor('quaff', 'q') }];
         }
+        if (type === 'store') {
+            return [{ id: 'walk_to', label: 'Enter Store', key: null }, { id: 'look', label: 'Look', key: keyFor('look', 'l') }];
+        }
 
         // Generic feature
         return [
@@ -187,16 +190,14 @@
             btn.addEventListener('click', function (e) {
                 e.preventDefault();
                 e.stopPropagation();
-
-                const d = opts.dispatcher || (typeof window !== 'undefined' && window.__app && window.__app.dispatcher) || null;
-                if (d && typeof d.run === 'function') {
-                    d.run({ verb: act.id, target: entity, key: act.key });
-                } else if (act.key) {
-                    const net = (typeof window !== 'undefined' && window.__app && window.__app.network) || (window && window.network);
-                    if (net && typeof net.sendKey === 'function') {
-                        net.sendKey(act.key);
-                    }
+                if (typeof window !== 'undefined' && window.chronicleManager?.dismissEntityPopover) window.chronicleManager.dismissEntityPopover();
+                if (act.id === 'walk_to' && entity && typeof entity.x === 'number') {
+                    if (typeof window !== 'undefined') window.__app?.input?.startMinimapAutoNav?.(entity.x, entity.y, frame);
+                    return;
                 }
+                const d = opts.dispatcher || (typeof window !== 'undefined' && window.__app && window.__app.dispatcher) || null;
+                if (d && typeof d.run === 'function') d.run({ verb: act.id, key: act.key });
+                else if (act.key) ((typeof window !== 'undefined' && (window.__app?.network || window.network)) || null)?.sendKey?.(act.key);
             });
 
             container.appendChild(btn);

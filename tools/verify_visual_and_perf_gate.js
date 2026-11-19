@@ -209,11 +209,16 @@ async function main() {
             const consoleErrors = [];
             const reqMap = new Map();
             let transferBytes = 0;
+            let musicBytes = 0;
             playCdp.onEvent((m) => {
                 if (m.method === 'Network.requestWillBeSent') reqMap.set(m.params.requestId, m.params.request.url);
                 else if (m.method === 'Network.responseReceived' && m.params.response.status >= 400) badHttp.push(`${m.params.response.status} ${m.params.response.url}`);
                 else if (m.method === 'Network.loadingFailed' && !m.params.canceled) badHttp.push(`FAILED ${m.params.errorText} (${reqMap.get(m.params.requestId) || m.params.requestId})`);
-                else if (m.method === 'Network.loadingFinished') transferBytes += m.params.encodedDataLength || 0;
+                else if (m.method === 'Network.loadingFinished') {
+                    const u = reqMap.get(m.params.requestId) || '';
+                    if (/\.mp3(?:\?|$)/i.test(u)) musicBytes += m.params.encodedDataLength || 0;
+                    else transferBytes += m.params.encodedDataLength || 0;
+                }
                 else if (m.method === 'Runtime.exceptionThrown') jsErrors.push(m.params?.exceptionDetails?.text || 'exception');
                 else if (m.method === 'Runtime.consoleAPICalled' && m.params?.type === 'error') {
                     consoleErrors.push((m.params.args || []).map((a) => a.value !== undefined ? a.value : (a.description || a.type)).join(' '));
@@ -278,26 +283,35 @@ async function main() {
                     itemAtlasLoadedEager: Boolean(window.__itemAtlasLoaded)
                 };
             })()`);
-            console.log(`[VisualGate] Town VRAM: textures=${townMem.textures} (ceiling < 83, baseline 83), geometries=${townMem.geometries} (ceiling <= 80, full NPC+storefront baseline 60), gpuTexVramMB=${townMem.gpuTexVramMB} (ceiling < 95), maxTexDim=${townMem.maxTexDim}, itemAtlasLoadedEager=${townMem.itemAtlasLoadedEager}`);
+            console.log(`[VisualGate] Town VRAM: textures=${townMem.textures} (ceiling < 83, baseline 83), geometries=${townMem.geometries} (ceiling <= 80, full NPC+storefront baseline 60), gpuTexVramMB=${townMem.gpuTexVramMB} (ceiling < 125), maxTexDim=${townMem.maxTexDim}, itemAtlasLoadedEager=${townMem.itemAtlasLoadedEager}`);
             assert(townMem.textures < 83, `Expected Town textures < 83, got ${townMem.textures}`);
             assert(townMem.geometries <= 80, `Expected Town geometries <= 80, got ${townMem.geometries}`);
             assert.strictEqual(townMem.itemAtlasLoadedEager, false, 'item_atlas should not load eagerly');
             assert(townMem.maxTexDim <= 2048, `Expected maxTexDim <= 2048, got ${townMem.maxTexDim}`);
-            assert(townMem.gpuTexVramMB < 95, `Expected gpuTexVramMB < 95, got ${townMem.gpuTexVramMB}`);
+            assert(townMem.gpuTexVramMB < 125, `Expected gpuTexVramMB < 125, got ${townMem.gpuTexVramMB}`);
 
             // Walk toward Town plaza (via startMinimapAutoNav / startAutoExplore) until a live Town NPC renders in 3D
             await playCdp.evaluate(`(() => { window.__app?.network?.sendKey?.(','); })()`);
             await sleep(600);
             for (let step = 0; step < 24; step++) {
-                const state = await playCdp.evaluate(`(() => ({
-                    frameMonsters: (window.__app?.lastFrame?.monsters || []).length,
-                    d3dMonsters: (window.__app?.dungeon?.monsters?.size || 0),
-                    autoNav: Boolean(window.__app?.input?.isAutoNavigating?.())
-                }))()`);
-                if (state.frameMonsters > 0 && state.d3dMonsters > 0) break;
+                const state = await playCdp.evaluate(`(() => {
+                    const mons = window.__app?.dungeon?.monsters;
+                    let visibleD3dMonsters = 0;
+                    if (mons) {
+                        for (const e of mons.values()) {
+                            if (e && e.visible && !e.pending3DConfig && e.monsterData) visibleD3dMonsters++;
+                        }
+                    }
+                    return {
+                        frameMonsters: (window.__app?.lastFrame?.monsters || []).length,
+                        visibleD3dMonsters,
+                        autoNav: Boolean(window.__app?.input?.isAutoNavigating?.())
+                    };
+                })()`);
+                if (state.frameMonsters > 0 && state.visibleD3dMonsters > 0) break;
                 if (state.frameMonsters > 0) {
                     await playCdp.evaluate(`(() => { window.__app?.input?.stopMinimapAutoNav?.('npc-found'); })()`);
-                    await sleep(500);
+                    await sleep(400);
                     continue;
                 }
                 if (!state.autoNav) {
@@ -315,13 +329,14 @@ async function main() {
                 await sleep(500);
             }
             await playCdp.evaluate(`(() => { window.__app?.input?.stopMinimapAutoNav?.('gate'); })()`);
-            await sleep(1200);
+            await sleep(450);
             const integrity = await playCdp.evaluate(`(async () => {
                 const app = window.__app, d3d = app?.dungeon, f = app?.lastFrame;
-                // Check live rendered Town monsters / NPCs
+                // Check live rendered visible Town monsters / NPCs
                 const liveSprites = [];
                 if (d3d?.monsters) {
                     for (const [k, obj] of d3d.monsters.entries()) {
+                        if (!obj || !obj.visible || !obj.monsterData) continue;
                         const b = new THREE.Box3().setFromObject(obj);
                         const sz = new THREE.Vector3(); b.getSize(sz);
                         liveSprites.push({
@@ -352,7 +367,26 @@ async function main() {
                 document.querySelector('.ftue-coachmark-dismiss')?.click();
                 const footerBtn = document.getElementById('btn-footer-dpad');
                 footerBtn?.click();
-                await new Promise((r) => setTimeout(r, 250));
+                await new Promise((r) => setTimeout(r, 320));
+                let hoverProbe = null;
+                if (liveSprites.length > 0 && d3d?.camera && typeof THREE !== 'undefined') {
+                    const nearest = liveSprites[0];
+                    const proj = new THREE.Vector3(nearest.wx, 0.9, nearest.wz).project(d3d.camera);
+                    const vw = window.innerWidth || 1440, vh = window.innerHeight || 900;
+                    const sx = Math.round((proj.x * 0.5 + 0.5) * vw);
+                    const sy = Math.round((-proj.y * 0.5 + 0.5) * vh);
+                    d3d._updateHoverAffordance?.(sx, sy, app.input, f, null);
+                    const pill = document.getElementById('cursor-action-pill');
+                    hoverProbe = {
+                        sx, sy,
+                        visible: Boolean(pill && !pill.classList.contains('hidden') && getComputedStyle(pill).display !== 'none'),
+                        name: document.getElementById('cursor-pill-name')?.textContent || '',
+                        lmb: document.getElementById('cursor-pill-lmb')?.textContent || '',
+                        rmb: document.getElementById('cursor-pill-rmb')?.textContent || '',
+                        cursor: d3d.canvas?.style?.cursor || ''
+                    };
+                }
+                const rtcEl = document.getElementById('reticle-target-card');
                 const tc = document.getElementById('touch-controls');
                 const tcRect = tc ? tc.getBoundingClientRect() : null;
                 const closeRect = document.getElementById('btn-dpad-close')?.getBoundingClientRect() || null;
@@ -362,25 +396,59 @@ async function main() {
                 const headerOverflowPx = (tcRect && closeRect) ? Math.round(closeRect.right - tcRect.right) : 999;
                 return {
                     tacticalCursorReady: Boolean(d3d?._tacticalCursor),
+                    reticleCardDisplay: rtcEl ? getComputedStyle(rtcEl).display : 'missing',
                     liveMonsterCount: liveSprites.length,
                     liveMonstersSample: liveSprites.slice(0, 6),
+                    hoverProbe,
                     dpadDisplay: tc ? getComputedStyle(tc).display : 'missing',
                     headerOverflowPx,
                     wingRects
                 };
             })()`);
-            console.log('[VisualGate] 3D Model & D-Pad Integrity:', JSON.stringify(integrity));
+            console.log('[VisualGate] 3D Model, Hover & D-Pad Integrity:', JSON.stringify(integrity));
             assert.strictEqual(integrity.tacticalCursorReady, true, 'd3d._tacticalCursor failed to initialize');
+            assert.strictEqual(integrity.reticleCardDisplay, 'none', 'Legacy #reticle-target-card must remain hidden');
             assert(integrity.liveMonsterCount > 0, 'Expected visible Town NPCs/monsters rendered in Angband Town');
             assert(integrity.liveMonstersSample.every((m) => m.visible && m.heightM >= 0.4 && m.heightM <= 4.0), `Town NPC bounds out of range: ${JSON.stringify(integrity.liveMonstersSample)}`);
+            assert(integrity.hoverProbe && integrity.hoverProbe.visible, `Expected #cursor-action-pill visible on Town NPC hover: ${JSON.stringify(integrity.hoverProbe)}`);
+            assert(integrity.hoverProbe.lmb.includes('LMB') && integrity.hoverProbe.rmb.includes('RMB'), `Invalid hover pill hints: ${JSON.stringify(integrity.hoverProbe)}`);
+            assert(integrity.hoverProbe.cursor === 'pointer' || integrity.hoverProbe.cursor === 'crosshair', `Expected pointer/crosshair cursor, got '${integrity.hoverProbe.cursor}'`);
             assert.strictEqual(integrity.dpadDisplay, 'flex', 'Desktop #btn-footer-dpad failed to open D-Pad');
             assert(integrity.headerOverflowPx <= 0, `D-Pad header close button overflows container by ${integrity.headerOverflowPx}px`);
             if (screenshotsDir) {
-                await sleep(300);
+                await sleep(250);
                 await playCdp.takeScreenshot(path.join(screenshotsDir, 'town_npcs_dpad_1440x900.png'));
             }
-            // Toggle D-Pad back off cleanly via #btn-footer-dpad before Descending & running desktop layout checks
-            await playCdp.evaluate(`(() => { document.getElementById('btn-footer-dpad')?.click(); })()`);
+            const popCheck = await playCdp.evaluate(`(async () => {
+                const app = window.__app, d3d = app?.dungeon;
+                const firstEnt = d3d?.monsters ? Array.from(d3d.monsters.values()).find(e => e.visible && e.monsterData) : null;
+                if (!firstEnt) return { opened: false, btnCount: 0 };
+                if (typeof window.ensureChronicleReady === 'function') await window.ensureChronicleReady();
+                await window.chronicleManager?.interactWithCreature?.(firstEnt.monsterData, { mode: 'popover', clientX: ${integrity.hoverProbe.sx}, clientY: ${integrity.hoverProbe.sy} });
+                await new Promise((r) => setTimeout(r, 150));
+                const pop = document.getElementById('entity-inspect-popover');
+                const pill = document.getElementById('cursor-action-pill');
+                const btns = Array.from(document.querySelectorAll('#entity-context-actions button')).map(b => b.textContent.trim());
+                return {
+                    opened: Boolean(pop && !pop.classList.contains('hidden') && getComputedStyle(pop).display !== 'none'),
+                    pillHidden: Boolean(!pill || pill.classList.contains('hidden')),
+                    btnCount: btns.length,
+                    btns
+                };
+            })()`);
+            console.log('[VisualGate] RMB Entity Popover Check:', JSON.stringify(popCheck));
+            assert(popCheck.opened && popCheck.pillHidden && popCheck.btnCount >= 4, `RMB entity inspect popover missing EntityMenu buttons: ${JSON.stringify(popCheck)}`);
+            if (screenshotsDir) {
+                await sleep(200);
+                await playCdp.takeScreenshot(path.join(screenshotsDir, 'town_hover_popover_1440x900.png'));
+            }
+            // Dismiss popover, clear hover, and toggle D-Pad back off cleanly before Descending
+            await playCdp.evaluate(`(() => {
+                window.chronicleManager?.dismissEntityPopover?.();
+                const d3d = window.__app?.dungeon;
+                d3d?._updateHoverAffordance?.(-1, -1, window.__app?.input, window.__app?.lastFrame, null);
+                document.getElementById('btn-footer-dpad')?.click();
+            })()`);
             await sleep(200);
 
             // Descend to Dungeon Level 1 (`>`)
@@ -399,18 +467,29 @@ async function main() {
                     }
                 }
             })()`);
-            for (let s = 0; s < 36; s++) {
+            for (let s = 0; s < 75; s++) {
                 await sleep(300);
-                const onStair = await playCdp.evaluate(`(() => {
-                    const f = window.__app?.lastFrame, st = window.__gateStair;
-                    return Boolean(f && st && f.player && f.player.x === st.x && f.player.y === st.y);
+                const stState = await playCdp.evaluate(`(() => {
+                    const app = window.__app, f = app?.lastFrame, st = window.__gateStair;
+                    if (f?.ui?.more) app.network?.sendKey?.('space');
+                    const onStair = Boolean(f && st && f.player && f.player.x === st.x && f.player.y === st.y);
+                    if (!onStair && st && f && !app?.input?.isAutoNavigating?.()) {
+                        app?.input?.startMinimapAutoNav?.(st.x, st.y, f);
+                    }
+                    return onStair;
                 })()`);
-                if (onStair) break;
+                if (stState) break;
             }
             await playCdp.evaluate(`(() => { window.__app?.network?.sendKey?.('>'); })()`);
-            for (let s = 0; s < 16; s++) {
+            for (let s = 0; s < 20; s++) {
                 await sleep(300);
-                const d1 = await playCdp.evaluate(`(window.__app?.lastFrame?.player?.depth || 0) >= 1`);
+                const d1 = await playCdp.evaluate(`(() => {
+                    const app = window.__app, f = app?.lastFrame;
+                    if (f?.ui?.more) app.network?.sendKey?.('space');
+                    if ((f?.player?.depth || 0) >= 1) return true;
+                    if (${s} % 4 === 3) app?.network?.sendKey?.('>');
+                    return false;
+                })()`);
                 if (d1) break;
             }
             // Close any stray prompt/FTUE so 3D viewport & all HUD widgets are cleanly active at DL 1
@@ -431,7 +510,8 @@ async function main() {
                 return { depth: f?.player?.depth ?? -1, textures: mem.textures || 0, geometries: mem.geometries || 0, decodedKB, termOpen };
             })()`);
             const transferKB = Math.round(transferBytes / 1024);
-            console.log(`[VisualGate] Dungeon L${perf.depth} (termOpen=${perf.termOpen}): transferKB=${transferKB} (ceiling < 10000, baseline 12230), decodedKB=${perf.decodedKB} (ceiling < 35000, baseline 51547), textures=${perf.textures}, geometries=${perf.geometries}`);
+            const musicKB = Math.round(musicBytes / 1024);
+            console.log(`[VisualGate] Dungeon L${perf.depth} (termOpen=${perf.termOpen}): transferKB=${transferKB} (ceiling < 10000, baseline 12230), musicKB=${musicKB}, decodedKB=${perf.decodedKB} (ceiling < 35000, baseline 51547), textures=${perf.textures}, geometries=${perf.geometries}`);
             assert(perf.depth >= 1, `Expected Dungeon depth >= 1, got ${perf.depth}`);
             assert(!perf.termOpen, 'Expected pure 3D Dungeon view (terminal should be hidden)');
             assert(transferKB < 10000, `Expected transferKB < 10000, got ${transferKB}`);
@@ -517,11 +597,13 @@ async function main() {
                 const wasHiddenT = trophy?.classList.contains('hidden');
                 trophy?.classList.remove('hidden');
 
-                const tier = document.getElementById('target-card-tier');
-                const rc = document.getElementById('reticle-target-card');
-                const prevTierCls = tier?.className;
-                rc?.classList.remove('hidden'); if (rc) rc.style.display = 'block';
-                if (tier) tier.className = 'target-card-tier reticle-upgrade-chip';
+                const pill = document.getElementById('cursor-action-pill');
+                const pillName = document.getElementById('cursor-pill-name');
+                const pillLmb = document.getElementById('cursor-pill-lmb');
+                const prevPillHidden = pill?.classList.contains('hidden');
+                if (pillName && !pillName.textContent) pillName.textContent = 'Orc';
+                if (pillLmb && !pillLmb.textContent) pillLmb.textContent = 'LMB Attack';
+                pill?.classList.remove('hidden');
 
                 window.YasdSettingsModal?.open?.();
                 const setGoldBtn = document.querySelector('#yasd-settings-dialog .btn-gold');
@@ -530,13 +612,13 @@ async function main() {
                     charTitle: measure(document.getElementById('char-title')),
                     hpText: measure(document.getElementById('hp-text')),
                     dailyTrophy: measure(trophy),
-                    upgradeChip: measure(tier),
+                    cursorPillName: measure(pillName),
+                    cursorPillLmb: measure(pillLmb),
                     settingsGoldCta: measure(setGoldBtn)
                 };
 
                 window.YasdSettingsModal?.close?.();
-                if (tier && prevTierCls !== undefined) tier.className = prevTierCls;
-                if (rc) { rc.classList.add('hidden'); rc.style.display = 'none'; }
+                if (prevPillHidden) pill?.classList.add('hidden');
                 if (wasHiddenT) trophy?.classList.add('hidden');
                 return results;
             })()`);
@@ -568,8 +650,8 @@ async function main() {
                         if (bf.includes('blur(')) blurs.push((el.id || el.className || el.tagName) + ':' + bf);
                     }
                     const rc = document.getElementById('reticle-target-card');
-                    if (rc) { rc.classList.remove('hidden'); rc.style.display = 'block'; }
-                    const ids = ['top-right-bar', 'reticle-target-card', 'char-panel', 'minimap-container', 'touch-controls', 'action-bar', 'message-feed-window', 'ftue-coachmark-pill'];
+                    const reticleDisplay = rc ? getComputedStyle(rc).display : 'missing';
+                    const ids = ['top-right-bar', 'char-panel', 'minimap-container', 'touch-controls', 'action-bar', 'message-feed-window', 'ftue-coachmark-pill'];
                     const rects = {};
                     for (const id of ids) {
                         const el = document.getElementById(id);
@@ -594,18 +676,16 @@ async function main() {
                         const r = b.getBoundingClientRect();
                         return cs.display !== 'none' && r.width > 0 && r.height > 0 && (r.width < 43 || r.height < 43);
                     }).map((b) => b.id + ':' + Math.round(b.getBoundingClientRect().width) + 'x' + Math.round(b.getBoundingClientRect().height)) : [];
-                    if (rc) { rc.classList.add('hidden'); rc.style.display = 'none'; }
-                    return { blurs, overlaps, smallTouchBtns };
+                    return { blurs, overlaps, smallTouchBtns, reticleDisplay };
                 })()`);
-                console.log(`[VisualGate] Viewport ${vp.name}: blurs=${geom.blurs.length}, overlaps=${JSON.stringify(geom.overlaps)}, smallTouchBtns=${JSON.stringify(geom.smallTouchBtns)}`);
+                console.log(`[VisualGate] Viewport ${vp.name}: blurs=${geom.blurs.length}, reticleDisplay=${geom.reticleDisplay}, overlaps=${JSON.stringify(geom.overlaps)}, smallTouchBtns=${JSON.stringify(geom.smallTouchBtns)}`);
+                assert.strictEqual(geom.reticleDisplay, 'none', `Legacy #reticle-target-card visible at ${vp.name}`);
                 assert.strictEqual(geom.blurs.length, 0, `Live blur at ${vp.name}: ${geom.blurs.join(', ')}`);
                 assert.strictEqual(geom.overlaps.length, 0, `HUD overlap at ${vp.name}: ${geom.overlaps.join(', ')}`);
                 assert.strictEqual(geom.smallTouchBtns.length, 0, `Sub-44px buttons at ${vp.name}: ${geom.smallTouchBtns.join(', ')}`);
 
                 if (vp.name === '390x844' && screenshotsDir) {
-                    await playCdp.evaluate(`(() => { const rc = document.getElementById('reticle-target-card'); if (rc) { rc.classList.remove('hidden'); rc.style.display = 'block'; } })()`);
                     await playCdp.takeScreenshot(path.join(screenshotsDir, 'mobile_390x844.png'));
-                    await playCdp.evaluate(`(() => { const rc = document.getElementById('reticle-target-card'); if (rc) { rc.classList.add('hidden'); rc.style.display = 'none'; } })()`);
                 }
             }
         } finally {

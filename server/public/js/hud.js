@@ -929,150 +929,41 @@ class WebHUD {
 
     updateTargetInspector(player, realm, frameOpt) {
         const rawReticleCard = this.reticleTargetCard || document.getElementById('reticle-target-card');
-        if (rawReticleCard && !rawReticleCard._boundTargetActs) {
-            rawReticleCard._boundTargetActs = true;
-            rawReticleCard.addEventListener('click', (e) => {
-                const btn = e.target && e.target.closest ? e.target.closest('[data-target-act]') : null;
-                if (!btn) return;
-                e.stopPropagation();
-                const act = btn.getAttribute('data-target-act');
-                const inp = window.__app && window.__app.input;
-                if (act === 'attack' && inp) inp.executeSmartAction('attack');
-                else if (act === 'shoot' && inp) inp.executeSmartAction('shoot');
-                else if (act === 'cast') document.getElementById('btn-cast')?.click();
-                else if (act === 'pickup' && inp && inp.network) inp.network.sendKey('g');
-                else if (act === 'inspect' && this._currentTargetMonster && window.chronicleManager?.interactWithCreature) {
-                    window.chronicleManager.interactWithCreature(this._currentTargetMonster, { mode: 'popover' });
-                }
-            });
+        if (rawReticleCard) {
+            rawReticleCard.style.display = 'none';
+            rawReticleCard.classList.add('hidden');
         }
         const frame = frameOpt || this.lastFrame;
         const pl = player || (frame ? frame.player : null);
-        let t = (pl && pl.target && pl.target.name) ? pl.target : ((frame && frame.target && frame.target.name) ? frame.target : null);
-        const inp = window.__app && window.__app.input;
-        let fwd = { dx: 0, dy: -1 };
-        const facing = window.__app && window.__app.dungeon ? window.__app.dungeon.facing : undefined;
-        if (typeof facing === 'number' && facing >= 0 && facing <= 7) {
-            fwd = [{ dx: 0, dy: -1 }, { dx: 1, dy: -1 }, { dx: 1, dy: 0 }, { dx: 1, dy: 1 }, { dx: 0, dy: 1 }, { dx: -1, dy: 1 }, { dx: -1, dy: 0 }, { dx: -1, dy: -1 }][facing] || fwd;
-        } else if (inp && typeof inp.getFacingForward === 'function') {
-            fwd = inp.getFacingForward().fwd;
-        }
-        if (!t && frame && Array.isArray(frame.monsters) && pl && pl.x !== undefined && pl.y !== undefined) {
-            const ray = (inp && typeof inp.raycastTargetAhead === 'function') ? inp.raycastTargetAhead(frame, pl.x, pl.y, fwd) : null;
-            if (ray && ray.type === 'monster' && ray.data) t = ray.data;
-        }
+        const t = (pl && pl.target && pl.target.name) ? pl.target : ((frame && frame.target && frame.target.name) ? frame.target : null);
         this._currentTargetMonster = t || null;
         const hasTarget = !!(t && t.name);
         const isVisible = hasTarget && (t.visible !== false);
         const esc = typeof escapeHtml === 'function' ? escapeHtml : (s) => String(s).replace(/[&<>'"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[c]));
-        const ht = (typeof window !== 'undefined' && window.HudTelemetry) ? window.HudTelemetry : null;
-        const ensureAffChips = (affEl) => {
-            if (affEl && !affEl._distChip) {
-                affEl.textContent = '';
-                const chip = document.createElement('span'); chip.className = 'target-dist-chip';
-                const loreChip = document.createElement('span'); loreChip.className = 'target-lore-chip';
-                const mkBtn = (act, txt) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'target-act-pill'; b.dataset.targetAct = act; b.textContent = txt; return b; };
-                const pBtn = mkBtn('attack', '⚔ Attack [Space]');
-                const cBtn = mkBtn('cast', '✨ Cast'), iBtn = mkBtn('inspect', '🔍 Inspect');
-                affEl.append(chip, loreChip, pBtn, cBtn, iBtn);
-                affEl._distChip = chip; affEl._loreChip = loreChip; affEl._pBtn = pBtn; affEl._cBtn = cBtn; affEl._iBtn = iBtn;
-            }
-        };
 
-        if (hasTarget && isVisible) {
+        if (hasTarget && isVisible && this.footerTarget) {
             let tName = t.name;
             const lang = window.__langMode || 'en';
             if (realm === 'hengband' && typeof window.getLocalizedMonsterName === 'function') tName = window.getLocalizedMonsterName(tName, 'hengband', lang);
             const pct = Math.max(0, Math.min(100, Math.round(t.hp_pct !== undefined ? t.hp_pct : (t.pct !== undefined ? t.pct : ((t.hp !== undefined && t.hp_max > 0) ? (t.hp / t.hp_max) * 100 : 100)))));
-            let portraitHtml = '';
-            if (typeof window.getShockboltSpriteCss === 'function') {
-                const iconStyle = window.getShockboltSpriteCss('monster', t.name, t.glyph || null, 36);
-                if (iconStyle) portraitHtml = '<span class="sb-sprite-icon hud-target-portrait" style="' + iconStyle + '"></span> ';
+            this.footerTarget.style.display = 'inline-flex';
+            this.footerTarget.style.maxWidth = '190px';
+            this.footerTarget.style.overflow = 'hidden';
+            this.footerTarget.style.textOverflow = 'ellipsis';
+            this.footerTarget.style.whiteSpace = 'nowrap';
+            const targetSig = `${realm}:${tName}:${t.glyph || ''}:${pct}:${rawReticleCard ? 1 : 0}`;
+            if (this._lastFooterTargetSig !== targetSig) {
+                this._lastFooterTargetSig = targetSig;
+                let portraitHtml = '';
+                if (!rawReticleCard && typeof window.getShockboltSpriteCss === 'function') {
+                    const iconStyle = window.getShockboltSpriteCss('monster', t.name, t.glyph || null, 36);
+                    if (iconStyle) portraitHtml = '<span class="sb-sprite-icon hud-target-portrait" style="' + iconStyle + '"></span> ';
+                }
+                this.footerTarget.innerHTML = (portraitHtml || '🎯 ') + esc(tName) + ' (' + pct + '%)';
             }
-            if (this.footerTarget) {
-                this.footerTarget.style.display = 'inline-flex';
-                this.footerTarget.style.maxWidth = '190px';
-                this.footerTarget.style.overflow = 'hidden';
-                this.footerTarget.style.textOverflow = 'ellipsis';
-                this.footerTarget.style.whiteSpace = 'nowrap';
-                const targetSig = `${realm}:${tName}:${t.glyph || ''}:${pct}:${rawReticleCard ? 1 : 0}`;
-                if (this._lastFooterTargetSig !== targetSig) {
-                    this._lastFooterTargetSig = targetSig;
-                    const prefix = rawReticleCard ? '🎯 ' : `${portraitHtml}⚔ `;
-                    this.footerTarget.innerHTML = prefix + esc(tName) + ' (' + pct + '%)';
-                }
-            }
-            if (rawReticleCard) {
-                rawReticleCard.classList.remove('hidden');
-                rawReticleCard.style.display = 'block';
-                rawReticleCard.dataset.mode = 'monster';
-                const hpBarEl = rawReticleCard.querySelector('.target-card-hp-bar');
-                if (hpBarEl) hpBarEl.style.display = '';
-                const isUniq = Boolean(t.unique || t.boss);
-                const isSleep = Boolean(t.asleep || t.sleep || t.alertness_label === 'asleep' || /asleep|sleeping/i.test(t.status || ''));
-                const isUnwary = Boolean(!isSleep && (t.unwary || t.alertness_label === 'unwary'));
-                const isFlee = Boolean(t.fleeing || t.afraid || t.fear || /flee|afraid|fear/i.test(t.status || ''));
-                const dist = (pl && pl.x !== undefined && t.x !== undefined) ? Math.max(Math.abs(t.x - pl.x), Math.abs(t.y - pl.y)) : 1;
-                const tac = (ht && typeof ht.formatMonsterTacticalSummary === 'function') ? ht.formatMonsterTacticalSummary(t, realm) : null;
-                const nameEl = document.getElementById('target-card-name');
-                if (nameEl) nameEl.textContent = `${tName}${t.glyph ? ` ('${t.glyph}')` : ''}`;
-                const tierEl = document.getElementById('target-card-tier');
-                if (tierEl) {
-                    const roleTxt = t.attitude === 'pet' ? '🐾 PET' : (isUniq ? '👑 UNIQUE' : (isSleep ? '💤 ASLEEP' : (isUnwary ? '👁 UNWARY' : (isFlee ? '💨 FLEEING' : '⚔ HOSTILE'))));
-                    tierEl.textContent = (tac && tac.speedChip) ? `${roleTxt} • ${tac.speedChip}` : roleTxt;
-                    tierEl.className = 'target-card-tier' + (isUniq ? ' badge-unique' : '');
-                }
-                const hpFillEl = document.getElementById('target-card-hp-fill');
-                if (hpFillEl) hpFillEl.style.width = `${pct}%`;
-                const affEl = document.getElementById('target-card-affinities');
-                if (affEl) {
-                    ensureAffChips(affEl);
-                    const schemas = this._getRealmSchemas(realm);
-                    const defTag = schemas.defenseSchema.label === 'Arm' ? 'Arm' : (schemas.defenseSchema.label === 'Armor' ? 'Armor' : 'AC');
-                    const acPart = (tac && tac.acVal !== undefined && tac.acVal !== null) ? (/^EV\b/i.test(String(tac.acVal)) ? ` • ${tac.acVal}` : ` • ${defTag} ${tac.acVal}`) : '';
-                    affEl._distChip.textContent = `📏 ${dist}sq • ${pct}% HP${acPart}`;
-                    const loreBits = [];
-                    if (tac && tac.blows) loreBits.push(`⚔ ${tac.blows}`);
-                    if (tac && tac.spellChip) loreBits.push(tac.spellChip);
-                    if (tac && tac.resists) loreBits.push(`🛡 ${tac.resists}`);
-                    affEl._loreChip.textContent = loreBits.join(' • ');
-                    affEl._loreChip.style.display = loreBits.length > 0 ? 'inline-flex' : 'none';
-                    affEl._pBtn.style.display = ''; affEl._cBtn.style.display = ''; affEl._iBtn.style.display = '';
-                    affEl._pBtn.dataset.targetAct = dist <= 1 ? 'attack' : 'shoot';
-                    affEl._pBtn.textContent = dist <= 1 ? '⚔ Attack [Space]' : '🏹 Shoot [f]';
-                }
-            }
-        } else {
-            if (this.footerTarget) { this.footerTarget.style.display = 'none'; this._lastFooterTargetSig = ''; }
-            const floorHit = (frame && frame.phase === 'play' && rawReticleCard && ht && typeof ht.findReticleFloorItem === 'function')
-                ? ht.findReticleFloorItem(frame, pl, fwd, realm) : null;
-            if (floorHit && rawReticleCard) {
-                const it = floorHit.item, cmp = floorHit.cmp, glyphs = it.glyph || it.g || '';
-                rawReticleCard.classList.remove('hidden'); rawReticleCard.style.display = 'block';
-                rawReticleCard.dataset.mode = 'item';
-                const hpBarEl = rawReticleCard.querySelector('.target-card-hp-bar');
-                if (hpBarEl) hpBarEl.style.display = 'none';
-                const nameEl = document.getElementById('target-card-name');
-                if (nameEl) nameEl.textContent = `${it.name || it.dname}${glyphs ? ` ('${glyphs}')` : ''}`;
-                const tierEl = document.getElementById('target-card-tier');
-                if (tierEl) {
-                    const isUp = cmp && cmp.delta > 0, isDn = cmp && cmp.delta < 0;
-                    tierEl.textContent = isUp ? `▲ UPGRADE (+${cmp.delta} ${cmp.metric})` : (isDn ? `▼ LOWER (${cmp.delta} ${cmp.metric})` : '💎 FLOOR ITEM');
-                    tierEl.className = 'target-card-tier' + (isUp ? ' reticle-upgrade-chip' : '');
-                }
-                const affEl = document.getElementById('target-card-affinities');
-                if (affEl) {
-                    ensureAffChips(affEl);
-                    affEl._distChip.textContent = floorHit.dist === 0 ? '📍 Underfoot' : `📏 ${floorHit.dist}sq ahead`;
-                    affEl._loreChip.style.display = 'none';
-                    affEl._cBtn.style.display = 'none'; affEl._iBtn.style.display = 'none';
-                    affEl._pBtn.style.display = floorHit.dist === 0 ? '' : 'none';
-                    affEl._pBtn.dataset.targetAct = 'pickup';
-                    affEl._pBtn.textContent = '💎 Pick Up [g]';
-                }
-            } else if (rawReticleCard) {
-                rawReticleCard.style.display = 'none'; rawReticleCard.classList.add('hidden');
-            }
+        } else if (this.footerTarget) {
+            this.footerTarget.style.display = 'none';
+            this._lastFooterTargetSig = '';
         }
     }
 

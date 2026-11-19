@@ -1774,25 +1774,8 @@ to { opacity: 1; transform: translateY(0); }
 
 .reticle-crosshair::after { width: 1px; height: 14px; }
 
-/* Top-Center Monster Target Plaque (Path of Exile / Gothic Dark-Fantasy) */
-.reticle-target-card {
-    position: fixed;
-    top: 44px;
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 45;
-    pointer-events: none;
-    min-width: 280px;
-    max-width: 420px;
-    padding: 8px 16px 10px;
-    background: linear-gradient(180deg, rgba(20, 16, 24, 0.95) 0%, rgba(9, 8, 13, 0.98) 100%);
-    -webkit-backdrop-filter: none;
-    backdrop-filter: none;
-    border: 1px solid rgba(208, 169, 84, 0.68);
-    border-top: 2px solid #e5c168;
-    border-radius: 3px;
-    box-shadow: inset 0 1px 0 rgba(255, 232, 175, 0.25), inset 0 0 18px rgba(0, 0, 0, 0.85), 0 8px 26px rgba(0, 0, 0, 0.92);
-}
+/* Retired Top-Center Target Plaque (replaced by cursor-anchored hover cue + Right-Click popover + #footer-target) */
+.reticle-target-card { display: none !important; }
 
 .reticle-target-card.hidden { display: none !important; }
 
@@ -8858,7 +8841,6 @@ html.device-desktop #btn-action-more.is-needed { display: none !important; }
 
 .reticle-target-card.hidden,
 #reticle-target-card.hidden { display: none !important; }
-.reticle-target-card:not(.hidden) { pointer-events: auto !important; }
 .target-act-pill { background: rgba(24, 18, 10, 0.92); color: #f5d77f; border: 1px solid rgba(212, 175, 55, 0.55); border-radius: 3px; padding: 2px 6px; font-size: 9.5px; font-weight: 600; cursor: pointer; }
 .target-act-pill:hover { background: rgba(62, 46, 16, 0.96); border-color: #ffd700; }
 .target-dist-chip { color: #cbd5e1; font-size: 9.5px; font-weight: 600; margin-right: 2px; align-self: center; }
@@ -8969,11 +8951,6 @@ body.grimoire-primary-open #entity-inspect-popover { display: none !important; }
     max-height: 80vh;
 }
 
-@media (min-width: 961px) {
-    #app-container:has(#reticle-target-card:not(.hidden)) #message-feed-window:not([style*="left"]) {
-        max-width: min(460px, calc(50vw - 310px));
-    }
-}
 
 #hud-overlay #message-feed-window.expanded { height: 180px; max-height: 80vh; }
 

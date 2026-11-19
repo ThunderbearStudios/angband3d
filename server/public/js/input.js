@@ -3058,7 +3058,10 @@ class InputController {
             lastX = clientX;
             lastY = clientY;
 
-            if (Math.hypot(clientX - startX, clientY - startY) > 8) {
+            if (Math.hypot(clientX - startX, clientY - startY) > 6) {
+                const cap = document.getElementById('cursor-action-pill');
+                if (cap) cap.classList.add('hidden');
+                if (canvas.style.cursor !== 'grabbing') canvas.style.cursor = 'grabbing';
                 if (window.chronicleManager && typeof window.chronicleManager.dismissEntityPopover === 'function') {
                     window.chronicleManager.dismissEntityPopover();
                 }
@@ -3076,6 +3079,8 @@ class InputController {
         let longPressFired = false;
 
         const openEntityInspectAt = (cx, cy) => {
+            const cap = document.getElementById('cursor-action-pill');
+            if (cap) cap.classList.add('hidden');
             if (!this.dungeon || this.inTerminal) return false;
             const frame = (this.app && this.app.lastFrame) || (window.__app && window.__app.lastFrame) || this.dungeon.lastFrame;
             const monster = (typeof this.dungeon.getMonsterAtScreenCoords === 'function') ? this.dungeon.getMonsterAtScreenCoords(cx, cy) : null;
@@ -3102,8 +3107,14 @@ class InputController {
                         window.chronicleManager.inspectObject(itemOnTile, { mode: 'popover', clientX: cx, clientY: cy });
                         return true;
                     }
+                    const feat = this.dungeon.describeMapFeature?.(frame, hitTile.x, hitTile.y);
+                    if (feat && window.chronicleManager?.showEntityPopover) {
+                        window.chronicleManager.showEntityPopover('feature', feat, cx, cy);
+                        return true;
+                    }
                 }
             }
+            window.chronicleManager?.dismissEntityPopover?.();
             return false;
         };
 
@@ -3131,6 +3142,7 @@ class InputController {
 
         const onEnd = (endX = null, endY = null) => {
             clearLongPress();
+            if (canvas.style.cursor === 'grabbing') canvas.style.cursor = '';
             if (longPressFired) { longPressFired = false; return; }
             if (!isDragging) return;
             isDragging = false;
@@ -3193,8 +3205,11 @@ class InputController {
                         const monster = ((typeof this.dungeon.getMonsterAtScreenCoords === 'function') ? this.dungeon.getMonsterAtScreenCoords(finalX, finalY) : null) ||
                             (hitTile && Array.isArray(frame.monsters) ? frame.monsters.find((m) => m && m.visible !== false && m.x === hitTile.x && m.y === hitTile.y) : null);
                         if (monster) {
+                            const hostile = this.isHostileMonster(monster, frame);
                             const dxRaw = monster.x - frame.player.x, dyRaw = monster.y - frame.player.y;
-                            if (Math.max(Math.abs(dxRaw), Math.abs(dyRaw)) === 1) {
+                            const cheb = Math.max(Math.abs(dxRaw), Math.abs(dyRaw));
+                            if (!hostile && cheb <= 2) { openEntityInspectAt(finalX, finalY); return; }
+                            if (hostile && cheb === 1) {
                                 const atkKey = worldKeyMap[`${Math.sign(dxRaw)},${Math.sign(dyRaw)}`];
                                 if (atkKey) { this.sendMovementKey(atkKey); return; }
                             }
@@ -3214,6 +3229,10 @@ class InputController {
                             return;
                         }
                         if (hitTile) {
+                            if (hitTile.x === frame.player.x && hitTile.y === frame.player.y) {
+                                const ch = frame.map?.rows?.[hitTile.y]?.g?.[hitTile.x];
+                                if (ch === '>' || ch === '<') { this.network.sendKey(ch); return; }
+                            }
                             this.startMinimapAutoNav(hitTile.x, hitTile.y, frame);
                         }
                     }
@@ -3223,6 +3242,9 @@ class InputController {
 
         canvas.addEventListener('contextmenu', (e) => {
             e.preventDefault();
+            const cap = document.getElementById('cursor-action-pill');
+            if (cap) cap.classList.add('hidden');
+            if (this.isDirectionalTargeting()) { this.network?.sendKey?.('escape'); return; }
             openEntityInspectAt(e.clientX, e.clientY);
         });
 

@@ -7,6 +7,7 @@
 /* 1. Splash Overlay Isolation (Hide Live HUD Chrome During Showcase Splash) */
 #app-container:has(#splash-overlay:not(.hidden)) #hud-overlay,
 #app-container:has(#splash-overlay:not(.hidden)) #reticle-target-card,
+#app-container:has(#splash-overlay:not(.hidden)) #cursor-action-pill,
 #app-container:has(#splash-overlay:not(.hidden)) #message-feed-window,
 #app-container:has(#splash-overlay:not(.hidden)) #chronicle-window,
 #app-container:has(#splash-overlay:not(.hidden)) #minimap-window,
@@ -473,18 +474,8 @@ dialog.yasd-modal-dialog,
     }
 }
 
-/* Portrait-Specific Reticle Card Lane Below Top Row (360x640, 390x844, 768x1024) */
+/* Portrait-Specific Coachmark & Toast Lanes (360x640, 390x844, 768x1024) */
 @media (max-width: 900px) and (orientation: portrait) {
-    #app-container #reticle-target-card:not(.hidden) {
-        position: fixed !important;
-        top: calc(170px + var(--safe-top, 0px)) !important;
-        left: 50% !important;
-        right: auto !important;
-        transform: translateX(-50%) !important;
-        width: min(296px, calc(100vw - 20px)) !important;
-        max-width: calc(100vw - 20px) !important;
-        z-index: 34 !important;
-    }
 
     #ftue-coachmark-pill.ftue-coachmark-pill {
         position: fixed !important;
@@ -538,17 +529,6 @@ dialog.yasd-modal-dialog,
     #app-container #char-panel:not(.handheld-char-expanded) {
         width: min(160px, 23vw) !important;
         max-width: 170px !important;
-    }
-
-    #app-container #reticle-target-card:not(.hidden) {
-        position: fixed !important;
-        top: calc(54px + var(--safe-top, 0px)) !important;
-        left: 50% !important;
-        right: auto !important;
-        transform: translateX(-50%) !important;
-        width: min(260px, calc(100vw - 332px)) !important;
-        max-width: calc(100vw - 332px) !important;
-        z-index: 34 !important;
     }
 
     #app-container #touch-controls {
@@ -815,4 +795,82 @@ html.yasd-reduced-motion *::after {
     background: rgba(58, 44, 16, 0.92);
     border-color: #f3d678;
     color: #fff6cc;
+}
+
+/* 10. Retire Legacy Top Enemy/Item Plaque & Provide Subtle Cursor-Anchored Action Cue */
+#reticle-target-card {
+    display: none !important;
+}
+
+.cursor-action-pill {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 44;
+    pointer-events: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 8px;
+    border-radius: 5px;
+    background: rgba(11, 14, 22, 0.94);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    border: 1px solid rgba(212, 175, 55, 0.45);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.78);
+    font-family: var(--font-ui, 'Outfit', sans-serif);
+    font-size: 11px;
+    line-height: 1.25;
+    white-space: nowrap;
+    max-width: 340px;
+    will-change: transform;
+    contain: layout style;
+}
+
+.cursor-action-pill.hidden,
+body.terminal-active #cursor-action-pill,
+body.terminal-mode-active #cursor-action-pill,
+body.grimoire-primary-open #cursor-action-pill,
+html.yasd-handheld #cursor-action-pill {
+    display: none !important;
+}
+
+@media (pointer: coarse) {
+    #cursor-action-pill {
+        display: none !important;
+    }
+}
+
+.cursor-pill-name {
+    color: #f8fafc;
+    font-weight: 700;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 150px;
+}
+
+.cursor-pill-hint {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 1px 5px;
+    border-radius: 3px;
+}
+
+.cursor-pill-lmb {
+    background: rgba(212, 175, 55, 0.16);
+    border: 1px solid rgba(212, 175, 55, 0.42);
+    color: #f5d77f;
+}
+
+.cursor-pill-rmb {
+    background: rgba(148, 163, 184, 0.14);
+    border: 1px solid rgba(148, 163, 184, 0.34);
+    color: #cbd5e1;
+}
+
+.entity-inspect-popover.is-feature .inspect-popover-actions {
+    display: none !important;
 }
