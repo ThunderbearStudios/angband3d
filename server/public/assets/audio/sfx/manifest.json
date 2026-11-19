@@ -158,10 +158,10 @@
       "bytes": 70590
     },
     {
-      "file": "fanfare_short.wav",
+      "file": "fanfare_short.ogg",
       "category": "spells",
       "license": "GPL-2.0+ (Battle for Wesnoth)",
-      "bytes": 88164
+      "bytes": 14648
     },
     {
       "file": "flail_hit.ogg",
@@ -182,16 +182,16 @@
       "bytes": 27470
     },
     {
-      "file": "heal_spell.wav",
+      "file": "heal_spell.ogg",
       "category": "spells",
       "license": "GPL-2.0+ (Battle for Wesnoth)",
-      "bytes": 69454
+      "bytes": 13295
     },
     {
-      "file": "hiss_big.wav",
+      "file": "hiss_big.ogg",
       "category": "monsters",
       "license": "GPL-2.0+ (Battle for Wesnoth)",
-      "bytes": 43516
+      "bytes": 9436
     },
     {
       "file": "impact_bell_1.ogg",
@@ -356,10 +356,10 @@
       "bytes": 5503
     },
     {
-      "file": "open_chest.wav",
+      "file": "open_chest.ogg",
       "category": "environment",
       "license": "GPL-2.0+ (Battle for Wesnoth)",
-      "bytes": 5040
+      "bytes": 4955
     },
     {
       "file": "petrified.ogg",
@@ -470,10 +470,10 @@
       "bytes": 8488
     },
     {
-      "file": "water_blast.wav",
+      "file": "water_blast.ogg",
       "category": "spells",
       "license": "GPL-2.0+ (Battle for Wesnoth)",
-      "bytes": 112674
+      "bytes": 14353
     },
     {
       "file": "wolf_growl_1.ogg",

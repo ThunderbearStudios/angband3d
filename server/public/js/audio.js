@@ -144,15 +144,23 @@ class SoundEngine {
         // Pre-initialize theme decks immediately at SoundEngine construction so buffering starts at t=0ms
         this._initThemeDecks();
 
-        // Seamlessly initialize audio graph and retry theme playback on any user interaction
+        // Seamlessly initialize audio graph, detach unlock capture listeners immediately once unlocked
         if (typeof window !== 'undefined') {
-            const unlockHandler = () => {
+            this._unlockEvents = ['click', 'pointerdown', 'pointerup', 'mousedown', 'mouseup', 'keydown', 'keyup', 'touchstart', 'touchend'];
+            this._unlockHandler = () => {
                 this.unlock(true);
                 this._ensureThemePlayback();
             };
-            ['click', 'pointerdown', 'pointerup', 'mousedown', 'mouseup', 'keydown', 'keyup', 'touchstart', 'touchend'].forEach(evt => {
-                window.addEventListener(evt, unlockHandler, { capture: true, passive: true });
+            this._unlockEvents.forEach(evt => {
+                window.addEventListener(evt, this._unlockHandler, { capture: true, passive: true });
             });
+        }
+    }
+
+    _detachUnlockListeners() {
+        if (typeof window !== 'undefined' && this._unlockHandler && this._unlockEvents) {
+            this._unlockEvents.forEach(evt => window.removeEventListener(evt, this._unlockHandler, { capture: true }));
+            this._unlockHandler = null;
         }
     }
 
@@ -1176,12 +1184,16 @@ class SoundEngine {
         if (this.ctx && this.ctx.state === 'suspended') {
             this.ctx.resume().then(() => {
                 this.unlocked = true;
+                if (this.ctx && this.ctx.state === 'running') this._detachUnlockListeners();
+                if (typeof window !== 'undefined' && window.AudioAmbience) window.AudioAmbience.sync(this);
                 if (this._themeMode !== 'menu' && !this._studioBankLoaded && !this._studioBankLoading) {
                     this.loadStudioSfxBank();
                 }
             }).catch(() => {});
         } else if (this.ctx) {
             this.unlocked = true;
+            if (this.ctx.state === 'running') this._detachUnlockListeners();
+            if (typeof window !== 'undefined' && window.AudioAmbience) window.AudioAmbience.sync(this);
             if (this._themeMode !== 'menu' && !this._studioBankLoaded && !this._studioBankLoading) {
                 this.loadStudioSfxBank();
             }
@@ -1268,45 +1280,45 @@ class SoundEngine {
             step_stone: ['step_stone_1.ogg', 'step_stone_2.ogg', 'step_stone_3.ogg', 'step_stone_4.ogg'],
             step_grass: ['step_grass_1.ogg', 'step_grass_2.ogg', 'step_grass_3.ogg', 'step_grass_4.ogg'],
             step_wood: ['step_wood_1.ogg', 'step_wood_2.ogg'],
-            step_water: ['water_blast.wav'],
+            step_water: ['water_blast.ogg'],
             whoosh: ['miss_1.ogg', 'miss_2.ogg', 'miss_3.ogg', 'blade_slice_1.ogg', 'blade_slice_2.ogg'],
             slash: ['sword_1.ogg', 'axe_hit.ogg', 'blade_slice_1.ogg', 'blade_slice_2.ogg', 'chop.ogg'],
             bludgeon: ['mace_hit.ogg', 'flail_hit.ogg', 'impact_metal_heavy_1.ogg', 'impact_wood_heavy_1.ogg'],
             pierce: ['spear_hit.ogg', 'sword_1.ogg', 'blade_slice_2.ogg'],
-            crit: ['axe_hit.ogg', 'mace_hit.ogg', 'impact_metal_heavy_1.ogg', 'impact_plate_heavy_1.ogg', 'critical.wav'],
-            shieldBlock: ['impact_plate_heavy_1.ogg', 'impact_plate_heavy_2.ogg', 'impact_metal_heavy_1.ogg', 'impact_metal_heavy_2.ogg', 'reflect.wav'],
-            armorDeflect: ['impact_plate_med_1.ogg', 'impact_metal_heavy_2.ogg', 'clunk.wav'],
+            crit: ['axe_hit.ogg', 'mace_hit.ogg', 'impact_metal_heavy_1.ogg', 'impact_plate_heavy_1.ogg', 'critical.ogg'],
+            shieldBlock: ['impact_plate_heavy_1.ogg', 'impact_plate_heavy_2.ogg', 'impact_metal_heavy_1.ogg', 'impact_metal_heavy_2.ogg', 'reflect.ogg'],
+            armorDeflect: ['impact_plate_med_1.ogg', 'impact_metal_heavy_2.ogg', 'clunk.ogg'],
             bow_loose: ['bow_fire.ogg', 'crossbow_fire.ogg', 'bow_miss.ogg'],
-            bow_impact: ['spear_hit.ogg', 'impact_wood_heavy_1.ogg', 'impact_wood_heavy_2.ogg', 'thump.wav'],
+            bow_impact: ['spear_hit.ogg', 'impact_wood_heavy_1.ogg', 'impact_wood_heavy_2.ogg', 'thump.ogg'],
             digging: ['impact_mining_1.ogg', 'impact_mining_2.ogg', 'impact_mining_3.ogg'],
-            wallBump: ['impact_wood_heavy_2.ogg', 'step_stone_1.ogg', 'thump.wav'],
-            doorOpen: ['door_open_1.ogg', 'creak_1.ogg', 'opendoor.wav'],
-            doorClose: ['door_close_1.ogg', 'metal_latch.ogg', 'shutdoor.wav'],
+            wallBump: ['impact_wood_heavy_2.ogg', 'step_stone_1.ogg', 'thump.ogg'],
+            doorOpen: ['door_open_1.ogg', 'creak_1.ogg', 'opendoor.ogg'],
+            doorClose: ['door_close_1.ogg', 'metal_latch.ogg', 'shutdoor.ogg'],
             doorBreak: ['impact_wood_heavy_1.ogg', 'cave_in.ogg'],
-            chestOpen: ['open_chest.wav', 'metal_latch.ogg'],
+            chestOpen: ['open_chest.ogg', 'metal_latch.ogg'],
             itemPickup: ['cloth_1.ogg', 'cloth_2.ogg'],
             itemDrop: ['step_wood_1.ogg', 'cloth_2.ogg'],
-            goldPickup: ['gold_pickup.ogg', 'coins_1.ogg', 'coins_2.ogg', 'money.wav', 'buy.wav', 'sell.wav'],
+            goldPickup: ['gold_pickup.ogg', 'coins_1.ogg', 'coins_2.ogg', 'money.ogg', 'buy.ogg', 'sell.ogg'],
             equipWeapon: ['blade_draw_1.ogg', 'blade_draw_2.ogg'],
             equipArmor: ['impact_plate_med_1.ogg', 'cloth_1.ogg'],
-            quaff: ['potion_drink.ogg', 'quaff.wav'],
-            eat: ['eat1.wav', 'eat2.wav', 'hungry1.wav'],
+            quaff: ['potion_drink.ogg', 'quaff.ogg'],
+            eat: ['eat1.ogg', 'eat2.ogg', 'hungry1.ogg'],
             potionThrow: ['miss_1.ogg', 'miss_2.ogg'],
             potionShatter: ['impact_glass_1.ogg', 'impact_glass_2.ogg'],
-            scroll: ['book_flip_1.ogg', 'book_flip_2.ogg', 'scroll.wav'],
-            heal: ['potion_drink.ogg', 'quaff.wav'],
+            scroll: ['book_flip_1.ogg', 'book_flip_2.ogg', 'scroll.ogg'],
+            heal: ['potion_drink.ogg', 'quaff.ogg'],
             prayer: ['book_flip_1.ogg', 'book_flip_2.ogg'],
             staff: ['magic_faerie.ogg', 'magic_missile_1.ogg'],
-            levelUp: ['fanfare_short.wav', 'magic_holy_2.ogg', 'level.wav'],
+            levelUp: ['fanfare_short.ogg', 'magic_holy_2.ogg', 'level.ogg'],
             teleport: ['magic_faerie.ogg', 'magic_missile_2.ogg'],
             spell_fire: ['flame_big.ogg', 'explosion.ogg'],
             spell_cold: ['petrified.ogg', 'impact_glass_1.ogg'],
             spell_lightning: ['lightning_bolt.ogg'],
-            spell_acid: ['water_blast.wav', 'poison_spell.ogg'],
-            spell_poison: ['poison_spell.ogg', 'vomit.wav'],
-            spell_magic: ['magic_missile_1.ogg', 'magic_missile_2.ogg', 'magic_faerie.ogg', 'hallu.wav'],
-            spell_dark: ['magic_dark_big.ogg', 'impact_bell_1.ogg', 'moan.wav'],
-            breath: ['flame_big.ogg', 'drake_hit_1.ogg', 'explosion.ogg', 'breath.wav'],
+            spell_acid: ['water_blast.ogg', 'poison_spell.ogg'],
+            spell_poison: ['poison_spell.ogg', 'vomit.ogg'],
+            spell_magic: ['magic_missile_1.ogg', 'magic_missile_2.ogg', 'magic_faerie.ogg', 'hallu.ogg'],
+            spell_dark: ['magic_dark_big.ogg', 'impact_bell_1.ogg', 'moan.ogg'],
+            breath: ['flame_big.ogg', 'drake_hit_1.ogg', 'explosion.ogg', 'breath.ogg'],
             monster_orc: ['impact_plate_med_1.ogg', 'impact_wood_heavy_1.ogg'],
             monster_orc_die: ['impact_plate_heavy_1.ogg', 'impact_wood_heavy_2.ogg'],
             monster_troll: ['impact_wood_heavy_1.ogg', 'impact_metal_heavy_1.ogg'],
@@ -1315,8 +1327,8 @@ class SoundEngine {
             monster_dragon_die: ['explosion.ogg', 'cave_in.ogg'],
             monster_wolf: ['wolf_growl_1.ogg', 'bite.ogg'],
             monster_wolf_die: ['bite.ogg', 'claws.ogg'],
-            monster_hiss: ['hiss_big.wav', 'bite.ogg'],
-            monster_hiss_die: ['hiss_big.wav'],
+            monster_hiss: ['hiss_big.ogg', 'bite.ogg'],
+            monster_hiss_die: ['hiss_big.ogg'],
             monster_undead: ['skeleton_hit_1.ogg'],
             monster_undead_die: ['skeleton_die_1.ogg'],
             monster_ghost: ['magic_dark_big.ogg', 'magic_faerie.ogg'],

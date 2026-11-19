@@ -1,37 +1,201 @@
 {
   "asset": {
-    "generator": "Khronos glTF Blender I/O v3.3.32",
+    "generator": "glTF-Transform v4.5.1",
     "version": "2.0"
   },
-  "scene": 0,
-  "scenes": [
+  "accessors": [
     {
-      "name": "Scene",
-      "nodes": [
-        0
-      ]
+      "type": "SCALAR",
+      "componentType": 5123,
+      "count": 34308,
+      "normalized": false,
+      "byteOffset": 0,
+      "bufferView": 0
+    },
+    {
+      "type": "VEC3",
+      "componentType": 5120,
+      "count": 6639,
+      "normalized": true,
+      "byteOffset": 0,
+      "bufferView": 1
+    },
+    {
+      "type": "VEC3",
+      "componentType": 5122,
+      "count": 6639,
+      "max": [
+        5004,
+        32767,
+        1356
+      ],
+      "min": [
+        -5004,
+        -32767,
+        -1356
+      ],
+      "normalized": true,
+      "byteOffset": 0,
+      "bufferView": 2
+    },
+    {
+      "type": "VEC2",
+      "componentType": 5123,
+      "count": 6639,
+      "normalized": true,
+      "byteOffset": 0,
+      "bufferView": 3
     }
   ],
-  "nodes": [
+  "bufferViews": [
     {
-      "mesh": 0,
-      "name": "rusted_spade_01"
+      "buffer": 1,
+      "byteOffset": 0,
+      "byteLength": 68616,
+      "target": 34963,
+      "extensions": {
+        "EXT_meshopt_compression": {
+          "buffer": 0,
+          "byteOffset": 0,
+          "byteLength": 12980,
+          "mode": "TRIANGLES",
+          "byteStride": 2,
+          "count": 34308
+        }
+      }
+    },
+    {
+      "buffer": 1,
+      "byteOffset": 68616,
+      "byteLength": 26556,
+      "target": 34962,
+      "byteStride": 4,
+      "extensions": {
+        "EXT_meshopt_compression": {
+          "buffer": 0,
+          "byteOffset": 12980,
+          "byteLength": 8744,
+          "mode": "ATTRIBUTES",
+          "filter": "OCTAHEDRAL",
+          "byteStride": 4,
+          "count": 6639
+        }
+      }
+    },
+    {
+      "buffer": 1,
+      "byteOffset": 95172,
+      "byteLength": 53112,
+      "target": 34962,
+      "byteStride": 8,
+      "extensions": {
+        "EXT_meshopt_compression": {
+          "buffer": 0,
+          "byteOffset": 21724,
+          "byteLength": 24970,
+          "mode": "ATTRIBUTES",
+          "byteStride": 8,
+          "count": 6639
+        }
+      }
+    },
+    {
+      "buffer": 1,
+      "byteOffset": 148284,
+      "byteLength": 26556,
+      "target": 34962,
+      "byteStride": 4,
+      "extensions": {
+        "EXT_meshopt_compression": {
+          "buffer": 0,
+          "byteOffset": 46696,
+          "byteLength": 19621,
+          "mode": "ATTRIBUTES",
+          "byteStride": 4,
+          "count": 6639
+        }
+      }
+    }
+  ],
+  "samplers": [
+    {
+      "magFilter": 9729,
+      "minFilter": 9987,
+      "wrapS": 10497,
+      "wrapT": 10497
+    }
+  ],
+  "textures": [
+    {
+      "sampler": 0,
+      "extensions": {
+        "EXT_texture_webp": {
+          "source": 1
+        }
+      }
+    },
+    {
+      "sampler": 0,
+      "extensions": {
+        "EXT_texture_webp": {
+          "source": 0
+        }
+      }
+    },
+    {
+      "sampler": 0,
+      "extensions": {
+        "EXT_texture_webp": {
+          "source": 2
+        }
+      }
+    }
+  ],
+  "images": [
+    {
+      "name": "rusted_spade_01_nor_gl",
+      "mimeType": "image/webp",
+      "uri": "textures/rusted_spade_01_nor_gl_1k.webp"
+    },
+    {
+      "name": "rusted_spade_01_diff",
+      "mimeType": "image/webp",
+      "uri": "textures/rusted_spade_01_diff_1k.webp"
+    },
+    {
+      "name": "rusted_spade_01_metal-rusted_spade_01_rough",
+      "mimeType": "image/webp",
+      "uri": "textures/rusted_spade_01_arm_1k.webp"
+    }
+  ],
+  "buffers": [
+    {
+      "uri": "rusted_spade_01.bin",
+      "byteLength": 66320
+    },
+    {
+      "byteLength": 174840,
+      "extensions": {
+        "EXT_meshopt_compression": {
+          "fallback": true
+        }
+      }
     }
   ],
   "materials": [
     {
-      "doubleSided": true,
       "name": "rusted_spade_01",
-      "normalTexture": {
-        "index": 0
-      },
+      "doubleSided": true,
       "pbrMetallicRoughness": {
         "baseColorTexture": {
-          "index": 1
+          "index": 0
         },
         "metallicRoughnessTexture": {
           "index": 2
         }
+      },
+      "normalTexture": {
+        "index": 1
       }
     }
   ],
@@ -41,119 +205,50 @@
       "primitives": [
         {
           "attributes": {
-            "POSITION": 0,
             "NORMAL": 1,
-            "TEXCOORD_0": 2
+            "POSITION": 2,
+            "TEXCOORD_0": 3
           },
-          "indices": 3,
-          "material": 0
+          "mode": 4,
+          "material": 0,
+          "indices": 0
         }
       ]
     }
   ],
-  "textures": [
+  "nodes": [
     {
-      "sampler": 0,
-      "source": 0
-    },
-    {
-      "sampler": 0,
-      "source": 1
-    },
-    {
-      "sampler": 0,
-      "source": 2
-    }
-  ],
-  "images": [
-    {
-      "mimeType": "image/jpeg",
-      "name": "rusted_spade_01_nor_gl",
-      "uri": "textures/rusted_spade_01_nor_gl_1k.jpg"
-    },
-    {
-      "mimeType": "image/jpeg",
-      "name": "rusted_spade_01_diff",
-      "uri": "textures/rusted_spade_01_diff_1k.jpg"
-    },
-    {
-      "mimeType": "image/jpeg",
-      "name": "rusted_spade_01_metal-rusted_spade_01_rough",
-      "uri": "textures/rusted_spade_01_arm_1k.jpg"
-    }
-  ],
-  "accessors": [
-    {
-      "bufferView": 0,
-      "componentType": 5126,
-      "count": 6639,
-      "max": [
-        0.08405742049217224,
-        0.5977030396461487,
-        0.022568460553884506
+      "name": "rusted_spade_01",
+      "translation": [
+        1.4901161193847656e-8,
+        0.0472506582736969,
+        -0.00021367147564888
       ],
-      "min": [
-        -0.08405739068984985,
-        -0.5032017230987549,
-        -0.022995803505182266
+      "scale": [
+        0.5504523813724518,
+        0.5504523813724518,
+        0.5504523813724518
       ],
-      "type": "VEC3"
-    },
-    {
-      "bufferView": 1,
-      "componentType": 5126,
-      "count": 6639,
-      "type": "VEC3"
-    },
-    {
-      "bufferView": 2,
-      "componentType": 5126,
-      "count": 6639,
-      "type": "VEC2"
-    },
-    {
-      "bufferView": 3,
-      "componentType": 5123,
-      "count": 34308,
-      "type": "SCALAR"
+      "mesh": 0
     }
   ],
-  "bufferViews": [
+  "scenes": [
     {
-      "buffer": 0,
-      "byteLength": 79668,
-      "byteOffset": 0,
-      "target": 34962
-    },
-    {
-      "buffer": 0,
-      "byteLength": 79668,
-      "byteOffset": 79668,
-      "target": 34962
-    },
-    {
-      "buffer": 0,
-      "byteLength": 53112,
-      "byteOffset": 159336,
-      "target": 34962
-    },
-    {
-      "buffer": 0,
-      "byteLength": 68616,
-      "byteOffset": 212448,
-      "target": 34963
+      "name": "Scene",
+      "nodes": [
+        0
+      ]
     }
   ],
-  "samplers": [
-    {
-      "magFilter": 9729,
-      "minFilter": 9987
-    }
+  "scene": 0,
+  "extensionsUsed": [
+    "EXT_meshopt_compression",
+    "EXT_texture_webp",
+    "KHR_mesh_quantization"
   ],
-  "buffers": [
-    {
-      "byteLength": 281064,
-      "uri": "rusted_spade_01.bin"
-    }
+  "extensionsRequired": [
+    "EXT_meshopt_compression",
+    "EXT_texture_webp",
+    "KHR_mesh_quantization"
   ]
 }

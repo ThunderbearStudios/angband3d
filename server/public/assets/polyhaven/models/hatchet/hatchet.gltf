@@ -1,37 +1,201 @@
 {
   "asset": {
-    "generator": "Khronos glTF Blender I/O v3.6.27",
+    "generator": "glTF-Transform v4.5.1",
     "version": "2.0"
   },
-  "scene": 0,
-  "scenes": [
+  "accessors": [
     {
-      "name": "Scene",
-      "nodes": [
-        0
-      ]
+      "type": "SCALAR",
+      "componentType": 5123,
+      "count": 15750,
+      "normalized": false,
+      "byteOffset": 0,
+      "bufferView": 0
+    },
+    {
+      "type": "VEC3",
+      "componentType": 5120,
+      "count": 4157,
+      "normalized": true,
+      "byteOffset": 0,
+      "bufferView": 1
+    },
+    {
+      "type": "VEC3",
+      "componentType": 5122,
+      "count": 4157,
+      "max": [
+        2952,
+        32767,
+        11833
+      ],
+      "min": [
+        -2952,
+        -32767,
+        -11833
+      ],
+      "normalized": true,
+      "byteOffset": 0,
+      "bufferView": 2
+    },
+    {
+      "type": "VEC2",
+      "componentType": 5123,
+      "count": 4157,
+      "normalized": true,
+      "byteOffset": 0,
+      "bufferView": 3
     }
   ],
-  "nodes": [
+  "bufferViews": [
     {
-      "mesh": 0,
-      "name": "hatchet"
+      "buffer": 1,
+      "byteOffset": 0,
+      "byteLength": 31500,
+      "target": 34963,
+      "extensions": {
+        "EXT_meshopt_compression": {
+          "buffer": 0,
+          "byteOffset": 0,
+          "byteLength": 5705,
+          "mode": "TRIANGLES",
+          "byteStride": 2,
+          "count": 15750
+        }
+      }
+    },
+    {
+      "buffer": 1,
+      "byteOffset": 31500,
+      "byteLength": 16628,
+      "target": 34962,
+      "byteStride": 4,
+      "extensions": {
+        "EXT_meshopt_compression": {
+          "buffer": 0,
+          "byteOffset": 5708,
+          "byteLength": 7968,
+          "mode": "ATTRIBUTES",
+          "filter": "OCTAHEDRAL",
+          "byteStride": 4,
+          "count": 4157
+        }
+      }
+    },
+    {
+      "buffer": 1,
+      "byteOffset": 48128,
+      "byteLength": 33256,
+      "target": 34962,
+      "byteStride": 8,
+      "extensions": {
+        "EXT_meshopt_compression": {
+          "buffer": 0,
+          "byteOffset": 13676,
+          "byteLength": 18635,
+          "mode": "ATTRIBUTES",
+          "byteStride": 8,
+          "count": 4157
+        }
+      }
+    },
+    {
+      "buffer": 1,
+      "byteOffset": 81384,
+      "byteLength": 16628,
+      "target": 34962,
+      "byteStride": 4,
+      "extensions": {
+        "EXT_meshopt_compression": {
+          "buffer": 0,
+          "byteOffset": 32312,
+          "byteLength": 13286,
+          "mode": "ATTRIBUTES",
+          "byteStride": 4,
+          "count": 4157
+        }
+      }
+    }
+  ],
+  "samplers": [
+    {
+      "magFilter": 9729,
+      "minFilter": 9987,
+      "wrapS": 10497,
+      "wrapT": 10497
+    }
+  ],
+  "textures": [
+    {
+      "sampler": 0,
+      "extensions": {
+        "EXT_texture_webp": {
+          "source": 1
+        }
+      }
+    },
+    {
+      "sampler": 0,
+      "extensions": {
+        "EXT_texture_webp": {
+          "source": 0
+        }
+      }
+    },
+    {
+      "sampler": 0,
+      "extensions": {
+        "EXT_texture_webp": {
+          "source": 2
+        }
+      }
+    }
+  ],
+  "images": [
+    {
+      "name": "hatchet_nor_gl",
+      "mimeType": "image/webp",
+      "uri": "textures/hatchet_nor_gl_1k.webp"
+    },
+    {
+      "name": "hatchet_diff",
+      "mimeType": "image/webp",
+      "uri": "textures/hatchet_diff_1k.webp"
+    },
+    {
+      "name": "hatchet_metal-hatchet_rough",
+      "mimeType": "image/webp",
+      "uri": "textures/hatchet_arm_1k.webp"
+    }
+  ],
+  "buffers": [
+    {
+      "uri": "hatchet.bin",
+      "byteLength": 45600
+    },
+    {
+      "byteLength": 98012,
+      "extensions": {
+        "EXT_meshopt_compression": {
+          "fallback": true
+        }
+      }
     }
   ],
   "materials": [
     {
-      "doubleSided": true,
       "name": "hatchet",
-      "normalTexture": {
-        "index": 0
-      },
+      "doubleSided": true,
       "pbrMetallicRoughness": {
         "baseColorTexture": {
-          "index": 1
+          "index": 0
         },
         "metallicRoughnessTexture": {
           "index": 2
         }
+      },
+      "normalTexture": {
+        "index": 1
       }
     }
   ],
@@ -41,119 +205,50 @@
       "primitives": [
         {
           "attributes": {
-            "POSITION": 0,
             "NORMAL": 1,
-            "TEXCOORD_0": 2
+            "POSITION": 2,
+            "TEXCOORD_0": 3
           },
-          "indices": 3,
-          "material": 0
+          "mode": 4,
+          "material": 0,
+          "indices": 0
         }
       ]
     }
   ],
-  "textures": [
+  "nodes": [
     {
-      "sampler": 0,
-      "source": 0
-    },
-    {
-      "sampler": 0,
-      "source": 1
-    },
-    {
-      "sampler": 0,
-      "source": 2
-    }
-  ],
-  "images": [
-    {
-      "mimeType": "image/jpeg",
-      "name": "hatchet_nor_gl",
-      "uri": "textures/hatchet_nor_gl_1k.jpg"
-    },
-    {
-      "mimeType": "image/jpeg",
-      "name": "hatchet_diff",
-      "uri": "textures/hatchet_diff_1k.jpg"
-    },
-    {
-      "mimeType": "image/jpeg",
-      "name": "hatchet_metal-hatchet_rough",
-      "uri": "textures/hatchet_arm_1k.jpg"
-    }
-  ],
-  "accessors": [
-    {
-      "bufferView": 0,
-      "componentType": 5126,
-      "count": 4157,
-      "max": [
-        0.012804529629647732,
-        0.22689877450466156,
-        0.07712532579898834
+      "name": "hatchet",
+      "translation": [
+        -0.00020658783614635468,
+        0.08253413811326027,
+        0.024990241043269634
       ],
-      "min": [
-        -0.013217705301940441,
-        -0.06183049827814102,
-        -0.027144843712449074
+      "scale": [
+        0.1443646363914013,
+        0.1443646363914013,
+        0.1443646363914013
       ],
-      "type": "VEC3"
-    },
-    {
-      "bufferView": 1,
-      "componentType": 5126,
-      "count": 4157,
-      "type": "VEC3"
-    },
-    {
-      "bufferView": 2,
-      "componentType": 5126,
-      "count": 4157,
-      "type": "VEC2"
-    },
-    {
-      "bufferView": 3,
-      "componentType": 5123,
-      "count": 15750,
-      "type": "SCALAR"
+      "mesh": 0
     }
   ],
-  "bufferViews": [
+  "scenes": [
     {
-      "buffer": 0,
-      "byteLength": 49884,
-      "byteOffset": 0,
-      "target": 34962
-    },
-    {
-      "buffer": 0,
-      "byteLength": 49884,
-      "byteOffset": 49884,
-      "target": 34962
-    },
-    {
-      "buffer": 0,
-      "byteLength": 33256,
-      "byteOffset": 99768,
-      "target": 34962
-    },
-    {
-      "buffer": 0,
-      "byteLength": 31500,
-      "byteOffset": 133024,
-      "target": 34963
+      "name": "Scene",
+      "nodes": [
+        0
+      ]
     }
   ],
-  "samplers": [
-    {
-      "magFilter": 9729,
-      "minFilter": 9987
-    }
+  "scene": 0,
+  "extensionsUsed": [
+    "EXT_meshopt_compression",
+    "EXT_texture_webp",
+    "KHR_mesh_quantization"
   ],
-  "buffers": [
-    {
-      "byteLength": 164524,
-      "uri": "hatchet.bin"
-    }
+  "extensionsRequired": [
+    "EXT_meshopt_compression",
+    "EXT_texture_webp",
+    "KHR_mesh_quantization"
   ]
 }

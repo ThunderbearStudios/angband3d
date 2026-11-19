@@ -1245,7 +1245,10 @@ class Dungeon3D {
             { pos: [-0.40, 0.05, 0.40], size: [0.08, 0.03, 0.08] },
             { pos: [0.40, 0.05, 0.40], size: [0.08, 0.03, 0.08] }
         ]);
-        this.trapMaterial = new THREE.MeshStandardMaterial({
+        const mkBudgetMat = (opts) => (typeof window !== 'undefined' && window.Dungeon3DAtmosphere && typeof window.Dungeon3DAtmosphere.createBudgetMaterial === 'function')
+            ? window.Dungeon3DAtmosphere.createBudgetMaterial(this, opts)
+            : new THREE.MeshStandardMaterial(opts);
+        this.trapMaterial = mkBudgetMat({
             roughness: 0.40,
             metalness: 0.70,
             vertexColors: true
@@ -1303,15 +1306,25 @@ class Dungeon3D {
         this.shopFrameMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
         this.scene.add(this.shopFrameMesh);
 
-        this.shopStoneMaterial = new THREE.MeshStandardMaterial({
-            map: this.wallTex,
-            normalMap: this.wallNormal,
-            roughnessMap: null,
-            normalScale: new THREE.Vector2(1.30, 1.30),
-            roughness: 0.80,
-            metalness: 0.05,
-            vertexColors: true
-        });
+        this.shopStoneMaterial = (typeof window !== 'undefined' && window.Dungeon3DAtmosphere && typeof window.Dungeon3DAtmosphere.createBudgetMaterial === 'function')
+            ? window.Dungeon3DAtmosphere.createBudgetMaterial(this, {
+                map: this.wallTex,
+                normalMap: this.wallNormal,
+                roughnessMap: null,
+                normalScale: new THREE.Vector2(1.30, 1.30),
+                roughness: 0.80,
+                metalness: 0.05,
+                vertexColors: true
+            })
+            : new THREE.MeshStandardMaterial({
+                map: this.wallTex,
+                normalMap: this.wallNormal,
+                roughnessMap: null,
+                normalScale: new THREE.Vector2(1.30, 1.30),
+                roughness: 0.80,
+                metalness: 0.05,
+                vertexColors: true
+            });
         this.shopStoneMesh = new THREE.InstancedMesh(shopStoneGeo, this.shopStoneMaterial, 64);
         this.shopStoneMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
         this.scene.add(this.shopStoneMesh);
@@ -1321,14 +1334,23 @@ class Dungeon3D {
         this.scene.add(this.shopStoneOccupiedMesh);
 
         // Sloped Merchant Storefront Canopy / Awning
-        this.shopAwningMaterial = new THREE.MeshStandardMaterial({
-            map: this.storeTex || this.wallTex,
-            normalMap: this.wallNormal,
-            normalScale: new THREE.Vector2(1.25, 1.25),
-            roughness: 0.80,
-            metalness: 0.05,
-            vertexColors: true
-        });
+        this.shopAwningMaterial = (typeof window !== 'undefined' && window.Dungeon3DAtmosphere && typeof window.Dungeon3DAtmosphere.createBudgetMaterial === 'function')
+            ? window.Dungeon3DAtmosphere.createBudgetMaterial(this, {
+                map: this.storeTex || this.wallTex,
+                normalMap: this.wallNormal,
+                normalScale: new THREE.Vector2(1.25, 1.25),
+                roughness: 0.80,
+                metalness: 0.05,
+                vertexColors: true
+            })
+            : new THREE.MeshStandardMaterial({
+                map: this.storeTex || this.wallTex,
+                normalMap: this.wallNormal,
+                normalScale: new THREE.Vector2(1.25, 1.25),
+                roughness: 0.80,
+                metalness: 0.05,
+                vertexColors: true
+            });
         this.shopAwningMesh = new THREE.InstancedMesh(shopAwningGeo, this.shopAwningMaterial, 256);
         this.shopAwningMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
         this.scene.add(this.shopAwningMesh);
@@ -3134,21 +3156,21 @@ class Dungeon3D {
             } else if (key === 'shovel' || key === 'pickaxe' || key === 'staff' || key === 'staff_branch' || key === 'wand' || key === 'rod') {
                 if (innerPivot) innerPivot.rotation.y += Math.PI * 0.86;
                 wClone.scale.setScalar(key === 'wand' || key === 'rod' ? 0.38 : 0.42);
-                wClone.position.set(0, -0.01, 0);
+                wClone.position.set(0, 0.012, 0.01);
                 wClone.rotation.set(0.16, key === 'shovel' ? -0.28 : -0.22, 0.08);
             } else {
                 if (innerPivot) innerPivot.rotation.y += Math.PI * 0.86;
                 const vmScale = key === 'spear' ? 0.34 : (key === 'claymore' || key === 'sledgehammer' ? 0.36 : (key === 'dagger' || key === 'hatchet' ? 0.46 : 0.40));
                 wClone.scale.setScalar(vmScale);
-                wClone.position.set(0, key === 'dagger' || key === 'hatchet' ? -0.02 : -0.01, 0);
+                wClone.position.set(0, key === 'dagger' || key === 'hatchet' ? 0.002 : 0.015, 0.01);
                 wClone.rotation.set(0.16, -0.22, 0.10);
             }
             if (needsGauntlet && gTmpl) {
                 const gClone = this._cloneCachedGltfTemplate(gTmpl, '#3a3530', 'item_gauntlets');
                 if (gClone) {
                     gClone.userData._isHumanGauntlet = true;
-                    gClone.scale.set(0.34, 0.42, 0.34);
-                    gClone.position.set(0.0, -0.09, 0.02);
+                    gClone.scale.set(0.35, 0.44, 0.35);
+                    gClone.position.set(0.0, -0.068, 0.032);
                     gClone.rotation.set(0.35, 0.0, -0.18);
                     wClone.add(gClone);
                 }
@@ -3296,6 +3318,10 @@ class Dungeon3D {
 
     scheduleSilentBestiaryPrewarm() {
         if (this._silentPrewarmStarted) return;
+        const conn = (typeof navigator !== 'undefined' && navigator.connection) ? navigator.connection : null;
+        if (conn && (conn.saveData || conn.effectiveType === 'slow-2g' || conn.effectiveType === '2g' || conn.effectiveType === '3g')) return;
+        if (this.renderBudget && (this.renderBudget.tier === 'phone' || this.renderBudget.gpuTier === 'mobile-saver')) return;
+        if (Number(this.lastDepth || 0) === 0) return;
         this._silentPrewarmStarted = true;
         const backgroundMonsterKeys = [
             'bestiary_puglin',
@@ -3332,10 +3358,10 @@ class Dungeon3D {
             this._ensureMonster3DTemplate(key)
                 .catch(() => null)
                 .finally(() => {
-                    setTimeout(pumpNext, 180);
+                    setTimeout(pumpNext, 550);
                 });
         };
-        setTimeout(pumpNext, 800);
+        setTimeout(pumpNext, 2200);
     }
 
     async awaitSceneAssetsReady(frame, onProgress) {
@@ -3460,7 +3486,6 @@ class Dungeon3D {
             for (const id of allPbrIds) {
                 if (!tier1Set.has(id)) addBg(this.ensurePbrSetReady(id));
             }
-            if (typeof this.ensureItemAtlasReady === 'function') addBg(this.ensureItemAtlasReady());
             const prewarm = this.getLevelPrewarmManifest(depth, outdoors);
             const monsterTemplateKeys = new Set(prewarm.monsters || []);
             if (String((frame && frame.realm) || this.realm || '').toLowerCase() === 'nethack') {
@@ -4705,6 +4730,9 @@ class Dungeon3D {
 
         // Detect stairs / depth transitions
         if (!isMenuDiorama && this.lastDepth !== null && this.lastDepth !== undefined && this.lastDepth !== depth) {
+            if (window.Dungeon3DAtmosphere && typeof window.Dungeon3DAtmosphere.triggerStairFade === 'function') {
+                window.Dungeon3DAtmosphere.triggerStairFade(depth > this.lastDepth);
+            }
             if (this.audio) {
                 this.audio.playStairs(depth > this.lastDepth);
                 this.audio.playLevelEnter();
@@ -4778,7 +4806,9 @@ class Dungeon3D {
         const lightProp = (frame.player && (frame.player.cur_light !== undefined ? frame.player.cur_light : frame.player.light));
         this.torchRadius = Math.max(1, typeof lightProp === 'number' ? lightProp : 1);
 
-        if (outdoors) {
+        if (window.Dungeon3DAtmosphere && typeof window.Dungeon3DAtmosphere.applySubterraneanAtmosphere === 'function') {
+            window.Dungeon3DAtmosphere.applySubterraneanAtmosphere(this, biome, depth, outdoors);
+        } else if (outdoors) {
             if (!(this.scene.fog instanceof THREE.FogExp2)) {
                 this.scene.fog = new THREE.FogExp2(biome.fogColor, biome.fogDensity);
             } else {
@@ -4836,6 +4866,10 @@ class Dungeon3D {
                     this.addTrauma(Math.min(0.65, dmg / (frame.player.hp_max || frame.player.mhp || 20)));
                     this.spawnHitSparks(hurtPos, '#ff2222', 14);
                     this.triggerHurtAnimation();
+                    if (window.Dungeon3DAtmosphere && typeof window.Dungeon3DAtmosphere.triggerEdgeVignette === 'function') {
+                        const maxHp = Math.max(10, Number(frame.player.hp_max || frame.player.mhp || 20));
+                        window.Dungeon3DAtmosphere.triggerEdgeVignette(dmg >= maxHp * 0.25 ? 'crit' : 'hit');
+                    }
                     if (this.audio) this.audio.playPlayerHurt();
                 } else if (curHp > this.lastPlayerHp) {
                     const heal = curHp - this.lastPlayerHp;
@@ -4867,6 +4901,9 @@ class Dungeon3D {
                 if (this.lastPlayerLevel !== null && curLev > this.lastPlayerLevel) {
                     this.spawnFloatingText(`LEVEL UP! (Lv ${curLev})`, spawnInFront, '#ffd700', 1.45);
                     this.spawnProjectileOrSpellVfx('aura', spawnInFront, spawnInFront, 0xffd700);
+                    if (window.Dungeon3DAtmosphere && typeof window.Dungeon3DAtmosphere.triggerEdgeVignette === 'function') {
+                        window.Dungeon3DAtmosphere.triggerEdgeVignette('levelup');
+                    }
                     if (this.audio && typeof this.audio.playLevelUp === 'function') {
                         this.audio.playLevelUp();
                     }
@@ -6273,6 +6310,9 @@ class Dungeon3D {
                 wallTorchCount++;
             }
         }
+        if (window.Dungeon3DAtmosphere && typeof window.Dungeon3DAtmosphere.syncSconceHalos === 'function') {
+            window.Dungeon3DAtmosphere.syncSconceHalos(this, this._activeWallSconces, outdoors);
+        }
         this._rawLitShadeMode = false;
 
         const updateMesh = (mesh, newCount) => {
@@ -6644,7 +6684,8 @@ class Dungeon3D {
             tex.minFilter = THREE.LinearMipmapLinearFilter;
             tex.magFilter = THREE.LinearFilter;
             if (this.renderer && this.renderer.capabilities && typeof this.renderer.capabilities.getMaxAnisotropy === 'function') {
-                tex.anisotropy = Math.min(8, Math.max(1, this.renderer.capabilities.getMaxAnisotropy()));
+                const anisoCap = (this.renderBudget && this.renderBudget.anisotropy) || 4;
+                tex.anisotropy = Math.min(anisoCap, Math.max(1, this.renderer.capabilities.getMaxAnisotropy()));
             }
             if (typeof THREE.SRGBColorSpace !== 'undefined') tex.colorSpace = THREE.SRGBColorSpace;
             else if (typeof THREE.sRGBEncoding !== 'undefined') tex.encoding = THREE.sRGBEncoding;
@@ -6733,7 +6774,8 @@ class Dungeon3D {
                 wfTex.minFilter = THREE.LinearMipmapLinearFilter;
                 wfTex.magFilter = THREE.LinearFilter;
                 if (this.renderer && this.renderer.capabilities && typeof this.renderer.capabilities.getMaxAnisotropy === 'function') {
-                    wfTex.anisotropy = Math.min(8, Math.max(1, this.renderer.capabilities.getMaxAnisotropy()));
+                    const anisoCap = (this.renderBudget && this.renderBudget.anisotropy) || 4;
+                    wfTex.anisotropy = Math.min(anisoCap, Math.max(1, this.renderer.capabilities.getMaxAnisotropy()));
                 }
                 if (typeof THREE.SRGBColorSpace !== 'undefined') wfTex.colorSpace = THREE.SRGBColorSpace;
                 else if (typeof THREE.sRGBEncoding !== 'undefined') wfTex.encoding = THREE.sRGBEncoding;
@@ -7160,7 +7202,10 @@ class Dungeon3D {
         });
 
         // Shared PBR Material for all monster billboards (Z-buffer depth tested, dynamic torchlight specular relief)
-        this.monsterBillboardMat = new THREE.MeshStandardMaterial({
+        const mkMobMat = (typeof window !== 'undefined' && window.Dungeon3DAtmosphere && typeof window.Dungeon3DAtmosphere.createBudgetMaterial === 'function')
+            ? (o) => window.Dungeon3DAtmosphere.createBudgetMaterial(this, o)
+            : (o) => new THREE.MeshStandardMaterial(o);
+        this.monsterBillboardMat = mkMobMat({
             roughness: 0.58,
             metalness: 0.06,
             normalScale: new THREE.Vector2(0.55, 0.55),
@@ -7185,13 +7230,14 @@ class Dungeon3D {
                 }
             };
 
-            texLoader.load('/assets/sprites/monsters/monster_atlas.png', (tex) => {
+            texLoader.load('/assets/sprites/monsters/monster_atlas.webp', (tex) => {
                 tex.encoding = THREE.sRGBEncoding;
                 tex.generateMipmaps = true;
                 tex.minFilter = THREE.LinearMipmapLinearFilter;
                 tex.magFilter = THREE.LinearFilter;
                 if (this.renderer && this.renderer.capabilities) {
-                    tex.anisotropy = Math.min(16, this.renderer.capabilities.getMaxAnisotropy() || 1);
+                    const anisoCap = (this.renderBudget && this.renderBudget.anisotropy) || 4;
+                    tex.anisotropy = Math.min(anisoCap, this.renderer.capabilities.getMaxAnisotropy() || 1);
                 }
                 this.monsterAtlasTex = tex;
                 if (this.monsterBillboardMat) {
@@ -7201,18 +7247,17 @@ class Dungeon3D {
                 texDone = true;
                 checkDone();
             }, undefined, (err) => {
-                console.warn('[3D] monster_atlas.png failed to load, falling back to procedural tokens:', err);
+                console.warn('[3D] monster_atlas.webp failed to load, falling back to procedural tokens:', err);
                 texDone = true;
                 checkDone();
             });
 
-            texLoader.load('/assets/sprites/monsters/monster_normal.png', (tex) => {
+            texLoader.load('/assets/sprites/monsters/monster_normal.webp', (tex) => {
                 tex.generateMipmaps = true;
                 tex.minFilter = THREE.LinearMipmapLinearFilter;
                 tex.magFilter = THREE.LinearFilter;
                 if (this.renderer && this.renderer.capabilities) {
-                    const tier = (this.renderBudget && this.renderBudget.tier) || 'balanced';
-                    const anisoCap = (tier === 'high' || tier === 'ultra') ? 8 : 4;
+                    const anisoCap = (this.renderBudget && this.renderBudget.anisotropy) || 4;
                     tex.anisotropy = Math.min(anisoCap, this.renderer.capabilities.getMaxAnisotropy() || 1);
                 }
                 this.monsterNormalTex = tex;
@@ -7541,7 +7586,10 @@ class Dungeon3D {
         });
 
         // Shared PBR Material for all item pickup billboards (Z-buffer depth tested, dynamic torchlight specular relief)
-        this.itemBillboardMat = new THREE.MeshStandardMaterial({
+        const mkItemMat = (typeof window !== 'undefined' && window.Dungeon3DAtmosphere && typeof window.Dungeon3DAtmosphere.createBudgetMaterial === 'function')
+            ? (o) => window.Dungeon3DAtmosphere.createBudgetMaterial(this, o)
+            : (o) => new THREE.MeshStandardMaterial(o);
+        this.itemBillboardMat = mkItemMat({
             roughness: 0.55,
             metalness: 0.08,
             normalScale: new THREE.Vector2(0.50, 0.50),
@@ -7566,13 +7614,14 @@ class Dungeon3D {
                 }
             };
 
-            texLoader.load('/assets/sprites/items/item_atlas.png', (tex) => {
+            texLoader.load('/assets/sprites/items/item_atlas.webp', (tex) => {
                 tex.encoding = THREE.sRGBEncoding;
                 tex.generateMipmaps = true;
                 tex.minFilter = THREE.LinearMipmapLinearFilter;
                 tex.magFilter = THREE.LinearFilter;
                 if (this.renderer && this.renderer.capabilities) {
-                    tex.anisotropy = Math.min(16, this.renderer.capabilities.getMaxAnisotropy() || 1);
+                    const anisoCap = (this.renderBudget && this.renderBudget.anisotropy) || 4;
+                    tex.anisotropy = Math.min(anisoCap, this.renderer.capabilities.getMaxAnisotropy() || 1);
                 }
                 this.itemAtlasTex = tex;
                 if (typeof window !== 'undefined') window.__itemAtlasLoaded = true;
@@ -7583,17 +7632,18 @@ class Dungeon3D {
                 texDone = true;
                 checkDone();
             }, undefined, (err) => {
-                console.warn('[3D] item_atlas.png failed to load, falling back to 3D item templates:', err);
+                console.warn('[3D] item_atlas.webp failed to load, falling back to 3D item templates:', err);
                 texDone = true;
                 checkDone();
             });
 
-            texLoader.load('/assets/sprites/items/item_normal.png', (tex) => {
+            texLoader.load('/assets/sprites/items/item_normal.webp', (tex) => {
                 tex.generateMipmaps = true;
                 tex.minFilter = THREE.LinearMipmapLinearFilter;
                 tex.magFilter = THREE.LinearFilter;
                 if (this.renderer && this.renderer.capabilities) {
-                    tex.anisotropy = Math.min(16, this.renderer.capabilities.getMaxAnisotropy() || 1);
+                    const anisoCap = (this.renderBudget && this.renderBudget.anisotropy) || 4;
+                    tex.anisotropy = Math.min(anisoCap, this.renderer.capabilities.getMaxAnisotropy() || 1);
                 }
                 this.itemNormalTex = tex;
                 if (this.itemBillboardMat) {
@@ -12366,6 +12416,9 @@ class Dungeon3D {
 
     destroyEntity(entityObj) {
         if (!entityObj) return;
+        if (window.Dungeon3DAtmosphere && typeof window.Dungeon3DAtmosphere.disposeEntityFlashMats === 'function') {
+            window.Dungeon3DAtmosphere.disposeEntityFlashMats(entityObj);
+        }
         this.scene.remove(entityObj);
         if (entityObj._mixer) {
             try {
@@ -12493,6 +12546,7 @@ class Dungeon3D {
                     footprint = atlasEntry.footprint || 0.35;
                 }
             } else {
+                this.ensureItemAtlasReady();
                 const tempGeo = new THREE.PlaneGeometry(0.4, 0.4);
                 tempGeo.translate(0, 0.2, 0);
                 mesh = new THREE.Mesh(tempGeo, this.itemBillboardMat);
@@ -13413,11 +13467,19 @@ class Dungeon3D {
                 this.waterMaterial.map.offset.x = (tNow * 0.000018) % 1.0;
                 this.waterMaterial.map.offset.y = (tNow * 0.000012) % 1.0;
             }
+            if (this.waterMaterial && this.waterMaterial.normalMap && this.waterMaterial.normalMap.offset) {
+                this.waterMaterial.normalMap.offset.x = (1.0 - ((tNow * 0.000014) % 1.0));
+                this.waterMaterial.normalMap.offset.y = (tNow * 0.000021) % 1.0;
+            }
         }
         if (this.lavaMesh && this.lavaMesh.count > 0) {
             if (this.lavaMaterial && this.lavaMaterial.normalMap && this.lavaMaterial.normalMap.offset) {
                 this.lavaMaterial.normalMap.offset.x = (tNow * 0.000009) % 1.0;
                 this.lavaMaterial.normalMap.offset.y = (tNow * 0.000006) % 1.0;
+            }
+            if (this.lavaMaterial && this.lavaMaterial.map && this.lavaMaterial.map.offset) {
+                this.lavaMaterial.map.offset.x = (1.0 - ((tNow * 0.000005) % 1.0));
+                this.lavaMaterial.map.offset.y = (tNow * 0.000008) % 1.0;
             }
         }
 
@@ -13656,66 +13718,8 @@ class Dungeon3D {
                     entity.creatureMesh.position.z = 0;
                 }
             }
-            if (entity._hitFlashTimer > 0) {
-                entity._hitFlashTimer -= delta;
-                const flashAmt = Math.max(0, entity._hitFlashTimer / 0.18);
-                if (!entity._emissiveMaterials) {
-                    entity._emissiveMaterials = [];
-                    entity.traverse(c => {
-                        if (c.isMesh && c.material) {
-                            if (!c._origPooledMat) c._origPooledMat = c.material;
-                            if (Array.isArray(c.material)) {
-                                c.material = c.material.map(m => {
-                                    if (m && m.emissive && !m._isInstanceFlashClone) {
-                                        const cloned = m.clone();
-                                        if (m.onBeforeCompile) cloned.onBeforeCompile = m.onBeforeCompile;
-                                        if (m.customProgramCacheKey) cloned.customProgramCacheKey = m.customProgramCacheKey;
-                                        cloned._isInstanceFlashClone = true;
-                                        return cloned;
-                                    }
-                                    return m;
-                                });
-                            } else if (c.material.emissive && !c.material._isInstanceFlashClone) {
-                                const origMat = c.material;
-                                const cloned = origMat.clone();
-                                if (origMat.onBeforeCompile) cloned.onBeforeCompile = origMat.onBeforeCompile;
-                                if (origMat.customProgramCacheKey) cloned.customProgramCacheKey = origMat.customProgramCacheKey;
-                                cloned._isInstanceFlashClone = true;
-                                c.material = cloned;
-                            }
-                            const mats = Array.isArray(c.material) ? c.material : [c.material];
-                            for (const m of mats) {
-                                if (m && m.emissive) {
-                                    if (!m._origEmissive) m._origEmissive = m.emissive.clone();
-                                    entity._emissiveMaterials.push(m);
-                                }
-                            }
-                        }
-                    });
-                }
-                for (let mIdx = 0; mIdx < entity._emissiveMaterials.length; mIdx++) {
-                    const m = entity._emissiveMaterials[mIdx];
-                    if (m && m.emissive) {
-                        m.emissive.setRGB(flashAmt * 0.85, flashAmt * 0.08, flashAmt * 0.08);
-                    }
-                }
-            } else if (entity._hitFlashTimer !== undefined && entity._hitFlashTimer <= 0 && entity._hitFlashTimer > -1) {
-                entity._hitFlashTimer = -1;
-                if (entity._emissiveMaterials) {
-                    entity.traverse(c => {
-                        if (c.isMesh && c._origPooledMat) {
-                            c.material = c._origPooledMat;
-                            c._origPooledMat = null;
-                        }
-                    });
-                    for (let mIdx = 0; mIdx < entity._emissiveMaterials.length; mIdx++) {
-                        const m = entity._emissiveMaterials[mIdx];
-                        if (m && m._isInstanceFlashClone && typeof m.dispose === 'function') {
-                            m.dispose();
-                        }
-                    }
-                    entity._emissiveMaterials = null;
-                }
+            if (window.Dungeon3DAtmosphere && typeof window.Dungeon3DAtmosphere.applyEntityHitFlash === 'function') {
+                window.Dungeon3DAtmosphere.applyEntityHitFlash(entity, delta);
             }
 
             // Mixer state machine: idle vs walk vs attack/hit/sleep (distance-culled at 18m / 324m^2)
@@ -13955,12 +13959,21 @@ class Dungeon3D {
             // # ROOT-CAUSE: Animate consecrated altar sacred flames and sparkling fountain water emissive shimmer at 60 FPS with zero extra lights or allocations.
             const time = tNow * 0.001;
             this.lavaMaterial.emissiveIntensity = 0.95 + Math.sin(time * 2.2) * 0.20 + Math.cos(time * 4.7) * 0.08;
+            if (this.waterMaterial) {
+                this.waterMaterial.emissiveIntensity = 0.22 + Math.sin(time * 2.6) * 0.06;
+            }
+            if (this.deepWaterMaterial) {
+                this.deepWaterMaterial.emissiveIntensity = 0.18 + Math.cos(time * 2.1) * 0.05;
+            }
             if (this.altarFlameMaterial) {
                 this.altarFlameMaterial.emissiveIntensity = 2.15 + Math.sin(time * 5.2) * 0.35 + Math.cos(time * 11.7) * 0.18;
             }
             if (this.fountainWaterMaterial) {
                 this.fountainWaterMaterial.emissiveIntensity = 0.92 + Math.sin(time * 3.8) * 0.22;
             }
+        }
+        if (window.Dungeon3DAtmosphere && typeof window.Dungeon3DAtmosphere.updateAtmosphere === 'function') {
+            window.Dungeon3DAtmosphere.updateAtmosphere(this, tNow * 0.001);
         }
 
         // High-Quality Celestial Star Canopy & Sky Dome: Lock to camera position (infinite distance illusion, 0 translation parallax)

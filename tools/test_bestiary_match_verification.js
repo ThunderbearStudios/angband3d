@@ -512,6 +512,13 @@ test('v13.0 dark-fantasy GLBs & <=512x512 VRAM texture diet + archive mirror par
             if (sl[0] === 0x89 && sl[1] === 0x50) {
                 const w = sl.readUInt32BE(16), h = sl.readUInt32BE(20);
                 assert(w <= 512 && h <= 512, `${srvRel} PNG ${im.name} (${w}x${h}) exceeds 512x512 VRAM diet`);
+            } else if (sl.length >= 30 && sl.toString('ascii', 0, 4) === 'RIFF' && sl.toString('ascii', 8, 12) === 'WEBP') {
+                const chunk = sl.toString('ascii', 12, 16);
+                let w = 0, h = 0;
+                if (chunk === 'VP8X') { w = 1 + (sl[24] | (sl[25] << 8) | (sl[26] << 16)); h = 1 + (sl[27] | (sl[28] << 8) | (sl[29] << 16)); }
+                else if (chunk === 'VP8L') { const bits = (sl[21] | (sl[22] << 8) | (sl[23] << 16) | (sl[24] << 24)) >>> 0; w = (bits & 0x3FFF) + 1; h = ((bits >> 14) & 0x3FFF) + 1; }
+                else if (chunk === 'VP8 ') { w = sl.readUInt16LE(26) & 0x3FFF; h = sl.readUInt16LE(28) & 0x3FFF; }
+                assert(w > 0 && w <= 512 && h <= 512, `${srvRel} WebP ${im.name} (${w}x${h}) exceeds 512x512 VRAM diet`);
             }
         }
     };

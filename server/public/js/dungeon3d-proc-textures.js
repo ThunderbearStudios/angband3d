@@ -1990,9 +1990,11 @@ Dungeon3DProto.initTextures = function initTextures() {
     this.waterMaterial = new THREE.MeshStandardMaterial({
         map: this.waterTex,
         normalMap: this.waterNormal,
-        normalScale: new THREE.Vector2(0.85, 0.85),
-        roughness: 0.14,
-        metalness: 0.22,
+        normalScale: new THREE.Vector2(0.95, 0.95),
+        emissive: new THREE.Color(0x0a344f),
+        emissiveIntensity: 0.24,
+        roughness: 0.12,
+        metalness: 0.26,
         side: THREE.DoubleSide,
         transparent: true,
         opacity: 0.88,
@@ -2003,18 +2005,23 @@ Dungeon3DProto.initTextures = function initTextures() {
     this.deepWaterMaterial = new THREE.MeshStandardMaterial({
         map: this.deepWaterTex,
         normalMap: this.waterNormal,
-        normalScale: new THREE.Vector2(0.95, 0.95),
-        roughness: 0.16,
-        metalness: 0.25,
+        normalScale: new THREE.Vector2(1.05, 1.05),
+        emissive: new THREE.Color(0x062138),
+        emissiveIntensity: 0.22,
+        roughness: 0.14,
+        metalness: 0.28,
         side: THREE.DoubleSide,
         transparent: true,
         opacity: 0.94,
         vertexColors: true
     });
 
-    this.mountainMaterial = new THREE.MeshStandardMaterial({ map: this.wallTex, normalMap: this.wallNormal, roughness: 0.92, metalness: 0.04, vertexColors: true });
-    this.rubbleMaterial = new THREE.MeshStandardMaterial({ map: this.wallTex, normalMap: this.wallNormal, roughness: 0.88, metalness: 0.04, vertexColors: true });
-    this.swampMaterial = new THREE.MeshStandardMaterial({ map: this.dirtTex, roughness: 0.40, metalness: 0.08, side: THREE.DoubleSide, vertexColors: true });
+    const mkBudgetMat = (opts) => (typeof window !== 'undefined' && window.Dungeon3DAtmosphere && typeof window.Dungeon3DAtmosphere.createBudgetMaterial === 'function')
+        ? window.Dungeon3DAtmosphere.createBudgetMaterial(this, opts)
+        : new THREE.MeshStandardMaterial(opts);
+    this.mountainMaterial = mkBudgetMat({ map: this.wallTex, normalMap: this.wallNormal, roughness: 0.92, metalness: 0.04, vertexColors: true });
+    this.rubbleMaterial = mkBudgetMat({ map: this.wallTex, normalMap: this.wallNormal, roughness: 0.88, metalness: 0.04, vertexColors: true });
+    this.swampMaterial = mkBudgetMat({ map: this.dirtTex, roughness: 0.40, metalness: 0.08, side: THREE.DoubleSide, vertexColors: true });
     this.treeTrunkMat = new THREE.MeshStandardMaterial({
         color: 0xffffff, map: this.treeBarkTex, normalMap: this.treeBarkNormal, normalScale: new THREE.Vector2(1.40, 1.40),
         roughness: 0.90, metalness: 0.02, side: THREE.FrontSide, vertexColors: true
@@ -2104,11 +2111,11 @@ Dungeon3DProto.initTextures = function initTextures() {
 
     const applyPbrSampling = (tex, isColor) => {
         if (!tex) return;
-        const tier = (this.renderBudget && this.renderBudget.tier) || 'balanced';
         const maxCap = (this.renderer && this.renderer.capabilities && typeof this.renderer.capabilities.getMaxAnisotropy === 'function')
             ? (this.renderer.capabilities.getMaxAnisotropy() || 8)
             : 8;
-        tex.anisotropy = Math.min(maxCap, (tier === 'low' || tier === 'phone') ? 2 : 8);
+        const budgetAniso = Number(this.renderBudget && this.renderBudget.anisotropy) || ((this.renderBudget && this.renderBudget.tier === 'phone') ? 2 : 4);
+        tex.anisotropy = Math.min(maxCap, Math.max(1, budgetAniso));
         tex.minFilter = THREE.LinearMipmapLinearFilter;
         tex.magFilter = THREE.LinearFilter;
         if (isColor) {
@@ -2216,15 +2223,15 @@ Dungeon3DProto.initTextures = function initTextures() {
             }
         );
 
+        const fullMaps = !(this.renderBudget && this.renderBudget.fullPbrMaps === false);
         entry._loadedCount = 0;
         if (spec.kind === 'polyhaven') {
             const base = `/assets/polyhaven/textures/${id}`;
             const tasks = [
                 loadTexPromise(`${base}/diff.jpg`, (tex) => { cfgTex(tex, true); entry.diff = tex; notifyCallbacks(); }),
-                loadTexPromise(`${base}/nor_gl.jpg`, (tex) => { cfgTex(tex, false); entry.nor = tex; notifyCallbacks(); }),
-                loadTexPromise(`${base}/arm.jpg`, (tex) => { cfgTex(tex, false); entry.arm = tex; notifyCallbacks(); }),
-                loadTexPromise(`${base}/disp.jpg`, (tex) => { cfgTex(tex, false); entry.disp = tex; notifyCallbacks(); })
+                loadTexPromise(`${base}/nor_gl.jpg`, (tex) => { cfgTex(tex, false); entry.nor = tex; notifyCallbacks(); })
             ];
+            if (fullMaps) tasks.push(loadTexPromise(`${base}/arm.jpg`, (tex) => { cfgTex(tex, false); entry.arm = tex; notifyCallbacks(); }), loadTexPromise(`${base}/disp.jpg`, (tex) => { cfgTex(tex, false); entry.disp = tex; notifyCallbacks(); }));
             entry._totalCount = tasks.length;
             notifyProgress();
             entry._promise = Promise.all(tasks.map(trackFileTask)).then(() => {
@@ -2237,13 +2244,13 @@ Dungeon3DProto.initTextures = function initTextures() {
         } else {
             const prefix = spec.prefix;
             const base = `/assets/textures/${prefix}`;
-            const roughUrl = prefix === 'T_Plaster' ? '/assets/textures/T_Plaster_ORM.png' : `${base}_Roughness.png`;
+            const roughUrl = prefix === 'T_Plaster' ? '/assets/textures/T_Plaster_ORM.webp' : `${base}_Roughness.webp`;
             const tasks = [
-                loadTexPromise(`${base}_BaseColor.png`, (tex) => { cfgTex(tex, true); entry.diff = tex; notifyCallbacks(); })
+                loadTexPromise(`${base}_BaseColor.webp`, (tex) => { cfgTex(tex, true); entry.diff = tex; notifyCallbacks(); })
             ];
             if (prefix !== 'T_WindowGradient') {
                 tasks.push(
-                    loadTexPromise(`${base}_Normal.png`, (tex) => { cfgTex(tex, false); entry.nor = tex; notifyCallbacks(); }),
+                    loadTexPromise(`${base}_Normal.webp`, (tex) => { cfgTex(tex, false); entry.nor = tex; notifyCallbacks(); }),
                     loadTexPromise(roughUrl, (tex) => { cfgTex(tex, false); entry.arm = tex; notifyCallbacks(); })
                 );
             }
@@ -2385,12 +2392,12 @@ Dungeon3DProto.initTextures = function initTextures() {
     this.ensureSharedDetailTexturesReady = () => {
         if (this._sharedDetailTexPromise) return this._sharedDetailTexPromise;
         this._sharedDetailTexPromise = Promise.all([
-            loadTexPromise('/assets/textures/T_BrushedNoise.png', (tex) => {
+            loadTexPromise('/assets/textures/T_BrushedNoise.webp', (tex) => {
                 tex.wrapS = THREE.RepeatWrapping; tex.wrapT = THREE.RepeatWrapping;
                 tex.repeat.set(4, 4); tex._sharedTexture = true; applyPbrSampling(tex, false);
                 this.brushedNoiseTex = tex;
             }),
-            loadTexPromise('/assets/textures/T_Noise_Terrain.png', (tex) => {
+            loadTexPromise('/assets/textures/T_Noise_Terrain.webp', (tex) => {
                 tex.wrapS = THREE.RepeatWrapping; tex.wrapT = THREE.RepeatWrapping;
                 tex.repeat.set(3, 3); tex._sharedTexture = true; applyPbrSampling(tex, false);
                 this.terrainNoiseTex = tex;

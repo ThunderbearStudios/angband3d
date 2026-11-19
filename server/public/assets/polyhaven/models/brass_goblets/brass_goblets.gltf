@@ -1,9 +1,591 @@
 {
   "asset": {
-    "generator": "Khronos glTF Blender I/O v4.0.44",
+    "generator": "glTF-Transform v4.5.1",
     "version": "2.0"
   },
-  "scene": 0,
+  "accessors": [
+    {
+      "type": "SCALAR",
+      "componentType": 5123,
+      "count": 9216,
+      "normalized": false,
+      "byteOffset": 0,
+      "bufferView": 0
+    },
+    {
+      "type": "VEC3",
+      "componentType": 5120,
+      "count": 1946,
+      "normalized": true,
+      "byteOffset": 0,
+      "bufferView": 1
+    },
+    {
+      "type": "SCALAR",
+      "componentType": 5123,
+      "count": 9792,
+      "normalized": false,
+      "byteOffset": 18432,
+      "bufferView": 0
+    },
+    {
+      "type": "VEC3",
+      "componentType": 5120,
+      "count": 2224,
+      "normalized": true,
+      "byteOffset": 0,
+      "bufferView": 2
+    },
+    {
+      "type": "SCALAR",
+      "componentType": 5123,
+      "count": 9792,
+      "normalized": false,
+      "byteOffset": 38016,
+      "bufferView": 0
+    },
+    {
+      "type": "VEC3",
+      "componentType": 5120,
+      "count": 2209,
+      "normalized": true,
+      "byteOffset": 0,
+      "bufferView": 3
+    },
+    {
+      "type": "VEC3",
+      "componentType": 5122,
+      "count": 1946,
+      "max": [
+        18030,
+        32767,
+        18030
+      ],
+      "min": [
+        -18030,
+        -32767,
+        -18030
+      ],
+      "normalized": true,
+      "byteOffset": 0,
+      "bufferView": 4
+    },
+    {
+      "type": "VEC2",
+      "componentType": 5123,
+      "count": 1946,
+      "normalized": true,
+      "byteOffset": 0,
+      "bufferView": 5
+    },
+    {
+      "type": "VEC3",
+      "componentType": 5122,
+      "count": 2224,
+      "max": [
+        17398,
+        32767,
+        17398
+      ],
+      "min": [
+        -17398,
+        -32767,
+        -17398
+      ],
+      "normalized": true,
+      "byteOffset": 0,
+      "bufferView": 6
+    },
+    {
+      "type": "VEC2",
+      "componentType": 5123,
+      "count": 2224,
+      "normalized": true,
+      "byteOffset": 0,
+      "bufferView": 7
+    },
+    {
+      "type": "VEC3",
+      "componentType": 5122,
+      "count": 2209,
+      "max": [
+        17974,
+        32767,
+        17974
+      ],
+      "min": [
+        -17974,
+        -32767,
+        -17974
+      ],
+      "normalized": true,
+      "byteOffset": 0,
+      "bufferView": 8
+    },
+    {
+      "type": "VEC2",
+      "componentType": 5123,
+      "count": 2209,
+      "normalized": true,
+      "byteOffset": 0,
+      "bufferView": 9
+    }
+  ],
+  "bufferViews": [
+    {
+      "buffer": 1,
+      "byteOffset": 0,
+      "byteLength": 57600,
+      "target": 34963,
+      "extensions": {
+        "EXT_meshopt_compression": {
+          "buffer": 0,
+          "byteOffset": 0,
+          "byteLength": 10745,
+          "mode": "TRIANGLES",
+          "byteStride": 2,
+          "count": 28800
+        }
+      }
+    },
+    {
+      "buffer": 1,
+      "byteOffset": 57600,
+      "byteLength": 7784,
+      "target": 34962,
+      "byteStride": 4,
+      "extensions": {
+        "EXT_meshopt_compression": {
+          "buffer": 0,
+          "byteOffset": 10748,
+          "byteLength": 3196,
+          "mode": "ATTRIBUTES",
+          "filter": "OCTAHEDRAL",
+          "byteStride": 4,
+          "count": 1946
+        }
+      }
+    },
+    {
+      "buffer": 1,
+      "byteOffset": 65384,
+      "byteLength": 8896,
+      "target": 34962,
+      "byteStride": 4,
+      "extensions": {
+        "EXT_meshopt_compression": {
+          "buffer": 0,
+          "byteOffset": 13944,
+          "byteLength": 3824,
+          "mode": "ATTRIBUTES",
+          "filter": "OCTAHEDRAL",
+          "byteStride": 4,
+          "count": 2224
+        }
+      }
+    },
+    {
+      "buffer": 1,
+      "byteOffset": 74280,
+      "byteLength": 8836,
+      "target": 34962,
+      "byteStride": 4,
+      "extensions": {
+        "EXT_meshopt_compression": {
+          "buffer": 0,
+          "byteOffset": 17768,
+          "byteLength": 4314,
+          "mode": "ATTRIBUTES",
+          "filter": "OCTAHEDRAL",
+          "byteStride": 4,
+          "count": 2209
+        }
+      }
+    },
+    {
+      "buffer": 1,
+      "byteOffset": 83116,
+      "byteLength": 15568,
+      "target": 34962,
+      "byteStride": 8,
+      "extensions": {
+        "EXT_meshopt_compression": {
+          "buffer": 0,
+          "byteOffset": 22084,
+          "byteLength": 8790,
+          "mode": "ATTRIBUTES",
+          "byteStride": 8,
+          "count": 1946
+        }
+      }
+    },
+    {
+      "buffer": 1,
+      "byteOffset": 98684,
+      "byteLength": 7784,
+      "target": 34962,
+      "byteStride": 4,
+      "extensions": {
+        "EXT_meshopt_compression": {
+          "buffer": 0,
+          "byteOffset": 30876,
+          "byteLength": 4815,
+          "mode": "ATTRIBUTES",
+          "byteStride": 4,
+          "count": 1946
+        }
+      }
+    },
+    {
+      "buffer": 1,
+      "byteOffset": 106468,
+      "byteLength": 17792,
+      "target": 34962,
+      "byteStride": 8,
+      "extensions": {
+        "EXT_meshopt_compression": {
+          "buffer": 0,
+          "byteOffset": 35692,
+          "byteLength": 10608,
+          "mode": "ATTRIBUTES",
+          "byteStride": 8,
+          "count": 2224
+        }
+      }
+    },
+    {
+      "buffer": 1,
+      "byteOffset": 124260,
+      "byteLength": 8896,
+      "target": 34962,
+      "byteStride": 4,
+      "extensions": {
+        "EXT_meshopt_compression": {
+          "buffer": 0,
+          "byteOffset": 46300,
+          "byteLength": 6073,
+          "mode": "ATTRIBUTES",
+          "byteStride": 4,
+          "count": 2224
+        }
+      }
+    },
+    {
+      "buffer": 1,
+      "byteOffset": 133156,
+      "byteLength": 17672,
+      "target": 34962,
+      "byteStride": 8,
+      "extensions": {
+        "EXT_meshopt_compression": {
+          "buffer": 0,
+          "byteOffset": 52376,
+          "byteLength": 10978,
+          "mode": "ATTRIBUTES",
+          "byteStride": 8,
+          "count": 2209
+        }
+      }
+    },
+    {
+      "buffer": 1,
+      "byteOffset": 150828,
+      "byteLength": 8836,
+      "target": 34962,
+      "byteStride": 4,
+      "extensions": {
+        "EXT_meshopt_compression": {
+          "buffer": 0,
+          "byteOffset": 63356,
+          "byteLength": 6101,
+          "mode": "ATTRIBUTES",
+          "byteStride": 4,
+          "count": 2209
+        }
+      }
+    }
+  ],
+  "samplers": [
+    {
+      "magFilter": 9729,
+      "minFilter": 9987,
+      "wrapS": 10497,
+      "wrapT": 10497
+    }
+  ],
+  "textures": [
+    {
+      "sampler": 0,
+      "extensions": {
+        "EXT_texture_webp": {
+          "source": 1
+        }
+      }
+    },
+    {
+      "sampler": 0,
+      "extensions": {
+        "EXT_texture_webp": {
+          "source": 0
+        }
+      }
+    },
+    {
+      "sampler": 0,
+      "extensions": {
+        "EXT_texture_webp": {
+          "source": 2
+        }
+      }
+    },
+    {
+      "sampler": 0,
+      "extensions": {
+        "EXT_texture_webp": {
+          "source": 4
+        }
+      }
+    },
+    {
+      "sampler": 0,
+      "extensions": {
+        "EXT_texture_webp": {
+          "source": 3
+        }
+      }
+    },
+    {
+      "sampler": 0,
+      "extensions": {
+        "EXT_texture_webp": {
+          "source": 5
+        }
+      }
+    },
+    {
+      "sampler": 0,
+      "extensions": {
+        "EXT_texture_webp": {
+          "source": 7
+        }
+      }
+    },
+    {
+      "sampler": 0,
+      "extensions": {
+        "EXT_texture_webp": {
+          "source": 6
+        }
+      }
+    },
+    {
+      "sampler": 0,
+      "extensions": {
+        "EXT_texture_webp": {
+          "source": 8
+        }
+      }
+    }
+  ],
+  "images": [
+    {
+      "name": "brass_goblet_01_nor_gl",
+      "mimeType": "image/webp",
+      "uri": "textures/brass_goblet_01_nor_gl_1k.webp"
+    },
+    {
+      "name": "brass_goblet_01_diff",
+      "mimeType": "image/webp",
+      "uri": "textures/brass_goblet_01_diff_1k.webp"
+    },
+    {
+      "name": "brass_goblet_01_metal-brass_goblet_01_rough",
+      "mimeType": "image/webp",
+      "uri": "textures/brass_goblet_01_arm_1k.webp"
+    },
+    {
+      "name": "brass_goblet_02_nor_gl",
+      "mimeType": "image/webp",
+      "uri": "textures/brass_goblet_02_nor_gl_1k.webp"
+    },
+    {
+      "name": "brass_goblet_02_diff",
+      "mimeType": "image/webp",
+      "uri": "textures/brass_goblet_02_diff_1k.webp"
+    },
+    {
+      "name": "brass_goblet_02_metal-brass_goblet_02_rough",
+      "mimeType": "image/webp",
+      "uri": "textures/brass_goblet_02_arm_1k.webp"
+    },
+    {
+      "name": "brass_goblet_03_nor_gl",
+      "mimeType": "image/webp",
+      "uri": "textures/brass_goblet_03_nor_gl_1k.webp"
+    },
+    {
+      "name": "brass_goblet_03_diff",
+      "mimeType": "image/webp",
+      "uri": "textures/brass_goblet_03_diff_1k.webp"
+    },
+    {
+      "name": "brass_goblet_03_metal-brass_goblet_03_rough",
+      "mimeType": "image/webp",
+      "uri": "textures/brass_goblet_03_arm_1k.webp"
+    }
+  ],
+  "buffers": [
+    {
+      "uri": "brass_goblets.bin",
+      "byteLength": 69460
+    },
+    {
+      "byteLength": 159664,
+      "extensions": {
+        "EXT_meshopt_compression": {
+          "fallback": true
+        }
+      }
+    }
+  ],
+  "materials": [
+    {
+      "name": "brass_goblets_01",
+      "doubleSided": true,
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 0
+        },
+        "metallicRoughnessTexture": {
+          "index": 2
+        }
+      },
+      "normalTexture": {
+        "index": 1
+      }
+    },
+    {
+      "name": "brass_goblets_02",
+      "doubleSided": true,
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 3
+        },
+        "metallicRoughnessTexture": {
+          "index": 5
+        }
+      },
+      "normalTexture": {
+        "index": 4
+      }
+    },
+    {
+      "name": "brass_goblets_03",
+      "doubleSided": true,
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 6
+        },
+        "metallicRoughnessTexture": {
+          "index": 8
+        }
+      },
+      "normalTexture": {
+        "index": 7
+      }
+    }
+  ],
+  "meshes": [
+    {
+      "name": "brass_goblet_01",
+      "primitives": [
+        {
+          "attributes": {
+            "NORMAL": 1,
+            "POSITION": 6,
+            "TEXCOORD_0": 7
+          },
+          "mode": 4,
+          "material": 0,
+          "indices": 0
+        }
+      ]
+    },
+    {
+      "name": "brass_goblet_02",
+      "primitives": [
+        {
+          "attributes": {
+            "NORMAL": 3,
+            "POSITION": 8,
+            "TEXCOORD_0": 9
+          },
+          "mode": 4,
+          "material": 1,
+          "indices": 2
+        }
+      ]
+    },
+    {
+      "name": "brass_goblet_03",
+      "primitives": [
+        {
+          "attributes": {
+            "NORMAL": 5,
+            "POSITION": 10,
+            "TEXCOORD_0": 11
+          },
+          "mode": 4,
+          "material": 2,
+          "indices": 4
+        }
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "name": "brass_goblet_01",
+      "translation": [
+        -0.0003276797942817211,
+        0.14091524621471763,
+        0.12025978416204453
+      ],
+      "scale": [
+        0.135994718875736,
+        0.135994718875736,
+        0.135994718875736
+      ],
+      "mesh": 0
+    },
+    {
+      "name": "brass_goblet_02",
+      "translation": [
+        -0.14954445511102676,
+        0.13870431715622544,
+        -0.0308460034430027
+      ],
+      "scale": [
+        0.13288698578253388,
+        0.13288698578253388,
+        0.13288698578253388
+      ],
+      "mesh": 1
+    },
+    {
+      "name": "brass_goblet_03",
+      "translation": [
+        0.15866719186306,
+        0.14224578836001456,
+        -0.027895381674170494
+      ],
+      "scale": [
+        0.13605259195901453,
+        0.13605259195901453,
+        0.13605259195901453
+      ],
+      "mesh": 2
+    }
+  ],
   "scenes": [
     {
       "name": "Scene",
@@ -14,399 +596,15 @@
       ]
     }
   ],
-  "nodes": [
-    {
-      "mesh": 0,
-      "name": "brass_goblet_01",
-      "translation": [
-        -0.00032767606899142265,
-        0.004920530132949352,
-        0.12025979906320572
-      ]
-    },
-    {
-      "mesh": 1,
-      "name": "brass_goblet_02",
-      "translation": [
-        -0.14954441785812378,
-        0.005822327919304371,
-        -0.030845999717712402
-      ]
-    },
-    {
-      "mesh": 2,
-      "name": "brass_goblet_03",
-      "translation": [
-        0.15866722166538239,
-        0.006193193141371012,
-        -0.027895381674170494
-      ]
-    }
+  "scene": 0,
+  "extensionsUsed": [
+    "EXT_meshopt_compression",
+    "EXT_texture_webp",
+    "KHR_mesh_quantization"
   ],
-  "materials": [
-    {
-      "doubleSided": true,
-      "name": "brass_goblets_01",
-      "normalTexture": {
-        "index": 0
-      },
-      "pbrMetallicRoughness": {
-        "baseColorTexture": {
-          "index": 1
-        },
-        "metallicRoughnessTexture": {
-          "index": 2
-        }
-      }
-    },
-    {
-      "doubleSided": true,
-      "name": "brass_goblets_02",
-      "normalTexture": {
-        "index": 3
-      },
-      "pbrMetallicRoughness": {
-        "baseColorTexture": {
-          "index": 4
-        },
-        "metallicRoughnessTexture": {
-          "index": 5
-        }
-      }
-    },
-    {
-      "doubleSided": true,
-      "name": "brass_goblets_03",
-      "normalTexture": {
-        "index": 6
-      },
-      "pbrMetallicRoughness": {
-        "baseColorTexture": {
-          "index": 7
-        },
-        "metallicRoughnessTexture": {
-          "index": 8
-        }
-      }
-    }
-  ],
-  "meshes": [
-    {
-      "name": "brass_goblet_01",
-      "primitives": [
-        {
-          "attributes": {
-            "POSITION": 0,
-            "NORMAL": 1,
-            "TEXCOORD_0": 2
-          },
-          "indices": 3,
-          "material": 0
-        }
-      ]
-    },
-    {
-      "name": "brass_goblet_02",
-      "primitives": [
-        {
-          "attributes": {
-            "POSITION": 4,
-            "NORMAL": 5,
-            "TEXCOORD_0": 6
-          },
-          "indices": 7,
-          "material": 1
-        }
-      ]
-    },
-    {
-      "name": "brass_goblet_03",
-      "primitives": [
-        {
-          "attributes": {
-            "POSITION": 8,
-            "NORMAL": 9,
-            "TEXCOORD_0": 10
-          },
-          "indices": 11,
-          "material": 2
-        }
-      ]
-    }
-  ],
-  "textures": [
-    {
-      "sampler": 0,
-      "source": 0
-    },
-    {
-      "sampler": 0,
-      "source": 1
-    },
-    {
-      "sampler": 0,
-      "source": 2
-    },
-    {
-      "sampler": 0,
-      "source": 3
-    },
-    {
-      "sampler": 0,
-      "source": 4
-    },
-    {
-      "sampler": 0,
-      "source": 5
-    },
-    {
-      "sampler": 0,
-      "source": 6
-    },
-    {
-      "sampler": 0,
-      "source": 7
-    },
-    {
-      "sampler": 0,
-      "source": 8
-    }
-  ],
-  "images": [
-    {
-      "mimeType": "image/jpeg",
-      "name": "brass_goblet_01_nor_gl",
-      "uri": "textures/brass_goblet_01_nor_gl_1k.jpg"
-    },
-    {
-      "mimeType": "image/jpeg",
-      "name": "brass_goblet_01_diff",
-      "uri": "textures/brass_goblet_01_diff_1k.jpg"
-    },
-    {
-      "mimeType": "image/jpeg",
-      "name": "brass_goblet_01_metal-brass_goblet_01_rough",
-      "uri": "textures/brass_goblet_01_arm_1k.jpg"
-    },
-    {
-      "mimeType": "image/jpeg",
-      "name": "brass_goblet_02_nor_gl",
-      "uri": "textures/brass_goblet_02_nor_gl_1k.jpg"
-    },
-    {
-      "mimeType": "image/jpeg",
-      "name": "brass_goblet_02_diff",
-      "uri": "textures/brass_goblet_02_diff_1k.jpg"
-    },
-    {
-      "mimeType": "image/jpeg",
-      "name": "brass_goblet_02_metal-brass_goblet_02_rough",
-      "uri": "textures/brass_goblet_02_arm_1k.jpg"
-    },
-    {
-      "mimeType": "image/jpeg",
-      "name": "brass_goblet_03_nor_gl",
-      "uri": "textures/brass_goblet_03_nor_gl_1k.jpg"
-    },
-    {
-      "mimeType": "image/jpeg",
-      "name": "brass_goblet_03_diff",
-      "uri": "textures/brass_goblet_03_diff_1k.jpg"
-    },
-    {
-      "mimeType": "image/jpeg",
-      "name": "brass_goblet_03_metal-brass_goblet_03_rough",
-      "uri": "textures/brass_goblet_03_arm_1k.jpg"
-    }
-  ],
-  "accessors": [
-    {
-      "bufferView": 0,
-      "componentType": 5126,
-      "count": 1946,
-      "max": [
-        0.07483092695474625,
-        0.2719894349575043,
-        0.07483091205358505
-      ],
-      "min": [
-        -0.07483093440532684,
-        -2.7939677238464355e-9,
-        -0.07483094185590744
-      ],
-      "type": "VEC3"
-    },
-    {
-      "bufferView": 1,
-      "componentType": 5126,
-      "count": 1946,
-      "type": "VEC3"
-    },
-    {
-      "bufferView": 2,
-      "componentType": 5126,
-      "count": 1946,
-      "type": "VEC2"
-    },
-    {
-      "bufferView": 3,
-      "componentType": 5123,
-      "count": 9216,
-      "type": "SCALAR"
-    },
-    {
-      "bufferView": 4,
-      "componentType": 5126,
-      "count": 2224,
-      "max": [
-        0.07055510580539703,
-        0.26576897501945496,
-        0.07055514305830002
-      ],
-      "min": [
-        -0.070555180311203,
-        -0.000004996545612812042,
-        -0.07055515050888062
-      ],
-      "type": "VEC3"
-    },
-    {
-      "bufferView": 5,
-      "componentType": 5126,
-      "count": 2224,
-      "type": "VEC3"
-    },
-    {
-      "bufferView": 6,
-      "componentType": 5126,
-      "count": 2224,
-      "type": "VEC2"
-    },
-    {
-      "bufferView": 7,
-      "componentType": 5123,
-      "count": 9792,
-      "type": "SCALAR"
-    },
-    {
-      "bufferView": 8,
-      "componentType": 5126,
-      "count": 2209,
-      "max": [
-        0.0746278464794159,
-        0.2721051871776581,
-        0.07462787628173828
-      ],
-      "min": [
-        -0.07462790608406067,
-        3.259629011154175e-9,
-        -0.07462787628173828
-      ],
-      "type": "VEC3"
-    },
-    {
-      "bufferView": 9,
-      "componentType": 5126,
-      "count": 2209,
-      "type": "VEC3"
-    },
-    {
-      "bufferView": 10,
-      "componentType": 5126,
-      "count": 2209,
-      "type": "VEC2"
-    },
-    {
-      "bufferView": 11,
-      "componentType": 5123,
-      "count": 9792,
-      "type": "SCALAR"
-    }
-  ],
-  "bufferViews": [
-    {
-      "buffer": 0,
-      "byteLength": 23352,
-      "byteOffset": 0,
-      "target": 34962
-    },
-    {
-      "buffer": 0,
-      "byteLength": 23352,
-      "byteOffset": 23352,
-      "target": 34962
-    },
-    {
-      "buffer": 0,
-      "byteLength": 15568,
-      "byteOffset": 46704,
-      "target": 34962
-    },
-    {
-      "buffer": 0,
-      "byteLength": 18432,
-      "byteOffset": 62272,
-      "target": 34963
-    },
-    {
-      "buffer": 0,
-      "byteLength": 26688,
-      "byteOffset": 80704,
-      "target": 34962
-    },
-    {
-      "buffer": 0,
-      "byteLength": 26688,
-      "byteOffset": 107392,
-      "target": 34962
-    },
-    {
-      "buffer": 0,
-      "byteLength": 17792,
-      "byteOffset": 134080,
-      "target": 34962
-    },
-    {
-      "buffer": 0,
-      "byteLength": 19584,
-      "byteOffset": 151872,
-      "target": 34963
-    },
-    {
-      "buffer": 0,
-      "byteLength": 26508,
-      "byteOffset": 171456,
-      "target": 34962
-    },
-    {
-      "buffer": 0,
-      "byteLength": 26508,
-      "byteOffset": 197964,
-      "target": 34962
-    },
-    {
-      "buffer": 0,
-      "byteLength": 17672,
-      "byteOffset": 224472,
-      "target": 34962
-    },
-    {
-      "buffer": 0,
-      "byteLength": 19584,
-      "byteOffset": 242144,
-      "target": 34963
-    }
-  ],
-  "samplers": [
-    {
-      "magFilter": 9729,
-      "minFilter": 9987
-    }
-  ],
-  "buffers": [
-    {
-      "byteLength": 261728,
-      "uri": "brass_goblets.bin"
-    }
+  "extensionsRequired": [
+    "EXT_meshopt_compression",
+    "EXT_texture_webp",
+    "KHR_mesh_quantization"
   ]
 }

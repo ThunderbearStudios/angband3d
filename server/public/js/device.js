@@ -83,6 +83,7 @@ class DeviceProfile {
                 enableFillLight: false,
                 proceduralTexSize: 256,
                 anisotropy: 4,
+                preferLambert: true,
                 fullPbrMaps: false,
                 nameplatePoolCap: 64
             };
@@ -99,6 +100,7 @@ class DeviceProfile {
             enableFillLight: Boolean(gpu.enableFillLight),
             proceduralTexSize: gpu.proceduralTexSize || 512,
             anisotropy: gpu.anisotropy || 8,
+            preferLambert: Boolean(gpu.preferLambert),
             fullPbrMaps: gpu.fullPbrMaps !== false,
             nameplatePoolCap: gpu.nameplatePoolCap || 96
         };

@@ -328,7 +328,7 @@ window.addEventListener('DOMContentLoaded', () => {
         const cols = (res && res.cols) || Math.round(1 / Math.max(0.001, uv[2] - uv[0])) || 32;
         const rows = (res && res.rows) || Math.round(1 / Math.max(0.001, uv[3] - uv[1])) || 32;
         const bgSize = sizePx * cols;
-        const atlasUrl = isMonster ? '/assets/sprites/monsters/monster_atlas.png' : '/assets/sprites/items/item_atlas.png';
+        const atlasUrl = isMonster ? '/assets/sprites/monsters/monster_atlas.webp' : '/assets/sprites/items/item_atlas.webp';
         const col = (res && typeof res.col === 'number') ? res.col : Math.round(uv[0] * cols);
         const row = (res && typeof res.row === 'number') ? res.row : Math.round((1 - uv[3]) * rows);
         return `width: ${sizePx}px; height: ${sizePx}px; background-image: url('${atlasUrl}'); background-size: ${bgSize}px auto; background-position: -${col * sizePx}px -${row * sizePx}px;`;
@@ -6683,7 +6683,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 const [u0, v0, u1, v1] = entry.uv;
                 const col = Math.round(u0 * 32);
                 const row = Math.round((1.0 - v1) * 32);
-                return `background-image:url('/assets/sprites/items/item_atlas.png');background-size:704px 704px;background-position:-${col * 22}px -${row * 22}px;`;
+                return `background-image:url('/assets/sprites/items/item_atlas.webp');background-size:704px 704px;background-position:-${col * 22}px -${row * 22}px;`;
             }
         });
     }

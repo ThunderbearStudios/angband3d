@@ -1,37 +1,201 @@
 {
   "asset": {
-    "generator": "Khronos glTF Blender I/O v3.6.27",
+    "generator": "glTF-Transform v4.5.1",
     "version": "2.0"
   },
-  "scene": 0,
-  "scenes": [
+  "accessors": [
     {
-      "name": "Scene",
-      "nodes": [
-        0
-      ]
+      "type": "SCALAR",
+      "componentType": 5123,
+      "count": 12093,
+      "normalized": false,
+      "byteOffset": 0,
+      "bufferView": 0
+    },
+    {
+      "type": "VEC3",
+      "componentType": 5120,
+      "count": 2675,
+      "normalized": true,
+      "byteOffset": 0,
+      "bufferView": 1
+    },
+    {
+      "type": "VEC3",
+      "componentType": 5122,
+      "count": 2675,
+      "max": [
+        900,
+        32767,
+        4300
+      ],
+      "min": [
+        -900,
+        -32767,
+        -4300
+      ],
+      "normalized": true,
+      "byteOffset": 0,
+      "bufferView": 2
+    },
+    {
+      "type": "VEC2",
+      "componentType": 5123,
+      "count": 2675,
+      "normalized": true,
+      "byteOffset": 0,
+      "bufferView": 3
     }
   ],
-  "nodes": [
+  "bufferViews": [
     {
-      "mesh": 0,
-      "name": "wooden_handle_saber"
+      "buffer": 1,
+      "byteOffset": 0,
+      "byteLength": 24186,
+      "target": 34963,
+      "extensions": {
+        "EXT_meshopt_compression": {
+          "buffer": 0,
+          "byteOffset": 0,
+          "byteLength": 4575,
+          "mode": "TRIANGLES",
+          "byteStride": 2,
+          "count": 12093
+        }
+      }
+    },
+    {
+      "buffer": 1,
+      "byteOffset": 24188,
+      "byteLength": 10700,
+      "target": 34962,
+      "byteStride": 4,
+      "extensions": {
+        "EXT_meshopt_compression": {
+          "buffer": 0,
+          "byteOffset": 4576,
+          "byteLength": 4620,
+          "mode": "ATTRIBUTES",
+          "filter": "OCTAHEDRAL",
+          "byteStride": 4,
+          "count": 2675
+        }
+      }
+    },
+    {
+      "buffer": 1,
+      "byteOffset": 34888,
+      "byteLength": 21400,
+      "target": 34962,
+      "byteStride": 8,
+      "extensions": {
+        "EXT_meshopt_compression": {
+          "buffer": 0,
+          "byteOffset": 9196,
+          "byteLength": 10644,
+          "mode": "ATTRIBUTES",
+          "byteStride": 8,
+          "count": 2675
+        }
+      }
+    },
+    {
+      "buffer": 1,
+      "byteOffset": 56288,
+      "byteLength": 10700,
+      "target": 34962,
+      "byteStride": 4,
+      "extensions": {
+        "EXT_meshopt_compression": {
+          "buffer": 0,
+          "byteOffset": 19840,
+          "byteLength": 8284,
+          "mode": "ATTRIBUTES",
+          "byteStride": 4,
+          "count": 2675
+        }
+      }
+    }
+  ],
+  "samplers": [
+    {
+      "magFilter": 9729,
+      "minFilter": 9987,
+      "wrapS": 10497,
+      "wrapT": 10497
+    }
+  ],
+  "textures": [
+    {
+      "sampler": 0,
+      "extensions": {
+        "EXT_texture_webp": {
+          "source": 1
+        }
+      }
+    },
+    {
+      "sampler": 0,
+      "extensions": {
+        "EXT_texture_webp": {
+          "source": 0
+        }
+      }
+    },
+    {
+      "sampler": 0,
+      "extensions": {
+        "EXT_texture_webp": {
+          "source": 2
+        }
+      }
+    }
+  ],
+  "images": [
+    {
+      "name": "wooden_handle_saber_nor_gl",
+      "mimeType": "image/webp",
+      "uri": "textures/wooden_handle_saber_nor_gl_1k.webp"
+    },
+    {
+      "name": "wooden_handle_saber_diff",
+      "mimeType": "image/webp",
+      "uri": "textures/wooden_handle_saber_diff_1k.webp"
+    },
+    {
+      "name": "wooden_handle_saber_metal-wooden_handle_saber_rough",
+      "mimeType": "image/webp",
+      "uri": "textures/wooden_handle_saber_arm_1k.webp"
+    }
+  ],
+  "buffers": [
+    {
+      "uri": "wooden_handle_saber.bin",
+      "byteLength": 28124
+    },
+    {
+      "byteLength": 66988,
+      "extensions": {
+        "EXT_meshopt_compression": {
+          "fallback": true
+        }
+      }
     }
   ],
   "materials": [
     {
-      "doubleSided": true,
       "name": "wooden_handle_saber",
-      "normalTexture": {
-        "index": 0
-      },
+      "doubleSided": true,
       "pbrMetallicRoughness": {
         "baseColorTexture": {
-          "index": 1
+          "index": 0
         },
         "metallicRoughnessTexture": {
           "index": 2
         }
+      },
+      "normalTexture": {
+        "index": 1
       }
     }
   ],
@@ -41,119 +205,50 @@
       "primitives": [
         {
           "attributes": {
-            "POSITION": 0,
             "NORMAL": 1,
-            "TEXCOORD_0": 2
+            "POSITION": 2,
+            "TEXCOORD_0": 3
           },
-          "indices": 3,
-          "material": 0
+          "mode": 4,
+          "material": 0,
+          "indices": 0
         }
       ]
     }
   ],
-  "textures": [
+  "nodes": [
     {
-      "sampler": 0,
-      "source": 0
-    },
-    {
-      "sampler": 0,
-      "source": 1
-    },
-    {
-      "sampler": 0,
-      "source": 2
-    }
-  ],
-  "images": [
-    {
-      "mimeType": "image/jpeg",
-      "name": "wooden_handle_saber_nor_gl",
-      "uri": "textures/wooden_handle_saber_nor_gl_1k.jpg"
-    },
-    {
-      "mimeType": "image/jpeg",
-      "name": "wooden_handle_saber_diff",
-      "uri": "textures/wooden_handle_saber_diff_1k.jpg"
-    },
-    {
-      "mimeType": "image/jpeg",
-      "name": "wooden_handle_saber_metal-wooden_handle_saber_rough",
-      "uri": "textures/wooden_handle_saber_arm_1k.jpg"
-    }
-  ],
-  "accessors": [
-    {
-      "bufferView": 0,
-      "componentType": 5126,
-      "count": 2675,
-      "max": [
-        0.012846441939473152,
-        0.839275062084198,
-        0.057083677500486374
+      "name": "wooden_handle_saber",
+      "translation": [
+        1.2246891856193542e-7,
+        0.37154723703861237,
+        -0.004310591146349907
       ],
-      "min": [
-        -0.012846197001636028,
-        -0.09618058800697327,
-        -0.06570485979318619
+      "scale": [
+        0.46772782504558563,
+        0.46772782504558563,
+        0.46772782504558563
       ],
-      "type": "VEC3"
-    },
-    {
-      "bufferView": 1,
-      "componentType": 5126,
-      "count": 2675,
-      "type": "VEC3"
-    },
-    {
-      "bufferView": 2,
-      "componentType": 5126,
-      "count": 2675,
-      "type": "VEC2"
-    },
-    {
-      "bufferView": 3,
-      "componentType": 5123,
-      "count": 12093,
-      "type": "SCALAR"
+      "mesh": 0
     }
   ],
-  "bufferViews": [
+  "scenes": [
     {
-      "buffer": 0,
-      "byteLength": 32100,
-      "byteOffset": 0,
-      "target": 34962
-    },
-    {
-      "buffer": 0,
-      "byteLength": 32100,
-      "byteOffset": 32100,
-      "target": 34962
-    },
-    {
-      "buffer": 0,
-      "byteLength": 21400,
-      "byteOffset": 64200,
-      "target": 34962
-    },
-    {
-      "buffer": 0,
-      "byteLength": 24186,
-      "byteOffset": 85600,
-      "target": 34963
+      "name": "Scene",
+      "nodes": [
+        0
+      ]
     }
   ],
-  "samplers": [
-    {
-      "magFilter": 9729,
-      "minFilter": 9987
-    }
+  "scene": 0,
+  "extensionsUsed": [
+    "EXT_meshopt_compression",
+    "EXT_texture_webp",
+    "KHR_mesh_quantization"
   ],
-  "buffers": [
-    {
-      "byteLength": 109788,
-      "uri": "wooden_handle_saber.bin"
-    }
+  "extensionsRequired": [
+    "EXT_meshopt_compression",
+    "EXT_texture_webp",
+    "KHR_mesh_quantization"
   ]
 }

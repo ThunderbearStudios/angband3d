@@ -1,47 +1,295 @@
 {
   "asset": {
-    "generator": "Khronos glTF Blender I/O v3.5.30",
+    "generator": "glTF-Transform v4.5.1",
     "version": "2.0"
   },
-  "scene": 0,
-  "scenes": [
+  "accessors": [
     {
-      "name": "Scene",
-      "nodes": [
-        0,
-        1
-      ]
-    }
-  ],
-  "nodes": [
-    {
-      "mesh": 0,
-      "name": "ornate_medieval_dagger"
+      "type": "SCALAR",
+      "componentType": 5123,
+      "count": 12684,
+      "normalized": false,
+      "byteOffset": 0,
+      "bufferView": 0
     },
     {
-      "mesh": 1,
-      "name": "ornate_medieval_dagger_scabbard",
-      "translation": [
-        0.06000000983476639,
-        0.12600000202655792,
-        0
-      ]
+      "type": "VEC3",
+      "componentType": 5120,
+      "count": 2523,
+      "normalized": true,
+      "byteOffset": 0,
+      "bufferView": 1
+    },
+    {
+      "type": "SCALAR",
+      "componentType": 5123,
+      "count": 6186,
+      "normalized": false,
+      "byteOffset": 25368,
+      "bufferView": 0
+    },
+    {
+      "type": "VEC3",
+      "componentType": 5120,
+      "count": 1364,
+      "normalized": true,
+      "byteOffset": 0,
+      "bufferView": 2
+    },
+    {
+      "type": "VEC3",
+      "componentType": 5122,
+      "count": 2523,
+      "max": [
+        7564,
+        32767,
+        2364
+      ],
+      "min": [
+        -7564,
+        -32767,
+        -2364
+      ],
+      "normalized": true,
+      "byteOffset": 0,
+      "bufferView": 3
+    },
+    {
+      "type": "VEC2",
+      "componentType": 5123,
+      "count": 2523,
+      "normalized": true,
+      "byteOffset": 0,
+      "bufferView": 4
+    },
+    {
+      "type": "VEC3",
+      "componentType": 5122,
+      "count": 1364,
+      "max": [
+        5960,
+        32767,
+        2208
+      ],
+      "min": [
+        -5960,
+        -32767,
+        -2208
+      ],
+      "normalized": true,
+      "byteOffset": 0,
+      "bufferView": 5
+    },
+    {
+      "type": "VEC2",
+      "componentType": 5123,
+      "count": 1364,
+      "normalized": true,
+      "byteOffset": 0,
+      "bufferView": 6
+    }
+  ],
+  "bufferViews": [
+    {
+      "buffer": 1,
+      "byteOffset": 0,
+      "byteLength": 37740,
+      "target": 34963,
+      "extensions": {
+        "EXT_meshopt_compression": {
+          "buffer": 0,
+          "byteOffset": 0,
+          "byteLength": 7178,
+          "mode": "TRIANGLES",
+          "byteStride": 2,
+          "count": 18870
+        }
+      }
+    },
+    {
+      "buffer": 1,
+      "byteOffset": 37740,
+      "byteLength": 10092,
+      "target": 34962,
+      "byteStride": 4,
+      "extensions": {
+        "EXT_meshopt_compression": {
+          "buffer": 0,
+          "byteOffset": 7180,
+          "byteLength": 4957,
+          "mode": "ATTRIBUTES",
+          "filter": "OCTAHEDRAL",
+          "byteStride": 4,
+          "count": 2523
+        }
+      }
+    },
+    {
+      "buffer": 1,
+      "byteOffset": 47832,
+      "byteLength": 5456,
+      "target": 34962,
+      "byteStride": 4,
+      "extensions": {
+        "EXT_meshopt_compression": {
+          "buffer": 0,
+          "byteOffset": 12140,
+          "byteLength": 2627,
+          "mode": "ATTRIBUTES",
+          "filter": "OCTAHEDRAL",
+          "byteStride": 4,
+          "count": 1364
+        }
+      }
+    },
+    {
+      "buffer": 1,
+      "byteOffset": 53288,
+      "byteLength": 20184,
+      "target": 34962,
+      "byteStride": 8,
+      "extensions": {
+        "EXT_meshopt_compression": {
+          "buffer": 0,
+          "byteOffset": 14768,
+          "byteLength": 11001,
+          "mode": "ATTRIBUTES",
+          "byteStride": 8,
+          "count": 2523
+        }
+      }
+    },
+    {
+      "buffer": 1,
+      "byteOffset": 73472,
+      "byteLength": 10092,
+      "target": 34962,
+      "byteStride": 4,
+      "extensions": {
+        "EXT_meshopt_compression": {
+          "buffer": 0,
+          "byteOffset": 25772,
+          "byteLength": 7900,
+          "mode": "ATTRIBUTES",
+          "byteStride": 4,
+          "count": 2523
+        }
+      }
+    },
+    {
+      "buffer": 1,
+      "byteOffset": 83564,
+      "byteLength": 10912,
+      "target": 34962,
+      "byteStride": 8,
+      "extensions": {
+        "EXT_meshopt_compression": {
+          "buffer": 0,
+          "byteOffset": 33672,
+          "byteLength": 6202,
+          "mode": "ATTRIBUTES",
+          "byteStride": 8,
+          "count": 1364
+        }
+      }
+    },
+    {
+      "buffer": 1,
+      "byteOffset": 94476,
+      "byteLength": 5456,
+      "target": 34962,
+      "byteStride": 4,
+      "extensions": {
+        "EXT_meshopt_compression": {
+          "buffer": 0,
+          "byteOffset": 39876,
+          "byteLength": 4334,
+          "mode": "ATTRIBUTES",
+          "byteStride": 4,
+          "count": 1364
+        }
+      }
+    }
+  ],
+  "samplers": [
+    {
+      "magFilter": 9729,
+      "minFilter": 9987,
+      "wrapS": 10497,
+      "wrapT": 10497
+    }
+  ],
+  "textures": [
+    {
+      "sampler": 0,
+      "extensions": {
+        "EXT_texture_webp": {
+          "source": 1
+        }
+      }
+    },
+    {
+      "sampler": 0,
+      "extensions": {
+        "EXT_texture_webp": {
+          "source": 0
+        }
+      }
+    },
+    {
+      "sampler": 0,
+      "extensions": {
+        "EXT_texture_webp": {
+          "source": 2
+        }
+      }
+    }
+  ],
+  "images": [
+    {
+      "name": "ornate_medieval_dagger_nor_gl",
+      "mimeType": "image/webp",
+      "uri": "textures/ornate_medieval_dagger_nor_gl_1k.webp"
+    },
+    {
+      "name": "ornate_medieval_dagger_diff",
+      "mimeType": "image/webp",
+      "uri": "textures/ornate_medieval_dagger_diff_1k.webp"
+    },
+    {
+      "name": "ornate_medieval_dagger_metal-ornate_medieval_dagger_rough",
+      "mimeType": "image/webp",
+      "uri": "textures/ornate_medieval_dagger_arm_1k.webp"
+    }
+  ],
+  "buffers": [
+    {
+      "uri": "ornate_medieval_dagger.bin",
+      "byteLength": 44212
+    },
+    {
+      "byteLength": 99932,
+      "extensions": {
+        "EXT_meshopt_compression": {
+          "fallback": true
+        }
+      }
     }
   ],
   "materials": [
     {
-      "doubleSided": true,
       "name": "ornate_medieval_dagger",
-      "normalTexture": {
-        "index": 0
-      },
+      "doubleSided": true,
       "pbrMetallicRoughness": {
         "baseColorTexture": {
-          "index": 1
+          "index": 0
         },
         "metallicRoughnessTexture": {
           "index": 2
         }
+      },
+      "normalTexture": {
+        "index": 1
       }
     }
   ],
@@ -51,12 +299,13 @@
       "primitives": [
         {
           "attributes": {
-            "POSITION": 0,
-            "TEXCOORD_0": 1,
-            "NORMAL": 2
+            "NORMAL": 1,
+            "POSITION": 4,
+            "TEXCOORD_0": 5
           },
-          "indices": 3,
-          "material": 0
+          "mode": 4,
+          "material": 0,
+          "indices": 0
         }
       ]
     },
@@ -65,177 +314,65 @@
       "primitives": [
         {
           "attributes": {
-            "POSITION": 4,
-            "TEXCOORD_0": 5,
-            "NORMAL": 6
+            "NORMAL": 3,
+            "POSITION": 6,
+            "TEXCOORD_0": 7
           },
-          "indices": 7,
-          "material": 0
+          "mode": 4,
+          "material": 0,
+          "indices": 2
         }
       ]
     }
   ],
-  "textures": [
+  "nodes": [
     {
-      "sampler": 0,
-      "source": 0
-    },
-    {
-      "sampler": 0,
-      "source": 1
-    },
-    {
-      "sampler": 0,
-      "source": 2
-    }
-  ],
-  "images": [
-    {
-      "mimeType": "image/jpeg",
-      "name": "ornate_medieval_dagger_nor_gl",
-      "uri": "textures/ornate_medieval_dagger_nor_gl_1k.jpg"
-    },
-    {
-      "mimeType": "image/jpeg",
-      "name": "ornate_medieval_dagger_diff",
-      "uri": "textures/ornate_medieval_dagger_diff_1k.jpg"
-    },
-    {
-      "mimeType": "image/jpeg",
-      "name": "ornate_medieval_dagger_metal-ornate_medieval_dagger_rough",
-      "uri": "textures/ornate_medieval_dagger_arm_1k.jpg"
-    }
-  ],
-  "accessors": [
-    {
-      "bufferView": 0,
-      "componentType": 5126,
-      "count": 2523,
-      "max": [
-        0.03962269425392151,
-        0.26718372106552124,
-        0.012485486455261707
+      "name": "ornate_medieval_dagger",
+      "translation": [
+        -0.00029762275516986847,
+        0.0942424014210701,
+        0.000005625654011964798
       ],
-      "min": [
-        -0.040217939764261246,
-        -0.07869891822338104,
-        -0.012474235147237778
+      "scale": [
+        0.17294131964445114,
+        0.17294131964445114,
+        0.17294131964445114
       ],
-      "type": "VEC3"
+      "mesh": 0
     },
     {
-      "bufferView": 1,
-      "componentType": 5126,
-      "count": 2523,
-      "type": "VEC2"
-    },
-    {
-      "bufferView": 2,
-      "componentType": 5126,
-      "count": 2523,
-      "type": "VEC3"
-    },
-    {
-      "bufferView": 3,
-      "componentType": 5123,
-      "count": 12684,
-      "type": "SCALAR"
-    },
-    {
-      "bufferView": 4,
-      "componentType": 5126,
-      "count": 1364,
-      "max": [
-        0.019931631162762642,
-        0.14425094425678253,
-        0.007378548849374056
+      "name": "ornate_medieval_dagger_scabbard",
+      "translation": [
+        0.059999989345669746,
+        0.16066759452223778,
+        -0.0000012279488146305084
       ],
-      "min": [
-        -0.019931672140955925,
-        -0.07491575926542282,
-        -0.007381004747003317
+      "scale": [
+        0.10958335176110268,
+        0.10958335176110268,
+        0.10958335176110268
       ],
-      "type": "VEC3"
-    },
-    {
-      "bufferView": 5,
-      "componentType": 5126,
-      "count": 1364,
-      "type": "VEC2"
-    },
-    {
-      "bufferView": 6,
-      "componentType": 5126,
-      "count": 1364,
-      "type": "VEC3"
-    },
-    {
-      "bufferView": 7,
-      "componentType": 5123,
-      "count": 6186,
-      "type": "SCALAR"
+      "mesh": 1
     }
   ],
-  "bufferViews": [
+  "scenes": [
     {
-      "buffer": 0,
-      "byteLength": 30276,
-      "byteOffset": 0,
-      "target": 34962
-    },
-    {
-      "buffer": 0,
-      "byteLength": 20184,
-      "byteOffset": 30276,
-      "target": 34962
-    },
-    {
-      "buffer": 0,
-      "byteLength": 30276,
-      "byteOffset": 50460,
-      "target": 34962
-    },
-    {
-      "buffer": 0,
-      "byteLength": 25368,
-      "byteOffset": 80736,
-      "target": 34963
-    },
-    {
-      "buffer": 0,
-      "byteLength": 16368,
-      "byteOffset": 106104,
-      "target": 34962
-    },
-    {
-      "buffer": 0,
-      "byteLength": 10912,
-      "byteOffset": 122472,
-      "target": 34962
-    },
-    {
-      "buffer": 0,
-      "byteLength": 16368,
-      "byteOffset": 133384,
-      "target": 34962
-    },
-    {
-      "buffer": 0,
-      "byteLength": 12372,
-      "byteOffset": 149752,
-      "target": 34963
+      "name": "Scene",
+      "nodes": [
+        0,
+        1
+      ]
     }
   ],
-  "samplers": [
-    {
-      "magFilter": 9729,
-      "minFilter": 9987
-    }
+  "scene": 0,
+  "extensionsUsed": [
+    "EXT_meshopt_compression",
+    "EXT_texture_webp",
+    "KHR_mesh_quantization"
   ],
-  "buffers": [
-    {
-      "byteLength": 162124,
-      "uri": "ornate_medieval_dagger.bin"
-    }
+  "extensionsRequired": [
+    "EXT_meshopt_compression",
+    "EXT_texture_webp",
+    "KHR_mesh_quantization"
   ]
 }

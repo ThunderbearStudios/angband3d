@@ -23,35 +23,47 @@ console.log('   ANGBAND 3D — MASTER LORE ACCURACY & MODEL ASSET AUDIT SUITE   
 console.log('========================================================================\n');
 
 // -----------------------------------------------------------------------------
-// Helper: Read PNG Dimensions from IHDR chunk (Zero external npm dependency)
+// Helper: Read WebP Dimensions (RIFF VP8/VP8L/VP8X, zero external npm dependency)
 // -----------------------------------------------------------------------------
-function getPngDimensions(filePath) {
+function getWebpDimensions(filePath) {
     const buf = fs.readFileSync(filePath);
-    // PNG signature: 89 50 4E 47 0D 0A 1A 0A
-    if (buf.readUInt32BE(0) !== 0x89504E47) {
-        throw new Error(`${filePath} is not a valid PNG file`);
+    if (buf.toString('ascii', 0, 4) !== 'RIFF' || buf.toString('ascii', 8, 12) !== 'WEBP') {
+        throw new Error(`${filePath} is not a valid WebP file`);
     }
-    // IHDR chunk starts at byte 12 (length: 4, chunk type: 4, data starts at 16)
-    const width = buf.readUInt32BE(16);
-    const height = buf.readUInt32BE(20);
-    return { width, height };
+    const chunk = buf.toString('ascii', 12, 16);
+    if (chunk === 'VP8X') {
+        const w = 1 + (buf[24] | (buf[25] << 8) | (buf[26] << 16));
+        const h = 1 + (buf[27] | (buf[28] << 8) | (buf[29] << 16));
+        return { width: w, height: h };
+    }
+    if (chunk === 'VP8L') {
+        const b0 = buf[21], b1 = buf[22], b2 = buf[23], b3 = buf[24];
+        const bits = (b0 | (b1 << 8) | (b2 << 16) | (b3 << 24)) >>> 0;
+        return { width: (bits & 0x3FFF) + 1, height: ((bits >> 14) & 0x3FFF) + 1 };
+    }
+    if (chunk === 'VP8 ') {
+        const width = buf.readUInt16LE(26) & 0x3FFF;
+        const height = buf.readUInt16LE(28) & 0x3FFF;
+        return { width, height };
+    }
+    throw new Error(`Unsupported WebP chunk ${chunk} in ${filePath}`);
 }
 
 // -----------------------------------------------------------------------------
-// Section 1: Audit PNG Atlases (Dimensions, Bit Depth, Size)
+// Section 1: Audit WebP Atlases (Dimensions, Size)
 // -----------------------------------------------------------------------------
-console.log('[Audit 1/6] Verifying 4096x4096 HD Atlas & Normal Map Dimensions...');
+console.log('[Audit 1/6] Verifying 2048x2048 WebP Atlas & Normal Map Dimensions...');
 
 const atlasFiles = [
-    { name: 'monster_atlas.png', path: 'server/public/assets/sprites/monsters/monster_atlas.png', expected: 4096 },
-    { name: 'monster_normal.png', path: 'server/public/assets/sprites/monsters/monster_normal.png', expected: 4096 },
-    { name: 'item_atlas.png', path: 'server/public/assets/sprites/items/item_atlas.png', expected: 4096 },
-    { name: 'item_normal.png', path: 'server/public/assets/sprites/items/item_normal.png', expected: 4096 }
+    { name: 'monster_atlas.webp', path: 'server/public/assets/sprites/monsters/monster_atlas.webp', expected: 2048 },
+    { name: 'monster_normal.webp', path: 'server/public/assets/sprites/monsters/monster_normal.webp', expected: 2048 },
+    { name: 'item_atlas.webp', path: 'server/public/assets/sprites/items/item_atlas.webp', expected: 2048 },
+    { name: 'item_normal.webp', path: 'server/public/assets/sprites/items/item_normal.webp', expected: 2048 }
 ];
 
 for (const af of atlasFiles) {
     assert(fs.existsSync(af.path), `Missing atlas file: ${af.path}`);
-    const dim = getPngDimensions(af.path);
+    const dim = getWebpDimensions(af.path);
     const stat = fs.statSync(af.path);
     const sizeMb = (stat.size / (1024 * 1024)).toFixed(2);
     console.log(`  ✓ ${af.name}: ${dim.width}x${dim.height} HD (${sizeMb} MB)`);

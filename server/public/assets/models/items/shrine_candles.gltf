@@ -1,136 +1,223 @@
 {
-    "asset" : {
-        "generator" : "Khronos glTF Blender I/O v3.4.50",
-        "version" : "2.0"
+  "asset": {
+    "generator": "glTF-Transform v4.5.1",
+    "version": "2.0"
+  },
+  "accessors": [
+    {
+      "type": "SCALAR",
+      "componentType": 5123,
+      "count": 1080,
+      "normalized": false,
+      "byteOffset": 0,
+      "bufferView": 0
     },
-    "scene" : 0,
-    "scenes" : [
-        {
-            "name" : "Scene",
-            "nodes" : [
-                0
-            ]
+    {
+      "type": "VEC3",
+      "componentType": 5120,
+      "count": 544,
+      "normalized": true,
+      "byteOffset": 0,
+      "bufferView": 1
+    },
+    {
+      "type": "VEC3",
+      "componentType": 5122,
+      "count": 544,
+      "max": [
+        20126,
+        32767,
+        20126
+      ],
+      "min": [
+        -20126,
+        -32767,
+        -20126
+      ],
+      "normalized": true,
+      "byteOffset": 0,
+      "bufferView": 2
+    },
+    {
+      "type": "VEC2",
+      "componentType": 5123,
+      "count": 544,
+      "normalized": true,
+      "byteOffset": 0,
+      "bufferView": 3
+    }
+  ],
+  "bufferViews": [
+    {
+      "buffer": 1,
+      "byteOffset": 0,
+      "byteLength": 2160,
+      "target": 34963,
+      "extensions": {
+        "EXT_meshopt_compression": {
+          "buffer": 0,
+          "byteOffset": 0,
+          "byteLength": 414,
+          "mode": "TRIANGLES",
+          "byteStride": 2,
+          "count": 1080
         }
-    ],
-    "nodes" : [
-        {
-            "mesh" : 0,
-            "name" : "shrine_candles"
+      }
+    },
+    {
+      "buffer": 1,
+      "byteOffset": 2160,
+      "byteLength": 2176,
+      "target": 34962,
+      "byteStride": 4,
+      "extensions": {
+        "EXT_meshopt_compression": {
+          "buffer": 0,
+          "byteOffset": 416,
+          "byteLength": 901,
+          "mode": "ATTRIBUTES",
+          "filter": "OCTAHEDRAL",
+          "byteStride": 4,
+          "count": 544
         }
-    ],
-    "materials" : [
-        {
-            "name" : "HalloweenBits",
-            "pbrMetallicRoughness" : {
-                "baseColorTexture" : {
-                    "index" : 0
-                },
-                "metallicFactor" : 0,
-                "roughnessFactor" : 0.6000000238418579
-            }
+      }
+    },
+    {
+      "buffer": 1,
+      "byteOffset": 4336,
+      "byteLength": 4352,
+      "target": 34962,
+      "byteStride": 8,
+      "extensions": {
+        "EXT_meshopt_compression": {
+          "buffer": 0,
+          "byteOffset": 1320,
+          "byteLength": 2784,
+          "mode": "ATTRIBUTES",
+          "byteStride": 8,
+          "count": 544
         }
-    ],
-    "meshes" : [
-        {
-            "name" : "Cube.620",
-            "primitives" : [
-                {
-                    "attributes" : {
-                        "POSITION" : 0,
-                        "TEXCOORD_0" : 1,
-                        "NORMAL" : 2
-                    },
-                    "indices" : 3,
-                    "material" : 0
-                }
-            ]
+      }
+    },
+    {
+      "buffer": 1,
+      "byteOffset": 8688,
+      "byteLength": 2176,
+      "target": 34962,
+      "byteStride": 4,
+      "extensions": {
+        "EXT_meshopt_compression": {
+          "buffer": 0,
+          "byteOffset": 4104,
+          "byteLength": 1669,
+          "mode": "ATTRIBUTES",
+          "byteStride": 4,
+          "count": 544
         }
-    ],
-    "textures" : [
-        {
-            "sampler" : 0,
-            "source" : 0
+      }
+    }
+  ],
+  "samplers": [
+    {
+      "magFilter": 9729,
+      "minFilter": 9987,
+      "wrapS": 10497,
+      "wrapT": 10497
+    }
+  ],
+  "textures": [
+    {
+      "sampler": 0,
+      "extensions": {
+        "EXT_texture_webp": {
+          "source": 0
         }
-    ],
-    "images" : [
-        {
-            "mimeType" : "image/png",
-            "name" : "halloweenbits_texture",
-            "uri" : "halloweenbits_texture.png"
+      }
+    }
+  ],
+  "images": [
+    {
+      "name": "halloweenbits_texture",
+      "mimeType": "image/webp",
+      "uri": "halloweenbits_texture.webp"
+    }
+  ],
+  "buffers": [
+    {
+      "uri": "shrine_candles.bin",
+      "byteLength": 5776
+    },
+    {
+      "byteLength": 10864,
+      "extensions": {
+        "EXT_meshopt_compression": {
+          "fallback": true
         }
-    ],
-    "accessors" : [
-        {
-            "bufferView" : 0,
-            "componentType" : 5126,
-            "count" : 544,
-            "max" : [
-                0.5495466589927673,
-                1.7893307209014893,
-                0.5495467185974121
-            ],
-            "min" : [
-                -0.5495467185974121,
-                0,
-                -0.5495467185974121
-            ],
-            "type" : "VEC3"
-        },
-        {
-            "bufferView" : 1,
-            "componentType" : 5126,
-            "count" : 544,
-            "type" : "VEC2"
-        },
-        {
-            "bufferView" : 2,
-            "componentType" : 5126,
-            "count" : 544,
-            "type" : "VEC3"
-        },
-        {
-            "bufferView" : 3,
-            "componentType" : 5123,
-            "count" : 1080,
-            "type" : "SCALAR"
+      }
+    }
+  ],
+  "materials": [
+    {
+      "name": "HalloweenBits",
+      "pbrMetallicRoughness": {
+        "roughnessFactor": 0.6000000238418579,
+        "metallicFactor": 0,
+        "baseColorTexture": {
+          "index": 0
         }
-    ],
-    "bufferViews" : [
+      }
+    }
+  ],
+  "meshes": [
+    {
+      "name": "Cube.620",
+      "primitives": [
         {
-            "buffer" : 0,
-            "byteLength" : 6528,
-            "byteOffset" : 0,
-            "target" : 34962
-        },
-        {
-            "buffer" : 0,
-            "byteLength" : 4352,
-            "byteOffset" : 6528,
-            "target" : 34962
-        },
-        {
-            "buffer" : 0,
-            "byteLength" : 6528,
-            "byteOffset" : 10880,
-            "target" : 34962
-        },
-        {
-            "buffer" : 0,
-            "byteLength" : 2160,
-            "byteOffset" : 17408,
-            "target" : 34963
+          "attributes": {
+            "NORMAL": 1,
+            "POSITION": 2,
+            "TEXCOORD_0": 3
+          },
+          "mode": 4,
+          "material": 0,
+          "indices": 0
         }
-    ],
-    "samplers" : [
-        {
-            "magFilter" : 9729,
-            "minFilter" : 9987
-        }
-    ],
-    "buffers" : [
-        {
-            "byteLength" : 19568,
-            "uri" : "shrine_candles.bin"
-        }
-    ]
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "name": "shrine_candles",
+      "translation": [
+        -2.9802322387695312e-8,
+        0.8946653604507446,
+        0
+      ],
+      "scale": [
+        0.8946653604507446,
+        0.8946653604507446,
+        0.8946653604507446
+      ],
+      "mesh": 0
+    }
+  ],
+  "scenes": [
+    {
+      "name": "Scene",
+      "nodes": [
+        0
+      ]
+    }
+  ],
+  "scene": 0,
+  "extensionsUsed": [
+    "EXT_meshopt_compression",
+    "EXT_texture_webp",
+    "KHR_mesh_quantization"
+  ],
+  "extensionsRequired": [
+    "EXT_meshopt_compression",
+    "EXT_texture_webp",
+    "KHR_mesh_quantization"
+  ]
 }

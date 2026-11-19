@@ -203,7 +203,7 @@ check(chronicleSrc.includes('window.MASTER_BESTIARY.resolveInspectionTaxonomy'),
 
 // 9. Verify v11.9.9 Cross-Realm 3D Wand Integrity, Left-Hand Equipment Guard & Morphological Ordering
 const wandBuf = fs.readFileSync(path.join(PUBLIC_DIR, 'assets', 'models', 'items', 'wand.glb'));
-check(wandBuf.length > 130000 && wandBuf.length < 200000, `wand.glb must be the canonical 137KB Summoner's Wand mesh (not 1.73MB crystals.glb), got ${wandBuf.length}`);
+check(wandBuf.length > 10000 && wandBuf.length < 200000, `wand.glb must be the canonical Summoner's Wand mesh (Meshopt ~29KB, not 1.73MB crystals.glb), got ${wandBuf.length}`);
 check(MASTER_ITEM_REGISTRY.resolveEquippedWeaponKey('an uncursed +0 leather jacket (being worn)', '', {}, 'nethack') === '', 'Body armor must never resolve to a fallback sword viewmodel');
 check(MASTER_ITEM_REGISTRY.resolveShieldKey('an uncursed +0 leather jacket (being worn)', '[', 'nethack') === '', 'Body armor must never resolve to a shield key');
 check(MASTER_ITEM_REGISTRY.getItemObjKey('gold dragon scales', '[', 'dcss') === 'item_plate_armor', 'Plural dragon scales must resolve to item_plate_armor, not item_coins');

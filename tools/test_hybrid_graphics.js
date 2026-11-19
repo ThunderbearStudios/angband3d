@@ -86,16 +86,16 @@ console.log('✓ Invariant 2: Anatomical scale and canonical lore accuracy verif
 // -----------------------------------------------------------------------------
 // Test 3: Asset existence and sizing
 // -----------------------------------------------------------------------------
-const atlasPngPath = 'server/public/assets/sprites/monsters/monster_atlas.png';
-const normalPngPath = 'server/public/assets/sprites/monsters/monster_normal.png';
-assert(fs.existsSync(atlasPngPath), 'monster_atlas.png must exist');
-assert(fs.existsSync(normalPngPath), 'monster_normal.png must exist');
+const atlasPngPath = 'server/public/assets/sprites/monsters/monster_atlas.webp';
+const normalPngPath = 'server/public/assets/sprites/monsters/monster_normal.webp';
+assert(fs.existsSync(atlasPngPath), 'monster_atlas.webp must exist');
+assert(fs.existsSync(normalPngPath), 'monster_normal.webp must exist');
 
 const atlasStat = fs.statSync(atlasPngPath);
 const normalStat = fs.statSync(normalPngPath);
-assert(atlasStat.size > 1000000, `monster_atlas.png should be substantial (>1MB), got ${atlasStat.size}`);
-assert(normalStat.size > 1000000, `monster_normal.png should be substantial (>1MB), got ${normalStat.size}`);
-console.log(`✓ Invariant 3: High-Resolution 4096x4096 HD atlas (${(atlasStat.size / 1024 / 1024).toFixed(2)} MB) and bilateral normal map (${(normalStat.size / 1024 / 1024).toFixed(2)} MB) are built and ready`);
+assert(atlasStat.size > 200000, `monster_atlas.webp should be substantial (>200KB), got ${atlasStat.size}`);
+assert(normalStat.size > 200000, `monster_normal.webp should be substantial (>200KB), got ${normalStat.size}`);
+console.log(`✓ Invariant 3: High-Resolution 2048x2048 WebP atlas (${(atlasStat.size / 1024 / 1024).toFixed(2)} MB) and bilateral normal map (${(normalStat.size / 1024 / 1024).toFixed(2)} MB) are built and ready`);
 
 // -----------------------------------------------------------------------------
 // Test 4: Progressive 4-level depth chapters in dungeon3d.js
@@ -167,15 +167,15 @@ for (const [name, entry] of Object.entries(itemAtlasData.items)) {
     assert(typeof entry.isFlat === 'boolean', `isFlat must be boolean for "${name}"`);
 }
 
-const itemAtlasPngPath = 'server/public/assets/sprites/items/item_atlas.png';
-const itemNormalPngPath = 'server/public/assets/sprites/items/item_normal.png';
-assert(fs.existsSync(itemAtlasPngPath), 'item_atlas.png must exist');
-assert(fs.existsSync(itemNormalPngPath), 'item_normal.png must exist');
+const itemAtlasPngPath = 'server/public/assets/sprites/items/item_atlas.webp';
+const itemNormalPngPath = 'server/public/assets/sprites/items/item_normal.webp';
+assert(fs.existsSync(itemAtlasPngPath), 'item_atlas.webp must exist');
+assert(fs.existsSync(itemNormalPngPath), 'item_normal.webp must exist');
 
 const itemAtlasStat = fs.statSync(itemAtlasPngPath);
 const itemNormalStat = fs.statSync(itemNormalPngPath);
-assert(itemAtlasStat.size > 1000000, `item_atlas.png should be >1MB, got ${itemAtlasStat.size}`);
-assert(itemNormalStat.size > 1000000, `item_normal.png should be >1MB, got ${itemNormalStat.size}`);
+assert(itemAtlasStat.size > 100000, `item_atlas.webp should be >100KB, got ${itemAtlasStat.size}`);
+assert(itemNormalStat.size > 100000, `item_normal.webp should be >100KB, got ${itemNormalStat.size}`);
 console.log(`✓ Invariant 7: Canonical item atlas (${(itemAtlasStat.size / 1024 / 1024).toFixed(2)} MB), normal map (${(itemNormalStat.size / 1024 / 1024).toFixed(2)} MB), and JSON definitions strictly valid`);
 
 // -----------------------------------------------------------------------------

@@ -1,37 +1,201 @@
 {
   "asset": {
-    "generator": "Khronos glTF Blender I/O v4.4.55",
+    "generator": "glTF-Transform v4.5.1",
     "version": "2.0"
   },
-  "scene": 0,
-  "scenes": [
+  "accessors": [
     {
-      "name": "Scene",
-      "nodes": [
-        0
-      ]
+      "type": "SCALAR",
+      "componentType": 5123,
+      "count": 15576,
+      "normalized": false,
+      "byteOffset": 0,
+      "bufferView": 0
+    },
+    {
+      "type": "VEC3",
+      "componentType": 5120,
+      "count": 3650,
+      "normalized": true,
+      "byteOffset": 0,
+      "bufferView": 1
+    },
+    {
+      "type": "VEC3",
+      "componentType": 5122,
+      "count": 3650,
+      "max": [
+        6640,
+        32767,
+        1604
+      ],
+      "min": [
+        -6640,
+        -32767,
+        -1604
+      ],
+      "normalized": true,
+      "byteOffset": 0,
+      "bufferView": 2
+    },
+    {
+      "type": "VEC2",
+      "componentType": 5123,
+      "count": 3650,
+      "normalized": true,
+      "byteOffset": 0,
+      "bufferView": 3
     }
   ],
-  "nodes": [
+  "bufferViews": [
     {
-      "mesh": 0,
-      "name": "ornate_war_hammer"
+      "buffer": 1,
+      "byteOffset": 0,
+      "byteLength": 31152,
+      "target": 34963,
+      "extensions": {
+        "EXT_meshopt_compression": {
+          "buffer": 0,
+          "byteOffset": 0,
+          "byteLength": 5826,
+          "mode": "TRIANGLES",
+          "byteStride": 2,
+          "count": 15576
+        }
+      }
+    },
+    {
+      "buffer": 1,
+      "byteOffset": 31152,
+      "byteLength": 14600,
+      "target": 34962,
+      "byteStride": 4,
+      "extensions": {
+        "EXT_meshopt_compression": {
+          "buffer": 0,
+          "byteOffset": 5828,
+          "byteLength": 6807,
+          "mode": "ATTRIBUTES",
+          "filter": "OCTAHEDRAL",
+          "byteStride": 4,
+          "count": 3650
+        }
+      }
+    },
+    {
+      "buffer": 1,
+      "byteOffset": 45752,
+      "byteLength": 29200,
+      "target": 34962,
+      "byteStride": 8,
+      "extensions": {
+        "EXT_meshopt_compression": {
+          "buffer": 0,
+          "byteOffset": 12636,
+          "byteLength": 15263,
+          "mode": "ATTRIBUTES",
+          "byteStride": 8,
+          "count": 3650
+        }
+      }
+    },
+    {
+      "buffer": 1,
+      "byteOffset": 74952,
+      "byteLength": 14600,
+      "target": 34962,
+      "byteStride": 4,
+      "extensions": {
+        "EXT_meshopt_compression": {
+          "buffer": 0,
+          "byteOffset": 27900,
+          "byteLength": 11486,
+          "mode": "ATTRIBUTES",
+          "byteStride": 4,
+          "count": 3650
+        }
+      }
+    }
+  ],
+  "samplers": [
+    {
+      "magFilter": 9729,
+      "minFilter": 9987,
+      "wrapS": 10497,
+      "wrapT": 10497
+    }
+  ],
+  "textures": [
+    {
+      "sampler": 0,
+      "extensions": {
+        "EXT_texture_webp": {
+          "source": 1
+        }
+      }
+    },
+    {
+      "sampler": 0,
+      "extensions": {
+        "EXT_texture_webp": {
+          "source": 0
+        }
+      }
+    },
+    {
+      "sampler": 0,
+      "extensions": {
+        "EXT_texture_webp": {
+          "source": 2
+        }
+      }
+    }
+  ],
+  "images": [
+    {
+      "name": "ornate_war_hammer_nor_gl",
+      "mimeType": "image/webp",
+      "uri": "textures/ornate_war_hammer_nor_gl_1k.webp"
+    },
+    {
+      "name": "ornate_war_hammer_diff",
+      "mimeType": "image/webp",
+      "uri": "textures/ornate_war_hammer_diff_1k.webp"
+    },
+    {
+      "name": "ornate_war_hammer_metal-ornate_war_hammer_rough",
+      "mimeType": "image/webp",
+      "uri": "textures/ornate_war_hammer_arm_1k.webp"
+    }
+  ],
+  "buffers": [
+    {
+      "uri": "ornate_war_hammer.bin",
+      "byteLength": 39388
+    },
+    {
+      "byteLength": 89552,
+      "extensions": {
+        "EXT_meshopt_compression": {
+          "fallback": true
+        }
+      }
     }
   ],
   "materials": [
     {
-      "doubleSided": true,
       "name": "ornate_war_hammer",
-      "normalTexture": {
-        "index": 0
-      },
+      "doubleSided": true,
       "pbrMetallicRoughness": {
         "baseColorTexture": {
-          "index": 1
+          "index": 0
         },
         "metallicRoughnessTexture": {
           "index": 2
         }
+      },
+      "normalTexture": {
+        "index": 1
       }
     }
   ],
@@ -41,119 +205,50 @@
       "primitives": [
         {
           "attributes": {
-            "POSITION": 0,
             "NORMAL": 1,
-            "TEXCOORD_0": 2
+            "POSITION": 2,
+            "TEXCOORD_0": 3
           },
-          "indices": 3,
-          "material": 0
+          "mode": 4,
+          "material": 0,
+          "indices": 0
         }
       ]
     }
   ],
-  "textures": [
+  "nodes": [
     {
-      "sampler": 0,
-      "source": 0
-    },
-    {
-      "sampler": 0,
-      "source": 1
-    },
-    {
-      "sampler": 0,
-      "source": 2
-    }
-  ],
-  "images": [
-    {
-      "mimeType": "image/jpeg",
-      "name": "ornate_war_hammer_nor_gl",
-      "uri": "textures/ornate_war_hammer_nor_gl_1k.jpg"
-    },
-    {
-      "mimeType": "image/jpeg",
-      "name": "ornate_war_hammer_diff",
-      "uri": "textures/ornate_war_hammer_diff_1k.jpg"
-    },
-    {
-      "mimeType": "image/jpeg",
-      "name": "ornate_war_hammer_metal-ornate_war_hammer_rough",
-      "uri": "textures/ornate_war_hammer_arm_1k.jpg"
-    }
-  ],
-  "accessors": [
-    {
-      "bufferView": 0,
-      "componentType": 5126,
-      "count": 3650,
-      "max": [
-        0.0773499459028244,
-        0.5610549449920654,
-        0.017406301572918892
+      "name": "ornate_war_hammer",
+      "translation": [
+        0.00528707355260849,
+        0.20546608418226242,
+        0
       ],
-      "min": [
-        -0.06677579879760742,
-        -0.1501227766275406,
-        -0.017406301572918892
+      "scale": [
+        0.355588860809803,
+        0.355588860809803,
+        0.355588860809803
       ],
-      "type": "VEC3"
-    },
-    {
-      "bufferView": 1,
-      "componentType": 5126,
-      "count": 3650,
-      "type": "VEC3"
-    },
-    {
-      "bufferView": 2,
-      "componentType": 5126,
-      "count": 3650,
-      "type": "VEC2"
-    },
-    {
-      "bufferView": 3,
-      "componentType": 5123,
-      "count": 15576,
-      "type": "SCALAR"
+      "mesh": 0
     }
   ],
-  "bufferViews": [
+  "scenes": [
     {
-      "buffer": 0,
-      "byteLength": 43800,
-      "byteOffset": 0,
-      "target": 34962
-    },
-    {
-      "buffer": 0,
-      "byteLength": 43800,
-      "byteOffset": 43800,
-      "target": 34962
-    },
-    {
-      "buffer": 0,
-      "byteLength": 29200,
-      "byteOffset": 87600,
-      "target": 34962
-    },
-    {
-      "buffer": 0,
-      "byteLength": 31152,
-      "byteOffset": 116800,
-      "target": 34963
+      "name": "Scene",
+      "nodes": [
+        0
+      ]
     }
   ],
-  "samplers": [
-    {
-      "magFilter": 9729,
-      "minFilter": 9987
-    }
+  "scene": 0,
+  "extensionsUsed": [
+    "EXT_meshopt_compression",
+    "EXT_texture_webp",
+    "KHR_mesh_quantization"
   ],
-  "buffers": [
-    {
-      "byteLength": 147952,
-      "uri": "ornate_war_hammer.bin"
-    }
+  "extensionsRequired": [
+    "EXT_meshopt_compression",
+    "EXT_texture_webp",
+    "KHR_mesh_quantization"
   ]
 }

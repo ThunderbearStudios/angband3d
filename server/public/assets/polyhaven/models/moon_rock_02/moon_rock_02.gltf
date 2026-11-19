@@ -1,38 +1,202 @@
 {
   "asset": {
-    "generator": "Khronos glTF Blender I/O v4.4.55",
+    "generator": "glTF-Transform v4.5.1",
     "version": "2.0"
   },
-  "scene": 0,
-  "scenes": [
+  "accessors": [
     {
-      "name": "Scene",
-      "nodes": [
-        0
-      ]
+      "type": "SCALAR",
+      "componentType": 5123,
+      "count": 9912,
+      "normalized": false,
+      "byteOffset": 0,
+      "bufferView": 0
+    },
+    {
+      "type": "VEC3",
+      "componentType": 5120,
+      "count": 1847,
+      "normalized": true,
+      "byteOffset": 0,
+      "bufferView": 1
+    },
+    {
+      "type": "VEC3",
+      "componentType": 5122,
+      "count": 1847,
+      "max": [
+        32143,
+        26331,
+        32767
+      ],
+      "min": [
+        -32143,
+        -26331,
+        -32767
+      ],
+      "normalized": true,
+      "byteOffset": 0,
+      "bufferView": 2
+    },
+    {
+      "type": "VEC2",
+      "componentType": 5123,
+      "count": 1847,
+      "normalized": true,
+      "byteOffset": 0,
+      "bufferView": 3
     }
   ],
-  "nodes": [
+  "bufferViews": [
     {
-      "mesh": 0,
-      "name": "moon_rock_02_LOD0"
+      "buffer": 1,
+      "byteOffset": 0,
+      "byteLength": 19824,
+      "target": 34963,
+      "extensions": {
+        "EXT_meshopt_compression": {
+          "buffer": 0,
+          "byteOffset": 0,
+          "byteLength": 3827,
+          "mode": "TRIANGLES",
+          "byteStride": 2,
+          "count": 9912
+        }
+      }
+    },
+    {
+      "buffer": 1,
+      "byteOffset": 19824,
+      "byteLength": 7388,
+      "target": 34962,
+      "byteStride": 4,
+      "extensions": {
+        "EXT_meshopt_compression": {
+          "buffer": 0,
+          "byteOffset": 3828,
+          "byteLength": 3600,
+          "mode": "ATTRIBUTES",
+          "filter": "OCTAHEDRAL",
+          "byteStride": 4,
+          "count": 1847
+        }
+      }
+    },
+    {
+      "buffer": 1,
+      "byteOffset": 27212,
+      "byteLength": 14776,
+      "target": 34962,
+      "byteStride": 8,
+      "extensions": {
+        "EXT_meshopt_compression": {
+          "buffer": 0,
+          "byteOffset": 7428,
+          "byteLength": 10273,
+          "mode": "ATTRIBUTES",
+          "byteStride": 8,
+          "count": 1847
+        }
+      }
+    },
+    {
+      "buffer": 1,
+      "byteOffset": 41988,
+      "byteLength": 7388,
+      "target": 34962,
+      "byteStride": 4,
+      "extensions": {
+        "EXT_meshopt_compression": {
+          "buffer": 0,
+          "byteOffset": 17704,
+          "byteLength": 5942,
+          "mode": "ATTRIBUTES",
+          "byteStride": 4,
+          "count": 1847
+        }
+      }
+    }
+  ],
+  "samplers": [
+    {
+      "magFilter": 9729,
+      "minFilter": 9987,
+      "wrapS": 10497,
+      "wrapT": 10497
+    }
+  ],
+  "textures": [
+    {
+      "sampler": 0,
+      "extensions": {
+        "EXT_texture_webp": {
+          "source": 1
+        }
+      }
+    },
+    {
+      "sampler": 0,
+      "extensions": {
+        "EXT_texture_webp": {
+          "source": 0
+        }
+      }
+    },
+    {
+      "sampler": 0,
+      "extensions": {
+        "EXT_texture_webp": {
+          "source": 2
+        }
+      }
+    }
+  ],
+  "images": [
+    {
+      "name": "moon_rock_02_nor_gl",
+      "mimeType": "image/webp",
+      "uri": "textures/moon_rock_02_nor_gl_1k.webp"
+    },
+    {
+      "name": "moon_rock_02_diff",
+      "mimeType": "image/webp",
+      "uri": "textures/moon_rock_02_diff_1k.webp"
+    },
+    {
+      "name": "moon_rock_02_rough",
+      "mimeType": "image/webp",
+      "uri": "textures/moon_rock_02_arm_1k.webp"
+    }
+  ],
+  "buffers": [
+    {
+      "uri": "moon_rock_02.bin",
+      "byteLength": 23648
+    },
+    {
+      "byteLength": 49376,
+      "extensions": {
+        "EXT_meshopt_compression": {
+          "fallback": true
+        }
+      }
     }
   ],
   "materials": [
     {
-      "doubleSided": true,
       "name": "moon_rock_02",
-      "normalTexture": {
-        "index": 0
-      },
+      "doubleSided": true,
       "pbrMetallicRoughness": {
-        "baseColorTexture": {
-          "index": 1
-        },
         "metallicFactor": 0,
+        "baseColorTexture": {
+          "index": 0
+        },
         "metallicRoughnessTexture": {
           "index": 2
         }
+      },
+      "normalTexture": {
+        "index": 1
       }
     }
   ],
@@ -42,119 +206,50 @@
       "primitives": [
         {
           "attributes": {
-            "POSITION": 0,
             "NORMAL": 1,
-            "TEXCOORD_0": 2
+            "POSITION": 2,
+            "TEXCOORD_0": 3
           },
-          "indices": 3,
-          "material": 0
+          "mode": 4,
+          "material": 0,
+          "indices": 0
         }
       ]
     }
   ],
-  "textures": [
+  "nodes": [
     {
-      "sampler": 0,
-      "source": 0
-    },
-    {
-      "sampler": 0,
-      "source": 1
-    },
-    {
-      "sampler": 0,
-      "source": 2
-    }
-  ],
-  "images": [
-    {
-      "mimeType": "image/jpeg",
-      "name": "moon_rock_02_nor_gl",
-      "uri": "textures/moon_rock_02_nor_gl_1k.jpg"
-    },
-    {
-      "mimeType": "image/jpeg",
-      "name": "moon_rock_02_diff",
-      "uri": "textures/moon_rock_02_diff_1k.jpg"
-    },
-    {
-      "mimeType": "image/jpeg",
-      "name": "moon_rock_02_rough",
-      "uri": "textures/moon_rock_02_arm_1k.jpg"
-    }
-  ],
-  "accessors": [
-    {
-      "bufferView": 0,
-      "componentType": 5126,
-      "count": 1847,
-      "max": [
-        0.12181732803583145,
-        0.1958579421043396,
-        0.12623243033885956
+      "name": "moon_rock_02_LOD0",
+      "translation": [
+        -0.0014325492084026337,
+        0.09490133286453784,
+        0.0005875229835510254
       ],
-      "min": [
-        -0.12468242645263672,
-        -0.006055276375263929,
-        -0.1250573843717575
+      "scale": [
+        0.12564490735530853,
+        0.12564490735530853,
+        0.12564490735530853
       ],
-      "type": "VEC3"
-    },
-    {
-      "bufferView": 1,
-      "componentType": 5126,
-      "count": 1847,
-      "type": "VEC3"
-    },
-    {
-      "bufferView": 2,
-      "componentType": 5126,
-      "count": 1847,
-      "type": "VEC2"
-    },
-    {
-      "bufferView": 3,
-      "componentType": 5123,
-      "count": 9912,
-      "type": "SCALAR"
+      "mesh": 0
     }
   ],
-  "bufferViews": [
+  "scenes": [
     {
-      "buffer": 0,
-      "byteLength": 22164,
-      "byteOffset": 0,
-      "target": 34962
-    },
-    {
-      "buffer": 0,
-      "byteLength": 22164,
-      "byteOffset": 22164,
-      "target": 34962
-    },
-    {
-      "buffer": 0,
-      "byteLength": 14776,
-      "byteOffset": 44328,
-      "target": 34962
-    },
-    {
-      "buffer": 0,
-      "byteLength": 19824,
-      "byteOffset": 59104,
-      "target": 34963
+      "name": "Scene",
+      "nodes": [
+        0
+      ]
     }
   ],
-  "samplers": [
-    {
-      "magFilter": 9729,
-      "minFilter": 9987
-    }
+  "scene": 0,
+  "extensionsUsed": [
+    "EXT_meshopt_compression",
+    "EXT_texture_webp",
+    "KHR_mesh_quantization"
   ],
-  "buffers": [
-    {
-      "byteLength": 78928,
-      "uri": "moon_rock_02.bin"
-    }
+  "extensionsRequired": [
+    "EXT_meshopt_compression",
+    "EXT_texture_webp",
+    "KHR_mesh_quantization"
   ]
 }

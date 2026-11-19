@@ -59,6 +59,11 @@ function inspectGlbPngDims(relPath) {
             const slice = buf.slice(binStart + (bv.byteOffset || 0), binStart + (bv.byteOffset || 0) + bv.byteLength);
             if (slice.length >= 24 && slice[0] === 0x89 && slice.toString('ascii', 1, 4) === 'PNG') {
                 pngDims.push({ w: slice.readUInt32BE(16), h: slice.readUInt32BE(20) });
+            } else if (slice.length >= 30 && slice.toString('ascii', 0, 4) === 'RIFF' && slice.toString('ascii', 8, 12) === 'WEBP') {
+                const chunk = slice.toString('ascii', 12, 16);
+                if (chunk === 'VP8X') pngDims.push({ w: 1 + (slice[24] | (slice[25] << 8) | (slice[26] << 16)), h: 1 + (slice[27] | (slice[28] << 8) | (slice[29] << 16)) });
+                else if (chunk === 'VP8L') { const bits = (slice[21] | (slice[22] << 8) | (slice[23] << 16) | (slice[24] << 24)) >>> 0; pngDims.push({ w: (bits & 0x3FFF) + 1, h: ((bits >> 14) & 0x3FFF) + 1 }); }
+                else if (chunk === 'VP8 ') pngDims.push({ w: slice.readUInt16LE(26) & 0x3FFF, h: slice.readUInt16LE(28) & 0x3FFF });
             }
         }
     }

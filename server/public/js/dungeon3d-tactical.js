@@ -644,33 +644,48 @@
             group.name = 'TacticalCursorGroup';
             group.visible = false;
 
-            // Arcane ground ring decal (pulsing gold/amber or emerald)
-            const ringGeo = new THREE.RingGeometry(0.35, 0.48, 32);
+            // Single radial-feathered arcane brass/crimson rune decal quad (-1 draw call vs dual rings)
+            const ringGeo = new THREE.PlaneGeometry(1.16, 1.16);
             ringGeo.rotateX(-Math.PI / 2);
-            const ringMat = new THREE.MeshBasicMaterial({
-                color: 0x10b981,
+            const ringMat = new THREE.ShaderMaterial({
+                uniforms: {
+                    uColor: { value: new THREE.Color(0xd4af37) },
+                    uAccent: { value: new THREE.Color(0x10b981) },
+                    uTime: { value: 0 },
+                    uOpacity: { value: 0.9 }
+                },
+                vertexShader: [
+                    'varying vec2 vUv;',
+                    'void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }'
+                ].join('\n'),
+                fragmentShader: [
+                    'uniform vec3 uColor;',
+                    'uniform vec3 uAccent;',
+                    'uniform float uTime;',
+                    'uniform float uOpacity;',
+                    'varying vec2 vUv;',
+                    'void main() {',
+                    '  vec2 p = (vUv - 0.5) * 2.0;',
+                    '  float r = length(p);',
+                    '  float a = atan(p.y, p.x);',
+                    '  float outerRing = exp(-pow((r - 0.78) * 11.5, 2.0));',
+                    '  float innerRing = exp(-pow((r - 0.44) * 14.0, 2.0)) * 0.72;',
+                    '  float ticks = (0.55 + 0.45 * cos(a * 8.0 + uTime * 2.4)) * outerRing;',
+                    '  float centerDot = exp(-r * r * 36.0) * 0.85;',
+                    '  float alpha = clamp(ticks + innerRing + centerDot, 0.0, 1.0) * smoothstep(1.0, 0.88, r) * uOpacity;',
+                    '  if (alpha < 0.015) discard;',
+                    '  vec3 col = mix(uColor, uAccent, smoothstep(0.58, 0.25, r));',
+                    '  gl_FragColor = vec4(col, alpha);',
+                    '}'
+                ].join('\n'),
                 transparent: true,
-                opacity: 0.85,
                 depthWrite: false,
                 side: THREE.DoubleSide
             });
             const ringMesh = new THREE.Mesh(ringGeo, ringMat);
             ringMesh.position.set(0, 0.038, 0);
             group.add(ringMesh);
-
-            // Inner rune crosshair
-            const crossGeo = new THREE.RingGeometry(0.04, 0.12, 16);
-            crossGeo.rotateX(-Math.PI / 2);
-            const crossMat = new THREE.MeshBasicMaterial({
-                color: 0xffffff,
-                transparent: true,
-                opacity: 0.9,
-                depthWrite: false,
-                side: THREE.DoubleSide
-            });
-            const crossMesh = new THREE.Mesh(crossGeo, crossMat);
-            crossMesh.position.set(0, 0.040, 0);
-            group.add(crossMesh);
+            const crossMesh = null;
 
             // Blast radius ground decal ring
             const blastGeo = new THREE.RingGeometry(0.9, 1.0, 48);
@@ -801,8 +816,8 @@
             }
 
             if (!isCursorActive) {
-                tc.ringMesh.visible = false;
-                tc.crossMesh.visible = false;
+                if (tc.ringMesh) tc.ringMesh.visible = false;
+                if (tc.crossMesh) tc.crossMesh.visible = false;
                 tc.blastMesh.visible = false;
                 tc.rayLine.visible = false;
                 tc.group.visible = showRangeGrid;
@@ -810,8 +825,8 @@
             }
 
             tc.group.visible = true;
-            tc.ringMesh.visible = true;
-            tc.crossMesh.visible = true;
+            if (tc.ringMesh) tc.ringMesh.visible = true;
+            if (tc.crossMesh) tc.crossMesh.visible = true;
 
             const tx = cursor.x !== undefined ? cursor.x : px;
             const ty = cursor.y !== undefined ? cursor.y : py;
@@ -822,13 +837,21 @@
             const wz = ty * cellSize;
             const now = (typeof performance !== 'undefined' && performance.now) ? performance.now() * 0.001 : Date.now() * 0.001;
 
-            // Arcane ground ring position & pulse
-            tc.ringMesh.position.set(wx, 0.038, wz);
-            tc.crossMesh.position.set(wx, 0.040, wz);
-            const pulse = 0.75 + Math.sin(now * 5.0) * 0.20;
-            const targetColorHex = hasLos ? 0x10b981 : 0xf59e0b; // Emerald vs Amber
-            tc.ringMat.color.setHex(targetColorHex);
-            tc.ringMat.opacity = pulse;
+            // Arcane ground rune decal position & uniform pulse
+            if (tc.ringMesh) tc.ringMesh.position.set(wx, 0.038, wz);
+            if (tc.crossMesh) tc.crossMesh.position.set(wx, 0.040, wz);
+            const pulse = 0.78 + Math.sin(now * 5.0) * 0.18;
+            const targetColorHex = hasLos ? 0xd4af37 : 0xef4444; // Brass Gold vs Crimson Warning
+            const accentHex = hasLos ? 0x10b981 : 0xf59e0b;
+            if (tc.ringMat && tc.ringMat.uniforms) {
+                tc.ringMat.uniforms.uColor.value.setHex(targetColorHex);
+                if (tc.ringMat.uniforms.uAccent) tc.ringMat.uniforms.uAccent.value.setHex(accentHex);
+                tc.ringMat.uniforms.uOpacity.value = pulse;
+                tc.ringMat.uniforms.uTime.value = now;
+            } else if (tc.ringMat && tc.ringMat.color) {
+                tc.ringMat.color.setHex(targetColorHex);
+                tc.ringMat.opacity = pulse;
+            }
 
             // Blast radius ground decal
             if (blastRad > 0) {
@@ -2056,28 +2079,28 @@
                     '        vec3 veinAlbedo = yasdRawTexel;',
                     '        float seamMask = 0.0;',
                     '        if (uVeinMode < 0.5) {',
-                    '            veinAlbedo = vec3(rockLum * 0.25, rockLum * 0.23, rockLum * 0.24) * mix(1.0, aoSample, 0.78);',
-                    '            seamMask = clamp(rockCrack * (0.35 + 1.25 * lodeHalo), 0.0, 1.0);',
-                    '            float hotCore = smoothstep(0.55, 0.96, seamMask);',
-                    '            vec3 molten = mix(vec3(0.88, 0.16, 0.01), vec3(1.0, 0.76, 0.16), hotCore);',
-                    '            veinAlbedo = mix(veinAlbedo, molten, smoothstep(0.16, 0.72, seamMask));',
-                    '            roughnessFactor = mix(clamp(baseRough * 1.06, 0.74, 0.97), 0.26, seamMask);',
+                    '            veinAlbedo = vec3(rockLum * 0.19, rockLum * 0.18, rockLum * 0.20) * mix(1.0, aoSample, 0.82);',
+                    '            seamMask = smoothstep(0.40, 0.88, rockCrack * (0.35 + 1.15 * lodeHalo));',
+                    '            float hotCore = smoothstep(0.58, 0.96, seamMask);',
+                    '            vec3 molten = mix(vec3(0.86, 0.20, 0.02), vec3(1.0, 0.80, 0.22), hotCore);',
+                    '            veinAlbedo = mix(veinAlbedo, molten, seamMask * 0.92);',
+                    '            roughnessFactor = mix(clamp(baseRough * 1.08, 0.78, 0.97), 0.24, seamMask);',
                     '        } else if (uVeinMode < 1.5) {',
-                    '            veinAlbedo = mix(vec3(rockLum * 0.92, rockLum * 0.96, rockLum * 1.04), yasdRawTexel * vec3(0.86, 0.92, 1.02), 0.22) * mix(1.0, aoSample, 0.66);',
-                    '            seamMask = clamp(rockCrack * (0.40 + 0.85 * lodeHalo), 0.0, 1.0);',
-                    '            veinAlbedo = mix(veinAlbedo, vec3(0.95, 0.98, 1.0), seamMask * 0.75);',
-                    '            roughnessFactor = mix(clamp(baseRough * 0.66, 0.26, 0.62), 0.10, seamMask);',
+                    '            veinAlbedo = mix(vec3(rockLum * 0.88, rockLum * 0.93, rockLum * 1.02), yasdRawTexel * vec3(0.84, 0.90, 1.00), 0.20) * mix(1.0, aoSample, 0.68);',
+                    '            seamMask = smoothstep(0.36, 0.86, rockCrack * (0.42 + 0.88 * lodeHalo));',
+                    '            veinAlbedo = mix(veinAlbedo, vec3(0.96, 0.99, 1.0), seamMask * 0.82);',
+                    '            roughnessFactor = mix(clamp(baseRough * 0.68, 0.26, 0.62), 0.10, seamMask);',
                     '        } else if (uVeinMode < 2.5) {',
-                    '            veinAlbedo = vec3(rockLum * 0.30, rockLum * 0.31, rockLum * 0.34) * mix(1.0, aoSample, 0.78);',
-                    '            float qRim = clamp(wideCrack * lodeHalo * 1.35, 0.0, 1.0);',
-                    '            veinAlbedo = mix(veinAlbedo, vec3(0.68, 0.69, 0.72) * (0.6 + 0.5 * rockLum), qRim * 0.55);',
-                    '            seamMask = smoothstep(0.18, 0.72, rockCrack * (0.42 + 1.30 * lodeHalo) * (0.55 + 0.65 * microGrain));',
-                    '            vec3 goldAlbedo = mix(vec3(0.46, 0.28, 0.04), vec3(1.0, 0.82, 0.26), clamp(0.35 + 0.65 * microGrain * (0.6 + 0.6 * rockLum), 0.0, 1.0));',
+                    '            veinAlbedo = vec3(rockLum * 0.21, rockLum * 0.21, rockLum * 0.24) * mix(1.0, aoSample, 0.82);',
+                    '            float qRim = smoothstep(0.42, 0.88, wideCrack * lodeHalo * 1.25);',
+                    '            veinAlbedo = mix(veinAlbedo, vec3(0.62, 0.64, 0.68) * (0.55 + 0.45 * rockLum), qRim * 0.45);',
+                    '            seamMask = smoothstep(0.38, 0.86, rockCrack * (0.42 + 1.25 * lodeHalo) * (0.60 + 0.55 * microGrain));',
+                    '            vec3 goldAlbedo = mix(vec3(0.46, 0.28, 0.04), vec3(1.0, 0.84, 0.28), clamp(0.38 + 0.62 * microGrain * (0.6 + 0.6 * rockLum), 0.0, 1.0));',
                     '            veinAlbedo = mix(veinAlbedo, goldAlbedo, seamMask);',
-                    '            roughnessFactor = mix(clamp(baseRough * 1.05, 0.74, 0.96), 0.16 + 0.12 * (1.0 - microGrain), seamMask);',
+                    '            roughnessFactor = mix(clamp(baseRough * 1.06, 0.76, 0.96), 0.15 + 0.10 * (1.0 - microGrain), seamMask);',
                     '        } else {',
-                    '            veinAlbedo = mix(vec3(rockLum * 0.88, rockLum * 0.92, rockLum * 1.02), yasdRawTexel * vec3(0.84, 0.90, 1.02), 0.20) * mix(1.0, aoSample, 0.68);',
-                    '            seamMask = smoothstep(0.18, 0.70, rockCrack * (0.40 + 1.35 * lodeHalo) * (0.52 + 0.68 * microGrain));',
+                    '            veinAlbedo = mix(vec3(rockLum * 0.82, rockLum * 0.86, rockLum * 0.98), yasdRawTexel * vec3(0.80, 0.86, 0.98), 0.18) * mix(1.0, aoSample, 0.72);',
+                    '            seamMask = smoothstep(0.38, 0.85, rockCrack * (0.40 + 1.30 * lodeHalo) * (0.58 + 0.60 * microGrain));',
                     '            float huePick = yasdVnoise(pc * 1.6 + vec2(4.2, 8.7));',
                     '            vec3 gemDark = (huePick < 0.55) ? vec3(0.24, 0.05, 0.45) : ((huePick < 0.80) ? vec3(0.02, 0.34, 0.18) : vec3(0.04, 0.20, 0.52));',
                     '            vec3 gemBright = (huePick < 0.55) ? vec3(0.76, 0.36, 1.0) : ((huePick < 0.80) ? vec3(0.16, 0.92, 0.56) : vec3(0.24, 0.68, 1.0));',
