@@ -3873,15 +3873,16 @@ class Dungeon3D {
 
         const isRangedOrSpell = /\b(lightning|elec|shock|thunder|spark|breathes|fireball|frost|cold|ice bolt|ice storm|blizzard|acid|poison|venom|missile|mana bolt|mana storm|mana burst|chaos|nether|you cast|you zap|you aim|mumbles|invokes|you shoot|you fire|shoots|fires|arrow|bolt|you throw|you hurl|flask)\b/.test(lower);
         const ep = this._resolveCombatEndpoints(lower, isPlayerSource, isRangedOrSpell);
+        const sPan = ep.spatialAudio || ep.pan;
         const mGlyph = (ep.monsterEntity && ep.monsterEntity.monsterData && ep.monsterEntity.monsterData.char) || (ep.monsterEntity && ep.monsterEntity.glyph) || 'm';
 
         // 1. Lightning Spells & Attacks
         if (/\b(lightning|elec|shock|thunder|spark)\b/.test(lower)) {
             this.spawnProjectileOrSpellVfx('lightning', ep.startPos, ep.endPos, 0x66f0ff);
             if (this.audio && typeof this.audio.playLightningCrack === 'function') {
-                this.audio.playLightningCrack(ep.pan);
+                this.audio.playLightningCrack(sPan);
             } else if (this.audio && typeof this.audio.playSpell === 'function') {
-                this.audio.playSpell('lightning');
+                this.audio.playSpell('lightning', sPan);
             }
             if (isPlayerSource) {
                 this.triggerCastAnimation();
@@ -3901,7 +3902,7 @@ class Dungeon3D {
                 if (this.audio && typeof this.audio.playHeal === 'function') {
                     this.audio.playHeal();
                 } else if (this.audio && typeof this.audio.playRunicAura === 'function') {
-                    this.audio.playRunicAura('heal', ep.pan);
+                    this.audio.playRunicAura('heal', isPlayerSource ? 0 : sPan);
                 }
                 if (isPlayerSource) {
                     this.triggerCastAnimation();
@@ -3946,9 +3947,9 @@ class Dungeon3D {
             }
             this.spawnProjectileOrSpellVfx(isBreath ? 'breath' : vfxKind, ep.startPos, ep.endPos, elemColor, { element: vfxElem });
             if ((isBreath || elemType === 'fire') && this.audio && typeof this.audio.playFireballDetonation === 'function') {
-                this.audio.playFireballDetonation(isBreath, ep.pan);
+                this.audio.playFireballDetonation(isBreath, sPan);
             } else if (this.audio && typeof this.audio.playSpell === 'function') {
-                this.audio.playSpell(elemType, ep.pan);
+                this.audio.playSpell(elemType, sPan);
             }
             if (isPlayerSource) {
                 this.triggerCastAnimation();
@@ -3965,9 +3966,9 @@ class Dungeon3D {
             ((lower.includes('arrow') || lower.includes('bolt')) && (lower.includes('shoot') || lower.includes('fire')))) {
             this.spawnProjectileOrSpellVfx('arrow', ep.startPos, ep.endPos, 0xdbeafe);
             if (this.audio && typeof this.audio.playArrowLooseAndImpact === 'function') {
-                this.audio.playArrowLooseAndImpact('loose', ep.pan);
+                this.audio.playArrowLooseAndImpact('loose', sPan);
             } else if (this.audio && typeof this.audio.playBowShoot === 'function') {
-                this.audio.playBowShoot();
+                this.audio.playBowShoot(sPan);
             }
             if (isPlayerSource) {
                 this.triggerAttackAnimation(true);
@@ -3981,7 +3982,7 @@ class Dungeon3D {
             const potCol = lower.includes('oil') ? 0xcc6611 : 0x55ffaa;
             this.spawnProjectileOrSpellVfx('potion', ep.startPos, ep.endPos, potCol);
             if (this.audio && typeof this.audio.playPotionThrowAndShatter === 'function') {
-                this.audio.playPotionThrowAndShatter('shatter', ep.pan);
+                this.audio.playPotionThrowAndShatter('shatter', sPan);
             } else if (this.audio && typeof this.audio.playWhoosh === 'function') {
                 this.audio.playWhoosh();
             }
@@ -4066,9 +4067,9 @@ class Dungeon3D {
         if (/\b(you tunnel|you dig|finished tunneling)\b/.test(lower) || /掘った|掘り終えた/.test(msgText)) {
             this.spawnHitSparks(ep.endPos, 0xa89f91, 14);
             if (this.audio && typeof this.audio.playDiggingStrike === 'function') {
-                this.audio.playDiggingStrike(ep.pan);
+                this.audio.playDiggingStrike(sPan);
             } else if (this.audio && typeof this.audio.playHit === 'function') {
-                this.audio.playHit(false);
+                this.audio.playHit(false, sPan);
             }
             this.triggerActionAnimation('dig', 0.24);
             this.spawnFloatingText('DIG', ep.endPos, '#c2b29d', 1.0);
@@ -4084,9 +4085,9 @@ class Dungeon3D {
             this.spawnProjectileOrSpellVfx(critKind, ep.startPos, ep.endPos, 0xffd700);
             this.triggerMonsterHitReaction(ep.monsterEntity);
             if (this.audio && typeof this.audio.playWeaponImpact === 'function') {
-                this.audio.playWeaponImpact(style.weaponCat === 'whip' || style.weaponCat === 'axe' ? 'blade' : style.weaponCat, true, ep.pan);
+                this.audio.playWeaponImpact(style.weaponCat === 'whip' || style.weaponCat === 'axe' ? 'blade' : style.weaponCat, true, sPan);
             } else if (this.audio && typeof this.audio.playCrit === 'function') {
-                this.audio.playCrit();
+                this.audio.playCrit(sPan);
             }
             this._hitstopTime = 0.045;
             this.triggerAttackAnimation(true);
@@ -4100,9 +4101,9 @@ class Dungeon3D {
             this.triggerMonsterHitReaction(ep.monsterEntity);
             if (this.audio && typeof this.audio.playWeaponImpact === 'function') {
                 const audioCat = (style.weaponCat === 'whip' || style.weaponCat === 'axe') ? 'blade' : style.weaponCat;
-                this.audio.playWeaponImpact(audioCat, false, ep.pan);
+                this.audio.playWeaponImpact(audioCat, false, sPan);
             } else if (this.audio && typeof this.audio.playHit === 'function') {
-                this.audio.playHit(false);
+                this.audio.playHit(false, sPan);
             }
             this.triggerAttackAnimation(true);
             if (!ep.monsterEntity || ep.monsterEntity._lastDamageFrame !== this._frameCounter) {
@@ -4152,7 +4153,7 @@ class Dungeon3D {
             this.spawnHitSparks(ep.endPos, '#ff44aa', 24);
             this.triggerMonsterHitReaction(ep.monsterEntity, true);
             if (this.audio && typeof this.audio.playMonsterDeath === 'function') {
-                this.audio.playMonsterDeath(mGlyph, ep.pan);
+                this.audio.playMonsterDeath(mGlyph, sPan);
             }
             return true;
         }
@@ -11022,7 +11023,16 @@ class Dungeon3D {
                 const isLivingPet = Boolean(md && (md.isPet || md.is_pet) && (md.hp === undefined || md.hp > 0));
                 if (entity.visible && this.audio && !isLivingPet && (entity.wasAttacked || entity._hitFlinchTimer > 0)) {
                     const pan = this.calculateStereoPan(entity.position.x, entity.position.z);
-                    this.audio.playMonsterDeath(entity.glyph, pan);
+                    const hasLos = (entity.inLos !== false);
+                    this.audio.playMonsterDeath(entity.glyph, {
+                        worldSpace: true,
+                        x: entity.position.x,
+                        y: entity.position.y + (entity.modelHeight || 1.4) * 0.5,
+                        z: entity.position.z,
+                        pan,
+                        hasLos,
+                        occluded: !hasLos
+                    });
                 }
                 if (!isLivingPet && entity.visible && (entity.wasAttacked || entity._hitFlinchTimer > 0) && !entity._isDying) {
                     entity._isDying = true;
@@ -12354,6 +12364,24 @@ class Dungeon3D {
             roll = Math.max(-0.02, Math.min(0.02, -wrappedDiff * 0.04 * bobScale));
         }
         this.camera.rotation.z = roll;
+
+        if (this.audio && typeof this.audio.updateListener === 'function' && this.camera) {
+            if (!this._audioFwdVec) this._audioFwdVec = new THREE.Vector3(0, 0, -1);
+            if (!this._audioUpVec) this._audioUpVec = new THREE.Vector3(0, 1, 0);
+            this._audioFwdVec.set(0, 0, -1).applyQuaternion(this.camera.quaternion);
+            this._audioUpVec.set(0, 1, 0).applyQuaternion(this.camera.quaternion);
+            const px = Math.round(this.camera.position.x * 50);
+            const py = Math.round(this.camera.position.y * 50);
+            const pz = Math.round(this.camera.position.z * 50);
+            const fx = Math.round(this._audioFwdVec.x * 100);
+            const fy = Math.round(this._audioFwdVec.y * 100);
+            const fz = Math.round(this._audioFwdVec.z * 100);
+            const sig = `${px},${py},${pz}|${fx},${fy},${fz}`;
+            if (sig !== this._lastAudioListenerSig) {
+                this._lastAudioListenerSig = sig;
+                this.audio.updateListener(this.camera.position, this._audioFwdVec, this._audioUpVec);
+            }
+        }
 
         // Live real-time broadcast of camera movement & yaw to HUD for smooth needle, vision cone & minimap
         if (window.__app && window.__app.hud) {

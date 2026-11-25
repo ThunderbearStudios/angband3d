@@ -218,7 +218,7 @@ async function main() {
                 else if (m.method === 'Network.loadingFinished') {
                     const u = reqMap.get(m.params.requestId) || '';
                     const bytes = m.params.encodedDataLength || 0;
-                    if (/\.mp3(?:\?|$)/i.test(u)) musicBytes += bytes;
+                    if (!u.includes('/assets/audio/sfx/') && /\.(?:mp3|ogg)(?:\?|$)/i.test(u)) musicBytes += bytes;
                     else if (/\/assets\/models\/.*\.glb(?:\?|$)/i.test(u)) monsterGlbBytes += bytes;
                     else coreTransferBytes += bytes;
                 }

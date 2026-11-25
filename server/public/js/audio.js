@@ -18,9 +18,14 @@ class SoundEngine {
         this._rawBuffers = {};
         this.buffers = new Proxy(this._rawBuffers, {
             get: (target, prop) => {
-                if (!this._sfxLibraryGenerated) {
-                    this._sfxLibraryGenerated = true;
-                    this.generateSfxLibrary();
+                if (prop in target) return target[prop];
+                if (typeof prop === 'string' && this.ctx) {
+                    const AD = (typeof AudioDirector !== 'undefined') ? AudioDirector : null;
+                    const buf = (AD && typeof AD.synthSfxByKey === 'function') ? AD.synthSfxByKey(this, prop) : null;
+                    if (buf) {
+                        target[prop] = buf;
+                        return buf;
+                    }
                 }
                 return target[prop];
             },
@@ -29,16 +34,15 @@ class SoundEngine {
                 return true;
             },
             ownKeys: (target) => {
-                if (!this._sfxLibraryGenerated) {
-                    this._sfxLibraryGenerated = true;
-                    this.generateSfxLibrary();
-                }
-                return Reflect.ownKeys(target);
+                const AD = (typeof AudioDirector !== 'undefined') ? AudioDirector : null;
+                const keys = (AD && Array.isArray(AD.SFX_KEYS)) ? AD.SFX_KEYS : [];
+                return Array.from(new Set([...Reflect.ownKeys(target), ...keys]));
             },
             getOwnPropertyDescriptor: (target, prop) => {
-                if (!this._sfxLibraryGenerated) {
-                    this._sfxLibraryGenerated = true;
-                    this.generateSfxLibrary();
+                if (prop in target) return Reflect.getOwnPropertyDescriptor(target, prop);
+                const AD = (typeof AudioDirector !== 'undefined') ? AudioDirector : null;
+                if (AD && Array.isArray(AD.SFX_KEYS) && AD.SFX_KEYS.includes(prop)) {
+                    return { configurable: true, enumerable: true, value: this.buffers[prop] };
                 }
                 return Reflect.getOwnPropertyDescriptor(target, prop);
             }
@@ -196,7 +200,7 @@ class SoundEngine {
             const domDeckA = (typeof document !== 'undefined') ? document.getElementById('yasd-theme-deck-a') : null;
             const domDeckB = (typeof document !== 'undefined') ? document.getElementById('yasd-theme-deck-b') : null;
             const createDeck = (existingEl, preloadMode, isPrimary) => {
-                const a = existingEl || new Audio('/assets/audio/yasd_theme.mp3');
+                const a = existingEl || new Audio('/assets/audio/yasd_theme.ogg');
                 a.preload = preloadMode;
                 a.volume = this._getThemeTargetVolume();
                 return bindDeckEvents(a, isPrimary);
@@ -434,8 +438,8 @@ class SoundEngine {
         if (active) {
             try {
                 active.pause();
-                if (!String(active.src || '').includes('yasd_theme.mp3')) {
-                    active.src = '/assets/audio/yasd_theme.mp3';
+                if (!String(active.src || '').includes('yasd_theme.ogg')) {
+                    active.src = '/assets/audio/yasd_theme.ogg';
                 }
                 active.currentTime = 0;
                 active.loop = false;
@@ -473,65 +477,65 @@ class SoundEngine {
         const yasdUrl = 'https://yasd3d.com';
         const oga = (id, title, cat, file, artist, license, slug) => m(id, title, cat, file, artist, license, `https://opengameart.org/content/${slug}`);
         this._musicCatalog = [
-            m('yasd_theme', 'YASD 3D Official Theme', 'theme', '/assets/audio/yasd_theme.mp3', 'Thunderbear Studios', 'Proprietary (© 2026 Thunderbear Studios)', yasdUrl),
-            m('town_cloudancer', 'Town: Outpost Sanctuary (Cloudancer)', 'town', 'town1.mp3', 'pin (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
-            m('town_snowland', 'Town: Telmora Hearth (Snowland)', 'town', 'town2.mp3', 'Take (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
-            m('town_theme', 'Town: Classic Town Theme', 'town', 'town3.mp3', 'Isamu (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
-            m('town_no_place', 'Town: Angwil Sanctuary (No Place For Us)', 'town', 'town4.mp3', 'kiku (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
-            m('town_pleasant', 'Town: Pleasant Creek & Shire', 'town', 'town5.mp3', 'G.S (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
-            m('town_sorrow', 'Town: Hero\'s Prelude (Overcome Sorrow)', 'town', 'new_game.mp3', 'you (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
-            m('wilderness_day', 'Wilderness: Worldmap Overland', 'town', 'wild.mp3', 'kiku (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
-            m('wilderness_night', 'Wilderness: Borderlands Dawn', 'town', 'field_low1.mp3', 'Shintaro Aoki (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
-            m('store_tavern', 'Shop & Tavern: Merchant Guild', 'town', 'build.mp3', 'G.S (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
-            m('store_carol', 'Shop & Forge: Carol of the Anvil', 'town', 'field_low2.mp3', 'Shintaro Aoki (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
-            m('store_black', 'Black Market: Strange Meadow', 'town', 'field_low3.mp3', 'Take (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
-            m('arena_fanfare', 'Arena: Gladiators\' Fanfare', 'quest', 'arena.mp3', 'G.S (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
-            m('dungeon_low_1', 'Shallow Halls: Determined Ascent', 'dungeon_low', 'dun_low1.mp3', 'Isamu (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
-            m('dungeon_low_2', 'Shallow Halls: Frozen Wastes', 'dungeon_low', 'dun_low2.mp3', 'Isamu (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
-            m('dungeon_low_3', 'Shallow Halls: Restless Spirit', 'dungeon_low', 'dun_low3.mp3', 'Isamu (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
-            m('dungeon_low_feel1', 'Dungeon Feeling: Dark Cavern', 'dungeon_low', 'dun_low4.mp3', 'Isamu (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
-            m('dungeon_low_feel2', 'Dungeon Feeling: Dark Ambience', 'dungeon_low', 'dun_low5.mp3', 'Isamu (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
-            m('dungeon_med_1', 'Mid Depths: Darkness Must Fall', 'dungeon_med', 'dun_med1.mp3', 'Isamu (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
-            m('dungeon_med_2', 'Mid Depths: Lost Forever', 'dungeon_med', 'dun_med2.mp3', 'Isamu (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
-            m('dungeon_med_3', 'Mid Depths: Unholy Serenade', 'dungeon_med', 'dun_med3.mp3', 'Isamu (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
-            m('dungeon_med_feel1', 'Vault Feeling: Beyond The End', 'dungeon_med', 'dun_med4.mp3', 'kiku (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
-            m('dungeon_med_feel2', 'Vault Feeling: Cave of Return', 'dungeon_med', 'dun_med5.mp3', 'N.K (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
-            m('dungeon_high_1', 'Deep Abyss: Demon Trench', 'dungeon_high', 'dun_high1.mp3', 'Isamu (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
-            m('dungeon_high_2', 'Deep Abyss: Halls of Despair', 'dungeon_high', 'dun_high2.mp3', 'Isamu (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
-            m('dungeon_high_3', 'Deep Abyss: The Dark Amulet', 'dungeon_high', 'dun_high3.mp3', 'Isamu (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
-            m('dungeon_high_feel1', 'Abyssal Feeling: Deep Tunnels', 'dungeon_high', 'dun_high4.mp3', 'N.K (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
-            m('dungeon_high_feel2', 'Abyssal Feeling: Factory of Chaos', 'dungeon_high', 'dun_high5.mp3', 'N.K (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
-            m('dungeon_special', 'Special Level: Ominous Premonition', 'dungeon_med', 'feel1.mp3', 'Isamu (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
-            m('quest_1', 'Quest Citadel: Battle Theme A', 'quest', 'quest1.mp3', 'masa (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
-            m('quest_2', 'Quest Citadel: Heroic Demise', 'quest', 'quest2.mp3', 'Isamu (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
-            m('quest_3', 'Quest Citadel: Winds of Stories', 'quest', 'quest3.mp3', 'you (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
-            m('quest_clear', 'Quest Cleared: Orchestral Fanfare', 'victory', 'quest_clear.mp3', 'TMS (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
-            m('boss_1', 'Unique Foe: Clash of Steel', 'boss', 'battle.mp3', 'Isamu (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
-            m('boss_2', 'Unique Foe: Persecution & Pursuit', 'boss', 'quest4.mp3', 'y.tamura (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
-            m('boss_3', 'Unique Foe: Visions of Death', 'boss', 'feel2.mp3', 'Isamu (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
-            m('boss_special', 'Arch-Vile Boss: Serpent of Chaos', 'boss', 'The_Serpent_of_Chaos.mp3', 'kuusuke (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
-            m('boss_final', 'Final Boss: Ambush in the Pit', 'boss', 'ambush.mp3', 'kiku (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
-            m('victory_royal', 'Victory: Orchestral Royal Theme', 'victory', 'winner.mp3', 'TMS (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
-            m('victory_celeb', 'Ascension: Celebration in Peace', 'victory', 'exit.mp3', 'G.S (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
-            m('death_wind', 'Fallen Hero: Where the Wind Goes', 'death', 'gameover.mp3', 'G.S (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
-            m('extra_arabesque', 'Realm Suite: Mist Forest (Arabesque)', 'dungeon_med', 'field_med1.mp3', 'Take (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
-            m('extra_battle_rain', 'Realm Suite: Wasteland Overdrive', 'boss', 'field_high1.mp3', 'mosaic (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
-            m('extra_cursed', 'Realm Suite: The Cursed Hero', 'dungeon_high', 'field_high2.mp3', 'you (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
-            m('extra_mysterious', 'Realm Suite: Mysterious Groves', 'dungeon_low', 'field_med2.mp3', 'Isamu (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
-            m('extra_sins', 'Realm Suite: Wraiths of Winter (Seven Deadly Sins)', 'dungeon_high', 'field_high3.mp3', 'you (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
-            m('extra_journey', 'Realm Suite: A New Journey', 'town', 'field_med3.mp3', 'you (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
-            m('extra_hope', 'Realm Suite: Glimmer of Hope', 'town', 'town1.mp3', 'pin (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
+            m('yasd_theme', 'YASD 3D Official Theme', 'theme', '/assets/audio/yasd_theme.ogg', 'Thunderbear Studios', 'Proprietary (© 2026 Thunderbear Studios)', yasdUrl),
+            m('town_cloudancer', 'Town: Outpost Sanctuary (Cloudancer)', 'town', 'town1.ogg', 'pin (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
+            m('town_snowland', 'Town: Telmora Hearth (Snowland)', 'town', 'town2.ogg', 'Take (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
+            m('town_theme', 'Town: Classic Town Theme', 'town', 'town3.ogg', 'Isamu (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
+            m('town_no_place', 'Town: Angwil Sanctuary (No Place For Us)', 'town', 'town4.ogg', 'kiku (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
+            m('town_pleasant', 'Town: Pleasant Creek & Shire', 'town', 'town5.ogg', 'G.S (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
+            m('town_sorrow', 'Town: Hero\'s Prelude (Overcome Sorrow)', 'town', 'new_game.ogg', 'you (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
+            m('wilderness_day', 'Wilderness: Worldmap Overland', 'town', 'wild.ogg', 'kiku (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
+            m('wilderness_night', 'Wilderness: Borderlands Dawn', 'town', 'field_low1.ogg', 'Shintaro Aoki (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
+            m('store_tavern', 'Shop & Tavern: Merchant Guild', 'town', 'build.ogg', 'G.S (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
+            m('store_carol', 'Shop & Forge: Carol of the Anvil', 'town', 'field_low2.ogg', 'Shintaro Aoki (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
+            m('store_black', 'Black Market: Strange Meadow', 'town', 'field_low3.ogg', 'Take (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
+            m('arena_fanfare', 'Arena: Gladiators\' Fanfare', 'quest', 'arena.ogg', 'G.S (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
+            m('dungeon_low_1', 'Shallow Halls: Determined Ascent', 'dungeon_low', 'dun_low1.ogg', 'Isamu (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
+            m('dungeon_low_2', 'Shallow Halls: Frozen Wastes', 'dungeon_low', 'dun_low2.ogg', 'Isamu (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
+            m('dungeon_low_3', 'Shallow Halls: Restless Spirit', 'dungeon_low', 'dun_low3.ogg', 'Isamu (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
+            m('dungeon_low_feel1', 'Dungeon Feeling: Dark Cavern', 'dungeon_low', 'dun_low4.ogg', 'Isamu (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
+            m('dungeon_low_feel2', 'Dungeon Feeling: Dark Ambience', 'dungeon_low', 'dun_low5.ogg', 'Isamu (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
+            m('dungeon_med_1', 'Mid Depths: Darkness Must Fall', 'dungeon_med', 'dun_med1.ogg', 'Isamu (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
+            m('dungeon_med_2', 'Mid Depths: Lost Forever', 'dungeon_med', 'dun_med2.ogg', 'Isamu (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
+            m('dungeon_med_3', 'Mid Depths: Unholy Serenade', 'dungeon_med', 'dun_med3.ogg', 'Isamu (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
+            m('dungeon_med_feel1', 'Vault Feeling: Beyond The End', 'dungeon_med', 'dun_med4.ogg', 'kiku (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
+            m('dungeon_med_feel2', 'Vault Feeling: Cave of Return', 'dungeon_med', 'dun_med5.ogg', 'N.K (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
+            m('dungeon_high_1', 'Deep Abyss: Demon Trench', 'dungeon_high', 'dun_high1.ogg', 'Isamu (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
+            m('dungeon_high_2', 'Deep Abyss: Halls of Despair', 'dungeon_high', 'dun_high2.ogg', 'Isamu (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
+            m('dungeon_high_3', 'Deep Abyss: The Dark Amulet', 'dungeon_high', 'dun_high3.ogg', 'Isamu (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
+            m('dungeon_high_feel1', 'Abyssal Feeling: Deep Tunnels', 'dungeon_high', 'dun_high4.ogg', 'N.K (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
+            m('dungeon_high_feel2', 'Abyssal Feeling: Factory of Chaos', 'dungeon_high', 'dun_high5.ogg', 'N.K (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
+            m('dungeon_special', 'Special Level: Ominous Premonition', 'dungeon_med', 'feel1.ogg', 'Isamu (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
+            m('quest_1', 'Quest Citadel: Battle Theme A', 'quest', 'quest1.ogg', 'masa (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
+            m('quest_2', 'Quest Citadel: Heroic Demise', 'quest', 'quest2.ogg', 'Isamu (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
+            m('quest_3', 'Quest Citadel: Winds of Stories', 'quest', 'quest3.ogg', 'you (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
+            m('quest_clear', 'Quest Cleared: Orchestral Fanfare', 'victory', 'quest_clear.ogg', 'TMS (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
+            m('boss_1', 'Unique Foe: Clash of Steel', 'boss', 'battle.ogg', 'Isamu (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
+            m('boss_2', 'Unique Foe: Persecution & Pursuit', 'boss', 'quest4.ogg', 'y.tamura (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
+            m('boss_3', 'Unique Foe: Visions of Death', 'boss', 'feel2.ogg', 'Isamu (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
+            m('boss_special', 'Arch-Vile Boss: Serpent of Chaos', 'boss', 'The_Serpent_of_Chaos.ogg', 'kuusuke (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
+            m('boss_final', 'Final Boss: Ambush in the Pit', 'boss', 'ambush.ogg', 'kiku (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
+            m('victory_royal', 'Victory: Orchestral Royal Theme', 'victory', 'winner.ogg', 'TMS (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
+            m('victory_celeb', 'Ascension: Celebration in Peace', 'victory', 'exit.ogg', 'G.S (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
+            m('death_wind', 'Fallen Hero: Where the Wind Goes', 'death', 'gameover.ogg', 'G.S (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
+            m('extra_arabesque', 'Realm Suite: Mist Forest (Arabesque)', 'dungeon_med', 'field_med1.ogg', 'Take (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
+            m('extra_battle_rain', 'Realm Suite: Wasteland Overdrive', 'boss', 'field_high1.ogg', 'mosaic (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
+            m('extra_cursed', 'Realm Suite: The Cursed Hero', 'dungeon_high', 'field_high2.ogg', 'you (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
+            m('extra_mysterious', 'Realm Suite: Mysterious Groves', 'dungeon_low', 'field_med2.ogg', 'Isamu (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
+            m('extra_sins', 'Realm Suite: Wraiths of Winter (Seven Deadly Sins)', 'dungeon_high', 'field_high3.ogg', 'you (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
+            m('extra_journey', 'Realm Suite: A New Journey', 'town', 'field_med3.ogg', 'you (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
+            m('extra_hope', 'Realm Suite: Glimmer of Hope', 'town', 'town1.ogg', 'pin (HURT RECORD)', 'Free BGM (HURT RECORD / Hengband)'),
             // 10 OpenGameArt CC0 / CC-BY Dark-Fantasy Realm Expansion Tracks
-            oga('oga_destroyed_sanctuary', 'First Age: Destroyed Sanctuary (Gates of Angband)', 'dungeon_low', 'oga_destroyed_sanctuary.mp3', 'Filtered (OpenGameArt)', 'CC0 1.0 Public Domain', 'destroyed-sanctuary'),
-            oga('oga_alandriels_theme', 'First Age: Alandriel\'s Theme (Elven Harp & Flute)', 'town', 'oga_alandriels_theme.mp3', 'Remaxim (OpenGameArt)', 'CC-BY-SA 3.0', 'fantasy-music-alandriels-theme'),
-            oga('oga_elven_groves', 'Brogue & Sylvan: The Elven Groves', 'dungeon_low', 'oga_elven_groves.mp3', 'loyalty_freak_music (OpenGameArt)', 'CC0 1.0 Public Domain', 'the-elven-groves'),
-            oga('oga_small_fire_tavern', 'Minetown & Hearth: A Small Fire Will Do', 'town', 'oga_small_fire_tavern.mp3', 'syncopika (OpenGameArt)', 'CC-BY 3.0', 'a-small-fire-will-do'),
-            oga('oga_dungeon_vorfuehrung', 'Dungeons of Doom: Dungeon Theme I', 'dungeon_low', 'oga_dungeon_vorfuehrung.mp3', 'Remaxim (OpenGameArt)', 'CC-BY-SA 3.0', 'dungeon-theme-1'),
-            oga('oga_fantasy_night', 'Starlight Cavern: Fantasy Night', 'dungeon_med', 'oga_fantasy_night.mp3', 'Cleyton Kauffman (OpenGameArt)', 'CC-BY-SA 3.0', 'fantasy-night'),
-            oga('oga_dark_descent', 'Lair & Vaults: Dark Descent (Extended)', 'dungeon_med', 'oga_dark_descent.mp3', 'Phat Phrog Studios (OpenGameArt)', 'CC0 1.0 Public Domain', 'dark-descent-extended-cut'),
-            oga('oga_dungeon_of_agony', 'Gehennom & Zot: Dungeon of Agony', 'dungeon_high', 'oga_dungeon_of_agony.mp3', 'Cleyton Kauffman (OpenGameArt)', 'CC-BY-SA 4.0', 'dungeon-of-agony'),
-            oga('oga_throne_room_boss', 'Throne Room of Morgoth & Zot', 'boss', 'oga_throne_room_boss.mp3', 'Of Far Different Nature (OpenGameArt)', 'CC-BY 4.0', 'throne-room'),
-            oga('oga_warriors_lament', 'Tombstone Dirge: Lament for a Warrior\'s Soul', 'death', 'oga_warriors_lament.mp3', 'RandomMind (OpenGameArt)', 'CC0 1.0 Public Domain', 'lament-for-a-warriors-soul')
+            oga('oga_destroyed_sanctuary', 'First Age: Destroyed Sanctuary (Gates of Angband)', 'dungeon_low', 'oga_destroyed_sanctuary.ogg', 'Filtered (OpenGameArt)', 'CC0 1.0 Public Domain', 'destroyed-sanctuary'),
+            oga('oga_alandriels_theme', 'First Age: Alandriel\'s Theme (Elven Harp & Flute)', 'town', 'oga_alandriels_theme.ogg', 'Remaxim (OpenGameArt)', 'CC-BY-SA 3.0', 'fantasy-music-alandriels-theme'),
+            oga('oga_elven_groves', 'Brogue & Sylvan: The Elven Groves', 'dungeon_low', 'oga_elven_groves.ogg', 'loyalty_freak_music (OpenGameArt)', 'CC0 1.0 Public Domain', 'the-elven-groves'),
+            oga('oga_small_fire_tavern', 'Minetown & Hearth: A Small Fire Will Do', 'town', 'oga_small_fire_tavern.ogg', 'syncopika (OpenGameArt)', 'CC-BY 3.0', 'a-small-fire-will-do'),
+            oga('oga_dungeon_vorfuehrung', 'Dungeons of Doom: Dungeon Theme I', 'dungeon_low', 'oga_dungeon_vorfuehrung.ogg', 'Remaxim (OpenGameArt)', 'CC-BY-SA 3.0', 'dungeon-theme-1'),
+            oga('oga_fantasy_night', 'Starlight Cavern: Fantasy Night', 'dungeon_med', 'oga_fantasy_night.ogg', 'Cleyton Kauffman (OpenGameArt)', 'CC-BY-SA 3.0', 'fantasy-night'),
+            oga('oga_dark_descent', 'Lair & Vaults: Dark Descent (Extended)', 'dungeon_med', 'oga_dark_descent.ogg', 'Phat Phrog Studios (OpenGameArt)', 'CC0 1.0 Public Domain', 'dark-descent-extended-cut'),
+            oga('oga_dungeon_of_agony', 'Gehennom & Zot: Dungeon of Agony', 'dungeon_high', 'oga_dungeon_of_agony.ogg', 'Cleyton Kauffman (OpenGameArt)', 'CC-BY-SA 4.0', 'dungeon-of-agony'),
+            oga('oga_throne_room_boss', 'Throne Room of Morgoth & Zot', 'boss', 'oga_throne_room_boss.ogg', 'Of Far Different Nature (OpenGameArt)', 'CC-BY 4.0', 'throne-room'),
+            oga('oga_warriors_lament', 'Tombstone Dirge: Lament for a Warrior\'s Soul', 'death', 'oga_warriors_lament.ogg', 'RandomMind (OpenGameArt)', 'CC0 1.0 Public Domain', 'lament-for-a-warriors-soul')
         ];
         return this._musicCatalog;
     }
@@ -1214,10 +1218,7 @@ class SoundEngine {
     }
 
     ensureSfxLibrary() {
-        if (!this._sfxLibraryGenerated) {
-            this._sfxLibraryGenerated = true;
-            this.generateSfxLibrary();
-        }
+        return;
     }
 
     createDungeonReverbImpulse(duration = 1.35, decay = 3.2) {
@@ -1492,18 +1493,27 @@ class SoundEngine {
     }
 
     /**
+     * Synchronize WebAudio 3D HRTF AudioListener pose via AudioDirector.
+     */
+    updateListener(pos, forward, up) {
+        const AD = (typeof AudioDirector !== 'undefined') ? AudioDirector : null;
+        if (AD && typeof AD.updateListener === 'function') AD.updateListener(this.ctx, pos, forward, up);
+    }
+
+    /**
      * Spatial Panner helper: Upgrades to 3D PannerNode (panningModel = 'HRTF' with 'equalpower' fallback)
      * plus a 900 Hz BiquadFilterNode (type = 'lowpass') occlusion muffle when !hasLos / occluded.
      */
     createPanner(pan = 0, y = 0, z = 0, opts = {}) {
         if (!this.ctx) return null;
         const isObj = (typeof pan === 'object' && pan !== null);
-        const useWorld3D = Boolean(isObj && pan.worldSpace === true);
+        const hrtfOn = !(typeof window !== 'undefined' && window.YASD_FLAGS && window.YASD_FLAGS.AUDIO_HRTF_3D === false);
+        const useWorld3D = Boolean(hrtfOn && isObj && pan.worldSpace === true);
         let x = 0;
         let occluded = false;
         let hasLos = true;
         if (isObj) {
-            x = Number(pan.x ?? pan.pan ?? 0) || 0;
+            x = useWorld3D ? (Number(pan.x ?? pan.pan ?? 0) || 0) : (Number(pan.pan ?? 0) || 0);
             y = Number(pan.y ?? y ?? 0) || 0;
             z = Number(pan.z ?? z ?? 0) || 0;
             hasLos = (pan.hasLos !== undefined) ? Boolean(pan.hasLos) : (pan.los !== undefined ? Boolean(pan.los) : true);
@@ -1642,7 +1652,6 @@ class SoundEngine {
     }
 
     playBuffer(buffer, pitchScale = 1.0, volumeScale = 1.0, pan = 0.0, reverbAmount = 0.20) {
-        this.ensureSfxLibrary();
         if (!this.enabled || !this.ctx || !buffer || !this.unlocked) return;
         if (this.ctx.state === 'suspended') {
             return;
@@ -1674,7 +1683,7 @@ class SoundEngine {
             }
         }
 
-        const panner = (pan !== 0.0) ? this.createPanner(pan) : null;
+        const panner = (pan && (typeof pan === 'object' || pan !== 0.0)) ? this.createPanner(pan) : null;
 
         if (panner) {
             source.connect(gain);
@@ -1709,84 +1718,23 @@ class SoundEngine {
      * ------------------------------------------------------------- */
     generateSfxLibrary() {
         if (!this.ctx) return;
-
-        // 1. Footstep variations (stone, outdoor dirt, and aquatic water splash)
-        this.stoneFootsteps = [];
-        this.outdoorFootsteps = [];
-        this.waterFootsteps = [];
+        this.stoneFootsteps = this.stoneFootsteps || [];
+        this.outdoorFootsteps = this.outdoorFootsteps || [];
+        this.waterFootsteps = this.waterFootsteps || [];
         for (let i = 0; i < 4; i++) {
-            this.stoneFootsteps.push(this.synthFootstep(true, i));
-            this.outdoorFootsteps.push(this.synthFootstep(false, i));
-            this.waterFootsteps.push(this.synthWaterFootstep(i));
+            if (!this.stoneFootsteps[i]) this.stoneFootsteps[i] = this.synthFootstep(true, i);
+            if (!this.outdoorFootsteps[i]) this.outdoorFootsteps[i] = this.synthFootstep(false, i);
+            if (!this.waterFootsteps[i]) this.waterFootsteps[i] = this.synthWaterFootstep(i);
         }
-
-        // 2. Combat & Action sounds
-        this.buffers['whoosh'] = this.synthWhoosh();
-        this.buffers['hit'] = this.synthHit();
-        this.buffers['crit'] = this.synthCrit();
-        this.buffers['shieldBlock'] = this.synthShieldBlock();
-        this.buffers['armorDeflect'] = this.synthArmorDeflect();
-        this.buffers['bow'] = this.synthBowShoot();
-        this.buffers['playerHurt'] = this.synthPlayerHurt();
-        this.buffers['playerDeath'] = this.synthPlayerDeath();
-        this.buffers['lowHp'] = this.synthLowHpHeartbeat();
-        this.buffers['heal'] = this.synthHeal();
-        this.buffers['subtleRegenHp'] = this.synthSubtleRegen(false);
-        this.buffers['subtleRegenSp'] = this.synthSubtleRegen(true);
-        this.buffers['levelUp'] = this.synthLevelUp();
-
-        // 3. Creature acoustics by family/glyph
-        this.buffers['monsterGrunt'] = this.synthMonsterGrunt();
-        this.buffers['monsterDeath'] = this.synthMonsterDeath();
-        this.buffers['monsterGrowl'] = this.synthMonsterGrowl();
-        this.buffers['monsterHiss'] = this.synthMonsterHiss();
-        this.buffers['ghostWail'] = this.synthGhostWail();
-        this.buffers['dragonRoar'] = this.synthDragonRoar();
-        this.buffers['rodentSqueak'] = this.synthRodentSqueak();
-        this.buffers['insectChitin'] = this.synthInsectChitin();
-
-        // 4. Dungeon & Environment interactions
-        this.buffers['wallBump'] = this.synthWallBump();
-        this.buffers['doorOpen'] = this.synthDoor(true);
-        this.buffers['doorClose'] = this.synthDoor(false);
-        this.buffers['doorBreak'] = this.synthDoorBreak();
-        this.buffers['stairsDown'] = this.synthStairs(true);
-        this.buffers['stairsUp'] = this.synthStairs(false);
-        this.buffers['levelEnter'] = this.synthDungeonHorn();
-        this.buffers['chestOpen'] = this.synthChest();
-        this.buffers['trapDisarm'] = this.synthTrapDisarm();
-        this.buffers['trapTrigger'] = this.synthTrapTrigger();
-        this.buffers['teleport'] = this.synthTeleport();
-
-        // 5. Items, Inventory & Equipment
-        this.buffers['itemPickup'] = this.synthItemPickup();
-        this.buffers['goldPickup'] = this.synthGoldPickup();
-        this.buffers['itemDrop'] = this.synthItemDrop();
-        this.buffers['equipWeapon'] = this.synthEquipWeapon();
-        this.buffers['equipArmor'] = this.synthEquipArmor();
-        this.buffers['quaff'] = this.synthQuaff();
-        this.buffers['scroll'] = this.synthScroll();
-        this.buffers['eat'] = this.synthEat();
-
-        // 6. Status condition warnings
-        this.buffers['poison'] = this.synthPoison();
-        this.buffers['confused'] = this.synthConfused();
-        this.buffers['blind'] = this.synthBlind();
-        this.buffers['paralyzed'] = this.synthParalyzed();
-        this.buffers['afraid'] = this.synthAfraid();
-        this.buffers['hunger'] = this.synthHunger();
-
-        // 7. Elemental Spell Variety
-        this.buffers['spell_magic'] = this.synthElementalSpell('magic');
-        this.buffers['spell_fire'] = this.synthElementalSpell('fire');
-        this.buffers['spell_cold'] = this.synthElementalSpell('cold');
-        this.buffers['spell_lightning'] = this.synthElementalSpell('lightning');
-        this.buffers['spell_poison'] = this.synthElementalSpell('poison');
-
-        // 8. Tactile UI Sounds
-        this.buffers['menuNav'] = this.synthMenuNav();
-        this.buffers['menuSelect'] = this.synthMenuSelect();
-        this.buffers['menuOpen'] = this.synthMenuOpen();
+        const AD = (typeof AudioDirector !== 'undefined') ? AudioDirector : null;
+        const keys = (AD && Array.isArray(AD.SFX_KEYS)) ? AD.SFX_KEYS : [];
+        for (let i = 0; i < keys.length; i++) {
+            const k = keys[i];
+            if (!this._rawBuffers[k] && AD && typeof AD.synthSfxByKey === 'function') {
+                const buf = AD.synthSfxByKey(this, k);
+                if (buf) this._rawBuffers[k] = buf;
+            }
+        }
     }
 
     /* -------------------------------------------------------------
@@ -2783,12 +2731,23 @@ class SoundEngine {
     playFootstep(outdoors = false, heightRatio = 1.0, surface = null) {
         if (!this.enabled) return;
         this.unlock();
-        this.ensureSfxLibrary();
+        if (!this.ctx) return;
         let list;
         if (surface === 'water' || surface === 'deep_water' || surface === 'swamp') {
-            list = this.waterFootsteps;
+            list = this.waterFootsteps = this.waterFootsteps || [];
+            if (list.length === 0) {
+                for (let i = 0; i < 4; i++) list.push(this.synthWaterFootstep(i));
+            }
+        } else if (outdoors) {
+            list = this.outdoorFootsteps = this.outdoorFootsteps || [];
+            if (list.length === 0) {
+                for (let i = 0; i < 4; i++) list.push(this.synthFootstep(false, i));
+            }
         } else {
-            list = outdoors ? this.outdoorFootsteps : this.stoneFootsteps;
+            list = this.stoneFootsteps = this.stoneFootsteps || [];
+            if (list.length === 0) {
+                for (let i = 0; i < 4; i++) list.push(this.synthFootstep(true, i));
+            }
         }
         if (!list || list.length === 0) return;
 

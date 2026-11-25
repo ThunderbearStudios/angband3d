@@ -743,12 +743,22 @@
 
             const playerHandPos = playerPos.clone().addScaledVector(fwd, 0.45).add(new THREE.Vector3(0.18, -0.18, 0));
             const playerFacePos = playerPos.clone().addScaledVector(fwd, 0.55);
+            const hasLos = monsterEntity ? (monsterEntity.inLos !== false && monsterEntity.visible !== false) : true;
 
             return {
                 startPos: isPlayerAction ? playerHandPos : monsterPos,
                 endPos: isPlayerAction ? monsterPos : playerFacePos,
                 monsterEntity,
-                pan
+                pan,
+                spatialAudio: {
+                    worldSpace: true,
+                    x: monsterPos.x,
+                    y: monsterPos.y,
+                    z: monsterPos.z,
+                    pan,
+                    hasLos,
+                    occluded: !hasLos
+                }
             };
         };
 

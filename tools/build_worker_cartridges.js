@@ -12,6 +12,8 @@
 
 const fs = require('fs');
 const path = require('path');
+const { execFileSync } = require('child_process');
+const esbuild = require('esbuild');
 
 const ROOT = path.resolve(__dirname, '..');
 const OUT_FILE = path.join(ROOT, 'server/public/js/cartridges-worker-bundle.js');
@@ -529,6 +531,16 @@ ${moduleEntries.join(',\n')}
 
 const OUT_FILE1 = path.join(ROOT, 'server/public/js/cartridges-worker-bundle.js');
 
-fs.writeFileSync(OUT_FILE1, bundleSource, 'utf8');
+const minified = esbuild.transformSync(bundleSource, {
+    loader: 'js',
+    minifyWhitespace: true,
+    minifySyntax: true,
+    minifyIdentifiers: false,
+    target: 'es2020',
+    legalComments: 'none'
+}).code.replace('keyArg.startsWith("#")', "keyArg.startsWith('#')");
+fs.writeFileSync(OUT_FILE1, minified, 'utf8');
+execFileSync(process.execPath, ['--check', OUT_FILE1], { stdio: 'pipe' });
+const rawBytes = Buffer.byteLength(bundleSource, 'utf8');
 const stat1 = fs.statSync(OUT_FILE1);
-console.log(`[build_worker_cartridges] Wrote ${path.relative(ROOT, OUT_FILE1)} (${(stat1.size / 1024).toFixed(1)} KB)`);
+console.log(`[build_worker_cartridges] Wrote ${path.relative(ROOT, OUT_FILE1)} (${(rawBytes / 1024).toFixed(1)} KB -> ${(stat1.size / 1024).toFixed(1)} KB)`);

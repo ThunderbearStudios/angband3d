@@ -327,16 +327,56 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 
     let network = (engineMode === 'cloud' && window.GameNetwork) ? new GameNetwork() : new LocalGameBridge();
-    const dungeon = new Dungeon3D('viewport-canvas', { deferGpuInit: true });
-    if (typeof requestIdleCallback === 'function') {
-        requestIdleCallback(() => { if (dungeon && typeof dungeon.ensureGpuInitialized === 'function') dungeon.ensureGpuInitialized(); }, { timeout: 1200 });
-    } else {
-        setTimeout(() => { if (dungeon && typeof dungeon.ensureGpuInitialized === 'function') dungeon.ensureGpuInitialized(); }, 450);
+    let dungeon = (typeof Dungeon3D === 'function') ? new Dungeon3D('viewport-canvas', { deferGpuInit: true }) : null;
+    let _engine3dLoadPromise = null;
+    async function ensureEngine3DReady({ initGpu = true } = {}) {
+        if (!dungeon) {
+            if (typeof Dungeon3D !== 'function' && typeof window.__loadLazyBundle === 'function') {
+                if (!_engine3dLoadPromise) {
+                    _engine3dLoadPromise = window.__loadLazyBundle('engine3d').catch((err) => {
+                        _engine3dLoadPromise = null;
+                        throw err;
+                    });
+                }
+                await _engine3dLoadPromise;
+            }
+            if (!dungeon && typeof Dungeon3D === 'function') {
+                dungeon = new Dungeon3D('viewport-canvas', { deferGpuInit: true });
+                dungeon.realm = activeRealm;
+                if (typeof audio !== 'undefined' && audio) dungeon.audio = audio;
+                window.dungeon = dungeon;
+                window.__dungeon = dungeon;
+                window.__dungeonRenderer = dungeon;
+                if (window.__app) window.__app.dungeon = dungeon;
+                if (typeof input !== 'undefined' && input && typeof input.attachDungeon === 'function') {
+                    input.attachDungeon(dungeon);
+                }
+                if (window.chronicleManager) {
+                    window.chronicleManager.dungeon = dungeon;
+                    window.chronicleManager.dungeonRenderer = dungeon;
+                }
+            }
+        }
+        if (dungeon && initGpu && typeof dungeon.ensureGpuInitialized === 'function') {
+            dungeon.ensureGpuInitialized();
+        }
+        return dungeon;
     }
-    dungeon.realm = activeRealm;
-    window.dungeon = dungeon;
-    window.__dungeon = dungeon;
-    window.__dungeonRenderer = dungeon;
+    window.__ensureEngine3DReady = ensureEngine3DReady;
+    if (dungeon) {
+        dungeon.realm = activeRealm;
+        window.dungeon = dungeon;
+        window.__dungeon = dungeon;
+        window.__dungeonRenderer = dungeon;
+    }
+    const saveDataConn = (typeof navigator !== 'undefined' && navigator.connection && navigator.connection.saveData);
+    if (!saveDataConn) {
+        if (typeof requestIdleCallback === 'function') {
+            requestIdleCallback(() => { ensureEngine3DReady({ initGpu: true }).catch(() => {}); }, { timeout: 2200 });
+        } else {
+            setTimeout(() => { ensureEngine3DReady({ initGpu: true }).catch(() => {}); }, 1200);
+        }
+    }
     const hud = new WebHUD('minimap-canvas');
 
     window.getShockboltSpriteCss = function(kind, name, glyph, sizePx = 24) {
@@ -1995,7 +2035,7 @@ window.addEventListener('DOMContentLoaded', () => {
     }
     setupDraggableAndResizableWindows();
 
-    dungeon.audio = audio;
+    if (dungeon) dungeon.audio = audio;
     hud.audio = audio;
 
     // Initialize The Living Chronicle & Voiced Lorekeeper Coordinator (Web Client Only, Lazy-Loaded)
@@ -2099,7 +2139,8 @@ window.addEventListener('DOMContentLoaded', () => {
         get lastScreenModel() { return lastScreenModel; },
         get lastSpells() { return lastSpells; },
         set lastSpells(v) { lastSpells = v; },
-        dungeon,
+        get dungeon() { return dungeon; },
+        set dungeon(v) { dungeon = v; },
         hud,
         terminal,
         input,
@@ -2390,7 +2431,13 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderMenuBackdropDiorama() {
-        if (!dungeon || appState === 'game' || typeof dungeon.updateDungeon !== 'function') return;
+        if (appState === 'game') return;
+        if (!dungeon || typeof dungeon.updateDungeon !== 'function') {
+            ensureEngine3DReady({ initGpu: true }).then((d) => {
+                if (d && appState !== 'game') renderMenuBackdropDiorama();
+            }).catch(() => {});
+            return;
+        }
         try {
             const w = 24, h = 24, px = 12, py = 12;
             const rows = [];
@@ -3787,6 +3834,7 @@ window.addEventListener('DOMContentLoaded', () => {
         }
         hideModals();
         setLoadingCurtain(true, engineMode === 'local' ? 'Initializing Instant Browser Realm...' : 'Connecting to Cloud Realm & Spawning Engine...', 14);
+        await ensureEngine3DReady({ initGpu: true });
         if (dungeon && typeof dungeon.resetSessionState === 'function') {
             dungeon.resetSessionState();
         }

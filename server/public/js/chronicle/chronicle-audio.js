@@ -103,6 +103,7 @@ class ChronicleAudioRouter {
         this.audioBufferCache = new Map();
         this.MAX_AUDIO_BUFFER_CACHE = 48;
         this._prewarmPromises = new Map();
+        this._prewarmControllers = new Set();
 
         if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
             try {
@@ -324,6 +325,18 @@ class ChronicleAudioRouter {
         return !this.enabled || (typeof this.voiceVolume === 'number' && this.voiceVolume <= 0);
     }
 
+    _abortAllPrewarms() {
+        if (this._prewarmControllers) {
+            for (const c of this._prewarmControllers) {
+                try { c.abort(); } catch (_) {}
+            }
+            this._prewarmControllers.clear();
+        }
+        if (this._prewarmPromises) {
+            this._prewarmPromises.clear();
+        }
+    }
+
     setMuted(muted) {
         this.enabled = !muted;
         try {
@@ -339,9 +352,7 @@ class ChronicleAudioRouter {
                 try { this._activeStaging.abortCtrl.abort(); } catch (_) {}
                 this._activeStaging = null;
             }
-            if (this._prewarmPromises) {
-                this._prewarmPromises.clear();
-            }
+            this._abortAllPrewarms();
             if (this.speechQueue) {
                 this.speechQueue.length = 0;
             }
@@ -546,6 +557,9 @@ class ChronicleAudioRouter {
                 try { this._activeStaging.abortCtrl.abort(); } catch (_) {}
             }
             this._activeStaging = null;
+        }
+        if (!preserveStaging && typeof this._abortAllPrewarms === 'function') {
+            this._abortAllPrewarms();
         }
 
         if (this._pauseTimeout) {
@@ -773,15 +787,16 @@ class ChronicleAudioRouter {
      */
     async fetchOrGetAudioBuffer(text, role = 'narrator', customVoice = null, options = {}, signal = null) {
         options = this.normalizeVocalOptions(options);
-        // Narrator uses high quality Gemini Native Audio
         const isNarrator = (role === 'narrator' || role === 'mentor');
-        const engine = isNarrator ? 'gemini' : (options.engine || this.ttsEngine || 'gemini');
+        const engine = String(options.engine || this.ttsEngine || 'gemini').toLowerCase();
         if (this.isMuted()) {
             return { audioBuffer: null, engine, cached: false, muted: true };
         }
         let voice = isNarrator
-            ? ((engine === 'gemini' ? (options.geminiVoice || options.voice) : (options.voice || options.geminiVoice)) || this.narratorVoice || 'Enceladus')
-            : (customVoice || (engine === 'gemini' ? (options.geminiVoice || options.voice) : (options.voice || options.geminiVoice)) || this.narratorVoice || '');
+            ? (engine === 'gemini'
+                ? ((options.geminiVoice || options.voice) || this.narratorVoice || 'Enceladus')
+                : (options.edgeVoice || (options.voice && options.voice.includes('-') ? options.voice : '')))
+            : (customVoice || (engine === 'gemini' ? (options.geminiVoice || options.voice) : (options.edgeVoice || options.voice || options.geminiVoice)) || (engine === 'gemini' ? (this.narratorVoice || '') : ''));
         const cacheKey = this.getAudioCacheKey(text, role, customVoice, options);
 
         // 1. Direct in-memory hit (with LRU promotion)
@@ -1030,12 +1045,13 @@ class ChronicleAudioRouter {
             this.prewarmUtterance(dialogue.text, 'creature', dialogue.speaker, prewarmVoice, prewarmOptions).catch(() => {});
         }
 
-        // Stream sentence 1 fast for >=2 sentence passages (>=115 chars) so opening narration starts ~1.2s
+        // Stream sentence 1 fast for >=2 sentence passages (EN >=115c, CJK >=40c) so opening narration starts ~1.2s
         // while prewarming the remainder in parallel for zero-gap playback.
-        const sentences = cleanText.match(/[^.!?]+[.!?]+(?:\s+|$)|[^.!?]+$/g)?.map(s => s.trim()).filter(Boolean) || [cleanText];
-        const isMultiSentence = (sentences.length >= 2 && cleanText.length >= 115 && sentences[0].length >= 18);
+        const isCjk = /[\u3040-\u30ff\u4e00-\u9faf]/.test(cleanText);
+        const sentences = cleanText.match(/[^.!?。！？]+[.!?。！？]+(?:\s+|$)|[^.!?。！？]+$/g)?.map(s => s.trim()).filter(Boolean) || [cleanText];
+        const isMultiSentence = (sentences.length >= 2 && cleanText.length >= (isCjk ? 40 : 115) && sentences[0].length >= (isCjk ? 8 : 18));
         const s1 = isMultiSentence ? sentences[0] : cleanText;
-        const remainder = isMultiSentence ? sentences.slice(1).join(' ') : null;
+        const remainder = isMultiSentence ? sentences.slice(1).join(isCjk ? '' : ' ') : null;
 
         if (remainder) {
             this.prewarmUtterance(remainder, 'narrator', '', null, options).catch(() => {});
@@ -1356,14 +1372,15 @@ class ChronicleAudioRouter {
                 } catch (_) {}
             }
 
-            // First-Sentence Fast-Start Pipelining: for multi-sentence passages (>90 chars),
+            // First-Sentence Fast-Start Pipelining: for multi-sentence passages (EN >90c, CJK >35c),
             // speak the opening sentence immediately while pre-warming the remainder in parallel.
             const voiceToken = this._activeVoiceToken;
-            const sentences = cleanText.match(/[^.!?]+[.!?]+(?:\s+|$)|[^.!?]+$/g)?.map(s => s.trim()).filter(Boolean) || [cleanText];
+            const isCjk = /[\u3040-\u30ff\u4e00-\u9faf]/.test(cleanText);
+            const sentences = cleanText.match(/[^.!?。！？]+[.!?。！？]+(?:\s+|$)|[^.!?。！？]+$/g)?.map(s => s.trim()).filter(Boolean) || [cleanText];
             try {
-                if (sentences.length > 1 && cleanText.length > 90 && sentences[0].length >= 15) {
+                if (sentences.length > 1 && cleanText.length > (isCjk ? 35 : 90) && sentences[0].length >= (isCjk ? 8 : 15)) {
                     const firstSentence = sentences[0];
-                    const remainder = sentences.slice(1).join(' ');
+                    const remainder = sentences.slice(1).join(isCjk ? '' : ' ');
                     if (remainder && typeof this.prewarmUtterance === 'function') {
                         this.prewarmUtterance(remainder, role, speakerName, customVoice, options).catch(() => {});
                     }
@@ -1486,10 +1503,10 @@ class ChronicleAudioRouter {
             try {
                 this.isSpeaking = true;
                 const isNarrator = (role === 'narrator' || role === 'mentor');
-                const engine = isNarrator ? 'gemini' : (options.engine || this.ttsEngine || 'gemini');
-                let voice = (engine === 'gemini' && options.geminiVoice)
-                    ? options.geminiVoice
-                    : (customVoice || options.voice || this.narratorVoice || (isNarrator ? 'Enceladus' : ''));
+                const engine = String(options.engine || this.ttsEngine || 'gemini').toLowerCase();
+                let voice = (engine === 'gemini')
+                    ? (options.geminiVoice || (!isNarrator ? customVoice : '') || options.voice || (isNarrator ? (this.narratorVoice || 'Enceladus') : (this.narratorVoice || '')))
+                    : (options.edgeVoice || (!isNarrator ? customVoice : '') || (options.voice && options.voice.includes('-') ? options.voice : '') || (!isNarrator ? (this.narratorVoice || '') : ''));
 
                 const emotion = options.emotion || '';
                 const geminiTag = options.geminiTag || '';
@@ -1778,7 +1795,7 @@ class ChronicleAudioRouter {
 
                 const audio = new Audio();
                 audio.src = url;
-                audio.playbackRate = 1.0;
+                audio.playbackRate = Math.max(0.5, Math.min(2.5, this.speed || 1.0));
                 if ('preservesPitch' in audio) audio.preservesPitch = true;
                 this.currentAudio = audio;
 
@@ -2016,10 +2033,12 @@ class ChronicleAudioRouter {
         const opts = this.normalizeVocalOptions(options);
         const cleanText = String(text || '').replace(/<[^>]*>/g, '').trim();
         const isNarrator = (role === 'narrator' || role === 'mentor');
-        const engine = isNarrator ? 'gemini' : (opts.engine || this.ttsEngine || 'gemini');
+        const engine = String(opts.engine || this.ttsEngine || 'gemini').toLowerCase();
         let voice = isNarrator
-            ? ((engine === 'gemini' ? (opts.geminiVoice || opts.voice) : (opts.voice || opts.geminiVoice)) || this.narratorVoice || 'Enceladus')
-            : (customVoice || (engine === 'gemini' ? (opts.geminiVoice || opts.voice) : (opts.voice || opts.geminiVoice)) || this.narratorVoice || '');
+            ? (engine === 'gemini'
+                ? ((opts.geminiVoice || opts.voice) || this.narratorVoice || 'Enceladus')
+                : (opts.edgeVoice || (opts.voice && opts.voice.includes('-') ? opts.voice : '')))
+            : (customVoice || (engine === 'gemini' ? (opts.geminiVoice || opts.voice) : (opts.edgeVoice || opts.voice || opts.geminiVoice)) || (engine === 'gemini' ? (this.narratorVoice || '') : ''));
 
         const emotion = opts.emotion || '';
         const geminiTag = opts.geminiTag || '';
@@ -2048,6 +2067,7 @@ class ChronicleAudioRouter {
     async prewarmUtterance(text, role = 'narrator', speakerName = '', customVoice = null, options = {}) {
         if (!text || typeof window === 'undefined') return null;
         if (this.isMuted()) return null; // STRICT: Zero processing or network requests when Tome audio is muted
+        if (Date.now() < (this._serverTtsUnavailableUntil || 0)) return null;
         const cleanText = text.replace(/<[^>]*>/g, '').trim();
         if (!cleanText) return null;
         options = this.normalizeVocalOptions(options);
@@ -2060,13 +2080,19 @@ class ChronicleAudioRouter {
             return this._prewarmPromises.get(cacheKey);
         }
 
+        const ctrl = new AbortController();
+        if (!this._prewarmControllers) this._prewarmControllers = new Set();
+        this._prewarmControllers.add(ctrl);
+
         const prewarmPromise = (async () => {
             try {
                 const isNarrator = (role === 'narrator' || role === 'mentor');
-                const engine = isNarrator ? 'gemini' : (options.engine || this.ttsEngine || 'gemini');
+                const engine = String(options.engine || this.ttsEngine || 'gemini').toLowerCase();
                 let voice = isNarrator
-                    ? ((engine === 'gemini' ? (options.geminiVoice || options.voice) : (options.voice || options.geminiVoice)) || this.narratorVoice || 'Enceladus')
-                    : (customVoice || (engine === 'gemini' ? (options.geminiVoice || options.voice) : (options.voice || options.geminiVoice)) || this.narratorVoice || '');
+                    ? (engine === 'gemini'
+                        ? ((options.geminiVoice || options.voice) || this.narratorVoice || 'Enceladus')
+                        : (options.edgeVoice || (options.voice && options.voice.includes('-') ? options.voice : '')))
+                    : (customVoice || (engine === 'gemini' ? (options.geminiVoice || options.voice) : (options.edgeVoice || opts.voice || opts.geminiVoice)) || (engine === 'gemini' ? (this.narratorVoice || '') : ''));
 
                 const emotion = options.emotion || '';
                 const geminiTag = options.geminiTag || '';
@@ -2104,7 +2130,11 @@ class ChronicleAudioRouter {
 
                 const url = `/api/tts?${q.toString()}`;
                 const fetchHeaders = this.getFetchHeaders();
-                const res = await fetch(url, { headers: fetchHeaders });
+                const res = await fetch(url, { headers: fetchHeaders, signal: ctrl.signal });
+                if (res.headers && res.headers.get('x-tts-unavailable') === '1') {
+                    this._serverTtsUnavailableUntil = Date.now() + 60000;
+                    return null;
+                }
                 if (!res.ok) return null;
                 const arrayBuffer = await res.arrayBuffer();
                 this.ensureAudioGraph();
@@ -2118,6 +2148,7 @@ class ChronicleAudioRouter {
             } catch (_) {
                 return null;
             } finally {
+                if (this._prewarmControllers) this._prewarmControllers.delete(ctrl);
                 this._prewarmPromises.delete(cacheKey);
             }
         })();

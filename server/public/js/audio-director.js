@@ -304,7 +304,116 @@
         }
       } catch (_) {}
     }
+
+    /**
+     * Synchronize WebAudio 3D HRTF AudioListener pose with the Three.js camera.
+     */
+    static updateListener(ctx, pos, forward, up) {
+      if (!ctx || !ctx.listener || !pos) return;
+      const fwd = forward || { x: 0, y: 0, z: -1 };
+      const u = up || { x: 0, y: 1, z: 0 };
+      const t = ctx.currentTime || 0;
+      const l = ctx.listener;
+      try {
+        if (l.positionX && typeof l.positionX.setValueAtTime === 'function') {
+          l.positionX.setValueAtTime(Number(pos.x) || 0, t);
+          l.positionY.setValueAtTime(Number(pos.y) || 0, t);
+          l.positionZ.setValueAtTime(Number(pos.z) || 0, t);
+          if (l.forwardX && typeof l.forwardX.setValueAtTime === 'function') {
+            l.forwardX.setValueAtTime(Number(fwd.x) || 0, t);
+            l.forwardY.setValueAtTime(Number(fwd.y) || 0, t);
+            l.forwardZ.setValueAtTime(Number(fwd.z) ?? -1, t);
+            l.upX.setValueAtTime(Number(u.x) || 0, t);
+            l.upY.setValueAtTime(Number(u.y) ?? 1, t);
+            l.upZ.setValueAtTime(Number(u.z) || 0, t);
+          }
+        } else if (typeof l.setPosition === 'function') {
+          l.setPosition(Number(pos.x) || 0, Number(pos.y) || 0, Number(pos.z) || 0);
+          if (typeof l.setOrientation === 'function') {
+            l.setOrientation(
+              Number(fwd.x) || 0, Number(fwd.y) || 0, Number(fwd.z) ?? -1,
+              Number(u.x) || 0, Number(u.y) ?? 1, Number(u.z) || 0
+            );
+          }
+        }
+      } catch (_) {}
+    }
+
+    /**
+     * Lazy per-cue procedural SFX synthesizer table (zero boot CPU spike).
+     */
+    static synthSfxByKey(engine, key) {
+      if (!engine || !engine.ctx || typeof key !== 'string') return null;
+      switch (key) {
+        case 'whoosh': return engine.synthWhoosh();
+        case 'hit': return engine.synthHit();
+        case 'crit': return engine.synthCrit();
+        case 'shieldBlock': return engine.synthShieldBlock();
+        case 'armorDeflect': return engine.synthArmorDeflect();
+        case 'bow': return engine.synthBowShoot();
+        case 'playerHurt': return engine.synthPlayerHurt();
+        case 'playerDeath': return engine.synthPlayerDeath();
+        case 'lowHp': return engine.synthLowHpHeartbeat();
+        case 'heal': return engine.synthHeal();
+        case 'subtleRegenHp': return engine.synthSubtleRegen(false);
+        case 'subtleRegenSp': return engine.synthSubtleRegen(true);
+        case 'levelUp': return engine.synthLevelUp();
+        case 'monsterGrunt': return engine.synthMonsterGrunt();
+        case 'monsterDeath': return engine.synthMonsterDeath();
+        case 'monsterGrowl': return engine.synthMonsterGrowl();
+        case 'monsterHiss': return engine.synthMonsterHiss();
+        case 'ghostWail': return engine.synthGhostWail();
+        case 'dragonRoar': return engine.synthDragonRoar();
+        case 'rodentSqueak': return engine.synthRodentSqueak();
+        case 'insectChitin': return engine.synthInsectChitin();
+        case 'wallBump': return engine.synthWallBump();
+        case 'doorOpen': return engine.synthDoor(true);
+        case 'doorClose': return engine.synthDoor(false);
+        case 'doorBreak': return engine.synthDoorBreak();
+        case 'stairsDown': return engine.synthStairs(true);
+        case 'stairsUp': return engine.synthStairs(false);
+        case 'levelEnter': return engine.synthDungeonHorn();
+        case 'chestOpen': return engine.synthChest();
+        case 'trapDisarm': return engine.synthTrapDisarm();
+        case 'trapTrigger': return engine.synthTrapTrigger();
+        case 'teleport': return engine.synthTeleport();
+        case 'itemPickup': return engine.synthItemPickup();
+        case 'goldPickup': return engine.synthGoldPickup();
+        case 'itemDrop': return engine.synthItemDrop();
+        case 'equipWeapon': return engine.synthEquipWeapon();
+        case 'equipArmor': return engine.synthEquipArmor();
+        case 'quaff': return engine.synthQuaff();
+        case 'scroll': return engine.synthScroll();
+        case 'eat': return engine.synthEat();
+        case 'poison': return engine.synthPoison();
+        case 'confused': return engine.synthConfused();
+        case 'blind': return engine.synthBlind();
+        case 'paralyzed': return engine.synthParalyzed();
+        case 'afraid': return engine.synthAfraid();
+        case 'hunger': return engine.synthHunger();
+        case 'spell_magic': return engine.synthElementalSpell('magic');
+        case 'spell_fire': return engine.synthElementalSpell('fire');
+        case 'spell_cold': return engine.synthElementalSpell('cold');
+        case 'spell_lightning': return engine.synthElementalSpell('lightning');
+        case 'spell_poison': return engine.synthElementalSpell('poison');
+        case 'menuNav': return engine.synthMenuNav();
+        case 'menuSelect': return engine.synthMenuSelect();
+        case 'menuOpen': return engine.synthMenuOpen();
+        default: return null;
+      }
+    }
   }
+
+  AudioDirectorController.SFX_KEYS = Object.freeze([
+    'whoosh', 'hit', 'crit', 'shieldBlock', 'armorDeflect', 'bow', 'playerHurt', 'playerDeath',
+    'lowHp', 'heal', 'subtleRegenHp', 'subtleRegenSp', 'levelUp', 'monsterGrunt', 'monsterDeath',
+    'monsterGrowl', 'monsterHiss', 'ghostWail', 'dragonRoar', 'rodentSqueak', 'insectChitin',
+    'wallBump', 'doorOpen', 'doorClose', 'doorBreak', 'stairsDown', 'stairsUp', 'levelEnter',
+    'chestOpen', 'trapDisarm', 'trapTrigger', 'teleport', 'itemPickup', 'goldPickup', 'itemDrop',
+    'equipWeapon', 'equipArmor', 'quaff', 'scroll', 'eat', 'poison', 'confused', 'blind',
+    'paralyzed', 'afraid', 'hunger', 'spell_magic', 'spell_fire', 'spell_cold',
+    'spell_lightning', 'spell_poison', 'menuNav', 'menuSelect', 'menuOpen'
+  ]);
 
   return AudioDirectorController;
 });

@@ -18,8 +18,7 @@ class InputController {
                 this._fallbackNetwork = v;
             }
         });
-        this.dungeon = dungeon;
-        this.terminal = terminal;
+        this.attachDungeon(dungeon);
         if (audio && (audio.hud || audio.lastFrame || audio.getActiveRealm)) {
             this.app = audio;
             this.audio = audio.audio || null;
@@ -28,26 +27,6 @@ class InputController {
             this.audio = audio;
             this.toggleTerminalView = toggleTerminalView;
             this.app = (typeof window !== 'undefined' && window.__app) ? window.__app : null;
-        }
-
-        if (this.dungeon) {
-            if (typeof this.dungeon.turnLeft !== 'function') {
-                this.dungeon.turnLeft = () => this.dungeon.turn(-1);
-            }
-            if (typeof this.dungeon.turnRight !== 'function') {
-                this.dungeon.turnRight = () => this.dungeon.turn(1);
-            }
-            if (typeof this.dungeon.getRelativeDirection !== 'function') {
-                this.dungeon.getRelativeDirection = (fwd, strafe) => (fwd > 0 ? 8 : (fwd < 0 ? 2 : (strafe < 0 ? 4 : 6)));
-            }
-            if (typeof this.dungeon.turn === 'function') {
-                const origTurn = this.dungeon.turn.bind(this.dungeon);
-                this.dungeon.turn = (dir) => {
-                    const res = origTurn(dir);
-                    this.onCameraTurn();
-                    return res;
-                };
-            }
         }
 
         this.inTerminal = false;
@@ -83,19 +62,32 @@ class InputController {
         if (hash.includes('screen=character') || hash.includes('screen=splash')) {
             this.inTerminal = true;
         }
-        if (this.dungeon) {
-            if (typeof this.dungeon.turnLeft !== 'function') {
-                this.dungeon.turnLeft = () => this.dungeon.turn(-1);
-            }
-            if (typeof this.dungeon.turnRight !== 'function') {
-                this.dungeon.turnRight = () => this.dungeon.turn(1);
-            }
-            if (typeof this.dungeon.getRelativeDirection !== 'function') {
-                this.dungeon.getRelativeDirection = (fwd, strafe) => (fwd > 0 ? 8 : (fwd < 0 ? 2 : (strafe < 0 ? 4 : 6)));
-            }
-        }
+        this.attachDungeon(this.dungeon);
         this.setupTouchControls();
         this.syncWasdUiState();
+    }
+
+    attachDungeon(dungeon) {
+        this.dungeon = dungeon;
+        if (!this.dungeon) return;
+        if (typeof this.dungeon.turnLeft !== 'function') {
+            this.dungeon.turnLeft = () => this.dungeon.turn(-1);
+        }
+        if (typeof this.dungeon.turnRight !== 'function') {
+            this.dungeon.turnRight = () => this.dungeon.turn(1);
+        }
+        if (typeof this.dungeon.getRelativeDirection !== 'function') {
+            this.dungeon.getRelativeDirection = (fwd, strafe) => (fwd > 0 ? 8 : (fwd < 0 ? 2 : (strafe < 0 ? 4 : 6)));
+        }
+        if (typeof this.dungeon.turn === 'function' && !this.dungeon._inputTurnWrapped) {
+            const origTurn = this.dungeon.turn.bind(this.dungeon);
+            this.dungeon.turn = (dir) => {
+                const res = origTurn(dir);
+                this.onCameraTurn();
+                return res;
+            };
+            this.dungeon._inputTurnWrapped = true;
+        }
     }
 
     setupTouchControls() {

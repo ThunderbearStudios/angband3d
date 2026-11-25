@@ -497,7 +497,7 @@ function getGcpAuthContext(opts = {}) {
 }
 
 // Proxies text-to-speech to Gemini Native Audio (gemini-3.8-flash-tts / gemini-3.8-flash-lite-tts / gemini-3.1-flash-tts-preview) with Vertex AI failover
-function synthesizeGeminiTTS({ text, voice, emotion, geminiTag, directorNote, role, apiKey, realm = 'angband', lang = 'en', isRetry = false }) {
+function synthesizeGeminiTTS({ text, voice, emotion, geminiTag, directorNote, role, apiKey, realm = 'angband', lang = 'en', rate = '', isRetry = false }) {
     return new Promise((resolve, reject) => {
         if (!apiKey && !hasVertexCandidate()) {
             return reject(new Error('No Gemini API key provided'));
@@ -544,6 +544,13 @@ function synthesizeGeminiTTS({ text, voice, emotion, geminiTag, directorNote, ro
             if (cleanEmotion && !tagInner.toLowerCase().includes(cleanEmotion.toLowerCase())) {
                 tagInner = tagInner ? `${cleanEmotion}, ${tagInner}` : cleanEmotion;
             }
+
+            const rateMatch = String(rate || '').match(/^([+-]?\d{1,3})/);
+            const rateNum = rateMatch ? parseInt(rateMatch[1], 10) : 0;
+            if (rateNum >= 35) tagInner = tagInner ? `${tagInner}, brisk rapid pace` : 'brisk rapid pace';
+            else if (rateNum >= 12) tagInner = tagInner ? `${tagInner}, slightly brisk energetic pace` : 'slightly brisk energetic pace';
+            else if (rateNum <= -25) tagInner = tagInner ? `${tagInner}, slow deliberate unhurried pace` : 'slow deliberate unhurried pace';
+            else if (rateNum <= -10) tagInner = tagInner ? `${tagInner}, measured unhurried pace` : 'measured unhurried pace';
 
             if (!isJp && tagInner && !tagInner.toLowerCase().includes('no american') && !tagInner.toLowerCase().includes('no southern')) {
                 tagInner = `${tagInner}, no American southern drawl`;
@@ -1878,8 +1885,7 @@ const server = http.createServer((req, res) => {
                              '';
 
         const reqEngineParam = urlObj.searchParams.get('engine');
-        // Lorekeeper narrator uses high quality Gemini Native Audio
-        const requestedEngine = isNarrator ? 'gemini' : (reqEngineParam ? reqEngineParam.toLowerCase() : 'gemini');
+        const requestedEngine = reqEngineParam ? reqEngineParam.toLowerCase() : 'gemini';
         const emotion = (urlObj.searchParams.get('emotion') || '').toLowerCase().trim();
         const geminiTag = (urlObj.searchParams.get('gemini_tag') || '').trim();
         const directorNote = (urlObj.searchParams.get('director_note') || '').trim();
@@ -1971,7 +1977,7 @@ const server = http.createServer((req, res) => {
         // --- ENGINE B: GEMINI NATIVE CONTROLLABLE AUDIO (check RAM + NVMe cache before rate limiters) ---
         if (requestedEngine === 'gemini') {
             const geminiVoice = resolveGeminiVoiceChoice();
-            const geminiCacheKey = `gemini:${geminiVoice}:${role}:${isJpText ? 'jp' : reqLang}:${emotion}:${geminiTag}:${directorNote}:${text}`;
+            const geminiCacheKey = `gemini:${geminiVoice}:${role}:${isJpText ? 'jp' : reqLang}:${emotion}:${geminiTag}:${directorNote}:${reqRate || '+0%'}:${text}`;
             if (ttsAudioCache.has(geminiCacheKey)) {
                 const hitBuf = ttsAudioCache.get(geminiCacheKey);
                 ttsAudioCache.delete(geminiCacheKey);
@@ -1991,7 +1997,7 @@ const server = http.createServer((req, res) => {
                     return;
                 }
                 console.log(`[TTS] Gemini Native Request: voice=${geminiVoice}, role=${role}, emotion=${emotion || 'calm'}`);
-                const synthPromise = synthesizeGeminiTTS({ text, voice: geminiVoice, emotion, geminiTag, directorNote, role, apiKey: geminiApiKey, realm: reqRealm, lang: isJpText ? 'jp' : reqLang })
+                const synthPromise = synthesizeGeminiTTS({ text, voice: geminiVoice, emotion, geminiTag, directorNote, role, apiKey: geminiApiKey, realm: reqRealm, lang: isJpText ? 'jp' : reqLang, rate: reqRate })
                     .then(wavBuffer => { inFlightTTS.delete(geminiCacheKey); cacheGeminiWav(geminiCacheKey, wavBuffer); return wavBuffer; })
                     .catch(geminiErr => { inFlightTTS.delete(geminiCacheKey); throw geminiErr; });
                 inFlightTTS.set(geminiCacheKey, synthPromise);
@@ -2012,7 +2018,7 @@ const server = http.createServer((req, res) => {
                     return false;
                 }
                 const gVoice = resolveGeminiVoiceChoice();
-                const gCacheKey = `gemini:${gVoice}:${role}:${isJpText ? 'jp' : reqLang}:${emotion}:${geminiTag}:${directorNote}:${text}`;
+                const gCacheKey = `gemini:${gVoice}:${role}:${isJpText ? 'jp' : reqLang}:${emotion}:${geminiTag}:${directorNote}:${reqRate || '+0%'}:${text}`;
                 const reasonLabel = String((edgeErrOrReason && (edgeErrOrReason.message || edgeErrOrReason)) || 'edge_unavailable').split('\n')[0].slice(0, 80);
                 if (ttsAudioCache.has(gCacheKey)) {
                     const hitBuf = ttsAudioCache.get(gCacheKey);
@@ -2032,7 +2038,8 @@ const server = http.createServer((req, res) => {
                         role,
                         apiKey: geminiApiKey,
                         realm: reqRealm,
-                        lang: isJpText ? 'jp' : reqLang
+                        lang: isJpText ? 'jp' : reqLang,
+                        rate: reqRate
                     }).then(wavBuffer => {
                         inFlightTTS.delete(gCacheKey);
                         cacheGeminiWav(gCacheKey, wavBuffer);

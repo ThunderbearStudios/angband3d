@@ -43,6 +43,8 @@ self.addEventListener('fetch', (event) => {
     url.pathname.startsWith('/api/') ||
     url.pathname.startsWith('/health') ||
     url.pathname.startsWith('/assets/video/') ||
+    url.pathname.startsWith('/assets/audio/music/') ||
+    url.pathname === '/assets/audio/yasd_theme.ogg' ||
     url.pathname.endsWith('.mp3') ||
     url.pathname.endsWith('.mp4') ||
     url.pathname.endsWith('.webm') ||

@@ -12,6 +12,36 @@
         return u + (u.includes('?') ? '&v=' : '?v=') + (window.__ASSET_V || window.APP_VERSION || ver);
     };
 
+    // Wave 2C runtime feature flags (defaults + localStorage + URL ?flag_<KEY>=0|1 overrides)
+    const defaultFlags = {
+        AUDIO_HRTF_3D: true,
+        SILQ_WASM_LOCAL: false,
+        RENDERER_THREE_V2: false,
+        WEBGPU_EXPERIMENTAL: false
+    };
+    try {
+        const storedFlags = window.localStorage && localStorage.getItem('yasd_flags_v1');
+        if (storedFlags) {
+            const parsed = JSON.parse(storedFlags);
+            if (parsed && typeof parsed === 'object') {
+                for (const k of Object.keys(defaultFlags)) {
+                    if (typeof parsed[k] === 'boolean') defaultFlags[k] = parsed[k];
+                }
+            }
+        }
+    } catch (_) {}
+    try {
+        if (window.location && window.location.search) {
+            const qs = new URLSearchParams(window.location.search);
+            for (const k of Object.keys(defaultFlags)) {
+                const raw = qs.get('flag_' + k);
+                if (raw === '1' || raw === 'true') defaultFlags[k] = true;
+                else if (raw === '0' || raw === 'false') defaultFlags[k] = false;
+            }
+        }
+    } catch (_) {}
+    window.YASD_FLAGS = Object.freeze(defaultFlags);
+
     const _lazyBundleCache = new Map();
     window.__loadLazyBundle = function (name) {
         const key = String(name || '').trim();
@@ -37,6 +67,11 @@
         const langWrap = document.querySelector('.splash-lang-select-wrap');
         if (langWrap) {
             langWrap.addEventListener('click', (e) => e.stopPropagation());
+        }
+
+        // Lazy-load demo player bundle if demo/showcase query parameter requested
+        if (window.location.search && /[?&](?:demo|showcase)=1\b/.test(window.location.search)) {
+            window.__loadLazyBundle('demo').catch(() => {});
         }
 
         // Demo recorder load

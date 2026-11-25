@@ -355,8 +355,8 @@ class LocalGameBridge {
 
         this._watchdogTimer = setTimeout(() => {
             if (!this.connected) {
-                const err = new Error(`Local WASM/Worker startup timed out after 3500ms for realm ${this.currentRealm}`);
-                console.warn('[LocalBridge 3.5s Watchdog]', err.message);
+                const err = new Error(`Local WASM/Worker startup timed out after 10000ms for realm ${this.currentRealm}`);
+                console.warn('[LocalBridge 10s Watchdog]', err.message);
                 if (this.worker) {
                     try { this.worker.terminate(); } catch (_) {}
                     this.worker = null;
@@ -369,30 +369,35 @@ class LocalGameBridge {
                     try { this.onEvent({ type: 'wasm_fallback', error: err, realm: this.currentRealm }); } catch (_) {}
                 }
             }
-        }, 3500);
+        }, 10000);
 
-        const verParam = (typeof window !== 'undefined' && (window.__ASSET_V || window.APP_VERSION))
-            ? ('?v=' + encodeURIComponent(window.__ASSET_V || window.APP_VERSION))
-            : '';
-        const workerUrl = (typeof window !== 'undefined' && window.location && window.location.origin)
-            ? window.location.origin + '/js/engine-worker.js' + verParam
-            : '/js/engine-worker.js' + verParam;
+        const warmWorker = LocalGameBridge.consumeWarmWorker(this.currentRealm);
+        if (warmWorker) {
+            this.worker = warmWorker;
+        } else {
+            const verParam = (typeof window !== 'undefined' && (window.__ASSET_V || window.APP_VERSION))
+                ? ('?v=' + encodeURIComponent(window.__ASSET_V || window.APP_VERSION))
+                : '';
+            const workerUrl = (typeof window !== 'undefined' && window.location && window.location.origin)
+                ? window.location.origin + '/js/engine-worker.js' + verParam
+                : '/js/engine-worker.js' + verParam;
 
-        try {
-            this.worker = new Worker(workerUrl);
-        } catch (err) {
             try {
-                this.worker = new Worker('/js/engine-worker.js' + verParam);
-            } catch (err2) {
+                this.worker = new Worker(workerUrl);
+            } catch (err) {
                 try {
-                    this.worker = new Worker('js/engine-worker.js' + verParam);
-                } catch (err3) {
-                    this._clearWatchdog();
-                    const fatal = new Error(`Failed to instantiate Web Worker: ${err3.message}`);
-                    console.error('[LocalBridge Worker Pre-connect Fatal]', fatal);
-                    if (this.onWasmFallback) try { this.onWasmFallback(fatal); } catch (_) {}
-                    if (this.onEvent) try { this.onEvent({ type: 'wasm_fallback', error: fatal, realm: this.currentRealm }); } catch (_) {}
-                    return;
+                    this.worker = new Worker('/js/engine-worker.js' + verParam);
+                } catch (err2) {
+                    try {
+                        this.worker = new Worker('js/engine-worker.js' + verParam);
+                    } catch (err3) {
+                        this._clearWatchdog();
+                        const fatal = new Error(`Failed to instantiate Web Worker: ${err3.message}`);
+                        console.error('[LocalBridge Worker Pre-connect Fatal]', fatal);
+                        if (this.onWasmFallback) try { this.onWasmFallback(fatal); } catch (_) {}
+                        if (this.onEvent) try { this.onEvent({ type: 'wasm_fallback', error: fatal, realm: this.currentRealm }); } catch (_) {}
+                        return;
+                    }
                 }
             }
         }
@@ -642,6 +647,21 @@ class LocalGameBridge {
         return LocalSaveManager.restoreCheckpoint(slot, kind, realm || this.currentRealm);
     }
 
+    static _warmWorkerPool = new Map();
+
+    static consumeWarmWorker(realm = 'angband') {
+        const rk = String(realm || 'angband').toLowerCase();
+        const key = (rk === 'angband') ? 'wasm:angband' : 'cartridges';
+        const entry = this._warmWorkerPool && this._warmWorkerPool.get(key);
+        if (!entry || !entry.worker) return null;
+        this._warmWorkerPool.delete(key);
+        if (entry.idleTimer) clearTimeout(entry.idleTimer);
+        const w = entry.worker;
+        w.onmessage = null;
+        w.onerror = null;
+        return w;
+    }
+
     static prewarm(realm = 'angband') {
         if (typeof Worker === 'undefined') return;
         const rk = String(realm || 'angband').toLowerCase();
@@ -657,15 +677,23 @@ class LocalGameBridge {
                 ? ('?v=' + encodeURIComponent(window.__ASSET_V || window.APP_VERSION))
                 : '';
             const w = new Worker('/js/engine-worker.js' + verParam);
-            const done = () => { try { w.terminate(); } catch (_) {} };
-            const timer = setTimeout(done, 8000);
-            w.onmessage = (e) => {
-                if (e && e.data && e.data.type === 'prewarm_done') {
-                    clearTimeout(timer);
-                    done();
+            const entry = { worker: w, ready: false, idleTimer: null };
+            this._warmWorkerPool.set(key, entry);
+            const retire = () => {
+                if (this._warmWorkerPool.get(key) === entry) {
+                    this._warmWorkerPool.delete(key);
+                    try { w.terminate(); } catch (_) {}
                 }
             };
-            w.onerror = () => { clearTimeout(timer); done(); };
+            entry.idleTimer = setTimeout(retire, 90000);
+            const failTimer = setTimeout(retire, 12000);
+            w.onmessage = (e) => {
+                if (e && e.data && e.data.type === 'prewarm_done') {
+                    clearTimeout(failTimer);
+                    entry.ready = true;
+                }
+            };
+            w.onerror = () => { clearTimeout(failTimer); retire(); };
             w.postMessage({ type: 'prewarm', realm: rk });
         } catch (_) {}
     }
