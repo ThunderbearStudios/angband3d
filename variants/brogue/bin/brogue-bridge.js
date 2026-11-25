@@ -10,6 +10,7 @@
 
 const path = require('path');
 const { UniversalCartridgeEngine, runCartridgeMain } = require('../../../server/src/cartridges/cartridge-core');
+const RyodSystems = require('../../../server/src/cartridges/ryod-systems');
 
 const BROGUE_SPEC = {
     realm: 'brogue',
@@ -35,7 +36,7 @@ const BROGUE_SPEC = {
     },
     roles: [
         { key: 'a', id: 'Rogue Delver', race: 'Human', align: 'Neutral', hp: 30, pw: 0, ac: 3, str: 12, int: 12, wis: 12, dex: 14, con: 14, weapon: { name: 'dagger', dmg: '1d6', bonus: 0, strReq: 10, weight: 15, tval: 23, sval: 2 }, armor: { name: 'leather armor', ac: 3, bonus: 0, strReq: 10, weight: 120, tval: 36, sval: 4 }, extra: { kind: 'scroll', name: 'scroll of enchanting', glyph: '?', enchantGain: 1, count: 2, weight: 5, tval: 70, sval: 15 } },
-        { key: 'b', id: 'Staff Weaver', race: 'Human', align: 'Neutral', hp: 28, pw: 0, ac: 3, str: 12, int: 15, wis: 14, dex: 13, con: 13, weapon: { name: 'broadsword', dmg: '2d6', bonus: 1, strReq: 15, weight: 40, tval: 23, sval: 14 }, armor: { name: 'scale mail', ac: 5, bonus: 0, strReq: 12, weight: 200, tval: 37, sval: 3 }, extra: { kind: 'wand', name: 'staff of lightning [4/4]', glyph: '\\', charges: 4, count: 1, weight: 20, tval: 55, sval: 8 } },
+        { key: 'b', id: 'Staff Weaver', race: 'Human', align: 'Neutral', hp: 28, pw: 0, ac: 3, str: 12, int: 15, wis: 14, dex: 13, con: 13, weapon: { name: 'broadsword', dmg: '2d6', bonus: 1, strReq: 15, weight: 40, tval: 23, sval: 14 }, armor: { name: 'scale mail', ac: 5, bonus: 0, strReq: 12, weight: 200, tval: 37, sval: 3 }, extra: { kind: 'wand', name: 'staff of lightning [4/4]', glyph: '\\', charges: 4, maxCharges: 4, count: 1, weight: 20, tval: 55, sval: 8 } },
         { key: 'c', id: 'Ally Liberator', race: 'Human', align: 'Lawful', hp: 32, pw: 0, ac: 4, str: 13, int: 12, wis: 14, dex: 14, con: 15, weapon: { name: 'war pike', dmg: '2d5', bonus: 1, strReq: 16, weight: 45, tval: 22, sval: 8 }, armor: { name: 'chain mail', ac: 6, bonus: 1, strReq: 14, weight: 240, tval: 37, sval: 4 }, extra: { kind: 'potion', name: 'potion of strength', glyph: '!', strengthGain: 2, count: 1, weight: 15, tval: 71, sval: 40 } }
     ],
     allies: [
@@ -84,7 +85,9 @@ const BROGUE_SPEC = {
         { kind: 'armor', name: 'splint mail', glyph: '[', attr: 15, ac: 8, bonus: 0, strReq: 18, weight: 300, tval: 37, sval: 8 },
         { kind: 'armor', name: 'splint mail of mutuality', glyph: '[', attr: 15, ac: 7, bonus: 2, strReq: 18, weight: 300, tval: 37, sval: 8 },
         { kind: 'armor', name: 'plate armor', glyph: '[', attr: 15, ac: 10, bonus: 0, strReq: 20, weight: 350, tval: 37, sval: 10 },
-        { kind: 'wand', name: 'staff of firebolt [4/4]', glyph: '\\', attr: 4, charges: 4, weight: 20, tval: 55, sval: 6 },
+        { kind: 'wand', name: 'staff of firebolt [4/4]', glyph: '\\', attr: 4, charges: 4, maxCharges: 4, weight: 20, tval: 55, sval: 6 },
+        { kind: 'wand', name: 'staff of tunneling [3/3]', glyph: '\\', attr: 3, charges: 3, maxCharges: 3, effect: 'tunneling', weight: 20, tval: 55, sval: 7 },
+        { kind: 'wand', name: 'staff of entrancement [3/3]', glyph: '\\', attr: 13, charges: 3, maxCharges: 3, effect: 'entrancement', weight: 20, tval: 55, sval: 9 },
         { kind: 'lumenstone', name: 'glowing lumenstone', glyph: '*', attr: 14, weight: 5 }
     ]
 };
@@ -105,6 +108,14 @@ class BrogueEngine extends UniversalCartridgeEngine {
         p.esp = false;
         p.telepathyTurns = 0;
         p.rBlind = false;
+        p.level = 0;
+        p.exp = 0;
+        p.expNext = 0;
+        this.state.activeHazards = [];
+        this.state.appearanceMap = RyodSystems.buildAppearanceMap(this.state.seed || Date.now());
+        if (Array.isArray(p.inventory)) {
+            for (const it of p.inventory) this._syncStaffCharges(it);
+        }
     }
 
     loadSave() {
@@ -114,8 +125,109 @@ class BrogueEngine extends UniversalCartridgeEngine {
             p.blind = Number(p.blind || 0);
             p.telepathy = Boolean(p.telepathy || p.esp);
             p.esp = Boolean(p.esp || p.telepathy);
+            if (!Array.isArray(this.state.activeHazards)) this.state.activeHazards = [];
+            if (!this.state.appearanceMap) this.state.appearanceMap = RyodSystems.buildAppearanceMap(this.state.seed || 1);
+            if (Array.isArray(p.inventory)) {
+                for (const it of p.inventory) this._syncStaffCharges(it);
+            }
         }
         return ok;
+    }
+
+    _syncStaffCharges(item) {
+        if (!item || !/staff/i.test(item.name || '')) return;
+        const m = String(item.name || '').match(/\[(\d+)\/(\d+)\]/);
+        if (m) {
+            if (typeof item.charges !== 'number') item.charges = parseInt(m[1], 10);
+            if (typeof item.maxCharges !== 'number') item.maxCharges = parseInt(m[2], 10);
+            item.name = item.name.replace(/\[\d+\/\d+\]/, `[${item.charges}/${item.maxCharges}]`);
+        } else {
+            item.maxCharges = item.maxCharges || item.charges || 4;
+            if (typeof item.charges !== 'number') item.charges = item.maxCharges;
+        }
+    }
+
+    generateLevel(depth) {
+        super.generateLevel(depth);
+        this.state.activeHazards = [];
+        if (!this.state.appearanceMap) this.state.appearanceMap = RyodSystems.buildAppearanceMap(this.state.seed || depth || 1);
+        const map = this.state.map;
+        const p = this.state.player;
+        if (Array.isArray(map)) {
+            let hasVent = false;
+            let hasCage = false;
+            const floorCells = [];
+            for (let y = 2; y < map.length - 2; y++) {
+                for (let x = 2; x < map[y].length - 2; x++) {
+                    const c = map[y][x];
+                    if (c.feat === RyodSystems.FEAT.GAS_VENT) hasVent = true;
+                    if (c.feat === RyodSystems.FEAT.CAGE) hasCage = true;
+                    if (c.feat === RyodSystems.FEAT.FLOOR && !(x === p.x && y === p.y)) floorCells.push({ x, y });
+                }
+            }
+            if (!hasVent && floorCells.length > 0) {
+                const spot = floorCells[this.rand(floorCells.length)];
+                map[spot.y][spot.x].feat = RyodSystems.FEAT.GAS_VENT;
+                map[spot.y][spot.x].glyph = 'g';
+                map[spot.y][spot.x].attr = 10;
+            }
+            if (!hasCage && floorCells.length > 2) {
+                const spot = floorCells[this.rand(floorCells.length)];
+                if (map[spot.y][spot.x].feat === RyodSystems.FEAT.FLOOR) {
+                    map[spot.y][spot.x].feat = RyodSystems.FEAT.CAGE;
+                    map[spot.y][spot.x].glyph = '#';
+                    map[spot.y][spot.x].attr = 14;
+                }
+            }
+        }
+        for (const o of (this.state.objects || [])) {
+            this._syncStaffCharges(o);
+            if ((o.kind === 'potion' || o.kind === 'scroll') && !(this.state.identifiedTypes && this.state.identifiedTypes[o.name])) {
+                o.identified = false;
+            }
+        }
+    }
+
+    interactContextualFeature() {
+        const p = this.state.player;
+        const map = this.state.map;
+        if (Array.isArray(map)) {
+            for (let dy = -1; dy <= 1; dy++) {
+                for (let dx = -1; dx <= 1; dx++) {
+                    const nx = p.x + dx, ny = p.y + dy;
+                    if (!map[ny] || !map[ny][nx]) continue;
+                    if (map[ny][nx].feat === RyodSystems.FEAT.CAGE) {
+                        map[ny][nx].feat = RyodSystems.FEAT.FLOOR;
+                        map[ny][nx].glyph = '.';
+                        const allySpec = BROGUE_SPEC.allies[this.rand(BROGUE_SPEC.allies.length)];
+                        const ally = {
+                            id: `ally_${Date.now()}_${this.rand(999)}`,
+                            name: allySpec.name,
+                            race: allySpec.name,
+                            glyph: allySpec.glyph,
+                            attr: 10,
+                            x: nx,
+                            y: ny,
+                            hp: allySpec.hp,
+                            hpMax: allySpec.hp,
+                            hp_max: allySpec.hp,
+                            dmg: allySpec.dmg,
+                            dmgDice: '2d5',
+                            lore: allySpec.lore,
+                            alive: true,
+                            isAlly: true,
+                            isPet: true,
+                            kills: 0
+                        };
+                        this.state.monsters.push(ally);
+                        this.addMessage(`You unlock the iron cage! A grateful ${allySpec.name} joins your expedition!`, 14);
+                        this.advanceTurn();
+                        return true;
+                    }
+                }
+            }
+        }
+        return super.interactContextualFeature();
     }
 
     updateVisibility() {
@@ -144,6 +256,11 @@ class BrogueEngine extends UniversalCartridgeEngine {
 
     applyVerbToItem(verb, item) {
         const p = this.state.player;
+        if (item && (verb === 'quaff' || verb === 'read' || (verb === 'use' && (item.kind === 'potion' || item.kind === 'scroll')))) {
+            this.state.identifiedTypes = this.state.identifiedTypes || {};
+            this.state.identifiedTypes[item.name] = true;
+            item.identified = true;
+        }
         if (item && (verb === 'quaff' || (verb === 'use' && item.kind === 'potion'))) {
             const nm = String(item.name || '');
             if (item.blindTurns || /darkness|blindness/i.test(nm)) {
@@ -177,15 +294,94 @@ class BrogueEngine extends UniversalCartridgeEngine {
                 }
             }
         }
+        const isDevice = item && (item.kind === 'wand' || item.kind === 'staff');
+        if (item && (verb === 'zap' || (verb === 'use' && isDevice)) && /staff/i.test(item.name || '')) {
+            this._syncStaffCharges(item);
+            const nm = String(item.name || '');
+            if (/tunnel/i.test(nm)) {
+                if (item.charges <= 0) {
+                    this.addMessage(`The ${item.name} has no charges left—wait for it to recharge.`, 12);
+                    return;
+                }
+                item.charges--;
+                this._syncStaffCharges(item);
+                let carved = false;
+                const map = this.state.map;
+                outer: for (let dist = 1; dist <= 3; dist++) {
+                    for (let dy = -dist; dy <= dist; dy++) {
+                        for (let dx = -dist; dx <= dist; dx++) {
+                            const tx = p.x + dx, ty = p.y + dy;
+                            if (ty > 0 && ty < map.length - 1 && tx > 0 && tx < map[ty].length - 1 && map[ty][tx].feat === RyodSystems.FEAT.WALL) {
+                                map[ty][tx].feat = RyodSystems.FEAT.FLOOR;
+                                map[ty][tx].glyph = '.';
+                                map[ty][tx].attr = 1;
+                                carved = true;
+                                break outer;
+                            }
+                        }
+                    }
+                }
+                this.updateVisibility();
+                this.addMessage(carved ? 'Your staff of tunneling blasts a smooth passage through solid rock!' : 'Stone dust sparkles harmlessly along the wall.', 14);
+                this.advanceTurn();
+                return;
+            }
+            if (/entran/i.test(nm)) {
+                if (item.charges <= 0) {
+                    this.addMessage(`The ${item.name} has no charges left—wait for it to recharge.`, 12);
+                    return;
+                }
+                item.charges--;
+                this._syncStaffCharges(item);
+                const foes = (this.state.monsters || []).filter(m => m.hp > 0 && !m.isPet && !m.isAlly && !m.peaceful && this.state.map[m.y] && this.state.map[m.y][m.x] && this.state.map[m.y][m.x].inView);
+                foes.sort((a, b) => Math.hypot(a.x - p.x, a.y - p.y) - Math.hypot(b.x - p.x, b.y - p.y));
+                if (foes[0]) {
+                    foes[0].energy = -250;
+                    foes[0].confused = 6;
+                    this.addMessage(`Arcane tendrils seize the mind of ${foes[0].race}!`, 13);
+                } else {
+                    this.addMessage('The air shimmers with entrancing static.', 13);
+                }
+                this.advanceTurn();
+                return;
+            }
+            if (/fire/i.test(nm)) {
+                const target = (this.state.monsters || []).find(m => m.hp > 0 && !m.isPet && !m.isAlly && this.state.map[m.y] && this.state.map[m.y][m.x] && this.state.map[m.y][m.x].inView);
+                const tx = target ? target.x : Math.min((this.state.map[0]?.length || 66) - 2, p.x + 1);
+                const ty = target ? target.y : p.y;
+                super.applyVerbToItem(verb, item);
+                this._syncStaffCharges(item);
+                RyodSystems.pushHazard(this.state, { x: tx, y: ty, type: 'wildfire', duration: 6 });
+                RyodSystems.tickActiveHazards(this);
+                return;
+            }
+        }
         super.applyVerbToItem(verb, item);
+        if (item) this._syncStaffCharges(item);
     }
 
     handleMonsterKilled(mon) {
         const p = this.state.player;
-        if (mon && (mon.special === 'caustic_bloat' || /bloat/i.test(mon.race || '')) && !p.rBlind && Math.hypot(mon.x - p.x, mon.y - p.y) <= 1.5) {
-            p.blind = Math.max(p.blind || 0, 9);
-            this.updateVisibility();
-            this.addMessage('The bloated creature ruptures in blindness gas! A veil of darkness blinds you!', 13);
+        if (mon && (mon.special === 'caustic_bloat' || /bloat/i.test(mon.race || ''))) {
+            for (let dy = -1; dy <= 1; dy++) {
+                for (let dx = -1; dx <= 1; dx++) {
+                    const cx = mon.x + dx, cy = mon.y + dy;
+                    if (this.state.map[cy] && this.state.map[cy][cx] && this.state.map[cy][cx].feat !== RyodSystems.FEAT.WALL) {
+                        RyodSystems.pushHazard(this.state, { x: cx, y: cy, type: 'caustic_gas', duration: 5 });
+                    }
+                }
+            }
+            if (!p.rBlind && Math.hypot(mon.x - p.x, mon.y - p.y) <= 1.5) {
+                p.blind = Math.max(p.blind || 0, 9);
+                this.updateVisibility();
+                this.addMessage('The bloated creature ruptures in blindness gas! A veil of darkness blinds you!', 13);
+            } else {
+                this.addMessage('The bloated creature bursts into a lingering cloud of caustic gas!', 10);
+            }
+        }
+        if (mon) {
+            const ally = (this.state.monsters || []).find(m => m.hp > 0 && (m.isPet || m.isAlly) && Math.hypot(m.x - mon.x, m.y - mon.y) <= 2.5);
+            if (ally) RyodSystems.evolveAllyOnBattle(ally, this);
         }
         super.handleMonsterKilled(mon);
     }
@@ -195,6 +391,29 @@ class BrogueEngine extends UniversalCartridgeEngine {
         const wasBlind = p.blind > 0;
         super.advanceTurn();
         if (p.dead) return;
+        RyodSystems.tickActiveHazards(this);
+        for (const h of (this.state.activeHazards || [])) {
+            for (const m of (this.state.monsters || [])) {
+                if (m.hp > 0 && !m.isPet && !m.isAlly && m.x === h.x && m.y === h.y) {
+                    const dmg = h.type === 'wildfire' ? 4 : (h.type === 'caustic_gas' ? 2 : 0);
+                    if (dmg > 0) {
+                        m.hp -= dmg;
+                        if (m.hp <= 0) this.handleMonsterKilled(m);
+                    }
+                }
+            }
+        }
+        if (this.state.turn > 0 && this.state.turn % 8 === 0 && Array.isArray(p.inventory)) {
+            for (const it of p.inventory) {
+                if ((it.kind === 'wand' || it.kind === 'staff') && /staff/i.test(it.name || '')) {
+                    this._syncStaffCharges(it);
+                    if (it.charges < it.maxCharges) {
+                        it.charges++;
+                        this._syncStaffCharges(it);
+                    }
+                }
+            }
+        }
         if (wasBlind && p.blind > 0) {
             p.blind--;
             if (p.blind === 0) {
@@ -221,6 +440,17 @@ class BrogueEngine extends UniversalCartridgeEngine {
         frame.player.flags.esp = hasEsp;
         frame.player.flags.telepathy = hasEsp;
         frame.player.flags.rBlind = Boolean(p.rBlind || frame.player.flags.rBlind);
+        frame.player.level = 0;
+        frame.player.exp = 0;
+        frame.player.exp_next = 0;
+        frame.hazards = (this.state.activeHazards || []).slice(0, 32).map(h => ({ x: h.x, y: h.y, type: h.type, duration: h.duration }));
+
+        if (Array.isArray(frame.objects)) {
+            frame.objects = frame.objects.map(o => ({ ...o, displayName: RyodSystems.getDisplayItemName(o, this.state) }));
+        }
+        if (frame.player && Array.isArray(frame.player.inventory)) {
+            frame.player.inventory = frame.player.inventory.map(it => ({ ...it, displayName: RyodSystems.getDisplayItemName(it, this.state) }));
+        }
 
         const hashRaceIdx = (raceName) => {
             const s = String(raceName || 'unknown');

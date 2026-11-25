@@ -10,6 +10,7 @@
 
 const path = require('path');
 const { UniversalCartridgeEngine, runCartridgeMain } = require('../../../server/src/cartridges/cartridge-core');
+const RyodSystems = require('../../../server/src/cartridges/ryod-systems');
 
 const DCSS_SPEC = {
     realm: 'dcss',
@@ -182,6 +183,59 @@ const DCSS_RUNES_BY_DEPTH = {
     13: 'Abyssal Rune of Zot'
 };
 
+const DCSS_BRANCH_FORKS = Object.freeze({
+    lair_rune: { depth: 6, prompt: 'Choose Lair Branch', choices: ['Swamp', 'Snake Pit', 'Shoals'] },
+    mid_branch: { depth: 8, prompt: 'Choose Middle Branch', choices: ['Orcish Mines', 'Elven Halls', 'Vaults'] },
+    deep_rune: { depth: 10, prompt: 'Choose Rune Vault', choices: ['Vaults', 'Slime Pits', 'Abyss'] }
+});
+
+const DCSS_GOD_KITS = Object.freeze({
+    Trog: {
+        title: 'Trog the Wrathful',
+        passiveDesc: '+4 HP fury rush on kill',
+        powerName: 'Berserk Fury & Brothers in Arms',
+        powerCost: 2,
+        dmg: 24,
+        heal: 10
+    },
+    Okawaru: {
+        title: 'Okawaru the Warmaster',
+        passiveDesc: '+3 HP & prowess cadence on kill',
+        powerName: 'Heroism & Finesse',
+        powerCost: 2,
+        dmg: 20,
+        heal: 12,
+        haste: true
+    },
+    Vehumet: {
+        title: 'Vehumet of Destruction',
+        passiveDesc: '+2 MP siphon on spell/foe kill',
+        powerName: 'Vehumet Destructive Blast',
+        powerCost: 2,
+        dmg: 26,
+        aoe: true
+    },
+    Makhleb: {
+        title: 'Makhleb the Destroyer',
+        passiveDesc: '+5 HP blood siphon on every kill',
+        powerName: 'Summon Greater Destruction',
+        powerCost: 2,
+        dmg: 25,
+        heal: 8,
+        aoe: true
+    },
+    'The Shining One': {
+        title: 'The Shining One',
+        passiveDesc: '+4 HP & purge darkness on kill',
+        powerName: 'Cleansing Flame',
+        powerCost: 2,
+        dmg: 22,
+        heal: 14,
+        cureBlind: true,
+        aoe: true
+    }
+});
+
 class DCSSEngine extends UniversalCartridgeEngine {
     constructor(opts = {}) {
         const defaultSaveDir = path.resolve(__dirname, '../lib/save');
@@ -199,6 +253,11 @@ class DCSSEngine extends UniversalCartridgeEngine {
         p.rBlind = false;
         p.runeList = [];
         p.runes = 0;
+        p.orbRun = false;
+        p.selectedBranches = {};
+        p.abandonedDeity = null;
+        p.godWrath = 0;
+        p.worshipKills = 0;
         p.ringSlots = (role && role.ringSlots) || 2;
         p.allowBodyArmor = role ? (role.allowBodyArmor !== false) : true;
         if (role && role.ring && !p.inventory.some(it => it.kind === 'ring' && it.name === role.ring.name)) {
@@ -222,6 +281,9 @@ class DCSSEngine extends UniversalCartridgeEngine {
             p.esp = Boolean(p.esp || p.telepathy);
             if (!Array.isArray(p.runeList)) p.runeList = [];
             p.runes = p.runeList.length;
+            p.orbRun = Boolean(p.orbRun || p.hasAmulet);
+            if (!p.selectedBranches || typeof p.selectedBranches !== 'object') p.selectedBranches = {};
+            p.godWrath = Number(p.godWrath || 0);
             if (p.race === 'Octopode') {
                 if (!p.ringSlots) p.ringSlots = 8;
                 p.allowBodyArmor = false;
@@ -230,8 +292,62 @@ class DCSSEngine extends UniversalCartridgeEngine {
         return ok;
     }
 
+    getBranchName(depth) {
+        const p = this.state && this.state.player;
+        const sb = (p && p.selectedBranches) || {};
+        if ((depth === 6 || depth === 7) && sb.lair_rune) return sb.lair_rune;
+        if ((depth === 8 || depth === 9) && sb.mid_branch) return sb.mid_branch;
+        if (depth >= 10 && depth <= 13 && sb.deep_rune) return sb.deep_rune;
+        return DCSS_SPEC.getBranchForDepth(depth);
+    }
+
+    selectBranch(forkId, choice) {
+        const fork = DCSS_BRANCH_FORKS[forkId];
+        if (!fork || !fork.choices.includes(choice)) return false;
+        const p = this.state.player;
+        p.selectedBranches = p.selectedBranches || {};
+        p.selectedBranches[forkId] = choice;
+        this.state.branchName = this.getBranchName(this.state.depth);
+        this.addMessage(`Branch charted: You enter ${choice} (${fork.prompt}).`, 14);
+        return true;
+    }
+
+    _spawnOrbPursuer() {
+        const p = this.state.player;
+        const map = this.state.map;
+        if (!Array.isArray(map)) return;
+        const activePursuers = (this.state.monsters || []).filter(m => m.hp > 0 && m.isOrbPursuer).length;
+        if (activePursuers >= 3) return;
+        for (let attempt = 0; attempt < 25; attempt++) {
+            const x = 2 + this.rand(Math.max(4, (map[0]?.length || 66) - 4));
+            const y = 2 + this.rand(Math.max(4, map.length - 4));
+            if (map[y] && map[y][x] && map[y][x].feat === 1 && Math.hypot(x - p.x, y - p.y) >= 3) {
+                const isPanLord = this.rand(2) === 0;
+                this.state.monsters.push({
+                    id: `orb_pursuer_${Date.now()}_${this.rand(999)}`,
+                    race: isPanLord ? 'pandemonium lord' : 'brimstone fiend',
+                    glyph: isPanLord ? '&' : '1',
+                    attr: 13,
+                    x,
+                    y,
+                    hp: isPanLord ? 115 : 95,
+                    hp_max: isPanLord ? 115 : 95,
+                    ac: 14,
+                    dmg: isPanLord ? 28 : 24,
+                    exp: 350,
+                    isBoss: isPanLord,
+                    isOrbPursuer: true,
+                    lore: 'Summoned from Pandemonium to reclaim the Orb of Zot.'
+                });
+                this.addMessage('The Orb of Zot pulses! Forces of Pandemonium hunt you upward!', 12);
+                return;
+            }
+        }
+    }
+
     generateLevel(depth) {
         super.generateLevel(depth);
+        this.state.branchName = this.getBranchName(depth);
         const runeName = DCSS_RUNES_BY_DEPTH[depth];
         const p = this.state && this.state.player;
         if (!p) return;
@@ -265,6 +381,9 @@ class DCSSEngine extends UniversalCartridgeEngine {
                 });
             }
         }
+        if (p.orbRun) {
+            this._spawnOrbPursuer();
+        }
     }
 
     pickupAtPlayer() {
@@ -282,10 +401,12 @@ class DCSSEngine extends UniversalCartridgeEngine {
             }
             this.state.objects.splice(idx, 1);
             p.hasAmulet = true;
-            p.winner = true;
-            this.addMessage(`Glorious Victory! You claim the ${obj.name} with all required Runes (${p.runes}/3) and conquer the Realm of Zot!`, 14);
+            p.orbRun = true;
+            p.winner = false;
+            this.addMessage(`You seize the ${obj.name}! The Orb Run begins—fight your way back up to D:1 with all Runes (${p.runes}/3)!`, 14);
             p.inventory.push(obj);
             this.reindexInventory();
+            this._spawnOrbPursuer();
             this.advanceTurn();
             return;
         }
@@ -408,14 +529,107 @@ class DCSSEngine extends UniversalCartridgeEngine {
         super.applyVerbToItem(verb, item);
     }
 
+    switchDeity(newDeity) {
+        const p = this.state.player;
+        if (!newDeity || newDeity === p.deity) return false;
+        const oldDeity = p.deity;
+        p.abandonedDeity = oldDeity;
+        p.godWrath = Math.max(p.godWrath || 0, 12);
+        p.deity = newDeity;
+        p.piety = 1;
+        this.addMessage(`You forsake ${oldDeity || 'your patron'} for ${newDeity}! ${oldDeity || 'Your former god'} vows divine wrath upon you!`, 12);
+        return true;
+    }
+
+    handleMonsterKilled(mon) {
+        const p = this.state.player;
+        super.handleMonsterKilled(mon);
+        if (!p || p.dead) return;
+        p.worshipKills = (p.worshipKills || 0) + 1;
+        if (p.godWrath > 0) {
+            p.godWrath--;
+            if (p.godWrath === 0) {
+                p.abandonedDeity = null;
+                this.addMessage('Your divine penance is complete! The wrath subsides.', 11);
+            }
+        }
+        const kit = DCSS_GOD_KITS[p.deity];
+        if (kit) {
+            if (p.deity === 'Makhleb') p.hp = Math.min(p.hpMax, p.hp + 5);
+            else if (p.deity === 'Trog') p.hp = Math.min(p.hpMax, p.hp + 4);
+            else if (p.deity === 'Vehumet') p.pw = Math.min(p.pwMax, (p.pw || 0) + 2);
+            else if (p.deity === 'Okawaru') p.hp = Math.min(p.hpMax, p.hp + 3);
+            else if (p.deity === 'The Shining One') {
+                p.hp = Math.min(p.hpMax, p.hp + 4);
+                if (p.blind > 0) {
+                    p.blind = 0;
+                    this.updateVisibility();
+                }
+            }
+        }
+        if (p.worshipKills % 4 === 0 && (p.piety || 0) < 6) {
+            p.piety = (p.piety || 0) + 1;
+            this.addMessage(`${p.deity} appreciates your devotion! (Piety: ${p.piety}/6)`, 14);
+        }
+    }
+
     prayAtAltar() {
         const p = this.state.player;
         const cell = this.state.map[p.y] && this.state.map[p.y][p.x];
-        if (cell && cell.feat === 43 && p.blind > 0) {
-            p.blind = 0;
-            this.updateVisibility();
+        if (cell && cell.feat === 43) {
+            if (p.blind > 0) {
+                p.blind = 0;
+                this.updateVisibility();
+            }
+            if (cell.deity && p.deity && cell.deity !== p.deity) {
+                this.switchDeity(cell.deity);
+                this.advanceTurn();
+                return;
+            }
         }
         super.prayAtAltar();
+    }
+
+    invokeDeityPower() {
+        const p = this.state.player;
+        const kit = DCSS_GOD_KITS[p.deity];
+        if (kit) {
+            if ((p.piety || 0) < (kit.powerCost || 2)) {
+                this.addMessage(`${p.deity} requires at least ${kit.powerCost || 2} piety for ${kit.powerName}.`, 12);
+                return;
+            }
+            p.piety = Math.max(0, (p.piety || 0) - (kit.powerCost || 2));
+            if (kit.heal) p.hp = Math.min(p.hpMax, p.hp + kit.heal);
+            if (kit.haste) p.speedBoost = Math.max(p.speedBoost || 0, 20);
+            if (kit.cureBlind && p.blind > 0) {
+                p.blind = 0;
+                this.updateVisibility();
+            }
+            const hostiles = (this.state.monsters || []).filter(m => m.hp > 0 && !m.isPet && !m.peaceful && this.state.map[m.y] && this.state.map[m.y][m.x] && this.state.map[m.y][m.x].inView);
+            if (kit.aoe && hostiles.length > 0) {
+                for (const foe of hostiles.slice()) {
+                    foe.hp -= kit.dmg;
+                    if (foe.hp <= 0) this.handleMonsterKilled(foe);
+                }
+                this.addMessage(`${kit.title}: ${kit.powerName} blasts ${hostiles.length} visible foe(s) for ${kit.dmg} damage!`, 14);
+            } else if (kit.dmg && hostiles.length > 0) {
+                hostiles.sort((a, b) => Math.hypot(a.x - p.x, a.y - p.y) - Math.hypot(b.x - p.x, b.y - p.y));
+                hostiles[0].hp -= kit.dmg;
+                this.addMessage(`${kit.title}: ${kit.powerName} strikes ${hostiles[0].race} for ${kit.dmg} damage!`, 14);
+                if (hostiles[0].hp <= 0) this.handleMonsterKilled(hostiles[0]);
+            } else {
+                this.addMessage(`${kit.title} empowers you with ${kit.powerName}!`, 14);
+            }
+            this.advanceTurn();
+            return;
+        }
+        if (RyodSystems && typeof RyodSystems.invokeDeityPower === 'function') {
+            if (RyodSystems.invokeDeityPower(this)) {
+                this.advanceTurn();
+                return;
+            }
+        }
+        super.invokeDeityPower();
     }
 
     castActivePower(power, targetX, targetY) {
@@ -432,6 +646,15 @@ class DCSSEngine extends UniversalCartridgeEngine {
         const wasBlind = p.blind > 0;
         super.advanceTurn();
         if (p.dead) return;
+        if (p.godWrath > 0 && this.state.turn > 0 && this.state.turn % 5 === 0) {
+            const penalty = Math.min(4, Math.max(1, p.hp - 1));
+            p.hp -= penalty;
+            p.godWrath--;
+            this.addMessage(`${p.abandonedDeity || 'Your abandoned god'} smites your apostasy! (-${penalty} HP, Wrath:${p.godWrath})`, 12);
+        }
+        if (p.orbRun && this.state.turn > 0 && this.state.turn % 18 === 0) {
+            this._spawnOrbPursuer();
+        }
         if (wasBlind && p.blind > 0) {
             p.blind--;
             if (p.blind === 0) {
@@ -548,6 +771,12 @@ class DCSSEngine extends UniversalCartridgeEngine {
         }
         frame.player.runes = p.runes || 0;
         frame.player.runeList = p.runeList || [];
+        frame.player.orbRun = Boolean(p.orbRun);
+        frame.player.godWrath = Number(p.godWrath || 0);
+        frame.player.abandonedDeity = p.abandonedDeity || null;
+        frame.player.selectedBranches = p.selectedBranches || {};
+        frame.player.deityKit = DCSS_GOD_KITS[p.deity] || null;
+        frame.branchForks = DCSS_BRANCH_FORKS;
         frame.victory = Boolean(p.winner || p.ascended);
         frame.player.winner = Boolean(p.winner || p.ascended);
         frame.player.victory = Boolean(p.winner || p.ascended);

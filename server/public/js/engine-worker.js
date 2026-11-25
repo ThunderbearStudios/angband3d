@@ -14,6 +14,7 @@ const commandQueue = [];
 let currentChar = 'Adventurer';
 let wasmPlayerAlive = true;
 const CARTRIDGE_REALMS = new Set(['nethack', 'dcss', 'brogue', 'rogue', 'ryod']);
+const WASM_REALMS = new Set(['angband', 'silq']);
 const WORKER_VER = (() => {
     try {
         const m = self.location && self.location.search ? self.location.search.match(/[?&]v=([^&]+)/) : null;
@@ -101,12 +102,13 @@ self.onmessage = async (e) => {
                     if (ensureCartridgesBundleLoaded() && self.YendorWorkerCartridges.VFS) {
                         await self.YendorWorkerCartridges.VFS.hydrateFromIndexedDB();
                     }
-                } else if (warmRealm === 'angband' && typeof fetch === 'function') {
+                } else if (WASM_REALMS.has(warmRealm) && typeof fetch === 'function') {
                     const baseWasm = (self.location && self.location.origin) ? self.location.origin + '/wasm/' : '/wasm/';
+                    const prefix = warmRealm === 'silq' ? 'silq' : 'angband';
                     await Promise.allSettled([
-                        fetch(baseWasm + 'angband.js' + V_SUFFIX),
-                        fetch(baseWasm + 'angband.wasm' + V_SUFFIX),
-                        fetch(baseWasm + 'angband.data' + V_SUFFIX)
+                        fetch(baseWasm + prefix + '.js' + V_SUFFIX),
+                        fetch(baseWasm + prefix + '.wasm' + V_SUFFIX),
+                        fetch(baseWasm + prefix + '.data' + V_SUFFIX)
                     ]);
                 }
             } catch (_) {}
@@ -122,13 +124,13 @@ self.onmessage = async (e) => {
                 await startCartridgeEngine(reqRealm, data);
                 return;
             }
-            if (reqRealm !== 'angband') {
+            if (!WASM_REALMS.has(reqRealm)) {
                 self.postMessage({ type: 'error', message: `Realm "${reqRealm}" requires Cloud Native C/C++ Engine.` });
                 self.postMessage({ type: 'bye', detail: `Realm "${reqRealm}" is hosted on Cloud Engine.` });
                 return;
             }
             currentChar = data.username || 'Adventurer';
-            await startEngine(currentChar, !!data.isNew, data.saveFile);
+            await startEngine(currentChar, !!data.isNew, data.saveFile, reqRealm);
             break;
         }
 
@@ -253,29 +255,33 @@ function pushCommand(cmd) {
     }
 }
 
-async function startEngine(charName, isNew, saveFile) {
-    self.postMessage({ type: 'status', message: 'Loading Angband WebAssembly runtime...' });
+async function startEngine(charName, isNew, saveFile, realm = 'angband') {
+    const isSilq = String(realm || 'angband').toLowerCase() === 'silq';
+    const engineLabel = isSilq ? 'Sil-Q' : 'Angband';
+    const wasmJs = isSilq ? 'silq.js' : 'angband.js';
+    self.postMessage({ type: 'status', message: `Loading ${engineLabel} WebAssembly runtime...` });
 
     const baseWasm = (typeof self !== 'undefined' && self.location && self.location.origin)
         ? self.location.origin + '/wasm/'
         : '/wasm/';
 
     try {
-        importScripts(baseWasm + 'angband.js' + V_SUFFIX);
+        importScripts(baseWasm + wasmJs + V_SUFFIX);
     } catch (e) {
         try {
-            importScripts('/wasm/angband.js' + V_SUFFIX);
+            importScripts('/wasm/' + wasmJs + V_SUFFIX);
         } catch (e2) {
             try {
-                importScripts('../wasm/angband.js' + V_SUFFIX);
+                importScripts('../wasm/' + wasmJs + V_SUFFIX);
             } catch (e3) {
-                self.postMessage({ type: 'error', message: 'Could not load wasm/angband.js: ' + e3.message });
+                self.postMessage({ type: 'error', message: `Could not load wasm/${wasmJs}: ` + e3.message });
                 return;
             }
         }
     }
 
-    const targetSlot = (saveFile || charName || 'Adventurer').trim().replace(/^\/lib\/save\//, '');
+    const rawSlot = (saveFile || charName || 'Adventurer').trim().replace(/^\/lib\/save\//, '');
+    const targetSlot = isSilq && !rawSlot.startsWith('silq_') ? ('silq_' + rawSlot) : rawSlot;
     const baseSlot = targetSlot.replace(/\.sav$/i, '');
     currentChar = baseSlot;
 
@@ -353,12 +359,9 @@ async function startEngine(charName, isNew, saveFile) {
         arguments: args,
         preRun: [
             function (mod) {
-                try {
-                    mod.FS.mkdir('/lib');
-                } catch (e) {}
-                try {
-                    mod.FS.mkdir('/lib/save');
-                } catch (e) {}
+                for (const d of ['/lib', '/lib/save', '/lib/data', '/lib/apex', '/lib/user']) {
+                    try { mod.FS.mkdir(d); } catch (e) {}
+                }
 
                 if (mod.IDBFS) {
                     try {
@@ -407,7 +410,13 @@ async function startEngine(charName, isNew, saveFile) {
 
     try {
         angbandModule = config;
-        const mod = await createAngbandModule(config);
+        const factoryFn = isSilq
+            ? (typeof createSilqModule === 'function' ? createSilqModule : self.createSilqModule)
+            : (typeof createAngbandModule === 'function' ? createAngbandModule : self.createAngbandModule);
+        if (typeof factoryFn !== 'function') {
+            throw new Error(`Missing WASM factory for ${engineLabel}`);
+        }
+        const mod = await factoryFn(config);
         angbandModule = mod;
         if (!angbandModule.onAwaitingInput) {
             angbandModule.onAwaitingInput = config.onAwaitingInput;
@@ -416,6 +425,6 @@ async function startEngine(charName, isNew, saveFile) {
         self.postMessage({ type: 'ready', saves: getSaveList() });
     } catch (err) {
         console.error('[Engine Worker Boot Error]', err);
-        self.postMessage({ type: 'error', message: 'Failed to boot Wasm engine: ' + err.message });
+        self.postMessage({ type: 'error', message: `Failed to boot ${engineLabel} Wasm engine: ` + err.message });
     }
 }

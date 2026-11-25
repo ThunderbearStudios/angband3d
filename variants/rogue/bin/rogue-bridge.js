@@ -9,6 +9,7 @@
 
 const path = require('path');
 const { UniversalCartridgeEngine, runCartridgeMain } = require('../../../server/src/cartridges/cartridge-core');
+const RyodSystems = require('../../../server/src/cartridges/ryod-systems');
 
 const ROGUE_SPEC = {
     realm: 'rogue',
@@ -121,6 +122,10 @@ class RogueEngine extends UniversalCartridgeEngine {
         p.esp = false;
         p.telepathyTurns = 0;
         p.rBlind = false;
+        p.frozen = 0;
+        p.held = 0;
+        p.confused = 0;
+        this.state.appearanceMap = RyodSystems.buildAppearanceMap(this.state.seed || Date.now());
         if (Array.isArray(p.inventory)) {
             for (const it of p.inventory) {
                 if (/ring mail/i.test(it.name || '') && it.kind !== 'armor') {
@@ -138,10 +143,70 @@ class RogueEngine extends UniversalCartridgeEngine {
         if (ok && this.state && this.state.player) {
             const p = this.state.player;
             p.blind = Number(p.blind || 0);
+            p.frozen = Number(p.frozen || 0);
+            p.held = Number(p.held || 0);
+            p.confused = Number(p.confused || 0);
             p.telepathy = Boolean(p.telepathy || p.esp);
             p.esp = Boolean(p.esp || p.telepathy);
+            if (!this.state.appearanceMap) this.state.appearanceMap = RyodSystems.buildAppearanceMap(this.state.seed || 1);
         }
         return ok;
+    }
+
+    generateLevel(depth) {
+        super.generateLevel(depth);
+        const p = this.state && this.state.player;
+        if (p) {
+            p.frozen = 0;
+            p.held = 0;
+        }
+        if (!this.state.appearanceMap) this.state.appearanceMap = RyodSystems.buildAppearanceMap(this.state.seed || depth || 1);
+        const mimicGlyphs = ['!', '?', '=', '*', ')'];
+        for (const m of (this.state.monsters || [])) {
+            if (m.hp > 0 && (m.glyph === 'X' || /xeroc/i.test(m.race || '')) && !m.disguisedAs) {
+                m.disguisedAs = { glyph: mimicGlyphs[this.rand(mimicGlyphs.length)], attr: 11, name: 'unusual object' };
+            }
+        }
+        for (const o of (this.state.objects || [])) {
+            if ((o.kind === 'potion' || o.kind === 'scroll') && !(this.state.identifiedTypes && this.state.identifiedTypes[o.name])) {
+                o.identified = false;
+            }
+        }
+    }
+
+    handleKey(rawKey) {
+        const p = this.state && this.state.player;
+        const k = String(rawKey || '').trim();
+        const dirMap = {
+            h: [-1, 0], ArrowLeft: [-1, 0], a: [-1, 0],
+            l: [1, 0], ArrowRight: [1, 0],
+            j: [0, 1], ArrowDown: [0, 1],
+            k: [0, -1], ArrowUp: [0, -1],
+            y: [-1, -1], u: [1, -1], b: [-1, 1], n: [1, 1]
+        };
+        if (p && dirMap[k]) {
+            if (p.frozen > 0) {
+                this.addMessage('You are frozen solid and cannot move!', 11);
+                this.advanceTurn();
+                return;
+            }
+            if (p.held > 0) {
+                const [dx, dy] = dirMap[k];
+                const adjMon = (this.state.monsters || []).find(m => m.hp > 0 && m.x === p.x + dx && m.y === p.y + dy);
+                if (!adjMon) {
+                    this.addMessage('You are held fast by the venus flytrap!', 10);
+                    this.advanceTurn();
+                    return;
+                }
+            }
+        }
+        super.handleKey(rawKey);
+        if (k === 'D') {
+            const knownIds = this.state.identifiedTypes ? Object.keys(this.state.identifiedTypes) : [];
+            if (knownIds.length === 0) {
+                this.addMessage('You have not discovered anything yet.', 8);
+            }
+        }
     }
 
     updateVisibility() {
@@ -176,27 +241,21 @@ class RogueEngine extends UniversalCartridgeEngine {
 
     applyVerbToItem(verb, item) {
         const p = this.state.player;
+        if (item && (verb === 'quaff' || verb === 'read' || (verb === 'use' && (item.kind === 'potion' || item.kind === 'scroll')))) {
+            this.state.identifiedTypes = this.state.identifiedTypes || {};
+            this.state.identifiedTypes[item.name] = true;
+            item.identified = true;
+        }
         if (item && (verb === 'read' || (verb === 'use' && item.kind === 'scroll'))) {
             const nm = String(item.name || '');
             if (item.effect === 'scare_monster' || /scare monster/i.test(nm)) {
-                this.state.identifiedTypes = this.state.identifiedTypes || {};
-                this.state.identifiedTypes[item.name] = true;
-                item.identified = true;
-                for (const m of (this.state.monsters || [])) {
-                    if (!m.isPet && !m.peaceful && Math.hypot(m.x - p.x, m.y - p.y) <= 6) {
-                        m.scared = (m.scared || 0) + 12;
-                    }
-                }
-                this.addMessage('You hear maniacal laughter in the distance! Nearby monsters recoil in terror!', 14);
+                this.addMessage('You hear maniacal laughter in the distance.', 14);
                 item.count = (item.count || 1) - 1;
                 this.reindexInventory();
                 this.advanceTurn();
                 return;
             }
             if (item.effect === 'protect_armor' || /protect armor/i.test(nm)) {
-                this.state.identifiedTypes = this.state.identifiedTypes || {};
-                this.state.identifiedTypes[item.name] = true;
-                item.identified = true;
                 const arm = p.inventory.find(i => i.equipped === 'body' || i.equipped === 'armor') || p.inventory.find(i => i.kind === 'armor');
                 if (arm) {
                     arm.rustproof = true;
@@ -246,6 +305,17 @@ class RogueEngine extends UniversalCartridgeEngine {
         super.applyVerbToItem(verb, item);
     }
 
+    handleMonsterKilled(mon) {
+        const p = this.state.player;
+        if (mon) {
+            delete mon.disguisedAs;
+            if (mon.glyph === 'F' || /flytrap/i.test(mon.race || '')) {
+                p.held = 0;
+            }
+        }
+        super.handleMonsterKilled(mon);
+    }
+
     advanceTurn() {
         const p = this.state.player;
         const wasBlind = p.blind > 0;
@@ -263,6 +333,51 @@ class RogueEngine extends UniversalCartridgeEngine {
         if (hasSlowDigest && this.state.turn % 2 === 1 && p.nutrition > 0 && p.nutrition < 1200) {
             p.nutrition++;
         }
+        if (p.frozen > 0) {
+            p.frozen--;
+            if (p.frozen === 0) this.addMessage('You can move again.', 11);
+        }
+        if (p.confused > 0) {
+            p.confused--;
+            if (p.confused === 0) this.addMessage('You feel less confused now.', 11);
+        }
+
+        let stillHeldByFlytrap = false;
+        for (const m of (this.state.monsters || [])) {
+            if (m.hp <= 0) continue;
+            const dist = Math.hypot(m.x - p.x, m.y - p.y);
+            if (dist <= 1.5 && m.disguisedAs) {
+                delete m.disguisedAs;
+                this.addMessage("Wait—that's no treasure! It's a Xeroc!", 14);
+            }
+            if (dist <= 1.5) {
+                if ((m.glyph === 'I' || /ice monster/i.test(m.race || '')) && p.frozen <= 0 && (m.specialCD || 0) <= 0) {
+                    p.frozen = 2;
+                    m.specialCD = 4;
+                    this.addMessage('The ice monster freezes you with its chill aura!', 11);
+                } else if ((m.glyph === 'R' || /rattlesnake/i.test(m.race || '')) && (m.specialCD || 0) <= 0) {
+                    p.str = Math.max(3, (p.str || 16) - 1);
+                    m.specialCD = 4;
+                    this.addMessage('You feel a bite in your leg. You feel weaker!', 4);
+                } else if (m.glyph === 'F' || /flytrap/i.test(m.race || '')) {
+                    p.held = Math.max(p.held || 0, 2);
+                    stillHeldByFlytrap = true;
+                } else if ((m.glyph === 'W' || /wraith/i.test(m.race || '')) && (m.specialCD || 0) <= 0) {
+                    if ((p.level || 1) > 1) p.level--;
+                    p.exp = Math.max(0, (p.exp || 0) - 25);
+                    m.specialCD = 5;
+                    this.addMessage('You suddenly feel weaker as the wraith drains your life experience!', 8);
+                }
+            }
+            if (dist <= 6 && (m.glyph === 'M' || /medusa/i.test(m.race || '')) && this.state.map[m.y]?.[m.x]?.inView && (m.specialCD || 0) <= 0) {
+                p.confused = Math.max(p.confused || 0, 4);
+                m.specialCD = 6;
+                this.addMessage("Medusa's gaze has confused you!", 13);
+            }
+            if (m.specialCD > 0) m.specialCD--;
+        }
+        if (!stillHeldByFlytrap && p.held > 0) p.held = 0;
+
         if (wasBlind && p.blind > 0) {
             p.blind--;
             if (p.blind === 0) {
@@ -286,9 +401,22 @@ class RogueEngine extends UniversalCartridgeEngine {
         const isBlind = Boolean(p.blind > 0);
         const hasEsp = this._hasEsp();
         frame.player.blind = isBlind;
+        frame.player.frozen = Boolean(p.frozen > 0);
+        frame.player.held = Boolean(p.held > 0);
+        frame.player.confused = Boolean(p.confused > 0);
         frame.player.flags.esp = hasEsp;
         frame.player.flags.telepathy = hasEsp;
         frame.player.flags.rBlind = Boolean(p.rBlind || frame.player.flags.rBlind);
+        if (p.frozen > 0 && !frame.player.statuses.some(s => s.name === 'Frozen')) frame.player.statuses.push({ name: 'Frozen', attr: 11, val: p.frozen });
+        if (p.held > 0 && !frame.player.statuses.some(s => s.name === 'Held')) frame.player.statuses.push({ name: 'Held', attr: 10, val: p.held });
+        if (p.confused > 0 && !frame.player.statuses.some(s => s.name === 'Confused')) frame.player.statuses.push({ name: 'Confused', attr: 13, val: p.confused });
+
+        if (Array.isArray(frame.objects)) {
+            frame.objects = frame.objects.map(o => ({ ...o, displayName: RyodSystems.getDisplayItemName(o, this.state) }));
+        }
+        if (frame.player && Array.isArray(frame.player.inventory)) {
+            frame.player.inventory = frame.player.inventory.map(it => ({ ...it, displayName: RyodSystems.getDisplayItemName(it, this.state) }));
+        }
 
         const hashRaceIdx = (raceName) => {
             const s = String(raceName || 'unknown');
@@ -301,10 +429,11 @@ class RogueEngine extends UniversalCartridgeEngine {
             r_idx: m.r_idx || hashRaceIdx(m.race),
             y: m.y,
             x: m.x,
-            attr: m.attr || 1,
-            glyph: m.glyph,
-            name: m.race,
-            race: m.race,
+            attr: m.disguisedAs ? m.disguisedAs.attr : (m.attr || 1),
+            glyph: m.disguisedAs ? m.disguisedAs.glyph : m.glyph,
+            name: m.disguisedAs ? m.disguisedAs.name : m.race,
+            race: m.disguisedAs ? m.disguisedAs.name : m.race,
+            disguised: Boolean(m.disguisedAs),
             race_level: m.race_level || 1,
             hp: m.hp,
             hp_max: m.hp_max,
@@ -328,6 +457,20 @@ class RogueEngine extends UniversalCartridgeEngine {
             sensed: Boolean(sensedFlag)
         });
 
+        if (Array.isArray(frame.monsters)) {
+            const byId = new Map(this.state.monsters.map(m => [m.id, m]));
+            for (const fm of frame.monsters) {
+                const src = byId.get(fm.id);
+                if (src && src.disguisedAs) {
+                    fm.glyph = src.disguisedAs.glyph;
+                    fm.attr = src.disguisedAs.attr;
+                    fm.name = src.disguisedAs.name;
+                    fm.race = src.disguisedAs.name;
+                    fm.disguised = true;
+                }
+            }
+        }
+
         if (isBlind) {
             if (!frame.player.statuses.some(s => s.name === 'Blind')) {
                 frame.player.statuses.unshift({ name: 'Blind', attr: 6, val: p.blind });
@@ -350,8 +493,8 @@ class RogueEngine extends UniversalCartridgeEngine {
                     const cell = row[x];
                     const isSelf = (x === p.x && y === p.y);
                     const sm = !isSelf ? sensedByCoord.get(`${x},${y}`) : null;
-                    const ch = isSelf ? '@' : (sm ? sm.glyph : (cell.known ? cell.glyph : ' '));
-                    const at = isSelf ? 1 : (sm ? (sm.attr || 1) : (cell.known ? (cell.attr || 1) : 1));
+                    const ch = isSelf ? '@' : (sm ? (sm.disguisedAs ? sm.disguisedAs.glyph : sm.glyph) : (cell.known ? cell.glyph : ' '));
+                    const at = isSelf ? 1 : (sm ? (sm.disguisedAs ? sm.disguisedAs.attr : (sm.attr || 1)) : (cell.known ? (cell.attr || 1) : 1));
                     const featCode = cell.known ? cell.feat : 0;
                     const lighting = isSelf ? 1 : 3;
                     const flag = (cell.known ? 1 : 0) | (isSelf ? 2 : 0) | ((lighting & 3) << 2);

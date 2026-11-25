@@ -320,7 +320,12 @@ class LocalGameBridge {
 
     static SUPPORTED_REALMS = new Set(['angband', 'nethack', 'dcss', 'brogue', 'rogue', 'ryod']);
     static supportsRealm(realm) {
-        return LocalGameBridge.SUPPORTED_REALMS.has(String(realm || 'angband').toLowerCase());
+        const rk = String(realm || 'angband').toLowerCase();
+        if (LocalGameBridge.SUPPORTED_REALMS.has(rk)) return true;
+        if (rk === 'silq' && typeof window !== 'undefined' && window.YASD_FLAGS && window.YASD_FLAGS.SILQ_WASM_LOCAL === true) {
+            return true;
+        }
+        return false;
     }
 
     connect(charName = 'Adventurer', isNew = false, saveFile = null, realm = 'angband', customBirthOrOpts = false, extraOpts = null) {
@@ -651,7 +656,8 @@ class LocalGameBridge {
 
     static consumeWarmWorker(realm = 'angband') {
         const rk = String(realm || 'angband').toLowerCase();
-        const key = (rk === 'angband') ? 'wasm:angband' : 'cartridges';
+        if (!LocalGameBridge.supportsRealm(rk)) return null;
+        const key = (rk === 'angband' || rk === 'silq') ? `wasm:${rk}` : 'cartridges';
         const entry = this._warmWorkerPool && this._warmWorkerPool.get(key);
         if (!entry || !entry.worker) return null;
         this._warmWorkerPool.delete(key);
@@ -665,10 +671,9 @@ class LocalGameBridge {
     static prewarm(realm = 'angband') {
         if (typeof Worker === 'undefined') return;
         const rk = String(realm || 'angband').toLowerCase();
-        const localRealms = new Set(['angband', 'nethack', 'dcss', 'brogue', 'rogue', 'ryod']);
-        if (!localRealms.has(rk)) return;
+        if (!LocalGameBridge.supportsRealm(rk)) return;
         if (!this._prewarmedRealms) this._prewarmedRealms = new Set();
-        const key = (rk === 'angband') ? 'wasm:angband' : 'cartridges';
+        const key = (rk === 'angband' || rk === 'silq') ? `wasm:${rk}` : 'cartridges';
         if (this._prewarmedRealms.has(key)) return;
         this._prewarmedRealms.add(key);
 
