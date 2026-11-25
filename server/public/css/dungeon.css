@@ -3594,12 +3594,6 @@ to { opacity: 1; transform: translateY(0); }
 .main-menu-realm-atlas, .main-menu-launch-deck { display: flex; flex-direction: column; gap: clamp(8px, 1.1dvh, 12px); min-inline-size: 0; height: 100%; }
 .atlas-section-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
 .atlas-step-heading { display: inline-flex; align-items: center; gap: 8px; min-inline-size: 0; }
-.menu-step-pill {
-    display: inline-flex; align-items: center; justify-content: center;
-    background: rgba(229, 193, 88, 0.16); border: 1px solid rgba(229, 193, 88, 0.48);
-    color: #fde68a; font-size: 0.6875rem; font-weight: 800; padding: 2px 8px;
-    border-radius: 999px; letter-spacing: 0.8px; white-space: nowrap; flex-shrink: 0;
-}
 .atlas-kicker { font-size: clamp(0.75rem, 0.68rem + 0.25vw, 0.88rem); font-weight: 700; letter-spacing: 0.7px; text-transform: uppercase; color: #e2e8f0; }
 .menu-realm-compare-btn {
     min-block-size: 30px; padding: 4px 10px; border-radius: 6px;

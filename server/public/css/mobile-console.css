@@ -77,6 +77,7 @@ html.yasd-handheld #app-container .streetview-nav-rosette {
     display:none;
 }
 
+html.yasd-handheld #app-container #top-right-bar #btn-hud-panels,
 html.yasd-handheld #app-container #top-right-bar #btn-hud-realm,
 html.yasd-handheld #app-container #top-right-bar #btn-toggle-chronicle,
 html.yasd-handheld #app-container #top-right-bar #btn-toggle-msg-feed,
@@ -1150,5 +1151,99 @@ html.device-tablet.is-portrait #app-container #hud-center-column {
     width:calc(100% - 168px);
     max-width:calc(100% - 168px);
     align-self:flex-end;
+}
+
+
+/* Wave 3C: Portrait 3D Viewport Reclaim (>=52% at 360x640, unified 44px top strip, 0 overlaps) */
+html.yasd-handheld.is-portrait #app-container #char-panel:not(.handheld-char-expanded) {
+    top: calc(2px + var(--hh-safe-top));
+    left: calc(6px + var(--hh-safe-left));
+    right: calc(202px + var(--hh-safe-right));
+    height: 44px;
+    padding: 2px 6px;
+    gap: 2px;
+}
+
+html.yasd-handheld.is-portrait #app-container #minimap-container:not(.handheld-map-expanded) {
+    top: calc(2px + var(--hh-safe-top));
+    right: calc(152px + var(--hh-safe-right));
+    left: auto;
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    min-height: 44px;
+}
+
+html.yasd-handheld.is-portrait #app-container #minimap-container:not(.handheld-map-expanded) #minimap-canvas {
+    width: 40px;
+    height: 40px;
+}
+
+html.yasd-handheld.is-portrait #app-container #top-message-banner {
+    top: calc(48px + var(--hh-safe-top));
+    left: calc(6px + var(--hh-safe-left));
+    right: calc(6px + var(--hh-safe-right));
+    height: 24px;
+    min-height: 24px;
+    padding: 0 8px;
+    pointer-events: none;
+    background: rgba(14, 17, 23, 0.78);
+    font-size: 0.6875rem;
+}
+
+html.yasd-handheld.is-portrait #app-container #viewport-canvas,
+html.yasd-handheld.is-portrait #app-container #dungeon-vignette {
+    top: calc(48px + var(--hh-safe-top));
+    height: calc(100dvh - 302px - var(--hh-safe-top) - var(--hh-safe-bottom));
+}
+
+html.yasd-handheld.is-portrait #app-container #diegetic-reticle {
+    top: calc(48px + var(--hh-safe-top) + (100dvh - 302px - var(--hh-safe-top) - var(--hh-safe-bottom)) * 0.5);
+}
+
+html.yasd-handheld.is-portrait #app-container #handheld-deck-plate {
+    height: calc(254px + var(--hh-safe-bottom));
+}
+
+html.yasd-handheld.is-portrait #app-container #quick-slot-bar {
+    bottom: calc(206px + var(--hh-safe-bottom));
+    height: 44px;
+}
+
+html.yasd-handheld.is-portrait #app-container #touch-controls,
+html.yasd-handheld.is-portrait #app-container #touch-controls.dpad-collapsed {
+    bottom: calc(4px + var(--hh-safe-bottom));
+    left: calc(6px + var(--hh-safe-left));
+    width: 158px;
+    height: 198px;
+    padding: 3px;
+    gap: 3px;
+}
+
+html.yasd-handheld.is-portrait #app-container #touch-controls .dpad-turn-wings,
+html.yasd-handheld.is-portrait #app-container #touch-controls .dpad-grid {
+    gap: 3px;
+}
+
+html.yasd-handheld.is-portrait #app-container #action-bar:not(.drawer-open) {
+    left: calc(168px + var(--hh-safe-left));
+    right: calc(6px + var(--hh-safe-right));
+    bottom: calc(4px + var(--hh-safe-bottom));
+    height: 198px;
+    padding: 3px;
+    grid-template-rows: 46px repeat(3, minmax(44px, 1fr));
+    gap: 3px;
+}
+
+html.yasd-handheld.is-portrait #app-container #prompt-mirror:not([hidden]):not(.hidden) {
+    bottom: calc(256px + var(--hh-safe-bottom));
+}
+
+html.yasd-handheld.is-portrait #app-container #handheld-autonav-stop {
+    bottom: calc(260px + var(--hh-safe-bottom));
+}
+
+html.yasd-handheld.is-portrait .ftue-coachmark-pill {
+    top: calc(76px + var(--hh-safe-top));
 }
 }

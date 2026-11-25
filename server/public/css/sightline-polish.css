@@ -373,6 +373,13 @@ dialog.yasd-modal-dialog,
         padding:4px 6px;
     }
 
+    #app-container #top-right-bar #btn-hud-panels,
+    #app-container #action-bar .action-cluster-sep,
+    #app-container #action-bar #action-bar-drag-handle,
+    #app-container #minimap-container .mobile-map-zoom-group {
+        display:none;
+    }
+
     /* Hide desktop bottom status pills on compact narrow frame to prevent vertical pile-ups */
     #hud-footer {
         display:none;

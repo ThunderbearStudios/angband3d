@@ -24,6 +24,8 @@
         7: () => ({ id: 'smart_action', action: 'smart_action', key: 'space', description: 'Smart Action' }),
         8: () => ({ id: 'terminal_toggle', action: 'terminal_toggle', key: 'tab', description: 'Classic Terminal Toggle' }),
         9: () => ({ id: 'command_palette', action: 'command_palette', key: 'Ctrl+K', shortcut: 'Ctrl+K', description: 'Command Palette' }),
+        10: () => ({ id: 'toggle_run', action: 'toggle_run', key: 'Alt+R', description: 'Toggle Run Mode' }),
+        11: () => ({ id: 'camera_reset', action: 'camera_reset', key: 'Home', description: 'Reset Camera / Explore' }),
         12: (_, menu) => ({ id: 'dpad_up', action: menu ? 'menu_up' : 'move_north', key: menu ? 'ArrowUp' : '8', direction: 8, description: menu ? 'Menu Up' : 'Move North' }),
         13: (_, menu) => ({ id: 'dpad_down', action: menu ? 'menu_down' : 'move_south', key: menu ? 'ArrowDown' : '2', direction: 2, description: menu ? 'Menu Down' : 'Move South' }),
         14: (_, menu) => ({ id: 'dpad_left', action: menu ? 'menu_left' : 'move_west', key: menu ? 'ArrowLeft' : '4', direction: 4, description: menu ? 'Menu Left' : 'Move West' }),
@@ -181,6 +183,7 @@
 
         handleIntent(intent) {
             if (!intent || typeof window === 'undefined') return;
+            if (window.YasdPrimitives?.handleExtendedGamepadIntent?.(intent, { diagonalLock: this.diagonalLock })) return;
             if (window.radialMenu && window.radialMenu.isOpen) {
                 if (intent.id === 'confirm' && window.radialMenu.selectedIndex !== null) { window.radialMenu.selectWedge(window.radialMenu.selectedIndex); return; }
                 if (intent.id === 'back') { window.radialMenu.close(); return; }

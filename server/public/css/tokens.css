@@ -282,6 +282,56 @@
     }
 }
 
+@layer layout {
+    @media (min-width: 901px) {
+        #minimap-container {
+            width: 244px;
+            min-width: 190px;
+        }
+    }
+
+    #char-panel {
+        container-type: inline-size;
+        container-name: hud-hero;
+    }
+
+    #message-feed-window {
+        container-type: inline-size;
+        container-name: hud-log;
+    }
+
+    #chronicle-window {
+        container-type: inline-size;
+        container-name: hud-chronicle;
+    }
+
+    #minimap-container {
+        container-type: inline-size;
+        container-name: hud-minimap;
+    }
+
+    @container hud-hero (max-width: 265px) {
+        #char-panel #char-realm-crest { display: none; }
+        #char-panel #stats-strip { gap: 4px; font-size: var(--fs-xs); }
+    }
+
+    @container hud-log (max-width: 340px) {
+        #message-feed-window .message-feed-controls { gap: 2px; }
+        #message-feed-window .msg-ctrl-btn { padding: 2px 5px; font-size: var(--fs-xs); }
+    }
+
+    @container hud-chronicle (max-width: 360px) {
+        #chronicle-window .chronicle-folio-bar { gap: 4px; }
+        #chronicle-window #chronicle-tradition-badge { display: none; }
+    }
+
+    @container hud-minimap (max-width: 215px) {
+        #minimap-container #minimap-hint-text { display: none; }
+        #minimap-container .map-btn-txt,
+        #minimap-container .map-hide-txt { display: none; }
+    }
+}
+
 @layer hud {
     #char-panel :is(.stat-val, .gauge-text, #val-depth, #val-gold, #val-ac, #val-turns, #val-level, #hp-text, #sp-text, #exp-text),
     #hud-footer,
@@ -358,6 +408,124 @@
         accent-color: var(--brass-accent);
         cursor: pointer;
     }
+
+    /* Native <dialog closedby="any"> shell & ::backdrop (no blur) */
+    dialog.yasd-native-dialog:not([open]),
+    dialog.yasd-native-dialog.hidden {
+        display: none;
+    }
+
+    dialog.yasd-native-dialog[open]:not(.hidden) {
+        position: fixed;
+        inset: 0;
+        margin: auto;
+        padding: 0;
+        border: none;
+        background: transparent;
+        color: inherit;
+        width: min(94vw, var(--dialog-max-w, 860px));
+        max-width: 96vw;
+        height: fit-content;
+        max-height: 94dvh;
+        overflow: visible;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    dialog.yasd-native-dialog::backdrop {
+        background: rgba(7, 10, 16, 0.78);
+    }
+
+    dialog#death-modal { --dialog-max-w: 1180px; }
+    dialog#guide-modal { --dialog-max-w: 1140px; }
+    dialog#demo-modal { --dialog-max-w: 1120px; }
+    dialog#realm-selector-modal { --dialog-max-w: 900px; }
+    dialog#load-modal { --dialog-max-w: 780px; }
+    dialog#pause-modal { --dialog-max-w: 720px; }
+    dialog#command-palette-modal { --dialog-max-w: 680px; }
+    dialog#pwa-modal { --dialog-max-w: 620px; }
+    dialog#queue-modal { --dialog-max-w: 560px; }
+    dialog#chronicle-sketch-modal { --dialog-max-w: 680px; }
+    dialog#demo-modal .demo-backdrop { display: none; }
+
+    /* Native Popover API + Fallback + Anchor Positioning */
+    [popover]:is(:popover-open, .\:popover-open) {
+        margin: 0;
+    }
+
+    @supports not selector(:popover-open) {
+        [popover]:not(.\:popover-open) {
+            display: none;
+        }
+    }
+
+    @supports not (anchor-name: --x) {
+        #hud-panels-popover:is(:popover-open, .\:popover-open) {
+            position: fixed;
+            top: 42px;
+            right: 12px;
+            inset: auto;
+        }
+        #action-more-popover:is(:popover-open, .\:popover-open) {
+            position: fixed;
+            bottom: 84px;
+            right: 24px;
+            inset: auto;
+        }
+    }
+
+    @supports (anchor-name: --x) and (position-area: block-end) {
+        #btn-hud-panels { anchor-name: --yasd-hud-panels-trigger; }
+        #btn-action-more { anchor-name: --yasd-action-more-trigger; }
+        #btn-sound-config { anchor-name: --yasd-audio-trigger; }
+
+        #hud-panels-popover:is(:popover-open, .\:popover-open) {
+            position-anchor: --yasd-hud-panels-trigger;
+            inset: auto;
+            margin: 6px 0 0 0;
+            position-area: block-end span-inline-start;
+            position-try-fallbacks: flip-block, flip-inline, flip-block flip-inline;
+        }
+
+        #action-more-popover:is(:popover-open, .\:popover-open) {
+            position-anchor: --yasd-action-more-trigger;
+            inset: auto;
+            margin: 0 0 8px 0;
+            position-area: block-start span-inline-start;
+            position-try-fallbacks: flip-block, flip-inline, flip-block flip-inline;
+        }
+
+        #quick-volume-popover:is(:popover-open, .\:popover-open) {
+            position-anchor: --yasd-audio-trigger;
+            inset: auto;
+            margin: 6px 0 0 0;
+            position-area: block-end span-inline-start;
+            position-try-fallbacks: flip-block, flip-inline, flip-block flip-inline;
+        }
+    }
+
+    /* Cached Tab Panels (content-visibility: hidden + inert) */
+    .guide-body,
+    .death-body {
+        position: relative;
+    }
+
+    .guide-tab-content.tab-cached-inactive,
+    .death-tab-content.tab-cached-inactive {
+        content-visibility: hidden;
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        visibility: hidden;
+    }
+
+    @supports not (content-visibility: hidden) {
+        .guide-tab-content.tab-cached-inactive,
+        .death-tab-content.tab-cached-inactive {
+            display: none;
+        }
+    }
 }
 
 @layer overrides {
@@ -394,8 +562,20 @@
         backdrop-filter: none;
     }
 
+    #terminal-card { view-transition-name: yasd-terminal-card; }
+    #menu-realm-hero-art { view-transition-name: yasd-realm-dossier-art; }
+    #menu-active-realm-name { view-transition-name: yasd-realm-dossier-title; width: fit-content; }
+
+    ::view-transition-group(*) {
+        animation-duration: 0.18s;
+        animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
     @media (prefers-reduced-motion: reduce) {
-        #app-container * {
+        #app-container *,
+        ::view-transition-group(*),
+        ::view-transition-old(*),
+        ::view-transition-new(*) {
             animation: none !important;
             scroll-behavior: auto !important;
         }

@@ -2828,9 +2828,11 @@ class WebHUD {
         this.deathTabs.forEach(t => {
             t.classList.toggle('active', parseInt(t.dataset.tab, 10) === idx);
         });
-        this.deathContents.forEach((c, i) => {
-            c.classList.toggle('active', i === idx);
-        });
+        if (window.YasdPrimitives && typeof window.YasdPrimitives.activateCachedTab === 'function') {
+            window.YasdPrimitives.activateCachedTab(this.deathContents, idx);
+        } else {
+            this.deathContents.forEach((c, i) => c.classList.toggle('active', i === idx));
+        }
 
         const frameToUse = this.lastDeathFrame || this.lastFrame;
         if (frameToUse) {

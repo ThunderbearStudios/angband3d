@@ -320,11 +320,13 @@ async function main() {
                 if (!state.autoNav) {
                     await playCdp.evaluate(`(() => {
                         const app = window.__app, f = app?.lastFrame;
-                        if (${step} === 0 && f?.map?.w && f?.map?.h) {
-                            const cx = Math.floor(f.map.w / 2), cy = Math.floor(f.map.h / 2);
-                            const started = app.input?.startMinimapAutoNav?.(cx, cy, f);
-                            if (!started) app.input?.startAutoExplore?.(f);
-                        } else if (!app.input?.startAutoExplore?.(f)) {
+                        const pts = [[0.5, 0.5], [0.25, 0.5], [0.75, 0.5], [0.5, 0.35], [0.5, 0.65]];
+                        if (f?.map?.w && f?.map?.h && ${step} % 4 === 0) {
+                            const pt = pts[Math.floor(${step} / 4) % pts.length];
+                            const cx = Math.floor(f.map.w * pt[0]), cy = Math.floor(f.map.h * pt[1]);
+                            if (app.input?.startMinimapAutoNav?.(cx, cy, f)) return;
+                        }
+                        if (!app.input?.startAutoExplore?.(f)) {
                             app.network?.sendKey?.(',');
                         }
                     })()`);

@@ -40,6 +40,7 @@ class InputController {
         this.dpadRunMode = (function() {
             try { return localStorage.getItem('angband3d_dpad_run') === '1'; } catch (_) { return false; }
         })();
+        this.viKeyMode = (function() { try { return localStorage.getItem('angband3d_vi_keys'); } catch (_) { return null; } })();
         this._wasdLiteralNext = false;
         this._lastRealm = null;
         this._lastCharName = null;
@@ -1110,6 +1111,7 @@ class InputController {
             if (e.altKey && !e.ctrlKey && !e.metaKey && (e.key === 'r' || e.key === 'R')) { e.preventDefault(); this.toggleDpadRunMode(); return; }
             if (e.altKey && !e.ctrlKey && !e.metaKey && (e.key === 'e' || e.key === 'E')) { e.preventDefault(); this.toggleAutoExplore(); return; }
             if (e.altKey && !e.ctrlKey && !e.metaKey && (e.key === 'w' || e.key === 'W')) { e.preventDefault(); this.toggleWasdMode(); return; }
+            if (e.altKey && !e.ctrlKey && !e.metaKey && (e.key === 'v' || e.key === 'V')) { e.preventDefault(); const on = this.viKeyMode !== 'on' && !(this.viKeyMode === null && window.YasdPrimitives?.isViDefaultRealm?.((window.__app?.getActiveRealm?.()) || 'angband')); this.viKeyMode = on ? 'on' : 'off'; try { localStorage.setItem('angband3d_vi_keys', this.viKeyMode); } catch (_) {} window.__app?.showRealmToast?.('Vi-Keys (HJKL/YUBN): ' + (on ? 'ON' : 'OFF')); return; }
             if (e.altKey && !e.ctrlKey && !e.metaKey && (e.key === 'i' || e.key === 'I')) {
                 e.preventDefault();
                 if (window.__app && typeof window.__app.toggleItemSheet === 'function') window.__app.toggleItemSheet();
@@ -1871,6 +1873,8 @@ class InputController {
                     return;
                 }
             }
+            const viTarg = !this.wasdMode && !e.ctrlKey && !e.altKey && !e.metaKey && window.YasdPrimitives?.resolveViKeyDir?.(e.key, { viMode: this.viKeyMode, realm, shiftKey: e.shiftKey });
+            if (viTarg) { e.preventDefault(); const mk = this.getRelativeDirectionKey(viTarg.dir); if (mk) this.network.sendKey(mk); return; }
             if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) { e.preventDefault(); this.network.sendKey(e.key); }
             return;
         }
@@ -1944,15 +1948,10 @@ class InputController {
                 return;
             }
         }
-        if (!this.wasdMode && isTopLevelCommandPrompt && !isPromptActive && !e.ctrlKey && !e.altKey && !e.metaKey && ['nethack', 'dcss', 'brogue', 'rogue', 'ryod'].includes(realm)) {
-            const viDiag = { y: 7, u: 9, b: 1, n: 3 }[e.key];
-            if (viDiag) {
-                e.preventDefault();
-                if (moveSeqPending) return;
-                if (this.dungeon && typeof this.dungeon.commitFreelookFacing === 'function') this.dungeon.commitFreelookFacing();
-                const mk = this.getRelativeDirectionKey(viDiag); if (mk) this.sendMovementKey(mk);
-                return;
-            }
+        const viMove = (!this.wasdMode && isTopLevelCommandPrompt && !isPromptActive && !e.ctrlKey && !e.altKey && !e.metaKey) ? window.YasdPrimitives?.resolveViKeyDir?.(e.key, { viMode: this.viKeyMode, realm, shiftKey: e.shiftKey }) : null;
+        if (viMove) {
+            e.preventDefault(); if (moveSeqPending) return;
+            this.handleRelativeDirection(viMove.dir, viMove.isRun); return;
         }
 
         const dirKey = numpadDirMap[e.code] || numpadDirMap[e.key];
@@ -2417,7 +2416,7 @@ class InputController {
             const updateActionBarOverflow = () => {
                 const isHandheld = Boolean(window.DeviceProfile && typeof window.DeviceProfile.isHandheld === 'function' && window.DeviceProfile.isHandheld());
                 const fineHover = window.matchMedia && window.matchMedia('(hover: hover) and (pointer: fine)').matches;
-                const isSmallOrCoarse = isHandheld || (window.matchMedia('(pointer: coarse)').matches && !fineHover) || (window.innerWidth <= 900 && !fineHover);
+                const isSmallOrCoarse = isHandheld || (window.innerWidth <= 900) || actionBar.classList.contains('hotbar-8slot') || (window.matchMedia('(pointer: coarse)').matches && !fineHover);
                 const allButtons = ACTION_PRIORITY.map(id => document.getElementById(id)).filter(Boolean);
                 const overflowSig = `${window.innerWidth}:${isSmallOrCoarse ? 1 : 0}:` + allButtons.map(b => `${b.id}:${b.dataset.realmHidden || 0}:${b.dataset.contextHidden || 0}:${b.classList && b.classList.contains('is-suggested') ? 1 : 0}`).join('|');
                 if (actionBar._lastOverflowSig === overflowSig) return;
@@ -2455,10 +2454,13 @@ class InputController {
                                 if (actionBar.scrollHeight <= maxTwoRowHeight) break;
                             }
                         }
-                    } else {
+                    } else if (!actionBar.classList.contains('hotbar-8slot')) {
                         actionMoreBtn.classList.remove('is-needed');
                         actionMoreBtn.style.display = 'none';
                         if (actionPopover) actionPopover.classList.remove('is-open');
+                    } else {
+                        actionMoreBtn.classList.add('is-needed');
+                        actionMoreBtn.style.display = '';
                     }
                 }
             };
@@ -2472,7 +2474,7 @@ class InputController {
 
                 const isHandheld = Boolean(window.DeviceProfile && typeof window.DeviceProfile.isHandheld === 'function' && window.DeviceProfile.isHandheld());
                 const fineHover = window.matchMedia && window.matchMedia('(hover: hover) and (pointer: fine)').matches;
-                const isSmallOrCoarse = isHandheld || (window.matchMedia('(pointer: coarse)').matches && !fineHover) || (window.innerWidth <= 900 && !fineHover);
+                const isSmallOrCoarse = isHandheld || (window.innerWidth <= 900) || actionBar.classList.contains('hotbar-8slot') || (window.matchMedia('(pointer: coarse)').matches && !fineHover);
                 let isOpen;
                 if (isSmallOrCoarse) {
                     isOpen = actionBar.classList.toggle('drawer-open');
@@ -2483,7 +2485,10 @@ class InputController {
                 }
                 actionMoreBtn.textContent = isOpen ? '✕ Close' : '⋯ More';
             };
-            bindReliableAction(actionMoreBtn, toggleDrawer);
+            bindReliableAction(actionMoreBtn, (ev) => {
+                const isHh = Boolean(window.DeviceProfile?.isHandheld?.() || window.innerWidth <= 900);
+                if (isHh || !('commandForElement' in HTMLButtonElement.prototype)) toggleDrawer(ev);
+            });
 
             const closeDrawer = () => {
                 if (actionPopover && actionPopover.classList.contains('is-categorized-menu')) {

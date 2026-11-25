@@ -510,7 +510,12 @@ window.addEventListener('DOMContentLoaded', () => {
     const toggleTerminalView = () => {
         forceTerminal = !forceTerminal;
         window.__manualTerminalOpen = forceTerminal;
-        updateViewMode();
+        const focusEl = document.getElementById(forceTerminal ? 'terminal-canvas' : 'viewport-canvas');
+        if (window.YasdPrimitives && typeof window.YasdPrimitives.runViewTransition === 'function') {
+            window.YasdPrimitives.runViewTransition(() => updateViewMode(), { focusTarget: focusEl });
+        } else {
+            updateViewMode();
+        }
     };
 
     let quickBirthActive = false;
@@ -1908,8 +1913,12 @@ window.addEventListener('DOMContentLoaded', () => {
             if (hasCustomPos) return;
             const colRect = deckWin.getBoundingClientRect();
             if (colRect.height > 10 && colRect.top > 0) {
-                const bottomOffset = Math.ceil(window.innerHeight - colRect.top + 12);
-                msgWin.style.bottom = `${Math.max(96, bottomOffset)}px`;
+                const hudScale = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--hud-scale')) || 1;
+                const scaledColH = Math.max(colRect.height, (deckWin.offsetHeight || 0) * hudScale);
+                const colBottomGap = Math.max(8, window.innerHeight - colRect.bottom);
+                const effectiveTop = Math.min(colRect.top, window.innerHeight - colBottomGap - scaledColH);
+                const bottomOffset = Math.ceil(window.innerHeight - effectiveTop + 14);
+                msgWin.style.bottom = `${Math.max(146, bottomOffset)}px`;
             }
         };
         window.__syncMsgDockBottom = syncMsgDockBottom;
@@ -2176,6 +2185,8 @@ window.addEventListener('DOMContentLoaded', () => {
         selectRealm,
         cycleRealm,
         showRealmToast,
+        syncAudioUI: () => syncAudioUI(),
+        resumeGame: () => resumeGame(),
         toggleLanguageMode,
         getLanguageMode,
         startNewRyodGame: async (slotName, bp, autoBirth = true) => {
@@ -3276,17 +3287,16 @@ window.addEventListener('DOMContentLoaded', () => {
                 try { tab.scrollIntoView({ block: 'nearest', inline: 'nearest', container: 'nearest' }); } catch (_) { tab.scrollIntoView({ block: 'nearest', inline: 'nearest' }); }
             }
         });
-        guideContents.forEach((content, i) => {
-            const on = (i === idx);
-            content.classList.toggle('active', on);
-            if (on) {
-                content.removeAttribute('hidden');
-                content.setAttribute('tabindex', '0');
-            } else {
-                content.setAttribute('hidden', 'until-found');
-                content.removeAttribute('tabindex');
-            }
-        });
+        if (window.YasdPrimitives && typeof window.YasdPrimitives.activateCachedTab === 'function') {
+            window.YasdPrimitives.activateCachedTab(guideContents, idx, { untilFound: true });
+        } else {
+            guideContents.forEach((content, i) => {
+                const on = (i === idx);
+                content.classList.toggle('active', on);
+                if (on) { content.removeAttribute('hidden'); content.setAttribute('tabindex', '0'); }
+                else { content.setAttribute('hidden', 'until-found'); content.removeAttribute('tabindex'); }
+            });
+        }
         const body = document.getElementById('guide-body');
         if (body) body.scrollTop = 0;
     }
@@ -4661,12 +4671,20 @@ window.addEventListener('DOMContentLoaded', () => {
         clearTimeout(popoverDismissTimer);
         positionQuickVolumePopover(anchorEl);
         pop.classList.remove('hidden');
+        if (typeof pop.showPopover === 'function' && !pop.matches(':popover-open')) {
+            try { pop.showPopover({ source: anchorEl || undefined }); } catch (_) {}
+        }
         setConfigBtnExpanded(true);
     }
 
     function hideQuickVolumePopover() {
         const pop = document.getElementById('quick-volume-popover');
-        if (pop) pop.classList.add('hidden');
+        if (pop) {
+            if (typeof pop.hidePopover === 'function' && pop.matches(':popover-open')) {
+                try { pop.hidePopover(); } catch (_) {}
+            }
+            pop.classList.add('hidden');
+        }
         clearTimeout(popoverDismissTimer);
         setConfigBtnExpanded(false);
     }
@@ -4674,7 +4692,8 @@ window.addEventListener('DOMContentLoaded', () => {
     function toggleQuickVolumePopover(anchorEl = null) {
         const pop = document.getElementById('quick-volume-popover');
         if (!pop) return;
-        if (!pop.classList.contains('hidden')) {
+        const isOpen = (typeof pop.matches === 'function' && pop.matches(':popover-open')) || !pop.classList.contains('hidden');
+        if (isOpen) {
             hideQuickVolumePopover();
         } else {
             if (audio) audio.unlock();
@@ -4699,14 +4718,17 @@ window.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    const _hasNativeCmd = typeof HTMLButtonElement !== 'undefined' && ('commandForElement' in HTMLButtonElement.prototype);
     AUDIO_CFG_BTN_IDS.forEach((cfgId) => {
         const el = document.getElementById(cfgId);
         if (el) {
             el.setAttribute('aria-expanded', 'false');
-            bindFastTap(el, (e) => {
-                if (e && e.stopPropagation) e.stopPropagation();
-                toggleQuickVolumePopover(el);
-            });
+            if (!_hasNativeCmd || !el.hasAttribute('commandfor')) {
+                bindFastTap(el, (e) => {
+                    if (e && e.stopPropagation) e.stopPropagation();
+                    toggleQuickVolumePopover(el);
+                });
+            }
         }
     });
 
@@ -4860,7 +4882,7 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 
     const btnPopoverClose = document.getElementById('btn-popover-close');
-    if (btnPopoverClose) {
+    if (btnPopoverClose && (!_hasNativeCmd || !btnPopoverClose.hasAttribute('commandfor'))) {
         bindFastTap(btnPopoverClose, (e) => {
             if (e && e.stopPropagation) e.stopPropagation();
             hideQuickVolumePopover();
@@ -4954,12 +4976,12 @@ window.addEventListener('DOMContentLoaded', () => {
 
     // # ROOT-CAUSE: Include #btn-global-audio-config and #btn-term-audio-config in outside-click dismissal exclusion and wire #btn-load-close-x, #btn-pause-close-x, and backdrop click-outside on #load-modal and #pause-modal.
     window.addEventListener('click', (e) => {
-        if (!e.target.closest('#sound-control-group, #quick-volume-popover, #btn-sound, #btn-top-music, #btn-sound-config, #btn-global-audio-config, #btn-term-audio-config')) {
+        if (!e.target.closest('#sound-control-group, #quick-volume-popover, #btn-sound, #btn-top-music, #btn-sound-config, #btn-global-audio-config, #btn-term-audio-config, #btn-menu-audio-settings')) {
             hideQuickVolumePopover();
         }
     });
     window.addEventListener('touchstart', (e) => {
-        if (!e.target.closest('#sound-control-group, #quick-volume-popover, #btn-sound, #btn-top-music, #btn-sound-config, #btn-global-audio-config, #btn-term-audio-config')) {
+        if (!e.target.closest('#sound-control-group, #quick-volume-popover, #btn-sound, #btn-top-music, #btn-sound-config, #btn-global-audio-config, #btn-term-audio-config, #btn-menu-audio-settings')) {
             hideQuickVolumePopover();
         }
     }, { passive: true });
@@ -5383,7 +5405,11 @@ window.addEventListener('DOMContentLoaded', () => {
         }
         const realm = REALM_DATA[realmKey];
         showRealmToast(`Realm Attuned: ${realm.name} • ${realm.tagline}`);
-        updateRealmUI();
+        if (appState === 'mainMenu' && window.YasdPrimitives && typeof window.YasdPrimitives.runViewTransition === 'function') {
+            window.YasdPrimitives.runViewTransition(() => updateRealmUI());
+        } else {
+            updateRealmUI();
+        }
         checkSaves();
         if (autoClose) {
             setTimeout(() => {

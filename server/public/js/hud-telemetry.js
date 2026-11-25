@@ -331,9 +331,9 @@
             const k = String(e.key || '');
             if (_ftueStep === 1 && (k === 'q' || k === 'Q' || k === 'e' || k === 'E' || k === 'ArrowLeft' || k === 'ArrowRight')) {
                 advanceCoachmark(1);
-            } else if (_ftueStep === 2 && /^(ArrowUp|ArrowDown|w|W|s|S|8|2|4|6|7|9|1|3| )$/.test(k)) {
+            } else if (_ftueStep === 2 && /^(ArrowUp|ArrowDown|w|W|s|S|h|j|k|l|y|u|b|n|8|2|4|6|7|9|1|3| )$/.test(k)) {
                 advanceCoachmark(2);
-            } else if (_ftueStep === 3 && k === 'Tab') {
+            } else if (_ftueStep === 3 && (k === 'Tab' || k === 'i' || k === 'I')) {
                 advanceCoachmark(3);
             }
         };
@@ -356,11 +356,11 @@
         const wasdOn = Boolean(window.__app && window.__app.input && window.__app.input.wasdMode);
         const steps = [
             '',
-            '✦ Step 1/3: Drag Mouse or press [Q / E] to Look 360° (Costs 0 Turns!)',
+            'Step 1/3 — Drag Mouse or press [Q / E] to Look 360° (0 Turns)',
             wasdOn
-                ? '✦ Step 2/3: Press [W] to Step Forward or [A / D] to Turn & Attack Foes'
-                : '✦ Step 2/3: Press [Up] to Step Forward or [Left / Right] to Turn (Alt+W toggles WASD)',
-            '✦ Step 3/3: Press [Tab] anytime to toggle the Classic 80×24 Terminal!'
+                ? 'Step 2/3 — Press [W] to Step Forward or [Space] to Act'
+                : 'Step 2/3 — Step with [Arrows / HJKL], Act with [Space]',
+            'Step 3/3 — Press [Tab] for Classic CRT or [I] for Pack'
         ];
         if (_ftueStep < 1 || _ftueStep > 3) {
             if (_ftueCleanup) _ftueCleanup();
@@ -369,7 +369,16 @@
             return;
         }
         bar.textContent = '';
+        const pips = document.createElement('span');
+        pips.className = 'ftue-step-pips';
+        pips.setAttribute('aria-hidden', 'true');
+        for (let i = 1; i <= 3; i++) {
+            const dot = document.createElement('span');
+            dot.className = 'ftue-pip' + (i < _ftueStep ? ' done' : (i === _ftueStep ? ' active' : ''));
+            pips.appendChild(dot);
+        }
         const txt = document.createElement('span');
+        txt.className = 'ftue-coach-text';
         txt.textContent = steps[_ftueStep];
         const nextBtn = document.createElement('button');
         nextBtn.type = 'button';
@@ -382,7 +391,7 @@
         skipBtn.textContent = '✕';
         skipBtn.title = 'Dismiss tutorial';
         skipBtn.addEventListener('click', () => { _ftueStep = 4; renderCoachmark(bar); });
-        bar.append(txt, nextBtn, skipBtn);
+        bar.append(pips, txt, nextBtn, skipBtn);
     }
 
     function advanceCoachmark(expectedStep) {

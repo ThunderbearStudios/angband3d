@@ -176,13 +176,13 @@
         }
         const coach = document.getElementById('ftue-coachmark-pill') || document.querySelector('.ftue-coachmark-pill');
         if (coach) {
-            const span = coach.querySelector('span');
+            const span = coach.querySelector('.ftue-coach-text') || coach.querySelector('span');
             if (span && span.textContent) {
                 if (span.textContent.includes('Drag Mouse')) {
                     span.textContent = span.textContent.replace('Drag Mouse or press [Q / E]', 'Swipe 3D view or tap ↺ / ↻');
-                } else if (span.textContent.includes('Step 2/3:')) {
+                } else if (span.textContent.includes('Step 2/3')) {
                     span.textContent = '✦ Step 2/3: Slide D-Pad to move or tap 3D tiles to walk';
-                } else if (span.textContent.includes('Step 3/3:')) {
+                } else if (span.textContent.includes('Step 3/3')) {
                     span.textContent = '✦ Step 3/3: Tap Pack / Quick Belt, or hold More for Radial Menu';
                 }
             }

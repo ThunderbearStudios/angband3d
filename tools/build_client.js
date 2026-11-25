@@ -23,6 +23,7 @@ const JS_BUNDLES = {
         'js/safe-html.js',
         'js/i18n-locale.js',
         'js/device.js',
+        'js/web-primitives.js',
         'js/save-vault-client.js',
         'js/realm-carousel.js',
         'js/splash-shader.js'

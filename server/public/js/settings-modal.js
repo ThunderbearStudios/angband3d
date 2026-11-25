@@ -46,6 +46,7 @@
         dlg = document.createElement('dialog');
         dlg.id = 'yasd-settings-dialog';
         dlg.className = 'yasd-modal-dialog yasd-settings-dialog';
+        dlg.setAttribute('closedby', 'any');
         dlg.setAttribute('aria-label', 'YASD 3D Visual, Audio and Interface Settings');
         dlg.innerHTML = [
             '<div class="yasd-settings-shell">',
@@ -58,6 +59,7 @@
             '    <label class="yasd-set-row"><span>HUD Scale (<strong id="yasd-set-scale-val">100%</strong>)</span><input type="range" id="yasd-set-scale" min="85" max="125" step="5" value="100"></label>',
             '    <label class="yasd-set-row"><span>Handheld Touch Layout</span><select id="yasd-set-handheld"><option value="auto">Auto (Touch Phone)</option><option value="on">Force Handheld</option><option value="off">Force Desktop</option></select></label>',
             '    <label class="yasd-set-row"><span>Grimoire Card Deck [F10]</span><select id="yasd-set-grimoire"><option value="classic">Classic Terminal</option><option value="hybrid">Split Cards + Terminal</option><option value="cards">Full Cards Deck</option></select></label>',
+            '    <label class="yasd-set-row yasd-set-check"><span>Camera-Relative Vi-Keys (HJKL / YUBN) [Alt+V]</span><input type="checkbox" id="yasd-set-vikeys"></label>',
             '    <label class="yasd-set-row yasd-set-check"><span>Subterranean Room-Tone Ambience</span><input type="checkbox" id="yasd-set-roomtone" checked></label>',
             '    <label class="yasd-set-row yasd-set-check"><span>Reduced Motion &amp; Transitions</span><input type="checkbox" id="yasd-set-motion"></label>',
             '  </div>',
@@ -67,6 +69,13 @@
             '</div>'
         ].join('\n');
         document.body.appendChild(dlg);
+        if (typeof HTMLDialogElement !== 'undefined' && !('closedBy' in HTMLDialogElement.prototype)) {
+            dlg.addEventListener('click', (ev) => {
+                if (ev.target !== dlg) return;
+                const r = dlg.getBoundingClientRect();
+                if (ev.clientY < r.top || ev.clientY > r.top + r.height || ev.clientX < r.left || ev.clientX > r.left + r.width) close();
+            });
+        }
 
         const closeFn = () => close();
         dlg.querySelector('#yasd-set-close')?.addEventListener('click', closeFn);
@@ -111,6 +120,11 @@
                 window.RealmGrimoireDeck.setMode(mode, { userToggle: true });
             }
         });
+        dlg.querySelector('#yasd-set-vikeys')?.addEventListener('change', (e) => {
+            const val = e.target.checked ? 'on' : 'off';
+            try { localStorage.setItem('angband3d_vi_keys', val); } catch (_) {}
+            if (window.__app?.input) window.__app.input.viKeyMode = val;
+        });
         dlg.querySelector('#yasd-set-roomtone')?.addEventListener('change', (e) => {
             if (window.AudioAmbience && typeof window.AudioAmbience.setEnabled === 'function') {
                 window.AudioAmbience.setEnabled(Boolean(e.target.checked), window.__app?.audio);
@@ -124,13 +138,14 @@
     function syncControls(dlg) {
         const d = dlg || document.getElementById('yasd-settings-dialog');
         if (!d) return;
-        let gpu = 'auto', scale = 100, grim = 'classic', motion = false;
+        let gpu = 'auto', scale = 100, grim = 'classic', motion = false, viPref = null;
         try {
             gpu = localStorage.getItem('yasd_gpu_override') || 'auto';
             const rawScale = parseFloat(localStorage.getItem('yasd_hud_scale') || localStorage.getItem('angband3d_hud_scale') || '1');
             scale = Number.isFinite(rawScale) ? (rawScale <= 5 ? Math.round(rawScale * 100) : Math.round(rawScale)) : 100;
             grim = localStorage.getItem('yasd3d_grimoire_mode') || (window.RealmGrimoireDeck?.mode || 'classic');
             motion = localStorage.getItem('yasd3d_reduced_motion') === 'on';
+            viPref = localStorage.getItem('angband3d_vi_keys');
         } catch (_) {}
         const gfxEl = d.querySelector('#yasd-set-gfx'); if (gfxEl) gfxEl.value = gpu;
         const scEl = d.querySelector('#yasd-set-scale'); if (scEl) scEl.value = String(scale);
@@ -140,6 +155,11 @@
             hhEl.value = DeviceProfile.getHandheldOverride();
         }
         const grEl = d.querySelector('#yasd-set-grimoire'); if (grEl) grEl.value = grim;
+        const vkEl = d.querySelector('#yasd-set-vikeys');
+        if (vkEl) {
+            const r = window.__app?.getActiveRealm?.() || 'angband';
+            vkEl.checked = viPref === 'on' || (viPref !== 'off' && Boolean(window.YasdPrimitives?.isViDefaultRealm?.(r)));
+        }
         const rtEl = d.querySelector('#yasd-set-roomtone');
         if (rtEl) rtEl.checked = !(window.AudioAmbience && typeof window.AudioAmbience.isEnabled === 'function' && !window.AudioAmbience.isEnabled());
         const moEl = d.querySelector('#yasd-set-motion'); if (moEl) moEl.checked = motion;

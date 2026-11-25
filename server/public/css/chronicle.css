@@ -1858,4 +1858,78 @@ body.is-standalone #chronicle-window {
 .entity-inspect-popover #inspect-popover-voice-btn {
     display:inline-flex;
 }
+
+
+/* Wave 3C: Compact 1-Row Chronicle Folio Control Strip */
+.chronicle-header {
+    padding: 4px 8px;
+    gap: 4px;
+}
+
+.chronicle-folio-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 5px;
+    flex-wrap: nowrap;
+    width: 100%;
+    min-height: 26px;
+    max-height: 36px;
+}
+
+.chronicle-folio-bar .chronicle-menu-bar {
+    display: inline-flex;
+    align-items: center;
+    flex: 1 1 auto;
+    width: auto;
+    min-width: 0;
+    gap: 2px;
+}
+
+.chronicle-folio-bar .chronicle-menu-tab {
+    flex: 0 1 auto;
+    min-width: 0;
+    height: 24px;
+    min-height: 24px;
+    padding: 0 5px;
+    font-size: var(--fs-xs, 0.6875rem);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    white-space: nowrap;
+}
+
+.chronicle-folio-bar .chronicle-menu-tab .hud-svg {
+    display: inline-block;
+}
+
+@container hud-chronicle (max-width: 440px) {
+    .chronicle-folio-bar .folio-lbl {
+        display: none;
+    }
+    .chronicle-folio-bar .chronicle-menu-tab {
+        padding: 0 6px;
+        min-width: 26px;
+    }
+}
+
+.chronicle-folio-bar .chronicle-transport-deck {
+    flex: 0 0 auto;
+    width: auto;
+    height: 26px;
+    padding: 1px 4px;
+    gap: 3px;
+}
+
+.chronicle-folio-bar .chronicle-play-main-btn {
+    min-width: 50px;
+    padding: 0 6px;
+}
+
+.chronicle-folio-bar #btn-chronicle-mute,
+.chronicle-folio-bar #btn-chronicle-speed {
+    padding: 0 5px;
+    font-size: var(--fs-xs, 0.6875rem);
+}
 }

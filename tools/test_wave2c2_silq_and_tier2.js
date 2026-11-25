@@ -222,7 +222,8 @@ function testDCSSElevation() {
     assert.strictEqual(eng.selectBranch('lair_rune', 'Snake Pit'), true, 'selectBranch accepts valid Lair branch fork');
     assert.strictEqual(eng.state.branchName, 'Snake Pit', 'Depth 6 updates branchName to Snake Pit');
 
-    // Deity passive kill + invocation
+    // Deity passive kill + invocation (clear ambient foes so Trog AoE does not trigger extra kill piety mid-test)
+    eng.state.monsters = [];
     const p = eng.state.player;
     p.hp = 10;
     p.piety = 4;

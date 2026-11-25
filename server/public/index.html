@@ -62,6 +62,31 @@
 </head>
 <body>
     <div id="app-container">
+        <svg id="yasd-icon-sprite" aria-hidden="true" hidden style="display:none;">
+            <symbol id="ico-sword" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M13.5 2.5L6.5 9.5M11 2h3v3M4.5 7.5l4 4M2.5 13.5l3-3"/></symbol>
+            <symbol id="ico-bow" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 2c4.5 2 6 4 6 6s-1.5 4-6 6M4 2v12M5 8h8m-2-2l2 2-2 2"/></symbol>
+            <symbol id="ico-spark" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 1.5v3M8 11.5v3M1.5 8h3M11.5 8h3M3.5 3.5l2 2M10.5 10.5l2 2M12.5 3.5l-2 2M5.5 10.5l-2 2"/></symbol>
+            <symbol id="ico-flask" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2h4M7 2v3.5L3.5 11.5A2 2 0 005.2 14h5.6a2 2 0 001.7-2.5L9 5.5V2M4.5 10.5h7"/></symbol>
+            <symbol id="ico-scroll" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 3h8a2 2 0 012 2v7a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2zm2 3h5M6 9h5"/></symbol>
+            <symbol id="ico-food" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10a5 5 0 0110 0v2H3v-2zm2-2.5h1M8 7h1m2 .5h1"/></symbol>
+            <symbol id="ico-door" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="8" height="12" rx="1"/><circle cx="10" cy="8.5" r=".8" fill="currentColor"/></symbol>
+            <symbol id="ico-gem" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3h6l3 4-6 7-6-7 3-4zM2 7h12"/></symbol>
+            <symbol id="ico-rest" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 2h8M4 14h8M5 2c0 3 3 4.5 3 6s-3 3-3 6m6-12c0 3-3 4.5-3 6s3 3 3 6"/></symbol>
+            <symbol id="ico-pack" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="10" height="9" rx="2"/><path d="M6 5V3.5a2 2 0 014 0V5M6 9h4"/></symbol>
+            <symbol id="ico-shield" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2l5 2v4c0 3.2-2.2 5.4-5 6.5C5.2 13.4 3 11.2 3 8V4l5-2z"/></symbol>
+            <symbol id="ico-wand" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 13l7.5-7.5M9.5 3.5l3 3M6 3v1.5M12.5 9.5H14"/></symbol>
+            <symbol id="ico-search" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="7" r="4.2"/><path d="M10.2 10.2L14 14"/></symbol>
+            <symbol id="ico-compass" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6"/><polygon points="10.5,5.5 9,9 5.5,10.5 7,7" fill="currentColor" stroke="none"/></symbol>
+            <symbol id="ico-terminal" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="12" height="10" rx="1.5"/><path d="M4.5 6.5L6.5 8l-2 1.5M8 10h3.5"/></symbol>
+            <symbol id="ico-help" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6"/><path d="M6.2 6.2a1.9 1.9 0 013.6.7c0 1.2-1.8 1.5-1.8 2.6M8 11.8h.01"/></symbol>
+            <symbol id="ico-more" viewBox="0 0 16 16" fill="currentColor"><circle cx="3.5" cy="8" r="1.4"/><circle cx="8" cy="8" r="1.4"/><circle cx="12.5" cy="8" r="1.4"/></symbol>
+            <symbol id="ico-panels" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2.5" width="12" height="11" rx="1.5"/><path d="M6.5 2.5v11M2 7.5h4.5"/></symbol>
+            <symbol id="ico-tome" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 3.5h4A1.5 1.5 0 018 5v8.5a1.5 1.5 0 00-1.5-1.5h-4V3.5zm11 0h-4A1.5 1.5 0 008 5v8.5a1.5 1.5 0 011.5-1.5h4V3.5z"/></symbol>
+            <symbol id="ico-sketch" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="12" height="10" rx="1.5"/><path d="M3.5 11l3-3 2.2 2.2 1.8-1.8L13 11"/></symbol>
+            <symbol id="ico-chat" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 3.5h11v7.5H6l-3.5 2.5V3.5z"/></symbol>
+            <symbol id="ico-archive" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="12" height="3" rx=".8"/><path d="M3.5 6v7h9V6M6.5 9h3"/></symbol>
+            <symbol id="ico-stairs" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 12.5h3v-3h3v-3h3v-3h2"/></symbol>
+        </svg>
         <!-- 3D Dungeon WebGL Viewport -->
         <canvas id="viewport-canvas"></canvas>
 
@@ -161,7 +186,7 @@
                     </div>
                     <div class="terminal-actions">
                         <button type="button" id="btn-term-audio-mute" class="term-zoom-btn" title="Toggle Master Sound Mute [Ctrl-M]" aria-label="Toggle Sound Mute">🔊</button>
-                        <button type="button" id="btn-term-audio-config" class="term-zoom-btn" title="Open Audio &amp; Music Configuration" aria-label="Audio Configuration">⚙</button>
+                        <button type="button" id="btn-term-audio-config" class="term-zoom-btn" commandfor="quick-volume-popover" command="toggle-popover" title="Open Audio &amp; Music Configuration" aria-label="Audio Configuration">⚙</button>
                         <button type="button" id="btn-term-grimoire-toggle" class="btn-gold-outline" style="display: none;" title="Toggle between Grimoire Cards and Classic Terminal [F10]">✨ Grimoire [F10]</button>
                         <button id="btn-quick-birth" class="btn-gold" style="display: none;" title="Quickly create a random hero and jump straight into the 3D dungeon!">⚔ Quick Start Hero (@)</button>
                         <button id="btn-term-reroll" class="btn-gold-outline" style="display: none;" title="Reroll this character with new random attributes">🎲 Reroll Hero (R)</button>
@@ -272,14 +297,14 @@
                         <button id="btn-chronicle-close" class="chronicle-ctrl-btn chronicle-win-btn" title="Close Tome [Alt+C]">✕</button>
                     </div>
                 </div>
-                <!-- Row 2: Clean Segmented Tome Menu Bar -->
+                <!-- Single-Row Chronicle Folio Control Strip -->
+                <div class="chronicle-folio-bar">
                 <div class="chronicle-menu-bar" role="toolbar" aria-label="Chronicle Actions">
-                    <button id="btn-chronicle-prompt-tale" class="chronicle-ctrl-btn chronicle-menu-tab" title="Weave Tale: Spin an on-demand saga tale with tactical hints [Alt+T]">🔮 Tale</button>
-                    <button id="chronicle-sketch-btn" class="chronicle-ctrl-btn chronicle-menu-tab chronicle-sketch-btn" title="Sketch Hero: Generate a lore-accurate action sketch of your character at this point in the story [Alt+K]" aria-label="Sketch Hero Action">🎨 Sketch</button>
-                    <button id="btn-chronicle-ask-toggle" class="chronicle-ctrl-btn chronicle-menu-tab" type="button" title="Ask the Lorekeeper or Consult Quick Topics" aria-expanded="false">💬 Ask</button>
-                    <button id="btn-chronicle-archive-toggle" class="chronicle-ctrl-btn chronicle-menu-tab" type="button" title="Export / Import Chronicle Story Archive" aria-expanded="false">📦 Archive</button>
+                    <button id="btn-chronicle-prompt-tale" class="chronicle-ctrl-btn chronicle-menu-tab" title="Weave Tale: Spin an on-demand saga tale with tactical hints [Alt+T]"><svg class="hud-svg" width="13" height="13" aria-hidden="true"><use href="#ico-tome"/></svg><span class="folio-lbl"> Tale</span></button>
+                    <button id="chronicle-sketch-btn" class="chronicle-ctrl-btn chronicle-menu-tab chronicle-sketch-btn" title="Sketch Hero: Generate a lore-accurate action sketch of your character at this point in the story [Alt+K]" aria-label="Sketch Hero Action"><svg class="hud-svg" width="13" height="13" aria-hidden="true"><use href="#ico-sketch"/></svg><span class="folio-lbl"> Sketch</span></button>
+                    <button id="btn-chronicle-ask-toggle" class="chronicle-ctrl-btn chronicle-menu-tab" type="button" title="Ask the Lorekeeper or Consult Quick Topics" aria-expanded="false"><svg class="hud-svg" width="13" height="13" aria-hidden="true"><use href="#ico-chat"/></svg><span class="folio-lbl"> Ask</span></button>
+                    <button id="btn-chronicle-archive-toggle" class="chronicle-ctrl-btn chronicle-menu-tab" type="button" title="Export / Import Chronicle Story Archive" aria-expanded="false"><svg class="hud-svg" width="13" height="13" aria-hidden="true"><use href="#ico-archive"/></svg><span class="folio-lbl"> Archive</span></button>
                 </div>
-                <!-- Row 3: Slim Audiobook Transport Deck -->
                 <div class="chronicle-transport-deck">
                     <div class="chronicle-transport-group">
                         <button id="btn-chronicle-rewind" class="chronicle-ctrl-btn" title="Rewind to previous paragraph [Alt+[]">⏮</button>
@@ -291,6 +316,7 @@
                         <button id="btn-chronicle-mute" class="chronicle-ctrl-btn" title="Toggle Voice Narration">🔇 Muted</button>
                         <button id="btn-chronicle-speed" class="chronicle-ctrl-btn" title="Audiobook Speed (0.75x, 0.85x, 1.0x, 1.25x, 1.5x)">⚡ 1.0x</button>
                     </div>
+                </div>
                 </div>
             </div>
             <div id="chronicle-scroll" class="chronicle-scroll">
@@ -332,11 +358,14 @@
             <button id="btn-hud-realm" class="icon-btn in-game-only realm-hud-pill" title="Active Realm: Angband 4.2.6 (Locked during active gameplay. Return to Main Menu to switch)."><span class="realm-icon">🌌</span> <span id="hud-realm-label">Angband 4.2.6</span> <span id="ping-badge" class="badge">Cloud [Connecting...]</span></button>
             <span id="daily-seed-trophy" class="daily-seed-trophy hidden" title="Daily Seeded Descent Active">🏆 DAILY</span>
             <button id="btn-toggle-lang" class="icon-btn in-game-only lang-toggle-pill" style="display: none;" title="Toggle Language: English / Kanji / 日本語 [Alt+L]"><span class="lang-icon">🌐</span> <span id="hud-lang-label">EN / 漢</span></button>
-            <button id="btn-toggle-chronicle" class="icon-btn in-game-only" title="Toggle The Living Chronicle Window [Alt+C]"><span class="chronicle-icon">📖</span> <span class="chronicle-label">Tome</span></button>
-            <button id="btn-toggle-msg-feed" class="icon-btn in-game-only" title="Toggle Message Log Feed"><span class="msg-icon">📜</span> <span class="msg-label">Log</span></button>
-            <button id="btn-toggle-minimap" class="icon-btn in-game-only" title="Toggle Minimap Radar"><span class="map-icon">🗺</span> <span class="map-label">Map</span></button>
-            <button id="btn-toggle-hero" class="icon-btn in-game-only" title="Toggle Hero Status Vault"><span class="hero-icon">🛡</span> <span class="hero-label">Hero</span></button>
-            <button id="btn-toggle-actions" class="icon-btn in-game-only" title="Toggle Action Command Deck"><span class="act-icon">⚔</span> <span class="act-label">Deck</span></button>
+            <button type="button" id="btn-hud-panels" class="icon-btn in-game-only" commandfor="hud-panels-popover" command="toggle-popover" title="Toggle HUD Panels (Tome, Log, Map, Hero, Deck)"><svg class="hud-svg" width="13" height="13" aria-hidden="true"><use href="#ico-panels"/></svg> <span class="panels-label">Panels ▾</span></button>
+            <div id="hud-panels-popover" class="hud-panels-popover" popover="auto" aria-label="HUD Panels">
+                <button id="btn-toggle-chronicle" class="icon-btn in-game-only" title="Toggle The Living Chronicle Window [Alt+C]"><span class="chronicle-icon">📖</span> <span class="chronicle-label">Tome</span></button>
+                <button id="btn-toggle-msg-feed" class="icon-btn in-game-only" title="Toggle Message Log Feed"><span class="msg-icon">📜</span> <span class="msg-label">Log</span></button>
+                <button id="btn-toggle-minimap" class="icon-btn in-game-only" title="Toggle Minimap Radar"><span class="map-icon">🗺</span> <span class="map-label">Map</span></button>
+                <button id="btn-toggle-hero" class="icon-btn in-game-only" title="Toggle Hero Status Vault"><span class="hero-icon">🛡</span> <span class="hero-label">Hero</span></button>
+                <button id="btn-toggle-actions" class="icon-btn in-game-only" title="Toggle Action Command Deck"><span class="act-icon">⚔</span> <span class="act-label">Deck</span></button>
+            </div>
             <div id="sound-control-group" class="sound-control-group" title="Global Audio Volume &amp; Mute [Ctrl-M]">
                 <button id="btn-sound" class="icon-btn btn-sound" title="Toggle Sound / Mute [Ctrl-M]" aria-label="Toggle Sound Mute"><span class="sound-icon">🔊</span><span class="sound-label">Sound</span></button>
                 <button type="button" id="btn-top-music" class="icon-btn btn-sound" title="Toggle Music Mute" aria-label="Toggle Music Mute"><span class="music-icon">🎵</span><span class="music-label">Music</span></button>
@@ -344,7 +373,7 @@
                     <input type="range" id="volume-slider" class="volume-range-slider" min="0" max="100" value="75" step="1" title="Adjust Master Volume" aria-label="Adjust Master Volume">
                     <span id="volume-label" class="volume-label">75%</span>
                 </div>
-                <button id="btn-sound-config" class="icon-btn-subtle" title="Audio Configuration (Music, Tome Voice, Effects &amp; Reverb)" aria-label="Audio Configuration">⚙</button>
+                <button type="button" id="btn-sound-config" class="icon-btn-subtle" commandfor="quick-volume-popover" command="toggle-popover" title="Audio Configuration (Music, Tome Voice, Effects &amp; Reverb)" aria-label="Audio Configuration">⚙</button>
             </div>
             <button type="button" id="btn-hh-fullscreen" class="icon-btn hh-only-btn" title="Toggle Fullscreen" aria-label="Toggle Fullscreen"><span class="fs-icon">⛶</span></button>
             <button id="btn-menu" class="icon-btn" title="Main Menu [Esc]"><span class="menu-icon">⚙</span> <span class="menu-label">Menu</span></button>
@@ -505,7 +534,7 @@
             <div id="hud-center-column">
                 <div id="prompt-mirror" class="prompt-mirror" aria-live="polite" hidden></div>
                 <!-- Action Overflow Popover / Drawer (WS9.1) -->
-                <div id="action-more-popover" class="action-more-popover" role="region" aria-label="Additional Actions"></div>
+                <div id="action-more-popover" class="action-more-popover" popover="auto" role="region" aria-label="Additional Actions"></div>
 
                 <!-- 3D StreetView Ground-Perspective Directional Chevron Ring (WS34) -->
                 <div id="streetview-nav-rosette" class="streetview-nav-rosette" role="group" aria-label="3D StreetView Navigation Chevrons">
@@ -514,40 +543,40 @@
                 </div>
 
                 <!-- Quick Action Bar -->
-                <div id="action-bar" class="hud-panel" data-dock-preset="full">
+                <div id="action-bar" class="hud-panel hotbar-8slot" data-dock-preset="full">
                     <div id="action-bar-drag-handle" class="hud-dock-drag-handle" title="Drag to move Action Bar &amp; Status Dock • Double-click to reset">⋮⋮</div>
-                    <button id="btn-hero-action" class="action-btn action-hero-btn" title="Context Action (Attack / Open / Pickup / Tunnel / Wait)"><span id="hero-action-icon">⚔</span> <span id="hero-action-text">Attack</span> <kbd id="hero-action-key">Space</kbd></button>
-                    <button id="btn-attack" class="action-btn" title="Attack adjacent monster in front [Space]">⚔ Attack <kbd>Space</kbd></button>
-                    <button id="btn-throw" class="action-btn" title="Throw item at target [v]">🎯 Throw <kbd>v</kbd></button>
-                    <button id="btn-fire" class="action-btn" title="Shoot ranged weapon from quiver [f]">🏹 Shoot <kbd>f</kbd></button>
-                    <button id="btn-cast" class="action-btn" title="Cast spell or prayer [m]">✨ Cast <kbd>m</kbd></button>
-                    <button id="btn-skills" class="action-btn" style="display: none;" title="Learn Ability &amp; Skill Tree [N]">📜 Skills <kbd>N</kbd></button>
-                    <button id="btn-power" class="action-btn" style="display: none;" title="Use Racial/Class Power or Mutation [U]">🔮 Power <kbd>U</kbd></button>
-                    <button id="btn-overland" class="action-btn" style="display: none;" title="Overland / Wilderness Map [O]">🗺️ Map <kbd>O</kbd></button>
-                    <button id="btn-quests" class="action-btn" style="display: none;" title="Active Quests &amp; Status [Q]">📜 Quests <kbd>Q</kbd></button>
-                    <button id="btn-browse" class="action-btn" style="display: none;" title="Browse Spellbook [b]">📖 Browse <kbd>b</kbd></button>
-                    <button id="btn-study" class="action-btn" style="display: none;" title="Study New Spells [G]">✨ Study <kbd>G</kbd></button><span class="action-cluster-sep" aria-hidden="true"></span>
-                    <button id="btn-quaff" class="action-btn" title="Drink / quaff potion [q]">🧪 Potion <kbd>q</kbd></button>
-                    <button id="btn-read" class="action-btn" title="Read magical scroll [r]">📜 Scroll <kbd>r</kbd></button>
-                    <button id="btn-eat" class="action-btn" title="Eat food ration [E]">🍖 Eat <kbd>E</kbd></button>
-                    <button id="btn-door" class="action-btn" title="Open closed door or chest in front [o]">🚪 Door <kbd>o</kbd></button>
-                    <button id="btn-pickup" class="action-btn" title="Pick up item from dungeon floor [g]">💎 Get <kbd>g</kbd></button>
-                    <button id="btn-rest" class="action-btn" title="Rest until fully healed [R]">⏳ Rest <kbd>R</kbd></button>
-                    <button id="btn-inventory" class="action-btn" title="Open inventory pack [i]">🎒 Pack <kbd>i</kbd></button>
-                    <button id="btn-equipment" class="action-btn" title="Inspect worn equipment [e]">🛡 Gear <kbd>e</kbd></button>
-                    <button id="btn-wield" class="act-btn act-wasd-socket action-btn" title="Wield / Equip Item [w]"><span class="act-icon">🗡</span><span class="act-label">Wield</span><kbd class="act-key">w</kbd></button>
-                    <button id="btn-drop" class="act-btn act-wasd-socket action-btn" title="Drop Item [d]"><span class="act-icon">📤</span><span class="act-label">Drop</span><kbd class="act-key">d</kbd></button><span class="action-cluster-sep" aria-hidden="true"></span>
-                    <button id="btn-aim" class="act-btn act-wasd-socket action-btn" title="Aim Wand / Use Device [a]"><span class="act-icon">🪄</span><span class="act-label">Aim</span><kbd class="act-key">a</kbd></button>
-                    <button id="btn-search" class="act-btn act-wasd-socket action-btn" title="Search / Perception [S]"><span class="act-icon">🔍</span><span class="act-label">Search</span><kbd class="act-key">s</kbd></button>
-                    <button id="btn-stair" class="action-btn stair-btn" style="display: none;" title="Use stairs [&gt; or &lt;]">⬇ Descend <kbd>&gt;</kbd></button>
-                    <button id="btn-context-tile" class="action-btn context-tile-btn hidden" style="display: none;" title="Interact with tile"><span class="act-icon">✨</span> <span class="act-label">Interact</span> <kbd class="act-key">p</kbd></button>
-                    <button id="btn-context-alt" class="action-btn context-tile-btn hidden" style="display: none;" title="Secondary tile action"><span class="act-icon">🕯</span> <span class="act-label">Ritual</span> <kbd class="act-key">#</kbd></button>
-                    <button id="btn-explore" class="action-btn action-run-pill" title="Toggle Auto-Explore Mode: Automatically scout unexplored dungeon rooms &amp; corridors [Alt+E]"><span id="action-explore-icon">🧭</span> <span id="action-explore-text">Explore</span> <kbd>Alt+E</kbd></button>
+                    <button id="btn-hero-action" class="action-btn action-hero-btn" data-hotbar-primary="1" title="Context Action (Attack / Open / Pickup / Tunnel / Wait)"><span id="hero-action-icon"><svg class="act-svg" width="14" height="14" aria-hidden="true"><use href="#ico-sword"/></svg></span> <span id="hero-action-text">Attack</span> <kbd id="hero-action-key">Space</kbd></button>
+                    <button id="btn-attack" class="action-btn" title="Attack adjacent monster in front [Space]"><svg class="act-svg" width="14" height="14" aria-hidden="true"><use href="#ico-sword"/></svg> <span class="act-label">Attack</span> <kbd>Space</kbd></button>
+                    <button id="btn-throw" class="action-btn" title="Throw item at target [v]"><svg class="act-svg" width="14" height="14" aria-hidden="true"><use href="#ico-bow"/></svg> <span class="act-label">Throw</span> <kbd>v</kbd></button>
+                    <button id="btn-fire" class="action-btn" title="Shoot ranged weapon from quiver [f]"><svg class="act-svg" width="14" height="14" aria-hidden="true"><use href="#ico-bow"/></svg> <span class="act-label">Shoot</span> <kbd>f</kbd></button>
+                    <button id="btn-cast" class="action-btn" data-hotbar-primary="1" title="Cast spell or prayer [m]"><svg class="act-svg" width="14" height="14" aria-hidden="true"><use href="#ico-spark"/></svg> <span class="act-label">Cast</span> <kbd>m</kbd></button>
+                    <button id="btn-skills" class="action-btn" style="display: none;" title="Learn Ability &amp; Skill Tree [N]"><svg class="act-svg" width="14" height="14" aria-hidden="true"><use href="#ico-spark"/></svg> <span class="act-label">Skills</span> <kbd>N</kbd></button>
+                    <button id="btn-power" class="action-btn" style="display: none;" title="Use Racial/Class Power or Mutation [U]"><svg class="act-svg" width="14" height="14" aria-hidden="true"><use href="#ico-spark"/></svg> <span class="act-label">Power</span> <kbd>U</kbd></button>
+                    <button id="btn-overland" class="action-btn" style="display: none;" title="Overland / Wilderness Map [O]"><svg class="act-svg" width="14" height="14" aria-hidden="true"><use href="#ico-compass"/></svg> <span class="act-label">Map</span> <kbd>O</kbd></button>
+                    <button id="btn-quests" class="action-btn" style="display: none;" title="Active Quests &amp; Status [Q]"><svg class="act-svg" width="14" height="14" aria-hidden="true"><use href="#ico-scroll"/></svg> <span class="act-label">Quests</span> <kbd>Q</kbd></button>
+                    <button id="btn-browse" class="action-btn" style="display: none;" title="Browse Spellbook [b]"><svg class="act-svg" width="14" height="14" aria-hidden="true"><use href="#ico-tome"/></svg> <span class="act-label">Browse</span> <kbd>b</kbd></button>
+                    <button id="btn-study" class="action-btn" style="display: none;" title="Study New Spells [G]"><svg class="act-svg" width="14" height="14" aria-hidden="true"><use href="#ico-spark"/></svg> <span class="act-label">Study</span> <kbd>G</kbd></button><span class="action-cluster-sep" aria-hidden="true"></span>
+                    <button id="btn-quaff" class="action-btn" data-hotbar-primary="1" title="Drink / quaff potion [q]"><svg class="act-svg" width="14" height="14" aria-hidden="true"><use href="#ico-flask"/></svg> <span class="act-label">Potion</span> <kbd>q</kbd></button>
+                    <button id="btn-read" class="action-btn" data-hotbar-primary="1" title="Read magical scroll [r]"><svg class="act-svg" width="14" height="14" aria-hidden="true"><use href="#ico-scroll"/></svg> <span class="act-label">Scroll</span> <kbd>r</kbd></button>
+                    <button id="btn-eat" class="action-btn" title="Eat food ration [E]"><svg class="act-svg" width="14" height="14" aria-hidden="true"><use href="#ico-food"/></svg> <span class="act-label">Eat</span> <kbd>E</kbd></button>
+                    <button id="btn-door" class="action-btn" title="Open closed door or chest in front [o]"><svg class="act-svg" width="14" height="14" aria-hidden="true"><use href="#ico-door"/></svg> <span class="act-label">Door</span> <kbd>o</kbd></button>
+                    <button id="btn-pickup" class="action-btn" title="Pick up item from dungeon floor [g]"><svg class="act-svg" width="14" height="14" aria-hidden="true"><use href="#ico-gem"/></svg> <span class="act-label">Get</span> <kbd>g</kbd></button>
+                    <button id="btn-rest" class="action-btn" data-hotbar-primary="1" title="Rest until fully healed [R]"><svg class="act-svg" width="14" height="14" aria-hidden="true"><use href="#ico-rest"/></svg> <span class="act-label">Rest</span> <kbd>R</kbd></button>
+                    <button id="btn-inventory" class="action-btn" data-hotbar-primary="1" title="Open inventory pack [i]"><svg class="act-svg" width="14" height="14" aria-hidden="true"><use href="#ico-pack"/></svg> <span class="act-label">Pack</span> <kbd>i</kbd></button>
+                    <button id="btn-equipment" class="action-btn" title="Inspect worn equipment [e]"><svg class="act-svg" width="14" height="14" aria-hidden="true"><use href="#ico-shield"/></svg> <span class="act-label">Gear</span> <kbd>e</kbd></button>
+                    <button id="btn-wield" class="act-btn act-wasd-socket action-btn" title="Wield / Equip Item [w]"><span class="act-icon"><svg class="act-svg" width="14" height="14" aria-hidden="true"><use href="#ico-sword"/></svg></span><span class="act-label">Wield</span><kbd class="act-key">w</kbd></button>
+                    <button id="btn-drop" class="act-btn act-wasd-socket action-btn" title="Drop Item [d]"><span class="act-icon"><svg class="act-svg" width="14" height="14" aria-hidden="true"><use href="#ico-gem"/></svg></span><span class="act-label">Drop</span><kbd class="act-key">d</kbd></button><span class="action-cluster-sep" aria-hidden="true"></span>
+                    <button id="btn-aim" class="act-btn act-wasd-socket action-btn" title="Aim Wand / Use Device [a]"><span class="act-icon"><svg class="act-svg" width="14" height="14" aria-hidden="true"><use href="#ico-wand"/></svg></span><span class="act-label">Aim</span><kbd class="act-key">a</kbd></button>
+                    <button id="btn-search" class="act-btn act-wasd-socket action-btn" title="Search / Perception [S]"><span class="act-icon"><svg class="act-svg" width="14" height="14" aria-hidden="true"><use href="#ico-search"/></svg></span><span class="act-label">Search</span><kbd class="act-key">s</kbd></button>
+                    <button id="btn-stair" class="action-btn stair-btn" style="display: none;" title="Use stairs [&gt; or &lt;]"><svg class="act-svg" width="14" height="14" aria-hidden="true"><use href="#ico-stairs"/></svg> <span class="act-label">Descend</span> <kbd>&gt;</kbd></button>
+                    <button id="btn-context-tile" class="action-btn context-tile-btn hidden" style="display: none;" title="Interact with tile"><span class="act-icon"><svg class="act-svg" width="14" height="14" aria-hidden="true"><use href="#ico-spark"/></svg></span> <span class="act-label">Interact</span> <kbd class="act-key">p</kbd></button>
+                    <button id="btn-context-alt" class="action-btn context-tile-btn hidden" style="display: none;" title="Secondary tile action"><span class="act-icon"><svg class="act-svg" width="14" height="14" aria-hidden="true"><use href="#ico-spark"/></svg></span> <span class="act-label">Ritual</span> <kbd class="act-key">#</kbd></button>
+                    <button id="btn-explore" class="action-btn action-run-pill" data-hotbar-primary="1" title="Toggle Auto-Explore Mode: Automatically scout unexplored dungeon rooms &amp; corridors [Alt+E]"><span id="action-explore-icon"><svg class="act-svg" width="14" height="14" aria-hidden="true"><use href="#ico-compass"/></svg></span> <span id="action-explore-text">Explore</span> <kbd>Alt+E</kbd></button>
                     <button id="btn-run-toggle" class="action-btn action-run-pill" title="Toggle Run / Sprint Mode in Selected Direction [Alt+R]"><span id="action-run-icon">🚶</span> <span id="action-run-text">Walk</span> <kbd>Alt+R</kbd></button><span class="action-cluster-sep" aria-hidden="true"></span>
-                    <button id="btn-terminal" class="action-btn" title="Toggle 80x24 classic CRT terminal view [Tab]">📜 Classic <kbd>Tab</kbd></button>
-                    <button id="btn-guide-hud" class="action-btn" title="View Complete Controls &amp; Commands Guide [?]">❓ Help <kbd>?</kbd></button>
-                    <button id="btn-command-palette" class="action-btn action-cmd-btn" title="Adventurer's Field Compendium &amp; Available Actions [Ctrl+K]"><span class="btn-icon">▤</span><span class="btn-label">Actions ▾</span><kbd>Ctrl+K</kbd></button>
-                    <button id="btn-action-more" class="action-btn action-more-btn" title="Toggle All Action Commands">⋯ More</button>
+                    <button id="btn-terminal" class="action-btn" data-hotbar-primary="1" title="Toggle 80x24 classic CRT terminal view [Tab]"><svg class="act-svg" width="14" height="14" aria-hidden="true"><use href="#ico-terminal"/></svg> <span class="act-label">Classic</span> <kbd>Tab</kbd></button>
+                    <button id="btn-guide-hud" class="action-btn" title="View Complete Controls &amp; Commands Guide [?]"><svg class="act-svg" width="14" height="14" aria-hidden="true"><use href="#ico-help"/></svg> <span class="act-label">Help</span> <kbd>?</kbd></button>
+                    <button id="btn-command-palette" class="action-btn action-cmd-btn" title="Adventurer's Field Compendium &amp; Available Actions [Ctrl+K]"><span class="btn-icon"><svg class="act-svg" width="14" height="14" aria-hidden="true"><use href="#ico-panels"/></svg></span><span class="btn-label">Actions ▾</span><kbd>Ctrl+K</kbd></button>
+                    <button type="button" id="btn-action-more" class="action-btn action-more-btn" commandfor="action-more-popover" command="toggle-popover" title="More Actions &amp; Commands"><svg class="act-svg" width="14" height="14" aria-hidden="true"><use href="#ico-more"/></svg> <span class="act-label">More</span></button>
                 </div>
 
                 <!-- Streamlined Glassmorphic Context & Status Bar -->
@@ -581,7 +610,7 @@
         </div>
 
         <!-- Atmospheric Death Screen Modal (Matches Godot Overlay.cs:840-935) -->
-        <div id="death-modal" class="hidden" role="dialog" aria-label="Death Summary">
+        <dialog id="death-modal" class="yasd-native-dialog hidden" aria-label="Death Summary" closedby="any">
             <div class="death-panel">
                 <div class="death-header">
                     <!-- # ROOT-CAUSE: Add official YASD3D.com icon badge (.modal-crest-badge) to modal headers with fetchpriority="low". -->
@@ -600,7 +629,7 @@
                 </div>
 
                 <div class="death-body">
-                    <div id="death-content-0" class="death-tab-content active">
+                    <div id="death-content-0" class="death-tab-content active" tabindex="-1">
                         <div class="death-tombstone-split">
                             <div id="death-sketch-wrap" class="death-sketch-wrap">
                                 <div id="death-sketch-loader" class="sketch-loading-placeholder">
@@ -622,10 +651,10 @@
                             </div>
                         </div>
                     </div>
-                    <div id="death-content-1" class="death-tab-content"><ul id="death-equipment-list" class="death-list"></ul></div>
-                    <div id="death-content-2" class="death-tab-content"><ul id="death-inventory-list" class="death-list"></ul></div>
-                    <div id="death-content-3" class="death-tab-content"><ul id="death-quiver-list" class="death-list"></ul></div>
-                    <div id="death-content-4" class="death-tab-content"><div id="death-stats-container" class="death-stats-grid"></div><div id="yasd-crypt-container" class="yasd-crypt-container"></div></div>
+                    <div id="death-content-1" class="death-tab-content tab-cached-inactive" inert aria-hidden="true"><ul id="death-equipment-list" class="death-list"></ul></div>
+                    <div id="death-content-2" class="death-tab-content tab-cached-inactive" inert aria-hidden="true"><ul id="death-inventory-list" class="death-list"></ul></div>
+                    <div id="death-content-3" class="death-tab-content tab-cached-inactive" inert aria-hidden="true"><ul id="death-quiver-list" class="death-list"></ul></div>
+                    <div id="death-content-4" class="death-tab-content tab-cached-inactive" inert aria-hidden="true"><div id="death-stats-container" class="death-stats-grid"></div><div id="yasd-crypt-container" class="yasd-crypt-container"></div></div>
                 </div>
 
                 <div class="death-actions">
@@ -635,7 +664,7 @@
                     <button id="btn-death-menu" class="death-btn btn-menu"><kbd>[M / Esc]</kbd> Main Menu</button>
                 </div>
             </div>
-        </div>
+        </dialog>
 
         <!-- Global Persistent Audio & Music Pill (Always accessible on Splash & Main Menu) -->
         <div id="global-audio-bar" role="region" aria-label="Global Volume and Music Controls">
@@ -654,16 +683,16 @@
             </button>
             <input type="range" id="global-music-slider" min="0" max="100" value="85" title="Music Volume" aria-label="Music Volume" style="width:62px; accent-color:#d4af37; cursor:pointer;">
             <span id="global-music-label" style="font-size:0.72rem; color:#c8ced8; min-width:26px; text-align:right; font-variant-numeric:tabular-nums;">85%</span>
-            <button type="button" id="btn-global-audio-config" class="btn-top-sound" title="Audio Configuration (Music Jukebox, Tome Voice, Effects &amp; Reverb)" aria-label="Audio Configuration" style="background:rgba(30,36,48,0.9); border:1px solid rgba(212,175,55,0.45); border-radius:4px; color:#f3cf7a; font-size:0.78rem; cursor:pointer; padding:2px 6px;">⚙</button>
+            <button type="button" id="btn-global-audio-config" commandfor="quick-volume-popover" command="toggle-popover" class="btn-top-sound" title="Audio Configuration (Music Jukebox, Tome Voice, Effects &amp; Reverb)" aria-label="Audio Configuration" style="background:rgba(30,36,48,0.9); border:1px solid rgba(212,175,55,0.45); border-radius:4px; color:#f3cf7a; font-size:0.78rem; cursor:pointer; padding:2px 6px;">⚙</button>
             <button type="button" id="btn-global-fullscreen" class="btn-top-sound" title="Toggle Fullscreen [F11]" aria-label="Toggle Fullscreen" style="background:rgba(30,36,48,0.9); border:1px solid rgba(212,175,55,0.45); border-radius:4px; color:#f3cf7a; font-size:0.78rem; cursor:pointer; padding:2px 7px;">⛶</button>
         </div>
 
         <!-- Audio & Volume Configuration Floating Popover (Hoisted above all overlays) -->
-        <div id="quick-volume-popover" class="quick-volume-popover hidden" role="dialog" aria-label="Audio and Volume Controls">
+        <div id="quick-volume-popover" class="quick-volume-popover hidden" popover="auto" aria-label="Audio and Volume Controls">
             <div class="popover-header">
                 <span class="popover-title">🔊 Audio Configuration</span>
                 <span id="popover-vol-badge" class="popover-badge">75%</span>
-                <button type="button" id="btn-popover-close" class="popover-close-btn" title="Close Volume Controls">✕</button>
+                <button type="button" id="btn-popover-close" class="popover-close-btn" commandfor="quick-volume-popover" command="hide-popover" title="Close Volume Controls">✕</button>
             </div>
             <div class="popover-slider-row">
                 <button type="button" id="btn-popover-mute" class="popover-mute-toggle" title="Universal Audio Mute">🔊 Sound On</button>
@@ -775,7 +804,7 @@
                         <img src="/assets/yasd3d_badge.png?v=13.3.0" alt="YASD 3D Official Game Badge" class="main-menu-logo-primary" width="34" height="45" fetchpriority="low" decoding="async" draggable="false">
                         <div class="main-menu-title-group">
                             <h2 class="main-menu-title" id="main-menu-title">⚔ YASD 3D • YENDOR ENGINE</h2>
-                            <div class="main-menu-subtitle" id="main-menu-subtitle">Pick a realm on the left, then launch on the right</div>
+                            <div class="main-menu-subtitle" id="main-menu-subtitle">Nine canonical roguelikes in first-person 3D</div>
                         </div>
                         <div class="main-menu-header-tools">
                             <button class="menu-dock-btn menu-header-pill" id="btn-menu-guide" data-index="4" title="Game Guide &amp; Lore [5]"><span class="dock-icon">📖</span><span class="dock-label"><kbd>[5]</kbd> Guide</span></button>
@@ -783,7 +812,7 @@
                             <button class="menu-dock-btn menu-header-pill" id="btn-menu-credits" data-index="6" title="Architecture &amp; Credits [7]"><span class="dock-icon">📜</span><span class="dock-label"><kbd>[7]</kbd> Credits</span></button>
                             <button class="menu-dock-btn" id="btn-menu-demo" style="display:none;" aria-hidden="true">Demo</button>
                             <button class="menu-dock-btn" id="btn-menu-wiki" style="display:none;" aria-hidden="true">Wiki</button>
-                            <button type="button" id="btn-menu-audio-settings" class="menu-audio-launch-btn" title="Open Audio, Music Jukebox &amp; Voice Configuration" aria-label="Open Audio Configuration">🔊 Audio &amp; Music</button>
+                            <button type="button" id="btn-menu-audio-settings" commandfor="quick-volume-popover" command="toggle-popover" class="menu-audio-launch-btn" title="Open Audio, Music Jukebox &amp; Voice Configuration" aria-label="Open Audio Configuration">🔊 Audio &amp; Music</button>
                             <button type="button" id="btn-menu-fullscreen" class="menu-audio-launch-btn" title="Toggle Fullscreen [F11]" aria-label="Toggle Fullscreen">⛶ Fullscreen</button>
                         </div>
                     </div>
@@ -793,7 +822,7 @@
                     <!-- Left Column: Step 1 — Choose Your Roguelike Realm (Unified 3x3 Visual Grid) -->
                     <section class="main-menu-realm-atlas" id="main-menu-realm-strip" aria-label="Select Roguelike Realm">
                         <div class="atlas-section-head">
-                            <div class="atlas-step-heading"><span class="menu-step-pill">STEP 1</span><span class="atlas-kicker">Choose Your Roguelike Realm</span></div>
+                            <div class="atlas-step-heading"><span class="atlas-kicker">Select Your Realm</span></div>
                             <button type="button" id="btn-menu-realms" class="menu-realm-compare-btn" title="Compare All 9 Realms Side-by-Side [R]">🌌 Compare All 9 <kbd>[R]</kbd></button>
                             <label for="main-menu-realm-select" class="main-menu-realm-label sr-only">Realm <kbd>[R]</kbd></label>
                             <select id="main-menu-realm-select" name="realm" class="main-menu-realm-dropdown-compact sr-only" aria-label="Select Roguelike Realm">
@@ -834,7 +863,7 @@
                     <!-- Right Column: Step 2 — Play Selected Realm -->
                     <section class="main-menu-launch-deck" aria-label="Launch Selected Realm">
                         <div class="atlas-section-head">
-                            <div class="atlas-step-heading"><span class="menu-step-pill">STEP 2</span><span class="atlas-kicker">Play Selected Realm</span></div>
+                            <div class="atlas-step-heading"><span class="atlas-kicker">Embark</span></div>
                             <div id="main-menu-hengband-lang-wrap" class="main-menu-lang-wrap hidden">
                                 <label for="main-menu-hengband-lang-select" class="main-menu-lang-label">Lang:</label>
                                 <select id="main-menu-hengband-lang-select" class="main-menu-lang-dropdown" title="Toggle Hengband Language">
@@ -899,7 +928,7 @@
         </div>
 
         <!-- Load Saved Game Modal -->
-        <div id="load-modal" class="hidden">
+        <dialog id="load-modal" class="yasd-native-dialog hidden" closedby="any">
             <div class="load-card" style="position: relative;">
                 <button type="button" id="btn-load-close-x" class="btn-guide-close" title="Close [Esc]" aria-label="Close Load Saved Game Modal" style="position: absolute; top: 14px; right: 16px; font-size: 18px; color: #ffd700; background: none; border: none; cursor: pointer; z-index: 5;">✕</button>
                 <div class="main-menu-ornament-corner top-left"></div>
@@ -934,10 +963,10 @@
                     <button id="btn-load-back" class="btn-gold-outline">[Esc] Back</button>
                 </div>
             </div>
-        </div>
+        </dialog>
 
         <!-- In-Game Pause Menu Modal (Matches Godot OpenPauseMenu) -->
-        <div id="pause-modal" class="hidden">
+        <dialog id="pause-modal" class="yasd-native-dialog hidden" closedby="any">
             <div class="main-menu-card pause-card" style="position: relative;">
                 <button type="button" id="btn-pause-close-x" class="btn-guide-close" title="Resume Game [Esc]" aria-label="Close Pause Menu" style="position: absolute; top: 14px; right: 16px; font-size: 18px; color: #ffd700; background: none; border: none; cursor: pointer; z-index: 5;">✕</button>
                 <div class="main-menu-ornament-corner top-left"></div>
@@ -1051,10 +1080,10 @@
                     <span id="pause-credits-strip" style="font-size: 11px; color: #94a3b8; opacity: 0.9;">9-Realm FOSS • Art: Raymond &quot;Shockbolt&quot; Gaustadnes • 3D &amp; PBR: Poly Haven, Quaternius &amp; KayKit (CC0), Sketchfab CC-BY 4.0 Artists (see [7] Credits)</span>
                 </div>
             </div>
-        </div>
+        </dialog>
 
         <!-- Game Guide & Credits Modal (2-Pane Adventurer's Codex + Novice Roguelike Primer) -->
-        <div id="guide-modal" class="hidden" role="dialog" aria-modal="true" aria-labelledby="guide-modal-title">
+        <dialog id="guide-modal" class="yasd-native-dialog hidden" aria-labelledby="guide-modal-title" closedby="any">
             <div class="guide-card guide-codex-shell">
                 <div class="guide-header">
                     <div class="guide-header-brand">
@@ -1093,14 +1122,14 @@
                     </aside>
                     <div class="guide-body" id="guide-body">
                         <div id="guide-search-results" class="guide-search-results hidden"></div>
-                        <div class="guide-tab-content active" id="guide-tab-0" role="tabpanel" aria-labelledby="guide-tab-btn-0" tabindex="0"></div>
-                        <div class="guide-tab-content" id="guide-tab-1" role="tabpanel" aria-labelledby="guide-tab-btn-1" hidden="until-found"></div>
-                        <div class="guide-tab-content" id="guide-tab-2" role="tabpanel" aria-labelledby="guide-tab-btn-2" hidden="until-found"></div>
-                        <div class="guide-tab-content" id="guide-tab-3" role="tabpanel" aria-labelledby="guide-tab-btn-3" hidden="until-found"></div>
-                        <div class="guide-tab-content" id="guide-tab-4" role="tabpanel" aria-labelledby="guide-tab-btn-4" hidden="until-found"></div>
-                        <div class="guide-tab-content" id="guide-tab-5" role="tabpanel" aria-labelledby="guide-tab-btn-5" hidden="until-found"></div>
-                        <div class="guide-tab-content" id="guide-tab-6" role="tabpanel" aria-labelledby="guide-tab-btn-6" hidden="until-found"></div>
-                        <div class="guide-tab-content" id="guide-tab-7" role="tabpanel" aria-labelledby="guide-tab-btn-7" hidden="until-found"></div>
+                        <div class="guide-tab-content active" id="guide-tab-0" role="tabpanel" aria-labelledby="guide-tab-btn-0" tabindex="0" aria-hidden="false"></div>
+                        <div class="guide-tab-content" id="guide-tab-1" role="tabpanel" aria-labelledby="guide-tab-btn-1" hidden="until-found" inert aria-hidden="true"></div>
+                        <div class="guide-tab-content" id="guide-tab-2" role="tabpanel" aria-labelledby="guide-tab-btn-2" hidden="until-found" inert aria-hidden="true"></div>
+                        <div class="guide-tab-content" id="guide-tab-3" role="tabpanel" aria-labelledby="guide-tab-btn-3" hidden="until-found" inert aria-hidden="true"></div>
+                        <div class="guide-tab-content" id="guide-tab-4" role="tabpanel" aria-labelledby="guide-tab-btn-4" hidden="until-found" inert aria-hidden="true"></div>
+                        <div class="guide-tab-content" id="guide-tab-5" role="tabpanel" aria-labelledby="guide-tab-btn-5" hidden="until-found" inert aria-hidden="true"></div>
+                        <div class="guide-tab-content" id="guide-tab-6" role="tabpanel" aria-labelledby="guide-tab-btn-6" hidden="until-found" inert aria-hidden="true"></div>
+                        <div class="guide-tab-content" id="guide-tab-7" role="tabpanel" aria-labelledby="guide-tab-btn-7" hidden="until-found" inert aria-hidden="true"></div>
                     </div>
                 </div>
                 <div class="guide-footer">
@@ -1108,10 +1137,10 @@
                     <button type="button" id="btn-guide-back" class="btn-gold-outline">[Esc] Return</button>
                 </div>
             </div>
-        </div>
+        </dialog>
 
         <!-- Progressive Web App (PWA) Installation & Save Portability Modal -->
-        <div id="pwa-modal" class="hidden">
+        <dialog id="pwa-modal" class="yasd-native-dialog hidden" closedby="any">
             <div class="load-card pwa-card" style="max-width: 620px;">
                 <button id="btn-pwa-header-close" class="btn-guide-close" title="Close [Esc]" style="position: absolute; top: 14px; right: 16px; font-size: 18px; color: #ffd700; background: none; border: none; cursor: pointer; z-index: 5;">✕</button>
                 <div class="main-menu-ornament-corner top-left"></div>
@@ -1155,10 +1184,10 @@
                     <button id="btn-pwa-close" class="btn-gold-outline">[Esc / Enter] Close</button>
                 </div>
             </div>
-        </div>
+        </dialog>
 
         <!-- Gameplay Demo & Commercial Showcase Modal (YouTube-Grade Theater) -->
-        <div id="demo-modal" class="hidden" style="display:none;" aria-hidden="true">
+        <dialog id="demo-modal" class="yasd-native-dialog hidden" style="display:none;" aria-hidden="true" closedby="any">
             <div class="demo-backdrop"></div>
             <div class="demo-theater-container">
                 <button id="btn-demo-close" class="demo-close-btn" title="Close Demo (Esc)">✕</button>
@@ -1233,10 +1262,10 @@
                     <a href="/demo" target="_blank" rel="noopener noreferrer" class="demo-permalink-link" style="color: var(--cyan); font-size: 0.85rem; text-decoration: none; margin-left: 16px;" title="Open Dedicated Showcase Page">🔗 Standalone Page (yasd3d.com/demo) ↗</a>
                 </div>
             </div>
-        </div>
+        </dialog>
 
         <!-- Player Capacity Queue Modal -->
-        <div id="queue-modal" class="hidden">
+        <dialog id="queue-modal" class="yasd-native-dialog hidden" closedby="any">
             <div class="main-menu-card queue-card" style="max-width: 560px;">
                 <div class="main-menu-ornament-corner top-left"></div>
                 <div class="main-menu-ornament-corner top-right"></div>
@@ -1278,10 +1307,10 @@
                     <button id="btn-queue-cancel" class="btn-gold-outline" style="padding: 6px 14px; font-size: 12px;">Leave Queue</button>
                 </div>
             </div>
-        </div>
+        </dialog>
 
         <!-- Multi-Realm & Variant Selector Modal -->
-        <div id="realm-selector-modal" class="hidden" role="dialog" aria-label="Multi-Realm Selector">
+        <dialog id="realm-selector-modal" class="yasd-native-dialog hidden" aria-label="Multi-Realm Selector" closedby="any">
             <div class="main-menu-card realm-selector-card" style="max-width: 860px; width: 95vw;">
                 <button id="btn-realm-modal-close" class="btn-guide-close" title="Close [Esc]" style="position: absolute; top: 14px; right: 16px; font-size: 18px; color: #ffd700; background: none; border: none; cursor: pointer; z-index: 5;">✕</button>
                 <div class="main-menu-ornament-corner top-left"></div>
@@ -1313,13 +1342,13 @@
                     <button id="btn-realm-modal-return" class="btn-gold-outline">[Esc / Enter] Return</button>
                 </div>
             </div>
-        </div>
+        </dialog>
 
         <!-- # ROOT-CAUSE: Add hidden attribute and .hidden class on <dialog id="item-sheet"> so initial page load never treats the closed dialog as visible/open. -->
-        <dialog id="item-sheet" class="item-sheet-dialog hidden" hidden aria-label="Inventory & Equipment Item Sheet"></dialog>
+        <dialog id="item-sheet" class="item-sheet-dialog hidden" closedby="any" hidden aria-label="Inventory & Equipment Item Sheet"></dialog>
 
         <!-- Roguelike Command Palette & Searchable Action Drawer -->
-        <div id="command-palette-modal" class="hidden" role="dialog" aria-label="Command Palette">
+        <dialog id="command-palette-modal" class="yasd-native-dialog hidden" aria-label="Command Palette" closedby="any">
             <div class="cmd-palette-card">
                 <div class="cmd-palette-header">
                     <div class="cmd-compendium-title-row">
@@ -1349,10 +1378,10 @@
                     <span>[↑/↓] Navigate &nbsp;•&nbsp; [Enter] Execute Command &nbsp;•&nbsp; [Esc] Close Palette &nbsp;•&nbsp; [Ctrl+K or ?] Global Shortcut</span>
                 </div>
             </div>
-        </div>
+        </dialog>
 
         <!-- Chronicle Hero Action Sketch Lightbox Modal -->
-        <div id="chronicle-sketch-modal" class="modal-overlay hidden" role="dialog" aria-label="Hero Action Sketch Lightbox" style="display: none;">
+        <dialog id="chronicle-sketch-modal" class="yasd-native-dialog modal-overlay hidden" aria-label="Hero Action Sketch Lightbox" style="display: none;" closedby="any">
             <div class="modal-card chronicle-sketch-lightbox-card">
                 <div class="modal-header"><h3 id="chronicle-sketch-modal-title">🎨 Chronicle Hero Action Sketch</h3><button type="button" id="btn-close-sketch-modal" class="icon-btn" title="Close Sketch">✕</button></div>
                 <div class="chronicle-sketch-modal-body">
@@ -1367,7 +1396,7 @@
                 </div>
                 <div class="modal-footer" style="gap: 10px;"><button type="button" id="btn-modal-regen-sketch" class="btn-gold-outline" title="Regenerate AI Illustration">🔄 Regenerate AI</button><button type="button" id="btn-share-sketch-card" class="death-btn btn-share-yasd" title="Download Shareable Scene Card (.PNG)">⚔ Share Scene Card</button><a id="btn-download-sketch-png" class="btn-primary" download="yasd3d-hero-sketch.png" href="#">⬇ Download PNG</a></div>
             </div>
-        </div>
+        </dialog>
         <!-- Initial Connection & Between-Levels Arcane Progress Wheel Curtain -->
         <div id="loading-overlay" class="hidden" role="status" aria-live="polite"><div class="loading-emblem-card"><div class="loading-emblem-wheel" aria-hidden="true"><svg class="loading-wheel-svg" viewBox="0 0 220 220" width="220" height="220"><defs><linearGradient id="yasdLoadingGoldGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#b45309"/><stop offset="45%" stop-color="#f59e0b"/><stop offset="80%" stop-color="#ffd700"/><stop offset="100%" stop-color="#fef08a"/></linearGradient></defs><circle class="loading-svg-track" cx="110" cy="110" r="92"/><circle id="loading-svg-ring-outer" class="loading-svg-ring-outer" cx="110" cy="110" r="103"/><circle id="loading-svg-ring-inner" class="loading-svg-ring-inner" cx="110" cy="110" r="78"/><circle id="loading-wheel-arc" class="loading-wheel-arc" cx="110" cy="110" r="92" stroke="url(#yasdLoadingGoldGrad)" stroke-dasharray="578.05" stroke-dashoffset="508.68"/><circle id="loading-wheel-comet" class="loading-wheel-comet" cx="110" cy="18" r="5.5"/></svg><img class="loading-emblem-logo" src="/assets/yasd3d_badge.png?v=13.3.0" alt="" width="126" height="126" loading="lazy" decoding="async" /><span id="loading-wheel-pct" class="loading-wheel-pct">12%</span></div><h2 class="loading-emblem-title">YASD 3D</h2><p id="loading-stage-text" class="loading-emblem-subtitle">Connecting to Cloud Realm &amp; Spawning Engine...</p><progress id="loading-native-progress" class="yasd-progress-bar" max="100" value="12" aria-labelledby="loading-stage-text"></progress><div class="loading-progress-track" aria-hidden="true"><div id="loading-progress-fill" class="loading-progress-fill" style="width: 12%;"></div></div><button type="button" id="btn-loading-cancel" class="loading-cancel-btn hidden">Return to Main Menu</button></div></div>
     </div>
