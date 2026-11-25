@@ -474,10 +474,20 @@
         const vLower = typeof intent.verb === 'string' ? intent.verb.trim().toLowerCase() : '';
         if (vLower === 'engrave' && typeof intent.text === 'string' && !intent.item && !intent.dir) {
             const eKey = intent.key || this.resolveVerbKey('engrave', r) || 'E';
-            const eSteps = [{ send: eKey, expect: (model, fr) => model.isIdle || !fr.ui.awaiting_command || true, desc: 'open:engrave' }];
+            const eSteps = [{ send: eKey, expect: (model, fr) => model.isIdle || !fr.ui.awaiting_command || (model.prompt && model.prompt.kind === 'string'), desc: 'open:engrave' }];
             for (const ch of intent.text) eSteps.push({ send: normalizeKey(ch), expect: () => true, desc: `engrave-char:${ch}` });
             eSteps.push({ send: 'enter', expect: (model, fr) => model.isIdle || (fr.ui && fr.ui.more), desc: 'engrave-confirm' });
             return eSteps;
+        }
+        if (vLower === 'explore' && r !== 'dcss' && r !== 'brogue') {
+            const expKey = intent.key || this.resolveVerbKey('explore', r) || 'Alt+E';
+            return [{ send: expKey, clientAction: 'explore', desc: 'client-auto-explore' }];
+        }
+        if (vLower === 'recall' && intent.glyph) {
+            return [
+                { send: '/', expect: (model, fr) => !fr.ui.awaiting_command || (model.prompt && model.prompt.kind === 'string') || model.isIdle, desc: 'recall-prefix' },
+                { send: String(intent.glyph).slice(0, 1), expect: (model, fr) => model.isIdle || (fr.ui && (fr.ui.overlay > 0 || fr.ui.more)), desc: `recall-glyph:${intent.glyph}` }
+            ];
         }
         if ((vLower.startsWith('#') ||
             vLower === 'char_sheet' || vLower === 'knowledge' || vLower === 'options' ||
@@ -500,11 +510,11 @@
                 verbKey = this.resolveVerbKey('command_menu', r) || (r === 'silq' ? 'm' : 'enter'); } else {
                 verbKey = this.resolveVerbKey(intent.verb, r);
             }
-            if (!verbKey) return null;
+            if (!verbKey || verbKey === 'Alt+E') return null;
             const steps = [
                 {
                     send: normalizeKey(verbKey),
-                    expect: (model, fr) => (fr.ui && fr.ui.overlay > 0) || !fr.ui.awaiting_command || true,
+                    expect: (model, fr) => Boolean((fr && fr.ui && (fr.ui.overlay > 0 || !fr.ui.awaiting_command || fr.ui.more)) || (model && (model.owner !== 'engine-idle' || model.isIdle))),
                     desc: `open:${intent.verb}`
                 }
             ];
@@ -540,9 +550,9 @@
         }
         if (intent.verb === 'song') {
             const songLetter = intent.spell || intent.song;
-            if (!songLetter) return [{ send: 's', expect: () => true, desc: 'open-song-menu' }];
+            if (!songLetter) return [{ send: 's', expect: (model, fr) => !fr.ui.awaiting_command || model.isIdle || (fr.ui && fr.ui.overlay > 0), desc: 'open-song-menu' }];
             return [
-                { send: 's', expect: () => true, desc: 'open-song-menu' },
+                { send: 's', expect: (model, fr) => !fr.ui.awaiting_command || (fr.ui && fr.ui.overlay > 0) || (model.prompt && model.prompt.kind === 'spell'), desc: 'open-song-menu' },
                 { send: songLetter, expect: (model, fr) => model.isIdle || (fr.ui && fr.ui.more), desc: `select-song:${songLetter}` }
             ];
         }
@@ -550,14 +560,14 @@
             const pKey = this.resolveVerbKey('power', r) || 'U';
             const powerLetter = intent.spell || intent.power;
             if (!powerLetter && !intent.dir && !intent.target) {
-                return [{ send: pKey, expect: () => true, desc: 'open-power-menu' }];
+                return [{ send: pKey, expect: (model, fr) => !fr.ui.awaiting_command || model.isIdle || (fr.ui && fr.ui.overlay > 0), desc: 'open-power-menu' }];
             }
             const pLetter = powerLetter || 'a';
             const steps = [
-                { send: pKey, expect: () => true, desc: 'open-power-menu' },
+                { send: pKey, expect: (model, fr) => !fr.ui.awaiting_command || (fr.ui && fr.ui.overlay > 0) || (model.prompt && (model.prompt.kind === 'spell' || model.prompt.kind === 'menu')), desc: 'open-power-menu' },
                 {
                     send: pLetter,
-                    expect: (model, fr) => model.isIdle || (fr.ui && fr.ui.more) || (intent.dir || intent.target),
+                    expect: (model, fr) => model.isIdle || (fr.ui && fr.ui.more) || Boolean((intent.dir || intent.target) && (model.prompt && model.prompt.kind === 'direction' || !fr.ui.awaiting_command)),
                     desc: `select-power:${pLetter}`
                 }
             ];
@@ -572,15 +582,15 @@
             const steps = [
                 {
                     send: castKey,
-                    expect: (model) => (model.prompt && (model.prompt.kind === 'book' || model.prompt.kind === 'spell')) || true,
+                    expect: (model, fr) => Boolean((model.prompt && (model.prompt.kind === 'book' || model.prompt.kind === 'spell' || model.prompt.kind === 'item')) || (fr.ui && !fr.ui.awaiting_command)),
                     desc: 'open-cast'
                 }
             ];
             if (intent.book) {
-                steps.push({ send: intent.book, expect: (model) => (model.prompt && model.prompt.kind === 'spell') || true, desc: `select-book:${intent.book}` });
+                steps.push({ send: intent.book, expect: (model, fr) => Boolean((model.prompt && model.prompt.kind === 'spell') || (fr.ui && (!fr.ui.awaiting_command || fr.ui.overlay > 0))), desc: `select-book:${intent.book}` });
             }
             if (intent.spell) {
-                steps.push({ send: intent.spell, expect: (model, fr) => (intent.dir || intent.target) ? ((model.prompt && model.prompt.kind === 'direction') || true) : (model.isIdle || (fr.ui && fr.ui.more)), desc: `select-spell:${intent.spell}` });
+                steps.push({ send: intent.spell, expect: (model, fr) => (intent.dir || intent.target) ? Boolean((model.prompt && model.prompt.kind === 'direction') || (model.legacy && model.legacy.isTargeting) || !fr.ui.awaiting_command) : (model.isIdle || (fr.ui && fr.ui.more)), desc: `select-spell:${intent.spell}` });
             }
             if (intent.dir || intent.target) {
                 const targetKey = intent.dir || resolveTargetKey(r, intent.target);
@@ -597,7 +607,7 @@
             const steps = [
                 {
                     send: verbKey,
-                    expect: (model, fr) => (intent.dir ? ((model.prompt && model.prompt.kind === 'direction') || true) : ((model.prompt && model.prompt.kind === 'direction') || (model.legacy && model.legacy.isTargeting) || model.isIdle || Boolean(fr && fr.ui && (fr.ui.more || !fr.ui.awaiting_command)))),
+                    expect: (model, fr) => (intent.dir ? Boolean((model.prompt && model.prompt.kind === 'direction') || (model.legacy && model.legacy.isTargeting) || !fr.ui.awaiting_command) : ((model.prompt && model.prompt.kind === 'direction') || (model.legacy && model.legacy.isTargeting) || model.isIdle || Boolean(fr && fr.ui && (fr.ui.more || !fr.ui.awaiting_command)))),
                     desc: `verb:${intent.verb}`
                 }
             ];
@@ -628,7 +638,7 @@
             let targetLetter = typeof intent.item === 'string' ? intent.item : (intent.item.letter || intent.item.label);
             if (!targetLetter && r === 'angband' && intent.item && typeof intent.item.slot === 'number') { targetLetter = getVanillaLetter(intent.item.slot); }
             if (targetLetter) {
-                steps.push({ send: targetLetter, itemObj: typeof intent.item === 'object' ? intent.item : null, verify: (model) => { const visible = (model.items && model.items.length) ? model.items : (model.legacy && model.legacy.items) || []; if (visible.length > 0) { const match = visible.find(it => (it.key || it.letter) === targetLetter); if (!match) return 'handoff'; if (intent.item && intent.item.name) { const expectName = intent.item.name.toLowerCase(); const actualName = (match.name || match.rowLabel || (match.label && match.label.length > 1 ? match.label : '') || '').toLowerCase(); if (actualName && !actualName.includes(expectName) && !(actualName.length >= 6 && expectName.includes(actualName))) { return 'handoff'; } } } return true; }, expect: (model, fr) => { if (intent.verb === 'drop' && intent.qty !== undefined) { return (model.prompt && model.prompt.kind === 'quantity') || (model.legacy && model.legacy.isQuantityPrompt) || true; } if (intent.verb === 'aim' || intent.verb === 'zap' || intent.verb === 'throw' || intent.verb === 'fire') { return (intent.dir || intent.target) ? ((model.prompt && model.prompt.kind === 'direction') || (model.legacy && model.legacy.isTargeting) || true) : (model.isIdle || (fr.ui && fr.ui.more) || Boolean(model.prompt && model.prompt.kind === 'direction') || Boolean(model.legacy && model.legacy.isTargeting)); } return model.isIdle || (fr.ui && fr.ui.more); }, desc: `item:${targetLetter}` });
+                steps.push({ send: targetLetter, itemObj: typeof intent.item === 'object' ? intent.item : null, verify: (model) => { const visible = (model.items && model.items.length) ? model.items : (model.legacy && model.legacy.items) || []; if (visible.length > 0) { const match = visible.find(it => (it.key || it.letter) === targetLetter); if (!match) return 'handoff'; if (intent.item && intent.item.name) { const expectName = intent.item.name.toLowerCase(); const actualName = (match.name || match.rowLabel || (match.label && match.label.length > 1 ? match.label : '') || '').toLowerCase(); if (actualName && !actualName.includes(expectName) && !(actualName.length >= 6 && expectName.includes(actualName))) { return 'handoff'; } } } return true; }, expect: (model, fr) => { if (intent.verb === 'drop' && intent.qty !== undefined) { return Boolean((model.prompt && model.prompt.kind === 'quantity') || (model.legacy && model.legacy.isQuantityPrompt) || (fr && fr.ui && !fr.ui.awaiting_command)); } if (intent.verb === 'aim' || intent.verb === 'zap' || intent.verb === 'throw' || intent.verb === 'fire') { return (intent.dir || intent.target) ? Boolean((model.prompt && model.prompt.kind === 'direction') || (model.legacy && model.legacy.isTargeting) || (fr && fr.ui && !fr.ui.awaiting_command)) : (model.isIdle || (fr.ui && fr.ui.more) || Boolean(model.prompt && model.prompt.kind === 'direction') || Boolean(model.legacy && model.legacy.isTargeting)); } return model.isIdle || (fr.ui && fr.ui.more); }, desc: `item:${targetLetter}` });
             }
         }
         if (intent.verb === 'drop' && intent.qty !== undefined) {
@@ -686,6 +696,11 @@
             this.onEvent('dispatcher:failed', { reason: 'compilation-failed' });
             this.state = 'Idle';
             return false;
+        }
+        if (plan.length === 1 && plan[0].clientAction === 'explore') {
+            if (typeof window !== 'undefined' && window.__app?.input?.toggleAutoExplore) window.__app.input.toggleAutoExplore();
+            this._finish('Done', 'client-auto-explore');
+            return true;
         }
         this.plan = plan;
         this.stepIndex = 0;

@@ -111,17 +111,17 @@ html.yasd-handheld #app-container #top-right-bar #sound-control-group {
 }
 
 html.yasd-handheld #app-container #top-right-bar .icon-btn {
-    min-width: 34px !important;
+    min-width: 44px !important;
     width: auto !important;
-    height: 30px !important;
-    min-height: 30px !important;
-    padding: 0 7px !important;
+    height: 44px !important;
+    min-height: 44px !important;
+    padding: 0 9px !important;
     background: var(--hh-bg-button) !important;
     background-image: none !important;
     border: 1px solid var(--hh-border) !important;
     border-radius: 6px !important;
     color: var(--hh-ink) !important;
-    font-size: 12px !important;
+    font-size: 13px !important;
     gap: 3px !important;
 }
 
@@ -138,11 +138,11 @@ html.yasd-handheld #app-container #top-message-banner {
     position: fixed !important;
     top: calc(2px + var(--hh-safe-top)) !important;
     left: calc(6px + var(--hh-safe-left)) !important;
-    right: calc(128px + var(--hh-safe-right)) !important;
+    right: calc(168px + var(--hh-safe-right)) !important;
     width: auto !important;
     max-width: none !important;
-    height: 30px !important;
-    min-height: 30px !important;
+    height: 44px !important;
+    min-height: 44px !important;
     margin: 0 !important;
     padding: 0 10px !important;
     display: flex !important;

@@ -173,7 +173,7 @@
             }
             .ryod-forge-overlay {
                 position: fixed; inset: 0; z-index: 10200;
-                background: rgba(6, 8, 13, 0.88); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+                background: rgba(6, 8, 13, 0.94);
                 display: flex; align-items: center; justify-content: center; padding: 8px;
             }
             .ryod-forge-overlay.hidden { display: none !important; }

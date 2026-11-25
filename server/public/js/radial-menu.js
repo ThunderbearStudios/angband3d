@@ -43,6 +43,14 @@
         tunnel: '⛏', look: '👁', map: '🗺', char_sheet: '👤'
     });
 
+    const ICON_TOKEN_MAP = Object.freeze({
+        potion: '🧪', scroll: '📜', wand: '🪄', staff: '🪄', rod: '💥',
+        bow: '🏹', arrow: '🏹', throw: '🎯', sword: '⚔', wield: '⚔', armor: '🛡',
+        drop: '📦', sparkle: '✨', magic: '✨', spell: '✨', rest: '⏳', sleep: '⏳',
+        door: '🚪', trap: '⚙', pickaxe: '⛏', tunnel: '⛏', eye: '👁', look: '👁',
+        map: '🗺', compass: '🧭', user: '👤', book: '📖', food: '🍖'
+    });
+
     /**
      * Build 8 fixed-position wedges for the given realm and ring.
      * Disabled verbs retain their angular index with disabled: true (Kurtenbach principle).
@@ -67,7 +75,10 @@
                     if (cmd.keys && cmd.keys[r] !== undefined) key = cmd.keys[r];
                     else key = realmKeyMap[verb] !== undefined ? realmKeyMap[verb] : null;
                     if (cmd.labels && cmd.labels.en) label = cmd.labels.en;
-                    if (cmd.icon) icon = cmd.icon;
+                    if (cmd.icon) {
+                        const tok = String(cmd.icon).trim();
+                        icon = /^[a-z0-9_-]+$/i.test(tok) ? (ICON_TOKEN_MAP[tok.toLowerCase()] || DEFAULT_ICONS[verb] || icon) : tok;
+                    }
                 } else {
                     key = realmKeyMap[verb] !== undefined ? realmKeyMap[verb] : null;
                 }
@@ -109,7 +120,7 @@
         constructor(options = {}) {
             this.options = options;
             this.mode = options.mode || 'toggle'; // 'toggle' | 'hold' (XAG 107)
-            this.realm = options.realm || 'angband';
+            this.realm = options.realm || null;
             this.activeRing = options.ring === 1 || options.ring === 'outer' ? 1 : 0;
             this.isOpen = false;
             this.selectedIndex = null;

@@ -102,12 +102,16 @@
   transition: transform 0.14s ease, border-color 0.14s ease, background 0.14s ease;
 }
 
-.rc-resume-pill:hover,
-.rc-resume-pill:focus-visible {
+.rc-resume-pill:hover {
   border-color: var(--rc-brass-bright);
   background: linear-gradient(180deg, #4b3a1f 0%, #2e2312 100%);
   transform: translateY(-1px);
-  outline: none;
+}
+.rc-resume-pill:focus-visible {
+  border-color: var(--rc-brass-bright);
+  background: linear-gradient(180deg, #4b3a1f 0%, #2e2312 100%);
+  outline: 2px solid var(--rc-brass-bright, #e8c776);
+  outline-offset: 2px;
 }
 
 .rc-resume-pill.hidden {
@@ -127,12 +131,16 @@
 }
 
 .rc-view-btn:hover,
-.rc-close-btn:hover,
+.rc-close-btn:hover {
+  border-color: var(--rc-brass);
+  color: var(--rc-text-title);
+}
 .rc-view-btn:focus-visible,
 .rc-close-btn:focus-visible {
   border-color: var(--rc-brass);
   color: var(--rc-text-title);
-  outline: none;
+  outline: 2px solid var(--rc-brass-bright, #e8c776);
+  outline-offset: 2px;
 }
 
 /* Main Carousel Stage: [Prev] [Collector Card] [Next] */
@@ -169,12 +177,16 @@
   color: var(--rc-text-muted);
 }
 
-.rc-nav-arrow:hover,
-.rc-nav-arrow:focus-visible {
+.rc-nav-arrow:hover {
   border-color: var(--rc-brass-bright);
   background: linear-gradient(180deg, #2f3545 0%, #1c212c 100%);
   transform: scale(1.03);
-  outline: none;
+}
+.rc-nav-arrow:focus-visible {
+  border-color: var(--rc-brass-bright);
+  background: linear-gradient(180deg, #2f3545 0%, #1c212c 100%);
+  outline: 2px solid var(--rc-brass-bright, #e8c776);
+  outline-offset: 2px;
 }
 
 /* Collector Card Frame */
@@ -416,11 +428,14 @@
   transition: transform 0.14s ease, filter 0.14s ease;
 }
 
-.rc-select-btn:hover,
-.rc-select-btn:focus-visible {
+.rc-select-btn:hover {
   filter: brightness(1.09);
   transform: translateY(-1px);
-  outline: none;
+}
+.rc-select-btn:focus-visible {
+  filter: brightness(1.09);
+  outline: 2px solid var(--rc-brass-bright, #e8c776);
+  outline-offset: 2px;
 }
 
 /* Bottom 9-Realm Crest Pip Strip */
@@ -451,11 +466,15 @@
   transition: border-color 0.14s ease, color 0.14s ease, background 0.14s ease;
 }
 
-.rc-pip-btn:hover,
+.rc-pip-btn:hover {
+  border-color: var(--rc-brass);
+  color: var(--rc-text-title);
+}
 .rc-pip-btn:focus-visible {
   border-color: var(--rc-brass);
   color: var(--rc-text-title);
-  outline: none;
+  outline: 2px solid var(--rc-brass-bright, #e8c776);
+  outline-offset: 2px;
 }
 
 .rc-pip-btn.active {

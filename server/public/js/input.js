@@ -1119,6 +1119,15 @@ class InputController {
             if (e.altKey && !e.ctrlKey && !e.metaKey && (e.key === 'h' || e.key === 'H')) {
                 e.preventDefault(); if (this.hud && typeof this.hud.cycleImmersionMode === 'function') this.hud.cycleImmersionMode(); return;
             }
+            if (e.altKey && !e.ctrlKey && !e.metaKey && ['1', '2', '3', '4'].includes(e.key) && appState === 'game') {
+                e.preventDefault();
+                const curRealm = (window.__app && typeof window.__app.getActiveRealm === 'function') ? window.__app.getActiveRealm() : 'angband';
+                const lf = (window.__app && typeof window.__app.getLastFrame === 'function') ? window.__app.getLastFrame() : (window.__app ? window.__app.lastFrame : null);
+                if (this.quickActions && typeof this.quickActions.executeSlot === 'function') {
+                    this.quickActions.executeSlot(parseInt(e.key, 10) - 1, lf, curRealm, (k) => this.network?.sendKey?.(k), window.__app?.showToast);
+                }
+                return;
+            }
             // 2. Client modal surface open -> modal handles keys; Escape / bare backtick closes it
             const sketchModal = document.getElementById('chronicle-sketch-modal');
             if ((e.key === 'Escape' || isBareBacktick) && sketchModal && !sketchModal.classList.contains('hidden') && sketchModal.style.display !== 'none') {

@@ -25,38 +25,29 @@ Dungeon3DProto._mergeBufferGeometries = function _mergeBufferGeometries(geometri
     const IndexArrayType = totalVerts > 65535 ? Uint32Array : Uint16Array;
     const indexArr = new IndexArrayType(totalIndices);
 
-    let vOffset = 0;
-    let iOffset = 0;
+    const copyAttr = (dst, attr, itemSize, vOff, vCnt) => {
+        if (!attr) return;
+        const stride = (attr.data && attr.data.stride) || attr.itemSize || itemSize, off = attr.offset || 0;
+        if (!attr.isInterleavedBufferAttribute && attr.array && attr.array.length === vCnt * itemSize) { dst.set(attr.array, vOff * itemSize); return; }
+        for (let vi = 0; vi < vCnt; vi++) {
+            const d = (vOff + vi) * itemSize;
+            if (typeof attr.getX === 'function') { dst[d] = attr.getX(vi); if (itemSize > 1) dst[d + 1] = attr.getY(vi); if (itemSize > 2) dst[d + 2] = attr.getZ(vi); }
+            else if (attr.array) { const s = vi * stride + off; for (let k = 0; k < itemSize; k++) dst[d + k] = attr.array[s + k] || 0; }
+        }
+    };
+    let vOffset = 0, iOffset = 0;
     for (const g of geometries) {
         const vCount = g.attributes.position ? g.attributes.position.count : 0;
         if (vCount === 0) continue;
-        posArr.set(g.attributes.position.array, vOffset * 3);
-        if (g.attributes.normal) {
-            normArr.set(g.attributes.normal.array, vOffset * 3);
-        }
-        if (g.attributes.uv) {
-            uvArr.set(g.attributes.uv.array, vOffset * 2);
-        }
-        if (g.attributes.color && g.attributes.color.array) {
-            const cArr = g.attributes.color.array;
-            const itemSize = g.attributes.color.itemSize || 3;
-            for (let vi = 0; vi < vCount; vi++) {
-                const dst = (vOffset + vi) * 3;
-                const src = vi * itemSize;
-                colArr[dst] = cArr[src];
-                colArr[dst + 1] = cArr[src + 1];
-                colArr[dst + 2] = cArr[src + 2];
-            }
-        }
+        copyAttr(posArr, g.attributes.position, 3, vOffset, vCount);
+        copyAttr(normArr, g.attributes.normal, 3, vOffset, vCount);
+        copyAttr(uvArr, g.attributes.uv, 2, vOffset, vCount);
+        copyAttr(colArr, g.attributes.color, 3, vOffset, vCount);
         if (g.index) {
-            const idx = g.index.array;
-            for (let i = 0; i < idx.length; i++) {
-                indexArr[iOffset++] = idx[i] + vOffset;
-            }
+            const iCount = g.index.count !== undefined ? g.index.count : g.index.array.length;
+            for (let i = 0; i < iCount; i++) indexArr[iOffset++] = (typeof g.index.getX === 'function' ? g.index.getX(i) : g.index.array[i]) + vOffset;
         } else {
-            for (let i = 0; i < vCount; i++) {
-                indexArr[iOffset++] = i + vOffset;
-            }
+            for (let i = 0; i < vCount; i++) indexArr[iOffset++] = i + vOffset;
         }
         vOffset += vCount;
     }

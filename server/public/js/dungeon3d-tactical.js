@@ -920,7 +920,7 @@
             if (!tape) {
                 tape = document.createElement('div');
                 tape.id = 'yasd-compass-tape';
-                tape.style.cssText = 'position:absolute;top:10px;left:50%;transform:translateX(-50%);width:min(340px,44vw);height:26px;background:rgba(10,12,18,0.68);border:1px solid rgba(148,163,184,0.28);border-radius:13px;backdrop-filter:blur(6px);pointer-events:none;z-index:95;overflow:hidden;font-family:"Fira Code",monospace;box-shadow:0 2px 10px rgba(0,0,0,0.45);';
+                tape.style.cssText = 'position:absolute;top:10px;left:50%;transform:translateX(-50%);width:min(340px,44vw);height:26px;background:rgba(14,17,24,0.90);border:1px solid rgba(148,163,184,0.34);border-radius:13px;pointer-events:none;z-index:95;overflow:hidden;font-family:"Fira Code",monospace;box-shadow:0 2px 10px rgba(0,0,0,0.45);';
                 const parent = (d3d.renderer && d3d.renderer.domElement && d3d.renderer.domElement.parentElement) || document.body;
                 parent.appendChild(tape);
             }

@@ -99,7 +99,8 @@
                     this._storage.setItem(this._storageKey(r), JSON.stringify(current));
                 } catch (_) {}
             }
-
+            const qa = typeof window !== 'undefined' && (window.QuickActions || window.__app?.quickActions || window.__app?.input?.quickActions);
+            if (qa && typeof qa.setSlotsFromCoordinator === 'function') qa.setSlotsFromCoordinator(current, r);
             this._emitQuickSlots(r, current, entry);
             return entry;
         }
@@ -115,6 +116,8 @@
                     this._storage.setItem(this._storageKey(r), JSON.stringify(current));
                 } catch (_) {}
             }
+            const qa = typeof window !== 'undefined' && (window.QuickActions || window.__app?.quickActions || window.__app?.input?.quickActions);
+            if (qa && typeof qa.setSlotsFromCoordinator === 'function') qa.setSlotsFromCoordinator(current, r);
             this._emitQuickSlots(r, current, null);
             return current;
         }

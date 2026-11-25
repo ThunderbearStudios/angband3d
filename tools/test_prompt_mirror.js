@@ -346,18 +346,13 @@ REALMS.forEach((realm) => {
         assert.strictEqual(lookAct.key, 'l');
 
         const targetAct = actions.find((a) => a.id === 'target');
-        if (realm === 'silq') {
-            assert.strictEqual(targetAct.key, 'f');
-        } else {
-            assert.strictEqual(targetAct.key, '*');
-        }
+        assert.strictEqual(targetAct.key, '*');
 
         const fireAct = actions.find((a) => a.id === 'fire');
-        if (realm === 'silq') {
-            assert.strictEqual(fireAct.key, 't');
-        } else {
-            assert.strictEqual(fireAct.key, 'f');
-        }
+        assert.strictEqual(fireAct.key, 'f');
+
+        const throwAct = actions.find((a) => a.id === 'throw');
+        assert.strictEqual(throwAct.key, realm === 'silq' ? 't' : 'v');
     });
 
     test(`[${realm}] EntityMenu floor item actions`, () => {

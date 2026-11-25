@@ -6,36 +6,30 @@
 })(typeof self !== 'undefined' ? self : this, function () {
     'use strict';
 
-    let ActionCatalogModule = null, RealmCartridgeModule = null;
+    let ActionCatalogModule = null, RealmCartridgeModule = null, ItemSheetRulesModule = null;
     if (typeof require === 'function') {
         try { ActionCatalogModule = require('./action-catalog'); } catch (_) {}
         try { RealmCartridgeModule = require('./realm-cartridge'); } catch (_) {}
+        try { ItemSheetRulesModule = require('./item-sheet-rules'); } catch (_) {}
     }
-    function getActionCatalog() {
-        if (typeof window !== 'undefined' && window.ActionCatalog) return window.ActionCatalog;
-        return ActionCatalogModule || null;
-    }
-    function getRealmCartridge() {
-        if (typeof window !== 'undefined' && window.RealmCartridge) return window.RealmCartridge;
-        return RealmCartridgeModule || null;
-    }
+    function getActionCatalog() { return (typeof window !== 'undefined' && window.ActionCatalog) || ActionCatalogModule || null; }
+    function getRealmCartridge() { return (typeof window !== 'undefined' && window.RealmCartridge) || RealmCartridgeModule || null; }
+    function getItemRules() { return (typeof window !== 'undefined' && window.ItemSheetRules) || ItemSheetRulesModule || null; }
     const EXAMINE_KEYS = Object.freeze({ angband: 'I', frogcomposband: 'I', hengband: 'I', silq: 'x', nethack: ':', dcss: 'v', brogue: 'x', rogue: 'I', ryod: 'I' });
     function getVisibleTabs(realm) {
-        const r = String(realm || 'angband').toLowerCase();
-        const RC = getRealmCartridge();
+        const r = String(realm || 'angband').toLowerCase(), RC = getRealmCartridge();
         const caps = (RC && typeof RC.getCapabilities === 'function') ? RC.getCapabilities(r) : null;
         const hasQuiver = (caps && caps.hasQuiver !== undefined) ? (caps.hasQuiver !== false) : (r !== 'silq' && r !== 'rogue' && r !== 'brogue');
         return hasQuiver ? ['pack', 'gear', 'quiver'] : ['pack', 'gear'];
     }
-
-    // # ROOT-CAUSE: Track _selectedIndex and expose isOpen(), close(), and handleKeyDown() so keyboard navigation works seamlessly inside #item-sheet.
     let _lastSig = null, _activeTab = 'pack', _invokerEl = null, _selectedIndex = 0;
     let _lastItems = [], _lastFrame = null, _lastRealm = 'angband', _lastDispatcher = null;
     const _quickSlots = [null, null, null, null];
-
     function resolveEquipSlotCategory(raw, name, realm) {
+        const rNorm = String(realm || (raw && raw.realm) || _lastRealm || 'angband').toLowerCase(), rules = getItemRules();
+        const dyn = rules && rules.resolveDynamicMonsterSlot(raw, name, rNorm);
+        if (dyn) return dyn.category;
         const tv = Number(raw && (raw.tval !== undefined ? raw.tval : raw.type)) || 0;
-        const rNorm = String(realm || (raw && raw.realm) || _lastRealm || 'angband').toLowerCase();
         if (tv && typeof root !== 'undefined' && root.MASTER_ITEM_REGISTRY && typeof root.MASTER_ITEM_REGISTRY.normalizeTvalSlotCategory === 'function') {
             const cat = root.MASTER_ITEM_REGISTRY.normalizeTvalSlotCategory(tv, rNorm);
             if (cat) return cat;
@@ -151,8 +145,11 @@
                 }
                 validVerbs.push({ id: cmd.id, key: verbKey, label, primary, disabled, reason });
             }
+            const rules = getItemRules();
+            const enrichedVerbs = rules ? rules.enrichItemVerbs(raw, validVerbs, r, isEquipped, name) : validVerbs;
+            const bucInfo = rules ? rules.parseBucWarning(raw, name, r) : null;
             const compare = !isEquipped ? compareWithEquipped(raw, name, eqList, r) : null;
-            result.push({ slot, letter, name, tval, count, inscription, compare, validVerbs, raw });
+            result.push({ slot, letter, name, tval, count, inscription, bucInfo, compare, validVerbs: enrichedVerbs, raw });
         }
         return result;
     }
@@ -278,6 +275,11 @@
                     inscEl.className = 'item-sheet-inscription'; inscEl.textContent = ` {${item.inscription}}`;
                     nameWrap.appendChild(inscEl);
                 }
+                if (item.bucInfo) {
+                    const bucEl = document.createElement('span');
+                    bucEl.className = `item-sheet-buc buc-${item.bucInfo.buc}`; bucEl.title = item.bucInfo.label; bucEl.textContent = ` ${item.bucInfo.badge}`;
+                    nameWrap.appendChild(bucEl);
+                }
                 if (item.compare) {
                     const cmpEl = document.createElement('span'), d = item.compare.delta;
                     cmpEl.className = `item-sheet-delta ${d > 0 ? 'delta-up' : (d < 0 ? 'delta-down' : 'delta-even')}`;
@@ -291,10 +293,10 @@
                 verbsRow.className = 'item-sheet-verbs';
                 for (const verb of item.validVerbs) {
                     const vBtn = document.createElement('button');
-                    vBtn.type = 'button'; vBtn.className = `item-verb-btn ${verb.primary ? 'primary' : ''} ${verb.disabled ? 'disabled' : ''}`;
+                    vBtn.type = 'button'; vBtn.className = `item-verb-btn ${verb.primary ? 'primary' : ''} ${verb.disabled ? 'disabled' : ''}${verb.safetyLocked ? ' safety-locked' : ''}`;
                     if (verb.disabled) { vBtn.setAttribute('aria-disabled', 'true'); vBtn.title = verb.reason; }
                     if (verb.key) { const kbd = document.createElement('kbd'); kbd.className = 'item-verb-kbd'; kbd.textContent = `[${verb.key}]`; vBtn.appendChild(kbd); }
-                    const labelSpan = document.createElement('span'); labelSpan.textContent = verb.label;
+                    const labelSpan = document.createElement('span'); labelSpan.textContent = verb.safetyTag ? `${verb.label} [${verb.safetyTag}]` : verb.label;
                     vBtn.appendChild(labelSpan);
                     vBtn.addEventListener('click', (e) => { e.stopPropagation(); executeVerb(item, verb, r, opts.dispatcher); });
                     verbsRow.appendChild(vBtn);
@@ -302,8 +304,6 @@
                 card.appendChild(verbsRow); listEl.appendChild(card);
             }
         }
-        void seen;
-
         container.appendChild(listEl);
     }
 
@@ -388,5 +388,5 @@
 
     function toggle(frame, realm, invokerEl) { if (isOpen()) hide(); else show(frame, realm, invokerEl); }
 
-    return Object.freeze({ compareWithEquipped, buildItemViewModel, bindQuickSlot, getQuickSlots, executeVerb, render, show, hide, close: hide, toggle, isOpen, handleKeyDown });
+    return Object.freeze({ resolveEquipSlotCategory, compareWithEquipped, buildItemViewModel, bindQuickSlot, getQuickSlots, executeVerb, render, show, hide, close: hide, toggle, isOpen, handleKeyDown });
 });

@@ -424,18 +424,24 @@
                 });
             }
         }
+        setSlotsFromCoordinator(slotsObj, realm, charName) {
+            if (!slotsObj || typeof slotsObj !== 'object') return this.getSlots(realm, charName);
+            const r = realm || window.__realm || 'angband', slots = this.getSlots(r, charName).slice(), defs = getDefaultSlots(r);
+            for (let i = 0; i < 4; i++) {
+                const raw = slotsObj[String(i + 1)] !== undefined ? slotsObj[String(i + 1)] : (Array.isArray(slotsObj) ? slotsObj[i] : undefined);
+                if (raw && (raw.name || raw.verb || raw.command)) slots[i] = { slotIndex: i, type: raw.type || 'item', name: raw.name || raw.label || '', normalizedName: raw.normalizedName || normalizeItemName(raw.name || ''), category: raw.category || 'item', verb: raw.verb || raw.command || 'u', fallbackKey: raw.key || raw.fallbackKey || '', icon: raw.icon || '⚡', _fromCoordinator: true };
+                else if (raw === null || slots[i]?._fromCoordinator) slots[i] = defs[i] || null;
+            }
+            this.saveSlots(r, slots, charName); return slots;
+        }
     }
-
     const singleton = new QuickActionController();
-    QuickActionController.vanillaLetter = vanillaLetter;
-    QuickActionController.prototype.vanillaLetter = vanillaLetter;
-
+    QuickActionController.vanillaLetter = vanillaLetter; QuickActionController.prototype.vanillaLetter = vanillaLetter;
     return {
         QuickActionController, QuickActions: QuickActionController, vanillaLetter, normalizeItemName, shortItemLabel, classifyInventoryEntry, getDefaultSlots, getDeviceVerb,
-        getInstance: () => singleton, getSlots: (r, c) => singleton.getSlots(r, c), setSlot: (r, i, d, c) => singleton.setSlot(r, i, d, c),
-        resetRealmSlots: (r, c) => singleton.resetRealmSlots(r, c), resetForCharacter: (r, c) => singleton.resetForCharacter(r, c),
-        resolveSlot: (d, f, r, l) => singleton.resolveSlot(d, f, r, l), executeSlot: (i, f, r, s, t) => singleton.executeSlot(i, f, r, s, t),
-        onFrame: (f) => singleton.onFrame(f), renderBar: (f, r, l) => singleton.renderBar(f, r, l), bindFromGrimoire: (p, f, r, t) => singleton.bindFromGrimoire(p, f, r, t),
-        openBinderPopover: (i, f, r) => singleton.openBinderPopover(i, f, r)
+        getInstance: () => singleton, getSlots: (r, c) => singleton.getSlots(r, c), setSlot: (r, i, d, c) => singleton.setSlot(r, i, d, c), setSlotsFromCoordinator: (s, r, c) => singleton.setSlotsFromCoordinator(s, r, c),
+        resetRealmSlots: (r, c) => singleton.resetRealmSlots(r, c), resetForCharacter: (r, c) => singleton.resetForCharacter(r, c), resolveSlot: (d, f, r, l) => singleton.resolveSlot(d, f, r, l),
+        executeSlot: (i, f, r, s, t) => singleton.executeSlot(i, f, r, s, t), onFrame: (f) => singleton.onFrame(f), renderBar: (f, r, l) => singleton.renderBar(f, r, l),
+        bindFromGrimoire: (p, f, r, t) => singleton.bindFromGrimoire(p, f, r, t), openBinderPopover: (i, f, r) => singleton.openBinderPopover(i, f, r)
     };
 });

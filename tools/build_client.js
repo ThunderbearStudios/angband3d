@@ -61,6 +61,7 @@ const JS_BUNDLES = {
         'js/command-dispatcher.js',
         'js/command-palette.js',
         'js/prompt-mirror.js',
+        'js/item-sheet-rules.js',
         'js/item-sheet.js',
         'js/entity-menu.js',
         'js/gamepad.js',

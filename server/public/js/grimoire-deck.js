@@ -341,8 +341,9 @@
 
             let switcher = '';
             if (isInv || isEq) {
-                const hasQuiver = realm === 'angband' || realm === 'nethack';
-                const quivKey = realm === 'nethack' ? 'Q' : '|';
+                const caps = (RC && typeof RC.getCapabilities === 'function') ? RC.getCapabilities(realm) : null;
+                const hasQuiver = (caps && caps.hasQuiver !== undefined) ? (caps.hasQuiver !== false) : ['angband', 'nethack', 'dcss', 'ryod'].includes(realm);
+                const quivKey = (realm === 'nethack' || realm === 'dcss' || realm === 'ryod') ? 'Q' : '|';
                 switcher = `<div class="grimoire-tab-group" role="tablist"><button type="button" class="grimoire-tab-btn ${isInv ? 'is-active' : ''}" data-grimoire-cmd="switch-view" data-grimoire-key="i">${isJp ? '🎒 所持品' : (isBi ? '🎒 Pack (所持)' : '🎒 Pack')}</button><button type="button" class="grimoire-tab-btn ${isEq ? 'is-active' : ''}" data-grimoire-cmd="switch-view" data-grimoire-key="e">${isJp ? '🛡️ 装備品' : (isBi ? '🛡️ Equipped (装備)' : '🛡️ Equipped')}</button>${hasQuiver ? `<button type="button" class="grimoire-tab-btn" data-grimoire-cmd="switch-view" data-grimoire-key="${quivKey}">🏹 Quiver</button>` : ''}</div>`;
             } else if (submenu.isSilqAbilityTree) {
                 switcher = `<div class="grimoire-tab-group" role="group"><button type="button" class="grimoire-tab-btn ${submenu.isSilqAbilityMenu1 ? 'is-active' : ''}" data-grimoire-cmd="raw-key" data-grimoire-key="left">◀ Skill Pillars</button><button type="button" class="grimoire-tab-btn ${submenu.isSilqAbilityMenu2 ? 'is-active' : ''}" data-grimoire-cmd="raw-key" data-grimoire-key="right">Abilities ▶</button><button type="button" class="grimoire-tab-btn is-active" data-grimoire-cmd="raw-key" data-grimoire-key="enter">✨ Gain Ability</button>${submenu.isSilqAbilityConfirm ? `<button type="button" class="grimoire-tab-btn is-active" data-grimoire-cmd="raw-key" data-grimoire-key="y">✓ Confirm [y]</button>` : `<button type="button" class="grimoire-tab-btn" data-grimoire-cmd="raw-key" data-grimoire-key="tab">📈 Skill XP</button>`}</div>`;
@@ -364,7 +365,9 @@
                 if (bucInfo.buc === 'blessed') blessedCount++;
                 else if (bucInfo.buc === 'uncursed') uncursedCount++;
                 else if (bucInfo.buc === 'cursed') cursedCount++;
-                const eqRef = equippedByCategory[cat.category] || null;
+                const IS = (typeof window !== 'undefined' && window.ItemSheet) || (typeof require === 'function' ? (() => { try { return require('./item-sheet'); } catch (_) { return null; } })() : null);
+                const subSlot = (IS && typeof IS.resolveEquipSlotCategory === 'function') ? IS.resolveEquipSlotCategory(it, metrics.cleanName || desc, realm) : null;
+                const eqRef = (subSlot && equippedByCategory[subSlot]) || equippedByCategory[cat.category] || null;
                 const delta = (RC && typeof RC.compareWithEquipped === 'function' && eqRef && !isEq)
                     ? RC.compareWithEquipped(metrics.cleanName + ' ' + metrics.stats, eqRef, cat.category, realm)
                     : { deltaLabel: '', isUpgrade: false, isDowngrade: false };
@@ -463,10 +466,7 @@
 
             if (!container._grimoireListenerBound) {
                 container._grimoireListenerBound = true;
-                container.addEventListener('click', (ev) => {
-                    const t = ev.target && ev.target.closest ? ev.target.closest('[data-grimoire-cmd]') : null;
-                    if (!t) return;
-                    ev.preventDefault(); ev.stopPropagation();
+                const dispatchTarget = (t) => {
                     const cmd = t.getAttribute('data-grimoire-cmd');
                     if (cmd === 'toggle-card-verbs') { const card = t.closest('.grimoire-item-card'); if (card) card.classList.toggle('actions-expanded'); return; }
                     if (cmd === 'toggle-mode') { this.toggleMode(); if (this._onActionCallback) this._onActionCallback({ type: 'toggle-mode', mode: this.mode }); return; }
@@ -479,6 +479,24 @@
                             col: Number(t.getAttribute('data-grimoire-col') || 0), pillarIndex: Number(t.getAttribute('data-pillar-index') || 0)
                         });
                     }
+                };
+                container.addEventListener('click', (ev) => {
+                    const t = ev.target && ev.target.closest ? ev.target.closest('[data-grimoire-cmd]') : null;
+                    if (!t) return;
+                    ev.preventDefault(); ev.stopPropagation();
+                    dispatchTarget(t);
+                });
+                container.addEventListener('keydown', (ev) => {
+                    const t = ev.target && ev.target.closest ? ev.target.closest('[role="button"][data-grimoire-cmd]') : null;
+                    if (!t) return;
+                    if (ev.key === 'Enter') { ev.preventDefault(); ev.stopPropagation(); dispatchTarget(t); }
+                    else if (ev.key === ' ') { ev.preventDefault(); }
+                });
+                container.addEventListener('keyup', (ev) => {
+                    const t = ev.target && ev.target.closest ? ev.target.closest('[role="button"][data-grimoire-cmd]') : null;
+                    if (!t || ev.key !== ' ') return;
+                    ev.preventDefault(); ev.stopPropagation();
+                    dispatchTarget(t);
                 });
             }
             return true;

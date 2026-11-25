@@ -136,6 +136,12 @@
                 if (!isDown && wasDown && b === 3 && !isUiMode && rad && rad.isOpen && rad.mode === 'hold') {
                     if (rad.selectedIndex !== null) rad.selectWedge(rad.selectedIndex); else rad.close();
                 } else if (isDown && !wasDown && b !== 6) {
+                    const qsMap = { 12: 0, 15: 1, 13: 2, 14: 3 };
+                    if (!isUiMode && this.diagonalLock && qsMap[b] !== undefined && typeof window !== 'undefined' && window.__app?.input?.quickActions) {
+                        const qa = window.__app.input.quickActions, r = window.__app.getActiveRealm ? window.__app.getActiveRealm() : 'angband';
+                        qa.executeSlot(qsMap[b], window.__app.lastFrame, r);
+                        continue;
+                    }
                     const intent = mapButtonToIntent(b, context);
                     if (intent) {
                         if (typeof this.options.onIntent === 'function') this.options.onIntent(intent);
@@ -196,38 +202,29 @@
                 return;
             }
             if (intent.id === 'terminal_toggle') {
-                if (window.RealmGrimoireDeck?._menuActive) {
-                    window.RealmGrimoireDeck.toggleMode();
-                    window.__app?.updateTerminalToolbar?.();
-                } else window.__app?.toggleTerminalView?.();
+                if (window.RealmGrimoireDeck?._menuActive) { window.RealmGrimoireDeck.toggleMode(); window.__app?.updateTerminalToolbar?.(); }
+                else window.__app?.toggleTerminalView?.();
                 return;
             }
             if (intent.id === 'back') {
                 const cmdModal = typeof document !== 'undefined' ? document.getElementById('command-palette-modal') : null;
                 if (cmdModal && !cmdModal.classList.contains('hidden') && window.CommandPalette) { window.CommandPalette.hide(); return; }
             }
-            if (intent.id === 'smart_action' && window.__app?.input?.executeSmartAction) {
-                window.__app.input.executeSmartAction(window.__app.input.smartAction || 'wait'); return;
-            }
+            if (intent.id === 'smart_action' && window.__app?.input?.executeSmartAction) { window.__app.input.executeSmartAction(window.__app.input.smartAction || 'wait'); return; }
             if (intent.key && window.__app?.network?.sendKey) {
                 const keyToSend = intent.key === 'space' ? ' ' : (intent.key === 'enter' ? 'enter' : (intent.key === 'escape' ? 'escape' : intent.key));
                 window.__app.network.sendKey(keyToSend);
             }
         }
-
         handleDirection(sector) {
             if (!sector || typeof window === 'undefined') return;
             if (window.__app?.input?.handleRelativeDirection) window.__app.input.handleRelativeDirection(parseInt(sector, 10));
             else window.__app?.network?.sendKey?.(sector);
         }
-
         destroy() {
             this._running = false;
             if (this._rafId) cancelAnimationFrame(this._rafId);
-            if (typeof window !== 'undefined') {
-                window.removeEventListener('gamepadconnected', this._boundConnected);
-                window.removeEventListener('gamepaddisconnected', this._boundDisconnected);
-            }
+            if (typeof window !== 'undefined') { window.removeEventListener('gamepadconnected', this._boundConnected); window.removeEventListener('gamepaddisconnected', this._boundDisconnected); }
         }
     }
     GamepadController.stickToSector = stickToSector;

@@ -51,7 +51,8 @@
     "test_wave2b_3d_world.js",
     "test_wave2b2_glb_pipeline.js",
     "test_wave2c1_audio_boot.js",
-    "test_wave2c2_silq_and_tier2.js"
+    "test_wave2c2_silq_and_tier2.js",
+    "test_wave3a_menus_perf_a11y.js"
   ],
   "e2e": [
     "verify_cross_realm_menus.js",

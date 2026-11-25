@@ -15,6 +15,7 @@
     // Wave 2C runtime feature flags (defaults + localStorage + URL ?flag_<KEY>=0|1 overrides)
     const defaultFlags = {
         AUDIO_HRTF_3D: true,
+        PROMPT_MIRROR_3D: true,
         SILQ_WASM_LOCAL: false,
         RENDERER_THREE_V2: false,
         WEBGPU_EXPERIMENTAL: false

@@ -58,50 +58,29 @@
         if (type === 'monster' || type === 'creature') {
             const actions = [
                 { id: 'look', label: 'Look', key: keyFor('look', 'l') },
-                { id: 'target', label: 'Target', key: (r === 'silq' ? 'f' : keyFor('target', '*')) },
-                { id: 'fire', label: 'Fire at', key: (r === 'silq' ? 't' : keyFor('fire', 'f')) },
-                { id: 'throw', label: 'Throw at', key: keyFor('throw', 'v') }
+                { id: 'target', label: 'Target', key: (r === 'silq' ? '*' : keyFor('target', '*')) },
+                { id: 'fire', label: 'Fire at', key: (r === 'silq' ? 'f' : keyFor('fire', 'f')) },
+                { id: 'throw', label: 'Throw at', key: (r === 'silq' ? 't' : keyFor('throw', 'v')) }
             ];
-
-            if (r === 'silq') {
-                actions.push({ id: 'song', label: 'Song at', key: 's' });
-            } else if (r === 'frogcomposband' || r === 'hengband') {
-                actions.push({ id: 'cast', label: 'Cast at', key: 'm' });
-                actions.push({ id: 'power', label: 'Power at', key: 'U' });
-            } else if (r !== 'brogue' && r !== 'rogue') {
-                actions.push({ id: 'cast', label: 'Cast at', key: keyFor('cast', 'm') });
-            }
-
+            if (r === 'silq') actions.push({ id: 'song', label: 'Song at', key: 's' });
+            else if (r === 'frogcomposband' || r === 'hengband') { actions.push({ id: 'cast', label: 'Cast at', key: 'm' }, { id: 'power', label: 'Power at', key: 'U' }); }
+            else if (r !== 'brogue' && r !== 'rogue') actions.push({ id: 'cast', label: 'Cast at', key: keyFor('cast', 'm') });
             if (r === 'dcss' || r === 'brogue') actions.push({ id: 'examine', label: 'Examine', key: 'x' });
             else if (r !== 'rogue') actions.push({ id: 'recall', label: 'Recall', key: '/' });
             return actions;
         }
-
-        if (type === 'item') {
-            return [
-                { id: 'walk_to', label: 'Walk to', key: null },
-                { id: 'pickup', label: 'Pick up', key: keyFor('pickup', 'g') },
-                { id: 'examine', label: 'Examine', key: (r === 'silq' ? 'x' : keyFor('examine', 'I')) }
-            ];
-        }
-
+        if (type === 'item') return [{ id: 'walk_to', label: 'Walk to', key: null }, { id: 'pickup', label: 'Pick up', key: keyFor('pickup', 'g') }, { id: 'examine', label: 'Examine', key: (r === 'silq' ? 'x' : keyFor('examine', 'I')) }];
         if (type === 'door') {
-            const acts = [
-                { id: 'open', label: 'Open', key: keyFor('open', 'o') },
-                { id: 'close', label: 'Close', key: keyFor('close', 'c') }
-            ];
+            const acts = [{ id: 'open', label: 'Open', key: keyFor('open', 'o') }, { id: 'close', label: 'Close', key: keyFor('close', 'c') }];
             if (r !== 'brogue' && r !== 'rogue') acts.push({ id: 'bash', label: 'Bash', key: (r === 'silq' ? 'b' : keyFor('bash', 'B')) });
             if (r !== 'brogue') acts.push({ id: 'disarm', label: 'Disarm', key: keyFor('disarm', 'D') });
             return acts;
         }
-
         if (type === 'trap') return [{ id: 'disarm', label: 'Disarm', key: keyFor('disarm', 'D') }];
         if (type === 'rubble') return [{ id: 'tunnel', label: 'Tunnel', key: keyFor('tunnel', 'T') }, { id: 'alter', label: 'Alter', key: (r === 'silq' ? '/' : keyFor('alter', '+')) }];
-        if (type === 'stair' || type === 'stairs' || type === 'staircase') {
-            return [{ id: 'stairs_up', label: 'Stairs Up', key: keyFor('stairs_up', '<') }, { id: 'stairs_down', label: 'Stairs Down', key: keyFor('stairs_down', '>') }];
-        }
+        if (type === 'stair' || type === 'stairs' || type === 'staircase') return [{ id: 'stairs_up', label: 'Stairs Up', key: keyFor('stairs_up', '<') }, { id: 'stairs_down', label: 'Stairs Down', key: keyFor('stairs_down', '>') }];
         if (type === 'altar') {
-            if (r === 'dcss') return [{ id: 'pray', label: 'Pray / Join God', key: 'p' }, { id: 'power', label: 'Divine Ability', key: 'a' }];
+            if (r === 'dcss' || r === 'ryod') return [{ id: 'pray', label: 'Pray / Join God', key: 'p' }, { id: 'power', label: 'Divine Ability', key: 'a' }];
             if (r === 'brogue') return [{ id: 'pickup', label: 'Take from Altar', key: 'g' }];
             return [{ id: 'pray', label: 'Pray', key: '#pray' }, { id: 'offer', label: 'Offer Sacrifice', key: '#offer' }];
         }
@@ -192,20 +171,22 @@
                 e.stopPropagation();
                 if (typeof window !== 'undefined' && window.chronicleManager?.dismissEntityPopover) window.chronicleManager.dismissEntityPopover();
                 if (act.id === 'walk_to' && entity && typeof entity.x === 'number') {
-                    if (typeof window !== 'undefined') window.__app?.input?.startMinimapAutoNav?.(entity.x, entity.y, frame);
+                    window.__app?.input?.startMinimapAutoNav?.(entity.x, entity.y, frame);
                     return;
                 }
                 const d = opts.dispatcher || (typeof window !== 'undefined' && window.__app && window.__app.dispatcher) || null;
-                if (d && typeof d.run === 'function') d.run({ verb: act.id, key: act.key });
+                const glyph = (entity && (entity.glyph || entity.char)) || null;
+                if (act.id === 'recall') {
+                    if (glyph && d && typeof d.run === 'function') d.run({ sequence: ['/', glyph] });
+                    else if (glyph && window.__app?.network?.sendKey) { window.__app.network.sendKey('/'); window.__app.network.sendKey(glyph); }
+                    else window.chronicleManager?.inspectEntity?.(entity);
+                    return;
+                }
+                if (d && typeof d.run === 'function') d.run({ verb: act.id, key: act.key, target: entity, x: entity.x, y: entity.y, glyph });
                 else if (act.key) ((typeof window !== 'undefined' && (window.__app?.network || window.network)) || null)?.sendKey?.(act.key);
             });
-
             container.appendChild(btn);
         }
     }
-
-    return Object.freeze({
-        buildActionsForEntity,
-        render
-    });
+    return Object.freeze({ buildActionsForEntity, render });
 });

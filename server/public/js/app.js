@@ -6798,19 +6798,34 @@ window.addEventListener('DOMContentLoaded', () => {
                     window.RealmCartridge.applyThemeTokens(curRealm, document);
                 }
                 if (!window._cachedEquippedByCategory) window._cachedEquippedByCategory = {};
+                const nextEq = Object.assign({}, window._cachedEquippedByCategory[curRealm] || {});
+                if (Array.isArray(effFrame?.player?.equipment) && typeof window.RealmGrimoireDeck.classifyItemCategory === 'function') {
+                    effFrame.player.equipment.forEach((eqIt) => {
+                        const d = String(eqIt?.desc || eqIt?.name || eqIt?.dname || eqIt?.label || '');
+                        if (!d) return;
+                        const c = window.RealmGrimoireDeck.classifyItemCategory(d);
+                        if (c && c.category) nextEq[c.category] = d;
+                        const sub = window.ItemSheet?.resolveEquipSlotCategory?.(eqIt, d, curRealm);
+                        if (sub) nextEq[sub] = d;
+                    });
+                }
                 const isEqList = Boolean(gClassifier.isEquipScreen || (gClassifier.mode === 'item-list' && gClassifier.listKind === 'equip'));
                 if (isEqList && typeof window.RealmGrimoireDeck.classifyItemCategory === 'function' && Array.isArray(gItems) && gItems.length > 0) {
-                    const nextEq = {};
                     gItems.forEach((it) => {
                         const d = String(it.desc || it.rawLabel || it.label || it.name || '');
                         const c = window.RealmGrimoireDeck.classifyItemCategory(d);
-                        if (c && c.category && !nextEq[c.category]) nextEq[c.category] = d;
+                        if (c && c.category) nextEq[c.category] = d;
+                        const sub = window.ItemSheet?.resolveEquipSlotCategory?.(it, d, curRealm);
+                        if (sub) nextEq[sub] = d;
                     });
-                    window._cachedEquippedByCategory[curRealm] = nextEq;
                 }
+                window._cachedEquippedByCategory[curRealm] = nextEq;
                 const pVitals = (effFrame && effFrame.player) ? {
                     hp: effFrame.player.hp,
                     maxHp: effFrame.player.hp_max || effFrame.player.mhp || 100,
+                    sp: effFrame.player.sp ?? effFrame.player.csp,
+                    maxSp: effFrame.player.sp_max ?? effFrame.player.max_sp ?? effFrame.player.msp,
+                    au: effFrame.player.au ?? effFrame.player.gold,
                     statusText: Array.isArray(effFrame.player.statuses) ? effFrame.player.statuses.map(s => (s && s.name) || s || '').join(' ') : ''
                 } : {};
                 window.RealmGrimoireDeck.render(grimoireContainer, {
@@ -6846,7 +6861,9 @@ window.addEventListener('DOMContentLoaded', () => {
                         }
                         if (act.type === 'extended-cmd' && (act.verb || act.key)) {
                             const extCmd = String(act.verb || act.key).trim();
-                            if (typeof network.sendCommand === 'function') {
+                            if (curRealm === 'nethack' && extCmd.startsWith('#')) {
+                                network.sendKey(extCmd);
+                            } else if (typeof network.sendCommand === 'function') {
                                 network.sendCommand(`keys ${extCmd}`);
                             } else {
                                 network.sendKey(extCmd);
@@ -6900,7 +6917,7 @@ window.addEventListener('DOMContentLoaded', () => {
                                 if (isStoreMenu) {
                                     if (act.verb === 'p' || act.verb === 'g') {
                                         if (dispatcher && typeof dispatcher.run === 'function') {
-                                            dispatcher.run({ verb: 'store_buy', item: act.key, qty: 1 });
+                                            dispatcher.run({ verb: 'store_buy', buyCmd: act.verb, item: act.key, qty: 1 });
                                         } else {
                                             network.sendKey(act.verb);
                                             network.sendKey(act.key);
@@ -6936,7 +6953,9 @@ window.addEventListener('DOMContentLoaded', () => {
                                         fromPassiveNethackList: fromPassiveNethack
                                     });
                                     if (seq.length > 0) {
-                                        seq.forEach(k => network.sendKey(k === 'Escape' ? 'escape' : k));
+                                        const normSeq = seq.map(k => k === 'Escape' ? 'escape' : k);
+                                        if (normSeq.length > 1 && dispatcher && typeof dispatcher.run === 'function') dispatcher.run({ sequence: normSeq });
+                                        else normSeq.forEach(k => network.sendKey(k));
                                         return;
                                     }
                                 }
@@ -6947,7 +6966,9 @@ window.addEventListener('DOMContentLoaded', () => {
                                         curRealm
                                     );
                                     if (tx && Array.isArray(tx.steps) && tx.steps.length > 0) {
-                                        tx.steps.forEach(k => network.sendKey(k === '\x1b' ? 'escape' : k));
+                                        const normSteps = tx.steps.map(k => k === '\x1b' ? 'escape' : k);
+                                        if (normSteps.length > 1 && dispatcher && typeof dispatcher.run === 'function') dispatcher.run({ sequence: normSteps });
+                                        else normSteps.forEach(k => network.sendKey(k));
                                         return;
                                     }
                                 }
@@ -7025,7 +7046,8 @@ window.addEventListener('DOMContentLoaded', () => {
         if (window.MenuRouter && typeof window.MenuRouter.getPending === 'function' && window.MenuRouter.getPending()) {
             return true;
         }
-        return SC.needsTerminal(frame, { forceTerminal, decode: decodeHengbandText, mirror3d: false, hasBridgeSpells: Boolean(lastSpells && lastSpells.length > 0) });
+        const mirror3dEnabled = !(typeof window !== 'undefined' && window.YASD_FLAGS && window.YASD_FLAGS.PROMPT_MIRROR_3D === false) && !forceTerminal;
+        return SC.needsTerminal(frame, { forceTerminal, decode: decodeHengbandText, mirror3d: mirror3dEnabled, hasBridgeSpells: Boolean(lastSpells && lastSpells.length > 0) });
     }
     function updateViewMode(frame) {
         // # ROOT-CAUSE: Hide in-game HUD overlays and 1st-person viewmodel weapons whenever appState !== 'game' so splash/menu 3D sanctuary stays clean.
@@ -7715,8 +7737,9 @@ window.addEventListener('DOMContentLoaded', () => {
             }
             // MenuRouter & CommandDispatcher advance pending plans before view mode is evaluated
             const realmForRouter = (typeof getActiveRealm === 'function' ? getActiveRealm() : activeRealm) || (frame && frame.realm) || 'angband';
+            const mirror3dEnabled = !(typeof window !== 'undefined' && window.YASD_FLAGS && window.YASD_FLAGS.PROMPT_MIRROR_3D === false) && !forceTerminal;
             lastScreenModel = (SC && SC.ScreenModel && typeof SC.ScreenModel.of === 'function')
-                ? SC.ScreenModel.of(frame, realmForRouter, { lang: window.__langMode || 'en', decode: decodeHengbandText, forceTerminal, mirror3d: false, hasBridgeSpells: Boolean(lastSpells && lastSpells.length > 0) })
+                ? SC.ScreenModel.of(frame, realmForRouter, { lang: window.__langMode || 'en', decode: decodeHengbandText, forceTerminal, mirror3d: mirror3dEnabled, hasBridgeSpells: Boolean(lastSpells && lastSpells.length > 0) })
                 : null;
             if (frame && typeof frame === 'object') {
                 frame._screenModel = lastScreenModel;
@@ -7751,7 +7774,7 @@ window.addEventListener('DOMContentLoaded', () => {
                     const mirrorModel = (!needsTerm && currentPhase === 'play' && !(lastScreenModel && lastScreenModel.mirror === 'direction'))
                         ? lastScreenModel
                         : null;
-                    promptMirror.render(frame, mirrorModel, realmForRouter, { sendKey: (k) => network && network.sendKey(k) });
+                    promptMirror.render(frame, mirrorModel, realmForRouter, { sendKey: (k) => network && network.sendKey(k), onToggleCrt: () => toggleTerminalView() });
                 } catch (err) {
                     console.error('[PromptMirror Error]', err);
                 }

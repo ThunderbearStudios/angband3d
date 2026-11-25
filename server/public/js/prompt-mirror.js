@@ -182,48 +182,46 @@
             const key = btn && btn.getAttribute('data-mirror-key');
             if (!key) return;
             e.preventDefault(); e.stopPropagation();
+            if (key === '__toggle_crt__') { window.__app?.toggleTerminalView?.(); return; }
             const fn = _activeSendKey || (typeof window !== 'undefined' && window.__app && window.__app.network && typeof window.__app.network.sendKey === 'function' ? window.__app.network.sendKey.bind(window.__app.network) : null);
             if (fn) fn(key);
         });
     }
 
-    /**
-     * DOM Render function gated by signature. Uses textContent only (Golden Rule 8).
-     */
+    /** DOM Render function gated by signature. Uses textContent only (Golden Rule 8). */
     function render(frame, model, realm, opts) {
         if (typeof document === 'undefined') return;
-
         opts = opts || {};
         _activeSendKey = opts.sendKey || null;
-
         const container = opts.container || ensureContainer();
         if (!container) return;
-
         attachDelegatedListener(container);
-
         const spec = buildSpec(model, frame, realm);
         if (!spec || (spec.mirror === 'more' && !opts.allowMoreBanner)) {
             hide(container);
             return;
         }
-
         const sig = `${spec.mirror}:${spec.title}:${(spec.items || []).map(i => `${i.letter || i.key || ''}=${i.name || i.label || ''}:${i.cost !== undefined ? i.cost : ''}`).join('|')}:${(spec.actions || []).map(a => `${a.key || ''}=${a.label || ''}`).join('|')}:${(spec.switchChips || []).map(c => `${c.key || ''}=${c.label || ''}`).join('|')}`;
         if (sig === _lastSig) return;
         _lastSig = sig;
-
         const wasAlreadyOpen = !container.hidden && !container.classList.contains('hidden') && container.childNodes.length > 0;
         container.textContent = '';
         container.classList.toggle('is-open-stable', wasAlreadyOpen);
         container.hidden = false;
         container.classList.remove('hidden');
-
-        // Header / Title
+        // Header / Title + [Tab] CRT escape toggle
         const header = document.createElement('div');
         header.className = 'prompt-mirror-header';
         const titleEl = document.createElement('div');
         titleEl.className = 'prompt-mirror-title';
         titleEl.textContent = spec.title;
         header.appendChild(titleEl);
+        const crtBtn = document.createElement('button');
+        crtBtn.type = 'button'; crtBtn.className = 'prompt-mirror-crt-btn';
+        crtBtn.setAttribute('data-mirror-key', '__toggle_crt__');
+        crtBtn.title = 'Switch to Classic 80x24 CRT Terminal [Tab]';
+        crtBtn.textContent = '[Tab] CRT';
+        header.appendChild(crtBtn);
         container.appendChild(header);
 
         if (spec.mirror === 'string') {

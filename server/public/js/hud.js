@@ -399,19 +399,10 @@ class WebHUD {
             return;
         }
 
-        // Remove .latest highlight from previously newest entry
-        if (this.messageFeedList && this.messageFeedList.lastElementChild) {
-            this.messageFeedList.lastElementChild.classList.remove('latest');
-        }
-
         const el = document.createElement('div');
         el.className = 'feed-line latest';
         el.textContent = displayText;
         if (color) el.style.color = color;
-
-        if (this.messageFeedList) {
-            this.messageFeedList.appendChild(el);
-        }
 
         const msgObj = {
             id: now + '_' + Math.random(),
@@ -425,23 +416,44 @@ class WebHUD {
             el
         };
         this.messageHistory.push(msgObj);
-
-        // Keep last 500 game messages in DOM history
         if (this.messageHistory.length > 500) {
             const evicted = this.messageHistory.shift();
-            if (evicted.el && evicted.el.parentNode) {
-                evicted.el.parentNode.removeChild(evicted.el);
+            if (evicted.el && evicted.el.parentNode) evicted.el.parentNode.removeChild(evicted.el);
+        }
+        if (this.messageFeedList) {
+            if (!this._pendingFeedEls) this._pendingFeedEls = [];
+            this._pendingFeedEls.push(el);
+            if (typeof requestAnimationFrame === 'function') {
+                if (!this._feedRafPending) {
+                    this._feedRafPending = true;
+                    requestAnimationFrame(() => this._flushFeedBatch());
+                }
+            } else {
+                this._flushFeedBatch();
             }
         }
+        if (this.userScrolledUp && this._showMsgStickyPill) this._showMsgStickyPill(true);
+        this.resetMessageFeedIdleTimer();
+    }
 
-        // Auto-scroll to bottom unless player explicitly scrolled up to read history
+    _flushFeedBatch() {
+        this._feedRafPending = false;
+        const list = this.messageFeedList;
+        const batch = this._pendingFeedEls;
+        if (!list || !batch || batch.length === 0) return;
+        this._pendingFeedEls = [];
+        const prevLast = list.lastElementChild;
+        if (prevLast) prevLast.classList.remove('latest');
+        const frag = document.createDocumentFragment();
+        for (let i = 0; i < batch.length; i++) {
+            if (i < batch.length - 1) batch[i].classList.remove('latest');
+            frag.appendChild(batch[i]);
+        }
+        list.appendChild(frag);
         if (this.messageFeedScroll && !this.userScrolledUp) {
             this.messageFeedScroll.scrollTop = this.messageFeedScroll.scrollHeight;
             if (this._showMsgStickyPill) this._showMsgStickyPill(false);
-        } else if (this.userScrolledUp && this._showMsgStickyPill) {
-            this._showMsgStickyPill(true);
         }
-        this.resetMessageFeedIdleTimer();
     }
 
     updateLastMessageCount(rawText, count) {
@@ -713,6 +725,16 @@ class WebHUD {
 
             // Interactive Minimap Hover Tooltip & Click-to-Inspect
             // # ROOT-CAUSE: Merge duplicate mousemove listeners on minimapCanvas into a single cell-coordinate-gated listener that updates #minimap-hover-pill without clobbering #minimap-hint-text, and wire #btn-map-tilt-toggle.
+            this._minimapRect = null;
+            this._getMinimapRect = () => {
+                if (!this._minimapRect && this.minimapCanvas) this._minimapRect = this.minimapCanvas.getBoundingClientRect();
+                return this._minimapRect;
+            };
+            if (typeof ResizeObserver === 'function') {
+                this._minimapResizeObs = new ResizeObserver(() => { this._minimapRect = null; });
+                this._minimapResizeObs.observe(this.minimapCanvas);
+            }
+            if (typeof window !== 'undefined') window.addEventListener('resize', () => { this._minimapRect = null; }, { passive: true });
             this.minimapCanvas.addEventListener('mousemove', (e) => {
                 if (!this.lastFrame || !this.lastFrame.map || !this.lastFrame.player) {
                     if (this._hoverMinimapPath) {
@@ -723,7 +745,7 @@ class WebHUD {
                     }
                     return;
                 }
-                const rect = this.minimapCanvas.getBoundingClientRect();
+                const rect = this._getMinimapRect();
                 if (!rect.width || !rect.height) return;
                 const scaleX = this.minimapCanvas.width / rect.width;
                 const scaleY = this.minimapCanvas.height / rect.height;
@@ -779,7 +801,7 @@ class WebHUD {
             this.minimapCanvas.addEventListener('click', (e) => {
                 e.stopPropagation();
                 if (!this.lastFrame || !this.lastFrame.map || !this.lastFrame.player) return;
-                const rect = this.minimapCanvas.getBoundingClientRect();
+                const rect = this._getMinimapRect();
                 if (!rect.width || !rect.height) return;
                 const scaleX = this.minimapCanvas.width / rect.width;
                 const scaleY = this.minimapCanvas.height / rect.height;
@@ -948,11 +970,6 @@ class WebHUD {
     }
 
     updateTargetInspector(player, realm, frameOpt) {
-        const rawReticleCard = this.reticleTargetCard || document.getElementById('reticle-target-card');
-        if (rawReticleCard) {
-            rawReticleCard.style.display = 'none';
-            rawReticleCard.classList.add('hidden');
-        }
         const frame = frameOpt || this.lastFrame;
         const pl = player || (frame ? frame.player : null);
         const t = (pl && pl.target && pl.target.name) ? pl.target : ((frame && frame.target && frame.target.name) ? frame.target : null);
@@ -966,24 +983,24 @@ class WebHUD {
             const lang = window.__langMode || 'en';
             if (realm === 'hengband' && typeof window.getLocalizedMonsterName === 'function') tName = window.getLocalizedMonsterName(tName, 'hengband', lang);
             const pct = Math.max(0, Math.min(100, Math.round(t.hp_pct !== undefined ? t.hp_pct : (t.pct !== undefined ? t.pct : ((t.hp !== undefined && t.hp_max > 0) ? (t.hp / t.hp_max) * 100 : 100)))));
-            this.footerTarget.style.display = 'inline-flex';
-            this.footerTarget.style.maxWidth = '190px';
-            this.footerTarget.style.overflow = 'hidden';
-            this.footerTarget.style.textOverflow = 'ellipsis';
-            this.footerTarget.style.whiteSpace = 'nowrap';
-            const targetSig = `${realm}:${tName}:${t.glyph || ''}:${pct}:${rawReticleCard ? 1 : 0}`;
+            const targetSig = `${realm}:${tName}:${t.glyph || ''}:${pct}`;
             if (this._lastFooterTargetSig !== targetSig) {
                 this._lastFooterTargetSig = targetSig;
+                this.footerTarget.style.display = 'inline-flex';
+                this.footerTarget.style.maxWidth = '190px';
+                this.footerTarget.style.overflow = 'hidden';
+                this.footerTarget.style.textOverflow = 'ellipsis';
+                this.footerTarget.style.whiteSpace = 'nowrap';
                 let portraitHtml = '';
-                if (!rawReticleCard && typeof window.getShockboltSpriteCss === 'function') {
+                if (typeof window.getShockboltSpriteCss === 'function') {
                     const iconStyle = window.getShockboltSpriteCss('monster', t.name, t.glyph || null, 36);
                     if (iconStyle) portraitHtml = '<span class="sb-sprite-icon hud-target-portrait" style="' + iconStyle + '"></span> ';
                 }
                 this.footerTarget.innerHTML = (portraitHtml || '🎯 ') + esc(tName) + ' (' + pct + '%)';
             }
-        } else if (this.footerTarget) {
+        } else if (this.footerTarget && this._lastFooterTargetSig !== 'hidden') {
+            this._lastFooterTargetSig = 'hidden';
             this.footerTarget.style.display = 'none';
-            this._lastFooterTargetSig = '';
         }
     }
 
@@ -1658,8 +1675,13 @@ class WebHUD {
             const fullTitle = isSilQ
                 ? `${dispName} (${r}${house ? ` - ${house}` : (c && c !== r ? ` - ${c}` : '')})`
                 : `${dispName} (${r} ${c})`;
-            this.charTitle.textContent = hasSubMeta ? dispName : fullTitle;
-            this.charTitle.title = fullTitle;
+            const nextTitle = hasSubMeta ? dispName : fullTitle;
+            const titleSig = `${nextTitle}|${fullTitle}`;
+            if (this._lastCharTitleSig !== titleSig) {
+                this._lastCharTitleSig = titleSig;
+                this.charTitle.textContent = nextTitle;
+                this.charTitle.title = fullTitle;
+            }
         } else {
             this.charTitle.textContent = isSilQ ? 'Hero of Beleriand' : 'Hero of Angband';
         }
@@ -1795,20 +1817,34 @@ class WebHUD {
             str: this.statStr, int: this.statInt, wis: this.statWis,
             dex: this.statDex, con: this.statCon, chr: this.statChr, gra: this.statGra
         };
+        const statPairs = [];
         for (const sk of ['str', 'int', 'wis', 'dex', 'con', 'chr', 'gra']) {
             const visible = statSchema.includes(sk);
-            this._setElVisible(statItemsMap[sk], visible, 'flex');
-            if (visible && statValMap[sk]) {
-                const formatted = this._formatRealmStat(player, sk, realm, schemas);
-                if (formatted !== '') statValMap[sk].textContent = formatted;
+            const val = visible && statValMap[sk] ? this._formatRealmStat(player, sk, realm, schemas) : '';
+            statPairs.push(visible ? `${sk}:${val}` : `${sk}:-`);
+        }
+        const statsSig = statPairs.join('|');
+        if (this._lastStatsSig !== statsSig) {
+            this._lastStatsSig = statsSig;
+            for (const sk of ['str', 'int', 'wis', 'dex', 'con', 'chr', 'gra']) {
+                const visible = statSchema.includes(sk);
+                this._setElVisible(statItemsMap[sk], visible, 'flex');
+                if (visible && statValMap[sk]) {
+                    const formatted = this._formatRealmStat(player, sk, realm, schemas);
+                    if (formatted !== '') statValMap[sk].textContent = formatted;
+                }
             }
         }
         const hasGold = (realm !== 'silq') && (!schemas || !schemas.resourceSchema || schemas.resourceSchema.hasGold !== false);
-        this._setElVisible(this.itemGold, hasGold, 'flex');
-        const acItemLayout = this.itemAc || (typeof document !== 'undefined' && (this.itemAc = document.getElementById('stat-item-ac')));
-        if (acItemLayout && acItemLayout.style && typeof acItemLayout.style.setProperty === 'function') {
-            if (hasGold) acItemLayout.style.removeProperty('grid-column');
-            else acItemLayout.style.setProperty('grid-column', '1 / -1', 'important');
+        const hasGoldSig = `${realm}|${hasGold}`;
+        if (this._lastHasGoldSig !== hasGoldSig) {
+            this._lastHasGoldSig = hasGoldSig;
+            this._setElVisible(this.itemGold, hasGold, 'flex');
+            const acItemLayout = this.itemAc || (typeof document !== 'undefined' && (this.itemAc = document.getElementById('stat-item-ac')));
+            if (acItemLayout && acItemLayout.style && typeof acItemLayout.style.setProperty === 'function') {
+                if (hasGold) acItemLayout.style.removeProperty('grid-column');
+                else acItemLayout.style.setProperty('grid-column', '1 / -1', 'important');
+            }
         }
 
         // Depth & Wilderness (driven by RealmCartridge depthSchema / formatDepth)
@@ -1829,7 +1865,10 @@ class WebHUD {
                 else if (locStr === 'Wilderness') locStr = 'Wilderness (荒野)';
             }
         }
-        if (this.depthVal) this.depthVal.textContent = locStr;
+        if (this.depthVal && this._lastDepthSig !== locStr) {
+            this._lastDepthSig = locStr;
+            this.depthVal.textContent = locStr;
+        }
 
         // Sub-meta: Level, Race, Class, Deity & Depth
         const depthLabel = String(locStr || '').replace(/ (?=\d+|ft\b)/g, '\u00A0');
@@ -1954,8 +1993,11 @@ class WebHUD {
                 }
             }
 
-            this.footerDiagonalHint.textContent = diagText ? `${diagText} • ` : '';
-            this.footerDiagonalHint.style.display = diagText ? 'inline' : 'none';
+            if (this._lastDiagHintSig !== diagText) {
+                this._lastDiagHintSig = diagText;
+                this.footerDiagonalHint.textContent = diagText ? `${diagText} • ` : '';
+                this.footerDiagonalHint.style.display = diagText ? 'inline' : 'none';
+            }
         }
 
         // Contextual Stairs Hint (Row 1) (CMD-P2-08, CMD-P2-09: btn-stair button writer delegated to input.js in 3D play)
@@ -2180,7 +2222,7 @@ class WebHUD {
         }
 
         // Target tracking
-        if (this.footerTarget || this.reticleTargetCard || document.getElementById('reticle-target-card')) {
+        if (this.footerTarget) {
             this.updateTargetInspector(player, realm);
         }
 

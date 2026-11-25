@@ -23,9 +23,14 @@
     let currentCallbacks = {};
     let prewarmSeq = 0;
 
-    function rowsToText(frame) {
+    function rowsToText(frame, realmKey) {
         if (!frame || !frame.term || !Array.isArray(frame.term.rows)) return '';
-        return frame.term.rows.map((r) => (r && r.g) ? r.g : '').join('\n');
+        let raw = frame.term.rows.map((r) => (r && r.g) ? r.g : '').join('\n');
+        if (realmKey === 'hengband') {
+            const dec = (root.__app && root.__app.decodeHengbandText) || root.decodeHengbandText || (root.ScreenContext && root.ScreenContext.decodeSjis);
+            if (typeof dec === 'function') raw = dec(raw);
+        }
+        return raw;
     }
 
     function matchTermField(text, regex) {
@@ -50,7 +55,7 @@
         const realmKey = String((frame && frame.realm) || realm || 'angband').toLowerCase();
         const realmTitle = REALM_LABELS[realmKey] || realmKey.toUpperCase();
         const p = (frame && frame.player) || {};
-        const text = rowsToText(frame);
+        const text = rowsToText(frame, realmKey);
 
         let rawName = (p.name && p.name !== 'PLAYER') ? String(p.name).trim() : '';
         if (!rawName) rawName = matchTermField(text, /(?:Name|Hero)\s*:\s*([^\r\n|]{1,24})/i);
@@ -68,15 +73,40 @@
             const identity = [name || 'Hero', [race, cls].filter(Boolean).join(' ')].filter(Boolean).join(' — ');
             parts.push(identity);
         }
-        if (typeof p.str === 'number' && p.str > 0) {
-            const sStr = formatBirthStat(p.str, realmKey);
-            const sDex = formatBirthStat(p.dex || p.str, realmKey);
-            const sCon = formatBirthStat(p.con || p.str, realmKey);
-            parts.push(`STR ${sStr} DEX ${sDex} CON ${sCon}`);
+        if (realmKey === 'silq') {
+            if (typeof p.str === 'number' && p.str > 0) {
+                parts.push(`STR ${p.str} DEX ${p.dex ?? p.str} CON ${p.con ?? p.str} GRA ${p.gra ?? p.wis ?? 0}`);
+            }
+            if (hp > 0) parts.push(`HP ${hp}`);
+            if (p.evn !== undefined || p.pr_min !== undefined) parts.push(`Evn ${p.evn ?? p.ac ?? 0} Prot ${p.pr_min ?? 0}-${p.pr_max ?? 0}`);
+            if (typeof p.sp_max === 'number' && p.sp_max > 0) parts.push(`Voice ${p.sp ?? p.sp_max}/${p.sp_max}`);
+        } else if (realmKey === 'dcss') {
+            if (typeof p.str === 'number' && p.str > 0) parts.push(`STR ${p.str} INT ${p.int ?? 10} DEX ${p.dex ?? p.str}`);
+            if (hp > 0) parts.push(`HP ${hp}`);
+            if (typeof p.ac === 'number') parts.push(`AC ${p.ac} EV ${p.ev ?? 10} SH ${p.sh ?? 0}`);
+            if (p.deity || p.god) parts.push(`God: ${p.deity || p.god}`);
+        } else if (realmKey === 'brogue') {
+            if (typeof p.str === 'number' && p.str > 0) parts.push(`STR ${p.str}`);
+            if (hp > 0) parts.push(`HP ${hp}`);
+            if (typeof p.ac === 'number') parts.push(`Armor ${p.ac}`);
+        } else if (realmKey === 'rogue') {
+            if (typeof p.str === 'number' && p.str > 0) parts.push(`STR ${p.str}`);
+            if (hp > 0) parts.push(`HP ${hp}`);
+            if (typeof p.ac === 'number') parts.push(`Arm ${p.ac}`);
+        } else {
+            if (typeof p.str === 'number' && p.str > 0) {
+                const stats = [`STR ${formatBirthStat(p.str, realmKey)}`];
+                if (typeof p.int === 'number') stats.push(`INT ${formatBirthStat(p.int, realmKey)}`);
+                if (typeof p.wis === 'number') stats.push(`WIS ${formatBirthStat(p.wis, realmKey)}`);
+                stats.push(`DEX ${formatBirthStat(p.dex || p.str, realmKey)}`, `CON ${formatBirthStat(p.con || p.str, realmKey)}`);
+                if (typeof p.chr === 'number') stats.push(`CHR ${formatBirthStat(p.chr, realmKey)}`);
+                parts.push(stats.join(' '));
+            }
+            if (hp > 0) parts.push(`HP ${hp}`);
+            if (typeof p.sp_max === 'number' && p.sp_max > 0) parts.push(`MP ${p.sp ?? p.sp_max}`);
+            if (typeof p.ac === 'number') parts.push(`AC ${p.ac}`);
+            if (typeof p.au === 'number' || typeof p.gold === 'number') parts.push(`${p.au !== undefined ? p.au : p.gold} au`);
         }
-        if (hp > 0) parts.push(`HP ${hp}`);
-        if (typeof p.ac === 'number') parts.push(`AC ${p.ac}`);
-        if (typeof p.au === 'number' || typeof p.gold === 'number') parts.push(`${p.au !== undefined ? p.au : p.gold} au`);
         const gearPool = []
             .concat(Array.isArray(p.equipment) ? p.equipment : [])
             .concat(Array.isArray(p.inventory) ? p.inventory : [])

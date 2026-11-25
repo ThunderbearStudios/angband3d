@@ -9217,8 +9217,13 @@ class Dungeon3D {
         }
     }
 
+    _toRotOnlyClips(clips) {
+        if (!Array.isArray(clips) || clips.length === 0) return [];
+        return clips.map(c => new THREE.AnimationClip(c.name, c.duration, (c.tracks || []).filter(t => t && /\.quaternion$/i.test(t.name)))).filter(c => c.tracks.length > 0);
+    }
+
     _attachSharedMixamoClipsToLiveHumanoids() {
-        const clips = this._sharedMixamoClips;
+        const clips = this._toRotOnlyClips(this._sharedMixamoClips);
         if (!Array.isArray(clips) || clips.length === 0) return;
         const mixamoKeys = new Set([
             'char_male_peasant', 'char_male_peasant_bearded', 'char_female_peasant',
@@ -10004,7 +10009,7 @@ class Dungeon3D {
         const managedPromise = loadPromise.then(wrapper => {
             if (mixamoHumanoidKeys.has(templateKey) && (!wrapper._animations || wrapper._animations.length === 0)) {
                 if (this._sharedMixamoClips && this._sharedMixamoClips.length > 0) {
-                    wrapper._animations = this._sharedMixamoClips;
+                    wrapper._animations = this._toRotOnlyClips(this._sharedMixamoClips);
                 } else if (!this._monster3DTemplates.has('char_male_guard') && !this._monster3DLoading.has('char_male_guard')) {
                     this._ensureMonster3DTemplate('char_male_guard').catch(() => {});
                 }
