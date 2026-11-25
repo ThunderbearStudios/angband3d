@@ -382,7 +382,8 @@
             if (!this.vfxFlashLight || !pos) return;
             this.vfxFlashLight.position.copy(pos);
             this.vfxFlashLight.color.set(colorHex);
-            this.vfxFlashLight.intensity = intensity;
+            if (window.Dungeon3DCompat) window.Dungeon3DCompat.setLightIntensity(this.vfxFlashLight, 'point', intensity);
+            else this.vfxFlashLight.intensity = intensity;
             this.vfxFlashLight.distance = distance;
             this._vfxFlashState = {
                 active: true,

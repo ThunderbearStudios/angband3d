@@ -49,7 +49,8 @@
             if (d3d.hemiLight) {
                 d3d.hemiLight.color.setHex(0x687da6);
                 d3d.hemiLight.groundColor.setHex(0x221914);
-                d3d.hemiLight.intensity = 0.32;
+                if (window.Dungeon3DCompat) window.Dungeon3DCompat.setLightIntensity(d3d.hemiLight, 'hemi', 0.32);
+                else d3d.hemiLight.intensity = 0.32;
             }
             return;
         }
@@ -72,7 +73,8 @@
         if (d3d.hemiLight) {
             d3d.hemiLight.color.setHex(0x526486);
             d3d.hemiLight.groundColor.setHex(0x221914);
-            d3d.hemiLight.intensity = 0.36;
+            if (window.Dungeon3DCompat) window.Dungeon3DCompat.setLightIntensity(d3d.hemiLight, 'hemi', 0.36);
+            else d3d.hemiLight.intensity = 0.36;
         }
         if (typeof window !== 'undefined' && window.AudioAmbience && typeof window.AudioAmbience.sync === 'function') {
             window.AudioAmbience.sync(d3d.audio, realm, outdoors ? 0 : depth);

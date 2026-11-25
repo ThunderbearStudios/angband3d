@@ -298,7 +298,7 @@ Dungeon3DProto._loadPolyHavenEnvironmentModels = function _loadPolyHavenEnvironm
             if (this.rubbleMesh && this.rubbleMesh.geometry) this.rubbleMesh.geometry.dispose();
             if (this.rubbleMesh) this.rubbleMesh.geometry = rubbleGeo;
             if (this.rubbleMaterial && (diff || nor)) {
-                if (diff) { diff.encoding = THREE.sRGBEncoding; diff._sharedTexture = true; this.rubbleMaterial.map = diff; }
+                if (diff) { if (window.Dungeon3DCompat) window.Dungeon3DCompat.setTextureColorSpace(diff, true); else diff.encoding = THREE.sRGBEncoding; diff._sharedTexture = true; this.rubbleMaterial.map = diff; }
                 if (nor) { nor._sharedTexture = true; this.rubbleMaterial.normalMap = nor; }
                 this.rubbleMaterial.needsUpdate = true;
                 this._hasPolyHavenRubbleTex = true;
@@ -314,7 +314,7 @@ Dungeon3DProto._loadPolyHavenEnvironmentModels = function _loadPolyHavenEnvironm
             if (this.mountainMesh && this.mountainMesh.geometry) this.mountainMesh.geometry.dispose();
             if (this.mountainMesh) this.mountainMesh.geometry = mountainGeo;
             if (this.mountainMaterial && (diff || nor)) {
-                if (diff) { diff.encoding = THREE.sRGBEncoding; diff._sharedTexture = true; this.mountainMaterial.map = diff; }
+                if (diff) { if (window.Dungeon3DCompat) window.Dungeon3DCompat.setTextureColorSpace(diff, true); else diff.encoding = THREE.sRGBEncoding; diff._sharedTexture = true; this.mountainMaterial.map = diff; }
                 if (nor) { nor._sharedTexture = true; this.mountainMaterial.normalMap = nor; }
                 this.mountainMaterial.needsUpdate = true;
                 this._hasPolyHavenMountainTex = true;
@@ -364,7 +364,7 @@ Dungeon3DProto._loadPolyHavenEnvironmentModels = function _loadPolyHavenEnvironm
                 if (this.forgeMesh.geometry) this.forgeMesh.geometry.dispose();
                 this.forgeMesh.geometry = merged;
                 if (firstMap && this.forgeMaterial) {
-                    if (typeof THREE.sRGBEncoding !== 'undefined') firstMap.encoding = THREE.sRGBEncoding;
+                    if (window.Dungeon3DCompat) window.Dungeon3DCompat.setTextureColorSpace(firstMap, true); else if (typeof THREE.sRGBEncoding !== 'undefined') firstMap.encoding = THREE.sRGBEncoding;
                     this.forgeMaterial.map = firstMap;
                     this.forgeMaterial.needsUpdate = true;
                 }

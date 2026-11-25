@@ -782,9 +782,12 @@ class Dungeon3D {
         this.renderer.setSize(stage.w, stage.h, !stage.handheld);
         this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, dprCap));
         this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-        this.renderer.toneMappingExposure = 1.05;
+        const compat = (typeof window !== 'undefined' && window.Dungeon3DCompat) || null;
+        if (compat) compat.setExposure(this.renderer, 1.05);
+        else this.renderer.toneMappingExposure = 1.05;
         this._enableDynamicShadows = !isPhoneTier && (budget.gpuTier === 'discrete' || budget.gpuTier === 'performance' || budget.gpuTier === 'ultra');
-        this.renderer.outputEncoding = THREE.sRGBEncoding;
+        if (compat) compat.configureRenderer(this.renderer);
+        else if (typeof THREE.sRGBEncoding !== 'undefined') this.renderer.outputEncoding = THREE.sRGBEncoding;
         this.renderer.shadowMap.enabled = Boolean(this._enableDynamicShadows);
         this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         this.renderer.shadowMap.autoUpdate = false;
@@ -805,16 +808,16 @@ class Dungeon3D {
         }
 
         // Ambient light (dynamically adjusted per depth / town)
-        this.ambientLight = new THREE.AmbientLight(0x808aa8, 0.75);
+        this.ambientLight = new THREE.AmbientLight(0x808aa8, compat ? compat.scaleIntensity('ambient', 0.75) : 0.75);
         if (this.ambientLight.layers) this.ambientLight.layers.enable(1);
         this.scene.add(this.ambientLight);
 
-        this.hemiLight = new THREE.HemisphereLight(0x687da6, 0x18120e, 0.28);
+        this.hemiLight = new THREE.HemisphereLight(0x687da6, 0x18120e, compat ? compat.scaleIntensity('hemi', 0.28) : 0.28);
         if (this.hemiLight.layers) this.hemiLight.layers.enable(1);
         this.scene.add(this.hemiLight);
 
         // Directional Sunlight for outdoors (Town) matching Godot _sunLight (dirty-gated 1024px shadow caster)
-        this.sunLight = new THREE.DirectionalLight(0xb3ccfa, 0.95);
+        this.sunLight = new THREE.DirectionalLight(0xb3ccfa, compat ? compat.scaleIntensity('directional', 0.95) : 0.95);
         this.sunLight.position.set(-20, 35, 15);
         if (this.sunLight.layers) this.sunLight.layers.enable(1);
         this.sunLight.castShadow = Boolean(this._enableDynamicShadows);
@@ -841,14 +844,15 @@ class Dungeon3D {
         if (this.sunLight.target) this.scene.add(this.sunLight.target);
 
         // Player Torch PointLight - ATTACHED TO CAMERA (Off-axis key sculpt)
-        this.torchLight = new THREE.PointLight(0xffdc99, this._enableDynamicShadows ? 1.48 : 1.8, 16.0, 0.7);
+        const rawTorch = this._enableDynamicShadows ? 1.48 : 1.8;
+        this.torchLight = new THREE.PointLight(0xffdc99, compat ? compat.scaleIntensity('point', rawTorch) : rawTorch, 16.0, 0.7);
         this.torchLight.position.set(-0.46, 0.28, -0.18);
         if (this.torchLight.layers) this.torchLight.layers.enable(1);
         this.camera.add(this.torchLight);
 
         // Dirty-gated 512x512 forward SpotLight shadow caster on discrete/high tiers (0ms cost on idle frames)
         if (this._enableDynamicShadows && typeof THREE.SpotLight === 'function') {
-            this.torchSpotLight = new THREE.SpotLight(0xffdc99, 0.42, 14.5, Math.PI * 0.42, 0.65, 0.85);
+            this.torchSpotLight = new THREE.SpotLight(0xffdc99, compat ? compat.scaleIntensity('spot', 0.42) : 0.42, 14.5, Math.PI * 0.42, 0.65, 0.85);
             this.torchSpotLight.position.set(0.0, 0.08, -0.18);
             this.torchSpotLight.target.position.set(0.0, -0.45, -8.5);
             this.torchSpotLight.castShadow = true;
@@ -866,7 +870,8 @@ class Dungeon3D {
         this.torchLowColor = new THREE.Color(0xffaa55);
 
         // Secondary warm bounce fill light near player feet - ATTACHED TO CAMERA (keep visible=true; gate by intensity to avoid shader recompiles)
-        this.torchFillLight = new THREE.PointLight(0xff7722, budget.enableFillLight ? 0.35 : 0.0, 8.0, 0.7);
+        const rawFill = budget.enableFillLight ? 0.35 : 0.0;
+        this.torchFillLight = new THREE.PointLight(0xff7722, compat ? compat.scaleIntensity('point', rawFill) : rawFill, 8.0, 0.7);
         this.torchFillLight.visible = true;
         if (this.torchFillLight.layers) this.torchFillLight.layers.enable(1);
         this.torchFillLight.position.set(0.20, -0.20, -0.20);
@@ -2439,6 +2444,7 @@ class Dungeon3D {
         // Dedicated Celestial Sky Dome: Deep gradient, Milky Way dust lanes, aurora ribbons, crescent moon
         // Radius 42m + depthTest: false + renderOrder: -10 guarantees zero far-plane clipping ("sky bubble")
         const skyDomeGeo = new THREE.SphereGeometry(42, 40, 24);
+        const skyCompat = (typeof window !== 'undefined' && window.Dungeon3DCompat) || null;
         this.skyDomeMaterial = new THREE.ShaderMaterial({
             side: THREE.BackSide,
             depthWrite: false,
@@ -2461,7 +2467,7 @@ class Dungeon3D {
                     gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
                 }
             `,
-            fragmentShader: `
+            fragmentShader: (skyCompat ? skyCompat.patchSkyDomeFragment : (s) => s)(`
                 uniform float uTime;
                 uniform vec3 uHorizonColor;
                 uniform vec3 uZenithColor;
@@ -2551,7 +2557,7 @@ class Dungeon3D {
 
                     gl_FragColor = vec4(sky, 1.0);
                 }
-            `
+            `)
         });
         this.skyDomeMesh = new THREE.Mesh(skyDomeGeo, this.skyDomeMaterial);
         this.skyDomeMesh.frustumCulled = false;
@@ -4935,8 +4941,9 @@ class Dungeon3D {
             }
         }
 
+        const biomeCompat = (typeof window !== 'undefined' && window.Dungeon3DCompat) || null;
         this.sunLight.visible = biome.sunLight;
-        this.sunLight.intensity = biome.sunEnergy;
+        this.sunLight.intensity = biomeCompat ? biomeCompat.scaleIntensity('directional', biome.sunEnergy) : biome.sunEnergy;
         if (biome.sunColor !== undefined) {
             this.sunLight.color.setHex(biome.sunColor);
         }
@@ -4958,9 +4965,10 @@ class Dungeon3D {
         if (this.townRoofMesh) this.townRoofMesh.castShadow = canSunShadow;
 
         this.ambientLight.color.setHex(biome.ambientColor);
-        this.ambientLight.intensity = biome.ambientEnergy;
+        this.ambientLight.intensity = biomeCompat ? biomeCompat.scaleIntensity('ambient', biome.ambientEnergy) : biome.ambientEnergy;
 
-        this.renderer.toneMappingExposure = biome.exposure;
+        if (biomeCompat) biomeCompat.setExposure(this.renderer, biome.exposure);
+        else this.renderer.toneMappingExposure = biome.exposure;
 
         // Extract torch radius from player (cur_light or light), preserving genuine light=0 darkness
         const lightProp = (frame.player && (frame.player.cur_light !== undefined ? frame.player.cur_light : frame.player.light));
@@ -6608,28 +6616,24 @@ class Dungeon3D {
         }
         this._rawLitShadeMode = false;
 
+        const rangeCompat = (typeof window !== 'undefined' && window.Dungeon3DCompat) || null;
+        const setAttrRange = (attr, count) => {
+            if (rangeCompat) rangeCompat.setAttrUpdateRange(attr, 0, count);
+            else if (attr && attr.updateRange) { attr.updateRange.offset = 0; attr.updateRange.count = count; }
+        };
         const updateMesh = (mesh, newCount) => {
             const oldCount = mesh.count;
             mesh.count = newCount;
             if (newCount > 0 || oldCount > 0) {
-                if (mesh.instanceMatrix.updateRange) {
-                    mesh.instanceMatrix.updateRange.offset = 0;
-                    mesh.instanceMatrix.updateRange.count = newCount * 16;
-                }
+                setAttrRange(mesh.instanceMatrix, newCount * 16);
                 mesh.instanceMatrix.needsUpdate = true;
                 if (mesh.instanceColor) {
-                    if (mesh.instanceColor.updateRange) {
-                        mesh.instanceColor.updateRange.offset = 0;
-                        mesh.instanceColor.updateRange.count = newCount * 3;
-                    }
+                    setAttrRange(mesh.instanceColor, newCount * 3);
                     mesh.instanceColor.needsUpdate = true;
                 }
                 const bevAttr = mesh.geometry && mesh.geometry.attributes && mesh.geometry.attributes.aCornerBevel;
                 if (bevAttr && bevAttr.isInstancedBufferAttribute) {
-                    if (bevAttr.updateRange) {
-                        bevAttr.updateRange.offset = 0;
-                        bevAttr.updateRange.count = newCount * 4;
-                    }
+                    setAttrRange(bevAttr, newCount * 4);
                     bevAttr.needsUpdate = true;
                 }
             }
@@ -6698,10 +6702,7 @@ class Dungeon3D {
             const oldChasmVoid = this.chasmVoidMesh.count;
             this.chasmVoidMesh.count = chasmVoidIdx;
             if (chasmVoidIdx > 0 || oldChasmVoid > 0) {
-                if (this.chasmVoidMesh.instanceMatrix.updateRange) {
-                    this.chasmVoidMesh.instanceMatrix.updateRange.offset = 0;
-                    this.chasmVoidMesh.instanceMatrix.updateRange.count = chasmVoidIdx * 16;
-                }
+                setAttrRange(this.chasmVoidMesh.instanceMatrix, chasmVoidIdx * 16);
                 this.chasmVoidMesh.instanceMatrix.needsUpdate = true;
             }
         }
@@ -6709,20 +6710,14 @@ class Dungeon3D {
         const oldLava = this.lavaMesh.count;
         this.lavaMesh.count = lavaCount;
         if (lavaCount > 0 || oldLava > 0) {
-            if (this.lavaMesh.instanceMatrix.updateRange) {
-                this.lavaMesh.instanceMatrix.updateRange.offset = 0;
-                this.lavaMesh.instanceMatrix.updateRange.count = lavaCount * 16;
-            }
+            setAttrRange(this.lavaMesh.instanceMatrix, lavaCount * 16);
             this.lavaMesh.instanceMatrix.needsUpdate = true;
         }
 
         const oldLavaCooled = this.lavaCooledMesh.count;
         this.lavaCooledMesh.count = lavaCooledCount;
         if (lavaCooledCount > 0 || oldLavaCooled > 0) {
-            if (this.lavaCooledMesh.instanceMatrix.updateRange) {
-                this.lavaCooledMesh.instanceMatrix.updateRange.offset = 0;
-                this.lavaCooledMesh.instanceMatrix.updateRange.count = lavaCooledCount * 16;
-            }
+            setAttrRange(this.lavaCooledMesh.instanceMatrix, lavaCooledCount * 16);
             this.lavaCooledMesh.instanceMatrix.needsUpdate = true;
         }
 
@@ -7534,7 +7529,8 @@ class Dungeon3D {
         const texLoader = new THREE.TextureLoader(this._getAssetLoadingManager());
         this._monsterAtlasTexPromise = new Promise((resolve) => {
             texLoader.load('/assets/sprites/monsters/monster_atlas.webp', (tex) => {
-                tex.encoding = THREE.sRGBEncoding;
+                if (window.Dungeon3DCompat) window.Dungeon3DCompat.setTextureColorSpace(tex, true);
+                else tex.encoding = THREE.sRGBEncoding;
                 tex.generateMipmaps = true;
                 tex.minFilter = THREE.LinearMipmapLinearFilter;
                 tex.magFilter = THREE.LinearFilter;
@@ -7920,7 +7916,8 @@ class Dungeon3D {
             };
 
             texLoader.load('/assets/sprites/items/item_atlas.webp', (tex) => {
-                tex.encoding = THREE.sRGBEncoding;
+                if (window.Dungeon3DCompat) window.Dungeon3DCompat.setTextureColorSpace(tex, true);
+                else tex.encoding = THREE.sRGBEncoding;
                 tex.generateMipmaps = true;
                 tex.minFilter = THREE.LinearMipmapLinearFilter;
                 tex.magFilter = THREE.LinearFilter;
@@ -8868,7 +8865,8 @@ class Dungeon3D {
                                         m._sharedMaterial = true;
                                         if (m.map) {
                                             m.map._sharedTexture = true;
-                                            if (typeof THREE.sRGBEncoding !== 'undefined') m.map.encoding = THREE.sRGBEncoding;
+                                            if (window.Dungeon3DCompat) window.Dungeon3DCompat.setTextureColorSpace(m.map, true);
+                                            else if (typeof THREE.sRGBEncoding !== 'undefined') m.map.encoding = THREE.sRGBEncoding;
                                         }
                                         if (m.normalMap) m.normalMap._sharedTexture = true;
                                         if (m.roughnessMap) m.roughnessMap._sharedTexture = true;
@@ -8911,8 +8909,9 @@ class Dungeon3D {
             this._texLoader.load(resolvedUrl, tex => {
                 tex.flipY = false;
                 tex._sharedTexture = true;
-                if (isColor && typeof THREE.sRGBEncoding !== 'undefined') {
-                    tex.encoding = THREE.sRGBEncoding;
+                if (isColor) {
+                    if (window.Dungeon3DCompat) window.Dungeon3DCompat.setTextureColorSpace(tex, true);
+                    else if (typeof THREE.sRGBEncoding !== 'undefined') tex.encoding = THREE.sRGBEncoding;
                 }
                 resolve(tex);
             }, undefined, () => resolve(null));
@@ -9156,10 +9155,12 @@ class Dungeon3D {
             m._hasCountershadeShader = true;
             if (!this._countershadeOnBeforeCompile) {
                 this._countershadeOnBeforeCompile = (shader) => {
+                    if (!shader.fragmentShader.includes('vViewPosition')) return;
+                    const nVar = (window.Dungeon3DCompat) ? window.Dungeon3DCompat.getNormalVarName(shader.fragmentShader) : 'geometryNormal';
                     shader.fragmentShader = shader.fragmentShader.replace(
                         '#include <dithering_fragment>',
                         `#include <dithering_fragment>
-                        vec3 nUp = normalize(geometryNormal);
+                        vec3 nUp = normalize(${nVar});
                         float dorsal = clamp(nUp.y * 0.5 + 0.5, 0.0, 1.0);
                         float counterShade = mix(0.58, 1.06, dorsal);
                         vec3 vDir = normalize(vViewPosition);
@@ -9455,7 +9456,7 @@ class Dungeon3D {
                             const mats = Array.isArray(c.material) ? c.material : [c.material];
                             for (const m of mats) {
                                 if (hasVColor) m.vertexColors = true;
-                                m.skinning = Boolean(c.isSkinnedMesh);
+                                if (!(window.Dungeon3DCompat && window.Dungeon3DCompat.isV2())) m.skinning = Boolean(c.isSkinnedMesh);
                                 m._sharedMaterial = true;
                             }
                         }
@@ -9475,7 +9476,7 @@ class Dungeon3D {
                             const mats = Array.isArray(c.material) ? c.material : [c.material];
                             for (const m of mats) {
                                 if (hasVColor) m.vertexColors = true;
-                                m.skinning = Boolean(c.isSkinnedMesh);
+                                if (!(window.Dungeon3DCompat && window.Dungeon3DCompat.isV2())) m.skinning = Boolean(c.isSkinnedMesh);
                                 m._sharedMaterial = true;
                             }
                         }
@@ -9495,7 +9496,7 @@ class Dungeon3D {
                             const mats = Array.isArray(c.material) ? c.material : [c.material];
                             for (const m of mats) {
                                 if (hasVColor) m.vertexColors = true;
-                                m.skinning = Boolean(c.isSkinnedMesh);
+                                if (!(window.Dungeon3DCompat && window.Dungeon3DCompat.isV2())) m.skinning = Boolean(c.isSkinnedMesh);
                                 m._sharedMaterial = true;
                             }
                         }
@@ -9515,7 +9516,7 @@ class Dungeon3D {
                             const mats = Array.isArray(c.material) ? c.material : [c.material];
                             for (const m of mats) {
                                 if (hasVColor && !m.map) m.vertexColors = true;
-                                m.skinning = Boolean(c.isSkinnedMesh);
+                                if (!(window.Dungeon3DCompat && window.Dungeon3DCompat.isV2())) m.skinning = Boolean(c.isSkinnedMesh);
                                 m._sharedMaterial = true;
                             }
                         }
@@ -9612,6 +9613,8 @@ class Dungeon3D {
             loadPromise = loadGltf('/assets/models/monsters/bestiary/GhostArmature.glb', () => loadGltf('/assets/models/monsters/bestiary/skeleton_knight.glb', () => this._ensureMonster3DTemplate('char_male_ranger'))).then(scene => {
                 if (!this._wraithRimOnBeforeCompile) {
                     this._wraithRimOnBeforeCompile = (shader) => {
+                        if (!shader.fragmentShader.includes('vViewPosition')) return;
+                        const nVar = (window.Dungeon3DCompat) ? window.Dungeon3DCompat.getNormalVarName(shader.fragmentShader) : 'geometryNormal';
                         shader.uniforms.rimColor = { value: new THREE.Color(0x66ccff) };
                         shader.uniforms.rimPower = { value: 2.2 };
                         shader.fragmentShader = shader.fragmentShader.replace(
@@ -9620,7 +9623,7 @@ class Dungeon3D {
                         );
                         shader.fragmentShader = shader.fragmentShader.replace(
                             '#include <dithering_fragment>',
-                            `#include <dithering_fragment>\nvec3 viewDir = normalize(vViewPosition);\nfloat rim = 1.0 - max(0.0, dot(geometryNormal, -viewDir));\nrim = pow(rim, rimPower);\ngl_FragColor.rgb += rimColor * rim * 0.8;\ngl_FragColor.a = max(gl_FragColor.a, rim * 0.7);`
+                            `#include <dithering_fragment>\nvec3 viewDir = normalize(vViewPosition);\nfloat rim = 1.0 - max(0.0, dot(${nVar}, -viewDir));\nrim = pow(rim, rimPower);\ngl_FragColor.rgb += rimColor * rim * 0.8;\ngl_FragColor.a = max(gl_FragColor.a, rim * 0.7);`
                         );
                     };
                 }
@@ -9724,7 +9727,7 @@ class Dungeon3D {
                             const mats = Array.isArray(c.material) ? c.material : [c.material];
                             for (const m of mats) {
                                 if (hasVColor && !m.map) m.vertexColors = true;
-                                m.skinning = Boolean(c.isSkinnedMesh);
+                                if (!(window.Dungeon3DCompat && window.Dungeon3DCompat.isV2())) m.skinning = Boolean(c.isSkinnedMesh);
                                 m._sharedMaterial = true;
                             }
                         }
@@ -10370,7 +10373,7 @@ class Dungeon3D {
                     pooledMat._refCount = 0;
                     if (oldMat.onBeforeCompile) pooledMat.onBeforeCompile = oldMat.onBeforeCompile;
                     if (oldMat.customProgramCacheKey) pooledMat.customProgramCacheKey = oldMat.customProgramCacheKey;
-                    if (isSkinned || oldMat.skinning) {
+                    if (!(window.Dungeon3DCompat && window.Dungeon3DCompat.isV2()) && (isSkinned || oldMat.skinning)) {
                         pooledMat.skinning = true;
                     }
                     if (pooledMat.color && tintCol) {
@@ -11435,7 +11438,8 @@ class Dungeon3D {
                                     m._sharedMaterial = true;
                                     if (m.map) {
                                         m.map._sharedTexture = true;
-                                        if (typeof THREE.sRGBEncoding !== 'undefined') m.map.encoding = THREE.sRGBEncoding;
+                                        if (window.Dungeon3DCompat) window.Dungeon3DCompat.setTextureColorSpace(m.map, true);
+                                        else if (typeof THREE.sRGBEncoding !== 'undefined') m.map.encoding = THREE.sRGBEncoding;
                                     }
                                     if (m.normalMap) m.normalMap._sharedTexture = true;
                                     if (m.roughnessMap) m.roughnessMap._sharedTexture = true;
@@ -12298,15 +12302,20 @@ class Dungeon3D {
             livingFlicker *= Math.max(0.45, sputter);
         }
 
+        const animCompat = (typeof window !== 'undefined' && window.Dungeon3DCompat) || null;
         const currentTargetEnergy = (this.targetTorchEnergy !== undefined ? this.targetTorchEnergy : 2.8) * zeroDimScale;
         if (this.torchSpotLight) {
-            this.torchLight.intensity = currentTargetEnergy * 0.82 * livingFlicker;
-            this.torchSpotLight.intensity = currentTargetEnergy * 0.22 * livingFlicker;
+            const rawPt = currentTargetEnergy * 0.82 * livingFlicker;
+            const rawSp = currentTargetEnergy * 0.22 * livingFlicker;
+            this.torchLight.intensity = animCompat ? animCompat.scaleIntensity('point', rawPt) : rawPt;
+            this.torchSpotLight.intensity = animCompat ? animCompat.scaleIntensity('spot', rawSp) : rawSp;
         } else {
-            this.torchLight.intensity = currentTargetEnergy * livingFlicker;
+            const rawPt = currentTargetEnergy * livingFlicker;
+            this.torchLight.intensity = animCompat ? animCompat.scaleIntensity('point', rawPt) : rawPt;
         }
         const allowFill = !(this.renderBudget && this.renderBudget.enableFillLight === false);
-        this.torchFillLight.intensity = allowFill ? (currentTargetEnergy * 0.06) * livingFlicker : 0.0;
+        const rawFillEnergy = allowFill ? (currentTargetEnergy * 0.06) * livingFlicker : 0.0;
+        this.torchFillLight.intensity = animCompat ? animCompat.scaleIntensity('point', rawFillEnergy) : rawFillEnergy;
 
         // Warm lantern gold blending smoothly toward low-fuel ember when fuel <= 500
         if (this.torchBaseColor) {
@@ -12638,7 +12647,8 @@ class Dungeon3D {
                 this.vfxFlashLight.intensity = 0;
                 this._vfxFlashState.active = false;
             } else {
-                this.vfxFlashLight.intensity = this._vfxFlashState.maxIntensity * (1.0 - fFrac);
+                const rawVfxI = this._vfxFlashState.maxIntensity * (1.0 - fFrac);
+                this.vfxFlashLight.intensity = animCompat ? animCompat.scaleIntensity('point', rawVfxI) : rawVfxI;
             }
         }
 

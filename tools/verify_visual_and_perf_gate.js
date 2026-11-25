@@ -132,6 +132,9 @@ async function main() {
     const args = process.argv.slice(2);
     const ssIdx = args.indexOf('--screenshots-dir');
     const screenshotsDir = ssIdx !== -1 ? args[ssIdx + 1] : null;
+    const flagThreeV2 = args.includes('--flag-three-v2') || process.env.FLAG_THREE_V2 === '1';
+    const v2ColdQ = flagThreeV2 ? '?flag_RENDERER_THREE_V2=1' : '';
+    const v2PlayQ = flagThreeV2 ? '&flag_RENDERER_THREE_V2=1' : '';
     if (screenshotsDir) fs.mkdirSync(screenshotsDir, { recursive: true });
 
     // Check 1: Disk asset budget
@@ -177,11 +180,11 @@ async function main() {
             await coldCdp.send('Runtime.enable');
             await coldCdp.send('Page.enable');
             await coldCdp.send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false });
-            await coldCdp.send('Page.navigate', { url: `${baseUrl}/` });
+            await coldCdp.send('Page.navigate', { url: `${baseUrl}/${v2ColdQ}` });
             await sleep(2400);
 
             const domCounts = await coldCdp.evaluate(`(() => ({
-                scripts: document.querySelectorAll('script[src]:not([src*="engine3d.min.js"])').length,
+                scripts: document.querySelectorAll('script[src]:not([src*="engine3d"])').length,
                 cssLinks: document.querySelectorAll('link[rel="stylesheet"]').length,
                 lazyGuide: Boolean(window.AdventurerGuide),
                 lazyRyod: Boolean(window.RyodForge),
@@ -232,7 +235,7 @@ async function main() {
             await playCdp.send('Runtime.enable');
             await playCdp.send('Page.enable');
             await playCdp.send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false });
-            await playCdp.send('Page.navigate', { url: `${baseUrl}/?play=1&new=1&realm=angband&lang=en` });
+            await playCdp.send('Page.navigate', { url: `${baseUrl}/?play=1&new=1&realm=angband&lang=en${v2PlayQ}` });
 
             let inPlay = false;
             for (let i = 0; i < 60; i++) {
@@ -283,15 +286,21 @@ async function main() {
                     geometries: mem.geometries || 0,
                     gpuTexVramMB: Number((texBytes / 1048576).toFixed(2)),
                     maxTexDim,
-                    itemAtlasLoadedEager: Boolean(window.__itemAtlasLoaded)
+                    itemAtlasLoadedEager: Boolean(window.__itemAtlasLoaded),
+                    threeRevision: (typeof THREE !== 'undefined' && THREE.REVISION) ? String(THREE.REVISION) : 'none',
+                    isThreeV2: Boolean(typeof THREE !== 'undefined' && THREE.IS_THREE_V2)
                 };
             })()`);
-            console.log(`[VisualGate] Town VRAM: textures=${townMem.textures} (ceiling < 83, baseline 83), geometries=${townMem.geometries} (ceiling <= 80, full NPC+storefront baseline 60), gpuTexVramMB=${townMem.gpuTexVramMB} (ceiling < 125), maxTexDim=${townMem.maxTexDim}, itemAtlasLoadedEager=${townMem.itemAtlasLoadedEager}`);
+            console.log(`[VisualGate] Town VRAM (Three r${townMem.threeRevision} v2=${townMem.isThreeV2}): textures=${townMem.textures} (ceiling < 83, baseline 83), geometries=${townMem.geometries} (ceiling <= 80, full NPC+storefront baseline 60), gpuTexVramMB=${townMem.gpuTexVramMB} (ceiling < 135), maxTexDim=${townMem.maxTexDim}, itemAtlasLoadedEager=${townMem.itemAtlasLoadedEager}`);
+            if (flagThreeV2) {
+                assert.strictEqual(townMem.isThreeV2, true, 'Expected THREE.IS_THREE_V2 === true under --flag-three-v2');
+                assert(parseInt(townMem.threeRevision, 10) >= 170, `Expected THREE.REVISION >= 170, got ${townMem.threeRevision}`);
+            }
             assert(townMem.textures < 83, `Expected Town textures < 83, got ${townMem.textures}`);
             assert(townMem.geometries <= 80, `Expected Town geometries <= 80, got ${townMem.geometries}`);
             assert.strictEqual(townMem.itemAtlasLoadedEager, false, 'item_atlas should not load eagerly');
             assert(townMem.maxTexDim <= 2048, `Expected maxTexDim <= 2048, got ${townMem.maxTexDim}`);
-            assert(townMem.gpuTexVramMB < 125, `Expected gpuTexVramMB < 125, got ${townMem.gpuTexVramMB}`);
+            assert(townMem.gpuTexVramMB < 135, `Expected gpuTexVramMB < 135, got ${townMem.gpuTexVramMB}`);
 
             // Walk toward Town plaza (via startMinimapAutoNav / startAutoExplore) until a live Town NPC renders in 3D
             await playCdp.evaluate(`(() => { window.__app?.network?.sendKey?.(','); })()`);

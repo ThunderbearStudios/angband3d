@@ -17,6 +17,21 @@ const ROOT = path.resolve(__dirname, '..');
 const PUB_DIR = path.join(ROOT, 'server', 'public');
 const DIST_DIR = path.join(PUB_DIR, 'dist');
 
+const ENGINE3D_APP_FILES = [
+    'js/dungeon3d-three-compat.js',
+    'js/dungeon3d-lightmap.js',
+    'js/dungeon3d-model-governor.js',
+    'js/master-bestiary.js',
+    'js/master-item-registry.js',
+    'js/dungeon3d-proc-textures.js',
+    'js/dungeon3d-environment.js',
+    'js/dungeon3d-vfx.js',
+    'js/dungeon3d-atmosphere.js',
+    'js/dungeon3d.js',
+    'js/dungeon3d-tactical.js',
+    'js/dungeon3d-town.js'
+];
+
 const JS_BUNDLES = {
     'boot.min.js': [
         'js/boot.js',
@@ -33,17 +48,7 @@ const JS_BUNDLES = {
         'js/vendor/meshopt_decoder.js',
         'js/vendor/OBJLoader.js',
         'js/vendor/GLTFLoader.js',
-        'js/dungeon3d-lightmap.js',
-        'js/dungeon3d-model-governor.js',
-        'js/master-bestiary.js',
-        'js/master-item-registry.js',
-        'js/dungeon3d-proc-textures.js',
-        'js/dungeon3d-environment.js',
-        'js/dungeon3d-vfx.js',
-        'js/dungeon3d-atmosphere.js',
-        'js/dungeon3d.js',
-        'js/dungeon3d-tactical.js',
-        'js/dungeon3d-town.js'
+        ...ENGINE3D_APP_FILES
     ],
     'demo.min.js': [
         'js/demo-player.js'
@@ -155,6 +160,38 @@ async function main() {
         totalMin += minBytes;
         const pct = ((1 - minBytes / rawBytes) * 100).toFixed(1);
         console.log(`${outName.padEnd(28)}${(rawBytes / 1024).toFixed(1).padStart(10)}${(minBytes / 1024).toFixed(1).padStart(10)}  -${pct}%`);
+    }
+
+    // Wave 4A: Dual-bundle engine3d-v2.min.js (Three.js r187 ESM -> IIFE + shared ENGINE3D_APP_FILES)
+    const threeV2Entry = path.join(PUB_DIR, 'js/vendor/three-v2-entry.js');
+    if (fs.existsSync(threeV2Entry)) {
+        const esmBuild = await esbuild.build({
+            entryPoints: [threeV2Entry],
+            bundle: true,
+            format: 'iife',
+            minify: true,
+            target: 'es2020',
+            write: false,
+            legalComments: 'none'
+        });
+        const v2VendorCode = (esmBuild.outputFiles && esmBuild.outputFiles[0] && esmBuild.outputFiles[0].text) || '';
+        const appConcat = readConcat(ENGINE3D_APP_FILES, '\n;\n');
+        const appRes = await esbuild.transform(appConcat, {
+            loader: 'js',
+            minify: true,
+            target: 'es2020',
+            legalComments: 'none'
+        });
+        const combinedV2 = `${v2VendorCode}\n;\n${appRes.code}`;
+        const outV2Path = path.join(DIST_DIR, 'engine3d-v2.min.js');
+        fs.writeFileSync(outV2Path, combinedV2, 'utf8');
+        execFileSync(process.execPath, ['--check', outV2Path], { stdio: 'pipe' });
+        const rawV2Bytes = Buffer.byteLength(v2VendorCode, 'utf8') + Buffer.byteLength(appConcat, 'utf8');
+        const minV2Bytes = Buffer.byteLength(combinedV2, 'utf8');
+        totalRaw += rawV2Bytes;
+        totalMin += minV2Bytes;
+        const pctV2 = ((1 - minV2Bytes / rawV2Bytes) * 100).toFixed(1);
+        console.log(`${'engine3d-v2.min.js'.padEnd(28)}${(rawV2Bytes / 1024).toFixed(1).padStart(10)}${(minV2Bytes / 1024).toFixed(1).padStart(10)}  -${pctV2}%`);
     }
 
     for (const [outName, files] of Object.entries(CSS_BUNDLES)) {

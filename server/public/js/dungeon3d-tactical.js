@@ -2103,7 +2103,7 @@
                     '    else yasdBevel = aCornerBevel.w;',
                     '}',
                     'transformed.xz += aCornerAxis * yasdBevel;',
-                    '#ifdef USE_UV',
+                    '#if defined(USE_UV) || defined(USE_MAP) || defined(USE_NORMALMAP) || defined(USE_ROUGHNESSMAP)',
                     '    vFaceUv = uv;',
                     '#else',
                     '    vFaceUv = vec2(0.5);',
@@ -2128,7 +2128,7 @@
                     ].join('\n') : ''
                 ].join('\n') : [
                     '#include <begin_vertex>',
-                    '#ifdef USE_UV',
+                    '#if defined(USE_UV) || defined(USE_MAP) || defined(USE_NORMALMAP) || defined(USE_ROUGHNESSMAP)',
                     '    vFaceUv = uv;',
                     '#else',
                     '    vFaceUv = vec2(0.5);',
@@ -2193,7 +2193,7 @@
                     'vec3 yasdRawTexel;',
                     'vec3 yasdInstShade;',
                     'float yasdSavedSeam;',
-                    '#define vUv yasdUv',
+                    window.Dungeon3DCompat ? window.Dungeon3DCompat.getUvRedefines(shader.fragmentShader) : '#define vUv yasdUv',
                     isVein ? [
                         'float yasdHash21(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }',
                         'float yasdVnoise(vec2 p) {',
@@ -3126,7 +3126,8 @@
                             sl.color.setHex(tHex);
                             sl.position.set(p.lightX, 1.96, p.lightZ);
                             sl.baseIntensity = 1.18;
-                            sl.intensity = 1.18 * (1.0 - (d3d._blindFactor || 0));
+                            const scaledBase = window.Dungeon3DCompat ? window.Dungeon3DCompat.scaleIntensity('point', 1.18) : 1.18;
+                            sl.intensity = scaledBase * (1.0 - (d3d._blindFactor || 0));
                         } else {
                             sl.baseIntensity = 0;
                             sl.intensity = 0;
@@ -3385,14 +3386,16 @@
                     tmpCol.setHex(biome ? (outdoors ? biome.bgColor : biome.fogColor) : 0x080a0f);
                     d3d.scene.background.copy(tmpCol).lerp(shroudCol, bf);
                 }
+                const compat = window.Dungeon3DCompat;
                 if (d3d.sunLight) {
                     const baseSun = (biome && biome.sunLight) ? biome.sunEnergy : 0.0;
-                    d3d.sunLight.intensity = baseSun * visKeep * visKeep;
+                    d3d.sunLight.intensity = (compat ? compat.scaleIntensity('directional', baseSun) : baseSun) * visKeep * visKeep;
                     d3d.sunLight.visible = d3d.sunLight.intensity > 0.005;
                 }
                 if (d3d.ambientLight) {
                     const baseAmb = biome ? biome.ambientEnergy : 0.17;
-                    d3d.ambientLight.intensity = baseAmb * (1.0 - bf * 0.92) + 0.055 * bf;
+                    const rawAmb = baseAmb * (1.0 - bf * 0.92) + 0.055 * bf;
+                    d3d.ambientLight.intensity = compat ? compat.scaleIntensity('ambient', rawAmb) : rawAmb;
                 }
                 if (d3d.hemiLight) {
                     if (d3d._baseHemiIntensity === undefined) d3d._baseHemiIntensity = d3d.hemiLight.intensity;
@@ -3410,7 +3413,8 @@
                     for (let i = 0; i < d3d._sconceLights.length; i++) {
                         const sl = d3d._sconceLights[i];
                         if (sl.baseIntensity > 0) {
-                            sl.intensity = sl.baseIntensity * visKeep * visKeep;
+                            const scaledSl = compat ? compat.scaleIntensity('point', sl.baseIntensity) : sl.baseIntensity;
+                            sl.intensity = scaledSl * visKeep * visKeep;
                             sl.visible = sl.intensity > 0.02;
                         }
                     }
@@ -3455,9 +3459,13 @@
             } else if (prev > 0.0 && bf === 0.0) {
                 // Clean recovery from blindness -> restore biome atmosphere & entity visibility
                 if (biome) {
+                    const compatRec = window.Dungeon3DCompat;
                     if (d3d.scene && d3d.scene.background) d3d.scene.background.setHex(outdoors ? biome.bgColor : biome.fogColor);
-                    if (d3d.sunLight) { d3d.sunLight.visible = biome.sunLight; d3d.sunLight.intensity = biome.sunEnergy; }
-                    if (d3d.ambientLight) d3d.ambientLight.intensity = biome.ambientEnergy;
+                    if (d3d.sunLight) {
+                        d3d.sunLight.visible = biome.sunLight;
+                        d3d.sunLight.intensity = compatRec ? compatRec.scaleIntensity('directional', biome.sunEnergy) : biome.sunEnergy;
+                    }
+                    if (d3d.ambientLight) d3d.ambientLight.intensity = compatRec ? compatRec.scaleIntensity('ambient', biome.ambientEnergy) : biome.ambientEnergy;
                     if (d3d.hemiLight && d3d._baseHemiIntensity !== undefined) d3d.hemiLight.intensity = d3d._baseHemiIntensity;
                     if (d3d.torchLight) d3d.torchLight.distance = ((d3d.torchRadius || 1) + 2.5) * (d3d.cellSize || 2.0) + 2.0;
                     if (d3d.starGroup) {

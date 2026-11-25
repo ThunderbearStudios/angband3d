@@ -333,7 +333,16 @@ window.addEventListener('DOMContentLoaded', () => {
         if (!dungeon) {
             if (typeof Dungeon3D !== 'function' && typeof window.__loadLazyBundle === 'function') {
                 if (!_engine3dLoadPromise) {
-                    _engine3dLoadPromise = window.__loadLazyBundle('engine3d').catch((err) => {
+                    const useV2Engine = Boolean(window.YASD_FLAGS && window.YASD_FLAGS.RENDERER_THREE_V2);
+                    const primaryBundle = useV2Engine ? 'engine3d-v2' : 'engine3d';
+                    _engine3dLoadPromise = window.__loadLazyBundle(primaryBundle).catch((err) => {
+                        if (useV2Engine) {
+                            console.warn('[3D] engine3d-v2 failed, falling back to engine3d r128:', err);
+                            return window.__loadLazyBundle('engine3d').catch((err2) => {
+                                _engine3dLoadPromise = null;
+                                throw err2;
+                            });
+                        }
                         _engine3dLoadPromise = null;
                         throw err;
                     });

@@ -70,7 +70,7 @@ function procCreateTexture(size, pixelFunc, isColor = false) {
     const tex = new THREE.CanvasTexture(canvas);
     tex.wrapS = THREE.RepeatWrapping;
     tex.wrapT = THREE.RepeatWrapping;
-    if (isColor) tex.encoding = THREE.sRGBEncoding;
+    if (isColor) { if (window.Dungeon3DCompat) window.Dungeon3DCompat.setTextureColorSpace(tex, true); else tex.encoding = THREE.sRGBEncoding; }
     return tex;
 }
 
@@ -1817,7 +1817,7 @@ Dungeon3DProto.initTextures = function initTextures() {
             }
             const eqTex = new THREE.DataTexture(envData, ew, eh, THREE.RGBAFormat);
             eqTex.mapping = THREE.EquirectangularReflectionMapping;
-            if (typeof THREE.sRGBEncoding !== 'undefined') eqTex.encoding = THREE.sRGBEncoding;
+            if (window.Dungeon3DCompat) window.Dungeon3DCompat.setTextureColorSpace(eqTex, true); else if (typeof THREE.sRGBEncoding !== 'undefined') eqTex.encoding = THREE.sRGBEncoding;
             eqTex.needsUpdate = true;
             const pmremGen = new THREE.PMREMGenerator(this.renderer);
             pmremGen.compileEquirectangularShader();
