@@ -41,6 +41,12 @@
         ph_chest: '/assets/models/items/Chest_Wood.gltf',
         item_bow: '/assets/models/items/bow.glb',
         item_spear: '/assets/models/items/spear.glb',
+        item_halberd: '/assets/models/items/halberd.glb',
+        item_crossbow: '/assets/models/items/crossbow.glb',
+        item_flail: '/assets/models/items/flail.glb',
+        item_phial: '/assets/models/items/phial.glb',
+        item_chest_metal: '/assets/models/items/chest_metal.glb',
+        item_food_ration: '/assets/models/items/food_ration.glb',
         item_torch: '/assets/models/items/torch_pbr.glb',
         item_greatsword: '/assets/models/items/great_sword.glb',
         item_rune_blade: '/assets/models/items/rune_blade.glb',
@@ -119,7 +125,10 @@
         item_whip:         { kind: 'openMmoX', span: 0.78, rotX: 0, rotY: 0, rotZ: 0, gripFrac: 0.22, edgeAxis: '+Z', tipAxis: '+Y' },
         item_greatclub:    { kind: 'openMmoX', span: 0.96, rotX: 0, rotY: 0, rotZ: 0, gripFrac: 0.24, edgeAxis: '+Z', tipAxis: '+Y' },
         item_spear:        { kind: 'openMmoX', span: 1.65, rotX: 0, rotY: 0, rotZ: 0, gripFrac: 0.42, edgeAxis: '+Z', tipAxis: '+Y' },
+        item_halberd:      { kind: 'openMmoX', span: 1.72, rotX: 0, rotY: 0, rotZ: 0, gripFrac: 0.42, edgeAxis: '+Z', tipAxis: '+Y' },
         item_bow:          { kind: 'openMmoX', span: 1.05, rotX: 0, rotY: 0, rotZ: 0, gripFrac: 0.50, edgeAxis: '+Z', tipAxis: '+Y' },
+        item_crossbow:     { kind: 'openMmoX', span: 0.72, rotX: 0, rotY: 0, rotZ: 0, gripFrac: 0.35, edgeAxis: '+Z', tipAxis: '+Y' },
+        item_flail:        { kind: 'openMmoX', span: 0.78, rotX: 0, rotY: 0, rotZ: 0, gripFrac: 0.22, edgeAxis: '+Z', tipAxis: '+Y' },
         item_torch:        { kind: 'openMmoX', span: 0.60, rotX: 0, rotY: 0, rotZ: 0, gripFrac: 0.22, edgeAxis: '+Z', tipAxis: '+Y' },
         item_shovel:       { kind: 'phY', span: 0.98, rotX: 0, rotY: 0,              rotZ: 0, gripFrac: 0.35, edgeAxis: '+Z', tipAxis: '+Y' },
         item_pickaxe:      { kind: 'phY', span: 0.88, rotX: 0, rotY: -Math.PI * 0.5, rotZ: 0, gripFrac: 0.30, edgeAxis: '+Z', tipAxis: '+Y' },
@@ -168,6 +177,7 @@
         item_greatsword: DEFAULT_SWORD_POSE,
         item_rune_blade: DEFAULT_SWORD_POSE,
         item_morningstar: DEFAULT_SWORD_POSE,
+        item_flail: DEFAULT_SWORD_POSE,
         item_whip: DEFAULT_SWORD_POSE,
         item_greatclub: DEFAULT_SWORD_POSE,
         item_pickaxe: DEFAULT_SWORD_POSE,
@@ -183,7 +193,19 @@
             npcHand:        { pos: [0.0, 0.0, 0.0], rot: [0.0, 0.0, 0.0], scale: [1, 1, 1] },
             groundProp:     { pos: [0.0, 0.12, 0.0], rot: [0.45, 0.20, -0.30], scale: [1, 1, 1] }
         },
+        item_crossbow: {
+            viewmodelRight: { pos: [0.0, 0.0, 0.0], rot: [0.05, -0.12, 0.06], scale: [1, 1, 1] },
+            viewmodelLeft:  { pos: [0.0, 0.0, 0.0], rot: [0.05, 0.12, -0.06], scale: [1, 1, 1] },
+            npcHand:        { pos: [0.0, 0.0, 0.0], rot: [0.0, 0.0, 0.0], scale: [1, 1, 1] },
+            groundProp:     { pos: [0.0, 0.10, 0.0], rot: [0.22, 0.35, -0.15], scale: [1, 1, 1] }
+        },
         item_spear: {
+            viewmodelRight: { pos: [0.0, 0.0, 0.0], rot: [0.10, -0.05, 0.05], scale: [1, 1, 1] },
+            viewmodelLeft:  { pos: [0.0, 0.0, 0.0], rot: [0.10, 0.05, -0.05], scale: [1, 1, 1] },
+            npcHand:        { pos: [0.0, 0.0, 0.0], rot: [0.0, 0.0, 0.0], scale: [1, 1, 1] },
+            groundProp:     { pos: [0.0, 0.18, 0.0], rot: [0.66, 0.25, 0.72], scale: [1, 1, 1] }
+        },
+        item_halberd: {
             viewmodelRight: { pos: [0.0, 0.0, 0.0], rot: [0.10, -0.05, 0.05], scale: [1, 1, 1] },
             viewmodelLeft:  { pos: [0.0, 0.0, 0.0], rot: [0.10, 0.05, -0.05], scale: [1, 1, 1] },
             npcHand:        { pos: [0.0, 0.0, 0.0], rot: [0.0, 0.0, 0.0], scale: [1, 1, 1] },
@@ -196,6 +218,12 @@
             groundProp:     { pos: [0.0, 0.08, 0.0], rot: [-0.85, 0.25, 0.15], scale: [1, 1, 1] }
         },
         ph_lantern: {
+            viewmodelRight: { pos: [0.0, 0.0, 0.0], rot: [0.0, 0.0, 0.0], scale: [1, 1, 1] },
+            viewmodelLeft:  { pos: [0.0, 0.0, 0.0], rot: [0.0, 0.0, 0.0], scale: [1, 1, 1] },
+            npcHand:        { pos: [0.0, 0.0, 0.0], rot: [0.0, 0.0, 0.0], scale: [1, 1, 1] },
+            groundProp:     { pos: [0.0, 0.02, 0.0], rot: [0.0, 0.0, 0.0], scale: [1, 1, 1] }
+        },
+        item_phial: {
             viewmodelRight: { pos: [0.0, 0.0, 0.0], rot: [0.0, 0.0, 0.0], scale: [1, 1, 1] },
             viewmodelLeft:  { pos: [0.0, 0.0, 0.0], rot: [0.0, 0.0, 0.0], scale: [1, 1, 1] },
             npcHand:        { pos: [0.0, 0.0, 0.0], rot: [0.0, 0.0, 0.0], scale: [1, 1, 1] },
@@ -484,7 +512,10 @@
         if (/\b(whip|bullwhip|scourge|demon whip|sacred scourge|cat-o'-nine-tails)\b/i.test(lower)) {
             return { floorKey: 'item_whip', heldKey: 'item_whip', category: 'weapon', subType: 'whip' };
         }
-        if (/\b(morning star|morningstar|flail|two-handed flail|spiked flail|dire flail|ball-and-chain|iron chain|nunchaku|aklys|jo staff)\b/i.test(lower)) {
+        if (/\b(flail|two-handed flail|spiked flail|dire flail|ball-and-chain|iron chain)\b/i.test(lower)) {
+            return { floorKey: 'item_flail', heldKey: 'item_flail', category: 'weapon', subType: 'flail' };
+        }
+        if (/\b(morning star|morningstar|nunchaku|aklys|jo staff)\b/i.test(lower)) {
             return { floorKey: 'item_morningstar', heldKey: 'item_morningstar', category: 'weapon', subType: 'morningstar' };
         }
         if (/\b(club|cudgel|greatclub|giant club|giant spiked club|shillelagh|boomerang)\b/i.test(lower)) {
@@ -494,13 +525,19 @@
             return { floorKey: 'ph_mace', heldKey: 'ph_mace', category: 'weapon', subType: 'mace' };
         }
 
-        // 10. Polearms & Spears (item_spear)
-        if (/\b(spear|javelin|pike|awl-pike|lance|trident|demon trident|trishula|halberd|glaive|guisarme|partisan|ranseur|spetum|voulge|bardiche|fauchard|bill-guisarme|nagimaki|naginata|scythe|polearm|harpoon|pitchfork|fustibalus|lajatang)\b/i.test(lower)) {
+        // 10. Polearms & Spears (item_halberd / item_spear)
+        if (/\b(halberd|glaive|guisarme|partisan|ranseur|spetum|voulge|bardiche|fauchard|bill-guisarme|nagimaki|naginata)\b/i.test(lower)) {
+            return { floorKey: 'item_halberd', heldKey: 'item_halberd', category: 'weapon', subType: 'halberd' };
+        }
+        if (/\b(spear|javelin|pike|awl-pike|lance|trident|demon trident|trishula|scythe|polearm|harpoon|pitchfork|fustibalus|lajatang)\b/i.test(lower)) {
             return { floorKey: 'item_spear', heldKey: 'item_spear', category: 'weapon', subType: 'spear' };
         }
 
-        // 11. Bows, Crossbows & Slings (item_bow)
-        if (/\b(bow|short bow|long bow|great bow|yumi|crossbow|hand crossbow|arbalest|triple crossbow|sling|hunting sling|fustibalus|harquebus|pistol|gun)\b/i.test(lower)) {
+        // 11. Bows, Crossbows & Slings (item_crossbow / item_bow)
+        if (/\b(crossbow|hand crossbow|arbalest|triple crossbow)\b/i.test(lower)) {
+            return { floorKey: 'item_crossbow', heldKey: 'item_crossbow', category: 'weapon', subType: 'crossbow' };
+        }
+        if (/\b(bow|short bow|long bow|great bow|yumi|sling|hunting sling|fustibalus|harquebus|pistol|gun)\b/i.test(lower)) {
             return { floorKey: 'item_bow', heldKey: 'item_bow', category: 'weapon', subType: 'bow' };
         }
 
@@ -561,7 +598,10 @@
         if (/\b(candle|candlestick|candelabrum|menorah|tallow candle|wax candle)\b/i.test(lower)) {
             return { floorKey: 'ph_candle', heldKey: 'ph_candle', category: 'light', subType: 'candle' };
         }
-        if (/\b(lantern|lamp|oil lamp|magic lamp|brass lantern|phial|feanor|galadriel|star of|aril|diya|palantir|arrier)\b/i.test(lower)) {
+        if (/\b(phial|feanor|galadriel|star of|aril|palantir)\b/i.test(lower)) {
+            return { floorKey: 'item_phial', heldKey: 'item_phial', category: 'light', subType: 'phial' };
+        }
+        if (/\b(lantern|lamp|oil lamp|magic lamp|brass lantern|diya|arrier)\b/i.test(lower)) {
             return { floorKey: 'ph_lantern', heldKey: 'ph_lantern', category: 'light', subType: 'lantern' };
         }
         if (/\b(flasks?\s+of\s+oil|oil\s+flask|lamp\s+oil)\b/i.test(lower) || /油つぼ/.test(lower)) {
@@ -594,6 +634,9 @@
         if (/\b(gem|jewel|diamond|ruby|emerald|sapphire|amethyst|topaz|opal|garnet|quartz|agate|jade|pearl|crystal|silmaril|lumenstone|arcanite|dilithium|luckstone|loadstone|touchstone|flint|glass|rune of zot|orb of zot)\b/i.test(lower)) {
             return { floorKey: 'ph_crystal', heldKey: 'ph_crystal', category: 'gem', subType: 'crystal' };
         }
+        if (/\b(iron chest|steel chest|jeweled chest|jewelled chest|small chest|large chest|metal chest|strongbox|safe|iron box)\b/i.test(lower)) {
+            return { floorKey: 'item_chest_metal', heldKey: 'item_chest_metal', category: 'chest', subType: 'chest_metal' };
+        }
         if (/\b(chest|coffer|box|crate|trunk|ice box|sack|bag|oilskin sack|bag of holding)\b/i.test(lower)) {
             return { floorKey: 'ph_chest', heldKey: 'ph_chest', category: 'chest', subType: 'chest' };
         }
@@ -606,7 +649,10 @@
         if (/\b(corpse|skeleton|skull|remains|carcass)\b/i.test(lower)) {
             return { floorKey: 'item_corpse', heldKey: null, category: 'corpse', subType: 'corpse' };
         }
-        if (/\b(ration|bread|food|meat|chunk|fruit|apple|pear|banana|orange|melon|carrot|clove of garlic|sprig of wolfsbane|kelp|eucalyptus|pancake|fortune cookie|candy bar|cream pie|tin|tripe|egg|royal jelly)\b/i.test(lower)) {
+        if (/\b(food ration|iron ration|ration|hard biscuit|dried meat|beef jerky|jerky)\b/i.test(lower)) {
+            return { floorKey: 'item_food_ration', heldKey: 'item_food_ration', category: 'food', subType: 'ration' };
+        }
+        if (/\b(bread|food|meat|chunk|fruit|apple|pear|banana|orange|melon|carrot|clove of garlic|sprig of wolfsbane|kelp|eucalyptus|pancake|fortune cookie|candy bar|cream pie|tin|tripe|egg|royal jelly)\b/i.test(lower)) {
             return { floorKey: 'item_bread', heldKey: 'item_bread', category: 'food', subType: 'bread' };
         }
         if (/\b(goblet|chalice|cup|grail|plate|bowl|jug|urn|pot)\b/i.test(lower)) {

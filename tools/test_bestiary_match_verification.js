@@ -379,7 +379,7 @@ test('Live multi-realm resolveMonster3DConfig maps 40+ signature creatures acros
     assert.strictEqual(resolve({ race: 'chickatrice', glyph: 'c' }, 'c', 'nethack').templateKey, 'bestiary_cockatrice');
     assert.strictEqual(resolve({ race: 'pyrolisk', glyph: 'c' }, 'c', 'nethack').templateKey, 'bestiary_cockatrice');
     assert.strictEqual(resolve({ race: 'mind flayer', glyph: 'h' }, 'h', 'nethack').templateKey, 'bestiary_mind_flayer');
-    assert.strictEqual(resolve({ race: 'minotaur', glyph: 'H' }, 'H', 'nethack').templateKey, 'bestiary_guardian');
+    assert.strictEqual(resolve({ race: 'minotaur', glyph: 'H' }, 'H', 'nethack').templateKey, 'bestiary_minotaur');
     assert.strictEqual(resolve({ race: 'Wizard of Yendor', glyph: '@' }, '@', 'nethack').templateKey, 'char_male_priest');
     assert(['char_male_peasant', 'char_male_steward'].includes(resolve({ race: 'Shopkeeper (peaceful)', glyph: '@' }, '@', 'nethack').templateKey));
 
@@ -774,7 +774,7 @@ test('Wave 19 dedicated 3D .glb bestiary assets, UV/normal attributes, distinct 
     assert.strictEqual(resolve({ race: 'Spirit naga', glyph: 'n' }, 'n', 'angband').templateKey, 'bestiary_naga');
     assert.strictEqual(resolve({ race: 'Vampire bat', glyph: 'b' }, 'b', 'angband').templateKey, 'bestiary_bat');
     assert.strictEqual(resolve({ race: 'Grizzly bear', glyph: 'q' }, 'q', 'angband').templateKey, 'bestiary_bear');
-    assert.strictEqual(resolve({ race: 'Mumak', glyph: 'q' }, 'q', 'angband').templateKey, 'bestiary_bear');
+    assert.strictEqual(resolve({ race: 'Mumak', glyph: 'q' }, 'q', 'angband').templateKey, 'bestiary_mumak');
     assert.strictEqual(resolve({ race: 'Wild horse', glyph: 'q' }, 'q', 'frogcomposband').templateKey, 'bestiary_horse');
     assert.strictEqual(resolve({ race: 'Basilisk', glyph: 'R' }, 'R', 'angband').templateKey, 'bestiary_lizard');
     assert.strictEqual(resolve({ race: 'Rock lizard', glyph: 'R' }, 'R', 'angband').templateKey, 'bestiary_lizard');

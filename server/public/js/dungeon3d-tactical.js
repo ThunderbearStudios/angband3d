@@ -3612,13 +3612,195 @@
         },
 
         initDungeonSetDressing(d3d) {
-            if (d3d) d3d._setDressingMeshes = [];
+            if (!d3d || typeof THREE === 'undefined') return;
+            d3d._setDressingMeshes = [];
+            if (d3d._setDressingInitStarted) return;
+            d3d._setDressingInitStarted = true;
+            const specs = [
+                { url: '/assets/models/props/Barrel.gltf', targetH: 0.76, color: 0x8b6239 },
+                { url: '/assets/models/props/Crate_Wooden.gltf', targetH: 0.70, color: 0x7c5832 },
+                { url: '/assets/models/props/CandleStick_Triple.gltf', targetH: 0.82, color: 0xcaa24c },
+                { url: '/assets/models/props/bone_A.gltf', targetH: 0.34, color: 0xd6d3c8 }
+            ];
+            const loader = (typeof d3d._getGltfLoader === 'function') ? d3d._getGltfLoader() : null;
+            if (!loader || typeof loader.load !== 'function') return;
+
+            const normalizePropGeo = (scene, targetH, tintHex) => {
+                scene.updateMatrixWorld(true);
+                const geos = [];
+                scene.traverse((c) => {
+                    if (!c.isMesh || !c.geometry || !c.geometry.attributes || !c.geometry.attributes.position) return;
+                    let g = c.geometry.index ? c.geometry.toNonIndexed() : c.geometry.clone();
+                    g.applyMatrix4(c.matrixWorld);
+                    if (!g.attributes.normal) g.computeVertexNormals();
+                    const cnt = g.attributes.position.count;
+                    if (!g.attributes.uv) g.setAttribute('uv', new THREE.Float32BufferAttribute(new Float32Array(cnt * 2), 2));
+                    const cols = new Float32Array(cnt * 3);
+                    const tc = new THREE.Color(tintHex);
+                    for (let i = 0; i < cnt; i++) { cols[i * 3] = tc.r; cols[i * 3 + 1] = tc.g; cols[i * 3 + 2] = tc.b; }
+                    g.setAttribute('color', new THREE.Float32BufferAttribute(cols, 3));
+                    for (const k of Object.keys(g.attributes)) {
+                        if (k !== 'position' && k !== 'normal' && k !== 'uv' && k !== 'color') g.deleteAttribute(k);
+                    }
+                    geos.push(g);
+                });
+                if (!geos.length) return null;
+                const merged = (typeof d3d._mergeBufferGeometries === 'function') ? d3d._mergeBufferGeometries(geos) : geos[0];
+                for (const g of geos) { if (g !== merged && typeof g.dispose === 'function') g.dispose(); }
+                merged.computeBoundingBox();
+                const bb = merged.boundingBox;
+                const cx = (bb.min.x + bb.max.x) * 0.5, cz = (bb.min.z + bb.max.z) * 0.5;
+                const spanY = Math.max(0.05, bb.max.y - bb.min.y);
+                const s = targetH / spanY;
+                merged.translate(-cx, -bb.min.y, -cz);
+                merged.scale(s, s, s);
+                merged.computeBoundingBox();
+                merged.computeBoundingSphere();
+                return merged;
+            };
+
+            Promise.all(specs.map((sp) => new Promise((resolve) => {
+                const u = (typeof window !== 'undefined' && typeof window.__assetUrl === 'function') ? window.__assetUrl(sp.url) : sp.url;
+                loader.load(u, (gltf) => {
+                    const sc = gltf && (gltf.scene || (gltf.scenes && gltf.scenes[0]));
+                    resolve(sc ? normalizePropGeo(sc, sp.targetH, sp.color) : null);
+                }, undefined, () => resolve(null));
+            }))).then((loadedGeos) => {
+                const validGeos = loadedGeos.filter(Boolean);
+                if (!validGeos.length || !d3d.scene) return;
+                const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.78, metalness: 0.14 });
+                if (typeof THREE.BatchedMesh === 'function') {
+                    const maxInst = 64;
+                    const totV = validGeos.reduce((s, g) => s + g.attributes.position.count, 0);
+                    const batch = new THREE.BatchedMesh(maxInst, totV, Math.max(64, totV * 2), mat);
+                    batch.name = 'DungeonSetDressingBatch';
+                    batch.frustumCulled = false;
+                    const geoIds = validGeos.map((g) => batch.addGeometry(g));
+                    const instIds = [];
+                    for (let i = 0; i < maxInst; i++) {
+                        const iid = batch.addInstance(geoIds[i % geoIds.length]);
+                        batch.setVisibleAt(iid, false);
+                        instIds.push(iid);
+                    }
+                    d3d.scene.add(batch);
+                    d3d._setDressingBatch = { mesh: batch, geoIds, instIds, maxInst };
+                    d3d._setDressingMeshes = [batch];
+                } else {
+                    const insts = validGeos.map((g, gi) => {
+                        const im = new THREE.InstancedMesh(g, mat, 16);
+                        im.name = `DungeonSetDressing_${gi}`;
+                        im.count = 0;
+                        im.frustumCulled = false;
+                        d3d.scene.add(im);
+                        return im;
+                    });
+                    d3d._setDressingInsts = insts;
+                    d3d._setDressingMeshes = insts;
+                }
+                d3d._lastSetDressingSig = null;
+                if (d3d.lastFrame && d3d.lastFrame.map && d3d.lastDepth > 0 && typeof d3d._emitDungeonSetDressing === 'function') {
+                    const mw = d3d.lastFrame.map.width || 66;
+                    const mh = d3d.lastFrame.map.height || 44;
+                    const gx = d3d.playerGridX || 0;
+                    const gy = d3d.playerGridY || 0;
+                    d3d._emitDungeonSetDressing(
+                        d3d.lastFrame.map, mw, mh,
+                        Math.max(0, gx - 24), Math.min(mw - 1, gx + 24),
+                        Math.max(0, gy - 24), Math.min(mh - 1, gy + 24),
+                        gx, gy, d3d.lastDepth, false, d3d.currentBiome
+                    );
+                }
+            }).catch(() => {});
         },
 
-        emitDungeonSetDressing(d3d) {
-            if (d3d && d3d._setDressingMeshes) {
-                for (const m of d3d._setDressingMeshes) {
-                    if (m) m.count = 0;
+        emitDungeonSetDressing(d3d, map, w, h, minX, maxX, minY, maxY, px, py, depth, outdoors) {
+            if (!d3d || !d3d.dummy) return;
+            const batchState = d3d._setDressingBatch;
+            const instList = d3d._setDressingInsts;
+            const hideAll = () => {
+                if (batchState && batchState.mesh) {
+                    for (let i = 0; i < batchState.instIds.length; i++) batchState.mesh.setVisibleAt(batchState.instIds[i], false);
+                    batchState.mesh.visible = false;
+                }
+                d3d._setDressingBatchedCount = 0;
+                if (instList) for (const m of instList) if (m) m.count = 0;
+            };
+            if (outdoors || !map || !depth || depth <= 0) {
+                hideAll();
+                d3d._lastSetDressingSig = 'outdoors';
+                return;
+            }
+            if (!batchState && (!instList || !instList.length)) {
+                if (!d3d._setDressingInitStarted) this.initDungeonSetDressing(d3d);
+                return;
+            }
+            const cs = d3d.cellSize || 2.0;
+            const cap = batchState ? batchState.maxInst : 48;
+            const placements = [];
+            const cardDirs = [[0, 1, 0], [0, -1, Math.PI], [1, 0, Math.PI * 0.5], [-1, 0, -Math.PI * 0.5]];
+            for (let y = Math.max(1, minY); y <= Math.min(h - 2, maxY) && placements.length < cap; y++) {
+                for (let x = Math.max(1, minX); x <= Math.min(w - 2, maxX) && placements.length < cap; x++) {
+                    if (Math.abs(x - px) <= 1 && Math.abs(y - py) <= 1) continue;
+                    const hsh = (((x * 73856093) ^ (y * 19349663) ^ ((depth || 1) * 83492791)) >>> 0);
+                    if ((hsh % 11) !== 0) continue;
+                    const { feat, isGlow } = this._getEffectiveFeatAndGlyph(d3d, map, w, h, x, y, false);
+                    if (feat !== 1 || !isGlow) continue;
+                    const isRoom = (d3d._levelRoomCeilCache && d3d._levelMemW === w)
+                        ? (d3d._levelRoomCeilCache[y * w + x] >= 4.0)
+                        : (((d3d.getFlagAt(map, x, y) >> 2) & 0x3) === 2);
+                    if (!isRoom) continue;
+                    let wallDir = null;
+                    let nearBlocked = false;
+                    for (const cd of cardDirs) {
+                        const nx = x + cd[0], ny = y + cd[1];
+                        const { feat: nf } = this._getEffectiveFeatAndGlyph(d3d, map, w, h, nx, ny, false);
+                        if (!wallDir && (nf === 21 || nf === 22)) wallDir = cd;
+                        if (nf === 5 || nf === 6 || nf === 43 || nf === 44 || this.isDoorwayTile(d3d, map, w, h, nx, ny, false)) { nearBlocked = true; break; }
+                    }
+                    if (!wallDir || nearBlocked) continue;
+                    placements.push({
+                        kindIdx: hsh % (batchState ? batchState.geoIds.length : instList.length),
+                        wx: x * cs + wallDir[0] * 0.68,
+                        wy: 0.0,
+                        wz: y * cs + wallDir[1] * 0.68,
+                        yaw: wallDir[2] + (((hsh >> 8) % 30) - 15) * 0.02
+                    });
+                }
+            }
+            if (batchState && batchState.mesh) {
+                const b = batchState.mesh;
+                for (let i = 0; i < batchState.instIds.length; i++) {
+                    const iid = batchState.instIds[i];
+                    if (i < placements.length) {
+                        const pl = placements[i];
+                        b.setGeometryIdAt(iid, batchState.geoIds[pl.kindIdx]);
+                        d3d.dummy.position.set(pl.wx, pl.wy, pl.wz);
+                        d3d.dummy.rotation.set(0, pl.yaw, 0);
+                        d3d.dummy.scale.set(1, 1, 1);
+                        d3d.dummy.updateMatrix();
+                        b.setMatrixAt(iid, d3d.dummy.matrix);
+                        b.setVisibleAt(iid, true);
+                    } else {
+                        b.setVisibleAt(iid, false);
+                    }
+                }
+                b.visible = placements.length > 0;
+                d3d._setDressingBatchedCount = placements.length;
+                b.computeBoundingSphere();
+            } else if (instList) {
+                const counts = instList.map(() => 0);
+                for (const pl of placements) {
+                    const im = instList[pl.kindIdx];
+                    if (!im || counts[pl.kindIdx] >= 16) continue;
+                    d3d.dummy.position.set(pl.wx, pl.wy, pl.wz);
+                    d3d.dummy.rotation.set(0, pl.yaw, 0);
+                    d3d.dummy.scale.set(1, 1, 1);
+                    d3d.dummy.updateMatrix();
+                    im.setMatrixAt(counts[pl.kindIdx]++, d3d.dummy.matrix);
+                }
+                for (let i = 0; i < instList.length; i++) {
+                    instList[i].count = counts[i];
+                    instList[i].instanceMatrix.needsUpdate = true;
                 }
             }
         },

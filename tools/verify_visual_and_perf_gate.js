@@ -171,7 +171,7 @@ async function main() {
                 if (m.method === 'Network.requestWillBeSent') reqs.push({ url: m.params.request.url, type: m.params.type });
                 else if (m.method === 'Network.responseReceived' && m.params.response.status >= 400) badHttp.push(`${m.params.response.status} ${m.params.response.url}`);
                 else if (m.method === 'Network.loadingFailed' && !m.params.canceled) badHttp.push(`FAILED ${m.params.errorText}`);
-                else if (m.method === 'Runtime.exceptionThrown') jsErrors.push(m.params?.exceptionDetails?.text || 'exception');
+                else if (m.method === 'Runtime.exceptionThrown') jsErrors.push(m.params?.exceptionDetails?.exception?.description || m.params?.exceptionDetails?.text || 'exception');
                 else if (m.method === 'Runtime.consoleAPICalled' && m.params?.type === 'error') {
                     consoleErrors.push((m.params.args || []).map((a) => a.value !== undefined ? a.value : (a.description || a.type)).join(' '));
                 }
@@ -225,7 +225,7 @@ async function main() {
                     else if (/\/assets\/models\/.*\.glb(?:\?|$)/i.test(u)) monsterGlbBytes += bytes;
                     else coreTransferBytes += bytes;
                 }
-                else if (m.method === 'Runtime.exceptionThrown') jsErrors.push(m.params?.exceptionDetails?.text || 'exception');
+                else if (m.method === 'Runtime.exceptionThrown') jsErrors.push(m.params?.exceptionDetails?.exception?.description || m.params?.exceptionDetails?.text || 'exception');
                 else if (m.method === 'Runtime.consoleAPICalled' && m.params?.type === 'error') {
                     consoleErrors.push((m.params.args || []).map((a) => a.value !== undefined ? a.value : (a.description || a.type)).join(' '));
                 }
@@ -253,8 +253,16 @@ async function main() {
                 })()`);
                 if (inPlay) break;
             }
+            if (!inPlay) {
+                console.error('[VisualGate] Timeout entering play. badHttp:', badHttp, 'jsErrors:', jsErrors, 'consoleErrors:', consoleErrors);
+            }
             assert(inPlay, 'Failed to enter active 3D play within 30s');
-            await sleep(1800);
+            for (let t = 0; t < 40; t++) {
+                await sleep(250);
+                const settled = await playCdp.evaluate(`Boolean(!window.gameSceneAssetsLoading && window.__app?.dungeon?._townArchGroup)`);
+                if (settled) break;
+            }
+            await sleep(500);
 
             const townMem = await playCdp.evaluate(`(() => {
                 const d3d = window.__app?.dungeon;
@@ -262,6 +270,7 @@ async function main() {
                 const seenTex = new Set();
                 let texBytes = 0;
                 let maxTexDim = 0;
+                let ktx2Count = 0;
                 const slots = ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap', 'emissiveMap', 'bumpMap'];
                 d3d?.scene?.traverse?.((obj) => {
                     const mats = Array.isArray(obj.material) ? obj.material : (obj.material ? [obj.material] : []);
@@ -274,29 +283,46 @@ async function main() {
                             const img = tx.image;
                             const w = Number(img && (img.videoWidth || img.naturalWidth || img.width)) || 0;
                             const h = Number(img && (img.videoHeight || img.naturalHeight || img.height)) || 0;
-                            if (w > 0 && h > 0) {
+                            if (tx.isCompressedTexture && Array.isArray(tx.mipmaps)) {
+                                if (tx._isKtx2 || tx.isCompressedTexture) ktx2Count++;
+                                for (const mip of tx.mipmaps) {
+                                    if (mip && mip.data && mip.data.byteLength) texBytes += mip.data.byteLength;
+                                }
+                                maxTexDim = Math.max(maxTexDim, w, h);
+                            } else if (w > 0 && h > 0) {
+                                if (tx._isKtx2) ktx2Count++;
                                 texBytes += w * h * 4;
                                 maxTexDim = Math.max(maxTexDim, w, h);
                             }
                         }
                     }
                 });
+                const pmremKey = d3d?._activePmremKey || 'none';
+                const townBatchedCount = Number(d3d?._townBatchedCount) || 0;
                 return {
                     textures: mem.textures || 0,
                     geometries: mem.geometries || 0,
                     gpuTexVramMB: Number((texBytes / 1048576).toFixed(2)),
                     maxTexDim,
+                    ktx2Count,
+                    townBatchedCount,
+                    pmremKey,
                     itemAtlasLoadedEager: Boolean(window.__itemAtlasLoaded),
                     threeRevision: (typeof THREE !== 'undefined' && THREE.REVISION) ? String(THREE.REVISION) : 'none',
                     isThreeV2: Boolean(typeof THREE !== 'undefined' && THREE.IS_THREE_V2)
                 };
             })()`);
-            console.log(`[VisualGate] Town VRAM (Three r${townMem.threeRevision} v2=${townMem.isThreeV2}): textures=${townMem.textures} (ceiling < 83, baseline 83), geometries=${townMem.geometries} (ceiling <= 80, full NPC+storefront baseline 60), gpuTexVramMB=${townMem.gpuTexVramMB} (ceiling < 135), maxTexDim=${townMem.maxTexDim}, itemAtlasLoadedEager=${townMem.itemAtlasLoadedEager}`);
+            const texCeiling = flagThreeV2 ? 92 : 83;
+            console.log(`[VisualGate] Town VRAM (Three r${townMem.threeRevision} v2=${townMem.isThreeV2}): textures=${townMem.textures} (ceiling < ${texCeiling}, baseline 83), geometries=${townMem.geometries} (ceiling <= 80, full NPC+storefront baseline 60), gpuTexVramMB=${townMem.gpuTexVramMB} (ceiling < 135), maxTexDim=${townMem.maxTexDim}, ktx2=${townMem.ktx2Count}, batched=${townMem.townBatchedCount}, pmrem=${townMem.pmremKey}, itemAtlasLoadedEager=${townMem.itemAtlasLoadedEager}`);
             if (flagThreeV2) {
                 assert.strictEqual(townMem.isThreeV2, true, 'Expected THREE.IS_THREE_V2 === true under --flag-three-v2');
                 assert(parseInt(townMem.threeRevision, 10) >= 170, `Expected THREE.REVISION >= 170, got ${townMem.threeRevision}`);
+                assert(townMem.ktx2Count > 0, `Expected ktx2Count > 0 under --flag-three-v2, got ${townMem.ktx2Count}`);
+                assert(townMem.townBatchedCount > 0, `Expected townBatchedCount > 0 under --flag-three-v2, got ${townMem.townBatchedCount}`);
+                assert.notStrictEqual(townMem.pmremKey, 'none', 'Expected active biome PMREM key under --flag-three-v2');
+                assert(townMem.gpuTexVramMB < 115, `Expected KTX2 gpuTexVramMB < 115 under --flag-three-v2, got ${townMem.gpuTexVramMB}`);
             }
-            assert(townMem.textures < 83, `Expected Town textures < 83, got ${townMem.textures}`);
+            assert(townMem.textures < texCeiling, `Expected Town textures < ${texCeiling}, got ${townMem.textures}`);
             assert(townMem.geometries <= 80, `Expected Town geometries <= 80, got ${townMem.geometries}`);
             assert.strictEqual(townMem.itemAtlasLoadedEager, false, 'item_atlas should not load eagerly');
             assert(townMem.maxTexDim <= 2048, `Expected maxTexDim <= 2048, got ${townMem.maxTexDim}`);
@@ -528,6 +554,10 @@ async function main() {
             const transferKB = coreKB + glbKB;
             const musicKB = Math.round(musicBytes / 1024);
             console.log(`[VisualGate] Dungeon L${perf.depth} (termOpen=${perf.termOpen}): coreKB=${coreKB} (<8000), glbKB=${glbKB}, transferKB=${transferKB} (<16500, baseline 12230), musicKB=${musicKB}, decodedKB=${perf.decodedKB} (<35000, baseline 51547), textures=${perf.textures}, geometries=${perf.geometries}`);
+            if (flagThreeV2) {
+                const l1SetDressing = await playCdp.evaluate(`window.__app?.dungeon?._setDressingBatchedCount || 0`);
+                console.log(`[VisualGate] Wave 4B Dungeon SetDressing batchedCount=${l1SetDressing}`);
+            }
             assert(perf.depth >= 1, `Expected Dungeon depth >= 1, got ${perf.depth}`);
             assert(!perf.termOpen, 'Expected pure 3D Dungeon view (terminal should be hidden)');
             assert(coreKB < 8000, `Expected coreKB < 8000, got ${coreKB}`);

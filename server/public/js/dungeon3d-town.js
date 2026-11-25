@@ -680,6 +680,8 @@
         const chimneyTransforms = [];
         const roofCache = new Map();
         const gableCache = new Map();
+        const roofPlacements = [];
+        const gablePlacements = [];
         for (let ci = 0; ci < clusters.length; ci++) {
             const cl = clusters[ci];
             if (!withinCullRect(cl.minX, cl.maxX, cl.minY, cl.maxY)) continue;
@@ -720,19 +722,17 @@
                 grp._ownedDisposables.push(cachedRoof.roofGeo);
             }
             const { roofGeo, gableGeo } = cachedRoof;
-
-            const roofMat = (mats.roofPaletteMats && mats.roofPaletteMats[paletteSlot]) || mats.roofMat;
-            const roofMesh = new THREE.Mesh(roofGeo, roofMat);
-            roofMesh.position.set(cxWorld, eaveY, czWorld);
-            roofMesh.scale.set((spanW + 0.56) / 6.0, ridgeH / 1.2, (spanD + 0.56) / 6.0);
-            roofMesh.castShadow = true;
-            roofMesh.receiveShadow = true;
-            grp.add(roofMesh);
-
-            const gableMesh = new THREE.Mesh(gableGeo, mats.gableMat);
-            gableMesh.position.set(cxWorld, eaveY - 0.02, czWorld);
-            gableMesh.scale.set(spanW / 6.0, ridgeH / 1.2, spanD / 6.0);
-            grp.add(gableMesh);
+            roofPlacements.push({
+                geo: roofGeo,
+                paletteSlot,
+                x: cxWorld, y: eaveY, z: czWorld,
+                sx: (spanW + 0.56) / 6.0, sy: ridgeH / 1.2, sz: (spanD + 0.56) / 6.0
+            });
+            gablePlacements.push({
+                geo: gableGeo,
+                x: cxWorld, y: eaveY - 0.02, z: czWorld,
+                sx: spanW / 6.0, sy: ridgeH / 1.2, sz: spanD / 6.0
+            });
 
             if (cl.tiles.length >= 6) {
                 const offX = cl.ridgeAlongX ? spanW * 0.18 : -spanW * 0.10;
@@ -742,6 +742,79 @@
                     y: eaveY + ridgeH * 0.78 + 0.12,
                     z: czWorld + offZ
                 });
+            }
+        }
+
+        if (roofPlacements.length > 0 && typeof THREE.BatchedMesh === 'function') {
+            let totalRoofVerts = 0;
+            const roofGeoIds = new Map();
+            for (const { roofGeo } of roofCache.values()) {
+                totalRoofVerts += roofGeo.attributes.position.count;
+            }
+            const batchedRoofs = new THREE.BatchedMesh(roofPlacements.length, Math.max(64, totalRoofVerts), Math.max(64, totalRoofVerts * 2), mats.roofMat);
+            batchedRoofs.name = 'TownBatchedRoofs';
+            batchedRoofs.castShadow = true;
+            batchedRoofs.receiveShadow = true;
+            for (const [rk, val] of roofCache.entries()) {
+                roofGeoIds.set(val.roofGeo, batchedRoofs.addGeometry(val.roofGeo));
+            }
+            const palCol = new THREE.Color();
+            for (const rp of roofPlacements) {
+                const gid = roofGeoIds.get(rp.geo);
+                const iid = batchedRoofs.addInstance(gid);
+                dummy.position.set(rp.x, rp.y, rp.z);
+                dummy.rotation.set(0, 0, 0);
+                dummy.scale.set(rp.sx, rp.sy, rp.sz);
+                dummy.updateMatrix();
+                batchedRoofs.setMatrixAt(iid, dummy.matrix);
+                const pal = palettes[rp.paletteSlot] || palettes[0];
+                palCol.setRGB(pal[0], pal[1], pal[2]);
+                batchedRoofs.setColorAt(iid, palCol);
+            }
+            batchedRoofs.computeBoundingSphere();
+            grp.add(batchedRoofs);
+            grp._ownedDisposables.push(batchedRoofs);
+
+            let totalGableVerts = 0;
+            const gableGeoIds = new Map();
+            for (const gGeo of gableCache.values()) {
+                totalGableVerts += gGeo.attributes.position.count;
+            }
+            const batchedGables = new THREE.BatchedMesh(gablePlacements.length, Math.max(64, totalGableVerts), Math.max(64, totalGableVerts * 2), mats.gableMat);
+            batchedGables.name = 'TownBatchedGables';
+            for (const gGeo of gableCache.values()) {
+                gableGeoIds.set(gGeo, batchedGables.addGeometry(gGeo));
+            }
+            for (const gp of gablePlacements) {
+                const gid = gableGeoIds.get(gp.geo);
+                const iid = batchedGables.addInstance(gid);
+                dummy.position.set(gp.x, gp.y, gp.z);
+                dummy.rotation.set(0, 0, 0);
+                dummy.scale.set(gp.sx, gp.sy, gp.sz);
+                dummy.updateMatrix();
+                batchedGables.setMatrixAt(iid, dummy.matrix);
+            }
+            batchedGables.computeBoundingSphere();
+            grp.add(batchedGables);
+            grp._ownedDisposables.push(batchedGables);
+            if (d3d) d3d._townBatchedCount = 2;
+        } else {
+            if (d3d) d3d._townBatchedCount = 0;
+            for (let i = 0; i < roofPlacements.length; i++) {
+                const rp = roofPlacements[i];
+                const gp = gablePlacements[i];
+                const roofMat = (mats.roofPaletteMats && mats.roofPaletteMats[rp.paletteSlot]) || mats.roofMat;
+                const roofMesh = new THREE.Mesh(rp.geo, roofMat);
+                roofMesh.position.set(rp.x, rp.y, rp.z);
+                roofMesh.scale.set(rp.sx, rp.sy, rp.sz);
+                roofMesh.castShadow = true;
+                roofMesh.receiveShadow = true;
+                grp.add(roofMesh);
+
+                const gableMesh = new THREE.Mesh(gp.geo, mats.gableMat);
+                gableMesh.position.set(gp.x, gp.y, gp.z);
+                gableMesh.scale.set(gp.sx, gp.sy, gp.sz);
+                grp.add(gableMesh);
             }
         }
 

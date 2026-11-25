@@ -2150,14 +2150,10 @@ Dungeon3DProto.initTextures = function initTextures() {
     };
 
     const loadTexPromise = (url, onLoad) => {
-        const resolvedUrl = (typeof window !== 'undefined' && typeof window.__assetUrl === 'function')
-            ? window.__assetUrl(url)
-            : url;
+        if (window.Dungeon3DV2Pipeline) return window.Dungeon3DV2Pipeline.loadTexture(this, loader, url, onLoad);
+        const resolvedUrl = (typeof window !== 'undefined' && typeof window.__assetUrl === 'function') ? window.__assetUrl(url) : url;
         return new Promise((resolve) => {
-            loader.load(resolvedUrl, (tex) => {
-                try { if (onLoad) onLoad(tex); } catch (_) {}
-                resolve(tex);
-            }, undefined, () => resolve(null));
+            loader.load(resolvedUrl, (tex) => { try { if (onLoad) onLoad(tex); } catch (_) {} resolve(tex); }, undefined, () => resolve(null));
         });
     };
 

@@ -16,6 +16,7 @@
   "devDependencies": {
     "@capacitor/cli": "^5.7.8",
     "esbuild": "^0.28.2",
+    "ktx2-encoder": "0.6.0",
     "three": "0.187.0"
   },
   "overrides": {

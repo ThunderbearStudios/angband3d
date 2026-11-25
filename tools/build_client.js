@@ -19,6 +19,7 @@ const DIST_DIR = path.join(PUB_DIR, 'dist');
 
 const ENGINE3D_APP_FILES = [
     'js/dungeon3d-three-compat.js',
+    'js/dungeon3d-v2-pipeline.js',
     'js/dungeon3d-lightmap.js',
     'js/dungeon3d-model-governor.js',
     'js/master-bestiary.js',
@@ -171,6 +172,7 @@ async function main() {
             format: 'iife',
             minify: true,
             target: 'es2020',
+            define: { 'import.meta.url': '"https://yasd3d.com/dist/"' },
             write: false,
             legalComments: 'none'
         });

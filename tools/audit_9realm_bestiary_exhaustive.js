@@ -231,7 +231,7 @@ function run() {
     assert.strictEqual(mb.resolve({ name: 'Saruman of Many Colours', glyph: 'p' }, 'p', 'angband').templateKey, 'char_male_priest');
     assert.strictEqual(mb.resolve({ name: 'Fangorn, the Treebeard', glyph: '#' }, '#', 'angband').templateKey, 'bestiary_treeman');
     assert.strictEqual(mb.resolve({ name: 'The Tarrasque', glyph: 'R' }, 'R', 'angband').templateKey, 'bestiary_lizard');
-    assert.strictEqual(mb.resolve({ name: 'Mûmak', glyph: 'q' }, 'q', 'angband').templateKey, 'bestiary_bear');
+    assert.strictEqual(mb.resolve({ name: 'Mûmak', glyph: 'q' }, 'q', 'angband').templateKey, 'bestiary_mumak');
     assert.strictEqual(mb.resolve({ name: 'Catoblepas', glyph: 'q' }, 'q', 'angband').templateKey, 'bestiary_bear');
 
     const silWolf = mb.resolve({ name: 'Wolf', glyph: 'C' }, 'C', 'silq');

@@ -167,7 +167,7 @@ const unseenWolf = MASTER_BESTIARY.resolve({ name: 'Elder Frost Wolf', glyph: 'C
 check(unseenWolf.templateKey === 'bestiary_wolf' && unseenWolf.scale > 1.0 && unseenWolf.emissiveHex === '#38bdf8', 'Tier 2 morphological decomposer failed on "Elder Frost Wolf"');
 
 const unseenPikeman = MASTER_BESTIARY.resolve({ name: 'Armored Skeleton Halberdier', glyph: 's' }, 's', 'tome4', '#ffffff');
-check(unseenPikeman.templateKey === 'bestiary_skeleton_knight' && unseenPikeman.weaponKey === 'item_spear', 'Tier 2 morphological decomposer failed on "Armored Skeleton Halberdier"');
+check(unseenPikeman.templateKey === 'bestiary_skeleton_knight' && unseenPikeman.weaponKey === 'item_halberd', 'Tier 2 morphological decomposer failed on "Armored Skeleton Halberdier"');
 
 const unseenSword = MASTER_ITEM_REGISTRY.resolveItem('Runed Vorpal Greatsword of Flame', '|', 'tome4');
 check(unseenSword.phKey === 'item_greatsword' && unseenSword.viewmodelKey === 'claymore', 'Tier 2 item resolver failed on unseen greatsword');

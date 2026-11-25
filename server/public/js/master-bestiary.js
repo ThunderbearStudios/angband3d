@@ -316,8 +316,8 @@
             { regex: /\bdeep elf\b/i, config: { templateKey: 'char_male_ranger', scale: 1.0, weaponKey: 'item_bow', taxonomy: 'Elf / Deep Elf' } },
             { regex: /\b(merfolk|siren|ilsuiw)\b/i, config: { templateKey: 'bestiary_naga', scale: 1.08, weaponKey: 'item_spear', taxonomy: 'Aquatic / Merfolk' } },
             { regex: /\b(tengu|sojobo)\b/i, config: { templateKey: 'bestiary_owl', scale: 1.15, isFloating: true, taxonomy: 'Avian / Tengu' } },
-            { regex: /\b(minotaur|asterion)\b/i, config: { templateKey: 'bestiary_guardian', scale: 1.28, weaponKey: 'ph_axe', taxonomy: 'Monstrosity / Minotaur' } },
-            { regex: /\b(centaur|yaktaur|nessos)\b/i, config: { templateKey: 'bestiary_guardian', scale: 1.18, weaponKey: 'item_bow', taxonomy: 'Hybrid / Centaur' } },
+            { regex: /\b(minotaur|asterion)\b/i, config: { templateKey: 'bestiary_minotaur', scale: 1.32, weaponKey: 'ph_axe', taxonomy: 'Monstrosity / Minotaur' } },
+            { regex: /\b(centaur|yaktaur|nessos)\b/i, config: { templateKey: 'bestiary_centaur', scale: 1.22, weaponKey: 'item_bow', taxonomy: 'Hybrid / Centaur' } },
             { regex: /\b(octopode|kraken)\b/i, config: { templateKey: 'bestiary_kraken', scale: 1.35, isFloating: true, taxonomy: 'Aquatic / Cephalopod' } },
             { regex: /\borb guardian\b/i, config: { templateKey: 'bestiary_guardian', scale: 1.25, weaponKey: 'ph_sledgehammer', taxonomy: 'Construct / Guardian' } },
             { regex: /\b(executioner|pandemonium lord|tzitzimitl|balrug|hellion|tormentor|cacodemon|neqoxec|brimstone fiend|ice fiend|cerebov|lom lobon|mnoleg|gloorx vloq|asmodeus|ereskigal|dispater|antaeus)\b/i, config: { templateKey: 'bestiary_balrog', scale: 1.48, weaponKey: 'ph_sledgehammer', taxonomy: 'Demon / Fiend' } },
@@ -355,7 +355,7 @@
         patterns: [
             { regex: /\baquator\b/i, config: { templateKey: 'bestiary_aquatic', scale: 1.0, taxonomy: 'Aquatic / Rust Beast' } },
             { regex: /\bbat\b/i, config: { templateKey: 'bestiary_bat', scale: 0.82, isFloating: true, taxonomy: 'Bat' } },
-            { regex: /\bcentaur\b/i, config: { templateKey: 'bestiary_guardian', scale: 1.18, weaponKey: 'item_bow', taxonomy: 'Hybrid / Centaur' } },
+            { regex: /\bcentaur\b/i, config: { templateKey: 'bestiary_centaur', scale: 1.22, weaponKey: 'item_bow', taxonomy: 'Hybrid / Centaur' } },
             { regex: /\bdragon\b/i, config: { templateKey: 'bestiary_dragon', scale: 1.55, taxonomy: 'Dragon' } },
             { regex: /\bemu\b/i, config: { templateKey: 'bestiary_stork', scale: 1.05, taxonomy: 'Avian / Emu' } },
             { regex: /\bvenus flytrap\b/i, config: { templateKey: 'env_tanglethorn', scale: 1.02, taxonomy: 'Flora / Flytrap' } },
@@ -592,7 +592,7 @@
         'z': { templateKey: 'bestiary_golem', scale: 1.15, taxonomy: 'Zruty' },
         'A': { templateKey: 'char_valkyrie', scale: 1.18, isFloating: true, taxonomy: 'Angel / Archon' },
         'B': { templateKey: 'bestiary_bat', scale: 0.85, isFloating: true, taxonomy: 'Bat / Bird' },
-        'C': { templateKey: 'bestiary_guardian', scale: 1.18, weaponKey: 'item_bow', taxonomy: 'Centaur' },
+        'C': { templateKey: 'bestiary_centaur', scale: 1.22, weaponKey: 'item_bow', taxonomy: 'Centaur' },
         'D': { templateKey: 'bestiary_dragon', scale: 1.55, useAsciiTint: true, taxonomy: 'Dragon' },
         'E': { templateKey: 'bestiary_vortex', scale: 1.15, isFloating: true, useAsciiTint: true, taxonomy: 'Elemental' },
         'F': { templateKey: 'env_fungi_cluster', scale: 0.92, useAsciiTint: true, taxonomy: 'Fungus / Mold' },
@@ -632,7 +632,7 @@
         'T': { templateKey: 'bestiary_troll', scale: 1.28, weaponKey: 'item_greatclub', taxonomy: 'Troll' },
         'P': { templateKey: 'env_tanglethorn', scale: 0.95, taxonomy: 'Plant / Bush' },
         'f': { templateKey: 'env_fungi_cluster', scale: 0.92, useAsciiTint: true, taxonomy: 'Fungus' },
-        'C': { templateKey: 'bestiary_guardian', scale: 1.18, weaponKey: 'item_bow', taxonomy: 'Centaur' },
+        'C': { templateKey: 'bestiary_centaur', scale: 1.22, weaponKey: 'item_bow', taxonomy: 'Centaur' },
         'd': { templateKey: 'bestiary_lizardfolk', scale: 1.12, weaponKey: 'item_spear', taxonomy: 'Draconian' },
         'D': { templateKey: 'bestiary_dragon', scale: 1.55, useAsciiTint: true, taxonomy: 'Dragon' },
         'E': { templateKey: 'bestiary_balrog', scale: 1.48, weaponKey: 'ph_sledgehammer', taxonomy: 'Executioner / Demon' },
@@ -661,7 +661,7 @@
         'k': { templateKey: 'bestiary_kobold', scale: 0.88, weaponKey: 'ph_dagger', taxonomy: 'Kobold' },
         'o': { templateKey: 'bestiary_ogre', scale: 1.25, weaponKey: 'item_greatclub', taxonomy: 'Ogre' },
         'd': { templateKey: 'char_male_ranger', scale: 1.0, weaponKey: 'ph_saber', taxonomy: 'Dar' },
-        'C': { templateKey: 'bestiary_guardian', scale: 1.18, weaponKey: 'item_bow', taxonomy: 'Centaur' },
+        'C': { templateKey: 'bestiary_centaur', scale: 1.22, weaponKey: 'item_bow', taxonomy: 'Centaur' },
         'j': { templateKey: 'env_ooze_mound', scale: 0.95, useAsciiTint: true, taxonomy: 'Pink Jelly' },
         'a': { templateKey: 'env_ooze_mound', scale: 0.90, useAsciiTint: true, taxonomy: 'Acid Mound' },
         'b': { templateKey: 'bestiary_quylthulg', scale: 0.96, isFloating: true, tintHex: '#84cc16', emissiveHex: '#a3e635', taxonomy: 'Bloat' },
@@ -683,7 +683,7 @@
         '@': { templateKey: 'char_male_guard', scale: 1.02, weaponKey: 'item_longsword', shieldKey: 'item_shield_raven', taxonomy: 'Adventurer / Hero' },
         'A': { templateKey: 'bestiary_aquatic', scale: 1.0, taxonomy: 'Aquatic / Aquator' },
         'B': { templateKey: 'bestiary_bat', scale: 0.82, isFloating: true, taxonomy: 'Bat' },
-        'C': { templateKey: 'bestiary_guardian', scale: 1.18, weaponKey: 'item_bow', taxonomy: 'Hybrid / Centaur' },
+        'C': { templateKey: 'bestiary_centaur', scale: 1.22, weaponKey: 'item_bow', taxonomy: 'Hybrid / Centaur' },
         'D': { templateKey: 'bestiary_dragon', scale: 1.55, taxonomy: 'Dragon' },
         'E': { templateKey: 'bestiary_stork', scale: 1.05, taxonomy: 'Avian / Emu' },
         'F': { templateKey: 'env_tanglethorn', scale: 1.02, taxonomy: 'Flora / Venus Flytrap' },
@@ -754,7 +754,10 @@
         }
 
         // 3. Bears & Heavy Quadrupeds
-        if (/\b(bear|grizzly|polar bear|werebear|beorn|owlbear|badger|wolverine|boar|pig|swine|warthog|mammoth|mastodon|rhino|elephant|mumak|oliphant|hippo|hippopotamus|bison|buffalo|ox|bull|aurochs|catoblepas|leocrotta|baluchitherium|titanother)\b/.test(lower)) {
+        if (/\b(mammoth|mastodon|elephant|mumak|oliphant|baluchitherium|titanother)\b/.test(lower)) {
+            return { templateKey: 'bestiary_mumak', scale: 1.55, taxonomy: 'Beast / Mumak' };
+        }
+        if (/\b(bear|grizzly|polar bear|werebear|beorn|owlbear|badger|wolverine|boar|pig|swine|warthog|rhino|hippo|hippopotamus|bison|buffalo|ox|bull|aurochs|catoblepas|leocrotta)\b/.test(lower)) {
             const isArmored = /\b(armored|armoured|war|battle|iron|siege|werebear|beorn)\b/.test(lower);
             const isCatoblepas = /\bcatoblepas\b/.test(lower);
             return { templateKey: isArmored ? 'bestiary_bear_armored' : 'bestiary_bear', scale: isCatoblepas ? 1.30 : 1.15, tintHex: isCatoblepas ? '#3f3f46' : null, taxonomy: isCatoblepas ? 'Monstrosity / Catoblepas' : 'Beast / Quadruped' };
@@ -763,7 +766,7 @@
         // 4. Equines & Hybrids (Horses, Unicorns, Centaurs)
         if (/\b(horse|pony|steed|stallion|mare|unicorn|pegasus|donkey|mule|zebra|centaur|yaktaur|quagga|hippogriff)\b/.test(lower)) {
             if (/\b(centaur|yaktaur)\b/.test(lower)) {
-                return { templateKey: 'bestiary_guardian', scale: 1.18, weaponKey: 'item_bow', taxonomy: 'Hybrid / Centaur' };
+                return { templateKey: 'bestiary_centaur', scale: 1.22, weaponKey: 'item_bow', taxonomy: 'Hybrid / Centaur' };
             }
             return { templateKey: 'bestiary_horse', scale: 1.05, taxonomy: 'Equine' };
         }
@@ -936,9 +939,11 @@
         }
         if (/\b(skeleton|skeletal|druj|bone|osteon)\b/.test(lower)) {
             const isKnight = /\b(armored|armoured|knight|warrior|lord|champion|king|guard|paladin|general|captain|druj|hero|halberdier|pikeman)\b/.test(lower);
-            const explicitWeapon = /\b(pikeman|halberdier|lancer|spearman)\b/.test(lower)
-                ? 'item_spear'
-                : (/\b(archer|bowman|marksman)\b/.test(lower) ? 'item_bow' : null);
+            const explicitWeapon = /\bhalberdier\b/.test(lower)
+                ? 'item_halberd'
+                : (/\b(pikeman|lancer|spearman)\b/.test(lower)
+                    ? 'item_spear'
+                    : (/\b(archer|bowman|marksman)\b/.test(lower) ? 'item_bow' : null));
             return {
                 templateKey: isKnight ? 'bestiary_skeleton_knight' : 'bestiary_skeleton_warrior',
                 scale: 1.0,
@@ -1132,7 +1137,15 @@
                 taxonomy: 'Troll'
             };
         }
-        if (/\b(minotaur|chimera|manticore|gorgon|guardian)\b/.test(lower)) {
+        if (/\bminotaur\b/.test(lower)) {
+            return {
+                templateKey: 'bestiary_minotaur',
+                scale: 1.32,
+                weaponKey: 'ph_axe',
+                taxonomy: 'Monstrosity / Minotaur'
+            };
+        }
+        if (/\b(chimera|manticore|gorgon|guardian)\b/.test(lower)) {
             return {
                 templateKey: 'bestiary_guardian',
                 scale: 1.26,
