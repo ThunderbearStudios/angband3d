@@ -188,9 +188,10 @@ test('WS5: resolveItemAtlasEntry never returns <pile> and dungeon3d uses frame-d
 
 // 7. WS6 & WS7: Dark-Fantasy Realm Material Themes & Modern Web Guidance CSS
 test('WS6 & WS7: 4 per-realm dark-fantasy themes, 2-column Compendium, and content-visibility virtualization', () => {
+    const tokensCss = fs.readFileSync(path.join(ROOT, 'server/public/css/tokens.css'), 'utf8');
     const css = fs.readFileSync(path.join(ROOT, 'server/public/css/dungeon.css'), 'utf8');
     for (const r of ['angband', 'silq', 'frogcomposband', 'hengband']) {
-        assert(css.includes(`body[data-realm="${r}"]`), `Missing dark-fantasy theme selector for ${r}`);
+        assert(tokensCss.includes(`body[data-realm="${r}"]`) || css.includes(`body[data-realm="${r}"]`), `Missing dark-fantasy theme selector for ${r}`);
     }
     assert(css.includes('repeat(auto-fill, minmax(230px, 1fr))'), '2-column Field Compendium grid required');
     assert(css.includes('content-visibility: auto'), 'Modern Web Guidance content-visibility required on offscreen Chronicle chapters');

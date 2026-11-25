@@ -111,8 +111,8 @@ for (const asset of requiredUiAssets) {
 // Verify dungeon.css rules
 assert.ok(allCss.includes('.vitals-vials-row'), 'dungeon.css must style .vitals-vials-row');
 assert.ok(
-    /\.vial-neck-collar\s*\{[^}]*display:\s*block\s*!important/s.test(allCss),
-    'dungeon.css must style .vial-neck-collar with display: block !important'
+    /\.vial-neck-collar\s*\{[^}]*display:\s*block(?:\s*!important)?/s.test(allCss),
+    'dungeon.css must style .vial-neck-collar with display: block'
 );
 assert.ok(allCss.includes('apothecary_vial_overlay.svg'), 'dungeon.css must reference apothecary_vial_overlay.svg');
 assert.ok(allCss.includes('tattered_scroll.png'), 'dungeon.css must reference tattered_scroll.png');

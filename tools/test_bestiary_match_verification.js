@@ -606,11 +606,11 @@ test('Wave 16 held equipment alignment, static-rig stabilization & Artisan HUD c
 
     // 5. 76px Sculpted Alchemical Crystal Globes & 2-row Runestone Attribute Grid in dungeon.css
     assert(
-        cssSrc.includes('width: 76px !important;') && cssSrc.includes('height: 76px !important;'),
+        /width:\s*76px/.test(cssSrc) && /height:\s*76px/.test(cssSrc),
         'dungeon.css must style 76px x 76px Sculpted Alchemical Crystal Globes'
     );
     assert(
-        cssSrc.includes('#stat-item-ac') && cssSrc.includes('grid-column: span 3 !important;'),
+        cssSrc.includes('#stat-item-ac') && /grid-column:\s*span 3/.test(cssSrc),
         'dungeon.css must span AC and GOLD across 3 columns in the 2-row runestone attribute grid'
     );
 

@@ -405,7 +405,8 @@ async function runTests() {
     // WS26 & WS27: Grimoire Deck & Realm Heraldry
     assert(GD.getHeraldry('silq').crestTitle.includes('SILMARIL'), 'Sil-Q heraldry must reference Silmaril');
     assert(GD.getHeraldry('hengband').crestTitle.includes('FIVE RINGS'), 'Hengband heraldry must reference Five Rings');
-    assert(dungeonCss.includes('body[data-realm="silq"]'), 'dungeon.css must define per-realm heraldic themes');
+    const tokensCss = fs.readFileSync(path.join(__dirname, '../public/css/tokens.css'), 'utf8');
+    assert(tokensCss.includes('body[data-realm="silq"]') || dungeonCss.includes('body[data-realm="silq"]'), 'tokens.css/dungeon.css must define per-realm heraldic themes');
     assert(!dungeonCss.includes('@keyframes crtTurnOn'), 'dungeon.css must replace CRT tube animation with grimoireUnfurl');
 
     // WS28: Realm Story Architectures & Mythic Crossroads

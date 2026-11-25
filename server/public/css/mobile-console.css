@@ -1,3 +1,6 @@
+@layer reset, tokens, base, layout, components, hud, modals, overrides;
+
+@layer overrides {
 /* ============================================================================
    YASD 3D — Handheld Console Architecture (Zero Desktop Impact)
    ============================================================================
@@ -17,7 +20,7 @@
 
 @media (pointer: coarse) and (max-width: 900px) {
     #app-container #top-right-bar #btn-hh-fullscreen {
-        display: inline-flex !important;
+        display:inline-flex;
     }
 }
 
@@ -59,7 +62,7 @@ html.yasd-handheld #app-container:has(#main-menu-overlay:not(.hidden)) #quick-sl
 html.yasd-handheld #app-container:has(#terminal-container:not(.hidden)) #quick-slot-bar,
 html.yasd-handheld #app-container:has(#death-modal:not(.hidden)) #quick-slot-bar,
 html.yasd-handheld #app-container:has(#terminal-container:not(.hidden)) #handheld-autonav-stop {
-    display: none !important;
+    display:none!important;
 }
 
 /* Never render keyboard hints or cluster dividers inside handheld deck buttons */
@@ -71,7 +74,7 @@ html.yasd-handheld #app-container #hud-footer,
 html.yasd-handheld #app-container #hud-footer.hud-status-bar,
 html.yasd-handheld #app-container .viewport-edge-turn,
 html.yasd-handheld #app-container .streetview-nav-rosette {
-    display: none !important;
+    display:none;
 }
 
 html.yasd-handheld #app-container #top-right-bar #btn-hud-realm,
@@ -83,84 +86,84 @@ html.yasd-handheld #app-container #top-right-bar #btn-toggle-actions,
 html.yasd-handheld #app-container #top-right-bar #sound-control-group #btn-top-music,
 html.yasd-handheld #app-container #top-right-bar #sound-control-group .volume-slider-wrap,
 html.yasd-handheld #app-container #top-right-bar #sound-control-group #btn-sound-config {
-    display: none !important;
+    display:none;
 }
 
 html.yasd-handheld #app-container #top-right-bar {
-    position: fixed !important;
-    top: calc(2px + var(--hh-safe-top)) !important;
-    right: calc(6px + var(--hh-safe-right)) !important;
-    left: auto !important;
-    bottom: auto !important;
-    display: inline-flex !important;
-    align-items: center !important;
-    gap: 4px !important;
-    padding: 0 !important;
-    background: transparent !important;
-    border: none !important;
-    box-shadow: none !important;
-    z-index: 1000 !important;
+    position:fixed;
+    top:calc(2px + var(--hh-safe-top));
+    right:calc(6px + var(--hh-safe-right));
+    left:auto;
+    bottom:auto;
+    display:inline-flex;
+    align-items:center;
+    gap:4px;
+    padding:0;
+    background:transparent;
+    border:none;
+    box-shadow:none;
+    z-index:1000;
 }
 
 html.yasd-handheld #app-container #top-right-bar #sound-control-group {
-    padding: 0 !important;
-    margin: 0 !important;
-    background: transparent !important;
-    border: none !important;
-    box-shadow: none !important;
+    padding:0;
+    margin:0;
+    background:transparent;
+    border:none;
+    box-shadow:none;
 }
 
 html.yasd-handheld #app-container #top-right-bar .icon-btn {
-    min-width: 44px !important;
-    width: auto !important;
-    height: 44px !important;
-    min-height: 44px !important;
-    padding: 0 9px !important;
-    background: var(--hh-bg-button) !important;
-    background-image: none !important;
-    border: 1px solid var(--hh-border) !important;
-    border-radius: 6px !important;
-    color: var(--hh-ink) !important;
-    font-size: 13px !important;
-    gap: 3px !important;
+    min-width:44px;
+    width:auto;
+    height:44px;
+    min-height:44px;
+    padding:0 9px;
+    background:var(--hh-bg-button);
+    background-image:none;
+    border:1px solid var(--hh-border);
+    border-radius:6px;
+    color:var(--hh-ink);
+    font-size:13px;
+    gap:3px;
 }
 
 html.yasd-handheld #app-container #top-right-bar .sound-label,
 html.yasd-handheld #app-container #top-right-bar .menu-label {
-    display: none !important;
+    display:none;
 }
 
 html.yasd-handheld #app-container #top-right-bar #btn-hh-fullscreen {
-    display: inline-flex !important;
+    display:inline-flex;
 }
 
 html.yasd-handheld #app-container #top-message-banner {
-    position: fixed !important;
-    top: calc(2px + var(--hh-safe-top)) !important;
-    left: calc(6px + var(--hh-safe-left)) !important;
-    right: calc(168px + var(--hh-safe-right)) !important;
-    width: auto !important;
-    max-width: none !important;
-    height: 44px !important;
-    min-height: 44px !important;
-    margin: 0 !important;
-    padding: 0 10px !important;
-    display: flex !important;
-    align-items: center !important;
-    background: var(--hh-bg-surface) !important;
-    border: 1px solid var(--hh-border) !important;
-    border-radius: 6px !important;
-    color: var(--hh-ink) !important;
-    font-size: 12px !important;
-    z-index: 28 !important;
+    position:fixed;
+    top:calc(2px + var(--hh-safe-top));
+    left:calc(6px + var(--hh-safe-left));
+    right:calc(168px + var(--hh-safe-right));
+    width:auto;
+    max-width:none;
+    height:44px;
+    min-height:44px;
+    margin:0;
+    padding:0 10px;
+    display:flex;
+    align-items:center;
+    background:var(--hh-bg-surface);
+    border:1px solid var(--hh-border);
+    border-radius:6px;
+    color:var(--hh-ink);
+    font-size:12px;
+    z-index:28;
 }
 
 html.yasd-handheld #app-container #top-message-banner #message-text {
-    color: var(--hh-ink) !important;
-    white-space: nowrap !important;
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
-    width: 100% !important;
+    color:var(--hh-ink);
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    width:100%;
 }
 
 /* Primary Console Panels (Higher Specificity than hud-skin & dungeon.css) */
@@ -168,20 +171,20 @@ html.yasd-handheld #app-container #action-bar,
 html.yasd-handheld #app-container #touch-controls,
 html.yasd-handheld #app-container #char-panel,
 html.yasd-handheld #app-container #minimap-container {
-    background-color: var(--hh-bg-surface) !important;
-    background-image: none !important;
-    border: 1px solid var(--hh-border) !important;
-    border-radius: 10px !important;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.55) !important;
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
-    transform: none !important;
-    pointer-events: auto !important;
+    background-color:var(--hh-bg-surface);
+    background-image:none;
+    border:1px solid var(--hh-border);
+    border-radius:10px;
+    box-shadow:0 4px 16px rgba(0, 0, 0, 0.55);
+    backdrop-filter:none;
+    -webkit-backdrop-filter:none;
+    transform:none;
+    pointer-events:auto;
 }
 
 /* Force Closed Action Bar to Exact 7 Consistent Buttons Across Portrait & Landscape */
 html.yasd-handheld #app-container #action-bar:not(.drawer-open) .action-btn {
-    display: none !important;
+    display:none;
 }
 
 html.yasd-handheld #app-container #action-bar:not(.drawer-open) #btn-hero-action,
@@ -191,211 +194,211 @@ html.yasd-handheld #app-container #action-bar:not(.drawer-open) #btn-quaff,
 html.yasd-handheld #app-container #action-bar:not(.drawer-open) #btn-explore,
 html.yasd-handheld #app-container #action-bar:not(.drawer-open) #btn-rest,
 html.yasd-handheld #app-container #action-bar:not(.drawer-open) #btn-action-more {
-    display: inline-flex !important;
-    flex-direction: row !important;
-    flex-wrap: nowrap !important;
-    align-items: center !important;
-    justify-content: center !important;
-    gap: 4px !important;
-    width: 100% !important;
-    height: 100% !important;
-    min-width: 44px !important;
-    min-height: 44px !important;
-    margin: 0 !important;
-    padding: 4px 5px !important;
-    background: var(--hh-bg-button) !important;
-    background-image: none !important;
-    border: 1px solid var(--hh-border) !important;
-    border-radius: 8px !important;
-    color: var(--hh-ink) !important;
-    font-size: 11px !important;
-    font-weight: 700 !important;
-    line-height: 1.1 !important;
-    white-space: nowrap !important;
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06) !important;
-    touch-action: manipulation !important;
+    display:inline-flex;
+    flex-direction:row;
+    flex-wrap:nowrap;
+    align-items:center;
+    justify-content:center;
+    gap:4px;
+    width:100%;
+    height:100%;
+    min-width:44px;
+    min-height:44px;
+    margin:0;
+    padding:4px 5px;
+    background:var(--hh-bg-button);
+    background-image:none;
+    border:1px solid var(--hh-border);
+    border-radius:8px;
+    color:var(--hh-ink);
+    font-size:11px;
+    font-weight:700;
+    line-height:1.1;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    box-shadow:inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    touch-action:manipulation;
 }
 
 html.yasd-handheld #app-container #action-bar:not(.drawer-open) #btn-hero-action {
-    grid-column: 1 / -1 !important;
-    background: linear-gradient(180deg, #362912 0%, #231a0b 100%) !important;
-    border-color: var(--hh-border-strong) !important;
-    color: #f3e6c2 !important;
-    font-size: 13px !important;
+    grid-column:1 / -1;
+    background:linear-gradient(180deg, #362912 0%, #231a0b 100%);
+    border-color:var(--hh-border-strong);
+    color:#f3e6c2;
+    font-size:13px;
 }
 
 html.yasd-handheld #app-container #action-bar .action-btn.smart-low-hp {
-    background: linear-gradient(180deg, #691b22 0%, #441016 100%) !important;
-    border-color: #f2848e !important;
-    color: #f7e6e6 !important;
+    background:linear-gradient(180deg, #691b22 0%, #441016 100%);
+    border-color:#f2848e;
+    color:#f7e6e6;
 }
 
 html.yasd-handheld #app-container #action-bar #btn-action-more {
-    background: #232b3d !important;
-    border-color: rgba(223, 184, 88, 0.56) !important;
-    color: var(--hh-gold) !important;
+    background:#232b3d;
+    border-color:rgba(223, 184, 88, 0.56);
+    color:var(--hh-gold);
 }
 
 /* 4-Slot Smart Quick Belt */
 html.yasd-handheld #app-container #quick-slot-bar {
-    display: grid !important;
-    gap: 5px !important;
-    padding: 0 !important;
-    margin: 0 !important;
-    background: transparent !important;
-    border: none !important;
-    box-shadow: none !important;
-    pointer-events: auto !important;
-    z-index: 35 !important;
+    display:grid;
+    gap:5px;
+    padding:0;
+    margin:0;
+    background:transparent;
+    border:none;
+    box-shadow:none;
+    pointer-events:auto;
+    z-index:35;
 }
 
 html.yasd-handheld #app-container #quick-slot-bar .quick-slot-btn {
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    gap: 4px !important;
-    width: 100% !important;
-    height: 100% !important;
-    min-width: 44px !important;
-    min-height: 44px !important;
-    padding: 2px 6px !important;
-    background: var(--hh-bg-button) !important;
-    border: 1px solid var(--hh-border) !important;
-    border-radius: 8px !important;
-    color: var(--hh-ink) !important;
-    font-size: 11px !important;
-    font-weight: 600 !important;
-    overflow: hidden !important;
-    touch-action: manipulation !important;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:4px;
+    width:100%;
+    height:100%;
+    min-width:44px;
+    min-height:44px;
+    padding:2px 6px;
+    background:var(--hh-bg-button);
+    border:1px solid var(--hh-border);
+    border-radius:8px;
+    color:var(--hh-ink);
+    font-size:11px;
+    font-weight:600;
+    overflow:hidden;
+    touch-action:manipulation;
 }
 
 html.yasd-handheld #app-container #quick-slot-bar .quick-slot-btn.is-depleted {
-    opacity: 0.86 !important;
-    color: #cbd5e1 !important;
+    opacity:0.86;
+    color:#cbd5e1;
 }
 
 html.yasd-handheld #app-container #quick-slot-bar .qs-hotkey {
-    display: none !important;
+    display:none;
 }
 
 html.yasd-handheld #app-container #quick-slot-bar .qs-label {
-    max-width: 58px !important;
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
-    white-space: nowrap !important;
+    max-width:58px;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
 }
 
 /* D-Pad Visuals & Always-Visible Turn Wings */
 html.yasd-handheld #app-container #touch-controls .dpad-header-bar {
-    display: none !important;
+    display:none;
 }
 
 html.yasd-handheld #app-container #touch-controls {
-    display: flex !important;
-    flex-direction: column !important;
-    gap: 5px !important;
-    padding: 5px !important;
-    margin: 0 !important;
-    overflow: hidden !important;
+    display:flex;
+    flex-direction:column;
+    gap:5px;
+    padding:5px;
+    margin:0;
+    overflow:hidden;
 }
 
 html.yasd-handheld #app-container #touch-controls .dpad-turn-wings {
-    display: grid !important;
-    grid-template-columns: repeat(3, minmax(44px, 1fr)) !important;
-    gap: 4px !important;
-    width: 100% !important;
-    flex: 0 0 auto !important;
-    margin: 0 !important;
+    display:grid;
+    grid-template-columns:repeat(3, minmax(44px, 1fr));
+    gap:4px;
+    width:100%;
+    flex:0 0 auto;
+    margin:0;
 }
 
 html.yasd-handheld #app-container #touch-controls .dpad-grid,
 html.yasd-handheld #app-container #touch-controls.dpad-collapsed .dpad-grid {
-    display: grid !important;
-    grid-template-columns: repeat(3, minmax(44px, 1fr)) !important;
-    grid-template-rows: repeat(3, minmax(44px, 1fr)) !important;
-    gap: 4px !important;
-    width: 100% !important;
-    flex: 1 1 auto !important;
-    min-height: 0 !important;
+    display:grid;
+    grid-template-columns:repeat(3, minmax(44px, 1fr));
+    grid-template-rows:repeat(3, minmax(44px, 1fr));
+    gap:4px;
+    width:100%;
+    flex:1 1 auto;
+    min-height:0;
 }
 
 html.yasd-handheld #app-container #touch-controls .dpad-btn {
-    width: 100% !important;
-    height: 100% !important;
-    min-width: 44px !important;
-    min-height: 44px !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    display: flex !important;
-    flex-direction: column !important;
-    align-items: center !important;
-    justify-content: center !important;
-    background: var(--hh-bg-button) !important;
-    background-image: none !important;
-    border: 1px solid var(--hh-border) !important;
-    border-radius: 8px !important;
-    color: var(--hh-ink) !important;
-    font-family: "Segoe UI Symbol", "Apple Symbols", system-ui, sans-serif !important;
-    font-variant-emoji: text !important;
-    font-size: 16px !important;
-    font-weight: 700 !important;
-    line-height: 1 !important;
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06) !important;
-    touch-action: none !important;
+    width:100%;
+    height:100%;
+    min-width:44px;
+    min-height:44px;
+    margin:0;
+    padding:0;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    background:var(--hh-bg-button);
+    background-image:none;
+    border:1px solid var(--hh-border);
+    border-radius:8px;
+    color:var(--hh-ink);
+    font-family:"Segoe UI Symbol", "Apple Symbols", system-ui, sans-serif;
+    font-variant-emoji:text;
+    font-size:16px;
+    font-weight:700;
+    line-height:1;
+    box-shadow:inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    touch-action:none;
 }
 
 html.yasd-handheld #app-container #touch-controls .dpad-turn-btn,
 html.yasd-handheld #app-container #touch-controls .dpad-run-toggle {
-    min-height: 44px !important;
-    font-size: 11px !important;
-    gap: 1px !important;
+    min-height:44px;
+    font-size:11px;
+    gap:1px;
 }
 
 html.yasd-handheld #app-container #touch-controls .dpad-turn-symbol {
-    font-size: 15px !important;
-    color: var(--hh-gold) !important;
+    font-size:15px;
+    color:var(--hh-gold);
 }
 
 html.yasd-handheld #app-container #touch-controls .dpad-turn-text,
 html.yasd-handheld #app-container #touch-controls .dpad-run-text {
-    font-size: 9.5px !important;
-    color: var(--hh-ink-muted) !important;
+    font-size:0.6875rem;
+    color:var(--hh-ink-muted);
 }
 
 html.yasd-handheld #app-container #touch-controls .dpad-btn.is-slide-active {
-    background: #2f3b52 !important;
-    border-color: var(--hh-gold) !important;
-    color: var(--hh-gold) !important;
+    background:#2f3b52;
+    border-color:var(--hh-gold);
+    color:var(--hh-gold);
 }
 
 html.yasd-handheld #app-container #touch-controls .dpad-btn .diag-num,
 html.yasd-handheld #app-container #touch-controls .dpad-btn .dpad-sub-lbl {
-    display: none !important;
+    display:none;
 }
 
 /* Compact Character Capsule (Tap to Expand Full Sheet) */
 html.yasd-handheld #app-container #char-panel:not(.handheld-char-expanded) {
-    display: flex !important;
-    flex-direction: column !important;
-    justify-content: center !important;
-    gap: 3px !important;
-    padding: 4px 8px !important;
-    overflow: hidden !important;
-    cursor: pointer !important;
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    gap:3px;
+    padding:4px 8px;
+    overflow:hidden;
+    cursor:pointer;
 }
 
 html.yasd-handheld #app-container #char-panel:not(.handheld-char-expanded) .char-panel-header {
-    padding: 0 !important;
-    margin: 0 !important;
-    min-height: 15px !important;
-    border: none !important;
-    background: transparent !important;
-    box-shadow: none !important;
-    display: flex !important;
-    align-items: center !important;
-    gap: 4px !important;
+    padding:0;
+    margin:0;
+    min-height:15px;
+    border:none;
+    background:transparent;
+    box-shadow:none;
+    display:flex;
+    align-items:center;
+    gap:4px;
 }
 
 html.yasd-handheld #app-container #char-panel:not(.handheld-char-expanded) #char-realm-crest,
@@ -407,65 +410,65 @@ html.yasd-handheld #app-container #char-panel:not(.handheld-char-expanded) #char
 html.yasd-handheld #app-container #char-panel:not(.handheld-char-expanded) #char-status-effects,
 html.yasd-handheld #app-container #char-panel:not(.handheld-char-expanded) #char-extended-drawer,
 html.yasd-handheld #app-container #char-panel:not(.handheld-char-expanded) #char-resize-handle {
-    display: none !important;
+    display:none;
 }
 
 html.yasd-handheld #app-container #char-panel:not(.handheld-char-expanded) #char-title {
-    font-size: 11px !important;
-    line-height: 1.1 !important;
-    color: var(--hh-gold) !important;
-    white-space: nowrap !important;
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
+    font-size:11px;
+    line-height:1.1;
+    color:var(--hh-gold);
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
 }
 
 html.yasd-handheld #app-container #char-panel:not(.handheld-char-expanded) .vitals-vials-row {
-    display: grid !important;
-    grid-template-columns: 1fr 1fr !important;
-    gap: 5px !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    background: transparent !important;
-    border: none !important;
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:5px;
+    margin:0;
+    padding:0;
+    background:transparent;
+    border:none;
 }
 
 html.yasd-handheld #app-container #char-panel:not(.handheld-char-expanded) .gauge-hp,
 html.yasd-handheld #app-container #char-panel:not(.handheld-char-expanded) .gauge-sp {
-    position: relative !important;
-    height: 16px !important;
-    min-height: 16px !important;
-    margin: 0 !important;
-    display: flex !important;
-    align-items: center !important;
+    position:relative;
+    height:16px;
+    min-height:16px;
+    margin:0;
+    display:flex;
+    align-items:center;
 }
 
 html.yasd-handheld #app-container #char-panel:not(.handheld-char-expanded) .gauge-header {
-    position: relative !important;
-    z-index: 2 !important;
-    width: 100% !important;
-    min-width: 0 !important;
-    padding: 0 3px !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    overflow: hidden !important;
-    font-size: 10px !important;
-    font-weight: 800 !important;
-    color: var(--hh-ink) !important;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9) !important;
+    position:relative;
+    z-index:2;
+    width:100%;
+    min-width:0;
+    padding:0 3px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    overflow:hidden;
+    font-size:0.6875rem;
+    font-weight:800;
+    color:var(--hh-ink);
+    text-shadow:0 1px 2px rgba(0, 0, 0, 0.9);
 }
 
 html.yasd-handheld #app-container #char-panel:not(.handheld-char-expanded) #hp-label,
 html.yasd-handheld #app-container #char-panel:not(.handheld-char-expanded) #sp-label {
-    display: none !important;
+    display:none;
 }
 
 html.yasd-handheld #app-container #char-panel:not(.handheld-char-expanded) #hp-text,
 html.yasd-handheld #app-container #char-panel:not(.handheld-char-expanded) #sp-text {
-    white-space: nowrap !important;
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
-    font-size: 10px !important;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    font-size:0.6875rem;
 }
 
 html.yasd-handheld #app-container #char-panel:not(.handheld-char-expanded) #hp-text::before {
@@ -479,40 +482,40 @@ html.yasd-handheld #app-container #char-panel:not(.handheld-char-expanded) #sp-t
 }
 
 html.yasd-handheld #app-container #char-panel:not(.handheld-char-expanded) .gauge-track {
-    position: absolute !important;
-    inset: 0 !important;
-    height: 100% !important;
-    z-index: 1 !important;
+    position:absolute;
+    inset:0;
+    height:100%;
+    z-index:1;
 }
 
 html.yasd-handheld #app-container #char-panel.handheld-char-expanded {
-    position: fixed !important;
-    top: calc(36px + var(--hh-safe-top)) !important;
-    left: calc(8px + var(--hh-safe-left)) !important;
-    right: calc(8px + var(--hh-safe-right)) !important;
-    width: auto !important;
-    min-width: 0 !important;
-    max-width: none !important;
-    height: auto !important;
-    max-height: 76dvh !important;
-    overflow-y: auto !important;
-    z-index: 75 !important;
-    padding: 10px 12px !important;
+    position:fixed;
+    top:calc(36px + var(--hh-safe-top));
+    left:calc(8px + var(--hh-safe-left));
+    right:calc(8px + var(--hh-safe-right));
+    width:auto;
+    min-width:0;
+    max-width:none;
+    height:auto;
+    max-height:76dvh;
+    overflow-y:auto;
+    z-index:75;
+    padding:10px 12px;
 }
 
 html.yasd-handheld #app-container #char-panel.handheld-char-expanded #stats-strip,
 html.yasd-handheld #app-container #char-panel.handheld-char-expanded #char-resist-strip {
-    display: flex !important;
+    display:flex;
 }
 
 /* Corner Radar & 1-Tap Expanded Tactical Map Modal */
 html.yasd-handheld #app-container #minimap-container:not(.handheld-map-expanded) {
-    padding: 2px !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    overflow: hidden !important;
-    cursor: pointer !important;
+    padding:2px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    overflow:hidden;
+    cursor:pointer;
 }
 
 html.yasd-handheld #app-container #minimap-container:not(.handheld-map-expanded) .minimap-header,
@@ -520,52 +523,52 @@ html.yasd-handheld #app-container #minimap-container:not(.handheld-map-expanded)
 html.yasd-handheld #app-container #minimap-container:not(.handheld-map-expanded) #camera-tilt-bar,
 html.yasd-handheld #app-container #minimap-container:not(.handheld-map-expanded) #mobile-map-zoom-group,
 html.yasd-handheld #app-container #minimap-container:not(.handheld-map-expanded) #map-resize-handle {
-    display: none !important;
+    display:none;
 }
 
 html.yasd-handheld #app-container #minimap-container:not(.handheld-map-expanded) #minimap-canvas {
-    width: 100% !important;
-    height: 100% !important;
-    object-fit: contain !important;
+    width:100%;
+    height:100%;
+    object-fit:contain;
 }
 
 html.yasd-handheld #app-container #minimap-container.handheld-map-expanded {
-    position: fixed !important;
-    top: 50% !important;
-    left: 50% !important;
-    right: auto !important;
-    bottom: auto !important;
-    transform: translate(-50%, -50%) !important;
-    width: min(320px, calc(100vw - 24px)) !important;
-    height: auto !important;
-    padding: 8px !important;
-    flex-direction: column !important;
-    gap: 6px !important;
-    z-index: 78 !important;
-    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.95) !important;
+    position:fixed;
+    top:50%;
+    left:50%;
+    right:auto;
+    bottom:auto;
+    transform:translate(-50%, -50%);
+    width:min(320px, calc(100vw - 24px));
+    height:auto;
+    padding:8px;
+    flex-direction:column;
+    gap:6px;
+    z-index:78;
+    box-shadow:0 24px 60px rgba(0, 0, 0, 0.95);
 }
 
 html.yasd-handheld #app-container #minimap-container.handheld-map-expanded #minimap-canvas {
-    width: 100% !important;
-    height: auto !important;
-    max-height: 48dvh !important;
+    width:100%;
+    height:auto;
+    max-height:48dvh;
 }
 
 html.yasd-handheld #app-container #minimap-container.handheld-map-expanded #mobile-map-zoom-group {
-    display: flex !important;
-    position: static !important;
-    transform: none !important;
-    gap: 8px !important;
-    justify-content: center !important;
+    display:flex;
+    position:static;
+    transform:none;
+    gap:8px;
+    justify-content:center;
 }
 
 html.yasd-handheld #app-container #minimap-container.handheld-map-expanded .mobile-map-btn,
 html.yasd-handheld #app-container #minimap-container.handheld-map-expanded #btn-minimap-close {
-    min-width: 44px !important;
-    min-height: 44px !important;
-    width: 44px !important;
-    height: 44px !important;
-    font-size: 16px !important;
+    min-width:44px;
+    min-height:44px;
+    width:44px;
+    height:44px;
+    font-size:16px;
 }
 
 /* ----------------------------------------------------------------------------
@@ -573,98 +576,98 @@ html.yasd-handheld #app-container #minimap-container.handheld-map-expanded #btn-
    ---------------------------------------------------------------------------- */
 html.yasd-handheld.is-portrait #app-container #viewport-canvas,
 html.yasd-handheld.is-portrait #app-container #dungeon-vignette {
-    position: fixed !important;
-    top: calc(98px + var(--hh-safe-top)) !important;
-    left: 0 !important;
-    right: auto !important;
-    bottom: auto !important;
-    width: 100vw !important;
-    height: calc(100dvh - 436px - var(--hh-safe-top) - var(--hh-safe-bottom)) !important;
+    position:fixed;
+    top:calc(98px + var(--hh-safe-top));
+    left:0;
+    right:auto;
+    bottom:auto;
+    width:100vw;
+    height:calc(100dvh - 436px - var(--hh-safe-top) - var(--hh-safe-bottom));
 }
 
 html.yasd-handheld.is-portrait #app-container #diegetic-reticle {
-    top: calc(98px + var(--hh-safe-top) + (100dvh - 436px - var(--hh-safe-top) - var(--hh-safe-bottom)) * 0.5) !important;
+    top:calc(98px + var(--hh-safe-top) + (100dvh - 436px - var(--hh-safe-top) - var(--hh-safe-bottom)) * 0.5);
 }
 
 html.yasd-handheld.is-portrait #app-container #handheld-deck-plate {
-    display: block !important;
-    position: fixed !important;
-    left: 0 !important;
-    right: 0 !important;
-    bottom: 0 !important;
-    height: calc(338px + var(--hh-safe-bottom)) !important;
-    background: var(--hh-bg-deck) !important;
-    border-top: 1px solid var(--hh-border-strong) !important;
-    z-index: 8 !important;
-    pointer-events: none !important;
+    display:block;
+    position:fixed;
+    left:0;
+    right:0;
+    bottom:0;
+    height:calc(338px + var(--hh-safe-bottom));
+    background:var(--hh-bg-deck);
+    border-top:1px solid var(--hh-border-strong);
+    z-index:8;
+    pointer-events:none;
 }
 
 html.yasd-handheld.is-portrait #app-container #char-panel:not(.handheld-char-expanded) {
-    position: fixed !important;
-    top: calc(36px + var(--hh-safe-top)) !important;
-    left: calc(6px + var(--hh-safe-left)) !important;
-    right: calc(70px + var(--hh-safe-right)) !important;
-    bottom: auto !important;
-    width: auto !important;
-    min-width: 0 !important;
-    max-width: none !important;
-    height: 58px !important;
-    z-index: 30 !important;
+    position:fixed;
+    top:calc(36px + var(--hh-safe-top));
+    left:calc(6px + var(--hh-safe-left));
+    right:calc(70px + var(--hh-safe-right));
+    bottom:auto;
+    width:auto;
+    min-width:0;
+    max-width:none;
+    height:58px;
+    z-index:30;
 }
 
 html.yasd-handheld.is-portrait #app-container #minimap-container:not(.handheld-map-expanded) {
-    position: fixed !important;
-    top: calc(36px + var(--hh-safe-top)) !important;
-    right: calc(6px + var(--hh-safe-right)) !important;
-    left: auto !important;
-    bottom: auto !important;
-    width: 58px !important;
-    height: 58px !important;
-    min-width: 58px !important;
-    min-height: 58px !important;
-    z-index: 30 !important;
+    position:fixed;
+    top:calc(36px + var(--hh-safe-top));
+    right:calc(6px + var(--hh-safe-right));
+    left:auto;
+    bottom:auto;
+    width:58px;
+    height:58px;
+    min-width:58px;
+    min-height:58px;
+    z-index:30;
 }
 
 html.yasd-handheld.is-portrait #app-container #quick-slot-bar {
-    position: fixed !important;
-    left: calc(6px + var(--hh-safe-left)) !important;
-    right: calc(6px + var(--hh-safe-right)) !important;
-    top: auto !important;
-    bottom: calc(286px + var(--hh-safe-bottom)) !important;
-    height: 46px !important;
-    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
-    z-index: 35 !important;
+    position:fixed;
+    left:calc(6px + var(--hh-safe-left));
+    right:calc(6px + var(--hh-safe-right));
+    top:auto;
+    bottom:calc(286px + var(--hh-safe-bottom));
+    height:46px;
+    grid-template-columns:repeat(4, minmax(0, 1fr));
+    z-index:35;
 }
 
 html.yasd-handheld.is-portrait #app-container #touch-controls,
 html.yasd-handheld.is-portrait #app-container #touch-controls.dpad-collapsed {
-    position: fixed !important;
-    left: calc(6px + var(--hh-safe-left)) !important;
-    right: auto !important;
-    top: auto !important;
-    bottom: calc(6px + var(--hh-safe-bottom)) !important;
-    width: 174px !important;
-    height: 274px !important;
-    max-width: 46vw !important;
-    z-index: 32 !important;
+    position:fixed;
+    left:calc(6px + var(--hh-safe-left));
+    right:auto;
+    top:auto;
+    bottom:calc(6px + var(--hh-safe-bottom));
+    width:174px;
+    height:274px;
+    max-width:46vw;
+    z-index:32;
 }
 
 html.yasd-handheld.is-portrait #app-container #action-bar:not(.drawer-open) {
-    position: fixed !important;
-    left: calc(186px + var(--hh-safe-left)) !important;
-    right: calc(6px + var(--hh-safe-right)) !important;
-    top: auto !important;
-    bottom: calc(6px + var(--hh-safe-bottom)) !important;
-    width: auto !important;
-    max-width: none !important;
-    height: 274px !important;
-    padding: 5px !important;
-    margin: 0 !important;
-    display: grid !important;
-    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-    grid-template-rows: 52px repeat(3, minmax(46px, 1fr)) !important;
-    gap: 5px !important;
-    z-index: 35 !important;
+    position:fixed;
+    left:calc(186px + var(--hh-safe-left));
+    right:calc(6px + var(--hh-safe-right));
+    top:auto;
+    bottom:calc(6px + var(--hh-safe-bottom));
+    width:auto;
+    max-width:none;
+    height:274px;
+    padding:5px;
+    margin:0;
+    display:grid;
+    grid-template-columns:repeat(2, minmax(0, 1fr));
+    grid-template-rows:52px repeat(3, minmax(46px, 1fr));
+    gap:5px;
+    z-index:35;
 }
 
 /* ----------------------------------------------------------------------------
@@ -672,334 +675,334 @@ html.yasd-handheld.is-portrait #app-container #action-bar:not(.drawer-open) {
    ---------------------------------------------------------------------------- */
 html.yasd-handheld.is-landscape #app-container #viewport-canvas,
 html.yasd-handheld.is-landscape #app-container #dungeon-vignette {
-    position: fixed !important;
-    top: calc(32px + var(--hh-safe-top)) !important;
-    left: calc(174px + var(--hh-safe-left)) !important;
-    right: auto !important;
-    bottom: auto !important;
-    width: calc(100vw - 370px - var(--hh-safe-left) - var(--hh-safe-right)) !important;
-    height: calc(100dvh - 32px - var(--hh-safe-top) - var(--hh-safe-bottom)) !important;
+    position:fixed;
+    top:calc(32px + var(--hh-safe-top));
+    left:calc(174px + var(--hh-safe-left));
+    right:auto;
+    bottom:auto;
+    width:calc(100vw - 370px - var(--hh-safe-left) - var(--hh-safe-right));
+    height:calc(100dvh - 32px - var(--hh-safe-top) - var(--hh-safe-bottom));
 }
 
 html.yasd-handheld.is-landscape #app-container #diegetic-reticle {
-    left: calc(174px + var(--hh-safe-left) + (100vw - 370px - var(--hh-safe-left) - var(--hh-safe-right)) * 0.5) !important;
-    top: calc(32px + var(--hh-safe-top) + (100dvh - 32px - var(--hh-safe-top) - var(--hh-safe-bottom)) * 0.5) !important;
+    left:calc(174px + var(--hh-safe-left) + (100vw - 370px - var(--hh-safe-left) - var(--hh-safe-right)) * 0.5);
+    top:calc(32px + var(--hh-safe-top) + (100dvh - 32px - var(--hh-safe-top) - var(--hh-safe-bottom)) * 0.5);
 }
 
 html.yasd-handheld.is-landscape #app-container #handheld-deck-plate {
-    display: none !important;
+    display:none;
 }
 
 html.yasd-handheld.is-landscape #app-container #char-panel:not(.handheld-char-expanded) {
-    position: fixed !important;
-    top: calc(34px + var(--hh-safe-top)) !important;
-    left: calc(6px + var(--hh-safe-left)) !important;
-    right: auto !important;
-    bottom: auto !important;
-    width: 164px !important;
-    min-width: 164px !important;
-    max-width: 164px !important;
-    height: 48px !important;
-    z-index: 30 !important;
+    position:fixed;
+    top:calc(34px + var(--hh-safe-top));
+    left:calc(6px + var(--hh-safe-left));
+    right:auto;
+    bottom:auto;
+    width:164px;
+    min-width:164px;
+    max-width:164px;
+    height:48px;
+    z-index:30;
 }
 
 html.yasd-handheld.is-landscape #app-container #touch-controls,
 html.yasd-handheld.is-landscape #app-container #touch-controls.dpad-collapsed {
-    position: fixed !important;
-    top: calc(86px + var(--hh-safe-top)) !important;
-    left: calc(6px + var(--hh-safe-left)) !important;
-    right: auto !important;
-    bottom: calc(6px + var(--hh-safe-bottom)) !important;
-    width: 164px !important;
-    height: auto !important;
-    z-index: 32 !important;
+    position:fixed;
+    top:calc(86px + var(--hh-safe-top));
+    left:calc(6px + var(--hh-safe-left));
+    right:auto;
+    bottom:calc(6px + var(--hh-safe-bottom));
+    width:164px;
+    height:auto;
+    z-index:32;
 }
 
 html.yasd-handheld.is-landscape #app-container #minimap-container:not(.handheld-map-expanded) {
-    position: fixed !important;
-    top: calc(34px + var(--hh-safe-top)) !important;
-    right: calc(6px + var(--hh-safe-right)) !important;
-    left: auto !important;
-    bottom: auto !important;
-    width: 184px !important;
-    min-width: 184px !important;
-    max-width: 184px !important;
-    height: 48px !important;
-    min-height: 48px !important;
-    padding: 2px 8px !important;
-    flex-direction: row !important;
-    align-items: center !important;
-    justify-content: flex-start !important;
-    gap: 8px !important;
-    z-index: 30 !important;
+    position:fixed;
+    top:calc(34px + var(--hh-safe-top));
+    right:calc(6px + var(--hh-safe-right));
+    left:auto;
+    bottom:auto;
+    width:184px;
+    min-width:184px;
+    max-width:184px;
+    height:48px;
+    min-height:48px;
+    padding:2px 8px;
+    flex-direction:row;
+    align-items:center;
+    justify-content:flex-start;
+    gap:8px;
+    z-index:30;
 }
 
 html.yasd-handheld.is-landscape #app-container #minimap-container:not(.handheld-map-expanded) #minimap-canvas {
-    width: 42px !important;
-    height: 42px !important;
-    flex: 0 0 42px !important;
+    width:42px;
+    height:42px;
+    flex:0 0 42px;
 }
 
 html.yasd-handheld.is-landscape #app-container #minimap-container:not(.handheld-map-expanded)::after {
     content: 'RADAR ⛶';
-    font-size: 10.5px;
+    font-size: 0.6875rem;
     font-weight: 700;
     color: var(--hh-ink-muted);
     letter-spacing: 0.5px;
 }
 
 html.yasd-handheld.is-landscape #app-container #action-bar:not(.drawer-open) {
-    position: fixed !important;
-    top: calc(86px + var(--hh-safe-top)) !important;
-    right: calc(6px + var(--hh-safe-right)) !important;
-    left: auto !important;
-    bottom: calc(102px + var(--hh-safe-bottom)) !important;
-    width: 184px !important;
-    max-width: 184px !important;
-    height: auto !important;
-    padding: 4px !important;
-    margin: 0 !important;
-    display: grid !important;
-    grid-template-columns: repeat(3, minmax(44px, 1fr)) !important;
-    grid-template-rows: repeat(3, minmax(44px, 1fr)) !important;
-    gap: 4px !important;
-    z-index: 35 !important;
+    position:fixed;
+    top:calc(86px + var(--hh-safe-top));
+    right:calc(6px + var(--hh-safe-right));
+    left:auto;
+    bottom:calc(102px + var(--hh-safe-bottom));
+    width:184px;
+    max-width:184px;
+    height:auto;
+    padding:4px;
+    margin:0;
+    display:grid;
+    grid-template-columns:repeat(3, minmax(44px, 1fr));
+    grid-template-rows:repeat(3, minmax(44px, 1fr));
+    gap:4px;
+    z-index:35;
 }
 
 html.yasd-handheld.is-landscape #app-container #action-bar:not(.drawer-open) .action-btn:not(#btn-hero-action) {
-    flex-direction: column !important;
-    justify-content: center !important;
-    gap: 1px !important;
-    padding: 2px 2px !important;
-    font-size: 9px !important;
-    letter-spacing: 0 !important;
-    line-height: 1.05 !important;
+    flex-direction:column;
+    justify-content:center;
+    gap:1px;
+    padding:2px 2px;
+    font-size:0.6875rem;
+    letter-spacing:0;
+    line-height:1.05;
 }
 
 html.yasd-handheld.is-landscape #app-container #action-bar:not(.drawer-open) #btn-hero-action {
-    font-size: 12px !important;
-    letter-spacing: 0 !important;
+    font-size:12px;
+    letter-spacing:0;
 }
 
 html.yasd-handheld.is-landscape #app-container #quick-slot-bar {
-    position: fixed !important;
-    right: calc(6px + var(--hh-safe-right)) !important;
-    left: auto !important;
-    bottom: calc(6px + var(--hh-safe-bottom)) !important;
-    width: 184px !important;
-    height: 92px !important;
-    grid-template-columns: repeat(2, minmax(44px, 1fr)) !important;
-    grid-template-rows: repeat(2, minmax(44px, 1fr)) !important;
-    gap: 4px !important;
-    z-index: 35 !important;
+    position:fixed;
+    right:calc(6px + var(--hh-safe-right));
+    left:auto;
+    bottom:calc(6px + var(--hh-safe-bottom));
+    width:184px;
+    height:92px;
+    grid-template-columns:repeat(2, minmax(44px, 1fr));
+    grid-template-rows:repeat(2, minmax(44px, 1fr));
+    gap:4px;
+    z-index:35;
 }
 
 html.yasd-handheld.is-landscape #app-container #quick-slot-bar .quick-slot-btn {
-    padding: 2px 4px !important;
-    font-size: 10.5px !important;
+    padding:2px 4px;
+    font-size:0.6875rem;
 }
 
 /* ----------------------------------------------------------------------------
    4. Expanded Action Sheet (.drawer-open), Prompt Mirror & Bottom Sheets
    ---------------------------------------------------------------------------- */
 html.yasd-handheld #app-container #action-bar.drawer-open {
-    position: fixed !important;
-    left: calc(8px + var(--hh-safe-left)) !important;
-    right: calc(8px + var(--hh-safe-right)) !important;
-    bottom: calc(8px + var(--hh-safe-bottom)) !important;
-    top: auto !important;
-    width: auto !important;
-    max-width: 640px !important;
-    height: auto !important;
-    max-height: 68dvh !important;
-    overflow-y: auto !important;
-    margin: 0 auto !important;
-    padding: 10px !important;
-    display: grid !important;
-    grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)) !important;
-    gap: 6px !important;
-    background: var(--hh-bg-deck) !important;
-    border: 1.5px solid var(--hh-border-strong) !important;
-    border-radius: 12px !important;
-    z-index: 60 !important;
+    position:fixed;
+    left:calc(8px + var(--hh-safe-left));
+    right:calc(8px + var(--hh-safe-right));
+    bottom:calc(8px + var(--hh-safe-bottom));
+    top:auto;
+    width:auto;
+    max-width:640px;
+    height:auto;
+    max-height:68dvh;
+    overflow-y:auto;
+    margin:0 auto;
+    padding:10px;
+    display:grid;
+    grid-template-columns:repeat(auto-fill, minmax(104px, 1fr));
+    gap:6px;
+    background:var(--hh-bg-deck);
+    border:1.5px solid var(--hh-border-strong);
+    border-radius:12px;
+    z-index:60;
 }
 
 html.yasd-handheld #app-container #action-bar.drawer-open .action-btn:not([data-realm-hidden="1"]):not([data-context-hidden="1"]):not([style*="display: none"]):not([style*="display:none"]),
 html.yasd-handheld #app-container #action-bar.drawer-open #btn-cast:not([data-realm-hidden="1"]):not([style*="display: none"]):not([style*="display:none"]),
 html.yasd-handheld #app-container #action-bar.drawer-open #btn-command-palette,
 html.yasd-handheld #app-container #action-bar.drawer-open #btn-action-more {
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    gap: 5px !important;
-    min-width: 44px !important;
-    min-height: 44px !important;
-    height: 44px !important;
-    font-size: 11.5px !important;
-    background: var(--hh-bg-button) !important;
-    background-image: none !important;
-    color: var(--hh-ink) !important;
-    border: 1px solid var(--hh-border) !important;
-    border-radius: 8px !important;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    gap:5px;
+    min-width:44px;
+    min-height:44px;
+    height:44px;
+    font-size:11.5px;
+    background:var(--hh-bg-button);
+    background-image:none;
+    color:var(--hh-ink);
+    border:1px solid var(--hh-border);
+    border-radius:8px;
 }
 
 html.yasd-handheld #app-container #action-bar.drawer-open #btn-stair:not(.stair-active),
 html.yasd-handheld #app-container #action-bar.drawer-open .context-tile-btn.hidden {
-    display: none !important;
+    display:none!important;
 }
 
 html.yasd-handheld #app-container #action-bar.drawer-open #btn-action-more {
-    grid-column: 1 / -1 !important;
-    background: #3a1a20 !important;
-    border-color: #d9777f !important;
-    color: #f3e0e0 !important;
+    grid-column:1 / -1;
+    background:#3a1a20;
+    border-color:#d9777f;
+    color:#f3e0e0;
 }
 
 /* Thumb-Docked Prompt Mirror (zero mid-screen obstruction) */
 html.yasd-handheld #app-container #prompt-mirror:not([hidden]):not(.hidden) {
-    position: fixed !important;
-    top: auto !important;
-    transform: none !important;
-    margin: 0 !important;
-    max-width: none !important;
-    max-height: 42dvh !important;
-    overflow-y: auto !important;
-    background: var(--hh-bg-deck) !important;
-    border: 1.5px solid var(--hh-border-strong) !important;
-    border-radius: 10px !important;
-    color: var(--hh-ink) !important;
-    z-index: 44 !important;
+    position:fixed;
+    top:auto;
+    transform:none;
+    margin:0;
+    max-width:none;
+    max-height:42dvh;
+    overflow-y:auto;
+    background:var(--hh-bg-deck);
+    border:1.5px solid var(--hh-border-strong);
+    border-radius:10px;
+    color:var(--hh-ink);
+    z-index:44;
 }
 
 html.yasd-handheld.is-portrait #app-container #prompt-mirror:not([hidden]):not(.hidden) {
-    left: calc(6px + var(--hh-safe-left)) !important;
-    right: calc(6px + var(--hh-safe-right)) !important;
-    bottom: calc(340px + var(--hh-safe-bottom)) !important;
-    width: auto !important;
+    left:calc(6px + var(--hh-safe-left));
+    right:calc(6px + var(--hh-safe-right));
+    bottom:calc(340px + var(--hh-safe-bottom));
+    width:auto;
 }
 
 html.yasd-handheld.is-landscape #app-container #prompt-mirror:not([hidden]):not(.hidden) {
-    left: calc(176px + var(--hh-safe-left)) !important;
-    right: calc(196px + var(--hh-safe-right)) !important;
-    bottom: calc(8px + var(--hh-safe-bottom)) !important;
-    width: auto !important;
+    left:calc(176px + var(--hh-safe-left));
+    right:calc(196px + var(--hh-safe-right));
+    bottom:calc(8px + var(--hh-safe-bottom));
+    width:auto;
 }
 
 html.yasd-handheld #app-container #prompt-mirror button {
-    min-width: 44px !important;
-    min-height: 44px !important;
-    font-size: 13px !important;
+    min-width:44px;
+    min-height:44px;
+    font-size:13px;
 }
 
 /* Touch Bottom-Sheet Styling for ItemSheet & Quick-Slot Binder */
 html.yasd-handheld #item-sheet[open] {
-    position: fixed !important;
-    top: auto !important;
-    bottom: 0 !important;
-    left: 0 !important;
-    right: 0 !important;
-    width: 100vw !important;
-    max-width: 100vw !important;
-    max-height: 82dvh !important;
-    border-radius: 14px 14px 0 0 !important;
-    background: var(--hh-bg-deck) !important;
-    background-image: none !important;
-    padding: 12px 12px max(16px, var(--hh-safe-bottom)) !important;
-    z-index: 88 !important;
+    position:fixed;
+    top:auto;
+    bottom:0;
+    left:0;
+    right:0;
+    width:100vw;
+    max-width:100vw;
+    max-height:82dvh;
+    border-radius:14px 14px 0 0;
+    background:var(--hh-bg-deck);
+    background-image:none;
+    padding:12px 12px max(16px, var(--hh-safe-bottom));
+    z-index:88;
 }
 
 html.yasd-handheld .item-sheet-tab,
 html.yasd-handheld .item-sheet-close,
 html.yasd-handheld .item-verb-btn,
 html.yasd-handheld .item-sheet-crt-btn {
-    min-width: 44px !important;
-    min-height: 44px !important;
-    padding: 6px 12px !important;
-    font-size: 12.5px !important;
+    min-width:44px;
+    min-height:44px;
+    padding:6px 12px;
+    font-size:12.5px;
 }
 
 html.yasd-handheld .item-sheet-crt-btn {
-    background: var(--hh-bg-button) !important;
-    border: 1px solid var(--hh-border) !important;
-    border-radius: 6px !important;
-    color: var(--hh-gold) !important;
-    font-weight: 700 !important;
-    cursor: pointer !important;
-    margin-left: auto !important;
-    margin-right: 6px !important;
+    background:var(--hh-bg-button);
+    border:1px solid var(--hh-border);
+    border-radius:6px;
+    color:var(--hh-gold);
+    font-weight:700;
+    cursor:pointer;
+    margin-left:auto;
+    margin-right:6px;
 }
 
 html.yasd-handheld #app-container #quick-slot-popover.is-open {
-    position: fixed !important;
-    top: auto !important;
-    bottom: calc(12px + var(--hh-safe-bottom)) !important;
-    left: 50% !important;
-    transform: translateX(-50%) !important;
-    width: calc(100vw - 16px) !important;
-    max-width: 520px !important;
-    max-height: 76dvh !important;
-    overflow-y: auto !important;
-    background: var(--hh-bg-deck) !important;
-    z-index: 90 !important;
+    position:fixed;
+    top:auto;
+    bottom:calc(12px + var(--hh-safe-bottom));
+    left:50%;
+    transform:translateX(-50%);
+    width:calc(100vw - 16px);
+    max-width:520px;
+    max-height:76dvh;
+    overflow-y:auto;
+    background:var(--hh-bg-deck);
+    z-index:90;
 }
 
 html.yasd-handheld #app-container #quick-slot-popover .qs-candidate-item,
 html.yasd-handheld #app-container #quick-slot-popover .qs-slot-tab {
-    min-height: 44px !important;
-    font-size: 12.5px !important;
+    min-height:44px;
+    font-size:12.5px;
 }
 
 /* Concentric Radial Marking Menu Styling */
 html.yasd-handheld .radial-menu-overlay {
-    z-index: 92 !important;
-    background: rgba(8, 10, 15, 0.72) !important;
+    z-index:92;
+    background:rgba(8, 10, 15, 0.72);
 }
 
 html.yasd-handheld .radial-menu-disc {
-    position: relative !important;
-    width: 280px !important;
-    height: 280px !important;
-    border-radius: 50% !important;
-    background: radial-gradient(circle, rgba(24, 29, 39, 0.96) 0%, rgba(16, 20, 28, 0.98) 100%) !important;
-    border: 2px solid var(--hh-border-strong) !important;
-    box-shadow: 0 20px 52px rgba(0, 0, 0, 0.9) !important;
+    position:relative;
+    width:280px;
+    height:280px;
+    border-radius:50%;
+    background:radial-gradient(circle, rgba(24, 29, 39, 0.96) 0%, rgba(16, 20, 28, 0.98) 100%);
+    border:2px solid var(--hh-border-strong);
+    box-shadow:0 20px 52px rgba(0, 0, 0, 0.9);
 }
 
 html.yasd-handheld .radial-wedge {
-    position: absolute !important;
-    left: 50% !important;
-    top: 50% !important;
-    width: 78px !important;
-    height: 54px !important;
-    transform: translate(-50%, -50%) rotate(var(--wedge-angle, 0deg)) translateY(-96px) rotate(calc(-1 * var(--wedge-angle, 0deg))) !important;
-    display: flex !important;
-    flex-direction: column !important;
-    align-items: center !important;
-    justify-content: center !important;
-    gap: 2px !important;
-    background: var(--hh-bg-button) !important;
-    border: 1px solid var(--hh-border) !important;
-    border-radius: 10px !important;
-    color: var(--hh-ink) !important;
-    font-size: 10.5px !important;
-    font-weight: 700 !important;
-    text-align: center !important;
-    padding: 3px !important;
+    position:absolute;
+    left:50%;
+    top:50%;
+    width:78px;
+    height:54px;
+    transform:translate(-50%, -50%) rotate(var(--wedge-angle, 0deg)) translateY(-96px) rotate(calc(-1 * var(--wedge-angle, 0deg)));
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:2px;
+    background:var(--hh-bg-button);
+    border:1px solid var(--hh-border);
+    border-radius:10px;
+    color:var(--hh-ink);
+    font-size:0.6875rem;
+    font-weight:700;
+    text-align:center;
+    padding:3px;
 }
 
 html.yasd-handheld .radial-wedge.wedge-selected {
-    background: #362912 !important;
-    border-color: var(--hh-gold) !important;
-    color: #f3e6c2 !important;
-    box-shadow: 0 0 14px rgba(223, 184, 88, 0.55) !important;
+    background:#362912;
+    border-color:var(--hh-gold);
+    color:#f3e6c2;
+    box-shadow:0 0 14px rgba(223, 184, 88, 0.55);
 }
 
 html.yasd-handheld .radial-wedge.wedge-disabled {
-    opacity: 0.35 !important;
+    opacity:0.35;
 }
 
 html.yasd-handheld .radial-wedge .radial-key {
-    display: none !important;
+    display:none;
 }
 
 /* Auto-Walk Floating Stop Pill */
@@ -1033,118 +1036,119 @@ html.yasd-handheld #app-container #handheld-autonav-stop.is-active {
 }
 
 html.yasd-handheld #app-container #chronicle-window {
-    position: fixed !important;
-    top: calc(36px + var(--hh-safe-top)) !important;
-    left: calc(8px + var(--hh-safe-left)) !important;
-    right: calc(8px + var(--hh-safe-right)) !important;
-    bottom: auto !important;
-    width: auto !important;
-    min-width: 0 !important;
-    max-width: none !important;
-    height: min(440px, calc(100dvh - 46px - var(--hh-safe-top) - var(--hh-safe-bottom))) !important;
-    max-height: calc(100dvh - 46px - var(--hh-safe-top) - var(--hh-safe-bottom)) !important;
-    z-index: 85 !important;
+    position:fixed;
+    top:calc(36px + var(--hh-safe-top));
+    left:calc(8px + var(--hh-safe-left));
+    right:calc(8px + var(--hh-safe-right));
+    bottom:auto;
+    width:auto;
+    min-width:0;
+    max-width:none;
+    height:min(440px, calc(100dvh - 46px - var(--hh-safe-top) - var(--hh-safe-bottom)));
+    max-height:calc(100dvh - 46px - var(--hh-safe-top) - var(--hh-safe-bottom));
+    z-index:85;
 }
 
 /* Message Feed Expanded Drawer */
 html.yasd-handheld #app-container #message-feed-window:not(.mobile-expanded) {
-    display: none !important;
+    display:none!important;
 }
 
 html.yasd-handheld #app-container #message-feed-window.mobile-expanded {
-    display: flex !important;
-    position: fixed !important;
-    top: calc(36px + var(--hh-safe-top)) !important;
-    left: calc(6px + var(--hh-safe-left)) !important;
-    right: calc(6px + var(--hh-safe-right)) !important;
-    bottom: auto !important;
-    width: auto !important;
-    max-width: none !important;
-    height: 60dvh !important;
-    z-index: 80 !important;
+    display:flex;
+    position:fixed;
+    top:calc(36px + var(--hh-safe-top));
+    left:calc(6px + var(--hh-safe-left));
+    right:calc(6px + var(--hh-safe-right));
+    bottom:auto;
+    width:auto;
+    max-width:none;
+    height:60dvh;
+    z-index:80;
 }
 
 /* Handheld First-Run Coachmark Strip (Clean Horizontal Stage Header, Zero Overlap) */
 html.yasd-handheld .ftue-coachmark-pill {
-    border-radius: 10px !important;
-    padding: 6px 10px !important;
-    font-size: 11.5px !important;
-    line-height: 1.25 !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: space-between !important;
-    gap: 8px !important;
-    transform: none !important;
-    width: auto !important;
-    max-width: none !important;
-    z-index: 65 !important;
-    background: var(--hh-bg-deck) !important;
-    border: 1px solid var(--hh-border-strong) !important;
-    color: var(--hh-ink) !important;
+    border-radius:10px;
+    padding:6px 10px;
+    font-size:11.5px;
+    line-height:1.25;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:8px;
+    transform:none;
+    width:auto;
+    max-width:none;
+    z-index:65;
+    background:var(--hh-bg-deck);
+    border:1px solid var(--hh-border-strong);
+    color:var(--hh-ink);
 }
 
 html.yasd-handheld.is-portrait .ftue-coachmark-pill {
-    top: calc(104px + var(--hh-safe-top)) !important;
-    left: calc(8px + var(--hh-safe-left)) !important;
-    right: calc(8px + var(--hh-safe-right)) !important;
+    top:calc(104px + var(--hh-safe-top));
+    left:calc(8px + var(--hh-safe-left));
+    right:calc(8px + var(--hh-safe-right));
 }
 
 html.yasd-handheld.is-landscape .ftue-coachmark-pill {
-    top: calc(36px + var(--hh-safe-top)) !important;
-    left: calc(176px + var(--hh-safe-left)) !important;
-    right: calc(196px + var(--hh-safe-right)) !important;
+    top:calc(36px + var(--hh-safe-top));
+    left:calc(176px + var(--hh-safe-left));
+    right:calc(196px + var(--hh-safe-right));
 }
 
 html.yasd-handheld .ftue-coachmark-btn,
 html.yasd-handheld .ftue-coachmark-dismiss {
-    min-width: 44px !important;
-    min-height: 44px !important;
-    flex-shrink: 0 !important;
+    min-width:44px;
+    min-height:44px;
+    flex-shrink:0;
 }
 
 /* Coarse Tablet Touch Target Guarantee (device-tablet only; 0 Desktop Impact) */
 html.device-tablet #app-container #action-bar .action-btn,
 html.device-tablet #app-container #action-bar .act-btn,
 html.device-tablet #app-container #touch-controls .dpad-btn {
-    min-width: 44px !important;
-    min-height: 44px !important;
-    height: 44px !important;
+    min-width:44px;
+    min-height:44px;
+    height:44px;
 }
 
 html.device-tablet #app-container #action-bar {
-    margin-bottom: 4px !important;
+    margin-bottom:4px;
 }
 
 html.device-tablet.is-portrait #app-container #top-message-banner {
-    top: calc(6px + var(--safe-top, 0px)) !important;
-    left: max(8px, var(--safe-left, 0px)) !important;
-    right: calc(min(55vw, 424px) + var(--safe-right, 0px)) !important;
-    width: auto !important;
-    padding-right: 10px !important;
+    top:calc(6px + var(--safe-top, 0px));
+    left:max(8px, var(--safe-left, 0px));
+    right:calc(min(55vw, 424px) + var(--safe-right, 0px));
+    width:auto;
+    padding-right:10px;
 }
 
 html.device-tablet.is-portrait #app-container #minimap-container {
-    top: calc(62px + var(--safe-top, 0px)) !important;
-    right: max(10px, var(--safe-right, 0px)) !important;
-    left: auto !important;
-    width: 156px !important;
+    top:calc(62px + var(--safe-top, 0px));
+    right:max(10px, var(--safe-right, 0px));
+    left:auto;
+    width:156px;
 }
 
 html.device-tablet.is-portrait #app-container #hud-overlay {
-    right: var(--hud-gap, 14px) !important;
-    align-items: flex-start !important;
+    right:var(--hud-gap, 14px);
+    align-items:flex-start;
 }
 
 html.device-tablet.is-portrait #app-container #char-panel {
-    width: min(440px, calc(100% - 172px)) !important;
-    max-width: calc(100% - 172px) !important;
-    min-width: 220px !important;
-    align-self: flex-start !important;
+    width:min(440px, calc(100% - 172px));
+    max-width:calc(100% - 172px);
+    min-width:220px;
+    align-self:flex-start;
 }
 
 html.device-tablet.is-portrait #app-container #hud-center-column {
-    margin-left: 168px !important;
-    width: calc(100% - 168px) !important;
-    max-width: calc(100% - 168px) !important;
-    align-self: flex-end !important;
+    margin-left:168px;
+    width:calc(100% - 168px);
+    max-width:calc(100% - 168px);
+    align-self:flex-end;
+}
 }

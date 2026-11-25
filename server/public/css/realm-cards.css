@@ -1,3 +1,4 @@
+@layer components {
 /* server/public/css/realm-cards.css
  * WS82 — Nostalgia RPG Collector Card Carousel, Kanji-Tutor Popover & Backup Shield
  * Scotopic dark-iron & aged-brass palette (WEB-SCOTOPIC-02 / WEB-NATIVE-03 / WEB-CWV-04).
@@ -64,7 +65,7 @@
 }
 
 .rc-topbar-kicker {
-  font-size: 0.68rem;
+  font-size: 0.6875rem;
   font-weight: 700;
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -115,7 +116,7 @@
 }
 
 .rc-resume-pill.hidden {
-  display: none !important;
+  display:none;
 }
 
 .rc-view-btn,
@@ -171,7 +172,7 @@
 }
 
 .rc-nav-arrow span {
-  font-size: 0.62rem;
+  font-size: 0.6875rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--rc-text-muted);
@@ -243,7 +244,7 @@
   background: rgba(12, 14, 19, 0.86);
   border: 1px solid rgba(201, 164, 92, 0.46);
   color: var(--rc-brass-bright);
-  font-size: 0.68rem;
+  font-size: 0.6875rem;
   font-weight: 700;
   letter-spacing: 0.06em;
 }
@@ -257,7 +258,7 @@
   background: rgba(12, 14, 19, 0.86);
   border: 1px solid rgba(160, 174, 192, 0.3);
   color: #cbd5e1;
-  font-size: 0.66rem;
+  font-size: 0.6875rem;
   font-weight: 600;
 }
 
@@ -278,7 +279,7 @@
 }
 
 .rc-meta-label {
-  font-size: 0.61rem;
+  font-size: 0.6875rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--rc-text-muted);
@@ -392,7 +393,7 @@
 }
 
 .rc-heng-inline.hidden {
-  display: none !important;
+  display:none;
 }
 
 .rc-heng-inline select {
@@ -492,7 +493,7 @@
 
 .rc-grid-drawer.hidden,
 .rc-stage.hidden {
-  display: none !important;
+  display:none;
 }
 
 .rc-mini-card {
@@ -551,7 +552,7 @@
   gap: 4px;
   padding: 2px 7px;
   border-radius: 999px;
-  font-size: 0.66rem;
+  font-size: 0.6875rem;
   font-weight: 700;
   border: 1px solid rgba(201, 164, 92, 0.32);
   background: rgba(20, 25, 33, 0.9);
@@ -604,7 +605,7 @@
 }
 
 .heng-vocab-popover.hidden {
-  display: none !important;
+  display:none;
 }
 
 .heng-vocab-kanji {
@@ -647,7 +648,7 @@
   }
 
   .rc-mobile-nav-row {
-    display: flex !important;
+    display:flex;
     gap: 8px;
     width: 100%;
   }
@@ -666,6 +667,7 @@
   .rc-nav-arrow,
   .rc-select-btn,
   .rc-pip-btn {
-    transition: none !important;
+    transition:none;
   }
+}
 }

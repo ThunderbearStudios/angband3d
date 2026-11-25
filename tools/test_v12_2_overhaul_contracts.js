@@ -225,7 +225,7 @@ assert.ok(demoHtmlSrc.includes('/js/safe-html.js'), 'demo.html must load safe-ht
 // 6. Wave 6: CSS Cascade Layers, Z-Index Stack, Mobile A11y & Split PWA Icons
 // ============================================================================
 const tokensCssSrc = read('server/public/css/tokens.css');
-assert.ok(tokensCssSrc.includes('@layer reset, tokens, base, hud, terminal, modals, overrides;'), 'tokens.css must declare @layer order');
+assert.ok(tokensCssSrc.includes('@layer reset, tokens, base, layout, components, hud, modals, overrides;'), 'tokens.css must declare 8-layer @layer order');
 assert.ok(tokensCssSrc.includes('#terminal-container.in-game-modal'), 'tokens.css must style #terminal-container.in-game-modal');
 assert.ok(tokensCssSrc.includes('#app-container > #pause-modal') && tokensCssSrc.includes('z-index: 950'), 'tokens.css must lift #pause-modal to z-index 950');
 assert.ok(tokensCssSrc.includes('min-height: 44px') && tokensCssSrc.includes('font-size: max(16px, 1rem)'), 'tokens.css must enforce 44px coarse tap targets and 16px iOS zoom guard');

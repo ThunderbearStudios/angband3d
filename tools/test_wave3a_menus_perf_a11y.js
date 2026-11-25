@@ -134,7 +134,7 @@ function run() {
     // 10. CSS & HTML Perf / A11y checks
     assert(!/backdrop-filter/.test(read('server/public/js/ryod-forge.js')), 'ryod-forge.js must not use expensive full-screen backdrop-filter blur');
     assert(!/:focus-visible[^}]*outline:\s*none/s.test(read('server/public/css/realm-cards.css')), 'realm-cards.css must never strip :focus-visible outline');
-    assert(/min-width:\s*44px\s*!important;[\s\S]*?height:\s*44px\s*!important;/.test(read('server/public/css/mobile-console.css')), 'mobile-console.css handheld top-bar icon buttons must be >=44x44px');
+    assert(/min-width:\s*44px(?:\s*!important)?;[\s\S]*?height:\s*44px(?:\s*!important)?;/.test(read('server/public/css/mobile-console.css')), 'mobile-console.css handheld top-bar icon buttons must be >=44x44px');
     const chronCss = read('server/public/css/chronicle.css');
     assert(/scrollbar-width:\s*thin/.test(chronCss) && /@supports not \(scrollbar-color:\s*auto\)/.test(chronCss) && /content-visibility:\s*auto/.test(chronCss), 'chronicle.css must use standard scrollbar-color/width + @supports fallback + content-visibility: auto');
     assert(/mobile-console\.min\.css\?v=13\.3\.0"\s+media="\(max-width:\s*1024px\),\s*\(pointer:\s*coarse\)"/.test(read('server/public/index.html')), 'index.html must media-gate mobile-console.min.css');

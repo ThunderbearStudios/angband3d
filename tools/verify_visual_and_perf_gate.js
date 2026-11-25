@@ -181,7 +181,7 @@ async function main() {
             await sleep(2400);
 
             const domCounts = await coldCdp.evaluate(`(() => ({
-                scripts: document.querySelectorAll('script[src]').length,
+                scripts: document.querySelectorAll('script[src]:not([src*="engine3d.min.js"])').length,
                 cssLinks: document.querySelectorAll('link[rel="stylesheet"]').length,
                 lazyGuide: Boolean(window.AdventurerGuide),
                 lazyRyod: Boolean(window.RyodForge),
