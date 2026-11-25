@@ -18,58 +18,103 @@
         -0.3066237270832062,
         -0.04668637365102768
       ],
-      "bufferView": 0,
-      "byteOffset": 0
+      "normalized": false,
+      "byteOffset": 0,
+      "bufferView": 0
     },
     {
       "type": "VEC3",
-      "componentType": 5126,
+      "componentType": 5120,
       "count": 5685,
-      "bufferView": 1,
-      "byteOffset": 0
+      "normalized": true,
+      "byteOffset": 0,
+      "bufferView": 1
     },
     {
       "type": "VEC2",
       "componentType": 5126,
       "count": 5685,
-      "bufferView": 2,
-      "byteOffset": 0
+      "normalized": false,
+      "byteOffset": 0,
+      "bufferView": 2
     },
     {
       "type": "SCALAR",
       "componentType": 5123,
       "count": 20010,
-      "bufferView": 3,
-      "byteOffset": 0
+      "normalized": false,
+      "byteOffset": 0,
+      "bufferView": 3
     }
   ],
   "bufferViews": [
     {
-      "buffer": 0,
+      "buffer": 1,
       "byteOffset": 0,
       "byteLength": 68220,
+      "target": 34962,
       "byteStride": 12,
-      "target": 34962
+      "extensions": {
+        "EXT_meshopt_compression": {
+          "buffer": 0,
+          "byteOffset": 0,
+          "byteLength": 43208,
+          "mode": "ATTRIBUTES",
+          "byteStride": 12,
+          "count": 5685
+        }
+      }
     },
     {
-      "buffer": 0,
+      "buffer": 1,
       "byteOffset": 68220,
-      "byteLength": 68220,
-      "byteStride": 12,
-      "target": 34962
+      "byteLength": 22740,
+      "target": 34962,
+      "byteStride": 4,
+      "extensions": {
+        "EXT_meshopt_compression": {
+          "buffer": 0,
+          "byteOffset": 43208,
+          "byteLength": 10961,
+          "mode": "ATTRIBUTES",
+          "filter": "OCTAHEDRAL",
+          "byteStride": 4,
+          "count": 5685
+        }
+      }
     },
     {
-      "buffer": 0,
-      "byteOffset": 136440,
+      "buffer": 1,
+      "byteOffset": 90960,
       "byteLength": 45480,
+      "target": 34962,
       "byteStride": 8,
-      "target": 34962
+      "extensions": {
+        "EXT_meshopt_compression": {
+          "buffer": 0,
+          "byteOffset": 54172,
+          "byteLength": 31713,
+          "mode": "ATTRIBUTES",
+          "byteStride": 8,
+          "count": 5685
+        }
+      }
     },
     {
-      "buffer": 0,
-      "byteOffset": 181920,
+      "buffer": 1,
+      "byteOffset": 136440,
       "byteLength": 40020,
-      "target": 34963
+      "target": 34963,
+      "extensions": {
+        "EXT_meshopt_compression": {
+          "buffer": 0,
+          "byteOffset": 85888,
+          "byteLength": 22007,
+          "mode": "TRIANGLES",
+          "byteStride": 2,
+          "count": 20010
+        }
+      }
     }
   ],
   "samplers": [
@@ -126,7 +171,15 @@
   "buffers": [
     {
       "uri": "antique_katana_01.bin",
-      "byteLength": 221940
+      "byteLength": 107896
+    },
+    {
+      "byteLength": 176460,
+      "extensions": {
+        "EXT_meshopt_compression": {
+          "fallback": true
+        }
+      }
     }
   ],
   "materials": [
@@ -179,9 +232,11 @@
   ],
   "scene": 0,
   "extensionsUsed": [
+    "EXT_meshopt_compression",
     "EXT_texture_webp"
   ],
   "extensionsRequired": [
+    "EXT_meshopt_compression",
     "EXT_texture_webp"
   ]
 }

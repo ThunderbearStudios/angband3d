@@ -3207,7 +3207,6 @@ class Dungeon3D {
                             mClone._sharedMaterial = false;
                             if (c.material.onBeforeCompile) mClone.onBeforeCompile = c.material.onBeforeCompile;
                             if (c.material.customProgramCacheKey) mClone.customProgramCacheKey = c.material.customProgramCacheKey;
-                            this._applyUvSeamBleedFix(mClone);
                             if (mClone.color) mClone.color.lerp(bCol, 0.36);
                             if (mClone.emissive) {
                                 mClone.emissive.copy(bCol);
@@ -8822,7 +8821,6 @@ class Dungeon3D {
                     if (child.material) {
                         child.material = Array.isArray(child.material) ? child.material[0].clone() : child.material.clone();
                         child.material.color = new THREE.Color(0x38342c);
-                        this._applyUvSeamBleedFix(child.material);
                     }
                     if (child.geometry && child.geometry.attributes && child.geometry.attributes.position && child.geometry.attributes.normal) {
                         const geo = child.geometry.clone();
@@ -8842,57 +8840,6 @@ class Dungeon3D {
                 }
             }
         });
-    }
-
-    _applyUvSeamBleedFix(mat) {
-        if (!mat || !mat.map) return;
-        if (!this._uvSeamBleedOnBeforeCompile) {
-            this._uvSeamBleedOnBeforeCompile = (shader) => {
-                shader.fragmentShader = shader.fragmentShader.replace(
-                    '#include <map_fragment>',
-                    `#ifdef USE_MAP
-                        vec4 texelColor = texture2D( map, vUv, -0.75 );
-                        float cLuma = dot(texelColor.rgb, vec3(0.299, 0.587, 0.114));
-                        vec2 uvStep = vec2(0.0032, 0.0032);
-                        vec4 n0 = texture2D( map, vUv + vec2( uvStep.x, 0.0), -1.0 );
-                        vec4 n1 = texture2D( map, vUv + vec2(-uvStep.x, 0.0), -1.0 );
-                        vec4 n2 = texture2D( map, vUv + vec2(0.0,  uvStep.y), -1.0 );
-                        vec4 n3 = texture2D( map, vUv + vec2(0.0, -uvStep.y), -1.0 );
-                        vec4 n4 = texture2D( map, vUv + vec2( uvStep.x,  uvStep.y), -1.0 );
-                        vec4 n5 = texture2D( map, vUv + vec2(-uvStep.x,  uvStep.y), -1.0 );
-                        vec4 n6 = texture2D( map, vUv + vec2( uvStep.x, -uvStep.y), -1.0 );
-                        vec4 n7 = texture2D( map, vUv + vec2(-uvStep.x, -uvStep.y), -1.0 );
-                        float l0 = dot(n0.rgb, vec3(0.299, 0.587, 0.114));
-                        float l1 = dot(n1.rgb, vec3(0.299, 0.587, 0.114));
-                        float l2 = dot(n2.rgb, vec3(0.299, 0.587, 0.114));
-                        float l3 = dot(n3.rgb, vec3(0.299, 0.587, 0.114));
-                        float l4 = dot(n4.rgb, vec3(0.299, 0.587, 0.114));
-                        float l5 = dot(n5.rgb, vec3(0.299, 0.587, 0.114));
-                        float l6 = dot(n6.rgb, vec3(0.299, 0.587, 0.114));
-                        float l7 = dot(n7.rgb, vec3(0.299, 0.587, 0.114));
-                        vec4 maxCol = texelColor; float maxL = cLuma;
-                        if (l0 > maxL) { maxL = l0; maxCol = n0; }
-                        if (l1 > maxL) { maxL = l1; maxCol = n1; }
-                        if (l2 > maxL) { maxL = l2; maxCol = n2; }
-                        if (l3 > maxL) { maxL = l3; maxCol = n3; }
-                        if (l4 > maxL) { maxL = l4; maxCol = n4; }
-                        if (l5 > maxL) { maxL = l5; maxCol = n5; }
-                        if (l6 > maxL) { maxL = l6; maxCol = n6; }
-                        if (l7 > maxL) { maxL = l7; maxCol = n7; }
-                        if (cLuma < 0.085 && maxL > max(0.14, cLuma * 2.4)) {
-                            float gutterMask = clamp((0.092 - cLuma) / 0.032, 0.72, 1.0);
-                            texelColor = mix(texelColor, maxCol, gutterMask);
-                        }
-                        texelColor = mapTexelToLinear( texelColor );
-                        diffuseColor *= texelColor;
-                    #endif`
-                );
-            };
-        }
-        if (mat._uvSeamFixApplied && mat.onBeforeCompile === this._uvSeamBleedOnBeforeCompile) return;
-        mat._uvSeamFixApplied = true;
-        mat.customProgramCacheKey = () => 'yasd_uv_seam_dilation_v2';
-        mat.onBeforeCompile = this._uvSeamBleedOnBeforeCompile;
     }
 
     _loadSingleGltfScene(url) {
@@ -8921,7 +8868,6 @@ class Dungeon3D {
                                         if (m.map) {
                                             m.map._sharedTexture = true;
                                             if (typeof THREE.sRGBEncoding !== 'undefined') m.map.encoding = THREE.sRGBEncoding;
-                                            this._applyUvSeamBleedFix(m);
                                         }
                                         if (m.normalMap) m.normalMap._sharedTexture = true;
                                         if (m.roughnessMap) m.roughnessMap._sharedTexture = true;
@@ -9848,7 +9794,6 @@ class Dungeon3D {
                         for (const m of mats) {
                             if (m.color) m.color.setHex(0x3b1d5e);
                             m.roughness = 0.68;
-                            if (m.map) this._applyUvSeamBleedFix(m);
                             m._sharedMaterial = true;
                         }
                         c.material = Array.isArray(c.material) ? mats : mats[0];
@@ -10419,7 +10364,6 @@ class Dungeon3D {
                     pooledMat._refCount = 0;
                     if (oldMat.onBeforeCompile) pooledMat.onBeforeCompile = oldMat.onBeforeCompile;
                     if (oldMat.customProgramCacheKey) pooledMat.customProgramCacheKey = oldMat.customProgramCacheKey;
-                    if (!pooledMat.onBeforeCompile && hasTexMap) this._applyUvSeamBleedFix(pooledMat);
                     if (isSkinned || oldMat.skinning) {
                         pooledMat.skinning = true;
                     }
@@ -11475,10 +11419,8 @@ class Dungeon3D {
                                 if (m) {
                                     m._sharedMaterial = true;
                                     if (m.map) {
-                                        // # ROOT-CAUSE: Dilate zero-margin GLB UV island boundaries against black (0,0,0) atlas gutters to eliminate seam cracks.
                                         m.map._sharedTexture = true;
                                         if (typeof THREE.sRGBEncoding !== 'undefined') m.map.encoding = THREE.sRGBEncoding;
-                                        this._applyUvSeamBleedFix(m);
                                     }
                                     if (m.normalMap) m.normalMap._sharedTexture = true;
                                     if (m.roughnessMap) m.roughnessMap._sharedTexture = true;

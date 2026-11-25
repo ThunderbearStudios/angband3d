@@ -18,58 +18,103 @@
         -0.1501227766275406,
         -0.017406301572918892
       ],
-      "bufferView": 0,
-      "byteOffset": 0
+      "normalized": false,
+      "byteOffset": 0,
+      "bufferView": 0
     },
     {
       "type": "VEC3",
-      "componentType": 5126,
+      "componentType": 5120,
       "count": 3650,
-      "bufferView": 1,
-      "byteOffset": 0
+      "normalized": true,
+      "byteOffset": 0,
+      "bufferView": 1
     },
     {
       "type": "VEC2",
       "componentType": 5126,
       "count": 3650,
-      "bufferView": 2,
-      "byteOffset": 0
+      "normalized": false,
+      "byteOffset": 0,
+      "bufferView": 2
     },
     {
       "type": "SCALAR",
       "componentType": 5123,
       "count": 15576,
-      "bufferView": 3,
-      "byteOffset": 0
+      "normalized": false,
+      "byteOffset": 0,
+      "bufferView": 3
     }
   ],
   "bufferViews": [
     {
-      "buffer": 0,
+      "buffer": 1,
       "byteOffset": 0,
       "byteLength": 43800,
+      "target": 34962,
       "byteStride": 12,
-      "target": 34962
+      "extensions": {
+        "EXT_meshopt_compression": {
+          "buffer": 0,
+          "byteOffset": 0,
+          "byteLength": 31783,
+          "mode": "ATTRIBUTES",
+          "byteStride": 12,
+          "count": 3650
+        }
+      }
     },
     {
-      "buffer": 0,
+      "buffer": 1,
       "byteOffset": 43800,
-      "byteLength": 43800,
-      "byteStride": 12,
-      "target": 34962
+      "byteLength": 14600,
+      "target": 34962,
+      "byteStride": 4,
+      "extensions": {
+        "EXT_meshopt_compression": {
+          "buffer": 0,
+          "byteOffset": 31784,
+          "byteLength": 6743,
+          "mode": "ATTRIBUTES",
+          "filter": "OCTAHEDRAL",
+          "byteStride": 4,
+          "count": 3650
+        }
+      }
     },
     {
-      "buffer": 0,
-      "byteOffset": 87600,
+      "buffer": 1,
+      "byteOffset": 58400,
       "byteLength": 29200,
+      "target": 34962,
       "byteStride": 8,
-      "target": 34962
+      "extensions": {
+        "EXT_meshopt_compression": {
+          "buffer": 0,
+          "byteOffset": 38528,
+          "byteLength": 24050,
+          "mode": "ATTRIBUTES",
+          "byteStride": 8,
+          "count": 3650
+        }
+      }
     },
     {
-      "buffer": 0,
-      "byteOffset": 116800,
+      "buffer": 1,
+      "byteOffset": 87600,
       "byteLength": 31152,
-      "target": 34963
+      "target": 34963,
+      "extensions": {
+        "EXT_meshopt_compression": {
+          "buffer": 0,
+          "byteOffset": 62580,
+          "byteLength": 21025,
+          "mode": "TRIANGLES",
+          "byteStride": 2,
+          "count": 15576
+        }
+      }
     }
   ],
   "samplers": [
@@ -126,7 +171,15 @@
   "buffers": [
     {
       "uri": "ornate_war_hammer.bin",
-      "byteLength": 147952
+      "byteLength": 83608
+    },
+    {
+      "byteLength": 118752,
+      "extensions": {
+        "EXT_meshopt_compression": {
+          "fallback": true
+        }
+      }
     }
   ],
   "materials": [
@@ -179,9 +232,11 @@
   ],
   "scene": 0,
   "extensionsUsed": [
+    "EXT_meshopt_compression",
     "EXT_texture_webp"
   ],
   "extensionsRequired": [
+    "EXT_meshopt_compression",
     "EXT_texture_webp"
   ]
 }

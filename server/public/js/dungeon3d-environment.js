@@ -224,6 +224,8 @@ Dungeon3DProto._loadPolyHavenEnvironmentModels = function _loadPolyHavenEnvironm
     const envMgr = new THREE.LoadingManager();
     envMgr.setURLModifier(resolveAssetUrl);
     const loader = new THREE.GLTFLoader(envMgr);
+    const meshopt = (typeof MeshoptDecoder !== 'undefined' && MeshoptDecoder) || (typeof window !== 'undefined' && window.MeshoptDecoder) || null;
+    if (meshopt && typeof loader.setMeshoptDecoder === 'function') loader.setMeshoptDecoder(meshopt);
     const envTasks = [];
     const addGltfTask = (url, onDone) => {
         envTasks.push(new Promise((resolve) => {

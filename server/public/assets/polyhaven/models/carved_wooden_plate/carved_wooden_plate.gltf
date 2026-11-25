@@ -18,58 +18,103 @@
         -0.0018553033005446196,
         -0.14208173751831055
       ],
-      "bufferView": 0,
-      "byteOffset": 0
+      "normalized": false,
+      "byteOffset": 0,
+      "bufferView": 0
     },
     {
       "type": "VEC3",
-      "componentType": 5126,
+      "componentType": 5120,
       "count": 1234,
-      "bufferView": 1,
-      "byteOffset": 0
+      "normalized": true,
+      "byteOffset": 0,
+      "bufferView": 1
     },
     {
       "type": "VEC2",
       "componentType": 5126,
       "count": 1234,
-      "bufferView": 2,
-      "byteOffset": 0
+      "normalized": false,
+      "byteOffset": 0,
+      "bufferView": 2
     },
     {
       "type": "SCALAR",
       "componentType": 5123,
       "count": 6336,
-      "bufferView": 3,
-      "byteOffset": 0
+      "normalized": false,
+      "byteOffset": 0,
+      "bufferView": 3
     }
   ],
   "bufferViews": [
     {
-      "buffer": 0,
+      "buffer": 1,
       "byteOffset": 0,
       "byteLength": 14808,
+      "target": 34962,
       "byteStride": 12,
-      "target": 34962
+      "extensions": {
+        "EXT_meshopt_compression": {
+          "buffer": 0,
+          "byteOffset": 0,
+          "byteLength": 12375,
+          "mode": "ATTRIBUTES",
+          "byteStride": 12,
+          "count": 1234
+        }
+      }
     },
     {
-      "buffer": 0,
+      "buffer": 1,
       "byteOffset": 14808,
-      "byteLength": 14808,
-      "byteStride": 12,
-      "target": 34962
+      "byteLength": 4936,
+      "target": 34962,
+      "byteStride": 4,
+      "extensions": {
+        "EXT_meshopt_compression": {
+          "buffer": 0,
+          "byteOffset": 12376,
+          "byteLength": 2121,
+          "mode": "ATTRIBUTES",
+          "filter": "OCTAHEDRAL",
+          "byteStride": 4,
+          "count": 1234
+        }
+      }
     },
     {
-      "buffer": 0,
-      "byteOffset": 29616,
+      "buffer": 1,
+      "byteOffset": 19744,
       "byteLength": 9872,
+      "target": 34962,
       "byteStride": 8,
-      "target": 34962
+      "extensions": {
+        "EXT_meshopt_compression": {
+          "buffer": 0,
+          "byteOffset": 14500,
+          "byteLength": 8138,
+          "mode": "ATTRIBUTES",
+          "byteStride": 8,
+          "count": 1234
+        }
+      }
     },
     {
-      "buffer": 0,
-      "byteOffset": 39488,
+      "buffer": 1,
+      "byteOffset": 29616,
       "byteLength": 12672,
-      "target": 34963
+      "target": 34963,
+      "extensions": {
+        "EXT_meshopt_compression": {
+          "buffer": 0,
+          "byteOffset": 22640,
+          "byteLength": 6599,
+          "mode": "TRIANGLES",
+          "byteStride": 2,
+          "count": 6336
+        }
+      }
     }
   ],
   "samplers": [
@@ -126,7 +171,15 @@
   "buffers": [
     {
       "uri": "carved_wooden_plate.bin",
-      "byteLength": 52160
+      "byteLength": 29240
+    },
+    {
+      "byteLength": 42288,
+      "extensions": {
+        "EXT_meshopt_compression": {
+          "fallback": true
+        }
+      }
     }
   ],
   "materials": [
@@ -180,9 +233,11 @@
   ],
   "scene": 0,
   "extensionsUsed": [
+    "EXT_meshopt_compression",
     "EXT_texture_webp"
   ],
   "extensionsRequired": [
+    "EXT_meshopt_compression",
     "EXT_texture_webp"
   ]
 }

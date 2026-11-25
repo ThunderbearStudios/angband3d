@@ -18,58 +18,103 @@
         -0.006055276375263929,
         -0.1250573843717575
       ],
-      "bufferView": 0,
-      "byteOffset": 0
+      "normalized": false,
+      "byteOffset": 0,
+      "bufferView": 0
     },
     {
       "type": "VEC3",
-      "componentType": 5126,
+      "componentType": 5120,
       "count": 1847,
-      "bufferView": 1,
-      "byteOffset": 0
+      "normalized": true,
+      "byteOffset": 0,
+      "bufferView": 1
     },
     {
       "type": "VEC2",
       "componentType": 5126,
       "count": 1847,
-      "bufferView": 2,
-      "byteOffset": 0
+      "normalized": false,
+      "byteOffset": 0,
+      "bufferView": 2
     },
     {
       "type": "SCALAR",
       "componentType": 5123,
       "count": 9912,
-      "bufferView": 3,
-      "byteOffset": 0
+      "normalized": false,
+      "byteOffset": 0,
+      "bufferView": 3
     }
   ],
   "bufferViews": [
     {
-      "buffer": 0,
+      "buffer": 1,
       "byteOffset": 0,
       "byteLength": 22164,
+      "target": 34962,
       "byteStride": 12,
-      "target": 34962
+      "extensions": {
+        "EXT_meshopt_compression": {
+          "buffer": 0,
+          "byteOffset": 0,
+          "byteLength": 18309,
+          "mode": "ATTRIBUTES",
+          "byteStride": 12,
+          "count": 1847
+        }
+      }
     },
     {
-      "buffer": 0,
+      "buffer": 1,
       "byteOffset": 22164,
-      "byteLength": 22164,
-      "byteStride": 12,
-      "target": 34962
+      "byteLength": 7388,
+      "target": 34962,
+      "byteStride": 4,
+      "extensions": {
+        "EXT_meshopt_compression": {
+          "buffer": 0,
+          "byteOffset": 18312,
+          "byteLength": 3662,
+          "mode": "ATTRIBUTES",
+          "filter": "OCTAHEDRAL",
+          "byteStride": 4,
+          "count": 1847
+        }
+      }
     },
     {
-      "buffer": 0,
-      "byteOffset": 44328,
+      "buffer": 1,
+      "byteOffset": 29552,
       "byteLength": 14776,
+      "target": 34962,
       "byteStride": 8,
-      "target": 34962
+      "extensions": {
+        "EXT_meshopt_compression": {
+          "buffer": 0,
+          "byteOffset": 21976,
+          "byteLength": 12055,
+          "mode": "ATTRIBUTES",
+          "byteStride": 8,
+          "count": 1847
+        }
+      }
     },
     {
-      "buffer": 0,
-      "byteOffset": 59104,
+      "buffer": 1,
+      "byteOffset": 44328,
       "byteLength": 19824,
-      "target": 34963
+      "target": 34963,
+      "extensions": {
+        "EXT_meshopt_compression": {
+          "buffer": 0,
+          "byteOffset": 34032,
+          "byteLength": 11938,
+          "mode": "TRIANGLES",
+          "byteStride": 2,
+          "count": 9912
+        }
+      }
     }
   ],
   "samplers": [
@@ -126,7 +171,15 @@
   "buffers": [
     {
       "uri": "moon_rock_02.bin",
-      "byteLength": 78928
+      "byteLength": 45972
+    },
+    {
+      "byteLength": 64152,
+      "extensions": {
+        "EXT_meshopt_compression": {
+          "fallback": true
+        }
+      }
     }
   ],
   "materials": [
@@ -180,9 +233,11 @@
   ],
   "scene": 0,
   "extensionsUsed": [
+    "EXT_meshopt_compression",
     "EXT_texture_webp"
   ],
   "extensionsRequired": [
+    "EXT_meshopt_compression",
     "EXT_texture_webp"
   ]
 }

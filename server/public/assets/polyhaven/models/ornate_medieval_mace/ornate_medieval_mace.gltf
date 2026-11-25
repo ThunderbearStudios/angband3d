@@ -5,71 +5,116 @@
   },
   "accessors": [
     {
+      "type": "SCALAR",
+      "componentType": 5123,
+      "count": 14400,
+      "normalized": false,
+      "byteOffset": 0,
+      "bufferView": 0
+    },
+    {
       "type": "VEC3",
       "componentType": 5126,
-      "count": 9919,
+      "count": 4063,
       "max": [
         0.047472625970840454,
-        0.5259767174720764,
-        0.05086246505379677
+        0.5259188413619995,
+        0.0507783405482769
       ],
       "min": [
         -0.04739980399608612,
         -0.10402332246303558,
-        -0.050850674510002136
+        -0.05076570436358452
       ],
-      "bufferView": 0,
-      "byteOffset": 0
+      "normalized": false,
+      "byteOffset": 0,
+      "bufferView": 1
     },
     {
       "type": "VEC3",
-      "componentType": 5126,
-      "count": 9919,
-      "bufferView": 1,
-      "byteOffset": 0
+      "componentType": 5120,
+      "count": 4063,
+      "normalized": true,
+      "byteOffset": 0,
+      "bufferView": 2
     },
     {
       "type": "VEC2",
       "componentType": 5126,
-      "count": 9919,
-      "bufferView": 2,
-      "byteOffset": 0
-    },
-    {
-      "type": "SCALAR",
-      "componentType": 5123,
-      "count": 44286,
-      "bufferView": 3,
-      "byteOffset": 0
+      "count": 4063,
+      "normalized": false,
+      "byteOffset": 0,
+      "bufferView": 3
     }
   ],
   "bufferViews": [
     {
-      "buffer": 0,
+      "buffer": 1,
       "byteOffset": 0,
-      "byteLength": 119028,
-      "byteStride": 12,
-      "target": 34962
+      "byteLength": 28800,
+      "target": 34963,
+      "extensions": {
+        "EXT_meshopt_compression": {
+          "buffer": 0,
+          "byteOffset": 0,
+          "byteLength": 13392,
+          "mode": "TRIANGLES",
+          "byteStride": 2,
+          "count": 14400
+        }
+      }
     },
     {
-      "buffer": 0,
-      "byteOffset": 119028,
-      "byteLength": 119028,
+      "buffer": 1,
+      "byteOffset": 28800,
+      "byteLength": 48756,
+      "target": 34962,
       "byteStride": 12,
-      "target": 34962
+      "extensions": {
+        "EXT_meshopt_compression": {
+          "buffer": 0,
+          "byteOffset": 13392,
+          "byteLength": 38813,
+          "mode": "ATTRIBUTES",
+          "byteStride": 12,
+          "count": 4063
+        }
+      }
     },
     {
-      "buffer": 0,
-      "byteOffset": 238056,
-      "byteLength": 79352,
+      "buffer": 1,
+      "byteOffset": 77556,
+      "byteLength": 16252,
+      "target": 34962,
+      "byteStride": 4,
+      "extensions": {
+        "EXT_meshopt_compression": {
+          "buffer": 0,
+          "byteOffset": 52208,
+          "byteLength": 8390,
+          "mode": "ATTRIBUTES",
+          "filter": "OCTAHEDRAL",
+          "byteStride": 4,
+          "count": 4063
+        }
+      }
+    },
+    {
+      "buffer": 1,
+      "byteOffset": 93808,
+      "byteLength": 32504,
+      "target": 34962,
       "byteStride": 8,
-      "target": 34962
-    },
-    {
-      "buffer": 0,
-      "byteOffset": 317408,
-      "byteLength": 88572,
-      "target": 34963
+      "extensions": {
+        "EXT_meshopt_compression": {
+          "buffer": 0,
+          "byteOffset": 60600,
+          "byteLength": 25409,
+          "mode": "ATTRIBUTES",
+          "byteStride": 8,
+          "count": 4063
+        }
+      }
     }
   ],
   "samplers": [
@@ -126,7 +171,15 @@
   "buffers": [
     {
       "uri": "ornate_medieval_mace.bin",
-      "byteLength": 405980
+      "byteLength": 86012
+    },
+    {
+      "byteLength": 126312,
+      "extensions": {
+        "EXT_meshopt_compression": {
+          "fallback": true
+        }
+      }
     }
   ],
   "materials": [
@@ -152,13 +205,13 @@
       "primitives": [
         {
           "attributes": {
-            "POSITION": 0,
-            "NORMAL": 1,
-            "TEXCOORD_0": 2
+            "POSITION": 1,
+            "NORMAL": 2,
+            "TEXCOORD_0": 3
           },
           "mode": 4,
           "material": 0,
-          "indices": 3
+          "indices": 0
         }
       ]
     }
@@ -179,9 +232,11 @@
   ],
   "scene": 0,
   "extensionsUsed": [
+    "EXT_meshopt_compression",
     "EXT_texture_webp"
   ],
   "extensionsRequired": [
+    "EXT_meshopt_compression",
     "EXT_texture_webp"
   ]
 }

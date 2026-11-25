@@ -18,58 +18,103 @@
         -0.09618058800697327,
         -0.06570485979318619
       ],
-      "bufferView": 0,
-      "byteOffset": 0
+      "normalized": false,
+      "byteOffset": 0,
+      "bufferView": 0
     },
     {
       "type": "VEC3",
-      "componentType": 5126,
+      "componentType": 5120,
       "count": 2675,
-      "bufferView": 1,
-      "byteOffset": 0
+      "normalized": true,
+      "byteOffset": 0,
+      "bufferView": 1
     },
     {
       "type": "VEC2",
       "componentType": 5126,
       "count": 2675,
-      "bufferView": 2,
-      "byteOffset": 0
+      "normalized": false,
+      "byteOffset": 0,
+      "bufferView": 2
     },
     {
       "type": "SCALAR",
       "componentType": 5123,
       "count": 12093,
-      "bufferView": 3,
-      "byteOffset": 0
+      "normalized": false,
+      "byteOffset": 0,
+      "bufferView": 3
     }
   ],
   "bufferViews": [
     {
-      "buffer": 0,
+      "buffer": 1,
       "byteOffset": 0,
       "byteLength": 32100,
+      "target": 34962,
       "byteStride": 12,
-      "target": 34962
+      "extensions": {
+        "EXT_meshopt_compression": {
+          "buffer": 0,
+          "byteOffset": 0,
+          "byteLength": 23002,
+          "mode": "ATTRIBUTES",
+          "byteStride": 12,
+          "count": 2675
+        }
+      }
     },
     {
-      "buffer": 0,
+      "buffer": 1,
       "byteOffset": 32100,
-      "byteLength": 32100,
-      "byteStride": 12,
-      "target": 34962
+      "byteLength": 10700,
+      "target": 34962,
+      "byteStride": 4,
+      "extensions": {
+        "EXT_meshopt_compression": {
+          "buffer": 0,
+          "byteOffset": 23004,
+          "byteLength": 5014,
+          "mode": "ATTRIBUTES",
+          "filter": "OCTAHEDRAL",
+          "byteStride": 4,
+          "count": 2675
+        }
+      }
     },
     {
-      "buffer": 0,
-      "byteOffset": 64200,
+      "buffer": 1,
+      "byteOffset": 42800,
       "byteLength": 21400,
+      "target": 34962,
       "byteStride": 8,
-      "target": 34962
+      "extensions": {
+        "EXT_meshopt_compression": {
+          "buffer": 0,
+          "byteOffset": 28020,
+          "byteLength": 17086,
+          "mode": "ATTRIBUTES",
+          "byteStride": 8,
+          "count": 2675
+        }
+      }
     },
     {
-      "buffer": 0,
-      "byteOffset": 85600,
-      "byteLength": 24188,
-      "target": 34963
+      "buffer": 1,
+      "byteOffset": 64200,
+      "byteLength": 24186,
+      "target": 34963,
+      "extensions": {
+        "EXT_meshopt_compression": {
+          "buffer": 0,
+          "byteOffset": 45108,
+          "byteLength": 15539,
+          "mode": "TRIANGLES",
+          "byteStride": 2,
+          "count": 12093
+        }
+      }
     }
   ],
   "samplers": [
@@ -126,7 +171,15 @@
   "buffers": [
     {
       "uri": "wooden_handle_saber.bin",
-      "byteLength": 109788
+      "byteLength": 60648
+    },
+    {
+      "byteLength": 88388,
+      "extensions": {
+        "EXT_meshopt_compression": {
+          "fallback": true
+        }
+      }
     }
   ],
   "materials": [
@@ -179,9 +232,11 @@
   ],
   "scene": 0,
   "extensionsUsed": [
+    "EXT_meshopt_compression",
     "EXT_texture_webp"
   ],
   "extensionsRequired": [
+    "EXT_meshopt_compression",
     "EXT_texture_webp"
   ]
 }

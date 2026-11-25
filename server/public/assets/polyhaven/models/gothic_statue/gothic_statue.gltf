@@ -5,71 +5,116 @@
   },
   "accessors": [
     {
+      "type": "SCALAR",
+      "componentType": 5123,
+      "count": 17781,
+      "normalized": false,
+      "byteOffset": 0,
+      "bufferView": 0
+    },
+    {
       "type": "VEC3",
       "componentType": 5126,
-      "count": 23314,
+      "count": 8243,
       "max": [
-        0.7231897115707397,
+        0.7214093208312988,
         0.5321175456047058,
         0.1022685244679451
       ],
       "min": [
-        -0.754274308681488,
+        -0.7512806057929993,
         -1.2077802419662476,
         -1.4614895582199097
       ],
-      "bufferView": 0,
-      "byteOffset": 0
+      "normalized": false,
+      "byteOffset": 0,
+      "bufferView": 1
     },
     {
       "type": "VEC3",
-      "componentType": 5126,
-      "count": 23314,
-      "bufferView": 1,
-      "byteOffset": 0
+      "componentType": 5120,
+      "count": 8243,
+      "normalized": true,
+      "byteOffset": 0,
+      "bufferView": 2
     },
     {
       "type": "VEC2",
       "componentType": 5126,
-      "count": 23314,
-      "bufferView": 2,
-      "byteOffset": 0
-    },
-    {
-      "type": "SCALAR",
-      "componentType": 5123,
-      "count": 83217,
-      "bufferView": 3,
-      "byteOffset": 0
+      "count": 8243,
+      "normalized": false,
+      "byteOffset": 0,
+      "bufferView": 3
     }
   ],
   "bufferViews": [
     {
-      "buffer": 0,
+      "buffer": 1,
       "byteOffset": 0,
-      "byteLength": 279768,
-      "byteStride": 12,
-      "target": 34962
+      "byteLength": 35562,
+      "target": 34963,
+      "extensions": {
+        "EXT_meshopt_compression": {
+          "buffer": 0,
+          "byteOffset": 0,
+          "byteLength": 9878,
+          "mode": "TRIANGLES",
+          "byteStride": 2,
+          "count": 17781
+        }
+      }
     },
     {
-      "buffer": 0,
-      "byteOffset": 279768,
-      "byteLength": 279768,
+      "buffer": 1,
+      "byteOffset": 35564,
+      "byteLength": 98916,
+      "target": 34962,
       "byteStride": 12,
-      "target": 34962
+      "extensions": {
+        "EXT_meshopt_compression": {
+          "buffer": 0,
+          "byteOffset": 9880,
+          "byteLength": 75872,
+          "mode": "ATTRIBUTES",
+          "byteStride": 12,
+          "count": 8243
+        }
+      }
     },
     {
-      "buffer": 0,
-      "byteOffset": 559536,
-      "byteLength": 186512,
+      "buffer": 1,
+      "byteOffset": 134480,
+      "byteLength": 32972,
+      "target": 34962,
+      "byteStride": 4,
+      "extensions": {
+        "EXT_meshopt_compression": {
+          "buffer": 0,
+          "byteOffset": 85752,
+          "byteLength": 13988,
+          "mode": "ATTRIBUTES",
+          "filter": "OCTAHEDRAL",
+          "byteStride": 4,
+          "count": 8243
+        }
+      }
+    },
+    {
+      "buffer": 1,
+      "byteOffset": 167452,
+      "byteLength": 65944,
+      "target": 34962,
       "byteStride": 8,
-      "target": 34962
-    },
-    {
-      "buffer": 0,
-      "byteOffset": 746048,
-      "byteLength": 166436,
-      "target": 34963
+      "extensions": {
+        "EXT_meshopt_compression": {
+          "buffer": 0,
+          "byteOffset": 99740,
+          "byteLength": 50463,
+          "mode": "ATTRIBUTES",
+          "byteStride": 8,
+          "count": 8243
+        }
+      }
     }
   ],
   "samplers": [
@@ -126,7 +171,15 @@
   "buffers": [
     {
       "uri": "gothic_statue.bin",
-      "byteLength": 912484
+      "byteLength": 150204
+    },
+    {
+      "byteLength": 233396,
+      "extensions": {
+        "EXT_meshopt_compression": {
+          "fallback": true
+        }
+      }
     }
   ],
   "materials": [
@@ -153,13 +206,13 @@
       "primitives": [
         {
           "attributes": {
-            "POSITION": 0,
-            "NORMAL": 1,
-            "TEXCOORD_0": 2
+            "POSITION": 1,
+            "NORMAL": 2,
+            "TEXCOORD_0": 3
           },
           "mode": 4,
           "material": 0,
-          "indices": 3
+          "indices": 0
         }
       ]
     }
@@ -185,9 +238,11 @@
   ],
   "scene": 0,
   "extensionsUsed": [
+    "EXT_meshopt_compression",
     "EXT_texture_webp"
   ],
   "extensionsRequired": [
+    "EXT_meshopt_compression",
     "EXT_texture_webp"
   ]
 }
