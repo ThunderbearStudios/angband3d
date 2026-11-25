@@ -1755,13 +1755,16 @@ class InputController {
         const lf = (this.app && this.app.lastFrame) || (window.__app && window.__app.lastFrame) || null;
         this._lastMoveSentSeq = (lf && lf.seq !== undefined) ? lf.seq : -1;
         this._lastMoveSentAt = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+        this._inFlightMoves = (this._inFlightMoves || 0) + 1;
         if (lf && lf.player && lf.map && lf.map.rows && this.dungeon) {
             const deltaMap = { up: [0, -1], pageup: [1, -1], right: [1, 0], pagedown: [1, 1], down: [0, 1], end: [-1, 1], left: [-1, 0], home: [-1, -1] };
             const d = deltaMap[String(key || '').toLowerCase()];
             if (d) {
                 const nx = lf.player.x + d[0], ny = lf.player.y + d[1], feat = this.getFeatAt(lf.map, nx, ny);
                 const monBlocking = Array.isArray(lf.monsters) && lf.monsters.some((m) => m && m.x === nx && m.y === ny && m.hp > 0);
-                if (!monBlocking && feat > 0 && feat !== 2 && feat !== 21 && feat !== 22 && feat !== 32 && feat !== 61 && this.dungeon.targetCamPos) {
+                const fDef = this.dungeon.featureDefs && this.dungeon.featureDefs[feat];
+                const featPassable = fDef ? fDef.passable !== false : ![0, 2, 15, 16, 17, 18, 19, 20, 21, 22, 29, 30, 32, 41, 60, 61].includes(feat);
+                if (!monBlocking && feat > 0 && featPassable && this.dungeon.targetCamPos) {
                     const logPos = this.dungeon._logicalCamPos || this.dungeon.currentCamPos;
                     if (this.dungeon.isStepping && logPos) this.dungeon.currentCamPos.copy(logPos);
                     const nowMs = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
@@ -1909,7 +1912,11 @@ class InputController {
             }
         }
 
-        const moveSeqPending = Boolean(e.repeat && lastFrame && lastFrame.seq !== undefined && this._lastMoveSentSeq === lastFrame.seq && ((typeof performance !== 'undefined' ? performance.now() : Date.now()) - (this._lastMoveSentAt || 0)) < 260);
+        const curSeq = (lastFrame && lastFrame.seq !== undefined) ? lastFrame.seq : -1;
+        if (curSeq !== this._lastMoveSentSeq) this._inFlightMoves = 0;
+        const rttWindowMs = Math.min(180, Math.max(65, (((this.network && this.network.pingMs) || 40) * 1.6)));
+        const elapsedMs = ((typeof performance !== 'undefined' ? performance.now() : Date.now()) - (this._lastMoveSentAt || 0));
+        const moveSeqPending = Boolean(e.repeat && ((this._inFlightMoves || 0) >= 2 || (curSeq === this._lastMoveSentSeq && elapsedMs < rttWindowMs)));
         if (this.wasdMode && !skipWasdRemap && !isTargeting && isTopLevelCommandPrompt && !isPromptActive && !e.ctrlKey && !e.altKey && !e.metaKey) {
             const lowerK = e.key.toLowerCase();
             const diagMap = { q: 7, e: 9, z: 1, c: 3 };

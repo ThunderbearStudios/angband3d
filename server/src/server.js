@@ -3432,7 +3432,7 @@ function attachWebSocketToSession(session, ws) {
     // local_bridge.js) AND bridge dispatchers: key <spec> | keys <seq> | frame | map | save | ping | quickbirth.
     // 'quit' stays out on purpose: the JSON {t:'quit'} path saves gracefully first.
     // LESSON L1: never shrink this list without grepping every sender ('save' was nearly dropped once).
-    const ENGINE_VERBS = new Set(['key', 'keys', 'frame', 'map', 'save', 'ping', 'quickbirth']);
+    const ENGINE_VERBS = new Set(['key', 'keys', 'frame', 'map', 'delta', 'save', 'ping', 'quickbirth']);
     const CANONICAL_KEY_MAP = {
         escape: 'escape',
         esc: 'escape',
@@ -3506,6 +3506,7 @@ function attachWebSocketToSession(session, ws) {
         const verb = sp === -1 ? cmd : cmd.slice(0, sp);
         if (!ENGINE_VERBS.has(verb)) return null;
         if ((verb === 'key' || verb === 'keys') && sp === -1) return null;
+        if (verb === 'delta' && cmd !== 'delta on' && cmd !== 'delta off') return null;
         if (verb === 'keys' && cmd.length > 5 + 16) return null; // client only sends "keys .<dir>"
         return cmd;
     };
@@ -3596,6 +3597,8 @@ function attachWebSocketToSession(session, ws) {
         }
         if (session.child && session.child.stdin && session.child.stdin.writable) {
             session.child.stdin.write(safe + '\n');
+            if (safe === 'delta on') session.deltaEnabled = true;
+            else if (safe === 'delta off') session.deltaEnabled = false;
             if (safe === 'save') {
                 session.lastSavedTurn = session.currentTurn || 0;
                 session.lastSavedInputSeq = session.inputSeq || 0;
@@ -3780,8 +3783,16 @@ async function spawnGameSession(ws, request) {
             args.push('--review-birth');
         }
         const seedParam = String(urlObj.searchParams.get('seed') || '').trim();
-        if (seedParam && /^[a-zA-Z0-9_-]{1,32}$/.test(seedParam) && (realm === 'dcss' || realm === 'brogue' || realm === 'rogue' || realm === 'nethack' || realm === 'ryod')) {
-            args.push(`--seed=${seedParam}`);
+        if (seedParam && /^[a-zA-Z0-9_-]{1,32}$/.test(seedParam)) {
+            if (isCartridgeRealm) {
+                args.push(`--seed=${seedParam}`);
+            } else {
+                let h = 2166136261 >>> 0;
+                if (/^\d+$/.test(seedParam)) h = Number(seedParam) >>> 0;
+                else for (let si = 0; si < seedParam.length; si++) h = Math.imul(h ^ seedParam.charCodeAt(si), 16777619) >>> 0;
+                if (realm !== 'hengband') args.push('--');
+                args.push(`--seed=${h}`);
+            }
         }
     }
 
@@ -3970,7 +3981,7 @@ async function spawnGameSession(ws, request) {
                             line = '{"t":"frame","realm":"' + session.realm + '"}';
                         }
                     }
-                    session.lastFrame = line;
+                    if (!line.includes('"delta":true')) session.lastFrame = line;
                     try {
                         const headSlice = line.slice(0, 420);
                         const prevPhase = session.phase;
@@ -4296,7 +4307,9 @@ wss.on('connection', async (ws, request) => {
                     resumed: true
                 }));
 
-                if (existingSession.lastFrame) {
+                if (existingSession.deltaEnabled && existingSession.child && existingSession.child.stdin && existingSession.child.stdin.writable) {
+                    try { existingSession.child.stdin.write('frame\n'); } catch (_) {}
+                } else if (existingSession.lastFrame) {
                     ws.send(existingSession.lastFrame);
                 }
 

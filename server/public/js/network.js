@@ -341,6 +341,16 @@ class GameNetwork {
                         this.onStatus('Resumed Live Session');
                     }
                     this.flushOfflineSync();
+                    this._cachedMapRows = null;
+                    this._cachedMapW = 0;
+                    this._cachedMapH = 0;
+                    this._cachedTermRows = null;
+                    this._cachedTermW = 0;
+                    this._cachedTermH = 0;
+                    if (msg.protocol_minor >= 3 && (typeof window === 'undefined' || window.PROTOCOL_DELTA !== false) &&
+                        (typeof localStorage === 'undefined' || localStorage.getItem('yasd_delta') !== '0')) {
+                        this.sendCommand('delta on');
+                    }
                     if (this.onHello) this.onHello(msg);
                 } else if (msg.t === 'queue') {
                     this.isInQueue = (msg.status === 'waiting');
@@ -351,6 +361,46 @@ class GameNetwork {
                         if (this.onPing) this.onPing(this.pingMs);
                     }
                 } else if (msg.t === 'frame') {
+                    if (msg.map && Array.isArray(msg.map.rows)) {
+                        if (msg.map.delta) {
+                            if (!this._cachedMapRows || this._cachedMapW !== msg.map.w || this._cachedMapH !== msg.map.h) {
+                                this.sendCommand('frame');
+                                return;
+                            }
+                            for (const row of msg.map.rows) {
+                                if (row && typeof row.y === 'number' && row.y >= 0 && row.y < this._cachedMapRows.length) {
+                                    this._cachedMapRows[row.y] = row;
+                                }
+                            }
+                            msg.map.rows = this._cachedMapRows.slice();
+                            delete msg.map.delta;
+                        } else {
+                            this._cachedMapRows = msg.map.rows.slice();
+                            this._cachedMapW = msg.map.w;
+                            this._cachedMapH = msg.map.h;
+                        }
+                    } else if (msg.map === null) {
+                        this._cachedMapRows = null;
+                    }
+                    if (msg.term && Array.isArray(msg.term.rows)) {
+                        if (msg.term.delta) {
+                            if (!this._cachedTermRows || this._cachedTermW !== msg.term.w || this._cachedTermH !== msg.term.h) {
+                                this.sendCommand('frame');
+                                return;
+                            }
+                            for (const row of msg.term.rows) {
+                                if (row && typeof row.y === 'number' && row.y >= 0 && row.y < this._cachedTermRows.length) {
+                                    this._cachedTermRows[row.y] = row;
+                                }
+                            }
+                            msg.term.rows = this._cachedTermRows.slice();
+                            delete msg.term.delta;
+                        } else {
+                            this._cachedTermRows = msg.term.rows.slice();
+                            this._cachedTermW = msg.term.w;
+                            this._cachedTermH = msg.term.h;
+                        }
+                    }
                     msg.realm = msg.realm || this.currentRealm || this.requestedRealm || 'angband';
                     // Strict Invariant: Reject frames if they belong to a different realm than requested
                     if (this.requestedRealm && msg.realm && msg.realm !== this.requestedRealm) {

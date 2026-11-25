@@ -283,10 +283,10 @@ index 000000000..0350760fc
 +endmacro()
 diff --git a/src/main-bridge.c b/src/main-bridge.c
 new file mode 100644
-index 000000000..0e48d2102
+index 000000000..f93d86b1e
 --- /dev/null
 +++ b/src/main-bridge.c
-@@ -0,0 +1,2476 @@
+@@ -0,0 +1,2704 @@
 +/**
 + * \file main-bridge.c
 + * \brief JSON state bridge front end, for driving Angband from an external client.
@@ -347,11 +347,12 @@ index 000000000..0e48d2102
 +#include "mon-lore.h"
 +#include "mon-spell.h"
 +#include "project.h"
++#include "z-rand.h"
 +
 +#ifdef USE_BRIDGE
 +
 +#define BRIDGE_PROTOCOL 1
-+#define BRIDGE_PROTOCOL_MINOR 2
++#define BRIDGE_PROTOCOL_MINOR 3
 +
 +/* Generous upper bounds; values are clamped rather than trusted. */
 +#define BRIDGE_MAX_W 1024
@@ -365,6 +366,12 @@ index 000000000..0e48d2102
 +	wchar_t glyph;
 +	uint32_t idx;
 +	const struct object_kind *kind;
++	bool hallucinated;
++};
++
++struct bridge_door_state {
++	int x, y;
++	const char *state;
 +};
 +
 +typedef struct term_data term_data;
@@ -374,13 +381,35 @@ index 000000000..0e48d2102
 +
 +static unsigned long frame_seq = 0;
 +static bool emit_map_data = true;
++static bool delta_mode = false;
++static bool force_full_frame = true;
++static uint64_t prev_map_hashes[256];
++static int prev_map_w = 0, prev_map_h = 0;
++static uint64_t prev_term_hashes[64];
++static int prev_term_w = 0, prev_term_h = 0;
++static bool bridge_has_seed = false;
++static uint32_t bridge_seed_val = 0;
++static bool bridge_seed_applied = false;
++static char bridge_stdout_buf[131072];
 +
 +static struct bridge_entity mon_buf[BRIDGE_MAX_ENTITIES];
 +static int mon_count;
 +static struct bridge_entity obj_buf[BRIDGE_MAX_ENTITIES];
 +static int obj_count;
++static struct bridge_door_state door_buf[BRIDGE_MAX_ENTITIES];
++static int door_count;
 +
 +static const char hex_digits[] = "0123456789abcdef";
++
++static uint64_t bridge_fnv1a(uint64_t h, const void *data, size_t len)
++{
++	const unsigned char *p = (const unsigned char *)data;
++	for (size_t i = 0; i < len; i++) {
++		h ^= (uint64_t)p[i];
++		h *= 1099511628211ULL;
++	}
++	return h;
++}
 +
 +
 +/**
@@ -1162,11 +1191,16 @@ index 000000000..0e48d2102
 +	static char row_feat[BRIDGE_MAX_W * 2 + 1];
 +	static char row_flag[BRIDGE_MAX_W + 1];
 +	int h, w, y, x;
++	int emitted_rows = 0;
 +
 +	mon_count = 0;
 +	obj_count = 0;
++	door_count = 0;
 +
 +	if (!bridge_in_play()) {
++		force_full_frame = true;
++		prev_map_w = 0;
++		prev_map_h = 0;
 +		fputs("null", fp);
 +		return;
 +	}
@@ -1178,17 +1212,25 @@ index 000000000..0e48d2102
 +	if (h > BRIDGE_MAX_H) h = BRIDGE_MAX_H;
 +	if (w > BRIDGE_MAX_W) w = BRIDGE_MAX_W;
 +
++	bool use_delta = (delta_mode && !force_full_frame && h == prev_map_h && w == prev_map_w && h <= 256);
++	if (!use_delta) {
++		prev_map_w = w;
++		prev_map_h = h;
++	}
++
 +	fputc('{', fp);
 +	bj_kv_int(fp, "h", h);
 +	fputc(',', fp);
 +	bj_kv_int(fp, "w", w);
++	if (use_delta) {
++		fputc(',', fp);
++		bj_kv_bool(fp, "delta", true);
++	}
 +	fputc(',', fp);
 +	bj_key(fp, "rows");
 +	fputc('[', fp);
 +
 +	for (y = 0; y < h; y++) {
-+		if (y) fputc(',', fp);
-+
 +		for (x = 0; x < w; x++) {
 +			struct grid_data g;
 +			struct loc grid = loc(x, y);
@@ -1226,21 +1268,35 @@ index 000000000..0e48d2102
 +			row_feat[x * 2 + 1] = hex_digits[feat & 0xf];
 +			row_flag[x]         = hex_digits[flags & 0xf];
 +
++			if ((flags & 0x3) && cave && square_islockeddoor(cave, grid) && door_count < BRIDGE_MAX_ENTITIES) {
++				door_buf[door_count].x = x;
++				door_buf[door_count].y = y;
++				door_buf[door_count].state = "locked";
++				door_count++;
++			}
++
 +			if (g.m_idx > 0 && mon_count < BRIDGE_MAX_ENTITIES) {
++				struct monster *real_mon = cave ? square_monster(cave, grid) : NULL;
++				bool is_halluc = (g.hallucinate && !real_mon) || (player && player->timed[TMD_IMAGE] > 0);
 +				mon_buf[mon_count].y = y;
 +				mon_buf[mon_count].x = x;
 +				mon_buf[mon_count].attr = a;
 +				mon_buf[mon_count].glyph = c;
-+				mon_buf[mon_count].idx = g.m_idx;
++				mon_buf[mon_count].idx = (g.hallucinate && !real_mon) ? 0u : (uint32_t)g.m_idx;
++				mon_buf[mon_count].kind = NULL;
++				mon_buf[mon_count].hallucinated = is_halluc;
 +				mon_count++;
 +			}
 +			if (g.first_kind && obj_count < BRIDGE_MAX_ENTITIES) {
++				struct object *real_obj = cave ? square_object(cave, grid) : NULL;
++				bool is_halluc_obj = (g.hallucinate && !real_obj);
 +				obj_buf[obj_count].y = y;
 +				obj_buf[obj_count].x = x;
 +				obj_buf[obj_count].attr = a;
 +				obj_buf[obj_count].glyph = c;
-+				obj_buf[obj_count].idx = g.multiple_objects ? 2 : 1;
-+				obj_buf[obj_count].kind = g.first_kind;
++				obj_buf[obj_count].idx = is_halluc_obj ? 1u : (g.multiple_objects ? 2u : 1u);
++				obj_buf[obj_count].kind = is_halluc_obj ? NULL : g.first_kind;
++				obj_buf[obj_count].hallucinated = is_halluc_obj;
 +				obj_count++;
 +			}
 +		}
@@ -1249,7 +1305,22 @@ index 000000000..0e48d2102
 +		row_feat[w * 2] = '\0';
 +		row_flag[w] = '\0';
 +
++		if (y < 256) {
++			uint64_t rh = 14695981039346656037ULL;
++			rh = bridge_fnv1a(rh, row_glyph, (size_t)w * sizeof(wchar_t));
++			rh = bridge_fnv1a(rh, row_attr, (size_t)w * 2);
++			rh = bridge_fnv1a(rh, row_feat, (size_t)w * 2);
++			rh = bridge_fnv1a(rh, row_flag, (size_t)w);
++			if (use_delta && prev_map_hashes[y] == rh) continue;
++			prev_map_hashes[y] = rh;
++		}
++
++		if (emitted_rows++) fputc(',', fp);
 +		fputc('{', fp);
++		if (use_delta) {
++			bj_kv_int(fp, "y", y);
++			fputc(',', fp);
++		}
 +		bj_key(fp, "g");
 +		bj_wstring(fp, row_glyph, w);
 +		fputc(',', fp);
@@ -1262,6 +1333,22 @@ index 000000000..0e48d2102
 +	}
 +
 +	fputc(']', fp);
++	if (door_count > 0) {
++		fputc(',', fp);
++		bj_key(fp, "door_states");
++		fputc('[', fp);
++		for (int di = 0; di < door_count; di++) {
++			if (di) fputc(',', fp);
++			fputc('{', fp);
++			bj_kv_int(fp, "x", door_buf[di].x);
++			fputc(',', fp);
++			bj_kv_int(fp, "y", door_buf[di].y);
++			fputc(',', fp);
++			bj_kv_string(fp, "s", door_buf[di].state);
++			fputc('}', fp);
++		}
++		fputc(']', fp);
++	}
 +	fputc('}', fp);
 +}
 +
@@ -1274,13 +1361,17 @@ index 000000000..0e48d2102
 +	for (i = 0; i < mon_count; i++) {
 +		struct monster *mon = NULL;
 +
-+		if (cave && mon_buf[i].idx < (uint32_t)cave->mon_max) {
++		if (!mon_buf[i].hallucinated && cave && mon_buf[i].idx > 0 && mon_buf[i].idx < (uint32_t)cave->mon_max) {
 +			mon = cave_monster(cave, mon_buf[i].idx);
 +		}
 +
 +		if (i) fputc(',', fp);
 +		fputc('{', fp);
-+		bj_kv_int(fp, "id", mon_buf[i].idx);
++		if (mon_buf[i].hallucinated && mon_buf[i].idx == 0) {
++			bj_kv_int(fp, "id", -(mon_buf[i].y * 256 + mon_buf[i].x + 1));
++		} else {
++			bj_kv_int(fp, "id", mon_buf[i].idx);
++		}
 +		fputc(',', fp);
 +		bj_kv_int(fp, "y", mon_buf[i].y);
 +		fputc(',', fp);
@@ -1291,7 +1382,14 @@ index 000000000..0e48d2102
 +		bj_key(fp, "glyph");
 +		bj_wstring(fp, &mon_buf[i].glyph, 1);
 +
-+		if (mon && mon->race) {
++		if (mon_buf[i].hallucinated) {
++			fputc(',', fp);
++			bj_kv_bool(fp, "hallucination", true);
++			fputc(',', fp);
++			bj_kv_string(fp, "race", "Strange Apparition");
++			fputc(',', fp);
++			bj_kv_string(fp, "attitude", "hostile");
++		} else if (mon && mon->race) {
 +			fputc(',', fp);
 +			bj_kv_int(fp, "r_idx", mon->race->ridx);
 +			fputc(',', fp);
@@ -1335,6 +1433,37 @@ index 000000000..0e48d2102
 +			if (mon->m_timed[MON_TMD_STUN] > 0) {
 +				fputc(',', fp);
 +				bj_kv_bool(fp, "stunned", true);
++			}
++			if (mon->m_timed[MON_TMD_HOLD] > 0) {
++				fputc(',', fp);
++				bj_kv_bool(fp, "paralyzed", true);
++			}
++			if (mon->m_timed[MON_TMD_FAST] > 0) {
++				fputc(',', fp);
++				bj_kv_bool(fp, "fast", true);
++			}
++			if (mon->m_timed[MON_TMD_SLOW] > 0) {
++				fputc(',', fp);
++				bj_kv_bool(fp, "slow", true);
++			}
++			if (rf_has(mon->race->flags, RF_ATTR_MULTI)) {
++				fputc(',', fp);
++				bj_kv_bool(fp, "attr_multi", true);
++			}
++			if (rf_has(mon->race->flags, RF_ATTR_FLICKER)) {
++				fputc(',', fp);
++				bj_kv_bool(fp, "flicker", true);
++			}
++			{
++				const struct monster_lore *lore = get_lore(mon->race);
++				if (lore && (lore->all_known || test_spells(lore->spell_flags, RST_SUMMON))) {
++					fputc(',', fp);
++					bj_kv_bool(fp, "summoner", true);
++				}
++				if (lore && (lore->all_known || test_spells(lore->spell_flags, RST_BREATH))) {
++					fputc(',', fp);
++					bj_kv_bool(fp, "breather", true);
++				}
 +			}
 +		}
 +		fputc('}', fp);
@@ -1532,22 +1661,54 @@ index 000000000..0e48d2102
 +		fputc(',', fp);
 +		bj_key(fp, "glyph");
 +		bj_wstring(fp, &obj_buf[i].glyph, 1);
-+		fputc(',', fp);
-+		bj_kv_bool(fp, "pile", obj_buf[i].idx > 1);
++
++		if (obj_buf[i].hallucinated) {
++			fputc(',', fp);
++			bj_kv_bool(fp, "hallucination", true);
++			fputc(',', fp);
++			bj_kv_string(fp, "name", "Strange Object");
++			fputc(',', fp);
++			bj_kv_bool(fp, "pile", false);
++			fputc(',', fp);
++			bj_kv_int(fp, "pile_count", 1);
++			fputc(',', fp);
++			bj_kv_int(fp, "count", 1);
++			fputc('}', fp);
++			continue;
++		}
 +
 +		struct object *obj = (cave && bridge_in_play()) ? square_object(cave, loc(obj_buf[i].x, obj_buf[i].y)) : NULL;
-+		char name[128];
++		char name[160];
 +		name[0] = '\0';
 +
 +		if (obj) {
-+			object_desc(name, sizeof(name), obj, ODESC_BASE, player);
++			int pile_count = 0;
++			for (struct object *it = obj; it != NULL; it = it->next) pile_count++;
++			if (pile_count < 1) pile_count = 1;
++			object_desc(name, sizeof(name), obj, ODESC_PREFIX | ODESC_FULL, player);
++			fputc(',', fp);
++			bj_kv_bool(fp, "pile", pile_count > 1 || obj_buf[i].idx > 1);
++			fputc(',', fp);
++			bj_kv_int(fp, "pile_count", pile_count);
 +			fputc(',', fp);
 +			bj_kv_string(fp, "name", name);
 +			fputc(',', fp);
 +			bj_kv_int(fp, "tval", obj->tval);
 +			fputc(',', fp);
 +			bj_kv_int(fp, "sval", obj->sval);
++			fputc(',', fp);
++			bj_kv_int(fp, "count", obj->number > 0 ? obj->number : 1);
++			fputc(',', fp);
++			bj_kv_bool(fp, "artifact", obj->artifact != NULL);
++			fputc(',', fp);
++			bj_kv_bool(fp, "ego", obj->ego != NULL);
++			fputc(',', fp);
++			bj_kv_bool(fp, "cursed", obj->curses != NULL);
 +		} else if (obj_buf[i].kind) {
++			fputc(',', fp);
++			bj_kv_bool(fp, "pile", obj_buf[i].idx > 1);
++			fputc(',', fp);
++			bj_kv_int(fp, "pile_count", obj_buf[i].idx > 1 ? 2 : 1);
 +			if (!obj_buf[i].kind->aware && obj_buf[i].kind->flavor && obj_buf[i].kind->base && obj_buf[i].kind->base->name) {
 +				snprintf(name, sizeof(name), "%s %s", obj_buf[i].kind->flavor->text, obj_buf[i].kind->base->name);
 +			} else {
@@ -1559,6 +1720,11 @@ index 000000000..0e48d2102
 +			bj_kv_int(fp, "tval", obj_buf[i].kind->tval);
 +			fputc(',', fp);
 +			bj_kv_int(fp, "sval", obj_buf[i].kind->sval);
++			fputc(',', fp);
++			bj_kv_int(fp, "count", 1);
++		} else {
++			fputc(',', fp);
++			bj_kv_bool(fp, "pile", false);
 +		}
 +		fputc('}', fp);
 +	}
@@ -1578,8 +1744,11 @@ index 000000000..0e48d2102
 +	term *t = Term;
 +	int y, x, w, h;
 +	static char row_attr[256 * 2 + 1];
++	int emitted_rows = 0;
 +
 +	if (!t || !t->scr) {
++		prev_term_w = 0;
++		prev_term_h = 0;
 +		fputs("null", fp);
 +		return;
 +	}
@@ -1589,6 +1758,12 @@ index 000000000..0e48d2102
 +	if (w < 0) w = 0;
 +	if (h < 0) h = 0;
 +	if (w > 256) w = 256;
++
++	bool use_delta = (delta_mode && !force_full_frame && h == prev_term_h && w == prev_term_w && h <= 64);
++	if (!use_delta) {
++		prev_term_w = w;
++		prev_term_h = h;
++	}
 +
 +	fputc('{', fp);
 +	bj_kv_int(fp, "w", w);
@@ -1600,13 +1775,15 @@ index 000000000..0e48d2102
 +	bj_kv_int(fp, "cy", t->scr->cy);
 +	fputc(',', fp);
 +	bj_kv_bool(fp, "cursor", !t->scr->cu && t->scr->cv);
++	if (use_delta) {
++		fputc(',', fp);
++		bj_kv_bool(fp, "delta", true);
++	}
 +	fputc(',', fp);
 +	bj_key(fp, "rows");
 +	fputc('[', fp);
 +
 +	for (y = 0; y < h; y++) {
-+		if (y) fputc(',', fp);
-+
 +		for (x = 0; x < w; x++) {
 +			int a = t->scr->a[y][x];
 +			row_attr[x * 2]     = hex_digits[((unsigned)a >> 4) & 0xf];
@@ -1614,7 +1791,20 @@ index 000000000..0e48d2102
 +		}
 +		row_attr[w * 2] = '\0';
 +
++		if (y < 64) {
++			uint64_t rh = 14695981039346656037ULL;
++			rh = bridge_fnv1a(rh, t->scr->c[y], (size_t)w * sizeof(wchar_t));
++			rh = bridge_fnv1a(rh, row_attr, (size_t)w * 2);
++			if (use_delta && prev_term_hashes[y] == rh) continue;
++			prev_term_hashes[y] = rh;
++		}
++
++		if (emitted_rows++) fputc(',', fp);
 +		fputc('{', fp);
++		if (use_delta) {
++			bj_kv_int(fp, "y", y);
++			fputc(',', fp);
++		}
 +		bj_key(fp, "g");
 +		bj_wstring(fp, t->scr->c[y], w);
 +		fputc(',', fp);
@@ -2432,6 +2622,7 @@ index 000000000..0e48d2102
 +	fputc('}', fp);
 +	fputc('\n', fp);
 +	fflush(fp);
++	force_full_frame = false;
 +}
 +
 +
@@ -2527,11 +2718,20 @@ index 000000000..0e48d2102
 +
 +	if (streq(cmd, "map")) {
 +		emit_map_data = !(rest && streq(rest, "off"));
++		if (!emit_map_data) force_full_frame = true;
 +		emit_event("ok", emit_map_data ? "map on" : "map off");
 +		return 0;
 +	}
 +
++	if (streq(cmd, "delta")) {
++		delta_mode = (rest && streq(rest, "on"));
++		force_full_frame = true;
++		emit_event("ok", delta_mode ? "delta on" : "delta off");
++		return 0;
++	}
++
 +	if (streq(cmd, "frame")) {
++		force_full_frame = true;
 +		emit_frame();
 +		return 0;
 +	}
@@ -2663,6 +2863,11 @@ index 000000000..0e48d2102
 +	switch (n) {
 +	case TERM_XTRA_EVENT:
 +		bridge_ensure_hooks();
++		if (bridge_has_seed && !bridge_seed_applied) {
++			bridge_seed_applied = true;
++			Rand_quick = false;
++			Rand_state_init(bridge_seed_val);
++		}
 +		/* v is set when the game is genuinely waiting for input. */
 +		if (v) return bridge_pump();
 +		return 1;
@@ -2707,12 +2912,35 @@ index 000000000..0e48d2102
 +{
 +	int i;
 +	FILE *fp = stdout;
++	const char *env_seed = getenv("YASD_SEED");
++
++	setvbuf(stdout, bridge_stdout_buf, _IOFBF, sizeof(bridge_stdout_buf));
++
++	if (env_seed && *env_seed) {
++		bridge_seed_val = (uint32_t)strtoul(env_seed, NULL, 10);
++		bridge_has_seed = true;
++	}
 +
 +	for (i = 1; i < argc; i++) {
 +		if (streq(argv[i], "-nomap")) {
 +			emit_map_data = false;
 +			continue;
 +		}
++		if (strncmp(argv[i], "--seed=", 7) == 0 && argv[i][7]) {
++			bridge_seed_val = (uint32_t)strtoul(argv[i] + 7, NULL, 10);
++			bridge_has_seed = true;
++			continue;
++		}
++		if (streq(argv[i], "--seed") && i + 1 < argc) {
++			bridge_seed_val = (uint32_t)strtoul(argv[++i], NULL, 10);
++			bridge_has_seed = true;
++			continue;
++		}
++	}
++
++	if (bridge_has_seed) {
++		Rand_quick = false;
++		Rand_state_init(bridge_seed_val);
 +	}
 +
 +	/*
