@@ -2692,7 +2692,7 @@ class WebHUD {
             ];
             const fwd = forwardOffsets[facing] || { dx: 0, dy: -1 };
             const frontFeat = this.getFeatAt(frame.map, player.x + fwd.dx, player.y + fwd.dy);
-            const isDoorInFront = frontFeat === 3 || frontFeat === 4;
+            const isDoorInFront = frontFeat === 2;
             btnDoor.classList.toggle('smart-door-active', isDoorInFront);
         }
 

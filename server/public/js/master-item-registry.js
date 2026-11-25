@@ -41,7 +41,7 @@
         ph_chest: '/assets/models/items/Chest_Wood.gltf',
         item_bow: '/assets/models/items/bow.glb',
         item_spear: '/assets/models/items/spear.glb',
-        item_torch: '/assets/models/items/torch.glb',
+        item_torch: '/assets/models/items/torch_pbr.glb',
         item_greatsword: '/assets/models/items/great_sword.glb',
         item_rune_blade: '/assets/models/items/rune_blade.glb',
         item_goblin_sword: '/assets/models/items/goblin_sword.glb',
@@ -85,7 +85,8 @@
         ph_boulder: '/assets/polyhaven/models/moon_rock_02/moon_rock_02.gltf',
         ph_statue_item: '/assets/polyhaven/models/gothic_statue/gothic_statue.gltf',
         item_anvil: '/assets/models/items/Anvil.gltf',
-        item_shrine_candles: '/assets/models/items/shrine_candles.gltf'
+        item_shrine_candles: '/assets/models/items/shrine_candles.gltf',
+        item_corpse: '/assets/models/items/skull.gltf'
     });
 
     /**
@@ -602,7 +603,10 @@
         if (/\b(mushroom|toadstool|fungus|slime-mold|slime mold)\b/i.test(lower)) {
             return { floorKey: 'item_mushroom', heldKey: 'item_mushroom', category: 'food', subType: 'mushroom' };
         }
-        if (/\b(ration|bread|food|meat|corpse|chunk|fruit|apple|pear|banana|orange|melon|carrot|clove of garlic|sprig of wolfsbane|kelp|eucalyptus|pancake|fortune cookie|candy bar|cream pie|tin|tripe|egg|royal jelly)\b/i.test(lower)) {
+        if (/\b(corpse|skeleton|skull|remains|carcass)\b/i.test(lower)) {
+            return { floorKey: 'item_corpse', heldKey: null, category: 'corpse', subType: 'corpse' };
+        }
+        if (/\b(ration|bread|food|meat|chunk|fruit|apple|pear|banana|orange|melon|carrot|clove of garlic|sprig of wolfsbane|kelp|eucalyptus|pancake|fortune cookie|candy bar|cream pie|tin|tripe|egg|royal jelly)\b/i.test(lower)) {
             return { floorKey: 'item_bread', heldKey: 'item_bread', category: 'food', subType: 'bread' };
         }
         if (/\b(goblet|chalice|cup|grail|plate|bowl|jug|urn|pot)\b/i.test(lower)) {

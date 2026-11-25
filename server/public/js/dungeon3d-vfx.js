@@ -237,6 +237,10 @@
             this._activeHitSparks = this._activeHitSparks || [];
             if (typeof THREE === 'undefined') return;
 
+            const useInstanced = (typeof THREE.InstancedMesh === 'function');
+            const streakCap = Math.ceil(maxSparksPerBurst / 2);
+            const sparkCap = Math.max(1, Math.floor(maxSparksPerBurst / 2));
+
             for (let b = 0; b < poolSize; b++) {
                 const group = new THREE.Group();
                 group.visible = false;
@@ -262,14 +266,45 @@
                 altMaterial._pooledHitSparkMat = true;
 
                 const sparks = [];
-                for (let i = 0; i < maxSparksPerBurst; i++) {
-                    const isStreak = (i % 2 === 0);
-                    const geo = isStreak ? this._sharedStreakGeo : this._sharedSparkGeo;
-                    const mat = (i % 3 === 1) ? altMaterial : material;
-                    const mesh = new THREE.Mesh(geo, mat);
-                    mesh.visible = false;
-                    group.add(mesh);
-                    sparks.push({ mesh, vel: new THREE.Vector3(), isStreak });
+                let streakInstMesh = null;
+                let sparkInstMesh = null;
+
+                if (useInstanced) {
+                    streakInstMesh = new THREE.InstancedMesh(this._sharedStreakGeo, material, streakCap);
+                    streakInstMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+                    streakInstMesh.frustumCulled = false;
+                    streakInstMesh.count = 0;
+                    group.add(streakInstMesh);
+
+                    sparkInstMesh = new THREE.InstancedMesh(this._sharedSparkGeo, altMaterial, sparkCap);
+                    sparkInstMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+                    sparkInstMesh.frustumCulled = false;
+                    sparkInstMesh.count = 0;
+                    group.add(sparkInstMesh);
+
+                    let sIdx = 0;
+                    let dIdx = 0;
+                    for (let i = 0; i < maxSparksPerBurst; i++) {
+                        const isStreak = (i % 2 === 0);
+                        const instIdx = isStreak ? sIdx++ : dIdx++;
+                        sparks.push({
+                            pos: new THREE.Vector3(),
+                            vel: new THREE.Vector3(),
+                            scale: 1.0,
+                            isStreak,
+                            instIdx
+                        });
+                    }
+                } else {
+                    for (let i = 0; i < maxSparksPerBurst; i++) {
+                        const isStreak = (i % 2 === 0);
+                        const geo = isStreak ? this._sharedStreakGeo : this._sharedSparkGeo;
+                        const mat = (i % 3 === 1) ? altMaterial : material;
+                        const mesh = new THREE.Mesh(geo, mat);
+                        mesh.visible = false;
+                        group.add(mesh);
+                        sparks.push({ mesh, vel: new THREE.Vector3(), isStreak });
+                    }
                 }
 
                 const ringMat = new THREE.MeshBasicMaterial({
@@ -290,6 +325,9 @@
 
                 this._hitSparkPool.push({
                     group,
+                    instanced: useInstanced,
+                    streakInstMesh,
+                    sparkInstMesh,
                     sparks,
                     activeCount: 0,
                     elapsed: 0,
@@ -312,6 +350,8 @@
                     if (slot) {
                         slot.elapsed = 0;
                         slot.activeCount = 0;
+                        if (slot.streakInstMesh) slot.streakInstMesh.count = 0;
+                        if (slot.sparkInstMesh) slot.sparkInstMesh.count = 0;
                         if (slot.group) {
                             slot.group.visible = false;
                             if (this.scene) this.scene.remove(slot.group);
@@ -381,26 +421,63 @@
             const activeCount = Math.min(slot.sparks.length, Math.max(0, count | 0));
             const lookTarget = this._tmpSparkInitLook || (this._tmpSparkInitLook = new THREE.Vector3());
 
-            for (let i = 0; i < slot.sparks.length; i++) {
-                const sp = slot.sparks[i];
-                if (i < activeCount) {
+            if (slot.instanced && slot.streakInstMesh && slot.sparkInstMesh) {
+                const dummy = this._sparkDummy || (this._sparkDummy = new THREE.Object3D());
+                let streakCount = 0;
+                let sparkCount = 0;
+                for (let i = 0; i < activeCount; i++) {
+                    const sp = slot.sparks[i];
                     const theta = Math.random() * Math.PI * 2;
                     const phi = (Math.random() - 0.5) * Math.PI;
                     const speed = (1.2 + Math.random() * 2.2) * speedScale;
-                    sp.mesh.position.set(0, 0, 0);
-                    sp.mesh.scale.setScalar(sparkScale);
-                    sp.mesh.visible = true;
+                    sp.pos.set(0, 0, 0);
+                    sp.scale = sparkScale;
                     sp.vel.set(
                         Math.cos(theta) * Math.cos(phi) * speed,
                         Math.sin(phi) * speed + upBias,
                         Math.sin(theta) * Math.cos(phi) * speed
                     );
+                    dummy.position.set(0, 0, 0);
+                    dummy.scale.setScalar(sparkScale);
                     if (sp.isStreak) {
                         lookTarget.copy(sp.vel);
-                        sp.mesh.lookAt(lookTarget);
+                        dummy.lookAt(lookTarget);
+                        dummy.updateMatrix();
+                        slot.streakInstMesh.setMatrixAt(sp.instIdx, dummy.matrix);
+                        streakCount = Math.max(streakCount, sp.instIdx + 1);
+                    } else {
+                        dummy.rotation.set(0, 0, 0);
+                        dummy.updateMatrix();
+                        slot.sparkInstMesh.setMatrixAt(sp.instIdx, dummy.matrix);
+                        sparkCount = Math.max(sparkCount, sp.instIdx + 1);
                     }
-                } else {
-                    sp.mesh.visible = false;
+                }
+                slot.streakInstMesh.count = streakCount;
+                slot.streakInstMesh.instanceMatrix.needsUpdate = true;
+                slot.sparkInstMesh.count = sparkCount;
+                slot.sparkInstMesh.instanceMatrix.needsUpdate = true;
+            } else {
+                for (let i = 0; i < slot.sparks.length; i++) {
+                    const sp = slot.sparks[i];
+                    if (i < activeCount) {
+                        const theta = Math.random() * Math.PI * 2;
+                        const phi = (Math.random() - 0.5) * Math.PI;
+                        const speed = (1.2 + Math.random() * 2.2) * speedScale;
+                        sp.mesh.position.set(0, 0, 0);
+                        sp.mesh.scale.setScalar(sparkScale);
+                        sp.mesh.visible = true;
+                        sp.vel.set(
+                            Math.cos(theta) * Math.cos(phi) * speed,
+                            Math.sin(phi) * speed + upBias,
+                            Math.sin(theta) * Math.cos(phi) * speed
+                        );
+                        if (sp.isStreak) {
+                            lookTarget.copy(sp.vel);
+                            sp.mesh.lookAt(lookTarget);
+                        }
+                    } else {
+                        sp.mesh.visible = false;
+                    }
                 }
             }
 

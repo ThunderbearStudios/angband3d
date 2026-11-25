@@ -908,9 +908,106 @@
             d3d._lastFlankSig = '';
         },
 
+        updateCompassTape(d3d, frame, camera) {
+            if (!d3d || !camera || typeof document === 'undefined') return;
+            const phase = frame && frame.phase;
+            let tape = d3d._compassTapeEl || document.getElementById('yasd-compass-tape');
+            if (phase && phase !== 'play') {
+                if (tape && tape.style.display !== 'none') tape.style.display = 'none';
+                d3d._lastCompassSig = '';
+                return;
+            }
+            if (!tape) {
+                tape = document.createElement('div');
+                tape.id = 'yasd-compass-tape';
+                tape.style.cssText = 'position:absolute;top:10px;left:50%;transform:translateX(-50%);width:min(340px,44vw);height:26px;background:rgba(10,12,18,0.68);border:1px solid rgba(148,163,184,0.28);border-radius:13px;backdrop-filter:blur(6px);pointer-events:none;z-index:95;overflow:hidden;font-family:"Fira Code",monospace;box-shadow:0 2px 10px rgba(0,0,0,0.45);';
+                const parent = (d3d.renderer && d3d.renderer.domElement && d3d.renderer.domElement.parentElement) || document.body;
+                parent.appendChild(tape);
+            }
+            if (tape.style.display === 'none') tape.style.display = '';
+            d3d._compassTapeEl = tape;
+
+            camera.getWorldDirection(_scratchVecCam);
+            // Map world yaw so grid North (-Z) = 0 rad, East (+X) = +PI/2, South (+Z) = PI, West (-X) = -PI/2
+            const yawRad = Math.atan2(_scratchVecCam.x, -_scratchVecCam.z);
+            const px = (frame && frame.player && frame.player.x !== undefined) ? frame.player.x : (d3d.playerGridX || 0);
+            const py = (frame && frame.player && frame.player.y !== undefined) ? frame.player.y : (d3d.playerGridY || 0);
+            const stairs = Array.isArray(d3d._stairCompassPositions) ? d3d._stairCompassPositions : [];
+            const monsters = (frame && Array.isArray(frame.monsters)) ? frame.monsters : [];
+
+            const normAngle = (a) => {
+                while (a > Math.PI) a -= Math.PI * 2;
+                while (a < -Math.PI) a += Math.PI * 2;
+                return a;
+            };
+
+            const pips = [];
+            const sigParts = [Math.round(yawRad * 57.3), px, py];
+            for (let i = 0; i < stairs.length; i++) {
+                const st = stairs[i];
+                const dx = st.x - px;
+                const dy = st.y - py;
+                const distSq = dx * dx + dy * dy;
+                if (distSq === 0 || distSq > 900) continue;
+                const rel = normAngle(Math.atan2(dx, -dy) - yawRad);
+                if (Math.abs(rel) <= 1.65) {
+                    const isDown = st.dir === 'down';
+                    pips.push({ rel, glyph: isDown ? '▼' : '▲', color: isDown ? '#f59e0b' : '#38bdf8', priority: 1 });
+                    sigParts.push(`s${isDown ? 'd' : 'u'}${Math.round(rel * 20)}`);
+                }
+            }
+            for (let i = 0; i < monsters.length; i++) {
+                const m = monsters[i];
+                if (!m || m.visible === false || m.asleep || m.isPet || m.is_pet || m.pet || m.friendly || m.peaceful || m.attitude === 'pet' || m.attitude === 'friendly') continue;
+                const dx = m.x - px;
+                const dy = m.y - py;
+                const distSq = dx * dx + dy * dy;
+                if (distSq === 0 || distSq > 225) continue;
+                const rel = normAngle(Math.atan2(dx, -dy) - yawRad);
+                if (Math.abs(rel) <= 1.65) {
+                    const isBoss = !!(m.unique || m.is_unique || m.boss || m.isBoss || (m.name && /^[A-Z]/.test(m.name) && m.name !== 'You'));
+                    pips.push({ rel, glyph: isBoss ? '♦' : '•', color: isBoss ? '#fbbf24' : '#ef4444', priority: isBoss ? 2 : 0 });
+                    sigParts.push(`m${isBoss ? 'b' : 'h'}${Math.round(rel * 20)}`);
+                }
+            }
+
+            const sig = sigParts.join('|');
+            if (d3d._lastCompassSig === sig) return;
+            d3d._lastCompassSig = sig;
+
+            const halfFov = 1.65;
+            const cardinals = [
+                { a: 0, label: 'N', color: '#f87171', major: true },
+                { a: Math.PI * 0.25, label: 'NE', color: '#94a3b8', major: false },
+                { a: Math.PI * 0.5, label: 'E', color: '#e2e8f0', major: true },
+                { a: Math.PI * 0.75, label: 'SE', color: '#94a3b8', major: false },
+                { a: Math.PI, label: 'S', color: '#e2e8f0', major: true },
+                { a: -Math.PI * 0.75, label: 'SW', color: '#94a3b8', major: false },
+                { a: -Math.PI * 0.5, label: 'W', color: '#e2e8f0', major: true },
+                { a: -Math.PI * 0.25, label: 'NW', color: '#94a3b8', major: false }
+            ];
+            let html = '<div style="position:absolute;left:50%;top:0;bottom:0;width:2px;margin-left:-1px;background:rgba(255,255,255,0.45);"></div>';
+            for (let i = 0; i < cardinals.length; i++) {
+                const c = cardinals[i];
+                const rel = normAngle(c.a - yawRad);
+                if (Math.abs(rel) > halfFov) continue;
+                const pct = 50 + (rel / halfFov) * 46;
+                const fs = c.major ? '11px' : '9px';
+                const fw = c.major ? '700' : '500';
+                html += `<span style="position:absolute;left:${pct.toFixed(1)}%;top:50%;transform:translate(-50%,-50%);color:${c.color};font-size:${fs};font-weight:${fw};letter-spacing:0.5px;">${c.label}</span>`;
+            }
+            for (let i = 0; i < pips.length; i++) {
+                const p = pips[i];
+                const pct = 50 + (p.rel / halfFov) * 46;
+                html += `<span style="position:absolute;left:${pct.toFixed(1)}%;bottom:1px;transform:translateX(-50%);color:${p.color};font-size:10px;line-height:1;text-shadow:0 0 6px ${p.color};">${p.glyph}</span>`;
+            }
+            tape.innerHTML = html;
+        },
+
         updateFlankThreatArcs(d3d, frame, camera) {
             if (!d3d || !camera) return;
             this.initFlankArcs(d3d);
+            this.updateCompassTape(d3d, frame, camera);
             const overlay = d3d._flankArcsOverlay;
             if (!frame || (frame.phase && frame.phase !== 'play')) {
                 if (overlay && d3d._lastFlankSig !== '') {
@@ -1019,9 +1116,19 @@
         drawComposableStatusPills(ctx, m, curY, isTargeted, isBossOrUnique, isSensed) {
             const pills = [];
             if (m.asleep) pills.push({ icon: '💤', label: 'Zzz...', color: '#a8d8ff', bg: 'rgba(56, 189, 248, 0.22)' });
+            else if (m.unwary) pills.push({ icon: '👁', label: 'Unwary', color: '#fde047', bg: 'rgba(250, 204, 21, 0.22)' });
+            if (m.paralyzed || m.held) pills.push({ icon: '⛓', label: 'Held', color: '#f472b6', bg: 'rgba(244, 114, 182, 0.24)' });
             if (m.afraid) pills.push({ icon: '💨', label: 'Fleeing', color: '#fbbf24', bg: 'rgba(251, 191, 36, 0.22)' });
-            if (m.confused || m.stunned) pills.push({ icon: '😵', label: 'Confused', color: '#c084fc', bg: 'rgba(192, 132, 252, 0.22)' });
+            if (m.stunned) pills.push({ icon: '💫', label: 'Stun', color: '#facc15', bg: 'rgba(250, 204, 21, 0.22)' });
+            if (m.confused) pills.push({ icon: '🌀', label: 'Confused', color: '#c084fc', bg: 'rgba(192, 132, 252, 0.22)' });
             if (m.fast || m.hasted) pills.push({ icon: '⚡', label: 'Fast', color: '#38bdf8', bg: 'rgba(56, 189, 248, 0.22)' });
+            else if (m.slow || m.slowed) pills.push({ icon: '🐢', label: 'Slow', color: '#94a3b8', bg: 'rgba(148, 163, 184, 0.22)' });
+            if (m.isPet || m.is_pet || m.pet || m.attitude === 'pet') {
+                pills.push({ icon: '🐾', label: 'Pet', color: '#4ade80', bg: 'rgba(74, 222, 128, 0.24)' });
+            } else if (m.friendly || m.peaceful || m.attitude === 'friendly') {
+                pills.push({ icon: '🕊', label: 'Peaceful', color: '#7dd3fc', bg: 'rgba(125, 211, 252, 0.22)' });
+            }
+            if (m.summoner) pills.push({ icon: '📯', label: 'Summon', color: '#fb923c', bg: 'rgba(251, 146, 60, 0.22)' });
             if (m.breath || m.breathes) pills.push({ icon: '🔥', label: 'Breath', color: '#f87171', bg: 'rgba(248, 113, 113, 0.22)' });
             if (isTargeted) pills.push({ icon: '⌖', label: 'Target', color: '#ffd700', bg: 'rgba(255, 215, 0, 0.25)' });
             if (isBossOrUnique) pills.push({ icon: '👑', label: 'Boss', color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.28)' });
@@ -1032,6 +1139,7 @@
             }
 
             if (pills.length === 0) return 0;
+            if (pills.length > 5) pills.length = 5;
 
             const totalPills = pills.length;
             const pillW = Math.min(88, Math.floor(340 / totalPills));
@@ -1209,9 +1317,11 @@
 
         updateProceduralLocomotion(entity, delta, monTime) {
             if (!entity || !entity.creatureMesh) return;
+            const mData = entity.monsterData || {};
+            if (mData.asleep || mData.paralyzed || mData.held) return;
             const mesh = entity.creatureMesh;
             const tk = String(entity.templateKey || entity.modelKey || '').toLowerCase();
-            const race = String(entity.monsterData ? (entity.monsterData.race || entity.monsterData.name || '') : '').toLowerCase();
+            const race = String(mData.race || mData.name || '').toLowerCase();
 
             // Skip procedural gait if entity has active running skeletal animation mixer
             if (entity._walkAction && typeof entity._walkAction.isRunning === 'function' && entity._walkAction.isRunning()) {
@@ -1221,12 +1331,12 @@
             if (mesh._basePosY === undefined) mesh._basePosY = mesh.position.y;
             if (!mesh._baseScale) mesh._baseScale = mesh.scale.clone();
 
-            const seed = (entity.monsterData && entity.monsterData.seed) ? (entity.monsterData.seed * 0.01) : 0;
+            const seed = mData.seed ? (mData.seed * 0.01) : 0;
             const t = monTime + seed;
 
-            // 1. Dragons & Bats: Wingbeat & Body Hover Sway
-            if (/dragon|drake|wyrm|bat|vampire bat/.test(tk) || /dragon|drake|wyrm|bat/.test(race)) {
-                const wingFreq = /bat/.test(tk) || /bat/.test(race) ? 9.0 : 3.8;
+            // 1. Dragons, Birds & Bats: Wingbeat & Body Hover Sway
+            if (/dragon|drake|wyrm|bat|vampire bat|bird|eagle|griffon|harpy/.test(tk) || /dragon|drake|wyrm|bat|bird|harpy/.test(race)) {
+                const wingFreq = /bat|bird/.test(tk) || /bat|bird/.test(race) ? 9.0 : 3.8;
                 const hoverLift = Math.sin(t * wingFreq) * 0.08;
                 const pitchSway = Math.sin(t * wingFreq * 0.5) * 0.06;
                 const rollBank = Math.cos(t * wingFreq * 0.25) * 0.05;
@@ -1249,7 +1359,34 @@
                 return;
             }
 
-            // 3. Hydra: Multi-Neck Sinuous Weave
+            // 3. Spiders, Centipedes & Insects: Chittering Scuttle & Lateral Sway
+            if (/spider|scorpion|centipede|ant|beetle|insect|louse/.test(tk) || /spider|scorpion|centipede|ant|beetle|louse/.test(race)) {
+                const isMoving = Boolean(entity.targetPos && entity.position.distanceTo(entity.targetPos) > 0.02);
+                const freq = isMoving ? 14.0 : 5.5;
+                const scuttleY = Math.abs(Math.sin(t * freq)) * (isMoving ? 0.028 : 0.008);
+                const roll = Math.sin(t * freq * 0.5) * (isMoving ? 0.09 : 0.03);
+                mesh.position.y += ((mesh._basePosY + scuttleY) - mesh.position.y) * 0.3;
+                mesh.rotation.z = roll;
+                mesh.rotation.x = Math.cos(t * freq) * 0.035;
+                return;
+            }
+
+            // 4. Floating Eyes, Beholders, Ghosts & Floating Skulls: Levitation Bob & Gaze Turn
+            if (/eye|beholder|skull|ghost|wraith|spectre|phantom/.test(tk) || /floating eye|beholder|ghost|wraith|spectre/.test(race)) {
+                mesh.position.y = mesh._basePosY + Math.sin(t * 2.4) * 0.07;
+                mesh.rotation.x = Math.sin(t * 1.5) * 0.05;
+                mesh.rotation.z = Math.cos(t * 1.2) * 0.04;
+                return;
+            }
+
+            // 5. Golems & Statues: Heavy Measured Breathing / Micro-Pivot
+            if (/golem|statue|automaton/.test(tk) || /golem|statue/.test(race)) {
+                mesh.position.y = mesh._basePosY + Math.sin(t * 1.3) * 0.012;
+                mesh.rotation.x = Math.sin(t * 1.3) * 0.018;
+                return;
+            }
+
+            // 6. Hydra: Multi-Neck Sinuous Weave
             if (/hydra/.test(tk) || /hydra/.test(race)) {
                 const weaveX = Math.sin(t * 2.6) * 0.12;
                 const weaveZ = Math.cos(t * 1.8) * 0.08;
@@ -1261,8 +1398,8 @@
                 return;
             }
 
-            // 4. Worm Mass, Jelly Ooze & Vortex: Undulating Wave Squash-Stretch
-            if (/worm_mass|env_ooze_mound|jelly_ooze|vortex/.test(tk) || /worm|jelly|ooze|icky|slime|blob|vortex/.test(race)) {
+            // 7. Molds, Mushrooms, Worm Mass, Jelly Ooze & Vortex: Undulating Wave Squash-Stretch
+            if (/worm_mass|env_ooze_mound|jelly_ooze|vortex|mold|mushroom|shroom|spore/.test(tk) || /worm|jelly|ooze|icky|slime|blob|vortex|mold|mushroom/.test(race)) {
                 const squashFreq = /vortex/.test(tk) || /vortex/.test(race) ? 5.5 : 3.2;
                 const squash = 1.0 + Math.sin(t * squashFreq) * 0.16;
                 const stretch = 1.0 - Math.sin(t * squashFreq) * 0.08;
@@ -1284,7 +1421,9 @@
             let weaponItem = _itemStr(player && player.weapon_item);
             let bowItem = _itemStr(player && player.bow_item);
             let shieldItem = _itemStr(player && player.shield_item);
+            let lightItem = _itemStr(player && (player.light_item || player.lite_item));
             if (shieldItem && (/\b(bow|crossbow|sling|arbalest|launcher)\b/i.test(shieldItem) || (!/\b(shield|buckler|targe)\b/i.test(shieldItem) && /\b(torch|lantern|lamp|phial)\b/i.test(shieldItem)))) {
+                if (!lightItem) lightItem = shieldItem;
                 shieldItem = '';
             }
             if (player && Array.isArray(player.equipment)) {
@@ -1296,6 +1435,10 @@
                     const slotName = String(eq.slot_name || '').toLowerCase().trim();
                     const slotMeta = `${slotName} ${eq.mention || ''} ${eq.category || ''} ${eq.label || ''}`.toLowerCase();
                     const eqTval = Number(eq.tval || 0);
+                    if (!lightItem && (slotRaw === 'f' || slotName === 'light' || slotName === 'lite' || eqTval === 39 || /\b(light|lite|source)\b/.test(slotMeta) || /\b(torch|lantern|lamp|phial|star of|arkenstone|palantir)\b/i.test(eqName))) {
+                        lightItem = eqName;
+                        continue;
+                    }
                     if (slotRaw === 'f' || /\b(armou?r|body|torso|chest|cloak|mantle|outer|helm|head|crown|hat|boot|feet|foot|shoe|glove|gauntlet|finger|ring|neck|amulet|light|lite|source|lantern|lamp|bag|quiver|ammo)\b/.test(slotMeta) ||
                         (eqTval >= 30 && eqTval <= 45 && eqTval !== 34)) {
                         continue;
@@ -1311,7 +1454,15 @@
                     }
                 }
             }
-            return { weaponItem, bowItem, shieldItem };
+            return { weaponItem, bowItem, shieldItem, lightItem };
+        },
+
+        resolveOffhandLightKey(lightItem) {
+            const lower = String(lightItem || '').toLowerCase().trim();
+            if (!lower || /^(none|nothing|\(nothing\)|\(none\)|empty|なし)$/i.test(lower)) return '';
+            if (/\b(lantern|lamp|phial|star|palantir|arkenstone|elendil|galadriel)\b/i.test(lower)) return 'lantern';
+            if (/\btorch\b/i.test(lower)) return 'torch';
+            return 'lantern';
         },
 
         resolveRightKey(d3d, weaponItem, bowItem, player) {
@@ -1923,7 +2074,7 @@
                 if (!d3d._ws81PbrMaterials.includes(mat)) d3d._ws81PbrMaterials.push(mat);
             }
 
-            const cacheTag = `yasd_ws81_pbr_${kind}_${Number(veinMode) || 0}_${mat.id}`;
+            const cacheTag = `yasd_ws81_pbr_${kind}_${Number(veinMode) || 0}`;
             mat.customProgramCacheKey = () => cacheTag;
 
             mat.onBeforeCompile = (shader) => {
@@ -2425,6 +2576,7 @@
                 ambientEnergy: ambE,
                 sunLight: Boolean(extra && extra.sunLight),
                 sunEnergy: (extra && extra.sunEnergy) || 0.0,
+                sunColor: (extra && extra.sunColor !== undefined) ? extra.sunColor : 0xffd6a5,
                 fogColor: fog,
                 fogDensity: fogD,
                 exposure: exp,
@@ -2442,37 +2594,37 @@
             if (depth <= 0) {
                 if (r === 'hengband') {
                     const n = ['Eastern Overworld (Mount Fuji Foothills)', 'Eastern Overworld (Bamboo Forest Glade)', 'Eastern Overworld (Jingu Shrine Valley)', 'Eastern Overworld (Ancient Pine Sanctuary)'];
-                    return mk(n[sub], 0x19182c, 0x948aa3, 0.85, 0x19182c, 0.0035, 1.08, 0xffe099, 2.2, [0.85, 0.85, 0.88], [0.80, 0.78, 0.76], [0.70, 0.70, 0.75], 0.82, 0.80, { sunLight: true, sunEnergy: 1.05, fixtureArchetype: 'sengoku_lantern' });
+                    return mk(n[sub], 0x19182c, 0x948aa3, 0.85, 0x19182c, 0.0035, 1.08, 0xffe099, 2.2, [0.85, 0.85, 0.88], [0.80, 0.78, 0.76], [0.70, 0.70, 0.75], 0.82, 0.80, { sunLight: true, sunEnergy: 1.05, sunColor: 0xffcfa0, fixtureArchetype: 'sengoku_lantern' });
                 }
                 if (r === 'frogcomposband') {
                     const n = ['Wilderness Overworld (Verdant Meadow)', 'Wilderness Overworld (Whispering Woods)', 'Wilderness Overworld (Highland Moors)', 'Wilderness Overworld (Sunlit Dale)'];
-                    return mk(n[sub], 0x0f1933, 0x8f9eb8, 0.88, 0x0f1933, 0.003, 1.06, 0xffe0a6, 2.2, [0.88, 0.86, 0.82], [0.82, 0.80, 0.78], [0.70, 0.70, 0.75], 0.84, 0.82, { sunLight: true, sunEnergy: 1.10 });
+                    return mk(n[sub], 0x111a2e, 0x8f9eb8, 0.88, 0x111a2e, 0.003, 1.06, 0xffe0a6, 2.2, [0.88, 0.86, 0.82], [0.82, 0.80, 0.78], [0.70, 0.70, 0.75], 0.84, 0.82, { sunLight: true, sunEnergy: 1.10, sunColor: 0xffdfb2 });
                 }
                 if (r === 'silq') {
-                    return mk('Gates of Thangorodrim (Cold Northern Bastion)', 0x0d1626, 0x7688a6, 0.72, 0x0d1626, 0.0048, 1.04, 0xffc878, 2.3, [0.76, 0.78, 0.84], [0.70, 0.72, 0.76], [0.62, 0.64, 0.70], 0.82, 0.84, { sunLight: true, sunEnergy: 0.82, fixtureArchetype: 'abyssal_brazier' });
+                    return mk('Gates of Thangorodrim (Cold Northern Bastion)', 0x101829, 0x7688a6, 0.72, 0x101829, 0.0048, 1.04, 0xffc878, 2.3, [0.76, 0.78, 0.84], [0.70, 0.72, 0.76], [0.62, 0.64, 0.70], 0.82, 0.84, { sunLight: true, sunEnergy: 0.82, sunColor: 0xffcca0, fixtureArchetype: 'abyssal_brazier' });
                 }
                 if (r === 'nethack') {
-                    return mk('Dungeons of Doom Threshold', 0x12192b, 0x8892ad, 0.82, 0x12192b, 0.0038, 1.05, 0xffd28a, 2.2, [0.84, 0.82, 0.78], [0.78, 0.76, 0.72], [0.68, 0.68, 0.72], 0.82, 0.82, { sunLight: true, sunEnergy: 0.95 });
+                    return mk('Dungeons of Doom Threshold', 0x141a2b, 0x8892ad, 0.82, 0x141a2b, 0.0038, 1.05, 0xffd28a, 2.2, [0.84, 0.82, 0.78], [0.78, 0.76, 0.72], [0.68, 0.68, 0.72], 0.82, 0.82, { sunLight: true, sunEnergy: 0.95, sunColor: 0xffd6a5 });
                 }
                 if (r === 'dcss') {
-                    return mk('Dungeon Approach (Orb Expedition Camp)', 0x101829, 0x8490ab, 0.82, 0x101829, 0.0038, 1.05, 0xffcf88, 2.2, [0.83, 0.83, 0.85], [0.78, 0.78, 0.80], [0.68, 0.70, 0.74], 0.80, 0.80, { sunLight: true, sunEnergy: 0.96 });
+                    return mk('Dungeon Approach (Orb Expedition Camp)', 0x12192a, 0x8490ab, 0.82, 0x12192a, 0.0038, 1.05, 0xffcf88, 2.2, [0.83, 0.83, 0.85], [0.78, 0.78, 0.80], [0.68, 0.70, 0.74], 0.80, 0.80, { sunLight: true, sunEnergy: 0.96, sunColor: 0xffd6a5 });
                 }
                 if (r === 'brogue') {
-                    return mk('Cavern Mouth (Moonlit Fern Glade)', 0x0c1a24, 0x78989c, 0.80, 0x0c1a24, 0.0042, 1.05, 0x7ef2c8, 2.1, [0.78, 0.84, 0.80], [0.72, 0.80, 0.74], [0.64, 0.70, 0.68], 0.84, 0.84, { sunLight: true, sunEnergy: 0.90, fixtureArchetype: 'bio_crystal' });
+                    return mk('Cavern Mouth (Moonlit Fern Glade)', 0x0e1c26, 0x78989c, 0.80, 0x0e1c26, 0.0042, 1.05, 0x7ef2c8, 2.1, [0.78, 0.84, 0.80], [0.72, 0.80, 0.74], [0.64, 0.70, 0.68], 0.84, 0.84, { sunLight: true, sunEnergy: 0.90, sunColor: 0xc8e4f0, fixtureArchetype: 'bio_crystal' });
                 }
                 if (r === 'rogue') {
-                    return mk('Citadel of Doom Gatehouse', 0x141826, 0x8c8ea6, 0.80, 0x141826, 0.0040, 1.05, 0xffc470, 2.3, [0.84, 0.80, 0.74], [0.78, 0.74, 0.68], [0.66, 0.64, 0.62], 0.84, 0.84, { sunLight: true, sunEnergy: 0.92 });
+                    return mk('Citadel of Doom Gatehouse', 0x161926, 0x8c8ea6, 0.80, 0x161926, 0.0040, 1.05, 0xffc470, 2.3, [0.84, 0.80, 0.74], [0.78, 0.74, 0.68], [0.66, 0.64, 0.62], 0.84, 0.84, { sunLight: true, sunEnergy: 0.92, sunColor: 0xffcfa0 });
                 }
                 if (r === 'ryod') {
-                    return mk('Sovereign Realm Overworld', 0x12182c, 0x8894b2, 0.84, 0x12182c, 0.0036, 1.06, 0xffd894, 2.2, [0.85, 0.84, 0.86], [0.79, 0.78, 0.80], [0.68, 0.68, 0.74], 0.82, 0.82, { sunLight: true, sunEnergy: 1.00 });
+                    return mk('Sovereign Realm Overworld', 0x14192c, 0x8894b2, 0.84, 0x14192c, 0.0036, 1.06, 0xffd894, 2.2, [0.85, 0.84, 0.86], [0.79, 0.78, 0.80], [0.68, 0.68, 0.74], 0.82, 0.82, { sunLight: true, sunEnergy: 1.00, sunColor: 0xffdab0 });
                 }
                 const towns = [
-                    { n: 'Town (Hobbiton Shire)', bg: 0x121b2d, amb: 0x808aa8, fog: 0x121b2d, wc: [0.85, 0.83, 0.80], fc: [0.80, 0.78, 0.75] },
-                    { n: 'Town (Bree Crossroads)', bg: 0x161c29, amb: 0x878d9e, fog: 0x161c29, wc: [0.80, 0.77, 0.73], fc: [0.75, 0.73, 0.70] },
-                    { n: 'Town (Gondor Outpost)', bg: 0x10192b, amb: 0x8290b0, fog: 0x10192b, wc: [0.88, 0.88, 0.90], fc: [0.83, 0.84, 0.86] },
-                    { n: 'Town (Rivendell Sanctuary)', bg: 0x0f1f26, amb: 0x7a9c99, fog: 0x0f1f26, wc: [0.82, 0.86, 0.83], fc: [0.78, 0.82, 0.79] }
+                    { n: 'Town (Hobbiton Shire)', bg: 0x151d2e, amb: 0x8892b0, fog: 0x151d2e, wc: [0.85, 0.83, 0.80], fc: [0.80, 0.78, 0.75] },
+                    { n: 'Town (Bree Crossroads)', bg: 0x181d29, amb: 0x8b90a2, fog: 0x181d29, wc: [0.80, 0.77, 0.73], fc: [0.75, 0.73, 0.70] },
+                    { n: 'Town (Gondor Outpost)', bg: 0x121b2c, amb: 0x8694b4, fog: 0x121b2c, wc: [0.88, 0.88, 0.90], fc: [0.83, 0.84, 0.86] },
+                    { n: 'Town (Rivendell Sanctuary)', bg: 0x102026, amb: 0x7e9e9c, fog: 0x102026, wc: [0.82, 0.86, 0.83], fc: [0.78, 0.82, 0.79] }
                 ][sub];
-                return mk(towns.n, towns.bg, towns.amb, 0.85, towns.fog, 0.0038, 1.05, 0xffdc99, 1.8, towns.wc, towns.fc, [0.70, 0.70, 0.72], 0.84, 0.82, { sunLight: true, sunEnergy: 1.05 });
+                return mk(towns.n, towns.bg, towns.amb, 0.85, towns.fog, 0.0038, 1.05, 0xffdc99, 1.8, towns.wc, towns.fc, [0.70, 0.70, 0.72], 0.84, 0.82, { sunLight: true, sunEnergy: 1.05, sunColor: 0xffd9a0 });
             }
 
             // Subterranean 9-Realm & Multi-Branch Profiles (Moody Chiaroscuro: ambientEnergy 0.16..0.19)
@@ -3086,6 +3238,10 @@
                     c.material = c._preEspMat;
                     c._preEspMat = null;
                 }
+                if (c._preEspRenderOrder !== undefined) {
+                    c.renderOrder = c._preEspRenderOrder;
+                    delete c._preEspRenderOrder;
+                }
             });
             if (entity.foggyMaterials) {
                 for (let i = 0; i < entity.foggyMaterials.length; i++) {
@@ -3105,7 +3261,8 @@
             const distSq = (m.x - px) * (m.x - px) + (m.y - py) * (m.y - py);
             const isEsp = this.isMonsterEspPerceived(m, player);
             const isTactile = distSq <= 2;
-            const wantBadge = Boolean(bf > 0.35 && isEsp);
+            const isOutOfLosEsp = Boolean(bf <= 0.5 && isEsp && (m.unlit || m.detected || m.in_los === false || m.los === false));
+            const wantBadge = Boolean((bf > 0.35 && isEsp) || isOutOfLosEsp);
 
             if (Boolean(m._espPerceived) !== wantBadge) {
                 m._espPerceived = wantBadge;
@@ -3114,27 +3271,34 @@
                 }
             }
 
-            if (bf <= 0.5) {
+            if (bf <= 0.5 && !isOutOfLosEsp) {
                 if (entity._hasEspMatOverride) this._restoreEntityEspMaterials(entity);
                 return true;
             }
 
-            if (!isEsp && !isTactile) {
+            if (bf > 0.5 && !isEsp && !isTactile) {
                 if (entity._hasEspMatOverride) this._restoreEntityEspMaterials(entity);
                 entity.visible = false;
                 if (entity.nameplate) entity.nameplate.visible = false;
                 return false;
             }
 
-            // Astral Telepathy (mode 2: #38bdf8 / #c084fc) or close tactile contact (mode 1: slate tactile silhouette)
-            const mode = isEsp ? ((m.unique || m.isBoss) ? 3 : 2) : 1;
+            // Sighted out-of-LOS ESP X-ray (mode 4/5: depthTest=false, renderOrder=5), Blind ESP (mode 2/3), or close tactile (mode 1)
+            const mode = isOutOfLosEsp
+                ? ((m.unique || m.isBoss) ? 5 : 4)
+                : (isEsp ? ((m.unique || m.isBoss) ? 3 : 2) : 1);
             if ((!entity._hasEspMatOverride || entity._espOverrideMode !== mode) && !entity._emissiveMaterials) {
                 if (entity._hasEspMatOverride) this._restoreEntityEspMaterials(entity);
                 const pool = d3d._espMatCache || (d3d._espMatCache = new Map());
+                const isXray = mode >= 4;
                 entity.traverse((c) => {
                     if ((!c.isMesh && !c.isSkinnedMesh) || !c.material || c === entity.contactShadow) return;
                     if (entity.foggyAura && (c === entity.foggyAura || c.parent === entity.foggyAura)) return;
                     if (!c._preEspMat) c._preEspMat = c.material;
+                    if (isXray) {
+                        if (c._preEspRenderOrder === undefined) c._preEspRenderOrder = c.renderOrder || 0;
+                        c.renderOrder = 5;
+                    }
                     const mapSingle = (orig) => {
                         if (!orig) return orig;
                         const k = `${orig.uuid}_esp_${mode}`;
@@ -3151,14 +3315,18 @@
                             if (orig.skinning || c.isSkinnedMesh) em.skinning = true;
                             em.fog = false;
                             if (mode >= 2) {
-                                const hex = mode === 3 ? 0xc084fc : 0x38bdf8;
+                                const hex = (mode === 3 || mode === 5) ? 0xc084fc : 0x38bdf8;
                                 if (em.color) em.color.setHex(hex);
                                 if (em.emissive) {
                                     em.emissive.setHex(hex);
-                                    em.emissiveIntensity = 0.88;
+                                    em.emissiveIntensity = isXray ? 0.90 : 0.88;
                                 }
                                 em.transparent = true;
-                                em.opacity = 0.88;
+                                em.opacity = isXray ? 0.72 : 0.88;
+                                if (isXray) {
+                                    em.depthTest = false;
+                                    em.depthWrite = false;
+                                }
                             } else {
                                 if (em.color) em.color.setHex(0x64748b);
                                 if (em.emissive) {
@@ -3607,6 +3775,10 @@
                 return Dungeon3DTactical.extractHandItems(player);
             };
 
+            proto._resolveOffhandLightKey = function (lightItem) {
+                return Dungeon3DTactical.resolveOffhandLightKey(lightItem);
+            };
+
             proto._resolveRightKey = function (weaponItem, bowItem, player) {
                 return Dungeon3DTactical.resolveRightKey(this, weaponItem, bowItem, player);
             };
@@ -3669,6 +3841,10 @@
 
             proto.updateFlankThreatArcs = function (frame) {
                 Dungeon3DTactical.updateFlankThreatArcs(this, frame, this.camera);
+            };
+
+            proto.updateCompassTape = function (frame) {
+                Dungeon3DTactical.updateCompassTape(this, frame, this.camera);
             };
 
             proto.computeMultiItemPositions = function (items) {

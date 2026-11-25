@@ -252,9 +252,34 @@
                 const oldestKey = this._cache.keys().next().value;
                 const oldest = this._cache.get(oldestKey);
                 this._cache.delete(oldestKey);
-                if (oldest && typeof oldest.dispose === 'function') {
-                    oldest.dispose();
-                    this.disposedCount++;
+                if (oldest) {
+                    let disposed = false;
+                    if (typeof oldest.traverse === 'function') {
+                        const texSlots = ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap', 'emissiveMap'];
+                        oldest.traverse((child) => {
+                            if (child.geometry && !child.geometry._sharedGeometry && typeof child.geometry.dispose === 'function') {
+                                child.geometry.dispose();
+                            }
+                            if (child.material) {
+                                const mats = Array.isArray(child.material) ? child.material : [child.material];
+                                for (let mIdx = 0; mIdx < mats.length; mIdx++) {
+                                    const mat = mats[mIdx];
+                                    if (!mat || mat._sharedMaterial) continue;
+                                    for (let tIdx = 0; tIdx < texSlots.length; tIdx++) {
+                                        const tex = mat[texSlots[tIdx]];
+                                        if (tex && !tex._sharedTexture && typeof tex.dispose === 'function') tex.dispose();
+                                    }
+                                    if (typeof mat.dispose === 'function') mat.dispose();
+                                }
+                            }
+                        });
+                        disposed = true;
+                    }
+                    if (typeof oldest.dispose === 'function') {
+                        oldest.dispose();
+                        disposed = true;
+                    }
+                    if (disposed) this.disposedCount++;
                 }
             }
             this._cache.set(key, prototypeNode);

@@ -117,7 +117,7 @@ test('dungeon3d.js satisfies static & performance contracts for creature renderi
     const requiredWeaponShieldGlbs = [
         'bow.glb',
         'spear.glb',
-        'torch.glb',
+        'torch_pbr.glb',
         'great_sword.glb',
         'rune_blade.glb',
         'goblin_sword.glb',
@@ -627,11 +627,11 @@ test('Wave 16 held equipment alignment, static-rig stabilization & Artisan HUD c
 test('Card 17A 3D rig posture, skinned-mesh fist centroid attachment & viewmodel gauntlets', () => {
     const d3dSrc = read('server/public/js/dungeon3d.js');
 
-    // 1. char_male_guard strips content._animations = [] and uses yawOffset = 0 (normalizeWrapper(content, 1.82, true, 0))
+    // 1. char_male_guard normalizes guardPivot with yawOffset = 0 and shares Mixamo clips across humanoids
     assert(
-        d3dSrc.includes('if (content) content._animations = [];') &&
-        d3dSrc.includes('return normalizeWrapper(content, 1.82, true, 0);'),
-        'char_male_guard must strip animations and use yawOffset = 0'
+        d3dSrc.includes('normalizeWrapper(guardPivot, 1.82, true, 0)') &&
+        d3dSrc.includes('this._sharedMixamoClips = guardClips;'),
+        'char_male_guard must normalize guardPivot with yawOffset = 0 and share Mixamo clips'
     );
 
     // 2. dungeon3d.js defines _computeHandGripLocalOffset and assigns hand_r._palmLocalOffset and hand_l._palmLocalOffset (including LeftHand_Synthetic)

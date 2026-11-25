@@ -1853,7 +1853,7 @@ Dungeon3DProto.initTextures = function initTextures() {
         normalScale: new THREE.Vector2(1.25, 1.25),
         roughness: 0.72,
         metalness: 0.04,
-        side: THREE.DoubleSide,
+        side: THREE.FrontSide,
         vertexColors: true
     });
 
@@ -1973,7 +1973,7 @@ Dungeon3DProto.initTextures = function initTextures() {
         normalScale: new THREE.Vector2(1.20, 1.20),
         roughness: 0.88,
         metalness: 0.0,
-        side: THREE.DoubleSide,
+        side: THREE.FrontSide,
         vertexColors: true
     });
 
@@ -1982,7 +1982,7 @@ Dungeon3DProto.initTextures = function initTextures() {
         map: this.dirtTex,
         roughness: 0.88,
         metalness: 0.0,
-        side: THREE.DoubleSide,
+        side: THREE.FrontSide,
         vertexColors: true
     });
 
@@ -1995,7 +1995,7 @@ Dungeon3DProto.initTextures = function initTextures() {
         emissiveIntensity: 0.24,
         roughness: 0.12,
         metalness: 0.26,
-        side: THREE.DoubleSide,
+        side: THREE.FrontSide,
         transparent: true,
         opacity: 0.88,
         vertexColors: true
@@ -2010,7 +2010,7 @@ Dungeon3DProto.initTextures = function initTextures() {
         emissiveIntensity: 0.22,
         roughness: 0.14,
         metalness: 0.28,
-        side: THREE.DoubleSide,
+        side: THREE.FrontSide,
         transparent: true,
         opacity: 0.94,
         vertexColors: true
@@ -2021,7 +2021,7 @@ Dungeon3DProto.initTextures = function initTextures() {
         : new THREE.MeshStandardMaterial(opts);
     this.mountainMaterial = mkBudgetMat({ map: this.wallTex, normalMap: this.wallNormal, roughness: 0.92, metalness: 0.04, vertexColors: true });
     this.rubbleMaterial = mkBudgetMat({ map: this.wallTex, normalMap: this.wallNormal, roughness: 0.88, metalness: 0.04, vertexColors: true });
-    this.swampMaterial = mkBudgetMat({ map: this.dirtTex, roughness: 0.40, metalness: 0.08, side: THREE.DoubleSide, vertexColors: true });
+    this.swampMaterial = mkBudgetMat({ map: this.dirtTex, color: new THREE.Color(0x4f6342), roughness: 0.34, metalness: 0.14, side: THREE.FrontSide, vertexColors: true });
     this.treeTrunkMat = new THREE.MeshStandardMaterial({
         color: 0xffffff, map: this.treeBarkTex, normalMap: this.treeBarkNormal, normalScale: new THREE.Vector2(1.40, 1.40),
         roughness: 0.90, metalness: 0.02, side: THREE.FrontSide, vertexColors: true
@@ -2052,7 +2052,7 @@ Dungeon3DProto.initTextures = function initTextures() {
         normalScale: new THREE.Vector2(1.40, 1.40),
         roughness: 0.62,
         metalness: 0.08,
-        side: THREE.DoubleSide
+        side: THREE.FrontSide
     });
 
     this.lavaCooledMaterial = new THREE.MeshStandardMaterial({
@@ -2065,7 +2065,7 @@ Dungeon3DProto.initTextures = function initTextures() {
         normalScale: new THREE.Vector2(1.40, 1.40),
         roughness: 0.78,
         metalness: 0.12,
-        side: THREE.DoubleSide
+        side: THREE.FrontSide
     });
 
     this.stairsMaterial = new THREE.MeshStandardMaterial({

@@ -47,7 +47,8 @@
     "audit_9realm_bestiary_exhaustive.js",
     "test_wave0_hardening.js",
     "test_wave1_vps_infra.js",
-    "test_wave2a_protocol_parity.js"
+    "test_wave2a_protocol_parity.js",
+    "test_wave2b_3d_world.js"
   ],
   "e2e": [
     "verify_cross_realm_menus.js",
