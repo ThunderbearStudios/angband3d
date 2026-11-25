@@ -135,7 +135,7 @@ async function main() {
 
         const wranglerSrc = read('edge/wrangler.yasd3d.toml');
         check(wranglerSrc.includes('workers_dev = false'), 'wrangler.yasd3d.toml disables public workers.dev bypass');
-        check(wranglerSrc.includes('ORIGIN_MODE = "cloudrun"'), 'wrangler.yasd3d.toml keeps cloudrun safe default before cutover');
+        check(wranglerSrc.includes('ORIGIN_MODE = "ovh"'), 'wrangler.yasd3d.toml routes primary traffic to ResonantOVH after Wave 1B cutover');
 
         const dockerSrc = read('server/Dockerfile');
         check(dockerSrc.includes('USER yasd3d') && dockerSrc.includes('CACHE_DIR=/data/cache') && dockerSrc.includes('DB_DIR=/data/db'), 'server/Dockerfile runs non-root yasd3d user with NVMe env dirs');

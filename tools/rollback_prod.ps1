@@ -51,8 +51,8 @@ try {
     }
 
     if ($Target -eq 'ovh' -or $Target -eq 'all') {
-        Invoke-Step "Restore OVH service ($OvhService on $OvhHost -> $GitRef)" {
-            ssh -o BatchMode=yes $OvhHost "set -e; cd /opt/yasd3d/app 2>/dev/null || exit 0; git fetch --tags; git checkout $GitRef; sudo systemctl restart $OvhService; sudo systemctl is-active --quiet $OvhService"
+        Invoke-Step "Restore OVH service ($OvhService on $OvhHost -> localhost/yasd3d:previous)" {
+            ssh -o BatchMode=yes $OvhHost "set -e; cd /tmp; YASD_UID=`$(id -u yasd3d); sudo -n -u yasd3d env HOME=/opt/yasd3d XDG_RUNTIME_DIR=/run/user/`$YASD_UID podman tag localhost/yasd3d:previous localhost/yasd3d:current; sudo -n systemctl restart $OvhService; sudo -n systemctl is-active --quiet $OvhService"
         }
     }
 

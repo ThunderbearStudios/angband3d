@@ -3758,7 +3758,9 @@ async function spawnGameSession(ws, request) {
         args.push(engineInfo.cli.save_dir_switch.replace('{path}', activeEngineSaveDir));
     }
     if (activeEngineSaveDir && engineInfo.cli?.panic_dir_switch) {
-        args.push(engineInfo.cli.panic_dir_switch.replace('{path}', path.join(activeEngineSaveDir, 'panic')));
+        const panicDir = path.join(activeEngineSaveDir, 'panic');
+        try { fs.mkdirSync(panicDir, { recursive: true }); } catch (_) {}
+        args.push(engineInfo.cli.panic_dir_switch.replace('{path}', panicDir));
     }
     const saveTokenFormat = engineInfo.cli?.save_token_format || '-u{name}';
     if (save) {
