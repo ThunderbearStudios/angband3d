@@ -55,8 +55,8 @@
             enableFillLight: false,
             proceduralTexSize: 256,
             anisotropy: 2,
-            preferLambert: true,
-            fullPbrMaps: false,
+            preferLambert: false,
+            fullPbrMaps: true,
             frustumRadius: 32,
             idleIntervalMs: 100,
             nameplatePoolCap: 64

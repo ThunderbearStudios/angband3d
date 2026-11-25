@@ -56,7 +56,8 @@
     "test_wave3b_css_architecture.js",
     "test_wave3c_primitives_aaa.js",
     "test_wave4a_three_v2_parity.js",
-    "test_wave4b_v2_pipeline_and_glbs.js"
+    "test_wave4b_v2_pipeline_and_glbs.js",
+    "test_wave4c_postfx_shaders_and_default_v2.js"
   ],
   "e2e": [
     "verify_cross_realm_menus.js",

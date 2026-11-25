@@ -124,7 +124,7 @@ function main() {
 
     // 3. Static invariants
     const bootJs = read('server/public/js/boot.js');
-    assert(bootJs.includes('RENDERER_THREE_V2: false'), 'Wave 4A must keep RENDERER_THREE_V2 default false in boot.js');
+    assert(/RENDERER_THREE_V2:\s*(?:true|false)/.test(bootJs), 'boot.js must define RENDERER_THREE_V2 toggle flag');
 
     const appJs = read('server/public/js/app.js');
     assert(appJs.includes("'engine3d-v2'") && appJs.includes("window.__loadLazyBundle('engine3d')"), 'app.js must route RENDERER_THREE_V2 to engine3d-v2 with engine3d fallback');

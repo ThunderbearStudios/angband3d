@@ -701,7 +701,11 @@ class Dungeon3D {
         const dprCap = nextBudget.dprCap || (nextBudget.tier === 'phone' ? 1.25 : 1.5);
         const dprFloor = Math.min(dprCap, 0.75);
         const rawDpr = Math.min((typeof window !== 'undefined' && window.devicePixelRatio) || 1, dprCap) * scale;
-        this.renderer.setPixelRatio(Math.max(dprFloor, Math.min(dprCap, rawDpr)));
+        const effDpr = Math.max(dprFloor, Math.min(dprCap, rawDpr));
+        this.renderer.setPixelRatio(effDpr);
+        if (window.Dungeon3DV2Pipeline && typeof window.Dungeon3DV2Pipeline.resizePostFx === 'function') {
+            window.Dungeon3DV2Pipeline.resizePostFx(this, w, h, effDpr);
+        }
         if (this.renderGovernor) this.renderGovernor.wake(350);
     }
 
@@ -801,6 +805,10 @@ class Dungeon3D {
         this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         this.renderer.shadowMap.autoUpdate = false;
         this.renderer.shadowMap.needsUpdate = true;
+        if (window.Dungeon3DV2Pipeline) {
+            if (typeof window.Dungeon3DV2Pipeline.probeWebGPUCapability === 'function') window.Dungeon3DV2Pipeline.probeWebGPUCapability(this);
+            if (typeof window.Dungeon3DV2Pipeline.initPostFx === 'function') window.Dungeon3DV2Pipeline.initPostFx(this);
+        }
         this._cachedCanvasRect = null;
 
         this._contextLost = false;
@@ -1703,6 +1711,10 @@ class Dungeon3D {
         this.lavaCooledMesh.castShadow = false;
         this.lavaCooledMesh.receiveShadow = true;
         this.scene.add(this.lavaCooledMesh);
+
+        if (window.Dungeon3DV2Pipeline && typeof window.Dungeon3DV2Pipeline.upgradeLiquidShaders === 'function') {
+            window.Dungeon3DV2Pipeline.upgradeLiquidShaders(this);
+        }
 
         if (this.stairsMaterial) this.stairsMaterial.vertexColors = true;
         // Down Staircase (feat 6)
@@ -13517,6 +13529,9 @@ class Dungeon3D {
                 this.fountainWaterMaterial.emissiveIntensity = 0.92 + Math.sin(time * 3.8) * 0.22;
             }
         }
+        if (window.Dungeon3DV2Pipeline && typeof window.Dungeon3DV2Pipeline.tickLiquidShaders === 'function') {
+            window.Dungeon3DV2Pipeline.tickLiquidShaders(this, timeSec);
+        }
         if (window.Dungeon3DAtmosphere && typeof window.Dungeon3DAtmosphere.updateAtmosphere === 'function') {
             window.Dungeon3DAtmosphere.updateAtmosphere(this, tNow * 0.001);
         }
@@ -13621,7 +13636,8 @@ class Dungeon3D {
             }
             if (this.camera && this.camera.layers) this.camera.layers.set(0);
             this.renderer.autoClear = true;
-            this.renderer.render(this.scene, this.camera);
+            const renderedPostFx = Boolean(window.Dungeon3DV2Pipeline && typeof window.Dungeon3DV2Pipeline.renderWorldPass === 'function' && window.Dungeon3DV2Pipeline.renderWorldPass(this));
+            if (!renderedPostFx) this.renderer.render(this.scene, this.camera);
             const rightHasMesh = Boolean(this.rightHandGroup && this.rightHandGroup.visible && this.rightItemSlot && this.rightItemSlot.children.length > 0);
             const leftHasMesh = Boolean(this.leftHandGroup && this.leftHandGroup.visible && this.leftItemSlot && this.leftItemSlot.children.length > 0);
             const vmVisible = Boolean(this.viewmodelGroup && (rightHasMesh || leftHasMesh));

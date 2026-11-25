@@ -17,7 +17,7 @@
         AUDIO_HRTF_3D: true,
         PROMPT_MIRROR_3D: true,
         SILQ_WASM_LOCAL: false,
-        RENDERER_THREE_V2: false,
+        RENDERER_THREE_V2: true,
         WEBGPU_EXPERIMENTAL: false
     };
     try {

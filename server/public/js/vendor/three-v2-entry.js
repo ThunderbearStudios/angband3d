@@ -3,6 +3,11 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
 import { KTX2Loader } from 'three/addons/loaders/KTX2Loader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
 const g = typeof globalThis !== 'undefined' ? globalThis : (typeof window !== 'undefined' ? window : self);
 
@@ -10,6 +15,11 @@ const THREE = Object.assign({}, THREE_NS);
 THREE.GLTFLoader = GLTFLoader;
 THREE.OBJLoader = OBJLoader;
 THREE.KTX2Loader = KTX2Loader;
+THREE.EffectComposer = EffectComposer;
+THREE.RenderPass = RenderPass;
+THREE.UnrealBloomPass = UnrealBloomPass;
+THREE.GTAOPass = GTAOPass;
+THREE.OutputPass = OutputPass;
 THREE.IS_THREE_V2 = true;
 
 if (typeof THREE.sRGBEncoding === 'undefined' && THREE.SRGBColorSpace !== undefined) {

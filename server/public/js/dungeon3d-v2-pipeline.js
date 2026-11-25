@@ -214,8 +214,246 @@
         }
     }
 
+    function disposePostFx(d3d) {
+        if (!d3d || !d3d._postFx) return;
+        const pfx = d3d._postFx;
+        for (const k of ['gtaoPass', 'bloomPass', 'outputPass', 'renderPass', 'hdrTarget', 'composer']) {
+            if (pfx[k] && typeof pfx[k].dispose === 'function') {
+                try { pfx[k].dispose(); } catch (_) {}
+            }
+        }
+        d3d._postFx = null;
+    }
+
+    function initPostFx(d3d) {
+        const T = getThree();
+        const compat = getCompat();
+        if (!d3d || !T || !compat || !compat.isV2(T)) return null;
+        if (!d3d.renderer || !d3d.scene || !d3d.camera) return null;
+        if (typeof T.EffectComposer !== 'function' || typeof T.RenderPass !== 'function' || typeof T.UnrealBloomPass !== 'function' || typeof T.OutputPass !== 'function') return null;
+
+        disposePostFx(d3d);
+        const budget = d3d.renderBudget || {};
+        const gpuTier = String(budget.gpuTier || 'integrated').toLowerCase();
+        const isAllowedTier = Boolean(d3d._forcePostFx || ((gpuTier === 'performance' || gpuTier === 'ultra') && budget.tier !== 'phone'));
+        const userEnabled = !(root && root.GRAPHICS_CONFIG && root.GRAPHICS_CONFIG.postFx === false);
+        if (!isAllowedTier || !userEnabled) {
+            d3d._postFx = { enabled: false, tier: gpuTier, bloomPass: null, gtaoPass: null, composer: null };
+            return d3d._postFx;
+        }
+
+        const sizeVec = (typeof d3d.renderer.getSize === 'function' && typeof T.Vector2 === 'function')
+            ? d3d.renderer.getSize(new T.Vector2())
+            : { x: 1280, y: 720 };
+        const w = Math.max(1, Math.round(sizeVec.x || 1280));
+        const h = Math.max(1, Math.round(sizeVec.y || 720));
+        const dpr = (typeof d3d.renderer.getPixelRatio === 'function') ? (d3d.renderer.getPixelRatio() || 1) : 1;
+        const isWebGL2 = Boolean(d3d.renderer.capabilities && d3d.renderer.capabilities.isWebGL2);
+        const rtType = (isWebGL2 && T.HalfFloatType !== undefined) ? T.HalfFloatType : T.UnsignedByteType;
+        const hdrTarget = (typeof T.WebGLRenderTarget === 'function')
+            ? new T.WebGLRenderTarget(Math.max(1, Math.round(w * dpr)), Math.max(1, Math.round(h * dpr)), {
+                type: rtType,
+                samples: isWebGL2 ? 2 : 0
+            })
+            : undefined;
+
+        const composer = new T.EffectComposer(d3d.renderer, hdrTarget);
+        if (typeof composer.setPixelRatio === 'function') composer.setPixelRatio(dpr);
+        if (typeof composer.setSize === 'function') composer.setSize(w, h);
+
+        const renderPass = new T.RenderPass(d3d.scene, d3d.camera);
+        composer.addPass(renderPass);
+
+        let gtaoPass = null;
+        if ((gpuTier === 'ultra' || d3d._forceGtao) && typeof T.GTAOPass === 'function') {
+            gtaoPass = new T.GTAOPass(d3d.scene, d3d.camera, Math.max(1, w >> 1), Math.max(1, h >> 1));
+            if (typeof gtaoPass.updateGtaoMaterial === 'function') {
+                gtaoPass.updateGtaoMaterial({ radius: 0.45, distanceExponent: 1.8, samples: 8 });
+            }
+            if ('blendIntensity' in gtaoPass) gtaoPass.blendIntensity = 0.65;
+            composer.addPass(gtaoPass);
+        }
+
+        const halfRes = (typeof T.Vector2 === 'function') ? new T.Vector2(Math.max(1, w >> 1), Math.max(1, h >> 1)) : { x: Math.max(1, w >> 1), y: Math.max(1, h >> 1) };
+        const bloomPass = new T.UnrealBloomPass(halfRes, 0.34, 0.55, 0.92);
+        composer.addPass(bloomPass);
+
+        const outputPass = new T.OutputPass();
+        composer.addPass(outputPass);
+
+        d3d._postFx = {
+            enabled: true,
+            tier: gpuTier,
+            hdrTarget: hdrTarget || null,
+            composer,
+            renderPass,
+            gtaoPass,
+            bloomPass,
+            outputPass
+        };
+        return d3d._postFx;
+    }
+
+    function resizePostFx(d3d, w, h, dpr) {
+        const pfx = d3d && d3d._postFx;
+        if (!pfx || !pfx.enabled || !pfx.composer) return;
+        const ww = Math.max(1, Math.round(w || 1));
+        const hh = Math.max(1, Math.round(h || 1));
+        if (dpr && typeof pfx.composer.setPixelRatio === 'function') pfx.composer.setPixelRatio(dpr);
+        if (typeof pfx.composer.setSize === 'function') pfx.composer.setSize(ww, hh);
+        if (pfx.bloomPass && pfx.bloomPass.resolution && typeof pfx.bloomPass.resolution.set === 'function') {
+            pfx.bloomPass.resolution.set(Math.max(1, ww >> 1), Math.max(1, hh >> 1));
+        }
+        if (pfx.gtaoPass && typeof pfx.gtaoPass.setSize === 'function') {
+            pfx.gtaoPass.setSize(Math.max(1, ww >> 1), Math.max(1, hh >> 1));
+        }
+    }
+
+    function renderWorldPass(d3d) {
+        const pfx = d3d && d3d._postFx;
+        if (!pfx || !pfx.enabled || !pfx.composer) return false;
+        pfx.composer.render();
+        return true;
+    }
+
+    function patchWaterShader(mat, timeUniform, isDeep) {
+        if (!mat || mat._yasdFresnelWaterPatched) return;
+        mat._yasdFresnelWaterPatched = true;
+        mat.customProgramCacheKey = () => (isDeep ? 'yasd_fresnel_water_deep_v1' : 'yasd_fresnel_water_shallow_v1');
+        const prevCompile = mat.onBeforeCompile;
+        mat.onBeforeCompile = (shader, renderer) => {
+            if (typeof prevCompile === 'function') prevCompile.call(mat, shader, renderer);
+            shader.uniforms.uYasdLiquidTime = timeUniform;
+            shader.vertexShader = 'varying vec3 vYasdWaterWorldPos;\n' + shader.vertexShader.replace(
+                '#include <begin_vertex>',
+                `#include <begin_vertex>
+#ifdef USE_INSTANCING
+vec4 yasdWwp = modelMatrix * instanceMatrix * vec4(transformed, 1.0);
+#else
+vec4 yasdWwp = modelMatrix * vec4(transformed, 1.0);
+#endif
+vYasdWaterWorldPos = yasdWwp.xyz;`
+            );
+            shader.fragmentShader = 'uniform float uYasdLiquidTime;\nvarying vec3 vYasdWaterWorldPos;\n' + shader.fragmentShader.replace(
+                '#include <emissivemap_fragment>',
+                `#include <emissivemap_fragment>
+{
+    vec2 yasdWp = vYasdWaterWorldPos.xz;
+    float yasdC1 = sin(yasdWp.x * 2.7 + uYasdLiquidTime * 1.9 + cos(yasdWp.y * 2.1 - uYasdLiquidTime * 1.4));
+    float yasdC2 = cos(yasdWp.y * 3.1 - uYasdLiquidTime * 1.6 + sin(yasdWp.x * 1.8 + uYasdLiquidTime * 1.2));
+    float yasdCaustic = smoothstep(0.65, 1.0, (yasdC1 * 0.5 + yasdC2 * 0.5) * 0.5 + 0.5);
+    vec3 yasdN = normalize(vNormal);
+    vec3 yasdV = normalize(vViewPosition);
+    float yasdFresnel = pow(1.0 - clamp(abs(dot(yasdN, yasdV)), 0.0, 1.0), 3.2);
+    vec3 yasdTint = ${isDeep ? 'vec3(0.10, 0.36, 0.56)' : 'vec3(0.20, 0.56, 0.72)'};
+    totalEmissiveRadiance += yasdTint * (yasdFresnel * 0.58 + yasdCaustic * 0.34);
+}`
+            );
+        };
+        mat.needsUpdate = true;
+    }
+
+    function patchLavaShader(mat, timeUniform) {
+        if (!mat || mat._yasdVoronoiLavaPatched) return;
+        mat._yasdVoronoiLavaPatched = true;
+        mat.customProgramCacheKey = () => 'yasd_voronoi_lava_v1';
+        const prevCompile = mat.onBeforeCompile;
+        mat.onBeforeCompile = (shader, renderer) => {
+            if (typeof prevCompile === 'function') prevCompile.call(mat, shader, renderer);
+            shader.uniforms.uYasdLiquidTime = timeUniform;
+            shader.vertexShader = 'varying vec3 vYasdLavaWorldPos;\n' + shader.vertexShader.replace(
+                '#include <begin_vertex>',
+                `#include <begin_vertex>
+#ifdef USE_INSTANCING
+vec4 yasdLwp = modelMatrix * instanceMatrix * vec4(transformed, 1.0);
+#else
+vec4 yasdLwp = modelMatrix * vec4(transformed, 1.0);
+#endif
+vYasdLavaWorldPos = yasdLwp.xyz;`
+            );
+            shader.fragmentShader = `uniform float uYasdLiquidTime;
+varying vec3 vYasdLavaWorldPos;
+vec2 yasdHash22(vec2 p) {
+    vec3 p3 = fract(vec3(p.xyx) * vec3(0.1031, 0.1030, 0.0973));
+    p3 += dot(p3, p3.yzx + 33.33);
+    return fract((p3.xx + p3.yz) * p3.zy);
+}
+float yasdLavaVoronoi(vec2 x) {
+    vec2 n = floor(x);
+    vec2 f = fract(x);
+    float f1 = 8.0, f2 = 8.0;
+    for (int j = -1; j <= 1; j++) {
+        for (int i = -1; i <= 1; i++) {
+            vec2 g = vec2(float(i), float(j));
+            vec2 o = 0.5 + 0.42 * sin(uYasdLiquidTime * 0.45 + 6.2831 * yasdHash22(n + g));
+            vec2 r = g + o - f;
+            float d = dot(r, r);
+            if (d < f1) { f2 = f1; f1 = d; }
+            else if (d < f2) { f2 = d; }
+        }
+    }
+    return sqrt(f2) - sqrt(f1);
+}
+` + shader.fragmentShader.replace(
+                '#include <emissivemap_fragment>',
+                `#include <emissivemap_fragment>
+{
+    vec2 yasdLp = vYasdLavaWorldPos.xz * 1.15 + vec2(uYasdLiquidTime * 0.12, -uYasdLiquidTime * 0.09);
+    float yasdEdge = yasdLavaVoronoi(yasdLp);
+    float yasdCrack = 1.0 - smoothstep(0.03, 0.24, yasdEdge);
+    float yasdPulse = 0.85 + 0.15 * sin(uYasdLiquidTime * 2.6 + vYasdLavaWorldPos.x * 1.3);
+    totalEmissiveRadiance *= (0.45 + 0.55 * yasdCrack);
+    totalEmissiveRadiance += vec3(1.85, 0.46, 0.04) * (yasdCrack * 1.45 * yasdPulse);
+}`
+            );
+        };
+        mat.needsUpdate = true;
+    }
+
+    function upgradeLiquidShaders(d3d) {
+        if (!d3d) return false;
+        const budget = d3d.renderBudget || {};
+        if (String(budget.gpuTier || '').toLowerCase() === 'mobile-saver') return false;
+        if (!d3d._liquidTimeUniform) d3d._liquidTimeUniform = { value: 0 };
+        patchWaterShader(d3d.waterMaterial, d3d._liquidTimeUniform, false);
+        patchWaterShader(d3d.deepWaterMaterial, d3d._liquidTimeUniform, true);
+        patchLavaShader(d3d.lavaMaterial, d3d._liquidTimeUniform);
+        d3d._liquidShadersUpgraded = Boolean(d3d.waterMaterial || d3d.lavaMaterial);
+        return d3d._liquidShadersUpgraded;
+    }
+
+    function tickLiquidShaders(d3d, timeSec) {
+        if (d3d && d3d._liquidTimeUniform) {
+            d3d._liquidTimeUniform.value = Number(timeSec) || 0;
+        }
+    }
+
+    function probeWebGPUCapability(d3d) {
+        const flags = (root && root.YASD_FLAGS) || {};
+        const experimentalEnabled = Boolean(flags.WEBGPU_EXPERIMENTAL);
+        const nav = (typeof navigator !== 'undefined') ? navigator : null;
+        const hasGpuApi = Boolean(nav && nav.gpu && typeof nav.gpu.requestAdapter === 'function');
+        const status = {
+            enabled: experimentalEnabled,
+            supported: hasGpuApi,
+            active: false,
+            backend: 'webgl2'
+        };
+        if (d3d) d3d._webgpuStatus = status;
+        if (experimentalEnabled && hasGpuApi) {
+            Promise.resolve(nav.gpu.requestAdapter()).then((adapter) => {
+                if (adapter) {
+                    status.adapterFound = true;
+                    status.backend = 'webgl2-fallback';
+                }
+            }).catch(() => {});
+        }
+        return status;
+    }
+
     function dispose(d3d) {
         if (!d3d) return;
+        disposePostFx(d3d);
         if (d3d._biomePmremCache && typeof d3d._biomePmremCache.values === 'function') {
             for (const rt of d3d._biomePmremCache.values()) {
                 if (rt && typeof rt.dispose === 'function') {
@@ -229,6 +467,7 @@
         }
         d3d._ktx2Loader = null;
         d3d._activePmremKey = null;
+        d3d._liquidShadersUpgraded = false;
     }
 
     return {
@@ -241,6 +480,12 @@
         resolveBiomePmremKey,
         syncBiomePmrem,
         preservePhysicalMaterial,
+        initPostFx,
+        resizePostFx,
+        renderWorldPass,
+        upgradeLiquidShaders,
+        tickLiquidShaders,
+        probeWebGPUCapability,
         dispose
     };
 });

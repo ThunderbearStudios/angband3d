@@ -132,9 +132,10 @@ async function main() {
     const args = process.argv.slice(2);
     const ssIdx = args.indexOf('--screenshots-dir');
     const screenshotsDir = ssIdx !== -1 ? args[ssIdx + 1] : null;
-    const flagThreeV2 = args.includes('--flag-three-v2') || process.env.FLAG_THREE_V2 === '1';
-    const v2ColdQ = flagThreeV2 ? '?flag_RENDERER_THREE_V2=1' : '';
-    const v2PlayQ = flagThreeV2 ? '&flag_RENDERER_THREE_V2=1' : '';
+    const flagThreeV1 = args.includes('--flag-three-v1') || process.env.FLAG_THREE_V1 === '1';
+    const flagThreeV2 = !flagThreeV1 && (args.includes('--flag-three-v2') || process.env.FLAG_THREE_V2 === '1' || true);
+    const v2ColdQ = flagThreeV1 ? '?flag_RENDERER_THREE_V2=0' : (args.includes('--flag-three-v2') ? '?flag_RENDERER_THREE_V2=1' : '');
+    const v2PlayQ = flagThreeV1 ? '&flag_RENDERER_THREE_V2=0' : (args.includes('--flag-three-v2') ? '&flag_RENDERER_THREE_V2=1' : '');
     if (screenshotsDir) fs.mkdirSync(screenshotsDir, { recursive: true });
 
     // Check 1: Disk asset budget
@@ -299,6 +300,9 @@ async function main() {
                 });
                 const pmremKey = d3d?._activePmremKey || 'none';
                 const townBatchedCount = Number(d3d?._townBatchedCount) || 0;
+                const liquidShaders = Boolean(d3d?._liquidShadersUpgraded);
+                const postFx = Boolean(d3d?._postFx && d3d._postFx.enabled);
+                const webgpuBackend = d3d?._webgpuStatus?.backend || 'none';
                 return {
                     textures: mem.textures || 0,
                     geometries: mem.geometries || 0,
@@ -307,20 +311,26 @@ async function main() {
                     ktx2Count,
                     townBatchedCount,
                     pmremKey,
+                    liquidShaders,
+                    postFx,
+                    webgpuBackend,
                     itemAtlasLoadedEager: Boolean(window.__itemAtlasLoaded),
                     threeRevision: (typeof THREE !== 'undefined' && THREE.REVISION) ? String(THREE.REVISION) : 'none',
                     isThreeV2: Boolean(typeof THREE !== 'undefined' && THREE.IS_THREE_V2)
                 };
             })()`);
             const texCeiling = flagThreeV2 ? 92 : 83;
-            console.log(`[VisualGate] Town VRAM (Three r${townMem.threeRevision} v2=${townMem.isThreeV2}): textures=${townMem.textures} (ceiling < ${texCeiling}, baseline 83), geometries=${townMem.geometries} (ceiling <= 80, full NPC+storefront baseline 60), gpuTexVramMB=${townMem.gpuTexVramMB} (ceiling < 135), maxTexDim=${townMem.maxTexDim}, ktx2=${townMem.ktx2Count}, batched=${townMem.townBatchedCount}, pmrem=${townMem.pmremKey}, itemAtlasLoadedEager=${townMem.itemAtlasLoadedEager}`);
+            console.log(`[VisualGate] Town VRAM (Three r${townMem.threeRevision} v2=${townMem.isThreeV2}): textures=${townMem.textures} (ceiling < ${texCeiling}, baseline 83), geometries=${townMem.geometries} (ceiling <= 80, full NPC+storefront baseline 60), gpuTexVramMB=${townMem.gpuTexVramMB} (ceiling < 135), maxTexDim=${townMem.maxTexDim}, ktx2=${townMem.ktx2Count}, batched=${townMem.townBatchedCount}, pmrem=${townMem.pmremKey}, liquid=${townMem.liquidShaders}, postFx=${townMem.postFx}, backend=${townMem.webgpuBackend}, itemAtlasLoadedEager=${townMem.itemAtlasLoadedEager}`);
             if (flagThreeV2) {
-                assert.strictEqual(townMem.isThreeV2, true, 'Expected THREE.IS_THREE_V2 === true under --flag-three-v2');
+                assert.strictEqual(townMem.isThreeV2, true, 'Expected THREE.IS_THREE_V2 === true under Wave 4C default / --flag-three-v2');
                 assert(parseInt(townMem.threeRevision, 10) >= 170, `Expected THREE.REVISION >= 170, got ${townMem.threeRevision}`);
-                assert(townMem.ktx2Count > 0, `Expected ktx2Count > 0 under --flag-three-v2, got ${townMem.ktx2Count}`);
-                assert(townMem.townBatchedCount > 0, `Expected townBatchedCount > 0 under --flag-three-v2, got ${townMem.townBatchedCount}`);
-                assert.notStrictEqual(townMem.pmremKey, 'none', 'Expected active biome PMREM key under --flag-three-v2');
-                assert(townMem.gpuTexVramMB < 115, `Expected KTX2 gpuTexVramMB < 115 under --flag-three-v2, got ${townMem.gpuTexVramMB}`);
+                assert(townMem.ktx2Count > 0, `Expected ktx2Count > 0 under v2, got ${townMem.ktx2Count}`);
+                assert(townMem.townBatchedCount > 0, `Expected townBatchedCount > 0 under v2, got ${townMem.townBatchedCount}`);
+                assert.notStrictEqual(townMem.pmremKey, 'none', 'Expected active biome PMREM key under v2');
+                assert.strictEqual(townMem.liquidShaders, true, 'Expected Fresnel water + Voronoi lava shaders upgraded');
+                assert(townMem.gpuTexVramMB < 115, `Expected KTX2 gpuTexVramMB < 115 under v2, got ${townMem.gpuTexVramMB}`);
+            } else {
+                assert.strictEqual(townMem.isThreeV2, false, 'Expected THREE.IS_THREE_V2 === false under --flag-three-v1 rollback');
             }
             assert(townMem.textures < texCeiling, `Expected Town textures < ${texCeiling}, got ${townMem.textures}`);
             assert(townMem.geometries <= 80, `Expected Town geometries <= 80, got ${townMem.geometries}`);
