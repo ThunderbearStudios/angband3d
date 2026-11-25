@@ -13,9 +13,7 @@ const FREE_TIER_CHAIN = [
     'gemini-3.5-flash',      // Foundational Flash (Stable)
     'gemini-3.5-flash-lite', // High-throughput, ultra-cost-effective skirmish/parley tier (Stable)
     'gemini-3.1-flash-lite', // Frontier-class lightweight (Stable)
-    'gemini-4-argon',        // Next-gen frontier reasoning & narrative model
-    'gemini-2.5-flash',      // Proven hybrid reasoning (Stable)
-    'gemini-2.5-flash-lite'  // Ultra-fast budget multimodal (Stable)
+    'gemini-4-argon'         // Next-gen frontier reasoning & narrative model
 ];
 
 function redactSecret(val, secret = '') {

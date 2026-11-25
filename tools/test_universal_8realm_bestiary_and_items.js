@@ -77,12 +77,12 @@ const REALM_TEST_CASES = [
     { realm: 'silq', name: 'Orc soldier', glyph: 'o', expectKey: 'bestiary_orc' },
     // FrogComposband
     { realm: 'frogcomposband', name: 'The Serpent of Chaos', glyph: 'J', expectKey: 'bestiary_dragon' },
-    { realm: 'frogcomposband', name: 'Cyberdemon', glyph: 'U', expectKey: 'bestiary_imp', expectWeapon: 'ph_sledgehammer' },
+    { realm: 'frogcomposband', name: 'Cyberdemon', glyph: 'U', expectKey: 'bestiary_balrog', expectWeapon: 'ph_sledgehammer' },
     // Hengband (including Japanese names!)
     { realm: 'hengband', name: '野良犬', glyph: 'C', expectKey: 'bestiary_husky', expectNoWeapon: true },
     { realm: 'hengband', name: '子犬', glyph: 'C', expectKey: 'bestiary_shiba', expectNoWeapon: true },
     { realm: 'hengband', name: '混沌のサーペント', glyph: 'J', expectKey: 'bestiary_dragon' },
-    { realm: 'hengband', name: 'サイバーデーモン', glyph: 'U', expectKey: 'bestiary_imp', expectWeapon: 'ph_sledgehammer' },
+    { realm: 'hengband', name: 'サイバーデーモン', glyph: 'U', expectKey: 'bestiary_balrog', expectWeapon: 'ph_sledgehammer' },
     { realm: 'hengband', name: 'Shuten-douji', glyph: 'O', expectKey: 'bestiary_ogre', expectWeapon: 'ph_sledgehammer' },
     // Classic Rogue ('A'-'Z')
     { realm: 'rogue', name: 'aquator', glyph: 'A', expectKey: 'bestiary_aquatic' },

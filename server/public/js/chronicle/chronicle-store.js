@@ -296,11 +296,13 @@ class ChronicleStore {
 
     static exportAsMarkdown(chronicle) {
         if (!chronicle) return '';
-        const currentHero = chronicle.protagonists[chronicle.current_protagonist_idx] || {};
+        const prots = Array.isArray(chronicle.protagonists) ? chronicle.protagonists : [];
+        const currentHero = prots[chronicle.current_protagonist_idx] || {};
+        const chapters = Array.isArray(chronicle.chapters) ? chronicle.chapters : [];
         let md = `# ${chronicle.title || 'The Chronicles of Angband'}\n\n`;
         md += `* **Protagonist**: ${currentHero.name || 'Wanderer'} (${currentHero.race || 'Unknown'} ${currentHero.class || 'Hero'})\n`;
-        md += `* **Recorded**: ${new Date(chronicle.created_at).toLocaleDateString()}\n`;
-        md += `* **Total Chapters**: ${chronicle.chapters.length}\n\n---\n\n`;
+        md += `* **Recorded**: ${new Date(chronicle.created_at || Date.now()).toLocaleDateString()}\n`;
+        md += `* **Total Chapters**: ${chapters.length}\n\n---\n\n`;
 
         if (chronicle.epochs && chronicle.epochs.length > 0) {
             md += `## 📜 Ancient Annals\n\n`;
@@ -310,7 +312,7 @@ class ChronicleStore {
             md += `---\n\n`;
         }
 
-        for (const entry of chronicle.chapters) {
+        for (const entry of chapters) {
             const depthText = (entry.depth !== undefined && entry.depth !== null)
                 ? (entry.depth === 0 ? 'Town' : `${entry.depth * 50}ft`)
                 : null;
@@ -331,7 +333,8 @@ class ChronicleStore {
     }
 
     static exportAsStandaloneHtml(chronicle) {
-        const mdBody = this.exportAsMarkdown(chronicle)
+        const escHtml = (s) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        const mdBody = escHtml(this.exportAsMarkdown(chronicle))
             .replace(/\n\n/g, '</p><p>')
             .replace(/## (.*?)\n/g, '<h2>$1</h2>')
             .replace(/### (.*?)\n/g, '<h3>$1</h3>')
@@ -341,7 +344,7 @@ class ChronicleStore {
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>${chronicle.title || 'Chronicles of Angband'}</title>
+<title>${escHtml(chronicle.title || 'Chronicles of Angband')}</title>
 <style>
 body { background: #0c0f17; color: #e2e8f0; font-family: "IM Fell English", Georgia, serif; line-height: 1.6; max-width: 800px; margin: 40px auto; padding: 20px; }
 h1, h2, h3 { color: #ffd700; border-bottom: 1px solid rgba(212, 175, 55, 0.3); padding-bottom: 6px; }

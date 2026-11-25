@@ -33,10 +33,21 @@
     let _lastItems = [], _lastFrame = null, _lastRealm = 'angband', _lastDispatcher = null;
     const _quickSlots = [null, null, null, null];
 
-    function resolveEquipSlotCategory(raw, name) {
+    function resolveEquipSlotCategory(raw, name, realm) {
         const tv = Number(raw && (raw.tval !== undefined ? raw.tval : raw.type)) || 0;
-        if (tv === 19) return 'bow';
-        if (tv >= 16 && tv <= 24) return 'melee';
+        const rNorm = String(realm || (raw && raw.realm) || _lastRealm || 'angband').toLowerCase();
+        if (tv && typeof root !== 'undefined' && root.MASTER_ITEM_REGISTRY && typeof root.MASTER_ITEM_REGISTRY.normalizeTvalSlotCategory === 'function') {
+            const cat = root.MASTER_ITEM_REGISTRY.normalizeTvalSlotCategory(tv, rNorm);
+            if (cat) return cat;
+        }
+        if (rNorm === 'angband' && tv) {
+            if (tv === 5) return 'bow';
+            if (tv >= 6 && tv <= 9) return 'melee';
+            const angCat = ({ 10: 'boots', 11: 'gloves', 12: 'head', 13: 'head', 14: 'shield', 15: 'cloak', 16: 'body', 17: 'body', 18: 'body', 19: 'light', 20: 'amulet', 21: 'ring' })[tv];
+            if (angCat) return angCat;
+        }
+        if (tv === 19 && rNorm !== 'angband') return 'bow';
+        if (tv >= 16 && tv <= 24 && rNorm !== 'angband') return 'melee';
         if (tv >= 30 && tv <= 45) return ({ 30: 'boots', 31: 'gloves', 32: 'head', 33: 'head', 34: 'shield', 35: 'cloak', 36: 'body', 37: 'body', 38: 'body', 39: 'light', 40: 'amulet', 45: 'ring' })[tv] || null;
         const sh = String((raw && (raw.slot_name || raw.slotName || raw.equip_slot)) || '').toLowerCase();
         for (const [k, re] of [['bow', /^(ranged|launcher|bow|shooter)$/], ['melee', /^(weapon|melee|main_hand|wield)$/], ['boots', /^(feet|boots)$/], ['gloves', /^(hands|gloves|gauntlets)$/], ['head', /^(head|helm|helmet|crown)$/], ['shield', /^(shield|off_hand|arm)$/], ['cloak', /^(cloak|mantle|back)$/], ['body', /^(body|torso|armor|armour)$/], ['light', /^(light|lite|source)$/], ['amulet', /^(neck|amulet)$/], ['ring', /^(finger|ring|left_ring|right_ring)$/]]) { if (re.test(sh)) return k; }
@@ -68,15 +79,15 @@
         const name = arg2IsArr ? ((raw && (raw.name || raw.dname || raw.label)) || '') : nameOrEqList;
         const realmArg = arg2IsArr ? (typeof maybeEqListOrRealm === 'string' ? maybeEqListOrRealm : maybeRealm) : maybeRealm;
         if (!Array.isArray(eqList) || !eqList.length) return null;
-        const slotCat = resolveEquipSlotCategory(raw, name);
-        if (!slotCat) return null;
         const r = String(realmArg || (raw && raw.realm) || _lastRealm || (typeof window !== 'undefined' && ((window.__app && window.__app.getActiveRealm && window.__app.getActiveRealm()) || window.__activeRealm)) || 'angband').toLowerCase();
+        const slotCat = resolveEquipSlotCategory(raw, name, r);
+        if (!slotCat) return null;
         const RC = getRealmCartridge();
         const ds = (RC && typeof RC.getDefenseSchema === 'function') ? RC.getDefenseSchema(r) : null;
         const isDescAc = ds ? ds.direction === 'descending' : (r === 'rogue' || r === 'nethack');
         const cur = parseGearStats(name, raw, slotCat, isDescAc);
         if (!cur.isWep && !cur.isArm) return null;
-        const eqMatch = eqList.find((e) => e && resolveEquipSlotCategory(e, e.name) === slotCat);
+        const eqMatch = eqList.find((e) => e && resolveEquipSlotCategory(e, e.name, r) === slotCat);
         if (!eqMatch) return null;
         const base = parseGearStats(eqMatch.name, eqMatch, slotCat, isDescAc);
         let dVal;

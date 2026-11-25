@@ -268,13 +268,14 @@
             '|': { floorKey: 'item_longsword', heldKey: 'item_longsword', category: 'weapon', subType: 'sword' },
             '/': { floorKey: 'item_spear', heldKey: 'item_spear', category: 'weapon', subType: 'spear' },
             '\\': { floorKey: 'ph_mace', heldKey: 'ph_mace', category: 'weapon', subType: 'hafted' },
-            ')': { floorKey: 'item_longsword', heldKey: 'item_longsword', category: 'weapon', subType: 'sword' },
+            ')': { floorKey: 'ph_shield', heldKey: 'ph_shield', category: 'shield', subType: 'shield' },
             '}': { floorKey: 'item_bow', heldKey: 'item_bow', category: 'weapon', subType: 'bow' },
             '{': { floorKey: 'item_arrow', heldKey: 'item_arrow', category: 'ammo', subType: 'arrow' },
-            '~': { floorKey: 'ph_chest', heldKey: 'ph_chest', category: 'misc', subType: 'chest' },
+            '~': { floorKey: 'item_torch', heldKey: 'item_torch', category: 'light', subType: 'torch' },
+            '&': { floorKey: 'ph_chest', heldKey: 'ph_chest', category: 'misc', subType: 'chest' },
             '[': { floorKey: 'item_plate_armor', heldKey: 'item_plate_armor', category: 'armor', subType: 'plate' },
             ']': { floorKey: 'item_boots', heldKey: 'item_boots', category: 'armor', subType: 'boots' },
-            '(': { floorKey: 'ph_shield', heldKey: 'ph_shield', category: 'shield', subType: 'shield' },
+            '(': { floorKey: 'item_plate_armor', heldKey: 'item_plate_armor', category: 'armor', subType: 'armor' },
             '!': { floorKey: 'ph_potion_flask', heldKey: 'ph_potion_flask', category: 'potion', subType: 'potion' },
             '?': { floorKey: 'item_scroll', heldKey: 'item_scroll', category: 'scroll', subType: 'scroll' },
             '+': { floorKey: 'item_book', heldKey: 'item_book', category: 'book', subType: 'book' },
@@ -999,6 +1000,19 @@
             if (c.staffCount > 0) return { verb: 'use_staff', label: isJp ? '杖' : 'Staff', key: 'u' };
             if (c.activatableCount > 0) return { verb: 'activate', label: isJp ? '始動' : 'Activate', key: 'A' };
             return { verb: 'aim', label: isJp ? '魔法棒' : 'Wand', key: 'a' };
+        },
+
+        normalizeTvalSlotCategory(tval, realm = 'angband') {
+            const tv = Number(tval) || 0;
+            if (!tv) return null;
+            if (String(realm || 'angband').toLowerCase() === 'angband') {
+                if (tv === 5) return 'bow';
+                if (tv >= 6 && tv <= 9) return 'melee';
+                return ({ 10: 'boots', 11: 'gloves', 12: 'head', 13: 'head', 14: 'shield', 15: 'cloak', 16: 'body', 17: 'body', 18: 'body', 19: 'light', 20: 'amulet', 21: 'ring' })[tv] || null;
+            }
+            if (tv === 19) return 'bow';
+            if (tv >= 16 && tv <= 24) return 'melee';
+            return ({ 30: 'boots', 31: 'gloves', 32: 'head', 33: 'head', 34: 'shield', 35: 'cloak', 36: 'body', 37: 'body', 38: 'body', 39: 'light', 40: 'amulet', 45: 'ring' })[tv] || null;
         },
 
         clearCache() {

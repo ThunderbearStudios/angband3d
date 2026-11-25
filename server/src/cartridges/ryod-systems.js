@@ -212,17 +212,23 @@
         const p = s.player;
         const mapW = engine.MAP_W || (s.map && s.map[0] ? s.map[0].length : 66);
         const mapH = engine.MAP_H || (s.map ? s.map.length : 22);
-        let nearAnvil = false;
+        let anvilPos = null;
         for (let dy = -1; dy <= 1; dy++) {
             for (let dx = -1; dx <= 1; dx++) {
                 const nx = p.x + dx, ny = p.y + dy;
                 if (nx >= 0 && nx < mapW && ny >= 0 && ny < mapH) {
-                    if (getCellFeat(s.map, nx, ny) === FEAT.ANVIL) nearAnvil = true;
+                    if (getCellFeat(s.map, nx, ny) === FEAT.ANVIL) anvilPos = { x: nx, y: ny };
                 }
             }
         }
-        if (!nearAnvil) {
+        if (!anvilPos) {
             log(engine, `You must stand next to a Mithril Anvil to smith.`);
+            return false;
+        }
+        s.usedAnvils = s.usedAnvils || {};
+        const anvilKey = `${s.depth || 1}:${anvilPos.x},${anvilPos.y}`;
+        if (s.usedAnvils[anvilKey]) {
+            log(engine, `This Mithril Anvil has already spent its rune-heat.`);
             return false;
         }
         const inv = Array.isArray(p.inventory) ? p.inventory : [];
@@ -237,6 +243,7 @@
         const chosen = brands[choiceIdx % brands.length];
         target.bonus = (target.bonus || 0) + 2;
         if (!target.name.includes(' of ')) target.name = `${target.name} ${chosen}`;
+        s.usedAnvils[anvilKey] = true;
         if (typeof engine.recalcPlayerDefenses === 'function') engine.recalcPlayerDefenses();
         log(engine, `With ringing hammer-blows, you temper ${target.name}! (+2)`);
         return true;

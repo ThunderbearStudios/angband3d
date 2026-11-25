@@ -19,11 +19,11 @@ const rootDir = path.resolve(__dirname, '..');
 const webDir = path.join(rootDir, 'server', 'public');
 const androidPublicDir = path.join(rootDir, 'android', 'app', 'src', 'main', 'assets', 'public');
 
-const EXCLUDED_PREFIXES = ['assets/video', 'demo.html'];
+const EXCLUDED_PREFIXES = ['assets/video', 'assets/showcase', 'demo.html', 'demo_studio.html'];
 
 function isExcluded(relPath) {
     const norm = relPath.replace(/\\/g, '/');
-    if (norm.endsWith('.br')) return true;
+    if (norm.endsWith('.br') || norm.endsWith('.map')) return true;
     return EXCLUDED_PREFIXES.some((p) => norm === p || norm.startsWith(p + '/'));
 }
 

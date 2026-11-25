@@ -224,18 +224,18 @@ class GameNetwork {
             wsUrl += `&seed=${encodeURIComponent(String(window.__bootSeed))}`;
         }
 
-        let wsProtocols = undefined;
+        const protoList = ['angband3d'];
         try {
             const targetSlot = effectiveSave || this.currentChar || 'Adventurer';
             const ownerToken = localStorage.getItem(`angband3d_owner_${targetSlot}`) || localStorage.getItem(`angband3d_owner_${this.currentChar}`);
             if (ownerToken && /^[a-zA-Z0-9_.-]+$/.test(ownerToken)) {
-                wsProtocols = ['angband3d', `owner.${ownerToken}`];
+                protoList.push(`owner.${ownerToken}`);
             }
         } catch (_) {}
-
-        if (this.sessionId && !isNew) {
-            wsUrl += `&session=${encodeURIComponent(this.sessionId)}`;
+        if (this.sessionId && !isNew && /^[a-zA-Z0-9_-]+$/.test(this.sessionId)) {
+            protoList.push(`session.${this.sessionId}`);
         }
+        const wsProtocols = protoList.length > 1 ? protoList : undefined;
 
         if (this.onStatus) this.onStatus(`Connecting to ${realm ? (realm.charAt(0).toUpperCase() + realm.slice(1)) : 'Cloud'} Realm...`);
 

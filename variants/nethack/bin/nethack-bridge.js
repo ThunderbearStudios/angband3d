@@ -2380,6 +2380,14 @@ class NetHackEngine {
             return;
         }
         if (cmd.includes('pray')) {
+            const COOLDOWN = 800;
+            if (p.lastPrayTurn != null && (this.state.turn - p.lastPrayTurn) < COOLDOWN) {
+                p.luck = Math.max(-5, (p.luck || 0) - 1);
+                this.addMessage(`You feel that ${p.deity} is displeased with your impatience!`, 12);
+                this.advanceWorldTurn();
+                return;
+            }
+            p.lastPrayTurn = this.state.turn;
             const wasBlind = p.blind > 0;
             p.hp = p.hpMax;
             p.hunger = Math.max(p.hunger, 900);
@@ -2546,15 +2554,15 @@ class NetHackEngine {
         }
         if (cmd.includes('loot')) {
             const chestIdx = this.state.objects.findIndex(o => o.x === p.x && o.y === p.y && /chest|box|sack|bag/i.test(o.name || ''));
-            const g = 25 + this.rand(55);
-            p.gold += g;
             if (chestIdx >= 0) {
+                const g = 25 + this.rand(55);
+                p.gold += g;
                 const chest = this.state.objects.splice(chestIdx, 1)[0];
                 this.addMessage(`You unlock and loot the ${chest.name}, claiming ${g} zorkmids ($)!`, 14);
+                this.advanceWorldTurn();
             } else {
-                this.addMessage(`You carefully search the flagstones and uncover ${g} zorkmids ($).`, 14);
+                this.addMessage('There is no chest, box, or sack here to loot.', 1);
             }
-            this.advanceWorldTurn();
             return;
         }
         if (cmd.includes('untrap')) {
@@ -2596,8 +2604,18 @@ class NetHackEngine {
             return;
         }
         if (cmd.includes('enhance')) {
+            const curSkill = this.state.weaponSkillLevel || 1;
+            const reqKills = curSkill * 5;
+            if (curSkill >= 5) {
+                this.addMessage('Your martial & arcane mastery is already at [Grand Master].', 11);
+                return;
+            }
+            if ((p.level || 1) <= curSkill && (p.kills || 0) < reqKills) {
+                this.addMessage(`You need more combat experience before advancing (reach XL ${curSkill + 1} or slay ${reqKills} foes).`, 11);
+                return;
+            }
             const w = p.inventory.find(it => it.equipped === 'weapon') || p.inventory[0];
-            this.state.weaponSkillLevel = (this.state.weaponSkillLevel || 1) + 1;
+            this.state.weaponSkillLevel = curSkill + 1;
             this.state.spellSkillLevel = (this.state.spellSkillLevel || 1) + 1;
             const rankLabels = ['Unskilled', 'Basic', 'Skilled', 'Expert', 'Master', 'Grand Master'];
             const rank = rankLabels[Math.min(rankLabels.length - 1, this.state.weaponSkillLevel)];

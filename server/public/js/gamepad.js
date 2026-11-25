@@ -124,7 +124,7 @@
             this.setInputDevice('gamepad');
             this.diagonalLock = Boolean(pad.buttons[6] && pad.buttons[6].pressed);
             const ov = this._topOverlay();
-            const isUiMode = Boolean(ov || (typeof window !== 'undefined' && window.__app && typeof window.__app.getAppState === 'function' && window.__app.getAppState() !== 'game'));
+            const isUiMode = Boolean(ov || (typeof window !== 'undefined' && ((window.ItemSheet && typeof window.ItemSheet.isOpen === 'function' && window.ItemSheet.isOpen()) || (window.__app && typeof window.__app.getAppState === 'function' && window.__app.getAppState() !== 'game'))));
             const context = this.options.getContext ? this.options.getContext() : this._liveContext();
             if (isUiMode && !context.inMenu) context.inMenu = true;
             const rad = typeof window !== 'undefined' ? window.radialMenu : null;

@@ -4107,6 +4107,7 @@ class ChronicleGrounder {
         const isDevice = (attackMedium && attackMedium.type === 'device') || (attackMedium && attackMedium.method === 'device') || (effectiveWeapon && (effectiveWeapon.toLowerCase().includes('wand') || effectiveWeapon.toLowerCase().includes('staff') || effectiveWeapon.toLowerCase().includes('rod')));
         const isSpellOrDevice = isSpell || isDevice;
 
+        const isTolkienTradition = /^(westmarch|first_age|tolkien|angband|silq|gondor|rohan|elvish|dwarvish|numenor)$/i.test(String(traditionKey || ''));
         const archetype = (attackMedium && attackMedium.archetype) ? attackMedium.archetype : (effectiveWeapon.toLowerCase() === 'bare fists' ? 'unarmed' : (effectiveWeapon.toLowerCase().includes('hammer') || effectiveWeapon.toLowerCase().includes('mace') || effectiveWeapon.toLowerCase().includes('flail') || effectiveWeapon.toLowerCase().includes('club') ? 'blunt' : (effectiveWeapon.toLowerCase().includes('axe') ? 'axe' : (effectiveWeapon.toLowerCase().includes('dagger') || effectiveWeapon.toLowerCase().includes('knife') ? 'dagger' : (effectiveWeapon.toLowerCase().includes('spear') || effectiveWeapon.toLowerCase().includes('pike') || effectiveWeapon.toLowerCase().includes('lance') ? 'polearm_pierce' : 'blade')))));
 
         // Turn-based pseudo-random seed to guarantee rotational variety
@@ -4253,9 +4254,19 @@ class ChronicleGrounder {
                 prose = jellySpellVariants[turnSeed % jellySpellVariants.length];
             } else {
                 title = ['Quivering Protoplasm Pierced', 'The Ooze Dissolved', 'Acidic Remnants', 'Clean Cut Through Slime'][turnSeed % 4];
+                const jellyStrike = archetype === 'unarmed'
+                    ? `A hammering bare-fisted blow crashes through the quivering protoplasm of the ${cleanJelly}`
+                    : (archetype === 'blunt'
+                        ? `A crushing swing of ${effectiveWeapon} smashes through the quivering protoplasm of the ${cleanJelly}`
+                        : `A shearing stroke of ${effectiveWeapon} cleaves through the quivering protoplasm of the ${cleanJelly}`);
+                const jellySlice = archetype === 'unarmed'
+                    ? 'lashes out with a rapid palm strike'
+                    : (archetype === 'blunt'
+                        ? `brings ${effectiveWeapon} slamming down with crushing force`
+                        : `brings ${effectiveWeapon} down with slicing force`);
                 const jellyVariants = [
-                    `A shearing stroke of ${effectiveWeapon} cleaves through the quivering protoplasm of the ${cleanJelly}! The acidic mass dissolves with a violent hiss, spattering inert slime across the dungeon floor.`,
-                    `Ducking back from the corrosive stench, ${pName} brings ${effectiveWeapon} down with slicing force. The gelatinous ${cleanJelly} bursts apart, liquefying harmlessly into the cracks of the stone.`,
+                    `${jellyStrike}! The acidic mass dissolves with a violent hiss, spattering inert slime across the dungeon floor.`,
+                    `Ducking back from the corrosive stench, ${pName} ${jellySlice}. The gelatinous ${cleanJelly} bursts apart, liquefying harmlessly into the cracks of the stone.`,
                     `With measured strikes, ${pName} destroys the ${cleanJelly} before its stinging touch can corrode armor or burn flesh. The noxious organism is reduced to smoking residue.`,
                     `The pulsating ${cleanJelly} quivers under the onslaught of ${effectiveWeapon}, rupturing and collapsing into a lifeless puddle of steaming subterranean goo.`
                 ];
@@ -4285,9 +4296,11 @@ class ChronicleGrounder {
                 ];
                 prose = orcRangedVariants[turnSeed % orcRangedVariants.length];
             } else {
-                title = ['Bane of the Orc-Kin', 'Black Blood on Cold Stone', 'The Ancient Feud', 'Heir of the First Age', 'Cleansing the Defilers', 'Iron Against Scimitar'][turnSeed % 6];
+                const ageTitle = isTolkienTradition ? 'Heir of the First Age' : 'Bane of the Deep';
+                const shadowOwner = isTolkienTradition ? "the Shadow's" : "the dungeon's";
+                title = ['Bane of the Orc-Kin', 'Black Blood on Cold Stone', 'The Ancient Feud', ageTitle, 'Cleansing the Defilers', 'Iron Against Scimitar'][turnSeed % 6];
                 const orcVariants = [
-                    `Ancestral wrath guides the strike! ${pName}'s ${effectiveWeapon} cleaves through crude boiled leather and gnawed bone, hewing down the foul orc in a spray of thick, hissing black blood. The ancient feud burns hot in this corridor; the Shadow's defilers will find no quarter in these halls.`,
+                    `Ancestral wrath guides the strike! ${pName}'s ${effectiveWeapon} cleaves through crude boiled leather and gnawed bone, hewing down the foul orc in a spray of thick, hissing black blood. The ancient feud burns hot in this corridor; ${shadowOwner} defilers will find no quarter in these halls.`,
                     `With seasoned combat instinct, ${pName} parries the notched scimitar and drives ${effectiveWeapon} straight into the orc's throat. The creature collapses against the damp shale with a choking rattle, leaving the dark passage reeking of sulfur and dead malice.`,
                     `Slipping beneath a clumsy overhand chop, ${pName} steps inside the orc's guard. The ${effectiveWeapon} sinks deep beneath the crude breastplate with brutal efficiency. As the brute thuds heavily onto the flagstones, ${pName} wrenches the blade free, scanning the corridor for more of the pack.`,
                     `Funneling the screeching orc into the narrow archway, ${pName} denies the beast room to swing its rusted cleaver. A disciplined, bone-shattering thrust punches through mail and sinew, dropping the defiler cold into the dust before its guttural war-cry could echo.`,
@@ -4331,7 +4344,7 @@ class ChronicleGrounder {
                 const undeadVariants = [
                     `The sepulchral chill recedes as ${pName}'s blow shatters the dark necromancy binding the restless remains. Bone and brittle armor collapse into harmless dust upon the stones. Whispering an ancient ward of peace, ${pName} turns aside from the scattered fragments, hoping the tortured spirit finally passes beyond the eternal shadows.`,
                     `With righteous fervor, ${pName}'s ${effectiveWeapon} strikes straight through the hollow ribcage of the abomination. The malignant blue fire flickering in its sunken eye-sockets dies with an eerie wail, leaving only ancient, brittle dust upon the cold flagstones.`,
-                    `As the desiccated claws reach out to drain mortal warmth, ${pName} cleaves through the withered sinew. The unholy ward collapses in an instant, liberating the long-imprisoned spirit from the Enemy's cruel thralldom.`,
+                    `As the desiccated claws reach out to drain mortal warmth, ${pName} cleaves through the withered sinew. The unholy ward collapses in an instant, liberating the long-imprisoned spirit from ${isTolkienTradition ? "the Enemy's" : 'dark necromantic'} cruel thralldom.`,
                     `A burst of shattered bone and rusted mail rings out against the chamber walls! The walking curse is laid low at last, and the freezing grave-chill that hung in the corridor begins slowly to thaw.`
                 ];
                 prose = undeadVariants[turnSeed % undeadVariants.length];
@@ -4348,11 +4361,16 @@ class ChronicleGrounder {
                 prose = trollSpellVariants[turnSeed % trollSpellVariants.length];
             } else {
                 title = ['The Colossus Falls', 'Shattered Stone-Hide', 'Triumph Over the Brute', 'The Mountain Cleansed'][turnSeed % 4];
+                const trollFinish = archetype === 'unarmed'
+                    ? 'driving a crushing palm strike straight into the brute\'s chest'
+                    : (archetype === 'blunt'
+                        ? `crushing the ${effectiveWeapon} straight into the brute's ribs`
+                        : `driving the ${effectiveWeapon} straight into the brute's chest`);
                 const trollVariants = [
                     `A titanic clash resounds through the vault as ${pName}'s decisive blow penetrates the troll's petrified flesh! The hulking brute crashes to earth with a thud that rattles dust from the ancient ceiling, its massive stone club rolling harmlessly into the dark.`,
                     `Dancing outside the reach of the monster's lumbering fists, ${pName} drives ${effectiveWeapon} deep behind the creature's thick knee-joint. As the giant stumbles with a roaring curse, a follow-through strike severs the thick neck, felling the subterranean terror once and for all.`,
                     `The stone-tough hide shudders under ${pName}'s punishing assault. With an earsplitting roar that shakes the subterranean foundations, the beast topples like an ancient monument felled by lightning, cracking the flagstones beneath its immense bulk.`,
-                    `Patience and steel outmatch brute savagery: ducking beneath a tree-trunk club swing that shatters a stone pillar, ${pName} counters with lethal precision, burying the blade to the hilt in the brute's chest.`
+                    `Discipline and timing outmatch brute savagery: ducking beneath a tree-trunk club swing that shatters a stone pillar, ${pName} counters with lethal precision, ${trollFinish}.`
                 ];
                 prose = trollVariants[turnSeed % trollVariants.length];
             }

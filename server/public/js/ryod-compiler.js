@@ -387,7 +387,18 @@
             c.mutatorId || 'balanced',
             c.d20Fate || 15,
             c.customNemesisName || '',
-            ...(Array.isArray(c.mutators) && c.mutators.length > 1 ? [c.mutators] : [])
+            Array.isArray(c.mutators) ? c.mutators : [c.mutatorId || 'balanced'],
+            c.presetId || '',
+            c.chimeraChaos ? 1 : 0,
+            c.mithrilSmithing ? 1 : 0,
+            c.wovenSongs ? 1 : 0,
+            c.martialStances ? 1 : 0,
+            c.wantedBounties ? 1 : 0,
+            c.pantheonAltars ? 1 : 0,
+            c.livingPhysics ? 1 : 0,
+            c.evolvingAllies ? 1 : 0,
+            c.unidentifiedAppearances ? 1 : 0,
+            c.stampedVaults !== false ? 1 : 0
         ];
         const json = JSON.stringify(compact);
         if (typeof Buffer !== 'undefined') {
@@ -430,7 +441,18 @@
                 mutatorId: arr[19] || undefined,
                 d20Fate: arr[20] != null ? Number(arr[20]) : undefined,
                 customNemesisName: arr[21] || '',
-                mutators: Array.isArray(arr[22]) ? arr[22] : undefined
+                mutators: Array.isArray(arr[22]) ? arr[22] : undefined,
+                presetId: arr[23] || undefined,
+                chimeraChaos: arr.length > 24 ? Boolean(arr[24]) : undefined,
+                mithrilSmithing: arr.length > 25 ? Boolean(arr[25]) : undefined,
+                wovenSongs: arr.length > 26 ? Boolean(arr[26]) : undefined,
+                martialStances: arr.length > 27 ? Boolean(arr[27]) : undefined,
+                wantedBounties: arr.length > 28 ? Boolean(arr[28]) : undefined,
+                pantheonAltars: arr.length > 29 ? Boolean(arr[29]) : undefined,
+                livingPhysics: arr.length > 30 ? Boolean(arr[30]) : undefined,
+                evolvingAllies: arr.length > 31 ? Boolean(arr[31]) : undefined,
+                unidentifiedAppearances: arr.length > 32 ? Boolean(arr[32]) : undefined,
+                stampedVaults: arr.length > 33 ? Boolean(arr[33]) : undefined
             });
         } catch (_) {
             return null;
@@ -832,9 +854,9 @@
             id: 'yendor_relic_ascent',
             title: 'The Descent for the Relic of Yendor',
             subtitle: 'Rogue classic ascent pursuit: retrieve the Amulet from the depths and escape to DL 1 while hunted.',
-            archetypeId: 'glacial_bastion',
-            biome: 'frozen_wastes',
-            storyArc: 'frozen_throne',
+            archetypeId: 'sanctum_heist',
+            biome: 'catacombs',
+            storyArc: 'sovereign_heist',
             heroOrigin: 'rogue',
             powerDiscipline: 'auto',
             progressionMode: 'xp',

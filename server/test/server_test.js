@@ -283,7 +283,7 @@ async function runTests() {
     assert(dungeonCss.includes('#minimap-container.standard'), 'dungeon.css must define standard minimap container');
     assert(dungeonCss.includes('flex: 1 1 auto;'), 'dungeon.css minimap-canvas must flex-fit');
     assert(hudJs.includes('resetMinimapZoom()'), 'hud.js must implement resetMinimapZoom');
-    assert(hudJs.includes("hintEl.textContent = `[⛶] ${size.name} • ${this.minimapZoom.toFixed(1)}x`;"), 'hud.js must format unified minimap hint cleanly');
+    assert(hudJs.includes('`[⛶] ${size.name} • ${this.minimapZoom.toFixed(1)}x`'), 'hud.js must format unified minimap hint cleanly');
     console.log('  -> Minimap controls unified with zoom and size presets');
     console.log('  -> Minimap canvas configured with flex-fit to avoid clipping controls');
 
@@ -348,8 +348,8 @@ async function runTests() {
     const swJs = fs.readFileSync(path.join(__dirname, '../public/sw.js'), 'utf8');
     const swVerMatch = swJs.match(/angband3d-v(\d+)/);
     assert(swVerMatch && parseInt(swVerMatch[1], 10) >= 8, 'sw.js must be bumped to angband3d-v8 or higher');
-    assert(/\/css\/dungeon\.css\?v=(\d+)\./.test(indexRes.body), 'index.html must load versioned dungeon.css');
-    assert(/\/js\/app\.js\?v=(\d+)\./.test(indexRes.body), 'index.html must load versioned app.js');
+    assert(/(\/dist\/app\.min\.css|\/css\/dungeon\.css)\?v=(\d+)\./.test(indexRes.body), 'index.html must load versioned app.min.css or dungeon.css');
+    assert(/(\/dist\/game\.min\.js|\/js\/app\.js)\?v=(\d+)\./.test(indexRes.body), 'index.html must load versioned game.min.js or app.js');
     assert(indexRes.body.includes('id="quick-volume-popover"'), 'index.html must contain #quick-volume-popover');
     assert(dungeonCss.includes('.quick-volume-popover'), 'dungeon.css must style .quick-volume-popover');
     assert(dungeonCss.includes('touch-action: pan-x;'), 'dungeon.css .term-letter-ribbon must have touch-action: pan-x');
@@ -420,7 +420,8 @@ async function runTests() {
 
     // WS29 & WS30: 3D Perf, Procedural Foley & Server Async I/O
     assert(dungeon3dJs.includes('_tmpLightningVec'), 'dungeon3d.js must reuse _tmpLightningVec in lightning loop');
-    assert(dungeon3dJs.includes('_emissiveMaterials'), 'dungeon3d.js must cache _emissiveMaterials on hit flash');
+    const d3dTacticalJs = fs.readFileSync(path.join(__dirname, '../public/js/dungeon3d-tactical.js'), 'utf8');
+    assert(dungeon3dJs.includes('_emissiveMaterials') || d3dTacticalJs.includes('_emissiveMaterials'), 'dungeon3d/tactical must cache _emissiveMaterials on hit flash');
     assert(audioJs.includes('playParchmentTurn(') && audioJs.includes('playAnvilStrike(') && audioJs.includes('playKotoPluck('), 'audio.js must provide realm foley cues');
     console.log('  -> WS25–WS30 multi-column hit-testing, Grimoire Deck, Realm Heraldry, Mythic Crossroads, 3D/Audio & Security verified');
 

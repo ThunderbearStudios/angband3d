@@ -237,9 +237,9 @@
             if (vanillaKey === 't') return 'r';
         }
 
-        // In cartridge & NetHack realms, preserve any key that is already a native command in this realm
+        // Preserve any key that is already a native command in this realm (Explicit silq remaps above take precedence)
         const isCartridgeRealm = (r === 'nethack' || r === 'dcss' || r === 'brogue' || r === 'rogue' || r === 'ryod');
-        if (isCartridgeRealm && COMMANDS.some(c => c.keys[r] === vanillaKey)) {
+        if (COMMANDS.some(c => c.keys[r] === vanillaKey)) {
             return vanillaKey;
         }
 
@@ -462,15 +462,17 @@
                 break;
             }
             case 'fire': {
+                const isAng426 = (r === 'angband');
                 const hasBow = eq.some(it => {
                     if (!it) return false;
                     const nm = (it.name || it.dname || it.label || '').toLowerCase();
-                    return it.tval === 19 || nm.includes('bow') || nm.includes('sling') || nm.includes('crossbow') || (typeof it.vm === 'number' && (it.vm & (1 << 7)) !== 0);
+                    return it.tval === (isAng426 ? 5 : 19) || nm.includes('bow') || nm.includes('sling') || nm.includes('crossbow') || (typeof it.vm === 'number' && (it.vm & (1 << 7)) !== 0);
                 });
                 const hasAmmo = inv.some(it => {
                     if (!it) return false;
                     const nm = (it.name || it.dname || it.label || '').toLowerCase();
-                    return it.tval === 16 || it.tval === 17 || it.tval === 18 || nm.includes('arrow') || nm.includes('bolt') || nm.includes('shot') || nm.includes('pebble') || (typeof it.vm === 'number' && (it.vm & (1 << 7)) !== 0);
+                    const ammoTv = isAng426 ? (it.tval === 2 || it.tval === 3 || it.tval === 4) : (it.tval === 16 || it.tval === 17 || it.tval === 18);
+                    return ammoTv || nm.includes('arrow') || nm.includes('bolt') || nm.includes('shot') || nm.includes('pebble') || (typeof it.vm === 'number' && (it.vm & (1 << 7)) !== 0);
                 });
                 available = Boolean(hasBow || hasAmmo || (context && context.hasRanged));
                 break;

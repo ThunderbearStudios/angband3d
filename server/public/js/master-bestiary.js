@@ -156,7 +156,7 @@
     REALM_MANIFESTS['silq'] = {
         baseGlyphProfile: 'silq',
         patterns: [
-            { regex: /\b(balrog|rauko|gothmog|lungorthin|ururauko|sulrauko|ringrauko|kemenrauko|gwathrauko)\b/i, config: { templateKey: 'bestiary_imp', scale: 2.25, weaponKey: 'ph_sledgehammer', isBalrog: true, isWingedFlame: true, isBoss: true, emissiveHex: '#ff3b00', taxonomy: 'Rauko / Balrog Titan' } },
+            { regex: /\b(balrog|rauko|gothmog|lungorthin|ururauko|sulrauko|ringrauko|kemenrauko|gwathrauko)\b/i, config: { templateKey: 'bestiary_balrog', scale: 2.25, weaponKey: 'ph_sledgehammer', isBalrog: true, isWingedFlame: true, isBoss: true, emissiveHex: '#ff3b00', taxonomy: 'Rauko / Balrog Titan' } },
             { regex: /\b(morgoth|bauglir)\b/i, config: { templateKey: 'char_male_ranger', scale: 2.35, weaponKey: 'ph_sledgehammer', isMorgoth: true, isTitan: true, isBoss: true, tintHex: '#18181b', emissiveHex: '#450a0a', taxonomy: 'Dark Valar / Crowned Titan' } },
             { regex: /\bnessa\b/i, config: { templateKey: 'char_valkyrie', scale: 1.15, isFloating: true, weaponKey: 'item_spear', shieldKey: 'item_shield_raven', emissiveHex: '#fde047', isBoss: true, taxonomy: 'Vala / Nessa' } },
             { regex: /\b(smaug|ancalagon|glaurung|scatha)\b/i, config: { templateKey: 'bestiary_dragon', scale: 1.85, isBoss: true, useAsciiTint: true, taxonomy: 'Great Dragon / Boss' } },
@@ -193,8 +193,8 @@
         baseGlyphProfile: 'angband',
         patterns: [
             { regex: /serpent of chaos/i, config: { templateKey: 'bestiary_dragon', scale: 1.90, isBoss: true, emissiveHex: '#a855f7', taxonomy: 'Chaos Dragon / Boss' } },
-            { regex: /\b(cyberdemon|oremorj)\b/i, config: { templateKey: 'bestiary_imp', scale: 1.70, weaponKey: 'ph_sledgehammer', isBoss: true, taxonomy: 'Cyberdemon / Boss' } },
-            { regex: /\bcthulhu\b/i, config: { templateKey: 'bestiary_imp', scale: 1.82, isBoss: true, taxonomy: 'Great Old One / Boss' } },
+            { regex: /\b(cyberdemon|oremorj)\b/i, config: { templateKey: 'bestiary_balrog', scale: 1.70, weaponKey: 'ph_sledgehammer', isBoss: true, taxonomy: 'Cyberdemon / Boss' } },
+            { regex: /\bcthulhu\b/i, config: { templateKey: 'bestiary_balrog', scale: 1.82, isBoss: true, taxonomy: 'Great Old One / Boss' } },
             { regex: /\b(behir|basilisk|chameleon|iguana|alligator|crocodile|salamander|newt|dinosaur|tyrannosaur|raptor|komodo|monitor|gecko|tuatara)\b/i, config: { templateKey: 'bestiary_lizard', scale: 1.08, taxonomy: 'Reptile / Amphibian' } }
         ]
     };
@@ -203,7 +203,8 @@
         baseGlyphProfile: 'angband',
         patterns: [
             { regex: /混沌のサーペント|serpent of chaos/i, config: { templateKey: 'bestiary_dragon', scale: 1.90, isBoss: true, emissiveHex: '#a855f7', taxonomy: 'Chaos Dragon / Boss' } },
-            { regex: /サイバーデーモン|デーモン|\b(cyberdemon|demon)\b/i, config: { templateKey: 'bestiary_imp', scale: 1.55, weaponKey: 'ph_sledgehammer', taxonomy: 'Demon' } },
+            { regex: /サイバーデーモン|\bcyberdemon\b/i, config: { templateKey: 'bestiary_balrog', scale: 1.65, weaponKey: 'ph_sledgehammer', isBoss: true, taxonomy: 'Cyberdemon / Boss' } },
+            { regex: /デーモン|\bdemon\b/i, config: { templateKey: 'bestiary_imp', scale: 1.55, weaponKey: 'ph_sledgehammer', taxonomy: 'Demon' } },
             { regex: /サムライ|浪人|剣聖|ニンジャ|ヤクザ|\b(samurai|ronin|kensei|ninja|shinobi|yakuza)\b/i, config: { templateKey: 'char_male_ranger', scale: 1.02, weaponKey: 'ph_katana', taxonomy: 'Humanoid / Samurai' } },
             { regex: /八岐大蛇|\borochi\b/i, config: { templateKey: 'bestiary_dragon', scale: 1.85, isBoss: true, taxonomy: 'Great Serpent / Orochi' } },
             { regex: /酒呑童子|\bshuten\b/i, config: { templateKey: 'bestiary_ogre', scale: 1.50, weaponKey: 'ph_sledgehammer', tintHex: '#991b1b', isBoss: true, taxonomy: 'Oni / Shuten-douji' } },
@@ -385,7 +386,11 @@
         patterns: [
             { regex: /\bmorgoth\b/i, config: { templateKey: 'char_male_ranger', scale: 2.35, weaponKey: 'ph_sledgehammer', isMorgoth: true, isTitan: true, isBoss: true, tintHex: '#18181b', emissiveHex: '#450a0a', taxonomy: 'Dark Valar / Crowned Titan' } },
             { regex: /\bsauron\b/i, config: { templateKey: 'char_male_ranger', scale: 1.85, weaponKey: 'ph_mace', isSauron: true, isBoss: true, tintHex: '#1c1917', emissiveHex: '#b45309', taxonomy: 'Maia / Dark Lord' } },
-            { regex: /\b(gothmog|lungorthin|balrog|great cthulhu|cthulhu)\b/i, config: { templateKey: 'bestiary_balrog', scale: 1.85, weaponKey: 'ph_sledgehammer', isBalrog: true, isWingedFlame: true, isBoss: true, emissiveHex: '#ff3b00', taxonomy: 'Balrog / Arch-Fiend' } },
+            { regex: /\b(gothmog|lungorthin|balrogs?|great cthulhu|cthulhu|kronos)\b/i, config: { templateKey: 'bestiary_balrog', scale: 1.85, weaponKey: 'ph_sledgehammer', isBalrog: true, isWingedFlame: true, isBoss: true, emissiveHex: '#ff3b00', taxonomy: 'Balrog / Arch-Fiend' } },
+            { regex: /\bwitch[- ]?king\b/i, config: { templateKey: 'bestiary_wraith', scale: 1.48, weaponKey: 'item_longsword', isBoss: true, isFloating: true, emissiveHex: '#6366f1', taxonomy: 'Undead / Ringwraith King' } },
+            { regex: /\boberon\b/i, config: { templateKey: 'char_male_guard', scale: 1.45, weaponKey: 'item_rune_blade', isBoss: true, emissiveHex: '#f59e0b', taxonomy: 'Amber King / Boss' } },
+            { regex: /\b(ungoliant|shelob)\b/i, config: { templateKey: 'obj_spider', scale: 1.80, isBoss: true, taxonomy: 'Great Spider / Boss' } },
+            { regex: /\btitans?\b/i, config: { templateKey: 'bestiary_ogre', scale: 1.75, weaponKey: 'ph_sledgehammer', isBoss: true, taxonomy: 'Greater Titan' } },
             { regex: /\b(glaurung|ancalagon|smaug|scatha|tiamat)\b/i, config: { templateKey: 'bestiary_dragon', scale: 1.85, isBoss: true, useAsciiTint: true, taxonomy: 'Great Dragon / Boss' } },
             { regex: /\b(fang|grip)\b/i, config: { templateKey: 'bestiary_husky', scale: 0.96, taxonomy: 'Canine / Hound' } },
             { regex: /\bfarmer maggot\b(?!.*\b(fang|grip|dog|hound)\b)/i, config: { templateKey: 'char_male_peasant_bearded', scaleY: 0.78, scaleXZ: 1.05, weaponKey: 'item_staff_branch', taxonomy: 'Townsperson' } },
@@ -394,8 +399,9 @@
             { regex: /\b(saruman|grima|wormtongue)\b/i, config: { templateKey: 'char_male_priest', scale: 1.05, weaponKey: 'item_staff', isBoss: true, taxonomy: 'Wizard / Istari' } },
             { regex: /\bfangorn\b/i, config: { templateKey: 'bestiary_treeman', scale: 1.48, isBoss: true, taxonomy: 'Flora / Ent' } },
             { regex: /\btarrasque\b/i, config: { templateKey: 'bestiary_lizard', scale: 1.65, isBoss: true, taxonomy: 'Monstrosity / Tarrasque' } },
-            { regex: /\b(feanorian|maeglin|easterling|brodda|ulfast|ulwarth|uldor|ulfang|lorgan|castamir|sangahyando|angamaite|harowen|ar-pharazon|dunadan|blackguard|gallant)\b/i, config: { templateKey: 'char_male_guard', scale: 1.04, weaponKey: 'item_longsword', shieldKey: 'item_shield_raven', taxonomy: 'Humanoid / Warrior' } },
-            { regex: /\b(bullroarer|golfimbul|bolg|azog|ugluk|grishnakh|shagrat|gorbag|lugdush|mauhur)\b/i, config: { templateKey: 'bestiary_orc', scale: 1.18, weaponKey: 'ph_saber', shieldKey: 'item_shield_wooden', isBoss: true, taxonomy: 'Orc Captain / Unique' } },
+            { regex: /\b(feanorian|maeglin|easterling|brodda|ulfast|ulwarth|uldor|ulfang|lorgan|castamir|sangahyando|angamaite|harowen|ar-pharazon|dunadan|gallant)\b|(?!.*\btroll\b)\bblackguard\b/i, config: { templateKey: 'char_male_guard', scale: 1.04, weaponKey: 'item_longsword', shieldKey: 'item_shield_raven', taxonomy: 'Humanoid / Warrior' } },
+            { regex: /\bbullroarer\b/i, config: { templateKey: 'char_male_rogue', scaleY: 0.72, scaleXZ: 0.90, weaponKey: 'ph_dagger', isBoss: true, taxonomy: 'Hobbit / Unique' } },
+            { regex: /\b(golfimbul|bolg|azog|ugluk|grishnakh|shagrat|gorbag|lugdush|mauhur)\b/i, config: { templateKey: 'bestiary_orc', scale: 1.18, weaponKey: 'ph_saber', shieldKey: 'item_shield_wooden', isBoss: true, taxonomy: 'Orc Captain / Unique' } },
             { regex: /\b(bert|bill|tom)\b.*troll/i, config: { templateKey: 'bestiary_troll', scale: 1.38, weaponKey: 'item_greatclub', isBoss: true, taxonomy: 'Stone Troll / Unique' } }
         ]
     };
@@ -712,7 +718,8 @@
     // ---------------------------------------------------------------------------
     // 5. Tier 2 — Universal Morphological Species & Head-Noun Matcher
     // ---------------------------------------------------------------------------
-    function matchUniversalSpecies(lower, normRealm) {
+    function matchUniversalSpecies(lower, normRealm, glyph = '') {
+        const nonHumanoidGlyph = Boolean(glyph && 'DUWLPBCSZMEVJjmisrfdca'.includes(String(glyph).charAt(0)));
         // 1. Canines (Wolves, Dogs, Foxes, Hounds, Werewolves)
         if (/\b(wolf|wolves|warg|hound|jackal|coyote|fox|vixen|kitsune|dingo|canine|dog|puppy|shiba|terrier|husky|mastiff|pit bull|cerberus|fenrir|hellhound|hell hound|dhole|werewolf|wolfman|lycanthrope|fang|grip|carcharoth|draugluin|huan)\b/.test(lower)) {
             if (/\b(werewolf|wolfman|lycanthrope|draugluin)\b/.test(lower)) {
@@ -731,7 +738,7 @@
             if (/\b(little dog|small dog|puppy|shiba|terrier)\b/.test(lower)) {
                 return { templateKey: 'bestiary_shiba', scale: 0.80, taxonomy: 'Canine / Companion' };
             }
-            const isElementalHound = /\b(hound|wolf)\b/.test(lower) && /\b(light|shadow|dark|air|water|earth|energy|ether|nexus|chaos|time|gravity|inertia|sound|shards|mana|multi-hued|aether|vibration|impact|acid|venom|cold|frost|ice|winter)\b/.test(lower);
+            const isElementalHound = /\b(hound|wolf)\b/.test(lower) && /\b(light|shadow|dark|air|water|earth|energy|ether|nexus|chaos|time|gravity|inertia|sound|shards|mana|multi-hued|aether|vibration|impact|acid|venom|cold|frost|ice|winter|nether|clear|tindalos|plasma|fire|force|disenchantment|kamikaze)\b/.test(lower);
             if (!isElementalHound && /\b(husky|large dog|dog|hound|bloodhound|war dog|mastiff|pit bull|blink dog)\b/.test(lower) && !/\b(wild dog|fang|grip|frost hound|cold hound|ice hound|winter hound|winter wolf)\b/.test(lower)) {
                 return { templateKey: 'bestiary_husky', scale: 1.02, taxonomy: 'Canine / Hound' };
             }
@@ -1183,7 +1190,7 @@
                 taxonomy: 'Human / Samurai'
             };
         }
-        if (/\b(guard|soldier|veteran|mercenary|watchman|sentry|sergeant|lieutenant|captain|man-at-arms|kop)\b/.test(lower)) {
+        if (!nonHumanoidGlyph && /\b(guard|soldier|veteran|mercenary|watchman|sentry|sergeant|lieutenant|captain|man-at-arms|kop)\b/.test(lower)) {
             const isVeteran = /\bveteran\b/.test(lower);
             return {
                 templateKey: 'char_male_guard',
@@ -1194,7 +1201,7 @@
                 taxonomy: 'Human / Guard'
             };
         }
-        if (/\b(paladin|knight|crusader|templar|champion|cavalier|defender|justiciar|lord|prince|king|warlord|berserker|barbarian|gladiator|weaponmaster)\b/.test(lower)) {
+        if (!nonHumanoidGlyph && /\b(paladin|knight|crusader|templar|champion|cavalier|defender|justiciar|lord|prince|king|warlord|berserker|barbarian|gladiator|weaponmaster)\b/.test(lower)) {
             const is2H = /\b(berserker|barbarian|warlord|weaponmaster)\b/.test(lower);
             return {
                 templateKey: 'char_male_guard',
@@ -1318,18 +1325,20 @@
 
         // Tier 2: Universal Morphological Species & Head-Noun Matcher
         if (!baseCfg && cleanName.length > 0) {
-            const match = matchUniversalSpecies(lower, normRealm);
+            const match = matchUniversalSpecies(lower, normRealm, glyph);
             if (match) {
                 baseCfg = Object.assign({}, match);
                 sourceTier = 2;
 
-                // Apply automatic modifier scaling
-                if (/\b(pup|little|small|young|baby|mini|tiny|scrawny|hatchling|cub)\b/.test(lower)) {
-                    baseCfg.scale = Math.max(0.45, (baseCfg.scale || 1.0) * 0.80);
-                } else if (/\b(ancient|titan|emperor|dragon lord|great wyrm)\b/.test(lower)) {
-                    baseCfg.scale = (baseCfg.scale || 1.0) * 1.32;
-                } else if (/\b(large|giant|great|dire|elder|master|king|lord|queen|alpha|chieftain|captain)\b/.test(lower)) {
-                    baseCfg.scale = (baseCfg.scale || 1.0) * 1.18;
+                // Apply automatic modifier scaling (skip if base template already oversized or boss-scaled)
+                if ((baseCfg.scale || 1.0) < 1.25 && !baseCfg.isBoss) {
+                    if (/\b(pup|little|small|young|baby|mini|tiny|scrawny|hatchling|cub)\b/.test(lower)) {
+                        baseCfg.scale = Math.max(0.45, (baseCfg.scale || 1.0) * 0.80);
+                    } else if (/\b(ancient|titan|emperor|dragon lord|great wyrm)\b/.test(lower)) {
+                        baseCfg.scale = (baseCfg.scale || 1.0) * 1.32;
+                    } else if (/\b(large|giant|great|dire|elder|master|king|lord|queen|alpha|chieftain|captain)\b/.test(lower)) {
+                        baseCfg.scale = (baseCfg.scale || 1.0) * 1.18;
+                    }
                 }
 
                 // Apply elemental emissive modulation if not already set

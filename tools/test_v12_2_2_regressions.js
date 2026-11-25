@@ -97,7 +97,7 @@ console.log('--- v12.2.2 Regression Gate ---');
     assert.ok(appJs.includes('if (gateSettled || !sceneAssetGateInFlight || gateToken !== sceneAssetGateSeq) return;'), 'onProgress ignores late tier1 updates after gate settlement');
     assert.ok(dungeonJs.includes('let gateDone = false;') && dungeonJs.includes('if (!gateDone && typeof onProgress === \'function\')'), 'dungeon3d.js guards late post-timeout progress callbacks');
     assert.ok(appJs.includes('if (typeof input !== \'undefined\' && input) {\n            input.network = network;'), 'setEngineMode syncs input.network');
-    assert.ok(swJs.includes("cache: isNav ? 'no-store' : 'reload'"), 'sw.js bypasses disk cache cleanly for HTML navigations');
+    assert.ok(swJs.includes("cache: isNav ? 'no-store' : 'no-cache'"), 'sw.js bypasses disk cache cleanly for HTML navigations');
     console.log('ok    2. 96% Asset Gate settle guard + SW navigation no-store + setEngineMode sync');
 }
 

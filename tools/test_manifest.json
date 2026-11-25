@@ -44,7 +44,8 @@
     "test_v12_3_3_playtest_fixes.js",
     "test_bestiary_no_aislop.js",
     "test_9realm_parity_matrix.js",
-    "audit_9realm_bestiary_exhaustive.js"
+    "audit_9realm_bestiary_exhaustive.js",
+    "test_wave0_hardening.js"
   ],
   "e2e": [
     "verify_cross_realm_menus.js",

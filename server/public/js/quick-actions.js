@@ -41,8 +41,8 @@
         if (r === 'brogue') return 'a';
         if (r === 'rogue') return 'z';
         if (r === 'nethack') return (/\bwand\b/.test(name) || (it && it.glyph === '/')) ? 'z' : 'a';
-        if (tval === 23 || tval === 66 || /\b(wand)\b/.test(name) || /魔法棒/.test(name)) return 'a';
-        if (tval === 24 || tval === 65 || /\b(rod)\b/.test(name) || /ロッド/.test(name)) return 'z';
+        if (tval === 23 || tval === 65 || /\b(wand)\b/.test(name) || /魔法棒/.test(name)) return 'a';
+        if (tval === 24 || tval === 66 || /\b(rod)\b/.test(name) || /ロッド/.test(name)) return 'z';
         if (tval === 22 || tval === 55 || /\b(staff|staves)\b/.test(name) || /(スタッフ|の杖)/.test(name)) return 'u';
         return 'u';
     }
@@ -69,7 +69,7 @@
         const name = String((it && it.name) || ''), lower = name.toLowerCase(), tval = Number(it && it.tval) || 0;
         const isVanilla = String(realm || 'angband').toLowerCase() === 'angband';
         // # ROOT-CAUSE: Exclude light sources (Phial of Galadriel, lanterns, torches) and oil flasks from potion classification
-        const isLightOrFuel = tval === 39 || tval === 40 || tval === 77 || /\b(phial|feanor|galadriel|star of|aril|torch|lantern|lamp|flasks?\s+of\s+oil|oil\s+flask)\b/.test(lower) || /(松明|ランタン|ランプ|油つぼ|ガラドリエル)/.test(name);
+        const isLightOrFuel = tval === 39 || tval === 40 || tval === 77 || (isVanilla && tval === 19) || /\b(phial|feanor|galadriel|star of|aril|torch|lantern|lamp|flasks?\s+of\s+oil|oil\s+flask)\b/.test(lower) || /(松明|ランタン|ランプ|油つぼ|ガラドリエル)/.test(name);
         if (!isLightOrFuel && (/\b(potion|draught|elixir)\b/.test(lower) || /(の薬|水薬|霊薬|丸薬|薬$)/.test(name) || (isVanilla ? tval === 26 : (tval === 75 || tval === 71)))) {
             return { category: 'potion', isHeal: /\b(heal|cure|curing|life|restore|aid)\b/.test(lower) || /(治療|治癒|回復|傷|体力|生命)/.test(name), icon: '🧪' };
         }

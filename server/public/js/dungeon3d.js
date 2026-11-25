@@ -3076,11 +3076,6 @@ class Dungeon3D {
                 this._ensureViewmodelWeapon(key);
             }
             if (mesh) {
-                const isBladeOrSword = Boolean(key && /sword|saber|blade|katana|dagger|scimitar|rapier|broadsword/i.test(key));
-                if (isBladeOrSword) {
-                    mesh.rotation.y = (mesh.rotation.y || 0) + 0.68;
-                    mesh.rotation.z = (mesh.rotation.z || 0) + 0.08;
-                }
                 this._tagViewmodelLayer(mesh);
                 this.rightItemSlot.add(mesh);
             }
@@ -5827,7 +5822,7 @@ class Dungeon3D {
 
                 // Floor / Walkable corridor / Passable rubble / Sunlight (Sil-Q) / Wire Traps (45..55; note 43=Altar, 44=Fountain handled first below!)
                 const isSilQForge = (feat === 60 || (this.realm === 'silq' && glyph === '0'));
-                if (feat === 43 || feat === 44 || isSilQForge) {
+                if (((feat === 43 || feat === 44) && glyph !== '^') || isSilQForge) {
                     this.dummy.position.set(wx, -0.05, wz);
                     this.dummy.rotation.set(0, 0, 0);
                     this.dummy.updateMatrix();
@@ -6533,10 +6528,10 @@ class Dungeon3D {
                 } else if (isSilQForge) {
                     if (px === x && py === y) continue;
                     stairsList.push({ gridX: x, gridY: y, x: x * this.cellSize, y: 1.45, z: y * this.cellSize, name: '[0] Dwarven Forge', color: '#ffaa33' });
-                } else if (feat === 43) {
+                } else if (feat === 43 && glyph !== '^') {
                     if (px === x && py === y) continue;
                     stairsList.push({ gridX: x, gridY: y, x: x * this.cellSize, y: 1.68, z: y * this.cellSize, name: '[_] High Altar', color: '#ffd866' });
-                } else if (feat === 44) {
+                } else if (feat === 44 && glyph !== '^') {
                     if (px === x && py === y) continue;
                     stairsList.push({ gridX: x, gridY: y, x: x * this.cellSize, y: 1.68, z: y * this.cellSize, name: '[{] Magic Fountain', color: '#66ddff' });
                 }
@@ -7192,19 +7187,10 @@ class Dungeon3D {
         });
     }
 
-    ensureMonsterAtlasReady() {
-        if (this.monsterAtlasReady) return this.monsterAtlasReady;
+    _loadMonsterAtlasTextures() {
+        if (this._monsterAtlasTexPromise) return this._monsterAtlasTexPromise;
         const texLoader = new THREE.TextureLoader(this._getAssetLoadingManager());
-        this.monsterAtlasReady = new Promise((resolve) => {
-            let texDone = false;
-            let jsonDone = false;
-            const checkDone = () => {
-                if (texDone && jsonDone) {
-                    if (this.upgradeAllMonsterEntities) this.upgradeAllMonsterEntities();
-                    resolve(true);
-                }
-            };
-
+        this._monsterAtlasTexPromise = new Promise((resolve) => {
             texLoader.load('/assets/sprites/monsters/monster_atlas.webp', (tex) => {
                 tex.encoding = THREE.sRGBEncoding;
                 tex.generateMipmaps = true;
@@ -7219,12 +7205,10 @@ class Dungeon3D {
                     this.monsterBillboardMat.map = tex;
                     this.monsterBillboardMat.needsUpdate = true;
                 }
-                texDone = true;
-                checkDone();
+                resolve(tex);
             }, undefined, (err) => {
                 console.warn('[3D] monster_atlas.webp failed to load, falling back to procedural tokens:', err);
-                texDone = true;
-                checkDone();
+                resolve(null);
             });
 
             texLoader.load('/assets/sprites/monsters/monster_normal.webp', (tex) => {
@@ -7242,23 +7226,26 @@ class Dungeon3D {
                     this.monsterBillboardMat.needsUpdate = true;
                 }
             }, undefined, (err) => {
-                console.warn('[3D] monster_normal.png failed to load:', err);
+                console.warn('[3D] monster_normal.webp failed to load:', err);
             });
-
-            fetch('/assets/sprites/monsters/monster_atlas.json')
-                .then(res => res.json())
-                .then(data => {
-                    this.monsterAtlasData = data;
-                    console.log(`[3D] Loaded monster sprite atlas: ${Object.keys(data.monsters || {}).length} species, ${Object.keys(data.glyphs || {}).length} glyph fallbacks.`);
-                    jsonDone = true;
-                    checkDone();
-                })
-                .catch(err => {
-                    console.warn('[3D] monster_atlas.json failed to load, using procedural fallback:', err);
-                    jsonDone = true;
-                    checkDone();
-                });
         });
+        return this._monsterAtlasTexPromise;
+    }
+
+    ensureMonsterAtlasReady() {
+        if (this.monsterAtlasReady) return this.monsterAtlasReady;
+        this.monsterAtlasReady = fetch('/assets/sprites/monsters/monster_atlas.json')
+            .then(res => res.json())
+            .then(data => {
+                this.monsterAtlasData = data;
+                console.log(`[3D] Loaded monster sprite atlas: ${Object.keys(data.monsters || {}).length} species, ${Object.keys(data.glyphs || {}).length} glyph fallbacks.`);
+                if (this.upgradeAllMonsterEntities) this.upgradeAllMonsterEntities();
+                return true;
+            })
+            .catch(err => {
+                console.warn('[3D] monster_atlas.json failed to load, using procedural fallback:', err);
+                return true;
+            });
         return this.monsterAtlasReady;
     }
 
@@ -7475,6 +7462,7 @@ class Dungeon3D {
 
     createMonsterBillboardMesh(atlasEntry) {
         if (!atlasEntry || !atlasEntry.uv || !this.monsterBillboardMat) return null;
+        if (typeof this._loadMonsterAtlasTextures === 'function') this._loadMonsterAtlasTextures();
         const [u0, v0, u1, v1] = atlasEntry.uv;
 
         // Custom 4-vertex quad with UVs mapping into the 4096x4096 HD atlas with vertex AO and gentle normals
@@ -9056,7 +9044,7 @@ class Dungeon3D {
             });
         } else if (templateKey === 'bestiary_dragon') {
             loadPromise = this._loadSingleGltfScene('/assets/models/monsters/bestiary/Dragon.glb').then(scene => {
-                this._enhanceBestiaryMeshQuality(scene, { smoothNormals: true, applyCreatureBump: true, bumpType: 'scales', bumpScale: 0.42, roughness: 0.44 });
+                this._enhanceBestiaryMeshQuality(scene, { smoothNormals: true, applyCreatureBump: true, bumpType: 'scale', bumpScale: 0.42, roughness: 0.44 });
                 return normalizeWrapper(scene, 1.95, true, -Math.PI / 2, 2.20);
             });
         } else if (templateKey === 'bestiary_fox') {
@@ -9578,12 +9566,12 @@ class Dungeon3D {
             });
         } else if (templateKey === 'bestiary_hydra') {
             loadPromise = loadGltf('/assets/models/monsters/bestiary/hydra.glb', () => this._ensureMonster3DTemplate('bestiary_dragon')).then(scene => {
-                this._enhanceBestiaryMeshQuality(scene, { smoothNormals: true, applyCreatureBump: true, bumpType: 'scales', bumpScale: 0.38, roughness: 0.46 });
+                this._enhanceBestiaryMeshQuality(scene, { smoothNormals: true, applyCreatureBump: true, bumpType: 'scale', bumpScale: 0.38, roughness: 0.46 });
                 return normalizeWrapper(scene, 1.45, true, -Math.PI / 2, 1.55);
             });
         } else if (templateKey === 'bestiary_naga') {
             loadPromise = loadGltf('/assets/models/monsters/bestiary/naga.glb', () => this._ensureMonster3DTemplate('obj_snake')).then(scene => {
-                this._enhanceBestiaryMeshQuality(scene, { smoothNormals: true, applyCreatureBump: true, bumpType: 'scales', bumpScale: 0.36, roughness: 0.46 });
+                this._enhanceBestiaryMeshQuality(scene, { smoothNormals: true, applyCreatureBump: true, bumpType: 'scale', bumpScale: 0.36, roughness: 0.46 });
                 return normalizeWrapper(scene, 1.28, true, -Math.PI / 2, 1.35);
             });
         } else if (templateKey === 'bestiary_bat') {
@@ -11658,7 +11646,7 @@ class Dungeon3D {
                 isTileLit = inView && (lighting < 3 || distSq <= (this.torchRadius + 1) ** 2);
             }
             const isSensed = !isTileLit || !!m.invisible;
-            const identitySig = `${this.realm || 'angband'}|${m.race || m.name || ''}|${m.glyph || ''}|${m.attr || ''}`;
+            const identitySig = `${this.realm || 'angband'}|${m.race || m.name || ''}|${m.glyph || ''}`;
 
             if (entity && entity.identitySig && entity.identitySig !== identitySig) {
                 this.destroyEntity(entity);
@@ -12239,7 +12227,7 @@ class Dungeon3D {
                                 c.material = c.material.clone();
                                 c.material.color = new THREE.Color(0xe2e8f0);
                                 c.material.metalness = 0.68;
-                                c.material.roughness = 2.8;
+                                c.material.roughness = 0.28;
                                 c.material._sharedMaterial = true;
                             }
                             const mats = Array.isArray(c.material) ? c.material : [c.material];
@@ -13108,31 +13096,31 @@ class Dungeon3D {
                 ? mir.getWeaponAnimFamily(this.currentRightWeapon)
                 : 'blade';
             if (fam === 'pierce') {
-                // Wind-up draw-back into linear forward thrust along sightline
-                actZ += strikePulse * 0.30 - windupAmt * 0.07;
+                // Wind-up draw-back into linear forward thrust along sightline (-Z in camera space)
+                actZ -= strikePulse * 0.30 - windupAmt * 0.07;
                 actY += strikePulse * 0.03 - windupAmt * 0.015;
                 actRotX += strikePulse * 0.24 - windupAmt * 0.08;
             } else if (fam === 'axe_blunt') {
-                // Overhead windup into heavy downward cleave/smash
+                // Overhead windup into heavy downward cleave/smash (-Z forward)
                 actY += windupAmt * 0.11 - strikePulse * 0.15;
-                actZ += strikePulse * 0.20 - windupAmt * 0.05;
+                actZ -= strikePulse * 0.20 - windupAmt * 0.05;
                 actRotX += -windupAmt * 0.28 + strikePulse * 0.56;
                 actRotZ -= strikePulse * 0.20;
             } else if (fam === 'bow') {
-                // Draw pull-back and crisp release snap
-                actZ -= (windupAmt * 0.12 + strikePulse * 0.14);
+                // Draw pull-back (+Z toward camera) and crisp release snap
+                actZ += (windupAmt * 0.12 + strikePulse * 0.14);
                 actX -= strikePulse * 0.04;
                 actRotZ += strikePulse * 0.10;
             } else if (fam === 'device') {
-                // Arcane forward extension & tip elevation pulse
-                actZ += strikePulse * 0.22 - windupAmt * 0.04;
+                // Arcane forward extension (-Z) & tip elevation pulse
+                actZ -= strikePulse * 0.22 - windupAmt * 0.04;
                 actY += strikePulse * 0.05;
                 actRotX += strikePulse * 0.20;
             } else {
-                // Sweeping diagonal blade draw-cut across viewport
+                // Sweeping diagonal blade draw-cut across viewport (-Z forward)
                 actX += windupAmt * 0.05 - strikePulse * 0.16;
                 actY += windupAmt * 0.04 - strikePulse * 0.06;
-                actZ += strikePulse * 0.20 - windupAmt * 0.05;
+                actZ -= strikePulse * 0.20 - windupAmt * 0.05;
                 actRotZ += windupAmt * 0.14 - strikePulse * 0.46;
                 actRotX += -windupAmt * 0.12 + strikePulse * 0.18;
             }
@@ -13149,7 +13137,7 @@ class Dungeon3D {
                 this.hurtAnimationTime -= delta;
                 const prog = (0.16 - this.hurtAnimationTime) / 0.16;
                 const sinPulse = Math.sin(prog * Math.PI);
-                actZ -= sinPulse * 0.10; // Recoil back toward camera
+                actZ += sinPulse * 0.10; // Recoil back toward camera (+Z)
                 actRotX -= sinPulse * 0.18;
                 actY -= sinPulse * 0.04;
             } else if (this.castAnimationTime > 0) {
@@ -13159,15 +13147,15 @@ class Dungeon3D {
                 const sinPulse = Math.sin(prog * Math.PI);
                 const kind = this.actionAnimationKind || 'cast';
                 if (kind === 'quaff' || kind === 'eat' || kind === 'horn') {
-                    actX -= sinPulse * 0.11; // Bring toward mouth/center
+                    actX -= sinPulse * 0.11; // Bring toward mouth/center (+Z)
                     actY += sinPulse * 0.12;
-                    actZ -= sinPulse * 0.05;
+                    actZ += sinPulse * 0.05;
                     actRotX -= sinPulse * 0.42; // Tip flask/ration/horn back
                     actRotZ += sinPulse * 0.25;
                 } else if (kind === 'aim') {
                     actX -= sinPulse * 0.06;
                     actY += sinPulse * 0.06;
-                    actZ += sinPulse * 0.14; // Level wand/rod forward
+                    actZ -= sinPulse * 0.14; // Level wand/rod forward (-Z)
                     actRotX += sinPulse * 0.18;
                 } else {
                     actY += sinPulse * 0.09; // Raise hands/tome/scroll

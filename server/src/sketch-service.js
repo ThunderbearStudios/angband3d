@@ -62,14 +62,14 @@ function normalizeSketchModelAlias(modelName) {
 function buildModelOrder(models, requestedModel) {
     const rawList = Array.isArray(models) && models.length > 0
         ? models.slice()
-        : ['gemini-nano-banana-2.1', 'gemini-3.1-flash-image', 'gemini-2.5-flash-image'];
+        : ['gemini-nano-banana-2.1', 'gemini-3.1-flash-image'];
     const list = [];
     for (const item of rawList) {
         const norm = normalizeSketchModelAlias(item);
         if (norm && !list.includes(norm)) list.push(norm);
     }
     if (list.length === 0) {
-        list.push('gemini-3.1-flash-image', 'gemini-2.5-flash-image');
+        list.push('gemini-3.1-flash-image');
     }
     const normalizedReq = normalizeSketchModelAlias(requestedModel);
     const startIdx = list.includes(normalizedReq) ? list.indexOf(normalizedReq) : 0;

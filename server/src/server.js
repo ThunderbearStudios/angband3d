@@ -48,6 +48,7 @@ const ttsLimiter = createLimiter({ perMinute: +process.env.TTS_RPM || 30, perDay
 const sketchLimiter = createLimiter({ perMinute: +process.env.SKETCH_RPM || 15, perDay: +process.env.SKETCH_RPD || 120 });
 const uploadLimiter = createLimiter({ perMinute: +process.env.UPLOAD_RPM || 20, perDay: +process.env.UPLOAD_RPD || 200 });
 const vaultSyncLimiter = createVaultSyncLimiter({ perMinute: +process.env.SYNC_RPM || 60, perDay: +process.env.SYNC_RPD || 5000 });
+const ryodLimiter = createLimiter({ perMinute: +process.env.RYOD_RPM || 30, perDay: +process.env.RYOD_RPD || 300 });
 const globalLlmLimiter = createLimiter({ perMinute: +process.env.GLOBAL_LLM_RPM || 120, perDay: +process.env.GLOBAL_LLM_RPD || 2500 });
 const globalTtsLimiter = createLimiter({ perMinute: +process.env.GLOBAL_TTS_RPM || 240, perDay: +process.env.GLOBAL_TTS_RPD || 5000 });
 const globalSketchLimiter = createLimiter({ perMinute: +process.env.GLOBAL_SKETCH_RPM || 60, perDay: +process.env.GLOBAL_SKETCH_RPD || 800 });
@@ -1188,7 +1189,8 @@ function isLoopbackRequest(req) {
 }
 
 const server = http.createServer((req, res) => {
-    const urlObj = new URL(req.url, `http://${req.headers.host}`);
+    const safeReqHost = (req.headers.host && /^[a-zA-Z0-9.:_-]+$/.test(req.headers.host)) ? req.headers.host : 'localhost';
+    const urlObj = new URL(req.url, `http://${safeReqHost}`);
     const pathname = urlObj.pathname;
 
     // HTTPS Redirection behind SSL Proxies (Cloud Run / Load Balancers)
@@ -1809,7 +1811,7 @@ const server = http.createServer((req, res) => {
             };
 
             const apiKey = customKey || process.env.GEMINI_API_KEY || '';
-            const SKETCH_MODELS = ['gemini-nano-banana-2.1', 'gemini-3.1-flash-image', 'gemini-2.5-flash-image'];
+            const SKETCH_MODELS = ['gemini-nano-banana-2.1', 'gemini-3.1-flash-image'];
             const rawRequestedModel = (typeof parsed.model === 'string') ? parsed.model.trim() : '';
 
             generateChronicleSketch({
@@ -2250,6 +2252,12 @@ const server = http.createServer((req, res) => {
 
     // REST: RYOD ("Roll Your Own Dungeon") Blueprint & AI Architect Endpoints
     if ((pathname === '/api/ryod/blueprint' || pathname === '/api/ryod/architect' || (pathname.startsWith('/api/saves/') && pathname.endsWith('/blueprint'))) && (req.method === 'GET' || req.method === 'POST')) {
+        const ryodWait = ryodLimiter(clientIp(req));
+        if (ryodWait > 0) {
+            res.writeHead(429, { 'Content-Type': 'application/json', 'Retry-After': ryodWait });
+            res.end(JSON.stringify({ ok: false, error: 'Rate limit exceeded' }));
+            return;
+        }
         const RyodCompiler = require('./cartridges/ryod-compiler');
         const ryodSaveDirs = getSaveDirsForRealm('ryod');
         const ryodSaveDir = ryodSaveDirs[0] || path.resolve(__dirname, '../../variants/ryod/lib/save');
@@ -2262,75 +2270,100 @@ const server = http.createServer((req, res) => {
         }
 
         if (req.method === 'GET') {
-            let saveOrUser = urlObj.searchParams.get('user') || urlObj.searchParams.get('save') || '';
-            if (pathname.startsWith('/api/saves/') && pathname.endsWith('/blueprint')) {
-                saveOrUser = pathname.slice('/api/saves/'.length, -'/blueprint'.length);
-            }
-            const reqHash = urlObj.searchParams.get('hash') || '';
-            const cleanName = sanitizeFilename(saveOrUser || '').replace(/\.sav$/i, '');
-            let blueprint = null;
+            (async () => {
+                let saveOrUser = urlObj.searchParams.get('user') || urlObj.searchParams.get('save') || '';
+                if (pathname.startsWith('/api/saves/') && pathname.endsWith('/blueprint')) {
+                    saveOrUser = pathname.slice('/api/saves/'.length, -'/blueprint'.length);
+                }
+                const reqHash = urlObj.searchParams.get('hash') || '';
+                const cleanName = sanitizeFilename(saveOrUser || '').replace(/\.sav$/i, '');
+                let blueprint = null;
 
-            if (reqHash) {
-                const hashFile = path.join(bpDir, `${sanitizeFilename(reqHash)}.ryod.json`);
-                if (fs.existsSync(hashFile)) {
-                    try { blueprint = JSON.parse(fs.readFileSync(hashFile, 'utf8')); } catch (_) {}
-                }
-            }
-            if (!blueprint && cleanName) {
-                const sidecar1 = path.join(ryodSaveDir, `${cleanName}.ryod.json`);
-                const sidecar2 = path.join(ryodSaveDir, `${cleanName}.sav.ryod.json`);
-                const sidecarPath = fs.existsSync(sidecar1) ? sidecar1 : (fs.existsSync(sidecar2) ? sidecar2 : null);
-                if (sidecarPath) {
-                    try { blueprint = JSON.parse(fs.readFileSync(sidecarPath, 'utf8')); } catch (_) {}
-                }
-                if (!blueprint) {
-                    const savCand1 = path.join(ryodSaveDir, cleanName);
-                    const savCand2 = path.join(ryodSaveDir, `${cleanName}.sav`);
-                    const savPath = fs.existsSync(savCand1) ? savCand1 : (fs.existsSync(savCand2) ? savCand2 : null);
-                    if (savPath) {
-                        try {
-                            const buf = fs.readFileSync(savPath);
-                            if (buf.length > 36 && buf.toString('ascii', 0, 8) === 'SaveRYOD') {
-                                const descLen = buf.readUInt32LE(28);
-                                const jsonStr = buf.toString('utf8', 36 + descLen);
-                                const parsed = JSON.parse(jsonStr);
-                                if (parsed && parsed.ryodBlueprint) blueprint = parsed.ryodBlueprint;
-                            }
-                        } catch (_) {}
+                if (reqHash) {
+                    const hashFile = path.join(bpDir, `${sanitizeFilename(reqHash)}.ryod.json`);
+                    if (fs.existsSync(hashFile)) {
+                        try { blueprint = JSON.parse(fs.readFileSync(hashFile, 'utf8')); } catch (_) {}
                     }
                 }
-            }
-            if (!blueprint) {
-                const getOwnerToken = String(req.headers['x-owner-token'] || '').trim();
-                blueprint = (cleanName ? ryodBlueprintStore('get', 'slot:' + cleanName.toLowerCase()) : null)
-                    || (getOwnerToken ? ryodBlueprintStore('get', 'tok:' + getOwnerToken) : null);
-            }
-            if (!blueprint) {
-                res.writeHead(404, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ ok: false, error: 'RYOD blueprint not found' }));
-                return;
-            }
-            const headers = { 'Content-Type': 'application/json; charset=utf-8' };
-            if (urlObj.searchParams.get('download') === '1') {
-                const dlSlug = String(blueprint.title || cleanName || 'custom_realm').replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 40);
-                headers['Content-Disposition'] = `attachment; filename="${dlSlug}.ryod.json"`;
-            }
-            res.writeHead(200, headers);
-            res.end(JSON.stringify({
-                ok: true,
-                ryodHash: blueprint.ryodHash,
-                permalink: `?realm=ryod&bp=${RyodCompiler.encodePermalink(blueprint)}`,
-                blueprint
-            }, null, 2));
+                if (!blueprint && cleanName) {
+                    const sidecar1 = path.join(ryodSaveDir, `${cleanName}.ryod.json`);
+                    const sidecar2 = path.join(ryodSaveDir, `${cleanName}.sav.ryod.json`);
+                    const sidecarPath = fs.existsSync(sidecar1) ? sidecar1 : (fs.existsSync(sidecar2) ? sidecar2 : null);
+                    if (sidecarPath) {
+                        try { blueprint = JSON.parse(fs.readFileSync(sidecarPath, 'utf8')); } catch (_) {}
+                    }
+                    if (!blueprint) {
+                        const savCand1 = path.join(ryodSaveDir, cleanName);
+                        const savCand2 = path.join(ryodSaveDir, `${cleanName}.sav`);
+                        const savPath = fs.existsSync(savCand1) ? savCand1 : (fs.existsSync(savCand2) ? savCand2 : null);
+                        if (savPath) {
+                            const getReqTokens = extractRequestOwnerTokens(req, urlObj);
+                            if (!(await verifyOwnerTokenAsync(savPath, getReqTokens))) {
+                                res.writeHead(403, { 'Content-Type': 'application/json' });
+                                res.end(JSON.stringify({ ok: false, error: 'Forbidden: invalid owner token' }));
+                                return;
+                            }
+                            try {
+                                const buf = fs.readFileSync(savPath);
+                                if (buf.length > 36 && buf.toString('ascii', 0, 8) === 'SaveRYOD') {
+                                    const descLen = buf.readUInt32LE(28);
+                                    const jsonStr = buf.toString('utf8', 36 + descLen);
+                                    const parsed = JSON.parse(jsonStr);
+                                    if (parsed && parsed.ryodBlueprint) blueprint = parsed.ryodBlueprint;
+                                }
+                            } catch (_) {}
+                        }
+                    }
+                }
+                if (!blueprint) {
+                    const getOwnerToken = String(req.headers['x-owner-token'] || '').trim();
+                    blueprint = (cleanName ? ryodBlueprintStore('get', 'slot:' + cleanName.toLowerCase()) : null)
+                        || (getOwnerToken ? ryodBlueprintStore('get', 'tok:' + getOwnerToken) : null);
+                }
+                if (!blueprint) {
+                    res.writeHead(404, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ ok: false, error: 'RYOD blueprint not found' }));
+                    return;
+                }
+                const headers = { 'Content-Type': 'application/json; charset=utf-8' };
+                if (urlObj.searchParams.get('download') === '1') {
+                    const dlSlug = String(blueprint.title || cleanName || 'custom_realm').replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 40);
+                    headers['Content-Disposition'] = `attachment; filename="${dlSlug}.ryod.json"`;
+                }
+                res.writeHead(200, headers);
+                res.end(JSON.stringify({
+                    ok: true,
+                    ryodHash: blueprint.ryodHash,
+                    permalink: `?realm=ryod&bp=${RyodCompiler.encodePermalink(blueprint)}`,
+                    blueprint
+                }, null, 2));
+            })().catch(() => {
+                if (!res.headersSent) {
+                    res.writeHead(500, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ ok: false, error: 'Internal error' }));
+                }
+            });
             return;
         }
 
         // POST /api/ryod/blueprint or /api/ryod/architect
         let body = '';
+        let aborted = false;
         req.on('data', chunk => {
-            if (body.length < 256 * 1024) body += chunk;
+            if (aborted) return;
+            if (body.length + chunk.length > 256 * 1024) {
+                aborted = true;
+                if (!res.headersSent) {
+                    res.writeHead(413, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ ok: false, error: 'Payload too large (max 256KB)' }));
+                }
+                req.destroy();
+                return;
+            }
+            body += chunk;
         });
-        req.on('end', () => {
+        req.on('end', async () => {
+            if (aborted) return;
             try {
                 const payload = body ? JSON.parse(body) : {};
                 let blueprint = null;
@@ -2347,6 +2380,13 @@ const server = http.createServer((req, res) => {
                 const postOwnerToken = String(req.headers['x-owner-token'] || payload.ownerToken || '').trim();
                 const saveName = sanitizeFilename(String(payload.saveName || payload.user || '')).replace(/\.sav$/i, '');
                 if (saveName && !isReservedFilename(saveName)) {
+                    const existingSav = path.join(ryodSaveDir, `${saveName}.sav`);
+                    const targetCheckPath = fs.existsSync(existingSav) ? existingSav : path.join(ryodSaveDir, `${saveName}.ryod.json`);
+                    if (fs.existsSync(targetCheckPath) && !(await verifyOwnerTokenAsync(targetCheckPath, extractRequestOwnerTokens(req, urlObj, payload)))) {
+                        res.writeHead(403, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify({ ok: false, error: 'Forbidden: invalid owner token for existing slot' }));
+                        return;
+                    }
                     ryodBlueprintStore('set', 'slot:' + saveName.toLowerCase(), blueprint);
                     try {
                         fs.writeFileSync(path.join(ryodSaveDir, `${saveName}.ryod.json`), JSON.stringify(blueprint, null, 2), 'utf8');
@@ -2830,7 +2870,7 @@ const server = http.createServer((req, res) => {
     <p>Authoritative Cloud Game Server & WebSocket Bridge.</p>
     <div class="card">
         <h3>Server Status: Online</h3>
-        <p>WebSocket Endpoint: <code>ws://${req.headers.host || 'localhost:' + PORT}/ws</code></p>
+        <p>WebSocket Endpoint: <code>ws://${String(req.headers.host || 'localhost:' + PORT).replace(/[<>&"'/\\]/g, '')}/ws</code></p>
     </div>
     <a href="/download/angband3d-standalone.zip" class="btn">Download Standalone Game (.zip)</a>
 </body>
@@ -2839,7 +2879,16 @@ const server = http.createServer((req, res) => {
 
 // WebSocket Server attached to HTTP server.
 // maxPayload: client messages are tiny ("key left", JSON ping); 64 KB is generous (E22).
-const wss = new WebSocketServer({ noServer: true, maxPayload: 64 * 1024, perMessageDeflate: false });
+const wss = new WebSocketServer({
+    noServer: true,
+    maxPayload: 64 * 1024,
+    perMessageDeflate: process.env.WS_DEFLATE === '0' ? false : {
+        threshold: 512,
+        serverNoContextTakeover: false,
+        clientNoContextTakeover: false,
+        zlibDeflateOptions: { level: 3 }
+    }
+});
 
 server.on('upgrade', (request, socket, head) => {
     try { socket.setNoDelay(true); } catch (_) {}
@@ -2851,8 +2900,9 @@ server.on('upgrade', (request, socket, head) => {
             fwdHost = firstFwd;
         }
     }
-    const host = fwdHost || request.headers.host || '';
-    const urlObj = new URL(request.url, `http://${host || 'localhost'}`);
+    const rawHost = fwdHost || request.headers.host || '';
+    const host = (rawHost && /^[a-zA-Z0-9.:_-]+$/.test(rawHost)) ? rawHost : 'localhost';
+    const urlObj = new URL(request.url, `http://${host}`);
     // Cross-site WebSocket hijacking guard (E22): browsers always send Origin on WS upgrades.
     if (!isAllowedOrigin(request.headers.origin, host, request)) {
         socket.write('HTTP/1.1 403 Forbidden\r\n\r\n');
@@ -3264,6 +3314,8 @@ function gracefulSessionSaveAndExit(sessionId, byeMessage = null, packetType = '
         clearTimeout(session.stageMirrorTimer);
         session.stageMirrorTimer = null;
     }
+    if (session._deferredFlushTimer) { clearTimeout(session._deferredFlushTimer); session._deferredFlushTimer = null; }
+    session._deferredFrame = null;
     session.quickBirthActive = false;
 
     const { child, ws } = session;
@@ -3618,7 +3670,8 @@ function attachWebSocketToSession(session, ws) {
 }
 
 async function spawnGameSession(ws, request) {
-    const urlObj = new URL(request.url, `http://${request.headers.host}`);
+    const safeSpawnHost = (request.headers.host && /^[a-zA-Z0-9.:_-]+$/.test(request.headers.host)) ? request.headers.host : 'localhost';
+    const urlObj = new URL(request.url, `http://${safeSpawnHost}`);
     const rawRealm = urlObj.searchParams.get('realm') || 'angband';
     const realm = rawRealm.replace(/[^a-zA-Z0-9_-]/g, '') || 'angband';
     const rawUser = urlObj.searchParams.get('user') || urlObj.searchParams.get('char') || null;
@@ -3959,7 +4012,7 @@ async function spawnGameSession(ws, request) {
                         if (turnMatch) session.currentTurn = parseInt(turnMatch[1], 10);
                         const isDeathFrame =
                             headSlice.includes('"context":"death"') ||
-                            line.includes('"dead":true') ||
+                            line.slice(0, 1400).includes('"dead":true') ||
                             /"hp":(?:0|-\d+),"(?:max_hp|hp_max)":[1-9]/.test(line.slice(0, 1400));
                         if (isDeathFrame) {
                             session.isDead = true;
@@ -4048,11 +4101,22 @@ async function spawnGameSession(ws, request) {
                     scheduleStagedMirror(session, 200);
                 }
                 if (session.ws && session.ws.readyState === 1 /* OPEN */) {
-                    // Backpressure Guard: If socket has >64KB queued in OS/Node buffer, drop intermediate visual frames
-                    // to prevent latency delay and memory bloat for slow network connections.
-                    if (line.startsWith('{"t":"frame"') && session.ws.bufferedAmount > 65536) {
+                    // Backpressure Guard: buffer latest frame when >256KB is queued and coalesce until socket drains.
+                    if (line.startsWith('{"t":"frame"') && session.ws.bufferedAmount > 262144) {
+                        session._deferredFrame = line;
+                        if (!session._deferredFlushTimer) {
+                            session._deferredFlushTimer = setTimeout(() => {
+                                session._deferredFlushTimer = null;
+                                if (session._deferredFrame && session.ws && session.ws.readyState === 1 && session.ws.bufferedAmount <= 262144) {
+                                    const pending = session._deferredFrame;
+                                    session._deferredFrame = null;
+                                    session.ws.send(pending);
+                                }
+                            }, 35);
+                        }
                         continue;
                     }
+                    session._deferredFrame = null;
                     session.ws.send(line);
                 }
             }
@@ -4074,6 +4138,8 @@ async function spawnGameSession(ws, request) {
             clearTimeout(session.stageMirrorTimer);
             session.stageMirrorTimer = null;
         }
+        if (session._deferredFlushTimer) { clearTimeout(session._deferredFlushTimer); session._deferredFlushTimer = null; }
+        session._deferredFrame = null;
         activeSessions.delete(sessionId);
         if (session.stageDir) {
             if (session.isNew && !session.hasSavedInitialPlay && session.phase !== 'play') {
@@ -4100,6 +4166,8 @@ async function spawnGameSession(ws, request) {
             clearTimeout(session.stageMirrorTimer);
             session.stageMirrorTimer = null;
         }
+        if (session._deferredFlushTimer) { clearTimeout(session._deferredFlushTimer); session._deferredFlushTimer = null; }
+        session._deferredFrame = null;
         activeSessions.delete(sessionId);
         if (session.stageDir) {
             if (session.isNew && !session.hasSavedInitialPlay && session.phase !== 'play') {
@@ -4149,10 +4217,12 @@ wss.on('connection', async (ws, request) => {
         }
     }
 
-    const urlObj = new URL(request.url, `http://${request.headers.host}`);
+    const safeConnHost = (request.headers.host && /^[a-zA-Z0-9.:_-]+$/.test(request.headers.host)) ? request.headers.host : 'localhost';
+    const urlObj = new URL(request.url, `http://${safeConnHost}`);
     const rawUser = urlObj.searchParams.get('user') || null;
     const rawSave = urlObj.searchParams.get('save') || null;
-    const rawSession = urlObj.searchParams.get('session') || null;
+    const protoMatch = String(request.headers['sec-websocket-protocol'] || '').match(/(?:^|,)\s*session\.([a-zA-Z0-9_-]+)/);
+    const rawSession = (protoMatch && protoMatch[1]) || urlObj.searchParams.get('session') || null;
     const isNew = urlObj.searchParams.get('new') === '1' || urlObj.searchParams.get('reroll') === '1';
     const reqToken = extractWsOwnerToken(request, urlObj);
 
@@ -4207,7 +4277,11 @@ wss.on('connection', async (ws, request) => {
                 const isDeadHijack = Boolean(candidate.isDead);
 
                 if (saveMatches && userMatches && !isSetupHijack && !isDeadHijack) {
-                    existingSession = candidate;
+                    if (candidate.savePath && !(await verifyOwnerTokenAsync(candidate.savePath, reqToken))) {
+                        console.log(`[WebSocket] Session ${clientSessionId} rejected: owner token mismatch.`);
+                    } else {
+                        existingSession = candidate;
+                    }
                 } else {
                     console.log(`[WebSocket] Session ${clientSessionId} in realm ${candRealm} rejected for re-attachment (reqSave=${reqSave}, candSave=${candSave}, candPhase=${candidate.phase}, isDead=${candidate.isDead}).`);
                     if (isDeadHijack) {
@@ -4471,6 +4545,8 @@ async function gracefulShutdown(signal) {
             if (session.disconnectTimer) clearTimeout(session.disconnectTimer);
             if (session.autoSaveTimer) clearTimeout(session.autoSaveTimer);
             if (session.stageMirrorTimer) clearTimeout(session.stageMirrorTimer);
+            if (session._deferredFlushTimer) { clearTimeout(session._deferredFlushTimer); session._deferredFlushTimer = null; }
+            session._deferredFrame = null;
             session.quickBirthActive = false;
 
             if (session.ws && session.ws.readyState === 1) {

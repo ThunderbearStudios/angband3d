@@ -1294,10 +1294,12 @@ function createSaveVaultService({
         }
 
         const reqToken = extractRequestOwnerTokens(req, urlObj);
-        if (!(await verifyOwnerTokenAsync(matchedPaths[0], reqToken))) {
-            res.writeHead(403, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ error: 'Forbidden: invalid owner token for existing character' }));
-            return;
+        for (const mp of matchedPaths) {
+            if (!(await verifyOwnerTokenAsync(mp, reqToken))) {
+                res.writeHead(403, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Forbidden: invalid owner token for existing character' }));
+                return;
+            }
         }
 
         try {

@@ -1,5 +1,5 @@
 // Angband3D Service Worker — Split-Epoch PWA Shell + Persistent 3D/WASM Asset Cache
-const CACHE_NAME = 'angband3d-v13.2.1';
+const CACHE_NAME = 'angband3d-v13.2.2';
 const ASSET_CACHE = 'angband3d-assets-v4';
 const SHELL_ASSETS = [
   '/',
@@ -55,7 +55,7 @@ self.addEventListener('fetch', (event) => {
   const hasVersionParam = url.searchParams.has('v');
   const isNav = event.request.mode === 'navigate';
   const bypassDiskCache = isNav || url.pathname.startsWith('/assets/') || hasVersionParam;
-  const fetchFresh = () => bypassDiskCache ? fetch(event.request, { cache: isNav ? 'no-store' : 'reload' }) : fetch(event.request);
+  const fetchFresh = () => bypassDiskCache ? fetch(event.request, { cache: isNav ? 'no-store' : 'no-cache' }) : fetch(event.request);
   const isHeavyImmutableAsset = (
     url.pathname.startsWith('/assets/models/') ||
     url.pathname.startsWith('/assets/polyhaven/') ||
@@ -77,7 +77,16 @@ self.addEventListener('fetch', (event) => {
           if (cached) return cached;
           return fetchFresh().then((response) => {
             if (response && response.status === 200 && response.type === 'basic') {
-              cache.put(event.request, response.clone());
+              const cloned = response.clone();
+              cache.put(event.request, cloned).then(async () => {
+                if (!isHeavyImmutableAsset) return;
+                const keys = await cache.keys();
+                if (keys.length > 180) {
+                  for (const oldReq of keys.slice(0, keys.length - 180)) {
+                    await cache.delete(oldReq);
+                  }
+                }
+              }).catch(() => {});
             }
             return response;
           }).catch(() => {

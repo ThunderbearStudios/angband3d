@@ -97,7 +97,7 @@ test('Chronicle Hero Action Sketch is wired across index.html, server.js, and ch
 
     const serverSrc = read('server/src/server.js');
     assert(serverSrc.includes("'/api/chronicle/sketch'"), 'Missing POST /api/chronicle/sketch route in server/src/server.js');
-    assert(serverSrc.includes('gemini-2.5-flash-image'), 'Missing gemini-2.5-flash-image primary model in server/src/server.js');
+    assert(serverSrc.includes('gemini-nano-banana-2.1'), 'Missing gemini-nano-banana-2.1 primary model in server/src/server.js');
     assert(serverSrc.includes('gemini-3.1-flash-image'), 'Missing gemini-3.1-flash-image model in server/src/server.js');
     assert(serverSrc.includes('sketchCache'), 'Missing bounded sketchCache in server/src/server.js');
 

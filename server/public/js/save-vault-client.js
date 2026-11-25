@@ -310,14 +310,9 @@
         ? await localSaveManager.getSaveData(saveName, rk)
         : (typeof localSaveManager.loadSave === 'function' ? await localSaveManager.loadSave(saveName, rk) : null);
       if (readLocal && readLocal.length > 0) return true;
-      let res = await fetch(`/api/saves/${encodeURIComponent(saveName)}?realm=${encodeURIComponent(rk)}`, {
+      const res = await fetch(`/api/saves/${encodeURIComponent(saveName)}?realm=${encodeURIComponent(rk)}`, {
         headers: buildAuthHeaders(rk, saveName)
       });
-      if (!res || !res.ok) {
-        res = await fetch(`/api/saves/${encodeURIComponent(saveName)}/download?realm=${encodeURIComponent(rk)}`, {
-          headers: buildAuthHeaders(rk, saveName)
-        });
-      }
       if (!res || !res.ok) return false;
       const buf = new Uint8Array(await res.arrayBuffer());
       if (buf.length > 0) {
@@ -360,7 +355,7 @@
 
     if (typeof fetch === 'function') {
       try {
-        const res = await fetch(`/api/saves/${encodeURIComponent(saveName)}/upload?realm=${encodeURIComponent(rk)}`, {
+        const res = await fetch(`/api/saves/upload?realm=${encodeURIComponent(rk)}&name=${encodeURIComponent(saveName)}`, {
           method: 'POST',
           headers: buildAuthHeaders(rk, saveName, { 'Content-Type': 'application/octet-stream' }),
           body: bytes

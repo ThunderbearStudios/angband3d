@@ -1300,7 +1300,7 @@ class ChronicleManager {
             // Same-Turn Scene Coalescing:
             // If ONBOARDING_FIRST_DESCENT (or FLOOR_DESCEND) and LEVEL_FEELING occur in the same frame,
             // fold feelingText into the descent event so only ONE cohesive passage is rendered and spoken!
-            const descentEv = rawEvents.find(e => e.type === 'ONBOARDING_FIRST_DESCENT' || e.type === 'FLOOR_DESCEND');
+            const descentEv = rawEvents.find(e => e.type === 'ONBOARDING_FIRST_DESCENT' || e.type === 'FLOOR_DESCEND' || e.type === 'FLOOR_CHANGE');
             const feelingIdx = rawEvents.findIndex(e => e.type === 'LEVEL_FEELING');
             if (descentEv && feelingIdx !== -1) {
                 const feelEv = rawEvents[feelingIdx];
@@ -1339,11 +1339,21 @@ class ChronicleManager {
             this.liveHero = frame.player;
             this.maybeAutoTriggerSceneSketch({ type: 'FRAME_TICK' }, null, frame);
 
-            // If audio is disabled or manual story playlist is active, still record primary chapter card silently
+            // If audio is disabled or manual story playlist is active, record milestones + primary chapter card silently
             if (!this.audio || !this.audio.enabled || this.isStoryPlaying) {
                 if (rawEvents.length > 0) {
+                    const isMilestone = (ev) => Boolean(ev && /^(UNIQUE_SLAIN|LEVEL_UP|ARTIFACT_AWAKENING|FLOOR_CHANGE|FLOOR_DESCEND|HERO_VICTORY)$/.test(ev.type));
                     const primaryEv = rawEvents.find(e => e.isChapter !== false) || rawEvents[rawEvents.length - 1];
-                    this.processEvent(primaryEv, frame, false);
+                    const recorded = new Set();
+                    for (const ev of rawEvents) {
+                        if (isMilestone(ev) && !recorded.has(ev)) {
+                            recorded.add(ev);
+                            this.processEvent(ev, frame, false);
+                        }
+                    }
+                    if (primaryEv && !recorded.has(primaryEv)) {
+                        this.processEvent(primaryEv, frame, false);
+                    }
                 }
                 return;
             }
@@ -1596,6 +1606,8 @@ class ChronicleManager {
             : ((this.lastFrame && this.lastFrame.map && typeof this.lastFrame.map.depth === 'number') ? this.lastFrame.map.depth : null);
         this.unvoicedEventLedger = this.unvoicedEventLedger.filter(item => {
             if (!item || !item.event) return false;
+            const isMilestone = /^(UNIQUE_SLAIN|LEVEL_UP|ARTIFACT_AWAKENING|FLOOR_CHANGE|FLOOR_DESCEND|HERO_VICTORY|HERO_DEATH)$/.test(item.event.type || '');
+            if (isMilestone) return true;
             if (typeof item.timestamp === 'number' && (now - item.timestamp) > 6000) return false;
             if (typeof curDepth === 'number' && typeof item.depth === 'number' && item.depth !== curDepth) return false;
             return true;
@@ -3767,13 +3779,13 @@ class ChronicleManager {
         } else if (realm === 'hengband') {
             realmAtmosphere = 'Feudal Japanese Eastern dark fantasy, mist-veiled pagoda silhouettes, stone lanterns, samurai armor styling, youkai and demon shadows.';
         } else if (realm === 'nethack') {
-            realmAtmosphere = 'NetHack Mazes of Menace, eccentric subterranean temple and dungeon vault, glowing high altars, bubbling magic fountains, classic AD&D fantasy book illustration.';
+            realmAtmosphere = 'NetHack Mazes of Menace, eccentric subterranean temple and dungeon vault, glowing high altars, bubbling magic fountains, classic pulp dark-fantasy book illustration.';
         } else if (realm === 'dcss') {
             realmAtmosphere = 'Dungeon Crawl Stone Soup (DCSS), Zot multi-branch subterranean rune vaults, glowing ecumenical altars, ancient carved pillars, intense tactical fantasy combat.';
         } else if (realm === 'brogue') {
             realmAtmosphere = 'Brogue CE subterranean cavern, bioluminescent fungal glow, bubbling crimson lava fissures and deep subterranean lakes, iron captive cages, painterly chiaroscuro.';
         } else if (realm === 'rogue') {
-            realmAtmosphere = '1980 Classic Rogue Dungeons of Doom, torchlit rectangular flagstone chambers and winding maze passages, vintage 1980s TSR Dungeons & Dragons fantasy module cover art style.';
+            realmAtmosphere = '1980 Classic Rogue Dungeons of Doom, torchlit rectangular flagstone chambers and winding maze passages, vintage 1980s classic tabletop fantasy cover art style.';
         } else if (realm === 'ryod') {
             const bp = (typeof window !== 'undefined' && window.__activeRyodBlueprint) || {};
             realmAtmosphere = `Custom Rolled Tabletop Fantasy Realm "${bp.title || 'The Rolled Dungeon'}", atmospheric stone vaults, glowing shrines, and dramatic dark-fantasy chiaroscuro.`;
@@ -3886,7 +3898,7 @@ class ChronicleManager {
         );
         const artDirection = isIronicLowDepthDeath
             ? `A richly detailed dark-fantasy oil painting and Gustave Doré woodcut crosshatch illustration capturing the iconic roguelike "Yet Another Stupid Death" (YASD) tragicomedy: depict the ironic physical chaos of ${name} the Level ${level} ${race} ${heroClass} in an undignified final stand against ${killedBy || 'a lowly dungeon nuisance'} in ${locationLabel}. Show dramatic chiaroscuro torchlight, scattered gear, rim lighting, and expressive fantasy creatures.`
-            : `A viral-quality, collector-grade dark-fantasy oil and ink masterwork in the style of Frank Frazetta, Gustave Doré, and Dark Souls concept art, with dramatic chiaroscuro rim lighting, warm flickering torchlight against deep obsidian shadows, and dynamic heroic composition. ${situationalFocus}`;
+            : `A viral-quality, collector-grade dark-fantasy oil and ink masterwork in the style of classical chiaroscuro oil painting and Gustave Doré woodcut engraving, with dramatic rim lighting, warm flickering torchlight against deep obsidian shadows, and dynamic heroic composition. ${situationalFocus}`;
 
         const prompt = `${artDirection} Character: a ${race} ${heroClass} (${condition}, ${statTraits}). Setting: ${locationLabel}, ${realmAtmosphere} ${gearDesc} ${alliesDesc} ${monstersDesc} Narrative moment: “${narrativeText}”. Full-bleed dark-fantasy painting ONLY — strictly NO text, NO words, NO letters, NO numbers, NO stat sheets, NO UI frames, NO banners, and NO watermarks anywhere in the image.`;
 
@@ -3972,7 +3984,8 @@ class ChronicleManager {
     async preWarmActiveSceneSketch(frame, beat = null) {
         // Sovereign Protector Budget Invariant (WS70):
         // Never fire unclicked background /api/chronicle/sketch requests; pre-bake the 0ms local Doré canvas engraving only while Chronicle is open.
-        if (this.drawerEl && this.drawerEl.classList && (this.drawerEl.classList.contains('hidden') || this.drawerEl.classList.contains('collapsed'))) return null;
+        const hostEl = this.windowEl || this.drawerEl;
+        if (hostEl && hostEl.classList && (hostEl.classList.contains('hidden') || hostEl.classList.contains('collapsed'))) return null;
         const activeFrame = frame || this.lastFrame;
         if (!activeFrame || !activeFrame.player) return null;
         const ctxData = this.buildHeroSketchContext(beat, { mode: 'action', frame: activeFrame });

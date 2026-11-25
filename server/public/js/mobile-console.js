@@ -71,8 +71,7 @@
                 e.stopPropagation();
                 const app = getApp();
                 if (app && app.input) {
-                    if (typeof app.input.stopAutoExplore === 'function') app.input.stopAutoExplore();
-                    if (typeof app.input.cancelMinimapAutoNav === 'function') app.input.cancelMinimapAutoNav();
+                    if (typeof app.input.stopMinimapAutoNav === 'function') app.input.stopMinimapAutoNav('Cancelled');
                 }
                 stopBtn.classList.remove('is-active');
                 if (root.DeviceProfile) root.DeviceProfile.triggerHaptic('medium');

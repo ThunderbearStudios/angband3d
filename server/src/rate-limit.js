@@ -38,7 +38,8 @@ function hasValidEdgeSecret(req) {
     const expectedSecret = process.env.EDGE_PROXY_SECRET || '';
     if (!expectedSecret) {
         warnIfMissingEdgeSecret();
-        return true;
+        const isProd = process.env.NODE_ENV === 'production' || Boolean(process.env.K_SERVICE) || process.env.DEPLOY_TARGET === 'ovh';
+        return !isProd;
     }
     const provided = String((req.headers && req.headers['x-edge-proxy-secret']) || '');
     const a = Buffer.from(expectedSecret, 'utf8');
@@ -91,6 +92,7 @@ module.exports = {
     createVaultSyncLimiter,
     extractVaultRateKey,
     clientIp,
+    hasValidEdgeSecret,
     warnIfMissingEdgeSecret,
     DEFAULT_MAX_WS_PER_IP,
     MAX_WS_PER_IP

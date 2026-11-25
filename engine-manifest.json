@@ -1,6 +1,6 @@
 {
   "$schema": "./schemas/engine-manifest.schema.json",
-  "version": "13.2.1",
+  "version": "13.2.2",
   "default_realm": "angband",
   "tier_groups": {
     "tier_1_native": ["angband", "silq", "frogcomposband", "hengband"],

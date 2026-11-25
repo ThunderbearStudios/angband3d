@@ -1029,7 +1029,7 @@ class InputController {
             // 1. Text inputs & selects -> browser default (WCAG 2.1.4)
             if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT')) {
                 if (e.key === 'Escape' || isBareBacktick) {
-                    if (e.target.id === 'command-palette-input' && window.__app && typeof window.__app.hideCommandPalette === 'function') {
+                    if ((e.target.id === 'command-palette-input' || e.target.id === 'cmd-search-input') && window.__app && typeof window.__app.hideCommandPalette === 'function') {
                         e.preventDefault();
                         window.__app.hideCommandPalette();
                         return;
@@ -1151,7 +1151,9 @@ class InputController {
             }
             const deathModal = document.getElementById('death-modal'), isDeadModal = Boolean(deathModal && !deathModal.classList.contains('hidden'));
             const lastFrame = (window.__app && typeof window.__app.getLastFrame === 'function') ? window.__app.getLastFrame() : (window.__app ? window.__app.lastFrame : null);
-            const isDeadFrame = Boolean(lastFrame && lastFrame.player && (lastFrame.player.dead || (lastFrame.player.hp !== undefined && lastFrame.player.hp <= 0 && lastFrame.player.hp_max > 0)));
+            const fRealmDeath = String((lastFrame && lastFrame.realm) || (this.app && this.app.currentRealm) || (window.__app && window.__app.currentRealm) || 'angband').toLowerCase();
+            const hpDead = ['angband', 'silq', 'frogcomposband', 'hengband'].includes(fRealmDeath) ? (lastFrame && lastFrame.player && lastFrame.player.hp < 0) : (lastFrame && lastFrame.player && lastFrame.player.hp <= 0);
+            const isDeadFrame = Boolean(lastFrame && lastFrame.player && (lastFrame.player.dead || (lastFrame.player.hp !== undefined && hpDead && lastFrame.player.hp_max > 0)));
             if (isDeadModal || isDeadFrame) { this._handleDeathModalKey(e, lastFrame, isDeadModal); return; }
             if (appState !== 'game' && this._handleAppStateModalKey(e, appState)) return;
             const helpModal = document.getElementById('help-modal');
@@ -1177,13 +1179,15 @@ class InputController {
                 if (e.key === 'Tab' || e.key === 'ArrowRight') { e.preventDefault(); window.__app.cycleGuideTab(1); return; }
                 if (e.key === 'ArrowLeft') { e.preventDefault(); window.__app.cycleGuideTab(-1); return; }
             }
-            // 3. Active CommandDispatcher plan or minimap auto-nav -> cancel on manual keydown
-            const dispatcher = (this.app && this.app.dispatcher) || (window.__app && window.__app.dispatcher);
-            if (dispatcher && typeof dispatcher.cancel === 'function') dispatcher.cancel('user-key');
-            if (window.__app && window.__app.cancelQuickBirth) window.__app.cancelQuickBirth();
-            if (this.isAutoNavigating && this.isAutoNavigating()) {
-                this.stopMinimapAutoNav('Manual key press');
-                if (e.key === 'Escape' || isBareBacktick) { e.preventDefault(); return; }
+            // 3. Active CommandDispatcher plan or minimap auto-nav -> cancel on manual keydown (ignore bare modifier presses)
+            if (!['Shift', 'Control', 'Alt', 'Meta'].includes(e.key)) {
+                const dispatcher = (this.app && this.app.dispatcher) || (window.__app && window.__app.dispatcher);
+                if (dispatcher && typeof dispatcher.cancel === 'function') dispatcher.cancel('user-key');
+                if (window.__app && window.__app.cancelQuickBirth) window.__app.cancelQuickBirth();
+                if (this.isAutoNavigating && this.isAutoNavigating()) {
+                    this.stopMinimapAutoNav('Manual key press');
+                    if (e.key === 'Escape' || isBareBacktick) { e.preventDefault(); return; }
+                }
             }
 
             const lastFrameEarly = (this.app && this.app.lastFrame) || (window.__app && window.__app.lastFrame) || null;
@@ -1581,6 +1585,10 @@ class InputController {
         const inContextMenu = (ui && (ui.overlay > 0 || ui.more || !ui.awaiting_command)) || this.inTerminal || isForcedTerm;
 
         if (inContextMenu) {
+            this._pendingMoreMove = null;
+            this._pendingFollowUp = null;
+            this._pendingFollowUpKey = null;
+            this._pendingMoreAction = null;
             this.network.sendKey('escape');
             if (window.__app && window.__app.setForceTerminal) window.__app.setForceTerminal(false);
         } else {
@@ -1808,7 +1816,7 @@ class InputController {
         if (this.wasdMode && !skipWasdRemap && !e.ctrlKey && !e.altKey && !e.metaKey && e.key === '\\') {
             e.preventDefault(); this._wasdLiteralNext = true; this.network.sendKey('\\'); return;
         }
-        if (e.key === '[' || e.key === ']') {
+        if (e.altKey && (e.key === '[' || e.key === ']')) {
             e.preventDefault(); window.__app?.hud?.cycleMinimapSize(e.key === '[' ? -1 : 1); return;
         }
         if (e.ctrlKey || e.altKey) {
@@ -1905,18 +1913,19 @@ class InputController {
         if (this.wasdMode && !skipWasdRemap && !isTargeting && isTopLevelCommandPrompt && !isPromptActive && !e.ctrlKey && !e.altKey && !e.metaKey) {
             const lowerK = e.key.toLowerCase();
             const diagMap = { q: 7, e: 9, z: 1, c: 3 };
-            if (lowerK === 'w' || lowerK === 's' || lowerK === 'a' || lowerK === 'd' || diagMap[lowerK]) {
+            const isAdStrafe = (lowerK === 'a' || lowerK === 'd');
+            if (isAdStrafe || (!e.shiftKey && (lowerK === 'w' || lowerK === 's' || diagMap[lowerK]))) {
                 e.preventDefault();
                 this.clearDirectionHint();
                 const runActive = this.isRunningActive(e);
                 if (diagMap[lowerK]) {
                     if (moveSeqPending || (runActive && e.repeat)) return;
                     if (this.dungeon && typeof this.dungeon.commitFreelookFacing === 'function') this.dungeon.commitFreelookFacing();
-                    this.sendMoveOrRun(diagMap[lowerK], runActive);
+                    this.sendMoveOrRun(diagMap[lowerK], false);
                 } else if (lowerK === 'w' || lowerK === 's') {
                     if (moveSeqPending || (runActive && e.repeat)) return;
                     if (this.dungeon && typeof this.dungeon.commitFreelookFacing === 'function') this.dungeon.commitFreelookFacing();
-                    this.sendMoveOrRun(lowerK === 'w' ? 8 : 2, runActive);
+                    this.sendMoveOrRun(lowerK === 'w' ? 8 : 2, false);
                 } else if (e.shiftKey) {
                     if (moveSeqPending) return;
                     if (this.dungeon && typeof this.dungeon.commitFreelookFacing === 'function') this.dungeon.commitFreelookFacing();
@@ -1981,7 +1990,8 @@ class InputController {
             }
         }
 
-        if ((e.key === '.' && !e.shiftKey) || e.key === ',') {
+        const pickupIsComma = (typeof RealmKeys !== 'undefined' && RealmKeys.realmKey) ? (RealmKeys.realmKey('pickup', realm) === ',') : false;
+        if ((e.key === '.' && !e.shiftKey) || (e.key === ',' && !pickupIsComma)) {
             e.preventDefault();
             this.network.sendKey((typeof RealmKeys !== 'undefined' && RealmKeys.realmKey) ? (RealmKeys.realmKey('hold', realm) || ',') : ',');
             return;
@@ -2186,7 +2196,7 @@ class InputController {
                     let effKey = (typeof RealmKeys !== 'undefined' && RealmKeys.realmKey)
                         ? RealmKeys.realmKey(verb, realm)
                         : null;
-                    if (verb === 'eat' && effKey === 'e') effKey = 'E';
+                    if (verb === 'eat' && effKey === 'e' && (realm === 'angband' || realm === 'frogcomposband' || realm === 'hengband')) effKey = 'E';
                     if (!effKey) return;
 
                     if (this.isDirectionalTargeting && this.isDirectionalTargeting() && (verb !== 'attack' && verb !== 'fire' && verb !== 'throw')) {
@@ -2949,7 +2959,8 @@ class InputController {
         const inTerminalOverlay = Boolean(frame.ui && (frame.ui.overlay || 0) > 0) ||
                                  Boolean(window.__app && window.__app.needsTerminal && window.__app.needsTerminal(frame)) ||
                                  this.inTerminal;
-        const isDead = Boolean(player.dead || (player.hp !== undefined && player.hp <= 0 && player.hp_max > 0));
+        const isCBridgeDead = ['angband', 'silq', 'frogcomposband', 'hengband'].includes(realm) ? (player.hp < 0) : (player.hp <= 0);
+        const isDead = Boolean(player.dead || (player.hp !== undefined && isCBridgeDead && player.hp_max > 0));
 
         const screenText = (window.ScreenContext && typeof window.ScreenContext.screenTextOf === 'function')
             ? window.ScreenContext.screenTextOf(frame)
@@ -3213,7 +3224,7 @@ class InputController {
                                 const atkKey = worldKeyMap[`${Math.sign(dxRaw)},${Math.sign(dyRaw)}`];
                                 if (atkKey) { this.sendMovementKey(atkKey); return; }
                             }
-                            this.startMinimapAutoNav(monster.x, monster.y, frame);
+                            this.startMinimapAutoNav(monster.x, monster.y, frame, { stopAdjacent: true });
                             return;
                         }
                         const its = Array.isArray(frame.items) ? frame.items : (Array.isArray(frame.objects) ? frame.objects : []);

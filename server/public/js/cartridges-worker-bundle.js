@@ -1927,7 +1927,18 @@
             c.mutatorId || 'balanced',
             c.d20Fate || 15,
             c.customNemesisName || '',
-            ...(Array.isArray(c.mutators) && c.mutators.length > 1 ? [c.mutators] : [])
+            Array.isArray(c.mutators) ? c.mutators : [c.mutatorId || 'balanced'],
+            c.presetId || '',
+            c.chimeraChaos ? 1 : 0,
+            c.mithrilSmithing ? 1 : 0,
+            c.wovenSongs ? 1 : 0,
+            c.martialStances ? 1 : 0,
+            c.wantedBounties ? 1 : 0,
+            c.pantheonAltars ? 1 : 0,
+            c.livingPhysics ? 1 : 0,
+            c.evolvingAllies ? 1 : 0,
+            c.unidentifiedAppearances ? 1 : 0,
+            c.stampedVaults !== false ? 1 : 0
         ];
         const json = JSON.stringify(compact);
         if (typeof Buffer !== 'undefined') {
@@ -1970,7 +1981,18 @@
                 mutatorId: arr[19] || undefined,
                 d20Fate: arr[20] != null ? Number(arr[20]) : undefined,
                 customNemesisName: arr[21] || '',
-                mutators: Array.isArray(arr[22]) ? arr[22] : undefined
+                mutators: Array.isArray(arr[22]) ? arr[22] : undefined,
+                presetId: arr[23] || undefined,
+                chimeraChaos: arr.length > 24 ? Boolean(arr[24]) : undefined,
+                mithrilSmithing: arr.length > 25 ? Boolean(arr[25]) : undefined,
+                wovenSongs: arr.length > 26 ? Boolean(arr[26]) : undefined,
+                martialStances: arr.length > 27 ? Boolean(arr[27]) : undefined,
+                wantedBounties: arr.length > 28 ? Boolean(arr[28]) : undefined,
+                pantheonAltars: arr.length > 29 ? Boolean(arr[29]) : undefined,
+                livingPhysics: arr.length > 30 ? Boolean(arr[30]) : undefined,
+                evolvingAllies: arr.length > 31 ? Boolean(arr[31]) : undefined,
+                unidentifiedAppearances: arr.length > 32 ? Boolean(arr[32]) : undefined,
+                stampedVaults: arr.length > 33 ? Boolean(arr[33]) : undefined
             });
         } catch (_) {
             return null;
@@ -2372,9 +2394,9 @@
             id: 'yendor_relic_ascent',
             title: 'The Descent for the Relic of Yendor',
             subtitle: 'Rogue classic ascent pursuit: retrieve the Amulet from the depths and escape to DL 1 while hunted.',
-            archetypeId: 'glacial_bastion',
-            biome: 'frozen_wastes',
-            storyArc: 'frozen_throne',
+            archetypeId: 'sanctum_heist',
+            biome: 'catacombs',
+            storyArc: 'sovereign_heist',
             heroOrigin: 'rogue',
             powerDiscipline: 'auto',
             progressionMode: 'xp',
@@ -2793,17 +2815,23 @@
         const p = s.player;
         const mapW = engine.MAP_W || (s.map && s.map[0] ? s.map[0].length : 66);
         const mapH = engine.MAP_H || (s.map ? s.map.length : 22);
-        let nearAnvil = false;
+        let anvilPos = null;
         for (let dy = -1; dy <= 1; dy++) {
             for (let dx = -1; dx <= 1; dx++) {
                 const nx = p.x + dx, ny = p.y + dy;
                 if (nx >= 0 && nx < mapW && ny >= 0 && ny < mapH) {
-                    if (getCellFeat(s.map, nx, ny) === FEAT.ANVIL) nearAnvil = true;
+                    if (getCellFeat(s.map, nx, ny) === FEAT.ANVIL) anvilPos = { x: nx, y: ny };
                 }
             }
         }
-        if (!nearAnvil) {
+        if (!anvilPos) {
             log(engine, `You must stand next to a Mithril Anvil to smith.`);
+            return false;
+        }
+        s.usedAnvils = s.usedAnvils || {};
+        const anvilKey = `${s.depth || 1}:${anvilPos.x},${anvilPos.y}`;
+        if (s.usedAnvils[anvilKey]) {
+            log(engine, `This Mithril Anvil has already spent its rune-heat.`);
             return false;
         }
         const inv = Array.isArray(p.inventory) ? p.inventory : [];
@@ -2818,6 +2846,7 @@
         const chosen = brands[choiceIdx % brands.length];
         target.bonus = (target.bonus || 0) + 2;
         if (!target.name.includes(' of ')) target.name = `${target.name} ${chosen}`;
+        s.usedAnvils[anvilKey] = true;
         if (typeof engine.recalcPlayerDefenses === 'function') engine.recalcPlayerDefenses();
         log(engine, `With ringing hammer-blows, you temper ${target.name}! (+2)`);
         return true;
@@ -10521,6 +10550,14 @@ class NetHackEngine {
             return;
         }
         if (cmd.includes('pray')) {
+            const COOLDOWN = 800;
+            if (p.lastPrayTurn != null && (this.state.turn - p.lastPrayTurn) < COOLDOWN) {
+                p.luck = Math.max(-5, (p.luck || 0) - 1);
+                this.addMessage(`You feel that ${p.deity} is displeased with your impatience!`, 12);
+                this.advanceWorldTurn();
+                return;
+            }
+            p.lastPrayTurn = this.state.turn;
             const wasBlind = p.blind > 0;
             p.hp = p.hpMax;
             p.hunger = Math.max(p.hunger, 900);
@@ -10687,15 +10724,15 @@ class NetHackEngine {
         }
         if (cmd.includes('loot')) {
             const chestIdx = this.state.objects.findIndex(o => o.x === p.x && o.y === p.y && /chest|box|sack|bag/i.test(o.name || ''));
-            const g = 25 + this.rand(55);
-            p.gold += g;
             if (chestIdx >= 0) {
+                const g = 25 + this.rand(55);
+                p.gold += g;
                 const chest = this.state.objects.splice(chestIdx, 1)[0];
                 this.addMessage(`You unlock and loot the ${chest.name}, claiming ${g} zorkmids ($)!`, 14);
+                this.advanceWorldTurn();
             } else {
-                this.addMessage(`You carefully search the flagstones and uncover ${g} zorkmids ($).`, 14);
+                this.addMessage('There is no chest, box, or sack here to loot.', 1);
             }
-            this.advanceWorldTurn();
             return;
         }
         if (cmd.includes('untrap')) {
@@ -10737,8 +10774,18 @@ class NetHackEngine {
             return;
         }
         if (cmd.includes('enhance')) {
+            const curSkill = this.state.weaponSkillLevel || 1;
+            const reqKills = curSkill * 5;
+            if (curSkill >= 5) {
+                this.addMessage('Your martial & arcane mastery is already at [Grand Master].', 11);
+                return;
+            }
+            if ((p.level || 1) <= curSkill && (p.kills || 0) < reqKills) {
+                this.addMessage(`You need more combat experience before advancing (reach XL ${curSkill + 1} or slay ${reqKills} foes).`, 11);
+                return;
+            }
             const w = p.inventory.find(it => it.equipped === 'weapon') || p.inventory[0];
-            this.state.weaponSkillLevel = (this.state.weaponSkillLevel || 1) + 1;
+            this.state.weaponSkillLevel = curSkill + 1;
             this.state.spellSkillLevel = (this.state.spellSkillLevel || 1) + 1;
             const rankLabels = ['Unskilled', 'Basic', 'Skilled', 'Expert', 'Master', 'Grand Master'];
             const rank = rankLabels[Math.min(rankLabels.length - 1, this.state.weaponSkillLevel)];

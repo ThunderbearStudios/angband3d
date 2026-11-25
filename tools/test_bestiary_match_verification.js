@@ -164,9 +164,9 @@ test('Live multi-realm resolveMonster3DConfig maps 40+ signature creatures acros
     const resolve = sandbox.resolveMonster3DConfig;
 
     // --- Realm 1: Sil-Q ---
-    // Gothmog (R) -> bestiary_imp (NEVER obj_frog)
+    // Gothmog (R) -> bestiary_balrog (NEVER obj_frog or bestiary_imp)
     const gothmog = resolve({ race: 'Gothmog, High Captain of Balrogs', glyph: 'R' }, 'R', 'silq');
-    assert.strictEqual(gothmog.templateKey, 'bestiary_imp', 'Sil-Q Gothmog must map to bestiary_imp');
+    assert.strictEqual(gothmog.templateKey, 'bestiary_balrog', 'Sil-Q Gothmog must map to bestiary_balrog');
     assert.notStrictEqual(gothmog.templateKey, 'obj_frog', 'Sil-Q Gothmog must NEVER map to obj_frog');
 
     // Morgoth (V) -> ph_sledgehammer
@@ -188,8 +188,8 @@ test('Live multi-realm resolveMonster3DConfig maps 40+ signature creatures acros
     assert.strictEqual(carcharoth.templateKey, 'bestiary_wolf', 'Sil-Q Carcharoth must map to bestiary_wolf');
 
     // Additional Sil-Q checks
-    assert.strictEqual(resolve({ race: 'Lungorthin, Lord of Balrogs', glyph: 'R' }, 'R', 'silq').templateKey, 'bestiary_imp');
-    assert.strictEqual(resolve({ race: 'Ururauko', glyph: 'R' }, 'R', 'silq').templateKey, 'bestiary_imp');
+    assert.strictEqual(resolve({ race: 'Lungorthin, Lord of Balrogs', glyph: 'R' }, 'R', 'silq').templateKey, 'bestiary_balrog');
+    assert.strictEqual(resolve({ race: 'Ururauko', glyph: 'R' }, 'R', 'silq').templateKey, 'bestiary_balrog');
     assert.strictEqual(resolve({ race: 'Easterling warrior', glyph: 'p' }, 'p', 'silq').templateKey, 'char_male_ranger');
     assert.strictEqual(resolve({ race: 'Gorlim the Traitor', glyph: 'p' }, 'p', 'silq').templateKey, 'char_male_ranger');
     assert.strictEqual(resolve({ race: 'Shadow spider', glyph: 'S' }, 'S', 'silq').templateKey, 'obj_spider');
@@ -301,16 +301,16 @@ test('Live multi-realm resolveMonster3DConfig maps 40+ signature creatures acros
     const serpent = resolve({ race: 'The Serpent of Chaos', glyph: 'J' }, 'J', 'frogcomposband');
     assert.strictEqual(serpent.templateKey, 'bestiary_dragon', 'FCB Serpent of Chaos must map to bestiary_dragon');
 
-    // Cyberdemon (U) -> bestiary_imp
+    // Cyberdemon (U) -> bestiary_balrog
     const cyber = resolve({ race: 'Cyberdemon', glyph: 'U' }, 'U', 'frogcomposband');
-    assert.strictEqual(cyber.templateKey, 'bestiary_imp', 'FCB Cyberdemon must map to bestiary_imp');
+    assert.strictEqual(cyber.templateKey, 'bestiary_balrog', 'FCB Cyberdemon must map to bestiary_balrog');
 
-    // Great Cthulhu (U) -> bestiary_imp
+    // Great Cthulhu (U) -> bestiary_balrog
     const cthulhu = resolve({ race: 'Great Cthulhu', glyph: 'U' }, 'U', 'frogcomposband');
-    assert.strictEqual(cthulhu.templateKey, 'bestiary_imp', 'FCB Great Cthulhu must map to bestiary_imp');
+    assert.strictEqual(cthulhu.templateKey, 'bestiary_balrog', 'FCB Great Cthulhu must map to bestiary_balrog');
 
     // Additional FCB checks
-    assert.strictEqual(resolve({ race: 'Oremorj', glyph: 'U' }, 'U', 'frogcomposband').templateKey, 'bestiary_imp');
+    assert.strictEqual(resolve({ race: 'Oremorj', glyph: 'U' }, 'U', 'frogcomposband').templateKey, 'bestiary_balrog');
     assert.strictEqual(resolve({ race: 'Yeek king', glyph: 'y' }, 'y', 'frogcomposband').templateKey, 'bestiary_goblin');
     assert.strictEqual(resolve({ race: 'Chaos drake', glyph: 'd' }, 'd', 'frogcomposband').templateKey, 'bestiary_dragon');
     assert.strictEqual(resolve({ race: 'Forest spider', glyph: 'S' }, 'S', 'frogcomposband').templateKey, 'obj_spider');

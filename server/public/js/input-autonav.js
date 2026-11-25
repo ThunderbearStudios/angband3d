@@ -336,7 +336,7 @@
             const isExplore = Boolean(opts && opts.isExplore);
 
             this._autoNav = {
-                active: true, isExplore,
+                active: true, isExplore, stopAdjacent: Boolean(opts && opts.stopAdjacent),
                 visitedGoals: (opts && opts.visitedGoals) ? opts.visitedGoals : new Set([`${px},${py}`]),
                 goalX: path[path.length - 1].x, goalY: path[path.length - 1].y, path: path.slice(),
                 lastHp: Number(frame.player.hp ?? 0), startStatusesSig: this._statusSignatureOf(frame.player),
@@ -437,6 +437,9 @@
                 }
             }
 
+            if (nav.stopAdjacent && Math.max(Math.abs(nav.goalX - px), Math.abs(nav.goalY - py)) <= 1) {
+                this.stopMinimapAutoNav('Reached target'); return;
+            }
             if ((px === nav.goalX && py === nav.goalY) || nav.path.length === 0) {
                 if (nav.isExplore) {
                     if (nav.visitedGoals) nav.visitedGoals.add(`${nav.goalX},${nav.goalY}`);

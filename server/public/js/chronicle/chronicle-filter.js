@@ -236,7 +236,7 @@ class ChronicleFilter {
         const equippedBow = (player && player.bow_item) ? player.bow_item : null;
         const equippedQuiver = (player && player.quiver_item) ? player.quiver_item : null;
 
-        if (this.lastSp !== null && typeof player.sp === 'number' && player.sp < this.lastSp) {
+        if (this.lastSp !== null && typeof player.sp === 'number' && player.sp < this.lastSp && String(frame.realm || '').toLowerCase() !== 'silq') {
             this.lastAttackMedium = { method: 'spell', type: 'spell', name: 'incantation', element: 'arcane', detail: 'mana expenditure' };
         }
         this.lastSp = (typeof player.sp === 'number') ? player.sp : null;
@@ -402,7 +402,8 @@ class ChronicleFilter {
             const diesMatch = msg.match(RE_MON_DIES);
             const slainMatch = msg.match(RE_SLAIN);
             const isTrapDestruction = /\b(?:dart trap|arrow trap|falling rock trap|magic trap|pit trap|bear trap|trap door|a trap|the trap)\b/i.test(msg);
-            const isKill = !isTrapDestruction && (diesMatch || slainMatch || /\b(?:You\s+(?:have\s+slain|slay|kill|destroy|vanquish)|destroyed)\b/i.test(msg) || /\bdies(?:\.|\!|$)/i.test(msg));
+            const isItemDestruction = !diesMatch && !slainMatch && /\b(?:destroyed|shatters?|melts?|evaporates?|burns?\s+up)\b/i.test(msg) && /\b(?:scroll|potion|wand|rod|staff|book|ring|amulet|weapon|armor|armour|ration|torch|lantern)\b/i.test(msg);
+            const isKill = !isTrapDestruction && !isItemDestruction && (diesMatch || slainMatch || /\b(?:You\s+(?:have\s+slain|slay|kill|destroy|vanquish)|destroyed)\b/i.test(msg) || /\bdies(?:\.|\!|$)/i.test(msg));
             if (isKill) {
                 this.episodeAccumulator.monstersSlain++;
                 frameKills.push(msg);

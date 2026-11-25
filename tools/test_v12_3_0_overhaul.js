@@ -78,8 +78,8 @@ function readRel(relPath) {
     const srvSrc = readRel('server/src/server.js');
     check(srvSrc.includes('_aiStudioDepletedUntil'), 'WS-1: server.js shares _aiStudioDepletedUntil circuit breaker');
     check(srvSrc.includes("update(realm + ':' + prompt.trim())"), 'WS-1: server.js hashes full realm + prompt cache key');
-    check(srvSrc.includes("'gemini-nano-banana-2.1'") && srvSrc.includes("'gemini-3.1-flash-image'") && srvSrc.includes("'gemini-2.5-flash-image'"),
-        'WS-1: server.js preserves all 3 pinned SKETCH_MODELS');
+    check(srvSrc.includes("'gemini-nano-banana-2.1'") && srvSrc.includes("'gemini-3.1-flash-image'") && !srvSrc.includes("'gemini-2.5-flash-image'"),
+        'WS-1: server.js uses active SKETCH_MODELS without retired gemini-2.5-flash-image');
 }
 
 // ---------------------------------------------------------------------------

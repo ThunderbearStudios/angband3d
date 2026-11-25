@@ -71,6 +71,7 @@ async function run() {
     console.log('   -> Upload response:', uploadJson);
     assert.strictEqual(uploadJson.status, 'saved');
     const uploadedFilename = uploadJson.filename;
+    const authHeaders = uploadJson.ownerToken ? { 'X-Owner-Token': uploadJson.ownerToken } : {};
 
     // 2. Verify listing
     console.log('2. Verifying save exists in /api/saves listing...');
@@ -78,7 +79,8 @@ async function run() {
         hostname: 'localhost',
         port: 8080,
         path: '/api/saves',
-        method: 'GET'
+        method: 'GET',
+        headers: authHeaders
     });
     assert.strictEqual(listRes.status, 200);
     const listJson = listRes.json();
@@ -92,7 +94,8 @@ async function run() {
         hostname: 'localhost',
         port: 8080,
         path: `/api/saves/${encodeURIComponent(uploadedFilename)}`,
-        method: 'GET'
+        method: 'GET',
+        headers: authHeaders
     });
     assert.strictEqual(downloadRes.status, 200);
     assert.strictEqual(downloadRes.headers['content-type'], 'application/octet-stream');
@@ -106,7 +109,8 @@ async function run() {
         hostname: 'localhost',
         port: 8080,
         path: `/api/saves/${encodeURIComponent(uploadedFilename)}`,
-        method: 'DELETE'
+        method: 'DELETE',
+        headers: authHeaders
     });
     assert.strictEqual(deleteRes.status, 200);
     console.log('   -> Successfully deleted test save.');
