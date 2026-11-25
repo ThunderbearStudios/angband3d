@@ -45,7 +45,8 @@
     "test_bestiary_no_aislop.js",
     "test_9realm_parity_matrix.js",
     "audit_9realm_bestiary_exhaustive.js",
-    "test_wave0_hardening.js"
+    "test_wave0_hardening.js",
+    "test_wave1_vps_infra.js"
   ],
   "e2e": [
     "verify_cross_realm_menus.js",

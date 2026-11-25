@@ -944,8 +944,22 @@ Press 'm' to open the Abilities & Magic prompt:
     return map[realm] || [];
 }
 
+const MAX_HELP_CACHE = 256;
+const listHelpCache = new Map();
+const readHelpCache = new Map();
+
+function putBoundedHelpCache(map, key, val) {
+    if (map.has(key)) map.delete(key);
+    else if (map.size >= MAX_HELP_CACHE) {
+        const oldest = map.keys().next().value;
+        if (oldest !== undefined) map.delete(oldest);
+    }
+    map.set(key, val);
+}
+
 function listHelpFiles(realm) {
     const r = String(realm || 'angband').toLowerCase();
+    if (listHelpCache.has(r)) return listHelpCache.get(r).map(item => ({ ...item }));
     const results = [];
     const seen = new Set();
 
@@ -1017,7 +1031,8 @@ function listHelpFiles(realm) {
         return a.name.localeCompare(b.name);
     });
 
-    return results;
+    putBoundedHelpCache(listHelpCache, r, results);
+    return results.map(item => ({ ...item }));
 }
 
 function readHelpFile(realm, fileName) {
@@ -1026,6 +1041,8 @@ function readHelpFile(realm, fileName) {
     if (!cleanName || cleanName !== fileName || cleanName.includes('..')) {
         return null;
     }
+    const cacheKey = `${r}:${cleanName}`;
+    if (readHelpCache.has(cacheKey)) return readHelpCache.get(cacheKey);
 
     // Check virtual help files first
     const virtuals = getVirtualHelpFiles(r);
@@ -1052,21 +1069,25 @@ function readHelpFile(realm, fileName) {
         if (!['.txt', '.rst', '.md', '.hlp', '.pdf', '.html'].includes(ext)) continue;
         const buf = fs.readFileSync(candidate);
         if (ext === '.pdf') {
-            return {
+            const pdfRes = {
                 name: cleanName,
                 label: FILE_LABELS[cleanName] || cleanName,
                 contentType: 'application/pdf',
                 buffer: buf,
                 isBinary: true
             };
+            putBoundedHelpCache(readHelpCache, cacheKey, pdfRes);
+            return pdfRes;
         }
-        return {
+        const txtRes = {
             name: cleanName,
             label: FILE_LABELS[cleanName] || cleanName,
             contentType: 'text/plain; charset=utf-8',
             buffer: buf,
             text: buf.toString('utf8')
         };
+        putBoundedHelpCache(readHelpCache, cacheKey, txtRes);
+        return txtRes;
     }
 
     return null;

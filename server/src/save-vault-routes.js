@@ -127,7 +127,9 @@ function createSaveVaultService({
     uploadLimiter,
     vaultSyncLimiter,
     clientIp,
-    normalizeSessionKey
+    normalizeSessionKey,
+    vaultIndex = null,
+    savesCacheTtlMs = SAVES_CACHE_TTL_MS
 }) {
     const savesCacheMap = new Map(); // realm -> { entries, time }
     const savesListInFlight = new Map(); // realm -> Promise<entries>
@@ -136,7 +138,7 @@ function createSaveVaultService({
     const deadSavePaths = new Set();
 
     function isProdEnv() {
-        return process.env.TRUST_PROXY === '1' || Boolean(process.env.K_SERVICE);
+        return process.env.TRUST_PROXY === '1' || Boolean(process.env.K_SERVICE) || process.env.DEPLOY_TARGET === 'ovh';
     }
 
     function invalidateSavesCache(realm = null, slotName = null) {
@@ -348,6 +350,13 @@ function createSaveVaultService({
             if (cached && cached.mtimeMs === stat.mtimeMs && cached.size === stat.size) {
                 return cached.meta;
             }
+            if (vaultIndex) {
+                const dbMeta = vaultIndex.getSaveMeta(resolved, stat.mtimeMs, stat.size);
+                if (dbMeta) {
+                    setBoundedMap(savesMetaIndex, MAX_SAVES_META_INDEX, resolved, { mtimeMs: stat.mtimeMs, size: stat.size, meta: dbMeta });
+                    return dbMeta;
+                }
+            }
             let fh = null;
             try {
                 fh = await fs.promises.open(resolved, 'r');
@@ -431,6 +440,7 @@ function createSaveVaultService({
                     size: stat.size,
                     meta
                 });
+                if (vaultIndex) vaultIndex.upsertSaveMeta(resolved, meta.realm, meta.filename, stat.mtimeMs, stat.size, meta);
                 return meta;
             } finally {
                 if (fh) {
@@ -450,6 +460,13 @@ function createSaveVaultService({
             const cached = savesMetaIndex.get(resolved);
             if (cached && cached.mtimeMs === stat.mtimeMs && cached.size === stat.size) {
                 return cached.meta;
+            }
+            if (vaultIndex) {
+                const dbMeta = vaultIndex.getSaveMeta(resolved, stat.mtimeMs, stat.size);
+                if (dbMeta) {
+                    setBoundedMap(savesMetaIndex, MAX_SAVES_META_INDEX, resolved, { mtimeMs: stat.mtimeMs, size: stat.size, meta: dbMeta });
+                    return dbMeta;
+                }
             }
             const fd = fs.openSync(resolved, 'r');
             try {
@@ -519,6 +536,7 @@ function createSaveVaultService({
                     size: stat.size,
                     meta
                 });
+                if (vaultIndex) vaultIndex.upsertSaveMeta(resolved, meta.realm, meta.filename, stat.mtimeMs, stat.size, meta);
                 return meta;
             } finally {
                 try { fs.closeSync(fd); } catch (_) {}
@@ -637,7 +655,7 @@ function createSaveVaultService({
         }
         const discovered = Array.from(bySlotKey.values());
         discovered.sort((a, b) => b.mtimeMs - a.mtimeMs);
-        savesCacheMap.set(queryRealm, { entries: discovered, time: Date.now() });
+        if (savesCacheTtlMs > 0) savesCacheMap.set(queryRealm, { entries: discovered, time: Date.now() });
         return discovered;
     }
 
@@ -654,7 +672,7 @@ function createSaveVaultService({
             const now = Date.now();
             let allEntries = null;
             const cached = savesCacheMap.get(queryRealm);
-            if (cached && Array.isArray(cached.entries) && (now - cached.time < SAVES_CACHE_TTL_MS)) {
+            if (savesCacheTtlMs > 0 && cached && Array.isArray(cached.entries) && (now - cached.time < savesCacheTtlMs)) {
                 allEntries = cached.entries;
             } else {
                 let inFlight = savesListInFlight.get(queryRealm);
@@ -1225,6 +1243,7 @@ function createSaveVaultService({
                         size: saveBuf.length,
                         meta: metadata
                     });
+                    if (vaultIndex) vaultIndex.upsertSaveMeta(destPath, detectedRealm, finalName, sidecarOut.updatedAt, saveBuf.length, metadata);
                     invalidateSavesCache(detectedRealm, finalName);
 
                     res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -1343,6 +1362,7 @@ function createSaveVaultService({
                 clearSaveDead(savePath);
                 savesMetaIndex.delete(path.resolve(savePath));
                 ownerHashCache.delete(path.resolve(savePath));
+                if (vaultIndex) vaultIndex.deleteSaveMeta(savePath);
             }
 
             invalidateSavesCache(queryRealm, saveName);

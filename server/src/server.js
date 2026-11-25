@@ -20,6 +20,11 @@ const { guardMutation } = require('./http-guard');
 const { createLimiter, createVaultSyncLimiter, clientIp, DEFAULT_MAX_WS_PER_IP } = require('./rate-limit');
 const { createSaveVaultService } = require('./save-vault-routes');
 const { generateChronicleSketch } = require('./sketch-service');
+const vpsConfig = require('./vps-config');
+const { createVaultIndex } = require('./vault-sqlite');
+const { createNvmeMediaCache } = require('./media-cache-nvme');
+const vaultIndex = createVaultIndex(vpsConfig.DB_DIR ? path.join(vpsConfig.DB_DIR, 'vault.db') : '');
+const nvmeCache = createNvmeMediaCache({ cacheDir: vpsConfig.CACHE_DIR, maxBytes: vpsConfig.NVME_CACHE_MAX_BYTES });
 const {
     PRIMARY_DOMAIN,
     LEGACY_DOMAINS,
@@ -447,6 +452,7 @@ function getGcpAuthContext(opts = {}) {
     if (!forceRefresh && _gcpAuthCache.failedUntil && now < _gcpAuthCache.failedUntil) {
         return Promise.resolve({ token: '', projectId: '' });
     }
+    if (vpsConfig.SKIP_GCP_METADATA) return Promise.resolve({ token: '', projectId: '' });
     if (!forceRefresh && _gcpAuthCache.inflight) return _gcpAuthCache.inflight;
     const onGcpMetadataEnv = Boolean(process.env.K_SERVICE || process.env.GOOGLE_CLOUD_PROJECT || process.env.CLOUD_RUN_JOB);
     const metaPromise = onGcpMetadataEnv
@@ -766,12 +772,11 @@ loadEnv();
 // Configuration
 const PORT = parseInt(process.env.PORT || '8080', 10);
 const IS_WIN = process.platform === 'win32';
-const IDLE_TIMEOUT_MS = parseInt(process.env.IDLE_TIMEOUT_MS || `${15 * 60 * 1000}`, 10); // 15 minutes (WS70 Cloud Run cost guard)
-const MAX_CONCURRENT_GAMES = parseInt(process.env.MAX_CONCURRENT_GAMES || '36', 10);
+const IDLE_TIMEOUT_MS = vpsConfig.IDLE_TIMEOUT_MS;
+const MAX_CONCURRENT_GAMES = vpsConfig.MAX_CONCURRENT_GAMES;
 const MAX_WS_PER_IP = parseInt(process.env.MAX_WS_PER_IP || String(DEFAULT_MAX_WS_PER_IP), 10);
-const MAX_QUEUE_SIZE = parseInt(process.env.MAX_QUEUE_SIZE || '100', 10);
-// Reconnect Grace Period: Keeps headless game engine alive across network drops or reloads (90s default for play; 20s setup)
-const DISCONNECT_GRACE_PERIOD_MS = parseInt(process.env.DISCONNECT_GRACE_PERIOD_MS || `${90 * 1000}`, 10); // 90 seconds
+const MAX_QUEUE_SIZE = vpsConfig.MAX_QUEUE_SIZE;
+const DISCONNECT_GRACE_PERIOD_MS = vpsConfig.DISCONNECT_GRACE_PERIOD_MS;
 
 // Waiting queue for connections when activeSessions.size >= MAX_CONCURRENT_GAMES
 // Each item: { id, ws, request, enqueueTime, user, save }
@@ -1071,7 +1076,9 @@ saveVault = createSaveVaultService({
     uploadLimiter,
     vaultSyncLimiter,
     clientIp,
-    normalizeSessionKey
+    normalizeSessionKey,
+    vaultIndex,
+    savesCacheTtlMs: vpsConfig.SAVES_CACHE_TTL_MS
 });
 
 const {
@@ -1113,7 +1120,9 @@ const EXTRA_ALLOWED_ORIGINS = new Set(
         'https://angband3d.com',
         'http://angband3d.com',
         'https://www.angband3d.com',
-        'http://www.angband3d.com'
+        'http://www.angband3d.com',
+        'https://staging.yasd3d.com',
+        'https://ovh-origin.yasd3d.com'
     ].concat((process.env.ALLOWED_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean))
 );
 EXTRA_ALLOWED_ORIGINS.some = function(fn) {
@@ -1134,7 +1143,7 @@ function isAllowedOrigin(origin, host, req) {
         const sfs = req && req.headers && req.headers['sec-fetch-site'];
         if (sfs === 'same-origin' || sfs === 'same-site') return true;
         if (sfs && sfs !== 'none') return false;
-        const isProd = process.env.TRUST_PROXY === '1' || Boolean(process.env.K_SERVICE);
+        const isProd = process.env.TRUST_PROXY === '1' || Boolean(process.env.K_SERVICE) || vpsConfig.IS_OVH;
         if (isProd && req && !isLoopbackRequest(req)) {
             const referer = req.headers && req.headers.referer;
             if (referer) {
@@ -1259,6 +1268,8 @@ const server = http.createServer((req, res) => {
             activeSessions: activeSessions.size,
             engine: fs.existsSync(ENGINE_EXE) ? 'ready' : 'missing',
             version: appVersion,
+            deployTarget: vpsConfig.DEPLOY_TARGET,
+            nvmeCache: nvmeCache.enabled,
             timestamp: Date.now()
         }));
         return;
@@ -1472,6 +1483,8 @@ const server = http.createServer((req, res) => {
             maxCapacity: MAX_CONCURRENT_GAMES,
             waitingQueue: waitingQueue.length,
             maxQueueSize: MAX_QUEUE_SIZE,
+            deployTarget: vpsConfig.DEPLOY_TARGET,
+            nvmeCache: nvmeCache.enabled,
             version: appVersion
         }));
         return;
@@ -1720,15 +1733,7 @@ const server = http.createServer((req, res) => {
             res.end(JSON.stringify({ error: 'Origin not allowed' }));
             return;
         }
-
         const customKey = String(req.headers['x-goog-api-key'] || req.headers['x-api-key'] || '').trim();
-        const wait = sketchLimiter(clientIp(req)) || (customKey ? 0 : globalSketchLimiter('GLOBAL'));
-        if (wait > 0) {
-            res.writeHead(429, { 'Content-Type': 'application/json', 'Retry-After': wait });
-            res.end(JSON.stringify({ error: { message: 'Rate limit' } }));
-            return;
-        }
-
         let rawBody = '';
         const maxBodyBytes = 16384;
         req.on('data', chunk => {
@@ -1742,42 +1747,35 @@ const server = http.createServer((req, res) => {
             }
         });
 
-        req.on('end', () => {
+        req.on('end', async () => {
             let parsed = null;
-            try {
-                parsed = JSON.parse(rawBody);
-            } catch (e) {
+            try { parsed = JSON.parse(rawBody); } catch (e) {
                 res.writeHead(400, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ error: { message: 'Invalid JSON payload' } }));
                 return;
             }
-
             const realm = (parsed.realm || 'angband').toString();
             const prompt = (typeof parsed.prompt === 'string' ? parsed.prompt.trim() : '');
-
             if (!prompt || typeof prompt !== 'string' || prompt.length > 4000) {
                 res.writeHead(400, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ error: { message: 'Invalid or missing prompt (max 4000 chars)' } }));
                 return;
             }
-
             const cacheKey = crypto.createHash('sha256').update(realm + ':' + prompt.trim()).digest('hex');
-            if (sketchCache.has(cacheKey)) {
-                const cachedEntry = sketchCache.get(cacheKey);
+            const cachedEntry = sketchCache.has(cacheKey) ? sketchCache.get(cacheKey) : await nvmeCache.getSketch(cacheKey);
+            if (cachedEntry) {
                 sketchCache.delete(cacheKey);
                 sketchCache.set(cacheKey, cachedEntry);
                 const cachedImg = (cachedEntry && typeof cachedEntry === 'object') ? cachedEntry.imageUrl : cachedEntry;
                 const cachedModel = (cachedEntry && typeof cachedEntry === 'object' && cachedEntry.model) ? cachedEntry.model : 'gemini-3.1-flash-image';
-                res.writeHead(200, {
-                    'Content-Type': 'application/json',
-                    'Cache-Control': 'no-cache, no-store, must-revalidate'
-                });
-                res.end(JSON.stringify({
-                    ok: true,
-                    imageUrl: cachedImg,
-                    model: cachedModel,
-                    cached: true
-                }));
+                res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-cache, no-store, must-revalidate' });
+                res.end(JSON.stringify({ ok: true, imageUrl: cachedImg, model: cachedModel, cached: true }));
+                return;
+            }
+            const wait = sketchLimiter(clientIp(req)) || (customKey ? 0 : globalSketchLimiter('GLOBAL'));
+            if (wait > 0) {
+                res.writeHead(429, { 'Content-Type': 'application/json', 'Retry-After': wait });
+                res.end(JSON.stringify({ error: { message: 'Rate limit' } }));
                 return;
             }
 
@@ -1831,7 +1829,9 @@ const server = http.createServer((req, res) => {
                         const oldestKey = sketchCache.keys().next().value;
                         if (oldestKey !== undefined) sketchCache.delete(oldestKey);
                     }
-                    sketchCache.set(cacheKey, { imageUrl: result.imageUrl, model: result.model || 'gemini-3.1-flash-image' });
+                    const skEntry = { imageUrl: result.imageUrl, model: result.model || 'gemini-3.1-flash-image' };
+                    sketchCache.set(cacheKey, skEntry);
+                    nvmeCache.putSketch(cacheKey, skEntry);
                 }
                 finishSketchRequest(result || { ok: false, fallback: true, reason: 'upstream_error_502', error: 'AI sketch unavailable (upstream_error_502)' });
             }).catch((err) => {
@@ -1844,18 +1844,7 @@ const server = http.createServer((req, res) => {
 
     // REST: Dual-Engine Neural Text-To-Speech (/api/tts?text=...&role=...&engine=edge|gemini&emotion=...)
     if (pathname === '/api/tts' && (req.method === 'GET' || req.method === 'HEAD')) {
-        const wait = ttsLimiter(clientIp(req)) || globalTtsLimiter('GLOBAL');
-        if (wait > 0) {
-            res.writeHead(429, { 'Content-Type': 'application/json', 'Retry-After': wait });
-            res.end(JSON.stringify({ error: { message: 'Rate limit' } }));
-            return;
-        }
-
-        if (req.method === 'HEAD') {
-            res.writeHead(200, { 'Content-Type': 'audio/mpeg' });
-            res.end();
-            return;
-        }
+        if (req.method === 'HEAD') { res.writeHead(200, { 'Content-Type': 'audio/mpeg' }); res.end(); return; }
 
         // Fast mute exit: If audio is muted by client, skip processing and return 204 No Content
         if (urlObj.searchParams.get('muted') === '1' || req.headers['x-tome-muted'] === '1') {
@@ -1962,6 +1951,7 @@ const server = http.createServer((req, res) => {
             }
             ttsAudioCache.set(cacheKey, wavBuffer);
             ttsAudioCacheBytes += wavBuffer.length;
+            nvmeCache.putTts(cacheKey, wavBuffer);
         }
 
         function sendWavResponse(buffer, isHit = false, fallbackHdr = null) {
@@ -1978,14 +1968,8 @@ const server = http.createServer((req, res) => {
             res.end(buffer);
         }
 
-        // --- ENGINE B: GEMINI NATIVE CONTROLLABLE AUDIO ---
+        // --- ENGINE B: GEMINI NATIVE CONTROLLABLE AUDIO (check RAM + NVMe cache before rate limiters) ---
         if (requestedEngine === 'gemini') {
-            const hasCloudAuth = hasVertexCandidate();
-            if (!geminiApiKey && !hasCloudAuth) {
-                handleEdgeTTS('No Gemini API key configured');
-                return;
-            }
-
             const geminiVoice = resolveGeminiVoiceChoice();
             const geminiCacheKey = `gemini:${geminiVoice}:${role}:${isJpText ? 'jp' : reqLang}:${emotion}:${geminiTag}:${directorNote}:${text}`;
             if (ttsAudioCache.has(geminiCacheKey)) {
@@ -1995,47 +1979,29 @@ const server = http.createServer((req, res) => {
                 sendWavResponse(hitBuf, true);
                 return;
             }
-
-            if (inFlightTTS.has(geminiCacheKey)) {
-                inFlightTTS.get(geminiCacheKey)
-                    .then(wavBuffer => sendWavResponse(wavBuffer, false))
-                    .catch(geminiErr => {
-                        console.warn(`[TTS] Gemini Native Audio error: ${redactSecret(geminiErr.message, geminiApiKey)}`);
-                        handleEdgeTTS(geminiErr.message);
-                    });
-                return;
-            }
-
-            console.log(`[TTS] Gemini Native Request: voice=${geminiVoice}, role=${role}, emotion=${emotion || 'calm'}`);
-            const synthPromise = synthesizeGeminiTTS({
-                text,
-                voice: geminiVoice,
-                emotion,
-                geminiTag,
-                directorNote,
-                role,
-                apiKey: geminiApiKey,
-                realm: reqRealm,
-                lang: isJpText ? 'jp' : reqLang
-            }).then(wavBuffer => {
-                inFlightTTS.delete(geminiCacheKey);
-                cacheGeminiWav(geminiCacheKey, wavBuffer);
-                return wavBuffer;
-            }).catch(geminiErr => {
-                inFlightTTS.delete(geminiCacheKey);
-                throw geminiErr;
-            });
-
-            inFlightTTS.set(geminiCacheKey, synthPromise);
-
-            synthPromise.then(wavBuffer => {
-                sendWavResponse(wavBuffer, false);
-            }).catch(geminiErr => {
-                console.warn(`[TTS] Gemini Native Audio error: ${redactSecret(geminiErr.message, geminiApiKey)}`);
-                handleEdgeTTS(geminiErr.message);
-            });
+            const hasCloudAuth = hasVertexCandidate();
+            nvmeCache.getTts(geminiCacheKey).then((diskHit) => {
+                if (diskHit) { cacheGeminiWav(geminiCacheKey, diskHit); sendWavResponse(diskHit, true); return; }
+                const wait = ttsLimiter(clientIp(req)) || globalTtsLimiter('GLOBAL');
+                if (wait > 0) { res.writeHead(429, { 'Content-Type': 'application/json', 'Retry-After': wait }); res.end(JSON.stringify({ error: { message: 'Rate limit' } })); return; }
+                if (!geminiApiKey && !hasCloudAuth) { handleEdgeTTS('No Gemini API key configured'); return; }
+                if (inFlightTTS.has(geminiCacheKey)) {
+                    inFlightTTS.get(geminiCacheKey).then(wavBuffer => sendWavResponse(wavBuffer, false))
+                        .catch(geminiErr => { console.warn(`[TTS] Gemini Native Audio error: ${redactSecret(geminiErr.message, geminiApiKey)}`); handleEdgeTTS(geminiErr.message); });
+                    return;
+                }
+                console.log(`[TTS] Gemini Native Request: voice=${geminiVoice}, role=${role}, emotion=${emotion || 'calm'}`);
+                const synthPromise = synthesizeGeminiTTS({ text, voice: geminiVoice, emotion, geminiTag, directorNote, role, apiKey: geminiApiKey, realm: reqRealm, lang: isJpText ? 'jp' : reqLang })
+                    .then(wavBuffer => { inFlightTTS.delete(geminiCacheKey); cacheGeminiWav(geminiCacheKey, wavBuffer); return wavBuffer; })
+                    .catch(geminiErr => { inFlightTTS.delete(geminiCacheKey); throw geminiErr; });
+                inFlightTTS.set(geminiCacheKey, synthPromise);
+                synthPromise.then(wavBuffer => sendWavResponse(wavBuffer, false))
+                    .catch(geminiErr => { console.warn(`[TTS] Gemini Native Audio error: ${redactSecret(geminiErr.message, geminiApiKey)}`); handleEdgeTTS(geminiErr.message); });
+            }).catch(() => { if (!res.headersSent) handleEdgeTTS('NVMe cache error'); });
             return;
         }
+        const edgeWait = ttsLimiter(clientIp(req)) || globalTtsLimiter('GLOBAL');
+        if (edgeWait > 0) { res.writeHead(429, { 'Content-Type': 'application/json', 'Retry-After': edgeWait }); res.end(JSON.stringify({ error: { message: 'Rate limit' } })); return; }
 
         // --- ENGINE A: EXPRESSIVE EDGE NEURAL (WITH GEMINI VERTEX FAILOVER WHEN EDGE IS 403/UNAVAILABLE) ---
         handleEdgeTTS();
@@ -2512,7 +2478,7 @@ const server = http.createServer((req, res) => {
     const staticHotMap = server._staticHotMap || (server._staticHotMap = new Map());
     const nowStatMs = Date.now();
     let staticMeta = staticHotMap.get(filePath);
-    if (!staticMeta || (!process.env.K_SERVICE && nowStatMs - staticMeta.checkedAt > 2000)) {
+    if (!staticMeta || (!vpsConfig.STATIC_STAT_IMMUTABLE && nowStatMs - staticMeta.checkedAt > 2000)) {
         try {
             const fileStat = fs.statSync(filePath);
             if (!fileStat.isFile()) {
@@ -2649,7 +2615,7 @@ const server = http.createServer((req, res) => {
                         if (!isNaN(start) && !isNaN(end) && start < total && start <= end) {
                             // Cloud Run (Google Frontend) enforces a strict 32MB payload limit on response bodies.
                             // Cap streaming chunks to 4MB (4,194,304 bytes) for instant seeking and proxy resilience.
-                            const MAX_CHUNK = 4 * 1024 * 1024;
+                            const MAX_CHUNK = vpsConfig.RANGE_MAX_CHUNK_BYTES;
                             const actualEnd = Math.min(end, start + MAX_CHUNK - 1, total - 1);
                             const chunksize = (actualEnd - start) + 1;
                             const stream = fs.createReadStream(filePath, { start, end: actualEnd });
@@ -3411,7 +3377,7 @@ function handleSessionDisconnect(sessionId, socket = null) {
 
     // Check if the engine process is still running
     if (session.child && !session.child.killed && session.child.exitCode === null) {
-        const graceMs = (session.phase === 'setup' || session.isDead) ? Math.min(DISCONNECT_GRACE_PERIOD_MS, 20000) : DISCONNECT_GRACE_PERIOD_MS;
+        const graceMs = (session.phase === 'setup' || session.isDead) ? Math.min(DISCONNECT_GRACE_PERIOD_MS, vpsConfig.SETUP_GRACE_PERIOD_MS) : DISCONNECT_GRACE_PERIOD_MS;
         console.log(`[WebSocket] Client disconnected from session ${sessionId} (Phase: ${session.phase || 'unknown'}, isDead: ${session.isDead || false}). Keeping engine alive for ${Math.round(graceMs / 1000)}s grace period...`);
 
         // Only issue non-blocking save command if actively in gameplay and player is NOT dead
@@ -4538,6 +4504,7 @@ async function gracefulShutdown(signal) {
         } catch (_) {}
     }
     waitingQueue.length = 0;
+    try { vaultIndex.close(); } catch (_) {}
 
     const drainPromises = [];
     for (const session of sessionsSnapshot) {

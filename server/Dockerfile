@@ -125,8 +125,9 @@ COPY variants/ryod/ /app/variants/ryod/
 COPY engine-manifest.json /app/engine-manifest.json
 COPY CREDITS.md /app/CREDITS.md
 
-# Prepare directories for persistent player saves, standalone dist, web client, and symlink hengband-en
-RUN mkdir -p /data/save /app/dist /app/public \
+# Prepare directories, non-root user (yasd3d uid 10001), and symlink hengband-en
+RUN groupadd -g 10001 yasd3d && useradd -u 10001 -g yasd3d -r -m -d /home/yasd3d -s /usr/sbin/nologin yasd3d && \
+    mkdir -p /data/save /data/cache /data/db /app/dist /app/public \
              /app/variants/frogcomposband/lib/save \
              /app/variants/silq/lib/save \
              /app/variants/hengband/lib/save \
@@ -141,7 +142,8 @@ RUN mkdir -p /data/save /app/dist /app/public \
              /app/variants/frogcomposband/bin/frogcomposband \
              /app/variants/silq/bin/silq \
              /app/variants/hengband/bin/hengband \
-             /app/variants/hengband/bin/hengband-en
+             /app/variants/hengband/bin/hengband-en && \
+    chown -R yasd3d:yasd3d /data /app/variants/*/lib/save
 
 VOLUME /data/save
 WORKDIR /app/server
@@ -149,11 +151,15 @@ WORKDIR /app/server
 ENV PORT=8080
 ENV ENGINE_EXE=/app/engine/angband
 ENV SAVE_DIR=/data/save
+ENV CACHE_DIR=/data/cache
+ENV DB_DIR=/data/db
 ENV DIST_DIR=/app/dist
 ENV WEB_DIR=/app/public
 ENV NODE_ENV=production
 ENV TRUST_PROXY=1
 ENV TRUST_CLOUDFLARE=1
+
+USER yasd3d
 
 EXPOSE 8080
 

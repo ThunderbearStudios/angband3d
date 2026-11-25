@@ -1,6 +1,98 @@
 import { FONTS_BASE64 } from "./fonts-data.js";
 
-const ORIGIN = "https://angband3d-cloud-564958309282.us-central1.run.app";
+const DEFAULT_FALLBACK_ORIGIN = "https://angband3d-cloud-564958309282.us-central1.run.app";
+
+const MIME_MAP = {
+  ".glb": "model/gltf-binary",
+  ".gltf": "model/gltf+json",
+  ".bin": "application/octet-stream",
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".webp": "image/webp",
+  ".avif": "image/avif",
+  ".ktx2": "image/ktx2",
+  ".svg": "image/svg+xml",
+  ".json": "application/json; charset=utf-8",
+  ".wasm": "application/wasm",
+  ".js": "application/javascript; charset=utf-8",
+  ".mp3": "audio/mpeg",
+  ".ogg": "audio/ogg",
+  ".webm": "video/webm",
+  ".mp4": "video/mp4",
+  ".woff2": "font/woff2",
+  ".ico": "image/x-icon",
+};
+
+function resolveOrigins(env) {
+  const fallbackOrigin = (env && env.FALLBACK_ORIGIN) || DEFAULT_FALLBACK_ORIGIN;
+  const primaryOrigin = (env && env.PRIMARY_ORIGIN) || fallbackOrigin;
+  const originMode = String((env && env.ORIGIN_MODE) || "cloudrun").toLowerCase().trim();
+  const activeOrigin = originMode === "ovh" ? primaryOrigin : fallbackOrigin;
+  const canFailover = originMode === "ovh" && primaryOrigin !== fallbackOrigin;
+  return { originMode, primaryOrigin, fallbackOrigin, activeOrigin, canFailover };
+}
+
+function isOriginFailoverStatus(status) {
+  return status === 502 || status === 503 || status === 504 || (status >= 520 && status <= 526);
+}
+
+function guessContentType(pathname) {
+  const lower = pathname.toLowerCase();
+  const dot = lower.lastIndexOf(".");
+  return dot >= 0 && MIME_MAP[lower.slice(dot)] ? MIME_MAP[lower.slice(dot)] : "application/octet-stream";
+}
+
+function parseByteRange(rangeHeader, size) {
+  const m = rangeHeader && size > 0 ? String(rangeHeader).match(/^bytes=(\d*)-(\d*)$/i) : null;
+  if (!m) return null;
+  let start = m[1] ? parseInt(m[1], 10) : NaN;
+  let end = m[2] ? parseInt(m[2], 10) : NaN;
+  if (Number.isNaN(start) && !Number.isNaN(end)) { start = Math.max(0, size - end); end = size - 1; }
+  else if (!Number.isNaN(start) && Number.isNaN(end)) { end = size - 1; }
+  if (Number.isNaN(start) || Number.isNaN(end) || start < 0 || start > end || start >= size) return null;
+  end = Math.min(end, size - 1);
+  return { start, end, length: end - start + 1 };
+}
+
+async function tryServeFromR2(request, url, env) {
+  if (!env || !env.ASSETS_R2) return null;
+  const prefix = String(env.R2_ASSET_PREFIX || "").replace(/^\/+|\/+$/g, "");
+  const cleanPath = url.pathname.replace(/^\/+/, "");
+  const r2Key = prefix ? `${prefix}/${cleanPath}` : cleanPath;
+  const headObj = await env.ASSETS_R2.head(r2Key);
+  if (!headObj) return null;
+  const etag = headObj.httpEtag || (headObj.etag ? `"${headObj.etag}"` : undefined);
+  const headers = new Headers();
+  headers.set("Content-Type", (headObj.httpMetadata && headObj.httpMetadata.contentType) || guessContentType(url.pathname));
+  if (etag) headers.set("ETag", etag);
+  headers.set("Accept-Ranges", "bytes");
+  headers.set("Cross-Origin-Resource-Policy", "cross-origin");
+  headers.set("X-Content-Type-Options", "nosniff");
+  headers.set("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload");
+  headers.set("X-YASD-Asset-Source", "r2");
+  if (url.pathname.startsWith("/wasm/") || /\.(wasm|js|data|pck)$/i.test(url.pathname)) {
+    headers.set("Cross-Origin-Embedder-Policy", "credentialless");
+    headers.set("Cross-Origin-Opener-Policy", "same-origin");
+  }
+  headers.set("Cache-Control", /\.(mp3|wav|ogg)$/i.test(url.pathname) ? "public, max-age=604800, no-transform" : "public, max-age=31536000, immutable");
+  if (etag && request.headers.get("If-None-Match") === etag) return new Response(null, { status: 304, headers });
+  if (request.method === "HEAD") { headers.set("Content-Length", String(headObj.size)); return new Response(null, { status: 200, headers }); }
+  const rangeHdr = request.headers.get("Range");
+  if (rangeHdr) {
+    const parsed = parseByteRange(rangeHdr, headObj.size);
+    if (!parsed) { headers.set("Content-Range", `bytes */${headObj.size}`); return new Response(null, { status: 416, headers }); }
+    const obj = await env.ASSETS_R2.get(r2Key, { range: { offset: parsed.start, length: parsed.length } });
+    if (!obj) return null;
+    headers.set("Content-Range", `bytes ${parsed.start}-${parsed.end}/${headObj.size}`);
+    headers.set("Content-Length", String(parsed.length));
+    return new Response(obj.body, { status: 206, headers });
+  }
+  const obj = await env.ASSETS_R2.get(r2Key);
+  if (!obj) return null;
+  headers.set("Content-Length", String(obj.size));
+  return new Response(obj.body, { status: 200, headers });
+}
 
 const CLEAN_CSP = [
   "default-src 'self'",
@@ -98,15 +190,39 @@ export default {
     }
 
     const edgeSecret = env && env.EDGE_PROXY_SECRET ? String(env.EDGE_PROXY_SECRET) : "";
+    if ((request.method === "GET" || request.method === "HEAD") && (url.pathname.startsWith("/assets/") || url.pathname.startsWith("/wasm/"))) {
+      const r2Resp = await tryServeFromR2(request, url, env);
+      if (r2Resp) return r2Resp;
+    }
+
+    const originInfo = resolveOrigins(env);
+    const buildOriginReq = (originBase, initOpts) => {
+      const targetUrl = new URL(url.pathname + url.search, originBase);
+      const h = new Headers(request.headers);
+      h.set("Host", targetUrl.host);
+      h.set("X-Forwarded-Host", url.hostname);
+      h.set("X-Forwarded-Proto", "https");
+      if (edgeSecret) h.set("X-Edge-Proxy-Secret", edgeSecret);
+      return { targetUrl, h, opts: initOpts(h) };
+    };
+
     const upgrade = (request.headers.get("Upgrade") || "").toLowerCase();
     if (upgrade === "websocket" || url.pathname === "/ws") {
-      const wsUrl = new URL(url.pathname + url.search, ORIGIN);
-      const wsReq = new Request(wsUrl.toString(), request);
-      wsReq.headers.set("Host", "angband3d-cloud-564958309282.us-central1.run.app");
-      wsReq.headers.set("X-Forwarded-Host", url.hostname);
-      wsReq.headers.set("X-Forwarded-Proto", "https");
-      if (edgeSecret) wsReq.headers.set("X-Edge-Proxy-Secret", edgeSecret);
-      return fetch(wsReq);
+      try {
+        const pReq = buildOriginReq(originInfo.activeOrigin, (h) => h);
+        const wsResp = await fetch(new Request(pReq.targetUrl.toString(), request), { headers: pReq.h });
+        if (originInfo.canFailover && isOriginFailoverStatus(wsResp.status)) {
+          const fReq = buildOriginReq(originInfo.fallbackOrigin, (h) => h);
+          return fetch(new Request(fReq.targetUrl.toString(), request), { headers: fReq.h });
+        }
+        return wsResp;
+      } catch (err) {
+        if (originInfo.canFailover) {
+          const fReq = buildOriginReq(originInfo.fallbackOrigin, (h) => h);
+          return fetch(new Request(fReq.targetUrl.toString(), request), { headers: fReq.h });
+        }
+        throw err;
+      }
     }
 
     const reqCookie = request.headers.get("Cookie") || "";
@@ -120,6 +236,9 @@ export default {
     const isAnonymousRootReq = (request.method === "GET" || request.method === "HEAD") && isRootHtmlPath && !hasAuthHeaders;
     const isCacheableRealmsReq =
       (request.method === "GET" || request.method === "HEAD") && url.pathname === "/api/realms" && !request.headers.get("Origin");
+    const isCacheableHelpReq = (request.method === "GET" || request.method === "HEAD") && url.pathname === "/api/help";
+    const hasCustomAiKey = Boolean(request.headers.get("X-Goog-Api-Key") || request.headers.get("X-Api-Key"));
+    const isCacheableTtsReq = (request.method === "GET" || request.method === "HEAD") && url.pathname === "/api/tts" && !hasCustomAiKey;
 
     if (
       isAnonymousRootReq &&
@@ -166,13 +285,6 @@ export default {
       });
     }
 
-    const targetUrl = new URL(url.pathname + url.search, ORIGIN);
-    const headers = new Headers(request.headers);
-    headers.delete("host");
-    headers.set("X-Forwarded-Host", url.hostname);
-    headers.set("X-Forwarded-Proto", "https");
-    if (edgeSecret) headers.set("X-Edge-Proxy-Secret", edgeSecret);
-
     const isWasmOrAssets = url.pathname.startsWith("/wasm/") || url.pathname.startsWith("/assets/");
     const isCacheableStatic =
       (request.method === "GET" || request.method === "HEAD") &&
@@ -183,37 +295,55 @@ export default {
         url.pathname.startsWith("/js/vendor/") ||
         ((url.pathname.startsWith("/js/") || url.pathname.startsWith("/css/") || url.pathname.startsWith("/dist/")) && url.search.includes("v=")));
 
-    const fetchOpts = {
-      method: request.method,
-      headers,
-      body: request.method !== "GET" && request.method !== "HEAD" ? request.body : undefined,
-      redirect: "manual",
+    const canReadRetry = request.method === "GET" || request.method === "HEAD";
+    const makeFetchOpts = (headers) => {
+      const fetchOpts = {
+        method: request.method,
+        headers,
+        body: !canReadRetry ? request.body : undefined,
+        redirect: "manual",
+      };
+      if (isCacheableStatic) {
+        const ttl = url.searchParams.has("v") ? 31536000 : 86400;
+        fetchOpts.cf = { cacheEverything: true, cacheTtlByStatus: { "200-299": ttl, "404": 30, "500-599": 0 } };
+      } else if (isCacheableRealmsReq) {
+        fetchOpts.method = "GET";
+        fetchOpts.cf = { cacheEverything: true, cacheTtlByStatus: { "200-299": 300, "404": 30, "500-599": 0 } };
+      } else if (isCacheableHelpReq) {
+        fetchOpts.cf = { cacheEverything: true, cacheTtlByStatus: { "200-299": 3600, "404": 30, "500-599": 0 } };
+      } else if (isCacheableTtsReq) {
+        fetchOpts.cf = { cacheEverything: true, cacheTtlByStatus: { "200-299": 86400, "404": 0, "500-599": 0 } };
+      } else if (isAnonymousRootReq) {
+        fetchOpts.method = "GET";
+        fetchOpts.cf = { cacheEverything: true, cacheTtlByStatus: { "200-299": 30, "404": 10, "500-599": 0 } };
+      }
+      return fetchOpts;
     };
-    if (isCacheableStatic) {
-      const ttl = url.searchParams.has("v") ? 31536000 : 86400;
-      fetchOpts.cf = {
-        cacheEverything: true,
-        cacheTtlByStatus: { "200-299": ttl, "404": 30, "500-599": 0 },
-      };
-    } else if (isCacheableRealmsReq) {
-      fetchOpts.method = "GET";
-      fetchOpts.cf = {
-        cacheEverything: true,
-        cacheTtlByStatus: { "200-299": 300, "404": 30, "500-599": 0 },
-      };
-    } else if (isAnonymousRootReq) {
-      fetchOpts.method = "GET";
-      fetchOpts.cf = {
-        cacheEverything: true,
-        cacheTtlByStatus: { "200-299": 30, "404": 10, "500-599": 0 },
-      };
-    }
 
-    const upstreamResp = await fetch(targetUrl.toString(), fetchOpts);
+    let upstreamResp;
+    let originTag = originInfo.originMode === "ovh" ? "primary-ovh" : "cloudrun";
+    const primaryAttempt = buildOriginReq(originInfo.activeOrigin, makeFetchOpts);
+    try {
+      upstreamResp = await fetch(primaryAttempt.targetUrl.toString(), primaryAttempt.opts);
+      if (canReadRetry && originInfo.canFailover && isOriginFailoverStatus(upstreamResp.status)) {
+        const fbAttempt = buildOriginReq(originInfo.fallbackOrigin, makeFetchOpts);
+        upstreamResp = await fetch(fbAttempt.targetUrl.toString(), fbAttempt.opts);
+        originTag = "fallback-cloudrun";
+      }
+    } catch (err) {
+      if (canReadRetry && originInfo.canFailover) {
+        const fbAttempt = buildOriginReq(originInfo.fallbackOrigin, makeFetchOpts);
+        upstreamResp = await fetch(fbAttempt.targetUrl.toString(), fbAttempt.opts);
+        originTag = "fallback-cloudrun";
+      } else {
+        throw err;
+      }
+    }
 
     const outHeaders = new Headers(upstreamResp.headers);
     const hasSetCookie = preserveAffinitySetCookies(upstreamResp.headers, outHeaders, url.pathname);
     outHeaders.delete("Link");
+    outHeaders.set("X-YASD-Origin", originTag);
     outHeaders.set("Content-Security-Policy", CLEAN_CSP);
     outHeaders.set("Permissions-Policy", PERMISSIONS_POLICY);
     outHeaders.set("Cross-Origin-Opener-Policy", "same-origin");

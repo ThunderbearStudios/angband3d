@@ -1,9 +1,20 @@
 name = "yasd3d-edge"
 main = "worker.js"
 compatibility_date = "2026-10-25"
-workers_dev = true
+workers_dev = false
 
 routes = [
   { pattern = "yasd3d.com", custom_domain = true },
   { pattern = "www.yasd3d.com", custom_domain = true }
 ]
+
+[vars]
+ORIGIN_MODE = "cloudrun"
+PRIMARY_ORIGIN = "https://ovh-origin.yasd3d.com"
+FALLBACK_ORIGIN = "https://angband3d-cloud-564958309282.us-central1.run.app"
+R2_ASSET_PREFIX = "v13.3.0"
+
+# Enable after creating R2 bucket `yasd3d-assets` in Cloudflare Dashboard:
+# [[r2_buckets]]
+# binding = "ASSETS_R2"
+# bucket_name = "yasd3d-assets"
