@@ -178,7 +178,7 @@ class WebHUD {
                     try { localStorage.removeItem('angband_msg_size'); } catch (_) {}
                     this.messageFeedWindow.classList.toggle('expanded');
                     const isExpanded = this.messageFeedWindow.classList.contains('expanded');
-                    btnToggleSize.textContent = isExpanded ? '▼ Compact' : '▲ Expand';
+                    btnToggleSize.textContent = isExpanded ? '▼' : '▲';
                     btnToggleSize.title = isExpanded ? 'Collapse Message Log to 4 lines' : 'Expand Message Log to show full history';
                     if (isExpanded) {
                         this.messageFeedWindow.classList.remove('is-idle');
@@ -356,6 +356,9 @@ class WebHUD {
             lower.includes('choose class') ||
             lower.includes('select an option') ||
             lower.includes('press any key') ||
+            lower.includes('pre-embark character review') ||
+            lower.includes('choose your adventurer') ||
+            lower.includes('press [enter] to embark') ||
             trimmed === "' . ." ||
             trimmed === "'.'") {
             return;
@@ -452,6 +455,13 @@ class WebHUD {
         list.appendChild(frag);
         if (this.messageFeedScroll && !this.userScrolledUp) {
             this.messageFeedScroll.scrollTop = this.messageFeedScroll.scrollHeight;
+            if (typeof requestAnimationFrame === 'function') {
+                requestAnimationFrame(() => {
+                    if (this.messageFeedScroll && !this.userScrolledUp) {
+                        this.messageFeedScroll.scrollTop = this.messageFeedScroll.scrollHeight;
+                    }
+                });
+            }
             if (this._showMsgStickyPill) this._showMsgStickyPill(false);
         }
     }
@@ -1553,6 +1563,21 @@ class WebHUD {
             else if (isHeng && lang === 'bilingual') btnQuickHelp.textContent = '⌨ Controls (案内) [?]';
             else btnQuickHelp.textContent = '⌨ Controls [?]';
         }
+        const jpControls = [
+            ['action-explore-text', '自動探索', 'Explore'],
+            ['btn-action-more .act-label', 'その他', 'More'],
+            ['btn-footer-dpad', '🕹︎ 十字キー', '🕹︎ D-Pad'],
+            ['btn-hud-reset-layout', '↺ 配置初期化', '↺ Layout'],
+            ['message-feed-window .message-feed-title', '📜 ログ', '📜 LOG']
+        ];
+        for (const [sel, jpTxt, enTxt] of jpControls) {
+            const el = sel.includes(' ') ? qs(`#${sel}`) : document.getElementById(sel);
+            if (el) el.textContent = (isHeng && lang === 'jp') ? jpTxt : enTxt;
+        }
+        const topMsgEl = document.getElementById('message-text');
+        if (topMsgEl && isHeng && lang === 'jp' && topMsgEl.textContent.trim() === 'Entering the realm...') {
+            topMsgEl.textContent = '領域へ入場中...';
+        }
 
         // 10. In-Game Message History & Top Banner Dynamic Retranslation
         if (isHeng && typeof window !== 'undefined' && typeof window.localizeGameMessage === 'function') {
@@ -1592,7 +1617,7 @@ class WebHUD {
                     if (feedWin.style) feedWin.style.height = '';
                     const btnToggleSize = typeof document !== 'undefined' ? document.getElementById('btn-msg-size-toggle') : null;
                     if (btnToggleSize) {
-                        btnToggleSize.textContent = '▲ Expand';
+                        btnToggleSize.textContent = '▲';
                         btnToggleSize.title = 'Expand Message Log to show full history';
                     }
                 }
@@ -1947,7 +1972,8 @@ class WebHUD {
                     this._lastMmTitleSig = mmTitleSig;
                     const lang = window.__langMode || 'en';
                     const prefix = (realm === 'hengband' && lang === 'jp') ? '地図' : ((realm === 'hengband' && lang === 'bilingual') ? 'MAP (地図)' : 'MAP');
-                    titleEl.innerHTML = `<span style="white-space:nowrap;">${escapeHtml(prefix)} (${player.x},${player.y})</span> <span style="color:#ffd700; white-space:nowrap;">[${escapeHtml(arrowChar)} ${escapeHtml(facingName)}]</span>`;
+                    titleEl.innerHTML = `<span style="white-space:nowrap;">${escapeHtml(prefix)} ${player.x},${player.y}</span> <span style="color:#ffd700; white-space:nowrap;">${escapeHtml(arrowChar)}${escapeHtml(facingName)}</span>`;
+                    titleEl.title = `${prefix} (${player.x},${player.y}) [${arrowChar} ${facingName}]`;
                 }
             }
         }
@@ -2008,8 +2034,13 @@ class WebHUD {
                 const downLbl = this._formatRealmDepth({ depth: depth + 1, branch: player.branch, branch_name: player.branch_name }, realm, schemas);
                 stairsText = `[>] Down to ${downLbl}`;
             } else if (currentFeat === 5) {
-                const upLbl = this._formatRealmDepth({ depth: Math.max(0, depth - 1), branch: player.branch, branch_name: player.branch_name }, realm, schemas);
-                stairsText = `[<] Up to ${upLbl}`;
+                const noTown = realm === 'nethack' || realm === 'dcss' || realm === 'brogue' || realm === 'rogue' || realm === 'silq';
+                if (depth <= 1 && noTown) {
+                    stairsText = '[<] Exit Dungeon';
+                } else {
+                    const upLbl = this._formatRealmDepth({ depth: Math.max(0, depth - 1), branch: player.branch, branch_name: player.branch_name }, realm, schemas);
+                    stairsText = `[<] Up to ${upLbl}`;
+                }
             }
             if (this.footerStairsHint) {
                 this.footerStairsHint.textContent = stairsText;
@@ -2508,12 +2539,19 @@ class WebHUD {
             const depthUnit = realmText.depthUnit || 'ft';
 
             let welcomeMsg;
+            const isJpHeng = realm === 'hengband' && (window.__langMode || 'en') === 'jp';
             if (depth === 0) {
-                welcomeMsg = realmText.town
-                    ? `Welcome to ${realmText.town}! Visit the General Store and Armory to equip your journey.`
-                    : "Welcome! Prepare to begin your journey.";
+                if (isJpHeng) {
+                    welcomeMsg = '辺境の街へようこそ！雑貨屋や武具屋で冒険の支度を整えましょう。';
+                } else {
+                    welcomeMsg = realmText.town
+                        ? `Welcome to ${realmText.town}! Visit the General Store and Armory to equip your journey.`
+                        : "Welcome! Prepare to begin your journey.";
+                }
             } else if (schemas.depthSchema.style === 'feet') {
-                welcomeMsg = `You descend into Dungeon Level ${depth} (${depth * feetPerLvl}${depthUnit}).`;
+                welcomeMsg = isJpHeng
+                    ? `迷宮 ${depth}階 (${depth * feetPerLvl} ft) へ足を踏み入れた。`
+                    : `You descend into Dungeon Level ${depth} (${depth * feetPerLvl}${depthUnit}).`;
             } else {
                 welcomeMsg = `You enter ${locStr}.`;
             }
@@ -2538,17 +2576,22 @@ class WebHUD {
             const feetPerLvl = realmText.feetPerLevel || 50;
             const depthUnit = realmText.depthUnit || 'ft';
 
+            const isJpStair = realm === 'hengband' && (window.__langMode || 'en') === 'jp';
             if (player.depth > this.lastDepth) {
-                const descMsg = schemas.depthSchema.style === 'feet'
-                    ? `You descend into Dungeon Level ${player.depth} (${player.depth * feetPerLvl}${depthUnit}).`
-                    : `You descend to ${locStr}.`;
+                const descMsg = isJpStair
+                    ? `迷宮 ${player.depth}階 (${player.depth * feetPerLvl} ft) へ降りた。`
+                    : (schemas.depthSchema.style === 'feet'
+                        ? `You descend into Dungeon Level ${player.depth} (${player.depth * feetPerLvl}${depthUnit}).`
+                        : `You descend to ${locStr}.`);
                 this.addMessage(descMsg, '#ffd700');
             } else if (player.depth < this.lastDepth) {
-                const ascendMsg = player.depth === 0
-                    ? (realmText.town ? `You return to the surface of ${realmText.town}.` : "You return to the surface.")
-                    : (schemas.depthSchema.style === 'feet'
-                        ? `You ascend to Dungeon Level ${player.depth} (${player.depth * feetPerLvl}${depthUnit}).`
-                        : `You ascend to ${locStr}.`);
+                const ascendMsg = isJpStair
+                    ? (player.depth === 0 ? '街の地上へと戻った。' : `迷宮 ${player.depth}階 (${player.depth * feetPerLvl} ft) へ昇った。`)
+                    : (player.depth === 0
+                        ? (realmText.town ? `You return to the surface of ${realmText.town}.` : "You return to the surface.")
+                        : (schemas.depthSchema.style === 'feet'
+                            ? `You ascend to Dungeon Level ${player.depth} (${player.depth * feetPerLvl}${depthUnit}).`
+                            : `You ascend to ${locStr}.`));
                 this.addMessage(ascendMsg, '#ffd700');
             }
             this.lastDepth = player.depth;

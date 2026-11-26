@@ -530,7 +530,8 @@
                     this._lastMmTitleSig = mmTitleSig;
                     const prefix = (realm === 'hengband' && lang === 'jp') ? '地図' : ((realm === 'hengband' && lang === 'bilingual') ? 'MAP (地図)' : 'MAP');
                     const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-                    titleEl.innerHTML = `<span style="white-space:nowrap;">${esc(prefix)} (${p.x},${p.y})</span> <span style="color:#ffd700; white-space:nowrap;">[${esc(arrowChar)} ${esc(facingName)}]</span>`;
+                    titleEl.innerHTML = `<span style="white-space:nowrap;">${esc(prefix)} ${p.x},${p.y}</span> <span style="color:#ffd700; white-space:nowrap;">${esc(arrowChar)}${esc(facingName)}</span>`;
+                    titleEl.title = `${prefix} (${p.x},${p.y}) [${arrowChar} ${facingName}]`;
                 }
             }
         };

@@ -66,6 +66,7 @@ async function openCdpBrowser(width, height) {
     const chromeProfile = fs.mkdtempSync(path.join(os.tmpdir(), 'yasd-p5-chrome-'));
     const chrome = spawn(CHROME_PATH, [
         '--headless=new',
+        '--mute-audio',
         `--remote-debugging-port=${cdpPort}`,
         '--disable-gpu-shader-disk-cache',
         `--window-size=${width},${height}`,

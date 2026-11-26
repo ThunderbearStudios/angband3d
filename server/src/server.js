@@ -1497,6 +1497,23 @@ const server = http.createServer((req, res) => {
         return;
     }
 
+    // REST: Localhost-only browser crash telemetry for live local playtest debugging
+    if (pathname === '/api/dev/client-error' && req.method === 'POST') {
+        const rip = String((req.socket && req.socket.remoteAddress) || '');
+        if (!/^(127\.0\.0\.1|::1|::ffff:127\.0\.0\.1)$/.test(rip)) {
+            res.writeHead(403, { 'Content-Type': 'application/json' });
+            res.end('{"error":"Loopback only"}');
+            return;
+        }
+        let body = '';
+        req.on('data', (c) => { body += c; if (body.length > 4096) req.destroy(); });
+        req.on('end', () => {
+            try { console.error('[Client Crash Telemetry]', JSON.parse(body || '{}')); } catch (_) {}
+            if (!res.headersSent) { res.writeHead(204); res.end(); }
+        });
+        return;
+    }
+
     // REST: Protected LLM Configuration Provider (Never exposes raw secret key to browser)
     if (pathname === '/api/config/llm' && req.method === 'GET') {
         const apiKey = process.env.GEMINI_API_KEY || '';
@@ -2652,11 +2669,11 @@ const server = http.createServer((req, res) => {
                 } catch (_) {}
             }
 
-        // Brotli & Gzip compression for text & uncompressed scene/code payloads (skip binary .glb/.bin to prevent live CPU burn & cache eviction)
+        // Brotli & Gzip compression for text & uncompressed scene/code payloads (serve prebuilt .br sidecars for binary .glb/.ktx2/.bin with 0 runtime CPU)
         const compressible = ['.html', '.js', '.css', '.json', '.obj', '.mtl', '.svg', '.gltf', '.wasm', '.data'].includes(ext);
         const acceptEncoding = req.headers['accept-encoding'] || '';
 
-        if (compressible && acceptEncoding.includes('br') && typeof zlib.brotliCompress === 'function') {
+        if ((compressible || staticMeta.brStat) && acceptEncoding.includes('br') && typeof zlib.brotliCompress === 'function') {
             headers['Content-Encoding'] = 'br';
             headers['Vary'] = 'Accept-Encoding';
             try {
@@ -2741,7 +2758,7 @@ const server = http.createServer((req, res) => {
                 })).pipe(res);
                 return;
             }
-        } else if (compressible && acceptEncoding.includes('gzip')) {
+        } else if ((compressible || staticMeta.gzStat) && acceptEncoding.includes('gzip')) {
             headers['Content-Encoding'] = 'gzip';
             headers['Vary'] = 'Accept-Encoding';
             if (staticMeta.gzStat && staticMeta.gzFilePath) {
@@ -3697,7 +3714,21 @@ async function spawnGameSession(ws, request) {
 
     let saveExists = false;
     let existingDiskPath = savePath;
-    for (const candPath of [savePath, path.join(persistentSaveDir, '0.' + targetSlot)]) {
+    const altSlotSav = /\.sav$/i.test(targetSlot) ? targetSlot.replace(/\.sav$/i, '') : `${targetSlot}.sav`;
+    const slotCandidates = [
+        savePath,
+        path.join(persistentSaveDir, altSlotSav),
+        path.join(persistentSaveDir, '0.' + targetSlot),
+        path.join(persistentSaveDir, '0.' + altSlotSav)
+    ];
+    if (realm === 'silq' && targetSlot.length > 8) {
+        const trunc8 = targetSlot.slice(0, 8);
+        slotCandidates.push(
+            path.join(persistentSaveDir, trunc8),
+            path.join(persistentSaveDir, '0.' + trunc8)
+        );
+    }
+    for (const candPath of slotCandidates) {
         try {
             if ((await fs.promises.stat(candPath)).isFile()) {
                 saveExists = true;
@@ -3706,8 +3737,32 @@ async function spawnGameSession(ws, request) {
             }
         } catch (_) {}
     }
+    if (!saveExists && realm === 'silq') {
+        // Sil-Q truncates player save names to 8 chars on disk; match owner sidecars even if savefile naming varies slightly
+        const trunc8 = targetSlot.slice(0, 8);
+        const sidecarCands = [
+            path.join(persistentSaveDir, trunc8),
+            path.join(persistentSaveDir, targetSlot)
+        ];
+        for (const scCand of sidecarCands) {
+            try {
+                if ((await fs.promises.stat(getOwnerTokenPath(scCand))).isFile()) {
+                    saveExists = true;
+                    existingDiskPath = scCand;
+                    break;
+                }
+            } catch (_) {}
+        }
+    }
+    let hasOwnerOnDisk = false;
+    try { await fs.promises.access(getOwnerTokenPath(savePath)); hasOwnerOnDisk = true; } catch (_) {}
+    if (!saveExists && hasOwnerOnDisk) {
+        saveExists = true;
+        existingDiskPath = savePath;
+    }
     if (saveExists) {
-        if (!(await verifyOwnerTokenAsync(existingDiskPath, reqToken))) {
+        const ownerCheckPath = (existingDiskPath !== savePath && hasOwnerOnDisk) ? savePath : existingDiskPath;
+        if (!(await verifyOwnerTokenAsync(ownerCheckPath, reqToken))) {
             if (isNew && !rawSave) {
                 const maxBase = realm === 'hengband' ? 10 : 20;
                 const baseUser = (user || 'Adventurer').replace(/_[0-9a-z]+$/i, '').slice(0, maxBase) || 'Hero';
@@ -3720,6 +3775,7 @@ async function spawnGameSession(ws, request) {
                         user = candidate;
                         targetSlot = candidate;
                         savePath = candPath;
+                        hasOwnerOnDisk = false;
                         break;
                     }
                 }
@@ -3732,10 +3788,12 @@ async function spawnGameSession(ws, request) {
         }
     }
 
-    let hasOwnerOnDisk = false;
-    try { await fs.promises.access(getOwnerTokenPath(savePath)); hasOwnerOnDisk = true; } catch (_) {}
     if (isNew || !hasOwnerOnDisk) {
         ownerToken = await createOwnerTokenAsync(savePath, reqToken);
+        if (realm === 'silq' && targetSlot.length > 8) {
+            const trunc8Owner = getOwnerTokenPath(path.join(persistentSaveDir, targetSlot.slice(0, 8)));
+            await fs.promises.copyFile(getOwnerTokenPath(savePath), trunc8Owner).catch(() => {});
+        }
     }
 
     const sessionId = crypto.randomUUID();

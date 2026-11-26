@@ -64,11 +64,11 @@
             return { walkable: true, cost: 1.0, isClosedDoor: false, isTrap: false, isStore: false };
         };
 
-        InputProto.computeMinimapPath = function computeMinimapPath(arg1, arg2, arg3, arg4, arg5) {
-            let frame, startX, startY, goalX, goalY;
-            if (arg1 && typeof arg1 === 'object' && arg1.map) { frame = arg1; startX = arg2; startY = arg3; goalX = arg4; goalY = arg5; }
-            else if (arg5 && typeof arg5 === 'object' && arg5.map) { startX = arg1; startY = arg2; goalX = arg3; goalY = arg4; frame = arg5; }
-            else { frame = (this.app && this.app.lastFrame) || (typeof window !== 'undefined' && window.__app && window.__app.lastFrame) || null; startX = arg1; startY = arg2; goalX = arg3; goalY = arg4; }
+        InputProto.computeMinimapPath = function computeMinimapPath(arg1, arg2, arg3, arg4, arg5, arg6) {
+            let frame, startX, startY, goalX, goalY, opts;
+            if (arg1 && typeof arg1 === 'object' && arg1.map) { frame = arg1; startX = arg2; startY = arg3; goalX = arg4; goalY = arg5; opts = arg6; }
+            else if (arg5 && typeof arg5 === 'object' && arg5.map) { startX = arg1; startY = arg2; goalX = arg3; goalY = arg4; frame = arg5; opts = arg6; }
+            else { frame = (this.app && this.app.lastFrame) || (typeof window !== 'undefined' && window.__app && window.__app.lastFrame) || null; startX = arg1; startY = arg2; goalX = arg3; goalY = arg4; opts = arg5; }
             if (!frame || !frame.map || !Array.isArray(frame.map.rows)) return [];
             const map = frame.map, outdoors = Boolean((frame.player && frame.player.depth === 0) || frame.is_wild_mode);
             const sx = Math.round(Number(startX)), sy = Math.round(Number(startY));
@@ -83,9 +83,10 @@
                     }
                 }
             }
-            if (occupiedByCreature.has(keyOf(gx, gy))) return [];
+            const goalOccupied = occupiedByCreature.has(keyOf(gx, gy));
+            if (goalOccupied && !(opts && opts.stopAdjacent)) return [];
             const goalCheck = this._isTileWalkableForNav(map, gx, gy, false, outdoors);
-            if (!goalCheck.walkable) {
+            if (!goalCheck.walkable || goalOccupied) {
                 const adj = [{ dx: 0, dy: -1 }, { dx: 1, dy: 0 }, { dx: 0, dy: 1 }, { dx: -1, dy: 0 }, { dx: 1, dy: -1 }, { dx: 1, dy: 1 }, { dx: -1, dy: 1 }, { dx: -1, dy: -1 }];
                 let bestNeighbor = null, bestDist = Infinity;
                 for (const d of adj) {
@@ -121,7 +122,8 @@
                     const nx = cur.x + d.dx, ny = cur.y + d.dy, nKey = keyOf(nx, ny);
                     if (closed.has(nKey) || occupiedByCreature.has(nKey)) continue;
                     const tileInfo = this._isTileWalkableForNav(map, nx, ny, false, outdoors);
-                    if (!tileInfo.walkable || (tileInfo.isTrap && !(nx === gx && ny === gy)) || (tileInfo.isStore && !(nx === gx && ny === gy))) continue;
+                    const allowStoreWalk = ['ryod', 'nethack', 'dcss', 'brogue', 'rogue'].includes(String(this.realm || frame.realm || '').toLowerCase());
+                    if (!tileInfo.walkable || (tileInfo.isTrap && !(nx === gx && ny === gy)) || (tileInfo.isStore && !allowStoreWalk && !(nx === gx && ny === gy))) continue;
                     const tentativeG = cur.g + d.w * tileInfo.cost, prevG = gScore.get(nKey);
                     if (prevG === undefined || tentativeG < prevG) {
                         gScore.set(nKey, tentativeG); cameFrom.set(nKey, curKey);
@@ -317,7 +319,9 @@
                 this.stopMinimapAutoNav('');
             }
 
-            const path = this.computeMinimapPath(frame, px, py, rxGoal, ryGoal);
+            const stopAdjacent = Boolean(opts && opts.stopAdjacent);
+            const pickupOnArrival = Boolean(opts && opts.pickupOnArrival);
+            const path = this.computeMinimapPath(frame, px, py, rxGoal, ryGoal, { stopAdjacent });
             const hud = (this.app && this.app.hud) || (winApp && winApp.hud);
             if (!path || path.length === 0) {
                 if (Math.abs(rxGoal - px) <= 1 && Math.abs(ryGoal - py) <= 1 && (rxGoal !== px || ryGoal !== py)) {
@@ -331,12 +335,12 @@
 
             const isHostile = (m) => m && m.visible !== false && (this.isHostileMonster ? this.isHostileMonster(m, frame) : (!m.captive && !m.friendly && !m.pet && !m.peaceful && m.hostile !== false));
             const visibleMonsters = Array.isArray(frame.monsters) ? frame.monsters.filter(isHostile) : [];
-            const baselineMonsterKeys = new Set(visibleMonsters.map((m) => `${m.name || ''}|${m.glyph || ''}`));
+            const baselineMonsterKeys = new Set(visibleMonsters.map((m) => `${m.name || m.race || ''}|${m.glyph || ''}`));
             const hadAdjacentMonsterAtStart = visibleMonsters.some((m) => Math.max(Math.abs(m.x - px), Math.abs(m.y - py)) <= 1);
             const isExplore = Boolean(opts && opts.isExplore);
 
             this._autoNav = {
-                active: true, isExplore, stopAdjacent: Boolean(opts && opts.stopAdjacent),
+                active: true, isExplore, stopAdjacent, pickupOnArrival,
                 visitedGoals: (opts && opts.visitedGoals) ? opts.visitedGoals : new Set([`${px},${py}`]),
                 goalX: path[path.length - 1].x, goalY: path[path.length - 1].y, path: path.slice(),
                 lastHp: Number(frame.player.hp ?? 0), startStatusesSig: this._statusSignatureOf(frame.player),
@@ -419,8 +423,9 @@
 
             const items = Array.isArray(frame.items) ? frame.items : (Array.isArray(frame.objects) ? frame.objects : []);
             const curItemSig = this._itemSignatureOf(frame);
-            const steppedOnItem = !isInitial && items.some((it) => it && it.x === px && it.y === py);
-            if (steppedOnItem || (!isInitial && !nav.isExplore && curItemSig !== nav.baselineItemSig && items.length > 0)) {
+            const atGoalWithPickup = Boolean(nav.pickupOnArrival && px === nav.goalX && py === nav.goalY);
+            const steppedOnItem = !isInitial && !atGoalWithPickup && items.some((it) => it && it.x === px && it.y === py);
+            if (steppedOnItem || (!isInitial && !nav.isExplore && !nav.pickupOnArrival && curItemSig !== nav.baselineItemSig && items.length > 0)) {
                 this.stopMinimapAutoNav('Discovered an item!'); return;
             }
 
@@ -454,7 +459,16 @@
                         return;
                     }
                 } else {
-                    this.stopMinimapAutoNav('Reached destination'); return;
+                    const shouldPickup = Boolean(nav.pickupOnArrival && px === nav.goalX && py === nav.goalY && items.some((it) => it && it.x === px && it.y === py));
+                    this.stopMinimapAutoNav('Reached destination');
+                    if (shouldPickup && this.network && typeof this.network.sendKey === 'function') {
+                        const winApp = (typeof window !== 'undefined' && window.__app) ? window.__app : null;
+                        const rk = String((this.app && typeof this.app.getActiveRealm === 'function' ? this.app.getActiveRealm() : '') || (winApp && typeof winApp.getActiveRealm === 'function' ? winApp.getActiveRealm() : '') || frame.realm || 'angband').toLowerCase();
+                        const fb = (rk === 'nethack' || rk === 'rogue') ? ',' : 'g';
+                        const pKey = (typeof RealmKeys !== 'undefined' && typeof RealmKeys.realmKey === 'function') ? (RealmKeys.realmKey('pickup', rk) || fb) : fb;
+                        this.network.sendKey(pKey);
+                    }
+                    return;
                 }
             }
 

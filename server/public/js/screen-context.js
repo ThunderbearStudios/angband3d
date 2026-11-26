@@ -172,7 +172,7 @@
             'which book?', 'wear/wield which', 'wield which', 'wear which', 'put on which', 'equip which', 'apply which', 'evoke which', 'take off which', 'remove which item', 'remove which', 'drop which',
             'throw which', 'fire which', 'shoot which', 'quaff which', 'read which', 'destroy which', 'eat which', 'use which', 'use or invoke which', 'use, zap, or evoke which',
             'aim which', 'zap which', 'activate which', 'inscribe which', 'uninscribe which', 'refill which', 'refill with which',
-            'fuel with which', 'fuel which', 'browse which', 'cast which', 'study which'].some(s => screenText.includes(s)) ||
+            'fuel with which', 'fuel which', 'browse which', 'cast which', 'study which'].some(s => screenText.includes(s)) && !screenText.includes('what do you want to engrave') ||
             (isHeng && !hasStoreText && (
                 screenText.includes('持ち物：') || screenText.includes('装備：') ||
                 ((screenText.includes('inventory:') || screenText.includes('equipment:') || screenText.includes('(inventory)') || screenText.includes('(equipment)')) && screenText.includes('command:')) ||
@@ -541,13 +541,54 @@
         return result;
     }
 
-    function resolveScreenModelItems(frame, legacy, prompt, optMirror3d) {
+    function extractSpellItems(rows, isHeng, decode) {
+        if (!rows || !Array.isArray(rows)) return [];
+        const items = [];
+        const seenKeys = new Set();
+        const fcbSidebarRe = /\s{2,}(?:LEVEL|EXP|AU|STR|INT|WIS|DEX|CON|CHR|Cur AC|HP|SP|\|\s*\S.*)$/;
+        const tabularRe = /(?:^|\s)([a-zA-Z])\)\s+([^\r\n]+?)\s+(?:\[[^\]]+\]\s+)?(\d{1,2})\s+(\d{1,3})\s+(\d{1,3})%(?:\s+(.*))?$/;
+        const nethackRe = /(?:^|\s)([a-zA-Z])\)\s+([^\(\r\n]+?)\s+\(Level\s+(\d+),\s+(\d+)\s+(?:Pw|MP|SP)(?:\s*[—-]\s*(.*))?\)/i;
+        for (let r = 1; r < rows.length; r++) {
+            const rawLine = (rows[r] && rows[r].g) ? rows[r].g : '';
+            const decoded = (isHeng && typeof decode === 'function') ? decode(rawLine) : rawLine;
+            const line = decoded.replace(fcbSidebarRe, '').trimEnd();
+            if (!line) continue;
+            let m = line.match(tabularRe);
+            if (m) {
+                const key = m[1], name = m[2].trim();
+                if (!seenKeys.has(key) && name && !/^Name\b/i.test(name)) {
+                    seenKeys.add(key);
+                    items.push({ key, letter: key, name, label: name, level: Number(m[3]), mana: Number(m[4]), cost: Number(m[4]), fail: Number(m[5]), info: (m[6] || '').trim(), source: 'spell', display: `[${key}]` });
+                }
+                continue;
+            }
+            m = line.match(nethackRe);
+            if (m) {
+                const key = m[1], name = m[2].trim();
+                if (!seenKeys.has(key) && name) {
+                    seenKeys.add(key);
+                    items.push({ key, letter: key, name, label: name, level: Number(m[3]), mana: Number(m[4]), cost: Number(m[4]), info: (m[5] || '').trim(), source: 'spell', display: `[${key}]` });
+                }
+            }
+        }
+        return items;
+    }
+
+    function resolveScreenModelItems(frame, legacy, prompt, optMirror3d, row0Lower) {
         const player = frame && frame.player;
         const inv = (player && Array.isArray(player.inventory)) ? player.inventory : [];
         const eq = (player && Array.isArray(player.equipment)) ? player.equipment : [];
         const quiv = (player && Array.isArray(player.quiver)) ? player.quiver : [];
-        const playerItems = [...inv, ...eq, ...quiv];
+        const allPlayerItems = [...inv, ...eq, ...quiv];
         const hasPlayerLists = Boolean(player && (Array.isArray(player.inventory) || Array.isArray(player.equipment) || Array.isArray(player.quiver)));
+        const r0 = String(row0Lower || (prompt && prompt.text) || '').toLowerCase();
+        const cleanRow0 = r0.replace(/\/?\s*for\s+(?:equip|inven|quiver)\b|\|\s*for\s+quiver\b|\/?\s*装備品/g, '');
+        const hasEquipHdr = /(?:^|\s)(?:\(?equip:|equipped gear|装備:|装備：)|\bequip:/i.test(cleanRow0);
+        const hasQuiverHdr = /\(?quiver:|矢筒/i.test(cleanRow0);
+        const hasInvenHdr = /(?:^|\s)(?:\(?inven:|inventory pack|持ち物)/i.test(cleanRow0);
+        const isEquipList = (hasEquipHdr && !hasInvenHdr) || (!hasEquipHdr && !hasInvenHdr && legacy && legacy.listKind === 'equip');
+        const isQuiverList = (hasQuiverHdr && !hasInvenHdr && !hasEquipHdr) || (!hasEquipHdr && !hasInvenHdr && !hasQuiverHdr && legacy && legacy.listKind === 'quiver');
+        const isInvenList = (hasInvenHdr && !hasEquipHdr) || (!hasEquipHdr && !hasInvenHdr && legacy && legacy.listKind === 'inven');
         const itemRows = (legacy && (legacy.itemRows || legacy.items)) || [];
         if (!itemRows.length) {
             if (!optMirror3d || !hasPlayerLists || !prompt || prompt.kind !== 'item') return [];
@@ -555,9 +596,15 @@
             const cat = (typeof window !== 'undefined' && window.ActionCatalog) ? window.ActionCatalog : null;
             const catVerb = v === 'wear' ? 'wield' : (v === 'remove' ? 'takeoff' : (v === 'use' ? 'use_staff' : v));
             const bitIdx = (cat && Array.isArray(cat.VERB_BITS) && catVerb) ? cat.VERB_BITS.indexOf(catVerb) : -1;
-            const pool = (v === 'remove' || v === 'takeoff') ? eq : (v === 'fire' ? (quiv.length ? quiv : inv) : ((v === 'inscribe' || v === 'examine' || v === 'drop') ? [...inv, ...eq] : inv));
+            const pool = isEquipList ? eq : (isQuiverList ? quiv : (isInvenList ? inv : ((v === 'remove' || v === 'takeoff') ? eq : (v === 'fire' ? (quiv.length ? quiv : inv) : inv))));
+            const rangeM = cleanRow0.match(/(?:inven|equip|quiver):\s*([a-z0-9])-([a-z0-9])/i);
+            const loL = rangeM ? rangeM[1].toLowerCase() : null, hiL = rangeM ? rangeM[2].toLowerCase() : null;
             const filtered = pool.filter((it) => {
                 if (!it) return false;
+                if (loL && hiL && it.letter) {
+                    const lt = String(it.letter).toLowerCase();
+                    if (lt < loL || lt > hiL) return false;
+                }
                 if (bitIdx >= 0 && typeof it.vm === 'number') return (it.vm & (1 << bitIdx)) !== 0;
                 return true;
             });
@@ -567,18 +614,22 @@
             });
         }
         if (hasPlayerLists) {
+            const scopedPool = isEquipList ? eq : (isQuiverList ? quiv : (isInvenList ? inv : allPlayerItems));
+            const matchPool = scopedPool.length > 0 ? scopedPool : allPlayerItems;
             const result = [];
             for (const row of itemRows) {
                 const rowKey = String(row.key || '').toLowerCase(), rowLabel = String(row.label || '').toLowerCase();
-                const match = playerItems.find(p => {
+                let match = matchPool.find(p => {
                     const pLetter = String(p.letter || p.label || '').toLowerCase();
-                    if (pLetter && pLetter === rowKey) return true;
-                    if (p.name && rowLabel) {
-                        const pName = String(p.name).toLowerCase();
-                        if (rowLabel.includes(pName) || pName.includes(rowLabel)) return true;
-                    }
-                    return false;
+                    return Boolean(pLetter && pLetter === rowKey);
                 });
+                if (!match && rowLabel) {
+                    match = matchPool.find(p => {
+                        if (!p.name) return false;
+                        const pName = String(p.name).toLowerCase();
+                        return rowLabel.includes(pName) || pName.includes(rowLabel);
+                    });
+                }
                 if (match) {
                     result.push(Object.assign({}, match, {
                         key: row.key, letter: row.key, label: match.name || row.label || match.label, rowLabel: row.label,
@@ -699,6 +750,16 @@
         const rows = (frame && frame.term && Array.isArray(frame.term.rows)) ? frame.term.rows : [];
         const decode = opts && opts.decode, rawRow0 = (rows[0] && rows[0].g) ? rows[0].g : '';
         const row0 = (typeof decode === 'function' ? decode(rawRow0) : rawRow0).trim(), row0Lower = row0.toLowerCase();
+        const isHeng = realm === 'hengband';
+        const promptLower = ((prompt.text || '') + ' ' + row0).toLowerCase();
+        const isBookPrompt = /(?:study|cast|browse|use)\s+(?:from\s+)?which\s+book|どの呪文書|どの本(?:から|を)/i.test(promptLower);
+        const isSpellPrompt = !isBookPrompt && (prompt.kind === 'spell' ||
+            /(?:study|cast|memorise|memorize)\s+which\s+(?:spell|prayer|ritual|incantation|song|technique|power)|(?:use|browse)\s+which\s+(?:power|ability|racial|technique|mindcraft|song)|\(spells?\s+[a-z]-[a-z]|どの呪文を(?:学び|唱え)|どの歌を(?:学び|歌い)|どの能力を使|どれを学習/i.test(row0Lower));
+        if (isSpellPrompt) {
+            prompt = Object.assign({}, prompt, { kind: 'spell', text: (!prompt.text || prompt.text.length <= 12) && row0 ? row0 : (prompt.text || row0) });
+        }
+        const spellItems = isSpellPrompt ? extractSpellItems(rows, isHeng, decode) : [];
+        const regions = extractMultiColumnItems(rows, isHeng, decode);
 
         const isDirTargeting = Boolean((legacy && legacy.isDirectionalTargeting) || isDirectionalTargetingText(legacy ? legacy.screenText : '') ||
             prompt.kind === 'direction' || prompt.kind === 'target' || (legacy && (legacy.isTargeting || legacy.isTargetingPrompt)));
@@ -711,11 +772,22 @@
                 if (prompt.kind === 'yesno') mirror = 'yesno';
                 else if (prompt.kind === 'quantity') mirror = 'quantity';
                 else if (prompt.kind === 'count') mirror = 'count';
+                else if (prompt.kind === 'screen') mirror = null;
+                else if (prompt.kind === 'string') mirror = /inscribe|inscription|engrave/i.test((prompt.text || '') + ' ' + row0) ? 'string' : null;
+                else if (isSpellPrompt) mirror = (spellItems.length > 0 || (frame && Array.isArray(frame.spells) && frame.spells.length > 0)) ? 'spell' : null;
+                else if (prompt.kind === 'menu' && (row0Lower.includes('command for ') || String(prompt.text || '').toLowerCase().includes('command for ') || row0Lower.includes('に対するコマンド'))) {
+                    mirror = (regions.length > 0 || !rows.length || rows.length <= 2) ? 'item-menu' : null;
+                }
                 else if (prompt.kind === 'item' || (legacy && legacy.mode === 'item-list' && legacy.promptKind === 'select')) mirror = 'item';
-                else if (prompt.kind === 'menu' && (row0Lower.includes('command for ') || prompt.text.toLowerCase().includes('command for '))) mirror = 'item-menu';
-                else if (prompt.kind === 'spell' && (Boolean(frame && frame.spells) || Boolean(opts && opts.hasBridgeSpells))) mirror = 'spell';
-                else if (prompt.kind === 'string' && /inscribe|inscription/i.test(prompt.text || row0)) mirror = 'string';
             }
+        }
+
+        const items = isSpellPrompt
+            ? (spellItems.length > 0 ? spellItems : ((frame && Array.isArray(frame.spells)) ? frame.spells : []))
+            : resolveScreenModelItems(frame, legacy, prompt, optMirror3d, row0Lower);
+
+        if (mirror === 'item' && items.length === 0 && overlay > 0 && player && (Array.isArray(player.inventory) || Array.isArray(player.equipment))) {
+            mirror = null;
         }
 
         let owner;
@@ -729,9 +801,6 @@
         if (optForceTerminal || owner === 'birth' || owner === 'dead') needsTerm = true;
         else if (mirror !== null) needsTerm = false;
         else needsTerm = needsTerminal(frame, { forceTerminal: optForceTerminal, decode: opts.decode });
-
-        const items = resolveScreenModelItems(frame, legacy, prompt, optMirror3d), isHeng = realm === 'hengband';
-        const regions = extractMultiColumnItems(rows, isHeng, decode);
 
         const result = { owner, prompt, mirror, needsTerminal: needsTerm, items, regions, legacy };
         if (frame) {
@@ -763,12 +832,15 @@
     function extractRowRegions(line) {
         if (!line || typeof line !== 'string') return [];
         if (line.includes('選んで下さい') || line.includes('初期オプション設定') || line.includes('注意：')) return [];
-        const tagRe = /(?:^|(\s{1,}))(?:\(([a-zA-Z0-9*@?])\)|\[([a-zA-Z0-9*@?])\]|([a-zA-Z0-9*@?])[\)\.\:\-]|(\*)\s*(?=ランダム|random|Random))\s+/g;
+        const tagRe = /(?:^|(\s{1,}))(?:\(([a-zA-Z0-9*@?{}])\)|\[([a-zA-Z0-9*@?{}])\]|([a-zA-Z0-9*@?{}])[\)\.\:\-]|(\*)\s*(?=ランダム|random|Random))\s+/g;
         const matches = [];
         let m;
         while ((m = tagRe.exec(line)) !== null) {
             const leadSpaces = m[1] ? m[1].length : 0, startCol = m.index + leadSpaces;
-            if (startCol > 4 && leadSpaces < 2) continue;
+            if (startCol > 4 && leadSpaces < 2) {
+                const rest = line.slice(m.index + m[0].length).trim();
+                if (!(startCol >= 50 && /^(?:Inspect|Cast|Study|Browse|Aim|Zap|Use|Read|Quaff|Eat|Activate|Fire|Refill|Take off|Wield|Wear|Equip|Drop|Sell|Pick up|Throw|Inscribe|Uninscribe|Ignore|Unignore|Destroy)\b/i.test(rest))) continue;
+            }
             const key = m[2] || m[3] || m[4] || m[5], contentStart = m.index + m[0].length;
             if (key) matches.push({ key, startCol, contentStart });
         }

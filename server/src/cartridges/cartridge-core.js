@@ -2278,7 +2278,12 @@ class UniversalCartridgeEngine {
             }
             return;
         }
-        if (k === 's' || k === 'S') {
+        if (k === 'S' || k === 'C-s') {
+            this.saveGame();
+            this.addMessage('Game state saved.', 14);
+            return;
+        }
+        if (k === 's') {
             this.searchAround();
             return;
         }
@@ -4624,9 +4629,11 @@ class UniversalCartridgeEngine {
             number: o.count || 1,
             vm: computeVerbMask(o)
         }));
+        const isItemMenu = this.state.menuMode === 'inven' || this.state.menuMode === 'equip' || this.state.menuMode === 'verb' || this.state.menuMode === 'item_action';
+        const isSpellMenu = this.state.menuMode === 'spells' || this.state.menuMode === 'power_select';
         const promptKind = this.state.menuMode === 'direction'
             ? 'direction'
-            : (this.state.menuMode === 'spells' || this.state.menuMode === 'skills' || this.state.menuMode === 'power_select' ? 'spell' : 'item');
+            : (isSpellMenu ? 'spell' : (isItemMenu ? 'item' : 'screen'));
 
         const computedResists = {
             acid: 0, elec: 0, fire: 0, cold: 0, pois: 0,
@@ -4720,11 +4727,11 @@ class UniversalCartridgeEngine {
             victory: Boolean(p.winner),
             ryodMeta,
             ui: {
-                overlay: isOverlay ? 3 : 0,
+                overlay: isOverlay ? ((isItemMenu || isSpellMenu) ? 3 : 1) : 0,
                 awaiting_command: !isOverlay,
                 more: false,
                 context: isOverlay ? 'menu' : 'play',
-                prompt: this.state.menuMode !== 'none' ? { kind: promptKind, text: this.state.pendingPrompt || 'Inventory' } : null,
+                prompt: this.state.menuMode !== 'none' ? { kind: promptKind, text: this.state.pendingPrompt || (isItemMenu ? 'Inventory' : '') } : null,
                 cursor: uiCursor
             },
             inventory: inventoryList,
@@ -4799,7 +4806,8 @@ class UniversalCartridgeEngine {
                     int: { use: p.int, max: p.int, top: p.int, reduced: false },
                     wis: { use: p.wis, max: p.wis, top: p.wis, reduced: false },
                     dex: { use: p.dex, max: p.dex, top: p.dex, reduced: false },
-                    con: { use: p.con, max: p.con, top: p.con, reduced: false }
+                    con: { use: p.con, max: p.con, top: p.con, reduced: false },
+                    chr: { use: p.chr != null ? p.chr : (p.cha != null ? p.cha : 10), max: p.chr != null ? p.chr : (p.cha != null ? p.cha : 10), top: p.chr != null ? p.chr : (p.cha != null ? p.cha : 10), reduced: false }
                 },
                 resists: computedResists,
                 flags: computedFlags,

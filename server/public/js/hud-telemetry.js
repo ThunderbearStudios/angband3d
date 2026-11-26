@@ -354,7 +354,13 @@
     function renderCoachmark(bar) {
         if (!bar) return;
         const wasdOn = Boolean(window.__app && window.__app.input && window.__app.input.wasdMode);
-        const steps = [
+        const isJp = (typeof window !== 'undefined' && window.__activeRealm === 'hengband' && window.__langMode === 'jp');
+        const steps = isJp ? [
+            '',
+            'ステップ 1/3 — ドラッグまたは [Q / E] で360°見渡す (0ターン)',
+            wasdOn ? 'ステップ 2/3 — [W] で前進 / [Space] で行動' : 'ステップ 2/3 — [矢印 / HJKL] で移動、[Space] で行動',
+            'ステップ 3/3 — [Tab] でクラシックCRT、[I] で所持品'
+        ] : [
             '',
             'Step 1/3 — Drag Mouse or press [Q / E] to Look 360° (0 Turns)',
             wasdOn
@@ -383,13 +389,13 @@
         const nextBtn = document.createElement('button');
         nextBtn.type = 'button';
         nextBtn.className = 'ftue-coachmark-btn';
-        nextBtn.textContent = _ftueStep < 3 ? 'Next ▸' : 'Got It ✓';
+        nextBtn.textContent = _ftueStep < 3 ? (isJp ? '次へ ▸' : 'Next ▸') : (isJp ? '了解 ✓' : 'Got It ✓');
         nextBtn.addEventListener('click', () => advanceCoachmark());
         const skipBtn = document.createElement('button');
         skipBtn.type = 'button';
         skipBtn.className = 'ftue-coachmark-dismiss';
         skipBtn.textContent = '✕';
-        skipBtn.title = 'Dismiss tutorial';
+        skipBtn.title = isJp ? '案内を閉じる' : 'Dismiss tutorial';
         skipBtn.addEventListener('click', () => { _ftueStep = 4; renderCoachmark(bar); });
         bar.append(pips, txt, nextBtn, skipBtn);
     }

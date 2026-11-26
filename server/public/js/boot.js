@@ -3,7 +3,7 @@
     // Derive canonical asset version from boot.js?v=... before any subsystem loads (CSP-clean, zero inline script)
     const cur = document.currentScript;
     const vMatch = cur && cur.src ? cur.src.match(/[?&]v=([^&]+)/) : null;
-    const ver = (vMatch && vMatch[1]) || window.ASSET_VERSION || window.APP_VERSION || '13.3.0';
+    const ver = (vMatch && vMatch[1]) || window.ASSET_VERSION || window.APP_VERSION || '13.3.4';
     window.ASSET_VERSION = ver;
     window.__ASSET_V = ver;
     window.APP_VERSION = window.APP_VERSION || ver;
@@ -41,7 +41,14 @@
             }
         }
     } catch (_) {}
-    window.YASD_FLAGS = Object.freeze(defaultFlags);
+    window.YASD_FLAGS = Object.freeze(Object.assign({}, defaultFlags));
+    window.__setYasdFlag = function (key, val) {
+        if (!(key in defaultFlags)) return false;
+        defaultFlags[key] = Boolean(val);
+        window.YASD_FLAGS = Object.freeze(Object.assign({}, defaultFlags));
+        try { if (window.localStorage) localStorage.setItem('yasd_flags_v1', JSON.stringify(defaultFlags)); } catch (_) {}
+        return true;
+    };
 
     const _lazyBundleCache = new Map();
     window.__loadLazyBundle = function (name) {

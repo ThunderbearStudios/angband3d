@@ -12,7 +12,7 @@ routes = [
 ORIGIN_MODE = "ovh"
 PRIMARY_ORIGIN = "https://ovh-origin.yasd3d.com"
 FALLBACK_ORIGIN = "https://angband3d-cloud-564958309282.us-central1.run.app"
-R2_ASSET_PREFIX = "v13.3.0"
+R2_ASSET_PREFIX = "v13.3.4"
 
 # Enable after creating R2 bucket `yasd3d-assets` in Cloudflare Dashboard:
 # [[r2_buckets]]

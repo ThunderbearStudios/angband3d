@@ -5229,34 +5229,35 @@ class ChronicleManager {
 
         // # ROOT-CAUSE: interactWithCreature omitted activeRealm in resolveCreatureState/resolveTacticalMonsterInsight, hardcoded 50ft depth badge, and showed hostile Parley/Challenge buttons for tame companions.
         const activeRealm = this.getActiveRealm();
+        const monName = (monster && (monster.name || monster.race)) ? String(monster.name || monster.race).trim() : 'Creature';
         const stateObj = this.grounder.resolveCreatureState(monster, this.lastSeenMessages, activeRealm);
 
         // Show Contextual Creature Target Pill
         if (this.targetPill && this.targetLabel) {
             this.targetPill.classList.remove('hidden');
             if (stateObj.state === 'sleeping') {
-                this.targetLabel.innerHTML = `😴 Target: <b>${escapeHtml(monster.name)}</b> <span style="font-size: 0.8rem; opacity: 0.8;">(Asleep)</span>`;
+                this.targetLabel.innerHTML = `😴 Target: <b>${escapeHtml(monName)}</b> <span style="font-size: 0.8rem; opacity: 0.8;">(Asleep)</span>`;
             } else if (stateObj.isTame) {
-                this.targetLabel.innerHTML = `🐾 Companion: <b>${escapeHtml(monster.name)}</b> <span style="font-size: 0.8rem; opacity: 0.8;">(Loyal Ally)</span>`;
+                this.targetLabel.innerHTML = `🐾 Companion: <b>${escapeHtml(monName)}</b> <span style="font-size: 0.8rem; opacity: 0.8;">(Loyal Ally)</span>`;
             } else if (stateObj.state === 'begging') {
-                this.targetLabel.innerHTML = `🤲 Target: <b>${escapeHtml(monster.name)}</b> <span style="font-size: 0.8rem; opacity: 0.8;">(Pleading)</span>`;
+                this.targetLabel.innerHTML = `🤲 Target: <b>${escapeHtml(monName)}</b> <span style="font-size: 0.8rem; opacity: 0.8;">(Pleading)</span>`;
             } else if (!stateObj.canSpeak) {
-                this.targetLabel.innerHTML = `🐾 Target: <b>${escapeHtml(monster.name)}</b> <span style="font-size: 0.8rem; opacity: 0.8;">(Non-vocal)</span>`;
+                this.targetLabel.innerHTML = `🐾 Target: <b>${escapeHtml(monName)}</b> <span style="font-size: 0.8rem; opacity: 0.8;">(Non-vocal)</span>`;
             } else {
-                this.targetLabel.innerHTML = `🗣️ Target: <b>${escapeHtml(monster.name)}</b>`;
+                this.targetLabel.innerHTML = `🗣️ Target: <b>${escapeHtml(monName)}</b>`;
             }
         }
         if (this.inputQuery) {
             if (stateObj.state === 'sleeping') {
-                this.inputQuery.placeholder = `${monster.name} is fast asleep...`;
+                this.inputQuery.placeholder = `${monName} is fast asleep...`;
             } else if (stateObj.isTame) {
-                this.inputQuery.placeholder = stateObj.canSpeak ? `Speak with your ally ${monster.name}...` : `Praise or observe your ${monster.name}...`;
+                this.inputQuery.placeholder = stateObj.canSpeak ? `Speak with your ally ${monName}...` : `Praise or observe your ${monName}...`;
             } else if (stateObj.state === 'begging') {
-                this.inputQuery.placeholder = `Give coin or speak to ${monster.name}...`;
+                this.inputQuery.placeholder = `Give coin or speak to ${monName}...`;
             } else if (!stateObj.canSpeak) {
-                this.inputQuery.placeholder = `Observe ${monster.name}...`;
+                this.inputQuery.placeholder = `Observe ${monName}...`;
             } else {
-                this.inputQuery.placeholder = `Talk to ${monster.name}...`;
+                this.inputQuery.placeholder = `Talk to ${monName}...`;
             }
             if (options.focusInput === true) {
                 try { this.inputQuery.focus(); } catch (_) {}
@@ -5292,7 +5293,7 @@ class ChronicleManager {
             const mMax = typeof monster.hp_max === 'number' && monster.hp_max > 0 ? monster.hp_max : Math.max(1, mCur);
             const mPct = Math.max(0, Math.min(100, Math.round((mCur / mMax) * 100)));
             const tacNote = (this.grounder && typeof this.grounder.resolveTacticalMonsterInsight === 'function')
-                ? this.grounder.resolveTacticalMonsterInsight(monster.name || '', activeRealm, monster)
+                ? this.grounder.resolveTacticalMonsterInsight(monName, activeRealm, monster)
                 : '';
             const stateBadgeLabel = stateObj.isTame
                 ? `🐾 Loyal Companion • ${mPct}% HP`
@@ -5310,26 +5311,26 @@ class ChronicleManager {
             if (res.isDialogue && res.text) {
                 bodyHtml += `
                     <div class="chapter-dialogue" style="margin-top: 4px;">
-                        <span class="dialogue-speaker">${escapeHtml(monster.name)}</span>
+                        <span class="dialogue-speaker">${escapeHtml(monName)}</span>
                         <span>"${escapeHtml(res.text)}"</span>
                     </div>
                 `;
             } else if (!res.isDialogue && res.text) {
                 bodyHtml += `
                     <div class="chapter-dialogue creature-sound-box" style="margin-top: 4px;">
-                        <span class="dialogue-speaker">${escapeHtml(monster.name)}</span>
+                        <span class="dialogue-speaker">${escapeHtml(monName)}</span>
                         <span class="dialogue-sound-noise">${escapeHtml(res.text)}</span>
                     </div>
                 `;
             }
 
             const headingLabel = (stateObj.state === 'sleeping')
-                ? `Observation: ${escapeHtml(monster.name)} (Asleep)`
+                ? `Observation: ${escapeHtml(monName)} (Asleep)`
                 : (stateObj.isTame
-                    ? `🐾 Companion: ${escapeHtml(monster.name)}`
+                    ? `🐾 Companion: ${escapeHtml(monName)}`
                     : (stateObj.state === 'begging'
-                        ? `Alms: ${escapeHtml(monster.name)}`
-                        : (stateObj.isPeaceful ? `🕊️ Encounter: ${escapeHtml(monster.name)}` : `Encounter: ${escapeHtml(monster.name)}`)));
+                        ? `Alms: ${escapeHtml(monName)}`
+                        : (stateObj.isPeaceful ? `🕊️ Encounter: ${escapeHtml(monName)}` : `Encounter: ${escapeHtml(monName)}`)));
 
             const actionBtnsHtml = stateObj.isTame
                 ? `
@@ -5380,7 +5381,7 @@ class ChronicleManager {
                         const narrProfile = this.grounder ? this.grounder.resolveVoiceProfile(null, this.currentHero, stateObj.state, this.tradition, false, this.getActiveRealm(), this.getLanguageMode()) : null;
                         const speakOpts = { narrator: narrProfile, engine: this.audio.ttsEngine };
                         if (res.isDialogue && res.text) {
-                            this.audio.speak(res.prose, { text: res.text, speaker: monster.name, recommendedVoice: res.recommendedVoice, voiceProfile: cVoiceProfile }, null, null, 0, speakOpts);
+                            this.audio.speak(res.prose, { text: res.text, speaker: monName, recommendedVoice: res.recommendedVoice, voiceProfile: cVoiceProfile }, null, null, 0, speakOpts);
                         } else if (res.prose) {
                             this.audio.speakUtterance(res.prose, 'narrator', '', null, narrProfile || { engine: this.audio.ttsEngine });
                         }
@@ -5401,7 +5402,7 @@ class ChronicleManager {
             const speakOpts = { narrator: narrProfile, engine: this.audio.ttsEngine };
             if (res.isDialogue && res.text) {
                 // Awake vocal creature: speak atmospheric scene prose then creature line in character
-                this.audio.speak(res.prose, { text: res.text, speaker: monster.name, recommendedVoice: res.recommendedVoice, voiceProfile: cVoiceProfile }, null, null, 0, speakOpts);
+                this.audio.speak(res.prose, { text: res.text, speaker: monName, recommendedVoice: res.recommendedVoice, voiceProfile: cVoiceProfile }, null, null, 0, speakOpts);
             } else if (res.prose) {
                 // Sleeping or non-vocal creature: Master Chronicler speaks the scene aloud
                 this.audio.speakUtterance(res.prose, 'narrator', '', null, narrProfile || { engine: this.audio.ttsEngine });
@@ -5544,20 +5545,21 @@ class ChronicleManager {
                 reply = this.grounder.resolveCreatureEncounter(creature, this.currentHero, this.lastSeenMessages, creature._interactTurn, text, this.getActiveRealm(), this.getLanguageMode());
             }
 
+            const creatureName = (creature && (creature.name || creature.race)) ? String(creature.name || creature.race).trim() : 'Creature';
             const userHeroName = (this.currentHero && this.currentHero.name) ? this.currentHero.name : 'The hero';
             const combinedProse = reply && reply.prose
-                ? `Addressing ${creature.name}, ${userHeroName} speaks: "${text}". ${reply.prose}`
-                : `Addressing ${creature.name}, ${userHeroName} speaks: "${text}".`;
+                ? `Addressing ${creatureName}, ${userHeroName} speaks: "${text}". ${reply.prose}`
+                : `Addressing ${creatureName}, ${userHeroName} speaks: "${text}".`;
 
             const cVoiceProfile = this.grounder ? this.grounder.resolveVoiceProfile(creature, this.currentHero, 'dialogue', this.tradition, false, this.getActiveRealm(), this.getLanguageMode()) : null;
             const narrProfile = this.grounder ? this.grounder.resolveVoiceProfile(null, this.currentHero, 'dialogue', this.tradition, false, this.getActiveRealm(), this.getLanguageMode()) : null;
 
             const entry = {
-                title: `Encounter: ${creature.name}`,
+                title: `Encounter: ${creatureName}`,
                 depth: (this.currentHero && typeof this.currentHero.depth === 'number') ? this.currentHero.depth : 0,
                 prose: combinedProse,
                 dialogue: (reply && reply.text) ? {
-                    speaker: creature.name,
+                    speaker: creatureName,
                     text: reply.text,
                     isNoise: !reply.isDialogue,
                     creature: creature,
@@ -5567,7 +5569,12 @@ class ChronicleManager {
                 timestamp: Date.now()
             };
 
-            this.store.appendChapter(this.activeChronicle, entry);
+            if (!this.activeChronicle && this.store) {
+                this.startFreshChronicle(this.currentHero || { name: userHeroName, depth: 0 });
+            }
+            if (this.store && this.activeChronicle) {
+                this.store.appendChapter(this.activeChronicle, entry);
+            }
             this.renderStoryEntry(entry, true);
 
             if (this.audio && !this._isAudioMuted()) {

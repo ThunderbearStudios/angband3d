@@ -3125,7 +3125,7 @@ class NetHackEngine {
             rows.push({ g: pad80(''), a: attr80('01') });
             for (const l of tomb) rows.push({ g: pad80('                  ' + l), a: attr80('01') });
             rows.push({ g: pad80(''), a: attr80('01') });
-            rows.push({ g: pad80(`  Final Ledger: ${p.gold} goldorkmids • Turns: ${this.state.turn} • Deepest Dlvl: ${this.state.maxDepth}`), a: attr80('0b') });
+            rows.push({ g: pad80(`  Final Ledger: ${p.gold} zorkmids • Turns: ${this.state.turn} • Deepest Dlvl: ${this.state.maxDepth}`), a: attr80('0b') });
             rows.push({ g: pad80('  Press [R] to Restore Last Living Checkpoint Save, or [N] to Roll a New Hero.'), a: attr80('0e') });
             while (rows.length < TERM_H) rows.push({ g: pad80(''), a: attr80('01') });
             return rows;
@@ -3176,7 +3176,7 @@ class NetHackEngine {
             const range = list.length > 0 ? `${list[0].letter}-${list[list.length - 1].letter}` : 'empty';
             const hdr = isEq
                 ? `Equip: (Equipment) carrying ${list.length} worn/wielded items (${range}, / for Inven, ESC)`
-                : `Inven: (Inventory) carrying ${list.length} items (${range}, / for Equip, ESC) | $: ${p.gold} goldorkmids`;
+                : `Inven: (Inventory) carrying ${list.length} items (${range}, / for Equip, ESC) | $: ${p.gold} zorkmids`;
             rows.push({ g: pad80(hdr), a: attr80('0e') });
             if (list.length === 0) {
                 rows.push({ g: pad80('  (nothing currently worn or wielded — press [/] for Inventory or [ESC])'), a: attr80('01') });
@@ -3370,8 +3370,13 @@ class NetHackEngine {
         }
 
         const isOverlay = this.state.phase === 'setup' || this.state.menuMode !== 'none';
+        const isItemMenu = this.state.menuMode === 'inven' || this.state.menuMode === 'equip' || this.state.menuMode === 'verb' || this.state.menuMode === 'item_action';
+        const isSpellMenu = this.state.menuMode === 'spell';
+        const nhPromptKind = this.state.menuMode === 'direction'
+            ? 'direction'
+            : (this.state.menuMode === 'engrave' ? 'string' : (isSpellMenu ? 'spell' : (isItemMenu ? 'item' : 'screen')));
         const promptObj = this.state.menuMode !== 'none'
-            ? { kind: this.state.menuMode === 'direction' ? 'direction' : (this.state.menuMode === 'engrave' ? 'string' : 'item'), text: this.state.pendingPrompt || 'Inventory' }
+            ? { kind: nhPromptKind, text: this.state.pendingPrompt || (isItemMenu ? 'Inventory' : '') }
             : null;
 
         const hungerState = this.getHungerState(p.hunger);
@@ -3526,7 +3531,7 @@ class NetHackEngine {
             phase: this.state.phase,
             victory: Boolean(p.winner || p.ascended),
             ui: {
-                overlay: isOverlay ? 3 : 0,
+                overlay: isOverlay ? ((isItemMenu || isSpellMenu) ? 3 : 1) : 0,
                 awaiting_command: !isOverlay,
                 more: false,
                 context: isOverlay ? 'menu' : 'play',

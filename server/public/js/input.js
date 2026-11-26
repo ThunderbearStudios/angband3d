@@ -41,6 +41,7 @@ class InputController {
             try { return localStorage.getItem('angband3d_dpad_run') === '1'; } catch (_) { return false; }
         })();
         this.viKeyMode = (function() { try { return localStorage.getItem('angband3d_vi_keys'); } catch (_) { return null; } })();
+        this.autoPickupOnClick = (function() { try { return localStorage.getItem('angband3d_click_auto_pickup') !== 'false'; } catch (_) { return true; } })();
         this._wasdLiteralNext = false;
         this._lastRealm = null;
         this._lastCharName = null;
@@ -315,14 +316,16 @@ class InputController {
 
         // 3. Stairs up underfoot
         const isStairUp = currentFeat === 5 || (curDef && (curDef.isStairUp || /up/i.test(curDef.name || '')));
-        if (isStairUp) {
+        const noTownRealm = realm === 'nethack' || realm === 'dcss' || realm === 'brogue' || realm === 'rogue' || realm === 'silq';
+        const canWinExit = Boolean(player.hasAmulet || player.victory || (Number(player.runes || 0) >= 3));
+        if (isStairUp && !(depth <= 1 && noTownRealm && !canWinExit)) {
             const ascKey = (typeof ActionCatalog !== 'undefined' && ActionCatalog.getKey ? ActionCatalog.getKey('ascend', realm) : null) || '<';
             return {
                 id: 'ascend',
                 icon: '⬆',
                 text: 'Ascend',
                 key: ascKey,
-                title: depth === 1 ? `Ascend to Town [${ascKey}]` : `Ascend to ${(depth - 1) * 50}ft [${ascKey}]`
+                title: depth === 1 ? (noTownRealm ? `Exit Dungeon [${ascKey}]` : `Ascend to Town [${ascKey}]`) : `Ascend to ${(depth - 1) * 50}ft [${ascKey}]`
             };
         }
 
@@ -1916,6 +1919,12 @@ class InputController {
                 if (cls && (cls.isItemPrompt || cls.isStore || cls.isYesNoPrompt || cls.isQuantityPrompt || cls.isChoiceMenu || cls.isNamePrompt || cls.isMenuOrInteractive)) isPromptActive = true;
             }
         }
+        // Forward keyboard input directly to engine whenever a 3D prompt overlay / non-idle prompt is active (never hijack digits/arrows/space into movement or camera turn)
+        if (ui && (!isTopLevelCommandPrompt || isPromptActive) && !e.altKey && !e.metaKey) {
+            const pMap = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right', Enter: 'enter', Backspace: 'backspace', Delete: 'delete', ' ': 'space' };
+            const pKey = pMap[e.key] || (e.key.length === 1 ? (e.ctrlKey ? `C-${e.key.toLowerCase()}` : e.key) : null);
+            if (pKey) { e.preventDefault(); this.network.sendKey(pKey); return; }
+        }
 
         const curSeq = (lastFrame && lastFrame.seq !== undefined) ? lastFrame.seq : -1;
         if (curSeq !== this._lastMoveSentSeq) this._inFlightMoves = 0;
@@ -3003,8 +3012,11 @@ class InputController {
             const heroIcon = document.getElementById('hero-action-icon');
             const heroText = document.getElementById('hero-action-text');
             const heroKey = document.getElementById('hero-action-key');
+            const jpHero = (typeof window !== 'undefined' && window.__activeRealm === 'hengband' && window.__langMode === 'jp')
+                ? ({ wait: '待機', attack: '攻撃', descend: '降りる', ascend: '昇る', pickup: '拾う', door: '扉', shoot: '射撃' }[smart.id] || smart.text)
+                : smart.text;
             if (heroIcon) heroIcon.textContent = smart.icon;
-            if (heroText) heroText.textContent = smart.text;
+            if (heroText) heroText.textContent = jpHero;
             if (heroKey) heroKey.textContent = smart.key;
             btnHero.title = smart.title;
             btnHero.setAttribute('data-action', smart.id);
@@ -3248,7 +3260,7 @@ class InputController {
                                 const gKey = (typeof RealmKeys !== 'undefined' && RealmKeys.realmKey) ? (RealmKeys.realmKey('pickup', realm) || 'g') : 'g';
                                 this.network.sendKey(gKey);
                             } else {
-                                this.startMinimapAutoNav(item.x, item.y, frame);
+                                this.startMinimapAutoNav(item.x, item.y, frame, { pickupOnArrival: this.autoPickupOnClick !== false });
                             }
                             return;
                         }

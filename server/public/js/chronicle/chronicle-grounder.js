@@ -564,8 +564,8 @@ class ChronicleGrounder {
         if (entityOrMonster.uniqueKey) {
             return `unique_${entityOrMonster.uniqueKey}`;
         }
-        if (entityOrMonster.isUnique && entityOrMonster.name) {
-            return `unique_${entityOrMonster.name.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
+        if (entityOrMonster.isUnique && (entityOrMonster.name || entityOrMonster.race)) {
+            return `unique_${String(entityOrMonster.name || entityOrMonster.race).toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
         }
         const name = (entityOrMonster.name || entityOrMonster.race || 'creature').toLowerCase().replace(/[^a-z0-9]/g, '_');
         if (entityOrMonster.x !== undefined && entityOrMonster.y !== undefined) {
@@ -1694,8 +1694,8 @@ class ChronicleGrounder {
             };
         }
 
-        // 3. Beggars, Urchins & Outcasts (Glyph 't', beggar, urchin, leper)
-        if (lower.includes('beggar') || lower.includes('urchin') || lower.includes('leper')) {
+        // 3. Beggars, Urchins, Hobos & Outcasts (Glyph 't', beggar, urchin, hobo, leper)
+        if (lower.includes('beggar') || lower.includes('urchin') || lower.includes('hobo') || lower.includes('leper')) {
             const v = this.pickCreatureVoice(monster, 'beggar');
             return {
                 category: 'beggar',
@@ -4826,9 +4826,16 @@ class ChronicleGrounder {
                     prose = `Welcome to ${wTitle}, ${name}. Speak with the Elder, trade gold with the Quartermaster, then descend to vanquish ${boss} for the ${relic}.`;
                     insight = `Bump the Town Elder for a rumor and full mana, or step on '>' to begin Act I of ${wTitle}!`;
                 } else if (rk === 'hengband') {
-                    title = 'Gates of the Castle Town';
-                    prose = `Welcome to the Castle Town of Hengband, ${name}. Ready your steel at the shops and shrine before descending into the Sengoku labyrinth.`;
-                    insight = "Visit General Store '1' for light and rations, or press 'm' to inspect your martial or arcane arts.";
+                    const isJpHeng = typeof window !== 'undefined' && window.__langMode === 'jp';
+                    if (isJpHeng) {
+                        title = '城下町の門前';
+                        prose = `変愚蛮怒の城下町へようこそ、${name}。商店や寺院で装備と食料を整え、混沌の迷宮へ挑みましょう。`;
+                        insight = 'まずは雑貨屋「1」で松明と食料を調達し、「m」で魔法や技を確認しましょう。';
+                    } else {
+                        title = 'Gates of the Castle Town';
+                        prose = `Welcome to the Castle Town of Hengband, ${name}. Ready your steel at the shops and shrine before descending into the Sengoku labyrinth.`;
+                        insight = "Visit General Store '1' for light and rations, or press 'm' to inspect your martial or arcane arts.";
+                    }
                 } else if (rk === 'frogcomposband') {
                     title = 'Crossroads of the Outpost';
                     prose = `Welcome to the Outpost of Amber, ${name}. Stock supplies at the frontier stores or walk the wilderness border before plunging into Chaos.`;
@@ -7248,7 +7255,7 @@ class ChronicleGrounder {
         const rk = String(realmKey || 'angband').toLowerCase();
         const realmCtx = this.getRealmContext(rk);
         const att = this.detectCreatureAttitude(monster || {}, rk);
-        const mName = (monster && monster.name) ? monster.name : 'the creature';
+        const mName = (monster && (monster.name || monster.race)) ? String(monster.name || monster.race) : 'the creature';
         const cleanMName = att.cleanName || mName;
         const heroName = (hero && hero.name) ? hero.name : 'the traveler';
         const heroRace = (hero && hero.race) ? hero.race : 'Adventurer';
@@ -7271,7 +7278,7 @@ class ChronicleGrounder {
 
         const tactics = this.resolveTacticalMonsterInsight(mName, rk, monster);
         const stateObj = this.resolveCreatureState(monster, Array.isArray(recentMessages) ? recentMessages : [], rk);
-        const isTownNpc = (depth === 0 || stateObj.isPeaceful) && (stateObj.state === 'begging' || stateObj.isPeaceful || /veteran|towns|citizen|villager|mercenary|sailor|agent|farmer|mayor|urchin|shopkeeper|priest|oracle|watchman|guard|izchak/i.test(mName));
+        const isTownNpc = (depth === 0 || stateObj.isPeaceful) && (stateObj.state === 'begging' || stateObj.isPeaceful || /veteran|towns|citizen|villager|mercenary|sailor|agent|farmer|mayor|urchin|hobo|shopkeeper|priest|oracle|watchman|guard|izchak/i.test(mName));
 
         let prose = '';
         let reply = '';

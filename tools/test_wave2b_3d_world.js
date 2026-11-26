@@ -391,11 +391,11 @@ function createDomMock() {
     Tac.applyBlindMonsterState(fakeD3d, espEnt, espMon, { x: 5, y: 5, telepathy: true }, 5, 5, 0);
     assert.strictEqual(espMesh.renderOrder, 0, 'Restoring ESP must reset renderOrder to 0');
 
-    // 4e. extractHandItems & resolveOffhandLightKey
+    // 4e. extractHandItems & offhand torch/lantern prohibition (never render light source in left hand)
     const hands = Tac.extractHandItems({ weapon_item: 'Long Sword', equipment: [{ slot: 'f', slot_name: 'light', name: 'Brass Lantern of Vision', tval: 39 }] });
-    assert.strictEqual(hands.lightItem, 'Brass Lantern of Vision');
-    assert.strictEqual(Tac.resolveOffhandLightKey(hands.lightItem), 'lantern');
-    assert.strictEqual(Tac.resolveOffhandLightKey('Wooden Torch'), 'torch');
+    assert.strictEqual(hands.shieldItem, '', 'Light item in equipment must never populate shieldItem');
+    assert.strictEqual(Tac.resolveOffhandLightKey(hands.lightItem), '', 'resolveOffhandLightKey must always return empty string');
+    assert.strictEqual(Tac.resolveOffhandLightKey('Wooden Torch'), '', 'resolveOffhandLightKey must never enable offhand torch');
 }
 
 // 5. Full Dungeon3D Integration Checks (Sparks, LRU, Sun/Torch Lighting, Terrain, Items/Viewmodel)
@@ -525,6 +525,8 @@ function createDomMock() {
 
     // 5d. Hybrid itemRenderer split + rarity plinths + pile_count badge + LRU cap
     assert.strictEqual(d._shouldUse3DItemModel('item_longsword', 'hybrid'), true, 'Sword must use 3D GLTF in hybrid');
+    assert.strictEqual(d._shouldUse3DItemModel('item_staff', 'hybrid'), true, 'Staff must use 3D GLTF in hybrid');
+    assert.strictEqual(d._shouldUse3DItemModel('item_wand', 'hybrid'), true, 'Wand must use 3D GLTF in hybrid');
     assert.strictEqual(d._shouldUse3DItemModel('ph_potion_bottle', 'hybrid'), false, 'Potion must use Shockbolt billboard in hybrid');
     assert.strictEqual(d._shouldUse3DItemModel('ph_potion_bottle', 'classic'), true, 'Potion must use 3D GLTF in classic');
     assert.strictEqual(d._shouldUse3DItemModel('item_longsword', 'billboard'), false, 'Sword must use billboard in billboard mode');
@@ -544,6 +546,16 @@ function createDomMock() {
     }
     assert.strictEqual(lruMap.size, 64, 'LRU cache must be bounded at 64 entries');
     assert.strictEqual(lruMap.has('k0'), true, 'Protected key must never be evicted by LRU');
+
+    // Offhand torch prohibition in live Dungeon3D viewmodel
+    d.updateViewmodel({
+        depth: 4,
+        weapon_item: 'Long Sword',
+        light_item: 'Wooden Torch',
+        equipment: [{ slot: 'f', slot_name: 'light', name: 'Brass Lantern of Vision', tval: 39 }]
+    });
+    assert.strictEqual(d.leftHandGroup.visible, false, 'leftHandGroup must remain hidden when holding a torch/lantern at depth > 0');
+    assert.strictEqual(d.currentLeftWeapon, null, 'currentLeftWeapon must remain null for torch/lantern');
 
     // Dual-wield alternation check
     d._isOffhandDualWield = true;

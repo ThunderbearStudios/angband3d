@@ -40,6 +40,10 @@
     function configureRenderer(renderer, threeRef) {
         if (!renderer) return;
         const T = getThree(threeRef);
+        // Disable ColorManagement sRGB->linear hex auto-conversion so hex lights/materials match r128 tonal balance while keeping SRGBColorSpace textures/output.
+        if (isV2(T) && T && T.ColorManagement) {
+            T.ColorManagement.enabled = false;
+        }
         if (isV2(T) && 'outputColorSpace' in renderer && T && T.SRGBColorSpace !== undefined) {
             renderer.outputColorSpace = T.SRGBColorSpace;
         } else if (T && T.sRGBEncoding !== undefined && 'outputEncoding' in renderer) {

@@ -36,9 +36,14 @@
         if (!d3d || !d3d.scene || typeof THREE === 'undefined') return;
         const realm = String(d3d.realm || 'angband').toLowerCase();
         if (outdoors) {
-            const skyColor = (biome && biome.bgColor !== undefined) ? biome.bgColor : 0x121b2d;
-            const fogColor = (biome && biome.fogColor !== undefined) ? biome.fogColor : 0x121b2d;
-            const density = (biome && biome.fogDensity) ? biome.fogDensity : 0.012;
+            const lf = d3d.lastFrame;
+            const isNight = Boolean(lf && (lf.is_night || (lf.player && lf.player.is_night)));
+            const isDiorama = Boolean(lf && lf._isMenuDiorama);
+            const isDaylight = !isNight && !isDiorama;
+            const daySky = realm === 'silq' ? 0x7e90a8 : (realm === 'hengband' ? 0xc2d0e2 : 0xb2cae0);
+            const skyColor = isDaylight ? daySky : ((biome && biome.bgColor !== undefined) ? biome.bgColor : 0x121b2d);
+            const fogColor = isDaylight ? daySky : ((biome && biome.fogColor !== undefined) ? biome.fogColor : 0x121b2d);
+            const density = isDaylight ? 0.0024 : ((biome && biome.fogDensity) ? biome.fogDensity : 0.012);
             if (d3d.scene.background) d3d.scene.background.setHex(skyColor);
             if (!(d3d.scene.fog instanceof THREE.FogExp2)) {
                 d3d.scene.fog = new THREE.FogExp2(fogColor, density);
@@ -47,10 +52,11 @@
                 d3d.scene.fog.density = density;
             }
             if (d3d.hemiLight) {
-                d3d.hemiLight.color.setHex(0x687da6);
-                d3d.hemiLight.groundColor.setHex(0x221914);
-                if (window.Dungeon3DCompat) window.Dungeon3DCompat.setLightIntensity(d3d.hemiLight, 'hemi', 0.32);
-                else d3d.hemiLight.intensity = 0.32;
+                d3d.hemiLight.color.setHex(isDaylight ? 0xaad0f5 : 0x687da6);
+                d3d.hemiLight.groundColor.setHex(isDaylight ? 0x4a3d2e : 0x221914);
+                const hemiTarget = isDaylight ? 0.56 : 0.32;
+                if (window.Dungeon3DCompat) window.Dungeon3DCompat.setLightIntensity(d3d.hemiLight, 'hemi', hemiTarget);
+                else d3d.hemiLight.intensity = hemiTarget;
             }
             return;
         }
@@ -235,12 +241,19 @@
         if (!sys) return;
         sys.mesh.visible = true;
         const limit = Math.min(sys.maxHalos, sconces.length);
+        let emitted = 0;
         for (let i = 0; i < limit; i++) {
             const s = sconces[i];
-            sys.matrix.makeTranslation(s.x, 1.98, s.z);
-            sys.mesh.setMatrixAt(i, sys.matrix);
+            if (!s) continue;
+            const sx = Number.isFinite(s.mountX) ? s.mountX : s.x;
+            const sy = Number.isFinite(s.mountY) ? s.mountY : (Number.isFinite(s.y) ? s.y : 1.98);
+            const sz = Number.isFinite(s.mountZ) ? s.mountZ : s.z;
+            if (!Number.isFinite(sx) || !Number.isFinite(sz)) continue;
+            sys.matrix.makeTranslation(sx, sy, sz);
+            sys.mesh.setMatrixAt(emitted++, sys.matrix);
         }
-        sys.mesh.count = limit;
+        sys.mesh.count = emitted;
+        sys.mesh.visible = emitted > 0;
         sys.mesh.instanceMatrix.needsUpdate = true;
     }
 

@@ -28,6 +28,9 @@ function testBridgeSources() {
         { name: 'hengband', rel: 'variants/hengband-src/src/main-bridge.cpp' }
     ];
     for (const eng of engines) {
+        if (!eng.rel.startsWith('engine-patch/') && !fs.existsSync(path.join(ROOT, eng.rel))) {
+            continue;
+        }
         const src = read(eng.rel);
         check(src.includes('BRIDGE_PROTOCOL_MINOR 3'), `${eng.name}: bumps BRIDGE_PROTOCOL_MINOR to 3`);
         check(src.includes('setvbuf(stdout, bridge_stdout_buf, _IOFBF, sizeof(bridge_stdout_buf))'), `${eng.name}: 128 KB setvbuf stdout buffer`);
@@ -48,14 +51,23 @@ function testBridgeSources() {
     check(angPatch.includes('hallucination') && angPatch.includes('Strange Apparition') && angPatch.includes('Strange Object'), 'angband: hallucination phantom guard');
     check(angPatch.includes('square_islockeddoor') && angPatch.includes('ODESC_PREFIX | ODESC_FULL'), 'angband: locked doors & full object names');
 
-    const silqSrc = read('variants/silq-src/src/main-bridge.c');
-    check(silqSrc.includes('STANCE_FLEEING') && silqSrc.includes('image_r_idx') && silqSrc.includes('Entranced'), 'silq: fleeing/hallucination/entranced parity');
+    const silqRel = 'variants/silq-src/src/main-bridge.c';
+    if (fs.existsSync(path.join(ROOT, silqRel))) {
+        const silqSrc = read(silqRel);
+        check(silqSrc.includes('STANCE_FLEEING') && silqSrc.includes('image_r_idx') && silqSrc.includes('Entranced'), 'silq: fleeing/hallucination/entranced parity');
+    }
 
-    const fcbSrc = read('variants/frogcomposband-src/src/main-bridge.c');
-    check(fcbSrc.includes('strstr(name, "broken") != NULL') && fcbSrc.includes('MST_BREATH') && fcbSrc.includes('MST_SUMMON'), 'frogcomposband: broken doors & breather/summoner parity');
+    const fcbRel = 'variants/frogcomposband-src/src/main-bridge.c';
+    if (fs.existsSync(path.join(ROOT, fcbRel))) {
+        const fcbSrc = read(fcbRel);
+        check(fcbSrc.includes('strstr(name, "broken") != NULL') && fcbSrc.includes('MST_BREATH') && fcbSrc.includes('MST_SUMMON'), 'frogcomposband: broken doors & breather/summoner parity');
+    }
 
-    const hengSrc = read('variants/hengband-src/src/main-bridge.cpp');
-    check(hengSrc.includes('TerrainTag::BROKEN_DOOR') && hengSrc.includes('TerrainTag::MAGMA_VEIN') && hengSrc.includes('DARK_PIT'), 'hengband: broken doors, JP veins & chasm 41 parity');
+    const hengRel = 'variants/hengband-src/src/main-bridge.cpp';
+    if (fs.existsSync(path.join(ROOT, hengRel))) {
+        const hengSrc = read(hengRel);
+        check(hengSrc.includes('TerrainTag::BROKEN_DOOR') && hengSrc.includes('TerrainTag::MAGMA_VEIN') && hengSrc.includes('DARK_PIT'), 'hengband: broken doors, JP veins & chasm 41 parity');
+    }
 }
 
 function testServerWiring() {

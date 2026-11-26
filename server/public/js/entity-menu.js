@@ -174,6 +174,10 @@
                     window.__app?.input?.startMinimapAutoNav?.(entity.x, entity.y, frame);
                     return;
                 }
+                if (act.id === 'pickup' && entity && typeof entity.x === 'number' && frame && frame.player && (entity.x !== frame.player.x || entity.y !== frame.player.y)) {
+                    window.__app?.input?.startMinimapAutoNav?.(entity.x, entity.y, frame, { pickupOnArrival: true });
+                    return;
+                }
                 const d = opts.dispatcher || (typeof window !== 'undefined' && window.__app && window.__app.dispatcher) || null;
                 const glyph = (entity && (entity.glyph || entity.char)) || null;
                 if (act.id === 'recall') {

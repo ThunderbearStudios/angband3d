@@ -627,11 +627,11 @@ test('Wave 16 held equipment alignment, static-rig stabilization & Artisan HUD c
 test('Card 17A 3D rig posture, skinned-mesh fist centroid attachment & viewmodel gauntlets', () => {
     const d3dSrc = read('server/public/js/dungeon3d.js');
 
-    // 1. char_male_guard normalizes guardPivot with yawOffset = 0 and shares Mixamo clips across humanoids
+    // 1. char_male_guard normalizes guardPivot with yawOffset = 0 and keeps its own Mixamo clips without cross-contaminating upright villagers
     assert(
         d3dSrc.includes('normalizeWrapper(guardPivot, 1.82, true, 0)') &&
-        d3dSrc.includes('this._sharedMixamoClips = guardClips;'),
-        'char_male_guard must normalize guardPivot with yawOffset = 0 and share Mixamo clips'
+        !d3dSrc.includes('this._sharedMixamoClips = guardClips;'),
+        'char_male_guard must normalize guardPivot with yawOffset = 0 without cross-applying Mixamo clips to static villagers'
     );
 
     // 2. dungeon3d.js defines _computeHandGripLocalOffset and assigns hand_r._palmLocalOffset and hand_l._palmLocalOffset (including LeftHand_Synthetic)

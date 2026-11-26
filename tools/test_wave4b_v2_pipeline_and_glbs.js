@@ -208,8 +208,10 @@ function readGlbJson(filePath) {
     assert(tacticalJs.includes('initDungeonSetDressing') && tacticalJs.includes('emitDungeonSetDressing') && tacticalJs.includes('BatchedMesh'),
         'Dungeon tactical set-dressing must use BatchedMesh');
     const d3dJs = fs.readFileSync(path.join(ROOT, 'server/public/js/dungeon3d.js'), 'utf8');
-    assert(d3dJs.includes('compileAsync') && d3dJs.includes('syncBiomePmrem') && d3dJs.includes('corvid_raptor.glb') && d3dJs.includes('balrog.glb'),
-        'dungeon3d.js must wire compileAsync, syncBiomePmrem, and Wave 4B GLBs');
+    assert(d3dJs.includes('compileAsync') && d3dJs.includes('syncBiomePmrem') && d3dJs.includes('corvid_raptor.glb') && d3dJs.includes('GodAnubis_Art.glb'),
+        'dungeon3d.js must wire compileAsync, syncBiomePmrem, corvid_raptor.glb, and dark-fantasy GodAnubis_Art.glb');
+    assert(!d3dJs.includes('/bestiary/balrog.glb') && !d3dJs.includes('/bestiary/minotaur.glb'),
+        'dungeon3d.js must NOT load cartoon chibi balrog.glb or minotaur.glb');
     const credits = fs.readFileSync(path.join(ROOT, 'CREDITS.md'), 'utf8');
     for (const f of [...WAVE4B_ITEM_GLBS, ...WAVE4B_MONSTER_GLBS]) {
         assert(credits.includes(f), `Missing ${f} attribution in CREDITS.md`);

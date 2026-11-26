@@ -59,7 +59,9 @@
             '    <label class="yasd-set-row"><span>HUD Scale (<strong id="yasd-set-scale-val">100%</strong>)</span><input type="range" id="yasd-set-scale" min="85" max="125" step="5" value="100"></label>',
             '    <label class="yasd-set-row"><span>Handheld Touch Layout</span><select id="yasd-set-handheld"><option value="auto">Auto (Touch Phone)</option><option value="on">Force Handheld</option><option value="off">Force Desktop</option></select></label>',
             '    <label class="yasd-set-row"><span>Grimoire Card Deck [F10]</span><select id="yasd-set-grimoire"><option value="classic">Classic Terminal</option><option value="hybrid">Split Cards + Terminal</option><option value="cards">Full Cards Deck</option></select></label>',
+            '    <label class="yasd-set-row"><span>Prompt &amp; Menu Style</span><select id="yasd-set-prompt-style"><option value="3d">3D Prompt Overlays</option><option value="classic">Classic 80x24 CRT Menus</option></select></label>',
             '    <label class="yasd-set-row yasd-set-check"><span>Camera-Relative Vi-Keys (HJKL / YUBN) [Alt+V]</span><input type="checkbox" id="yasd-set-vikeys"></label>',
+            '    <label class="yasd-set-row yasd-set-check"><span>Auto-Pick Up Clicked Items (Global)</span><input type="checkbox" id="yasd-set-click-pickup" checked></label>',
             '    <label class="yasd-set-row yasd-set-check"><span>Subterranean Room-Tone Ambience</span><input type="checkbox" id="yasd-set-roomtone" checked></label>',
             '    <label class="yasd-set-row yasd-set-check"><span>Reduced Motion &amp; Transitions</span><input type="checkbox" id="yasd-set-motion"></label>',
             '  </div>',
@@ -120,10 +122,20 @@
                 window.RealmGrimoireDeck.setMode(mode, { userToggle: true });
             }
         });
+        dlg.querySelector('#yasd-set-prompt-style')?.addEventListener('change', (e) => {
+            const use3d = e.target.value !== 'classic';
+            if (typeof window.__setYasdFlag === 'function') window.__setYasdFlag('PROMPT_MIRROR_3D', use3d);
+            if (!use3d && window.PromptMirror && typeof window.PromptMirror.hide === 'function') window.PromptMirror.hide();
+        });
         dlg.querySelector('#yasd-set-vikeys')?.addEventListener('change', (e) => {
             const val = e.target.checked ? 'on' : 'off';
             try { localStorage.setItem('angband3d_vi_keys', val); } catch (_) {}
             if (window.__app?.input) window.__app.input.viKeyMode = val;
+        });
+        dlg.querySelector('#yasd-set-click-pickup')?.addEventListener('change', (e) => {
+            const on = Boolean(e.target.checked);
+            try { localStorage.setItem('angband3d_click_auto_pickup', on ? 'true' : 'false'); } catch (_) {}
+            if (window.__app?.input) window.__app.input.autoPickupOnClick = on;
         });
         dlg.querySelector('#yasd-set-roomtone')?.addEventListener('change', (e) => {
             if (window.AudioAmbience && typeof window.AudioAmbience.setEnabled === 'function') {
@@ -155,10 +167,17 @@
             hhEl.value = DeviceProfile.getHandheldOverride();
         }
         const grEl = d.querySelector('#yasd-set-grimoire'); if (grEl) grEl.value = grim;
+        const pmEl = d.querySelector('#yasd-set-prompt-style'); if (pmEl) pmEl.value = (window.YASD_FLAGS && window.YASD_FLAGS.PROMPT_MIRROR_3D === false) ? 'classic' : '3d';
         const vkEl = d.querySelector('#yasd-set-vikeys');
         if (vkEl) {
             const r = window.__app?.getActiveRealm?.() || 'angband';
             vkEl.checked = viPref === 'on' || (viPref !== 'off' && Boolean(window.YasdPrimitives?.isViDefaultRealm?.(r)));
+        }
+        const cpEl = d.querySelector('#yasd-set-click-pickup');
+        if (cpEl) {
+            let clickPickup = true;
+            try { clickPickup = localStorage.getItem('angband3d_click_auto_pickup') !== 'false'; } catch (_) {}
+            cpEl.checked = clickPickup;
         }
         const rtEl = d.querySelector('#yasd-set-roomtone');
         if (rtEl) rtEl.checked = !(window.AudioAmbience && typeof window.AudioAmbience.isEnabled === 'function' && !window.AudioAmbience.isEnabled());

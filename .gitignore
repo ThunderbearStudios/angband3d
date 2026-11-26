@@ -110,3 +110,6 @@ GEMINI.md
 # Build-time Brotli-11 & Gzip-9 precompressed static sidecars
 *.br
 *.gz
+
+# Automated 9-realm playtest harness artifacts
+tools/playtest/runs/

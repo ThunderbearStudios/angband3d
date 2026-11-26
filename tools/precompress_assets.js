@@ -16,7 +16,8 @@ const path = require('path');
 const zlib = require('zlib');
 
 const targetDir = path.resolve(process.argv[2] || path.join(__dirname, '..', 'server', 'public'));
-const COMPRESSIBLE_EXTS = new Set(['.js', '.css', '.json', '.svg', '.wasm', '.data', '.gltf', '.obj', '.mtl', '.html']);
+const COMPRESSIBLE_EXTS = new Set(['.js', '.css', '.json', '.svg', '.wasm', '.data', '.gltf', '.obj', '.mtl', '.html', '.glb', '.ktx2', '.bin']);
+const BINARY_BR_ONLY_EXTS = new Set(['.glb', '.ktx2', '.bin']);
 
 function walk(dir, out = []) {
     if (!fs.existsSync(dir)) return out;
@@ -45,14 +46,19 @@ let gzTotal = 0;
 for (const filePath of files) {
     const stat = fs.statSync(filePath);
     if (stat.size < 1024) continue;
+    const ext = path.extname(filePath).toLowerCase();
+    const skipGz = BINARY_BR_ONLY_EXTS.has(ext);
     const brPath = filePath + '.br';
     const gzPath = filePath + '.gz';
     const hasFreshBr = fs.existsSync(brPath) && (() => { const s = fs.statSync(brPath); return s.mtimeMs >= stat.mtimeMs && s.size > 0 ? s : null; })();
-    const hasFreshGz = fs.existsSync(gzPath) && (() => { const s = fs.statSync(gzPath); return s.mtimeMs >= stat.mtimeMs && s.size > 0 ? s : null; })();
-    if (hasFreshBr && hasFreshGz) {
+    const hasFreshGz = skipGz ? true : (fs.existsSync(gzPath) && (() => { const s = fs.statSync(gzPath); return s.mtimeMs >= stat.mtimeMs && s.size > 0 ? s : null; })());
+    if (skipGz && fs.existsSync(gzPath)) {
+        try { fs.unlinkSync(gzPath); } catch (_) {}
+    }
+    if ((hasFreshBr || fs.existsSync(brPath + '.skip')) && hasFreshGz) {
         rawTotal += stat.size;
-        brTotal += hasFreshBr.size;
-        gzTotal += hasFreshGz.size;
+        if (hasFreshBr) brTotal += hasFreshBr.size;
+        if (!skipGz && hasFreshGz) gzTotal += hasFreshGz.size;
         skippedFresh++;
         continue;
     }
@@ -73,20 +79,23 @@ for (const filePath of files) {
             fs.writeFileSync(brPath, compressed);
             brTotal += compressed.length;
             written++;
-        } else if (fs.existsSync(brPath)) {
-            fs.unlinkSync(brPath);
+        } else {
+            if (fs.existsSync(brPath)) fs.unlinkSync(brPath);
+            brTotal += raw.length;
         }
     }
-    if (hasFreshGz) {
-        gzTotal += hasFreshGz.size;
-    } else {
-        const gzipped = zlib.gzipSync(raw, { level: 9 });
-        if (gzipped.length < raw.length * 0.92) {
-            fs.writeFileSync(gzPath, gzipped);
-            gzTotal += gzipped.length;
-            written++;
-        } else if (fs.existsSync(gzPath)) {
-            fs.unlinkSync(gzPath);
+    if (!skipGz) {
+        if (hasFreshGz) {
+            gzTotal += hasFreshGz.size;
+        } else {
+            const gzipped = zlib.gzipSync(raw, { level: 9 });
+            if (gzipped.length < raw.length * 0.92) {
+                fs.writeFileSync(gzPath, gzipped);
+                gzTotal += gzipped.length;
+                written++;
+            } else if (fs.existsSync(gzPath)) {
+                fs.unlinkSync(gzPath);
+            }
         }
     }
 }

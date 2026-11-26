@@ -5634,7 +5634,7 @@ window.addEventListener('DOMContentLoaded', () => {
         }
         const menuLangSelect = document.getElementById('main-menu-hengband-lang-select');
         if (menuLangSelect) {
-            try { const storedLang = localStorage.getItem('angband3d_lang_mode') || 'en'; menuLangSelect.value = storedLang; } catch (_) {}
+            try { menuLangSelect.value = langMode || localStorage.getItem('angband3d_lang_mode') || 'en'; } catch (_) {}
         }
         document.querySelectorAll('.realm-pill-btn[data-switch-realm]').forEach((pill) => {
             const isPillMatch = pill.dataset.switchRealm === activeRealm;
@@ -7882,7 +7882,11 @@ window.addEventListener('DOMContentLoaded', () => {
                 }
             }
             if (!window.gameSceneAssetsLoading && window.chronicleManager && typeof window.chronicleManager.onFrame === 'function') {
-                window.chronicleManager.onFrame(frame);
+                try {
+                    window.chronicleManager.onFrame(frame);
+                } catch (err) {
+                    console.error('[Chronicle Error]', err);
+                }
             }
             // Update HUD
             try {
@@ -8016,6 +8020,17 @@ window.addEventListener('DOMContentLoaded', () => {
     updateRealmUI();
     setupRealmModalEvents();
     setupCommandPaletteEvents();
+    if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+        let devErrCount = 0;
+        const sendDevErr = (type, err) => {
+            if (++devErrCount > 20 || !navigator.sendBeacon) return;
+            const payload = JSON.stringify({ type, message: String(err?.message || err || ''), stack: String(err?.stack || '').slice(0, 800), realm: activeRealm, phase: currentPhase, seq: lastFrame?.seq || 0 });
+            try { navigator.sendBeacon('/api/dev/client-error', new Blob([payload], { type: 'application/json' })); } catch (_) {}
+        };
+        window.addEventListener('error', (e) => sendDevErr('error', e.error || e.message));
+        window.addEventListener('unhandledrejection', (e) => sendDevErr('unhandledrejection', e.reason));
+        document.getElementById('viewport-canvas')?.addEventListener('webglcontextlost', () => sendDevErr('webglcontextlost', 'WebGL context lost'));
+    }
     // Live 3D Celestial Diorama: When in Splash or Main Menu and no gameplay frame has arrived,
     // gently tilt camera pitch upward and orbit yaw so the Celestial Sky Dome & Town diorama shine through.
     // Pauses completely during active gameplay (zero idle rAF callbacks).

@@ -1,20 +1,21 @@
 // Angband3D Service Worker — Split-Epoch PWA Shell + Persistent 3D/WASM Asset Cache
-const CACHE_NAME = 'angband3d-v13.3.0';
+const CACHE_NAME = 'angband3d-v13.3.4';
+const SW_VER = CACHE_NAME.replace(/^angband3d-v/, '');
 const ASSET_CACHE = 'angband3d-assets-v4';
 const SHELL_ASSETS = [
   '/',
   '/manifest.json',
-  '/dist/app.min.css',
-  '/dist/boot.min.js',
-  '/dist/game.min.js',
-  '/assets/favicon.png',
-  '/assets/yasd3d_icon_192.png'
+  `/dist/app.min.css?v=${SW_VER}`,
+  `/dist/boot.min.js?v=${SW_VER}`,
+  `/dist/game.min.js?v=${SW_VER}`,
+  `/assets/favicon.png?v=${SW_VER}`,
+  `/assets/yasd3d_icon_192.png?v=${SW_VER}`
 ];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) =>
-      Promise.allSettled(SHELL_ASSETS.map((u) => cache.add(new Request(u, { cache: 'reload' }))))
+      Promise.allSettled(SHELL_ASSETS.map((u) => cache.add(u.includes('?v=') ? u : new Request(u, { cache: 'reload' }))))
     ).then(() => self.skipWaiting())
   );
 });
@@ -56,7 +57,7 @@ self.addEventListener('fetch', (event) => {
 
   const hasVersionParam = url.searchParams.has('v');
   const isNav = event.request.mode === 'navigate';
-  const bypassDiskCache = isNav || url.pathname.startsWith('/assets/') || hasVersionParam;
+  const bypassDiskCache = isNav || (url.pathname.startsWith('/assets/') && !hasVersionParam);
   const fetchFresh = () => bypassDiskCache ? fetch(event.request, { cache: isNav ? 'no-store' : 'no-cache' }) : fetch(event.request);
   const isHeavyImmutableAsset = (
     url.pathname.startsWith('/assets/models/') ||
@@ -83,8 +84,8 @@ self.addEventListener('fetch', (event) => {
               cache.put(event.request, cloned).then(async () => {
                 if (!isHeavyImmutableAsset) return;
                 const keys = await cache.keys();
-                if (keys.length > 180) {
-                  for (const oldReq of keys.slice(0, keys.length - 180)) {
+                if (keys.length > 300) {
+                  for (const oldReq of keys.slice(0, keys.length - 300)) {
                     await cache.delete(oldReq);
                   }
                 }

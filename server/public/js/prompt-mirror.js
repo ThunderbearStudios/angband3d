@@ -38,114 +38,57 @@
         const prompt = model.prompt || {};
         const title = prompt.text || defaultTitleFor(mirror);
 
-        let actions = [];
-        let items = [];
-        let switchChips = [];
-        let targetChip = null;
+        let actions = [], items = [], switchChips = [], targetChip = null, desc = '';
+        const row0Text = (frame && frame.term && frame.term.rows && frame.term.rows[0] && frame.term.rows[0].g) ? frame.term.rows[0].g : '';
 
         switch (mirror) {
-            case 'more':
-                actions = [{ key: 'space', label: 'Continue', badge: '[Space]', primary: true }];
-                break;
-
-            case 'yesno':
-                actions = [
-                    { key: 'y', label: 'Yes', badge: '[y]', primary: true },
-                    { key: 'n', label: 'No', badge: '[n]', danger: true },
-                    { key: 'escape', label: 'Cancel', badge: '[Esc]' }
-                ];
-                break;
-
+            case 'more': actions = [{ key: 'space', label: 'Continue', badge: '[Space]', primary: true }]; break;
+            case 'yesno': actions = [{ key: 'y', label: 'Yes', badge: '[y]', primary: true }, { key: 'n', label: 'No', badge: '[n]', danger: true }, { key: 'escape', label: 'Cancel', badge: '[Esc]' }]; break;
             case 'quantity':
-            case 'count':
-                actions = [
-                    { key: '-', label: '-1', badge: '[-]' },
-                    { key: '+', label: '+1', badge: '[+]' },
-                    { key: '*', label: 'All (*)', badge: '[*]' },
-                    { key: '&', label: 'Max (&)', badge: '[&]' },
-                    { key: 'enter', label: 'Confirm', badge: '[⏎]', primary: true },
-                    { key: 'escape', label: 'Cancel', badge: '[Esc]' }
-                ];
-                break;
-
+            case 'count': actions = [{ key: '-', label: '-1', badge: '[-]' }, { key: '+', label: '+1', badge: '[+]' }, { key: '*', label: 'All (*)', badge: '[*]' }, { key: '&', label: 'Max (&)', badge: '[&]' }, { key: 'enter', label: 'Confirm', badge: '[⏎]', primary: true }, { key: 'escape', label: 'Cancel', badge: '[Esc]' }]; break;
             case 'item':
-                switchChips = [
-                    { key: '/', label: 'Equip [/]' },
-                    { key: '|', label: 'Quiver [|]' },
-                    { key: '-', label: 'Floor [-]' }
-                ];
+                switchChips = [{ key: '/', label: 'Equip [/]' }, { key: '|', label: 'Quiver [|]' }, { key: '-', label: 'Floor [-]' }];
+                if (/\*\s*(?:to see|=list)|'\*'で一覧/i.test(row0Text + ' ' + title)) switchChips.push({ key: '*', label: 'Show All [*]' });
                 actions = [{ key: 'escape', label: 'Cancel', badge: '[Esc]' }];
-                items = (model.items || []).map((it) => ({
-                    letter: it.letter || it.key || '',
-                    name: it.name || it.label || it.rowLabel || 'Item',
-                    slot: it.slot !== undefined ? it.slot : null,
-                    source: it.source || 'pack',
-                    vm: it.vm
-                }));
+                items = (model.items || []).map((it) => ({ letter: it.letter || it.key || '', name: it.name || it.label || it.rowLabel || 'Item', slot: it.slot !== undefined ? it.slot : null, source: it.source || 'pack', vm: it.vm }));
                 break;
-
             case 'item-menu': {
                 actions = [{ key: 'escape', label: 'Cancel', badge: '[Esc]' }];
-                const rawRows = (model.regions && model.regions.length)
-                    ? model.regions
-                    : (model.items || (model.legacy && model.legacy.itemRows) || []);
-                items = rawRows.map((r) => ({
-                    letter: r.letter || r.key || '',
-                    name: r.name || r.label || r.text || '',
-                    slot: r.slot !== undefined ? r.slot : null,
-                    source: 'menu'
-                }));
+                const rawRows = (model.regions && model.regions.length) ? model.regions : (model.items || (model.legacy && model.legacy.itemRows) || []);
+                items = rawRows.map((r) => ({ letter: r.letter || r.key || '', name: r.name || r.label || r.text || '', slot: r.slot !== undefined ? r.slot : null, source: 'menu' }));
+                if (frame && frame.term && Array.isArray(frame.term.rows)) {
+                    const lore = [];
+                    for (let ri = 1; ri <= 6 && ri < frame.term.rows.length; ri++) {
+                        const seg = String(frame.term.rows[ri].g || '').slice(0, 56).replace(/\s+(?:[A-Za-z{}k]\)|LEVEL|STR|INT).*$/i, '').trim();
+                        if (seg && /[a-zA-Z]{3}/.test(seg) && !/[#]{2,}|^(?:STR|INT|WIS|DEX|CON|AU|LEVEL|HP|SP)[:\s]/i.test(seg)) lore.push(seg);
+                    }
+                    if (lore.length) desc = lore.join(' · ').slice(0, 160);
+                }
                 break;
             }
-
             case 'direction': {
                 const targetKey = (r === 'silq') ? 'f' : 't';
                 targetChip = { key: targetKey, label: `Target [${targetKey}]` };
-                actions = [
-                    { key: '1', label: 'SW', badge: '[1]' },
-                    { key: '2', label: 'S', badge: '[2]' },
-                    { key: '3', label: 'SE', badge: '[3]' },
-                    { key: '4', label: 'W', badge: '[4]' },
-                    { key: targetKey, label: targetChip.label, badge: `[${targetKey}]`, primary: true },
-                    { key: '6', label: 'E', badge: '[6]' },
-                    { key: '7', label: 'NW', badge: '[7]' },
-                    { key: '8', label: 'N', badge: '[8]' },
-                    { key: '9', label: 'NE', badge: '[9]' },
-                    { key: '*', label: 'Cycle [*]', badge: '[*]' },
-                    { key: 'escape', label: 'Cancel', badge: '[Esc]' }
-                ];
+                actions = [{ key: '1', label: 'SW', badge: '[1]' }, { key: '2', label: 'S', badge: '[2]' }, { key: '3', label: 'SE', badge: '[3]' }, { key: '4', label: 'W', badge: '[4]' }, { key: targetKey, label: targetChip.label, badge: `[${targetKey}]`, primary: true }, { key: '6', label: 'E', badge: '[6]' }, { key: '7', label: 'NW', badge: '[7]' }, { key: '8', label: 'N', badge: '[8]' }, { key: '9', label: 'NE', badge: '[9]' }, { key: '*', label: 'Cycle [*]', badge: '[*]' }, { key: 'escape', label: 'Cancel', badge: '[Esc]' }];
                 break;
             }
-
             case 'spell': {
                 actions = [{ key: 'escape', label: 'Cancel', badge: '[Esc]' }];
+                if (/\?/.test(title)) actions.push({ key: '?', label: 'Descriptions', badge: '[?]' });
+                if (/\*/.test(title) || /'\*'/.test(row0Text)) actions.push({ key: '*', label: 'Toggle List', badge: '[*]' });
                 const appSpells = (typeof window !== 'undefined' && window.__app && Array.isArray(window.__app.lastSpells)) ? window.__app.lastSpells : null;
-                const rawSpells = (frame && Array.isArray(frame.spells) && frame.spells.length > 0) ? frame.spells : (appSpells && appSpells.length > 0 ? appSpells : (model.items || []));
-                items = rawSpells.map((s) => ({
-                    letter: s.letter || s.key || '',
-                    name: s.name || s.label || 'Spell',
-                    slot: s.slot !== undefined ? s.slot : null,
-                    source: 'spell',
-                    cost: s.mana !== undefined ? s.mana : s.cost,
-                    fail: s.fail,
-                    level: s.level
-                }));
+                const rawSpells = (model.items && model.items.length > 0) ? model.items : ((frame && Array.isArray(frame.spells) && frame.spells.length > 0) ? frame.spells : (appSpells || []));
+                items = rawSpells.map((s) => ({ letter: s.letter || s.key || '', name: s.name || s.label || 'Spell', slot: s.slot !== undefined ? s.slot : null, source: 'spell', cost: s.mana !== undefined ? s.mana : s.cost, fail: s.fail, level: s.level, info: s.info || s.desc || '' }));
                 break;
             }
-
-            case 'string': {
-                actions = [
-                    { key: 'enter', label: 'Apply', badge: '[Enter]', primary: true },
-                    { key: 'escape', label: 'Cancel', badge: '[Esc]' }
-                ];
+            case 'string':
+                actions = [{ key: 'enter', label: 'Apply', badge: '[Enter]', primary: true }, { key: 'escape', label: 'Cancel', badge: '[Esc]' }];
                 break;
-            }
-
             default:
                 return null;
         }
 
-        return { mirror, title, actions, items, switchChips, targetChip };
+        return desc ? { mirror, title, desc, actions, items, switchChips, targetChip } : { mirror, title, actions, items, switchChips, targetChip };
     }
 
     function defaultTitleFor(mirror) {
@@ -201,7 +144,7 @@
             hide(container);
             return;
         }
-        const sig = `${spec.mirror}:${spec.title}:${(spec.items || []).map(i => `${i.letter || i.key || ''}=${i.name || i.label || ''}:${i.cost !== undefined ? i.cost : ''}`).join('|')}:${(spec.actions || []).map(a => `${a.key || ''}=${a.label || ''}`).join('|')}:${(spec.switchChips || []).map(c => `${c.key || ''}=${c.label || ''}`).join('|')}`;
+        const sig = `${spec.mirror}:${spec.title}:${spec.desc || ''}:${(spec.items || []).map(i => `${i.letter || i.key || ''}=${i.name || i.label || ''}:${i.cost !== undefined ? i.cost : ''}:${i.info || ''}`).join('|')}:${(spec.actions || []).map(a => `${a.key || ''}=${a.label || ''}`).join('|')}:${(spec.switchChips || []).map(c => `${c.key || ''}=${c.label || ''}`).join('|')}`;
         if (sig === _lastSig) return;
         _lastSig = sig;
         const wasAlreadyOpen = !container.hidden && !container.classList.contains('hidden') && container.childNodes.length > 0;
@@ -224,9 +167,17 @@
         header.appendChild(crtBtn);
         container.appendChild(header);
 
+        if (spec.desc) {
+            const descEl = document.createElement('div');
+            descEl.className = 'prompt-mirror-desc';
+            descEl.textContent = spec.desc;
+            container.appendChild(descEl);
+        }
+
         if (spec.mirror === 'string') {
             const inp = document.createElement('input');
-            inp.type = 'text'; inp.className = 'prompt-mirror-input'; inp.placeholder = 'Type inscription & press Enter…';
+            inp.type = 'text'; inp.className = 'prompt-mirror-input';
+            inp.placeholder = /engrave/i.test(spec.title) ? 'Type engraving or press Enter for default…' : 'Type inscription & press Enter…';
             inp.addEventListener('keydown', (ev) => {
                 ev.stopPropagation();
                 const fn = _activeSendKey || (window.__app && window.__app.network && window.__app.network.sendKey.bind(window.__app.network));
@@ -275,6 +226,12 @@
                 nameEl.textContent = item.name;
                 row.appendChild(nameEl);
 
+                if (item.level !== undefined && item.level !== null) {
+                    const lvlEl = document.createElement('span');
+                    lvlEl.className = 'prompt-mirror-item-lvl';
+                    lvlEl.textContent = `L${item.level}`;
+                    row.appendChild(lvlEl);
+                }
                 if (item.cost !== undefined) {
                     const costEl = document.createElement('span');
                     costEl.className = 'prompt-mirror-item-cost';
@@ -291,6 +248,12 @@
                         failEl.textContent = `${failNum}%`;
                         row.appendChild(failEl);
                     }
+                }
+                if (item.info) {
+                    const infoEl = document.createElement('span');
+                    infoEl.className = 'prompt-mirror-item-info';
+                    infoEl.textContent = item.info;
+                    row.appendChild(infoEl);
                 }
 
                 listEl.appendChild(row);

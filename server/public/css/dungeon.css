@@ -7378,10 +7378,13 @@ to { opacity: 1; transform: translateY(0) scale(1); }
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
-    flex-shrink: 1;
+    font-size: 11px;
+    letter-spacing: 0.01em;
+    flex: 1 1 auto;
     font-variant-numeric: tabular-nums;
 }
-#val-depth { flex-shrink: 0; }
+#val-depth { flex: 0 1 auto; max-width: 88px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; }
+#hud-feeling-pill { flex: 0 1 auto; max-width: 74px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; padding: 1px 4px; }
 
 .minimap-header { flex-wrap: nowrap; gap: 4px; }
 
@@ -7935,7 +7938,7 @@ body.grimoire-primary-open .streetview-nav-rosette { display:none!important; }
 #char-panel #stats-strip {
     display:grid;
     grid-template-columns:repeat(6, 1fr);
-    gap:3px;
+    gap:2px;
     padding:4px 0 0 0;
     border-top:1px solid rgba(198, 152, 74, 0.32);
 }
@@ -7946,6 +7949,7 @@ body.grimoire-primary-open .streetview-nav-rosette { display:none!important; }
     border-radius:4px;
     padding:2px 1px;
     min-width:0;
+    overflow:hidden;
     display: flex;
     flex-direction:column;
     align-items:center;
@@ -7960,16 +7964,22 @@ body.grimoire-primary-open .streetview-nav-rosette { display:none!important; }
     font-family:'Cinzel', serif;
     font-size:0.6875rem;
     color:#b89c68;
-    letter-spacing:0.05em;
+    letter-spacing:0.04em;
     line-height:1;
+    white-space:nowrap;
 }
 
 #char-panel #stats-strip .stat-value {
     font-variant-numeric:tabular-nums;
     font-size:11px;
     font-weight:700;
+    letter-spacing:-0.04em;
     color:#f5eedc;
     line-height:1.2;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    max-width:100%;
 }
 
 #char-panel #stats-strip .stat-divider { display:none; }
@@ -7977,10 +7987,11 @@ body.grimoire-primary-open .streetview-nav-rosette { display:none!important; }
 #char-panel #stats-strip #stat-item-ac,
 #char-panel #stats-strip #stat-item-gold {
     grid-column:span 3;
-    flex-direction:row;
-    justify-content:space-between;
-    gap:8px;
-    padding:3px 8px;
+    flex-direction:column;
+    justify-content:center;
+    align-items:center;
+    gap:1px;
+    padding:2px 4px;
     background:linear-gradient(90deg, rgba(44, 31, 18, 0.92), rgba(20, 14, 9, 0.96));
     border-color:rgba(218, 172, 84, 0.52);
 }

@@ -175,7 +175,9 @@ test('WS5: resolveItemAtlasEntry never returns <pile> and dungeon3d uses frame-d
         ['a Pair of Leather Boots [2,+3]', ']'],
         ['an Iron Helm [5,+1]', ']'],
         ['a Small Metal Shield [3,+0]', ']'],
-        ['a Long Sword (2d5) (+4,+6)', ')']
+        ['a Long Sword (2d5) (+4,+6)', ')'],
+        ['staff of firebolt [4/4]', '\\'],
+        ['staff of tunneling [3/3]', '\\']
     ];
     for (const [itemName, glyph] of testCases) {
         const entry = resolver.resolveItemAtlasEntry(itemName, glyph);
@@ -184,6 +186,11 @@ test('WS5: resolveItemAtlasEntry never returns <pile> and dungeon3d uses frame-d
         const isPileUv = entry.uv[0] < 0.095 && entry.uv[1] > 0.968;
         assert(!isPileUv, `${itemName} (${glyph}) UV must NEVER point to <pile> or <unknown>`);
     }
+    const bookEntries = [atlasData.items['[Magic for Beginners]'], atlasData.items['[First Spells]']];
+    assert(!bookEntries.includes(resolver.resolveItemAtlasEntry('staff of firebolt [4/4]', '\\')), 'Brogue staff of firebolt [4/4] must NOT resolve to a spellbook');
+    assert(!bookEntries.includes(resolver.resolveItemAtlasEntry('a Pair of Leather Boots [2,+3]', ']')), 'Leather Boots [2,+3] must NOT resolve to a spellbook');
+    assert(!bookEntries.includes(resolver.resolveItemAtlasEntry('a Small Metal Shield [3,+0]', ']')), 'Small Metal Shield [3,+0] must NOT resolve to a spellbook');
+    assert(bookEntries.includes(resolver.resolveItemAtlasEntry('a Book of Magic [Magic-for-Beginners]', '?')), 'Actual spellbook must still resolve to a spellbook');
 });
 
 // 7. WS6 & WS7: Dark-Fantasy Realm Material Themes & Modern Web Guidance CSS

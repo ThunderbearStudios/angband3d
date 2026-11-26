@@ -70,12 +70,21 @@ function getOwnerCandidatePaths(savePath) {
     const out = [getOwnerTokenPath(resolved)];
     const dir = path.dirname(resolved);
     const base = path.basename(resolved);
-    if (/^\d+\./.test(base)) {
-        out.push(getOwnerTokenPath(path.join(dir, stripUnixUidPrefix(base))));
+    const siblings = [base];
+    if (/\.sav$/i.test(base)) {
+        siblings.push(base.replace(/\.sav$/i, ''));
     } else {
-        out.push(getOwnerTokenPath(path.join(dir, '0.' + base)));
+        siblings.push(base + '.sav');
     }
-    return out;
+    for (const s of siblings) {
+        out.push(getOwnerTokenPath(path.join(dir, s)));
+        if (/^\d+\./.test(s)) {
+            out.push(getOwnerTokenPath(path.join(dir, stripUnixUidPrefix(s))));
+        } else {
+            out.push(getOwnerTokenPath(path.join(dir, '0.' + s)));
+        }
+    }
+    return Array.from(new Set(out));
 }
 
 function parseOwnerTokens(requestToken) {

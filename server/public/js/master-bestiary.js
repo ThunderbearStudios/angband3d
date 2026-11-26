@@ -261,7 +261,8 @@
             { regex: /\b(dingo|coyote|jackal|fox)\b/i, config: { templateKey: 'bestiary_fox', scale: 0.88, taxonomy: 'Canine / Wild' } },
             { regex: /\b(winter wolf|winter wolf cub|warg|\bwolf\b)\b/i, config: { templateKey: 'bestiary_wolf', scale: 1.05, taxonomy: 'Canine / Wolf' } },
             { regex: /\b(hell hound pup|hell hound|cerberus)\b/i, config: { templateKey: 'bestiary_hellhound', scale: 1.15, emissiveHex: '#ff4500', taxonomy: 'Canine / Hellhound' } },
-            { regex: /\b(kitten|housecat)\b/i, config: { templateKey: 'bestiary_lion', scale: 0.46, taxonomy: 'Feline / Companion' } },
+            { regex: /\b(kitten)\b/i, config: { templateKey: 'bestiary_lion', scale: 0.34, taxonomy: 'Feline / Companion' } },
+            { regex: /\b(housecat)\b/i, config: { templateKey: 'bestiary_lion', scale: 0.42, taxonomy: 'Feline / Companion' } },
             { regex: /\b(large cat|jaguar|lynx|panther|tiger|leopard)\b/i, config: { templateKey: 'bestiary_lion', scale: 0.95, taxonomy: 'Feline / Big Cat' } },
             { regex: /\b(pony|horse|warhorse)\b/i, config: { templateKey: 'bestiary_horse', scale: 1.05, taxonomy: 'Equine / Steed' } },
             { regex: /\bunicorn\b/i, config: { templateKey: 'bestiary_horse', scale: 1.08, taxonomy: 'Equine / Unicorn' } },
@@ -747,10 +748,11 @@
 
         // 2. Felines (Cats, Panthers, Tigers, Lions, Sabre-tooths)
         if (/\b(cat|kitten|housecat|panther|tiger|lion|leopard|cougar|cheetah|lynx|jaguar|puma|smilodon|sabre-tooth|feline|manticore)\b/.test(lower)) {
-            const isSmall = /\b(kitten|housecat|wild cat|scrawny cat)\b/.test(lower);
+            const isKitten = /\bkitten\b/.test(lower);
+            const isSmall = isKitten || /\b(housecat|wild cat|scrawny cat)\b/.test(lower);
             const isLarge = /\b(sabre-tooth|smilodon|tiger|lion|manticore)\b/.test(lower);
             const catTint = /\b(black|panther)\b/.test(lower) ? '#1f2937' : (/\bwhite\b/.test(lower) ? '#f1f5f9' : (/\btiger\b/.test(lower) ? '#ea580c' : null));
-            return { templateKey: 'bestiary_lion', scale: isSmall ? 0.46 : (isLarge ? 1.18 : 0.95), tintHex: catTint, useAsciiTint: false, taxonomy: 'Feline' };
+            return { templateKey: 'bestiary_lion', scale: isKitten ? 0.34 : (isSmall ? 0.44 : (isLarge ? 1.18 : 0.95)), tintHex: catTint, useAsciiTint: false, taxonomy: 'Feline' };
         }
 
         // 3. Bears & Heavy Quadrupeds

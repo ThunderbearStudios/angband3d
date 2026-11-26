@@ -259,19 +259,63 @@
   margin:0 auto;
 }
 
+.prompt-mirror-header {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  width:100%;
+  border-bottom:1px solid var(--yasd-border-iron);
+  padding-bottom:6px;
+  margin-bottom:6px;
+}
+
 .prompt-mirror-title {
+  flex:1;
   color:var(--yasd-text-heading);
   font-size:0.88rem;
   font-weight:700;
   letter-spacing:0.04em;
   text-transform:uppercase;
-  border-bottom:1px solid var(--yasd-border-iron);
-  padding-bottom:4px;
-  margin-bottom:6px;
+  text-align:left;
+}
+
+.prompt-mirror-crt-btn {
+  flex-shrink:0;
+  background:var(--yasd-slate-card);
+  border:1px solid var(--yasd-border-iron);
+  border-radius:4px;
+  color:var(--yasd-text-prose);
+  font-size:11px;
+  font-weight:600;
+  padding:3px 8px;
+  cursor:pointer;
+}
+
+.prompt-mirror-desc {
+  width:100%;
+  color:var(--yasd-text-prose);
+  font-size:11px;
+  line-height:1.35;
+  padding:2px 4px 6px 4px;
+  opacity:0.88;
+  text-align:left;
+}
+
+.prompt-mirror-item-lvl,
+.prompt-mirror-item-info {
+  font-size:11px;
+  color:var(--yasd-text-prose);
+  opacity:0.82;
+  white-space:nowrap;
+  flex-shrink:0;
 }
 
 .prompt-mirror-chips {
   display:flex;
+  flex-shrink:0;
+  align-items:center;
+  min-height:30px;
   gap:6px;
   overflow-x:auto;
   padding:2px 0 6px 0;
@@ -344,6 +388,7 @@
 
 .prompt-mirror-actions {
   display:flex;
+  flex-shrink:0;
   flex-wrap:wrap;
   gap:6px;
   justify-content:center;
@@ -352,6 +397,9 @@
 
 .prompt-mirror-action-btn,
 .prompt-soft-key {
+  display:inline-flex;
+  align-items:center;
+  gap:5px;
   background:var(--yasd-slate-card);
   border:1px solid var(--yasd-border-control);
   border-radius:5px;
@@ -1365,18 +1413,19 @@ body:has(#command-palette-modal:not(.hidden)) #global-audio-bar {
 }
 
 #char-panel .char-panel-header {
-  display:grid;
-  grid-template-columns:auto minmax(0, 1fr) auto;
+  display:flex;
   align-items:center;
+  justify-content:space-between;
   gap:6px;
   padding:3px 5px;
   width:100%;
   box-sizing:border-box;
+  overflow:hidden;
 }
 
 #char-panel .char-header-main {
   min-width:0;
-  width:100%;
+  flex:1 1 0;
   overflow:hidden;
   display:flex;
   flex-direction:column;

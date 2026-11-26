@@ -138,8 +138,8 @@ function run() {
     );
     const d3dJs = readRel('server/public/js/dungeon3d.js');
     assert(
-        d3dJs.includes('_toRotOnlyClips(') && /\\\.quaternion/.test(d3dJs),
-        'dungeon3d.js must strip position tracks from shared Mixamo clips via _toRotOnlyClips'
+        !d3dJs.includes('_attachSharedMixamoClipsToLiveHumanoids'),
+        'dungeon3d.js must NOT cross-apply guard.glb Mixamo clips onto static upright villager rigs'
     );
     console.log('  [PASS] Wave 3B CSS architecture & Chrome oracle regression checks passed!');
 }

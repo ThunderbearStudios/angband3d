@@ -183,7 +183,12 @@ dialog.yasd-modal-dialog,
     }
 
     #app-container #message-feed-scroll {
-        padding-bottom: 18px;
+        padding: 6px 10px 8px;
+        scroll-behavior: auto;
+    }
+
+    #app-container #message-feed-list {
+        padding-bottom: 10px;
     }
 
     /* Non-Overlapping Notification Toasts Clear of #reticle-target-card & #minimap */
@@ -208,6 +213,9 @@ dialog.yasd-modal-dialog,
 
     #ftue-coachmark-pill.ftue-coachmark-pill {
         top:calc(108px + var(--safe-top, 0px));
+    }
+    body:has(#terminal-container:not(.hidden)) #ftue-coachmark-pill {
+        display: none !important;
     }
 }
 

@@ -648,7 +648,7 @@
             }
             steps.push({ send: 'enter', expect: (model, fr) => model.isIdle || (fr.ui && fr.ui.more), desc: 'drop-confirm-qty' });
         }
-        if (intent.dir || (intent.target && !['quaff', 'eat', 'read', 'wield', 'takeoff', 'drop', 'ignore', 'examine', 'inscribe', 'uninscribe', 'refill', 'browse', 'study'].includes(vLower))) {
+        if (intent.dir || (intent.target && !['quaff', 'eat', 'read', 'wield', 'takeoff', 'drop', 'ignore', 'examine', 'inscribe', 'uninscribe', 'refill', 'browse', 'study', 'look', 'target', 'pickup'].includes(vLower))) {
             const targetKey = intent.dir || resolveTargetKey(r, intent.target);
             steps.push({ send: targetKey, expect: (model, fr) => model.isIdle || (fr.ui && fr.ui.more), desc: `target:${targetKey}` });
         }

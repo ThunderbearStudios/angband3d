@@ -920,7 +920,7 @@
             if (!tape) {
                 tape = document.createElement('div');
                 tape.id = 'yasd-compass-tape';
-                tape.style.cssText = 'position:absolute;top:10px;left:50%;transform:translateX(-50%);width:min(340px,44vw);height:26px;background:rgba(14,17,24,0.90);border:1px solid rgba(148,163,184,0.34);border-radius:13px;pointer-events:none;z-index:95;overflow:hidden;font-family:"Fira Code",monospace;box-shadow:0 2px 10px rgba(0,0,0,0.45);';
+                tape.style.cssText = 'position:absolute;top:54px;left:50%;transform:translateX(-50%);width:min(340px,44vw);height:26px;background:rgba(14,17,24,0.90);border:1px solid rgba(148,163,184,0.34);border-radius:13px;pointer-events:none;z-index:95;overflow:hidden;font-family:"Fira Code",monospace;box-shadow:0 2px 10px rgba(0,0,0,0.45);';
                 const parent = (d3d.renderer && d3d.renderer.domElement && d3d.renderer.domElement.parentElement) || document.body;
                 parent.appendChild(tape);
             }
@@ -1022,9 +1022,9 @@
             const px = (frame && frame.player && frame.player.x !== undefined) ? frame.player.x : (d3d.playerGridX || 0);
             const py = (frame && frame.player && frame.player.y !== undefined) ? frame.player.y : (d3d.playerGridY || 0);
 
-            // Camera heading and view frustum
+            // Camera heading and view frustum (North -Z = 0, East +X = +PI/2, consistent with updateCompassTape)
             camera.getWorldDirection(_scratchVecCam);
-            const camAngle = Math.atan2(_scratchVecCam.x, _scratchVecCam.z);
+            const camAngle = Math.atan2(_scratchVecCam.x, -_scratchVecCam.z);
 
             const threats = [];
             let flankSigParts = [];
@@ -1038,7 +1038,7 @@
                 const distSq = mdx * mdx + mdy * mdy;
                 if (distSq > 144 || (mdx === 0 && mdy === 0)) continue; // within 12 tiles
 
-                const mAngle = Math.atan2(mdx, mdy);
+                const mAngle = Math.atan2(mdx, -mdy);
                 let relAngle = mAngle - camAngle;
                 while (relAngle > Math.PI) relAngle -= Math.PI * 2;
                 while (relAngle < -Math.PI) relAngle += Math.PI * 2;
@@ -1457,12 +1457,9 @@
             return { weaponItem, bowItem, shieldItem, lightItem };
         },
 
-        resolveOffhandLightKey(lightItem) {
-            const lower = String(lightItem || '').toLowerCase().trim();
-            if (!lower || /^(none|nothing|\(nothing\)|\(none\)|empty|なし)$/i.test(lower)) return '';
-            if (/\b(lantern|lamp|phial|star|palantir|arkenstone|elendil|galadriel)\b/i.test(lower)) return 'lantern';
-            if (/\btorch\b/i.test(lower)) return 'torch';
-            return 'lantern';
+        resolveOffhandLightKey() {
+            // Torches/lanterns never render in the player's left hand viewmodel (world torchLight illuminates from light_item instead).
+            return '';
         },
 
         resolveRightKey(d3d, weaponItem, bowItem, player) {
@@ -1608,20 +1605,43 @@
             const bldgE = d3d.isSolidWall(featE) || d3d.isStoreKind(featE) || x >= w - 1;
             const streetN = !bldgN, streetS = !bldgS, streetW = !bldgW, streetE = !bldgE;
 
+            const openClearance = (dx, dy) => {
+                let score = 0;
+                for (let s = 1; s <= 5; s++) {
+                    const tx = x + dx * s, ty = y + dy * s;
+                    if (tx <= 0 || tx >= w - 1 || ty <= 0 || ty >= h - 1) break;
+                    const f = d3d.getFeatAt(map, tx, ty);
+                    if (d3d.isSolidWall(f) || isShopFeat(f)) break;
+                    score += 4;
+                    for (let lat = -2; lat <= 2; lat++) {
+                        if (lat === 0) continue;
+                        const lx = tx - dy * lat, ly = ty + dx * lat;
+                        if (lx <= 0 || lx >= w - 1 || ly <= 0 || ly >= h - 1) continue;
+                        const lf = d3d.getFeatAt(map, lx, ly);
+                        if (!d3d.isSolidWall(lf) && !isShopFeat(lf)) score += 1;
+                    }
+                }
+                return score;
+            };
+
             const shopEW = (isShopFeat(curFeat) && (featW === curFeat || featE === curFeat)) || ((isShopFeat(featW) || isShopFeat(featE)) && !(isShopFeat(featN) || isShopFeat(featS)));
             const shopNS = (isShopFeat(curFeat) && (featN === curFeat || featS === curFeat)) || ((isShopFeat(featN) || isShopFeat(featS)) && !(isShopFeat(featW) || isShopFeat(featE)));
             if (shopEW && !shopNS) {
+                if (streetN && streetS) return openClearance(0, 1) >= openClearance(0, -1) ? 0 : Math.PI;
                 if (bldgN && streetS) return 0;
                 if (bldgS && streetN) return Math.PI;
                 if (streetS) return 0;
                 if (streetN) return Math.PI;
             }
             if (shopNS && !shopEW) {
+                if (streetE && streetW) return openClearance(1, 0) >= openClearance(-1, 0) ? Math.PI / 2 : -Math.PI / 2;
                 if (bldgW && streetE) return Math.PI / 2;
                 if (bldgE && streetW) return -Math.PI / 2;
                 if (streetE) return Math.PI / 2;
                 if (streetW) return -Math.PI / 2;
             }
+            if (bldgN && bldgS && streetE && streetW) return openClearance(1, 0) >= openClearance(-1, 0) ? Math.PI / 2 : -Math.PI / 2;
+            if (bldgW && bldgE && streetN && streetS) return openClearance(0, 1) >= openClearance(0, -1) ? 0 : Math.PI;
             if (bldgN && streetS && bldgW && bldgE) return 0;
             if (bldgS && streetN && bldgW && bldgE) return Math.PI;
             if (bldgW && streetE && bldgN && bldgS) return Math.PI / 2;
@@ -1976,7 +1996,7 @@
                 if (nx < 0 || nx >= w || ny < 0 || ny >= h) continue;
                 if (this.isSolidWallJoin(d3d, map, w, h, nx, ny, false)) continue;
                 const { feat: nFeat } = this._getEffectiveFeatAndGlyph(d3d, map, w, h, nx, ny, false);
-                if (!d3d.isWalkableOrPortal(nFeat)) continue;
+                if (nFeat === 2 || nFeat === 3 || !d3d.isWalkableOrPortal(nFeat)) continue;
 
                 const spanW = Math.max(1.20, 2.01 - c.bL - c.bR);
                 const lateral = (c.bL - c.bR) * 0.5;
@@ -2010,6 +2030,7 @@
 
         emitUnexploredFrontierPortals(d3d, map, w, h, x, y, cH, floorShade, setCol, counts) {
             if (!d3d || !d3d.darkPortalMesh || !counts || counts.portal >= 1024) return;
+            if (d3d.getFeatAt(map, x, y) === 2) return;
             const cs = d3d.cellSize || 2.0;
             const dirs = [
                 { dx: 0, dy: -1, yaw: 0 },

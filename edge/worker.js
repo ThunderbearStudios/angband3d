@@ -275,6 +275,8 @@ export default {
           "Content-Type": "application/json; charset=utf-8",
           "Cache-Control": "public, max-age=300, s-maxage=300, stale-while-revalidate=600",
           "Vary": "Origin",
+          "X-Edge-Cache": "HIT-ISOLATE",
+          "X-YASD-Origin": originInfo.originMode === "ovh" ? "primary-ovh" : "cloudrun",
           "Content-Security-Policy": CLEAN_CSP,
           "Permissions-Policy": PERMISSIONS_POLICY,
           "Cross-Origin-Opener-Policy": "same-origin",
@@ -304,7 +306,7 @@ export default {
         redirect: "manual",
       };
       if (isCacheableStatic) {
-        const ttl = url.searchParams.has("v") ? 31536000 : 86400;
+        const ttl = url.searchParams.has("v") ? 31536000 : (isWasmOrAssets ? 604800 : 86400);
         fetchOpts.cf = { cacheEverything: true, cacheTtlByStatus: { "200-299": ttl, "404": 30, "500-599": 0 } };
       } else if (isCacheableRealmsReq) {
         fetchOpts.method = "GET";
@@ -356,7 +358,7 @@ export default {
       } else if (url.searchParams.has("v")) {
         outHeaders.set("Cache-Control", "public, max-age=31536000, immutable");
       } else if (isWasmOrAssets) {
-        outHeaders.set("Cache-Control", "public, max-age=86400");
+        outHeaders.set("Cache-Control", "public, max-age=604800, stale-while-revalidate=86400");
       } else {
         outHeaders.set("Cache-Control", "public, max-age=3600");
       }

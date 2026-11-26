@@ -243,84 +243,79 @@ Dungeon3DProto._loadPolyHavenEnvironmentModels = function _loadPolyHavenEnvironm
         geo.attributes.color.needsUpdate = true;
     };
 
-    // 1. Rock 07 Photogrammetry Granite Crags -> Both Mountain Peaks AND Multi-Slab Collapsed Rubble Talus
+    // 1. Rock 07 Photogrammetry Granite Materials + Lightweight Sculpted Mountain & Rubble Meshes (0 multi-thousand-tri instanced bloat)
     addGltfTask('/assets/polyhaven/models/rock_07/rock_07.gltf', (gltf) => {
         const scene = gltf.scene || (gltf.scenes && gltf.scenes[0]);
         if (!scene) return;
-        const parts = [];
         let diff = null, nor = null;
         scene.traverse((c) => {
-            if (c.isMesh && c.geometry) {
-                c.updateMatrixWorld(true);
+            if (c.isMesh) {
                 if (c.material) {
                     if (!diff && c.material.map) diff = c.material.map;
                     if (!nor && c.material.normalMap) nor = c.material.normalMap;
                 }
-                const g = c.geometry.clone();
-                g.applyMatrix4(c.matrixWorld);
-                if (typeof c.geometry.dispose === 'function') c.geometry.dispose();
-                if (g.attributes.color) g.deleteAttribute('color');
-                const colArr = new Float32Array(g.attributes.position.count * 3);
-                colArr.fill(1.0);
-                g.setAttribute('color', new THREE.BufferAttribute(colArr, 3));
-                parts.push(g);
+                if (c.geometry && typeof c.geometry.dispose === 'function') c.geometry.dispose();
             }
         });
-        if (parts.length > 0) {
-            const baseGeo = this._mergeBufferGeometries(parts);
-            for (const p of parts) { if (p && typeof p.dispose === 'function') p.dispose(); }
-            baseGeo.computeBoundingBox();
-            const bbox = baseGeo.boundingBox;
-            const cx = (bbox.min.x + bbox.max.x) * 0.5;
-            const cz = (bbox.min.z + bbox.max.z) * 0.5;
-            const spanXZ = Math.max(bbox.max.x - bbox.min.x, bbox.max.z - bbox.min.z) || 1.0;
-            const spanY = (bbox.max.y - bbox.min.y) || 1.0;
 
-            // 1a. Multi-slab jagged collapsed masonry rubble talus (feat 16 ':')
-            const slabSpecs = [
-                { s: [1.05 / spanXZ, 0.96 / spanY, 0.92 / spanXZ], rot: [0.34, 0.42, 0.18], off: [-0.14, 0.0, 0.08] },
-                { s: [0.82 / spanXZ, 0.72 / spanY, 0.78 / spanXZ], rot: [-0.28, -0.75, 0.25], off: [0.32, -0.02, -0.22] },
-                { s: [0.74 / spanXZ, 0.58 / spanY, 0.68 / spanXZ], rot: [0.18, 1.45, -0.32], off: [-0.36, -0.03, -0.26] }
-            ];
-            const rubbleSlabs = slabSpecs.map(sp => {
-                const sg = baseGeo.clone();
-                sg.translate(-cx, -bbox.min.y, -cz);
-                sg.scale(sp.s[0], sp.s[1], sp.s[2]);
-                sg.rotateX(sp.rot[0]); sg.rotateY(sp.rot[1]); sg.rotateZ(sp.rot[2]);
-                sg.computeBoundingBox();
-                sg.translate(sp.off[0], -sg.boundingBox.min.y + sp.off[1], sp.off[2]);
-                return sg;
-            });
-            const rubbleGeo = this._mergeBufferGeometries(rubbleSlabs);
-            for (const sg of rubbleSlabs) sg.dispose();
-            applyRockAo(rubbleGeo, 1.15);
-            rubbleGeo.computeVertexNormals();
-            if (this.rubbleMesh && this.rubbleMesh.geometry) this.rubbleMesh.geometry.dispose();
-            if (this.rubbleMesh) this.rubbleMesh.geometry = rubbleGeo;
-            if (this.rubbleMaterial && (diff || nor)) {
-                if (diff) { if (window.Dungeon3DCompat) window.Dungeon3DCompat.setTextureColorSpace(diff, true); else diff.encoding = THREE.sRGBEncoding; diff._sharedTexture = true; this.rubbleMaterial.map = diff; }
-                if (nor) { nor._sharedTexture = true; this.rubbleMaterial.normalMap = nor; }
-                this.rubbleMaterial.needsUpdate = true;
-                this._hasPolyHavenRubbleTex = true;
+        const mkCrag = (rx, ry, rz, ox, oy, oz, rotY, radialSegs, heightSegs, seed) => {
+            const g = new THREE.CylinderGeometry(rx * 0.14, rx, ry, radialSegs, heightSegs);
+            g.translate(0, ry * 0.5, 0);
+            const p = g.attributes.position;
+            const col = new Float32Array(p.count * 3);
+            for (let i = 0; i < p.count; i++) {
+                const vx = p.getX(i), vy = p.getY(i), vz = p.getZ(i);
+                const t = Math.max(0, Math.min(1, vy / ry));
+                const ang = Math.atan2(vz, vx);
+                const jag = 0.78 + 0.28 * Math.sin(ang * 3.0 + seed) * Math.cos(t * Math.PI * 1.5 + seed * 0.5);
+                const pinch = (rz / Math.max(0.01, rx));
+                const sx = vx * jag, sy = vy * (0.94 + 0.10 * Math.cos(ang * 2.0 + t * 4.0 + seed)), sz = vz * jag * pinch;
+                const ca = Math.cos(rotY), sa = Math.sin(rotY);
+                p.setXYZ(i, sx * ca - sz * sa + ox, sy + oy, sx * sa + sz * ca + oz);
+                const ao = 0.36 + 0.58 * Math.pow(t, 0.7);
+                col[i * 3] = ao * 0.94; col[i * 3 + 1] = ao * 0.95; col[i * 3 + 2] = ao;
             }
+            g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+            return g;
+        };
 
-            // 1b. Alpine Mountain Peaks (feat 30)
-            const mountainGeo = baseGeo;
-            mountainGeo.translate(-cx, -bbox.min.y, -cz);
-            mountainGeo.scale(2.15 / spanXZ, 3.80 / spanY, 2.15 / spanXZ);
-            applyRockAo(mountainGeo, 3.80);
-            mountainGeo.computeVertexNormals();
-
-            if (this.mountainMesh && this.mountainMesh.geometry) this.mountainMesh.geometry.dispose();
-            if (this.mountainMesh) this.mountainMesh.geometry = mountainGeo;
-            if (this.mountainMaterial && (diff || nor)) {
-                if (diff) { if (window.Dungeon3DCompat) window.Dungeon3DCompat.setTextureColorSpace(diff, true); else diff.encoding = THREE.sRGBEncoding; diff._sharedTexture = true; this.mountainMaterial.map = diff; }
-                if (nor) { nor._sharedTexture = true; this.mountainMaterial.normalMap = nor; }
-                this.mountainMaterial.needsUpdate = true;
-                this._hasPolyHavenMountainTex = true;
-            }
-            this._lastTerrainSig = null;
+        // 1a. Lightweight 3-boulder collapsed masonry rubble talus (~144 tris)
+        const rParts = [
+            mkCrag(0.46, 0.62, 0.40, -0.16, 0.0, 0.10, 0.4, 6, 2, 1.3),
+            mkCrag(0.36, 0.44, 0.34, 0.30, 0.0, -0.20, -0.7, 6, 2, 3.7),
+            mkCrag(0.34, 0.38, 0.30, -0.34, 0.0, -0.26, 1.4, 6, 2, 5.1)
+        ];
+        const rubbleGeo = this._mergeBufferGeometries(rParts);
+        for (const sg of rParts) sg.dispose();
+        rubbleGeo.computeVertexNormals();
+        if (this.rubbleMesh && this.rubbleMesh.geometry) this.rubbleMesh.geometry.dispose();
+        if (this.rubbleMesh) this.rubbleMesh.geometry = rubbleGeo;
+        if (this.rubbleMaterial && (diff || nor)) {
+            if (diff) { if (window.Dungeon3DCompat) window.Dungeon3DCompat.setTextureColorSpace(diff, true); else diff.encoding = THREE.sRGBEncoding; diff._sharedTexture = true; this.rubbleMaterial.map = diff; }
+            if (nor) { nor._sharedTexture = true; this.rubbleMaterial.normalMap = nor; }
+            this.rubbleMaterial.needsUpdate = true;
+            this._hasPolyHavenRubbleTex = true;
         }
+
+        // 1b. Sculpted Alpine Mountain Peaks (~128 tris/instance -> <80k total tris in Hengband Town)
+        const mParts = [
+            mkCrag(1.06, 3.85, 0.98, 0.0, 0.0, 0.0, 0.25, 7, 3, 2.1),
+            mkCrag(0.68, 2.35, 0.64, -0.44, 0.0, 0.36, -0.6, 5, 2, 4.9)
+        ];
+        const mountainGeo = this._mergeBufferGeometries(mParts);
+        for (const mg of mParts) mg.dispose();
+        applyRockAo(mountainGeo, 3.85);
+        mountainGeo.computeVertexNormals();
+
+        if (this.mountainMesh && this.mountainMesh.geometry) this.mountainMesh.geometry.dispose();
+        if (this.mountainMesh) this.mountainMesh.geometry = mountainGeo;
+        if (this.mountainMaterial && (diff || nor)) {
+            if (diff) { if (window.Dungeon3DCompat) window.Dungeon3DCompat.setTextureColorSpace(diff, true); else diff.encoding = THREE.sRGBEncoding; diff._sharedTexture = true; this.mountainMaterial.map = diff; }
+            if (nor) { nor._sharedTexture = true; this.mountainMaterial.normalMap = nor; }
+            this.mountainMaterial.needsUpdate = true;
+            this._hasPolyHavenMountainTex = true;
+        }
+        this._lastTerrainSig = null;
     });
 
     const curEnvRealm = String(this.realm || '').toLowerCase();
@@ -628,16 +623,17 @@ Dungeon3DProto._updateHoverAffordance = function _updateHoverAffordance(clientX,
     const feat = (!mon && !item && tileHit) ? this.describeMapFeature(frame, tileHit.x, tileHit.y) : null;
     let cue = null;
     if (inputMgr?.isDirectionalTargeting?.() && (mon || tileHit)) {
-        cue = { cur: 'crosshair', name: mon ? (mon.name || 'Target') : (feat ? feat.name : 'Aim Tile'), lmb: 'LMB Fire / Confirm', rmb: 'RMB Cancel' };
+        cue = { cur: 'crosshair', name: mon ? (mon.name || mon.race || 'Target') : (feat ? feat.name : 'Aim Tile'), lmb: 'LMB Fire / Confirm', rmb: 'RMB Cancel' };
     } else if (mon) {
         const hostile = inputMgr?.isHostileMonster ? inputMgr.isHostileMonster(mon, frame) : true;
         const dist = Math.max(Math.abs((mon.x ?? px) - px), Math.abs((mon.y ?? py) - py));
-        const mName = (typeof window !== 'undefined' && this.realm === 'hengband' && window.getLocalizedMonsterName) ? window.getLocalizedMonsterName(mon.name || 'Creature', 'hengband', window.__langMode || 'en') : (mon.name || 'Creature');
+        const rawMonName = mon.name || mon.race || 'Creature';
+        const mName = (typeof window !== 'undefined' && this.realm === 'hengband' && window.getLocalizedMonsterName) ? window.getLocalizedMonsterName(rawMonName, 'hengband', window.__langMode || 'en') : rawMonName;
         cue = hostile
             ? { cur: 'crosshair', name: dist > 1 ? `${mName} (${dist}sq)` : mName, lmb: dist <= 1 ? 'LMB Attack' : 'LMB Move', rmb: 'RMB Actions' }
             : { cur: 'pointer', name: mName, lmb: dist <= 2 ? 'LMB Talk' : 'LMB Approach', rmb: 'RMB Actions' };
     } else if (item) {
-        cue = { cur: 'pointer', name: item.name || item.dname || 'Item', lmb: (item.x === px && item.y === py) ? 'LMB Pick Up' : 'LMB Walk', rmb: 'RMB Inspect' };
+        cue = { cur: 'pointer', name: item.name || item.dname || 'Item', lmb: ((item.x === px && item.y === py) || inputMgr?.autoPickupOnClick !== false) ? 'LMB Pick Up' : 'LMB Walk', rmb: 'RMB Inspect' };
     } else if (feat) {
         const lmb = feat.type === 'store' ? 'LMB Enter' : (feat.type === 'door' ? 'LMB Open' : (feat.type === 'stair' && feat.x === px && feat.y === py ? (feat.dir === '>' ? 'LMB Descend' : 'LMB Ascend') : 'LMB Walk'));
         cue = { cur: 'pointer', name: feat.name, lmb, rmb: 'RMB Actions' };
@@ -677,12 +673,14 @@ Dungeon3DProto.createVaultStonePillarGeometry = function createVaultStonePillarG
 };
 
 Dungeon3DProto._buildThresholdAndStorefrontGeos = function _buildThresholdAndStorefrontGeos(createMergedBoxGeometry) {
-    // Disjoint Storefront Stone Masonry (threshold, display plinths at x=±0.74, yTop=0.45, z=0.56, and interior back wall)
+    // Disjoint Storefront Stone Masonry (threshold, display plinths at x=±0.74, yTop=0.45, z=0.56, enclosed side/rear piers)
     const shopStoneGeo = createMergedBoxGeometry([
         { pos: [0, 0.05, 0.46], size: [1.04, 0.12, 0.96], color: [0.76, 0.72, 0.66] },
         { pos: [-0.74, 0.225, 0.56], size: [0.42, 0.45, 0.44], color: [0.72, 0.68, 0.62] },
         { pos: [0.74, 0.225, 0.56], size: [0.42, 0.45, 0.44], color: [0.72, 0.68, 0.62] },
-        { pos: [0, 1.14, -0.52], size: [1.35, 2.28, 0.88], color: [0.64, 0.60, 0.55] }
+        { pos: [-0.90, 1.14, -0.35], size: [0.20, 2.28, 1.28], color: [0.64, 0.60, 0.55] },
+        { pos: [0.90, 1.14, -0.35], size: [0.20, 2.28, 1.28], color: [0.64, 0.60, 0.55] },
+        { pos: [0, 1.14, -0.52], size: [1.98, 2.28, 0.92], color: [0.64, 0.60, 0.55] }
     ]);
     // Open-vestibule stone variant when player/camera occupies shop threshold (back wall recessed to z=-0.95m)
     const shopStoneOccupiedGeo = createMergedBoxGeometry([
@@ -721,15 +719,14 @@ Dungeon3DProto._buildThresholdAndStorefrontGeos = function _buildThresholdAndSto
         { pos: [0, 0.55, 0.06], size: [1.36, 0.11, 0.13], uvRect: [0.08, 0.175, 0.92, 0.22] },
         { pos: [0.45, 1.10, 0.11], size: [0.10, 0.16, 0.05], uvRect: [0.18, 0.175, 0.30, 0.22] }
     ]);
-    // Town horizontal bands (no interior mid-wall vertical post doubling) + standalone true-corner post
+    // Town horizontal bands proud of 2.00m wall face + continuous full-height corner post (zero floating gap)
     const townTimberGeo = createMergedBoxGeometry([
-        { pos: [0, 0.125, 0], size: [1.992, 0.24, 1.992], color: [0.44, 0.42, 0.40] },
-        { pos: [0, 1.580, 0], size: [1.992, 0.14, 1.992], color: [0.28, 0.26, 0.25] },
-        { pos: [0, 2.950, 0], size: [1.996, 0.18, 1.996], color: [0.26, 0.25, 0.24] }
+        { pos: [0, 0.125, 0], size: [2.024, 0.24, 2.024], color: [0.46, 0.44, 0.42] },
+        { pos: [0, 1.580, 0], size: [2.024, 0.14, 2.024], color: [0.34, 0.31, 0.28] },
+        { pos: [0, 2.950, 0], size: [2.032, 0.18, 2.032], color: [0.32, 0.29, 0.27] }
     ]);
     const townCornerPostGeo = createMergedBoxGeometry([
-        { pos: [0, 0.8775, 0], size: [0.17, 1.259, 0.17], color: [0.25, 0.24, 0.23] },
-        { pos: [0, 2.255, 0], size: [0.17, 1.204, 0.17], color: [0.25, 0.24, 0.23] }
+        { pos: [0, 1.50, 0], size: [0.18, 3.00, 0.18], color: [0.32, 0.29, 0.27] }
     ]);
     // Occupied Up-Stair cutaway (low carved stairwell perimeter curb/plinth y <= 0.22m; ceiling shaft collar emitted at y >= tileCeilH)
     const stairsUpOccupiedGeo = createMergedBoxGeometry([
@@ -777,7 +774,6 @@ Dungeon3DProto._mountStorefrontClusterProps = function _mountStorefrontClusterPr
                 clone.traverse((c) => {
                     if (c.isMesh && c.material && !Array.isArray(c.material)) {
                         const mClone = c.material.clone();
-                        this._applyUvSeamBleedFix(mClone);
                         if (mClone.emissive) {
                             mClone.emissiveMap = mClone.map || null;
                             mClone.emissive.setHex(0xff9d2e);

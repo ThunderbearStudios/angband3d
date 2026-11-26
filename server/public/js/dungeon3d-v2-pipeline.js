@@ -403,7 +403,7 @@ float yasdLavaVoronoi(vec2 x) {
     float yasdCrack = 1.0 - smoothstep(0.03, 0.24, yasdEdge);
     float yasdPulse = 0.85 + 0.15 * sin(uYasdLiquidTime * 2.6 + vYasdLavaWorldPos.x * 1.3);
     totalEmissiveRadiance *= (0.45 + 0.55 * yasdCrack);
-    totalEmissiveRadiance += vec3(1.85, 0.46, 0.04) * (yasdCrack * 1.45 * yasdPulse);
+    totalEmissiveRadiance += vec3(1.15, 0.30, 0.04) * (yasdCrack * 0.90 * yasdPulse);
 }`
             );
         };
